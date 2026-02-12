@@ -1,0 +1,75 @@
+/* ============================================
+   CRT / Phosphor Glow Effects
+   ============================================ */
+
+.crt-glow {
+  filter: drop-shadow(0 0 2px #33FF33) drop-shadow(0 0 6px #33FF3366);
+}
+
+.crt-text {
+  color: #33FF33;
+  text-shadow:
+    0 0 4px #33FF3388,
+    0 0 8px #33FF3344;
+}
+
+.crt-amber {
+  color: #FFB000;
+  text-shadow:
+    0 0 4px #FFB00088,
+    0 0 8px #FFB00044;
+}
+
+/* Scanline overlay effect */
+.crt-scanlines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 1px,
+    rgba(0, 0, 0, 0.15) 1px,
+    rgba(0, 0, 0, 0.15) 2px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* CRT screen curvature (subtle) */
+.crt-screen {
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.crt-screen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 60%,
+    rgba(0, 0, 0, 0.3) 100%
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Phosphor green background for oscilloscope */
+.crt-bg {
+  background: #080C16;
+  box-shadow:
+    inset 0 0 30px rgba(51, 255, 51, 0.03),
+    inset 0 0 60px rgba(51, 255, 51, 0.02);
+}
+
+/* Flicker animation */
+@keyframes crt-flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.98; }
+}
+
+.crt-flicker {
+  animation: crt-flicker 0.1s infinite;
+}

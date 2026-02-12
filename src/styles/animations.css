@@ -1,0 +1,122 @@
+/* ============================================
+   Spring-like Transitions & Animations
+   ============================================ */
+
+/* Spring easing approximation (underdamped) */
+:root {
+  --spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --spring-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --spring-snappy: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+/* Window open animation */
+@keyframes window-open {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-window-open {
+  animation: window-open 0.25s var(--spring-snappy) forwards;
+}
+
+/* Window close animation */
+@keyframes window-close {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+.animate-window-close {
+  animation: window-close 0.15s ease-in forwards;
+}
+
+/* Dialog appear */
+@keyframes dialog-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-dialog {
+  animation: dialog-appear 0.2s var(--spring-bounce) forwards;
+}
+
+/* Fade in */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out forwards;
+}
+
+/* Slide up (for cards, list items) */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s var(--spring-smooth) forwards;
+}
+
+/* Pulse glow (for active/playing states) */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(255, 176, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(255, 176, 0, 0.5);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Progress bar animation (chunky fill) */
+@keyframes progress-fill {
+  from { width: 0%; }
+}
+
+.animate-progress {
+  animation: progress-fill 0.5s var(--spring-smooth) forwards;
+}
+
+/* Button press feedback */
+.transition-press {
+  transition: transform 0.1s ease-out;
+}
+
+.transition-press:active {
+  transform: translateY(1px);
+}
+
+/* Smooth color/background transitions */
+.transition-colors-fast {
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}

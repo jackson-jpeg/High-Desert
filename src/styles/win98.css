@@ -1,0 +1,272 @@
+/* ============================================
+   Win98 Design System — CSS Custom Properties
+   ============================================ */
+
+:root {
+  /* Chrome colors */
+  --w98-surface: #C0C0C0;
+  --w98-surface-dark: #808080;
+  --w98-surface-darker: #404040;
+  --w98-surface-light: #DFDFDF;
+  --w98-surface-lighter: #FFFFFF;
+
+  /* Bevel system */
+  --w98-bevel-light: #DFDFDF;
+  --w98-bevel-dark: #808080;
+  --w98-bevel-darker: #404040;
+
+  /* Title bar */
+  --w98-titlebar: #000080;
+  --w98-titlebar-inactive: #808080;
+  --w98-titlebar-text: #FFFFFF;
+
+  /* Selection */
+  --w98-highlight: #0A246A;
+  --w98-highlight-text: #FFFFFF;
+
+  /* Text */
+  --w98-text: #000000;
+  --w98-text-disabled: #808080;
+
+  /* Window */
+  --w98-window-bg: #C0C0C0;
+  --w98-window-frame: #0A0A0A;
+
+  /* Dark mode overrides for our app */
+  --w98-dark-surface: #1A1F33;
+  --w98-dark-inset: #080C16;
+  --w98-dark-text: #C0C0C0;
+}
+
+/* ============================================
+   Bevel Classes
+   ============================================ */
+
+.w98-raised {
+  border: 2px solid;
+  border-color: var(--w98-bevel-light) var(--w98-bevel-dark) var(--w98-bevel-dark) var(--w98-bevel-light);
+  box-shadow:
+    inset 1px 1px 0 var(--w98-surface-lighter),
+    inset -1px -1px 0 var(--w98-bevel-darker);
+}
+
+.w98-inset {
+  border: 2px solid;
+  border-color: var(--w98-bevel-dark) var(--w98-bevel-light) var(--w98-bevel-light) var(--w98-bevel-dark);
+  box-shadow:
+    inset 1px 1px 0 var(--w98-bevel-darker),
+    inset -1px -1px 0 var(--w98-surface-lighter);
+}
+
+.w98-pressed {
+  border: 2px solid;
+  border-color: var(--w98-bevel-dark) var(--w98-bevel-light) var(--w98-bevel-light) var(--w98-bevel-dark);
+  box-shadow: inset 1px 1px 0 var(--w98-bevel-darker);
+}
+
+/* Dark variant bevels for our midnight theme */
+.w98-raised-dark {
+  border: 2px solid;
+  border-color: #2A3050 #0A0E1A #0A0E1A #2A3050;
+  box-shadow:
+    inset 1px 1px 0 #333B58,
+    inset -1px -1px 0 #060810;
+}
+
+.w98-inset-dark {
+  border: 2px solid;
+  border-color: #0A0E1A #2A3050 #2A3050 #0A0E1A;
+  box-shadow:
+    inset 1px 1px 0 #060810,
+    inset -1px -1px 0 #333B58;
+}
+
+/* ============================================
+   Win98 Font
+   ============================================ */
+
+.w98-font {
+  font-family: "W95FA", "MS Sans Serif", "Microsoft Sans Serif", Arial, sans-serif;
+  font-smooth: never;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+}
+
+/* ============================================
+   Title Bar Gradient
+   ============================================ */
+
+.w98-titlebar-gradient {
+  background: linear-gradient(90deg, #000080 0%, #0A246A 50%, #A6CAF0 100%);
+}
+
+.w98-titlebar-inactive-gradient {
+  background: linear-gradient(90deg, #808080 0%, #B0B0B0 100%);
+}
+
+/* ============================================
+   Win98 Button Styling
+   ============================================ */
+
+.w98-button {
+  background: var(--w98-surface);
+  border: 2px solid;
+  border-color: var(--w98-bevel-light) var(--w98-bevel-dark) var(--w98-bevel-dark) var(--w98-bevel-light);
+  box-shadow:
+    inset 1px 1px 0 var(--w98-surface-lighter),
+    inset -1px -1px 0 var(--w98-bevel-darker);
+  padding: 4px 16px;
+  min-width: 75px;
+  font-family: "W95FA", "MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  color: var(--w98-text);
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+
+.w98-button:active {
+  border-color: var(--w98-bevel-dark) var(--w98-bevel-light) var(--w98-bevel-light) var(--w98-bevel-dark);
+  box-shadow: inset 1px 1px 0 var(--w98-bevel-darker);
+  padding: 5px 15px 3px 17px;
+}
+
+.w98-button:focus-visible {
+  outline: 1px dotted var(--w98-text);
+  outline-offset: -4px;
+}
+
+.w98-button:disabled {
+  color: var(--w98-text-disabled);
+  text-shadow: 1px 1px 0 var(--w98-surface-lighter);
+  cursor: default;
+}
+
+/* ============================================
+   Win98 Progress Bar
+   ============================================ */
+
+.w98-progress-well {
+  border: 2px solid;
+  border-color: var(--w98-bevel-dark) var(--w98-bevel-light) var(--w98-bevel-light) var(--w98-bevel-dark);
+  box-shadow: inset 1px 1px 0 var(--w98-bevel-darker);
+  background: var(--w98-surface);
+  height: 20px;
+  padding: 2px;
+}
+
+.w98-progress-chunk {
+  background: #000080;
+  height: 100%;
+  display: flex;
+}
+
+.w98-progress-segment {
+  width: 8px;
+  height: 100%;
+  background: #000080;
+  margin-right: 2px;
+}
+
+/* ============================================
+   Win98 Menu Bar
+   ============================================ */
+
+.w98-menubar {
+  background: var(--w98-surface);
+  border-bottom: 1px solid var(--w98-bevel-dark);
+  padding: 2px 0;
+  font-family: "W95FA", "MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+}
+
+.w98-menubar-item {
+  padding: 2px 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.w98-menubar-item:hover,
+.w98-menubar-item[data-open="true"] {
+  background: var(--w98-highlight);
+  color: var(--w98-highlight-text);
+}
+
+.w98-dropdown {
+  position: absolute;
+  background: var(--w98-surface);
+  border: 2px solid;
+  border-color: var(--w98-bevel-light) var(--w98-bevel-dark) var(--w98-bevel-dark) var(--w98-bevel-light);
+  box-shadow:
+    inset 1px 1px 0 var(--w98-surface-lighter),
+    2px 2px 4px rgba(0, 0, 0, 0.3);
+  padding: 2px;
+  z-index: 1000;
+  min-width: 160px;
+}
+
+.w98-dropdown-item {
+  padding: 4px 24px 4px 8px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.w98-dropdown-item:hover {
+  background: var(--w98-highlight);
+  color: var(--w98-highlight-text);
+}
+
+.w98-dropdown-separator {
+  height: 1px;
+  background: var(--w98-bevel-dark);
+  margin: 2px 4px;
+  border-bottom: 1px solid var(--w98-bevel-light);
+}
+
+/* ============================================
+   Win98 Scrollbar (webkit)
+   ============================================ */
+
+.w98-scroll::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+
+.w98-scroll::-webkit-scrollbar-track {
+  background: repeating-comb(
+    var(--w98-surface),
+    var(--w98-surface-light)
+  );
+  background: var(--w98-surface);
+}
+
+.w98-scroll::-webkit-scrollbar-thumb {
+  background: var(--w98-surface);
+  border: 2px solid;
+  border-color: var(--w98-bevel-light) var(--w98-bevel-dark) var(--w98-bevel-dark) var(--w98-bevel-light);
+  box-shadow: inset 1px 1px 0 var(--w98-surface-lighter);
+}
+
+/* ============================================
+   Status Bar
+   ============================================ */
+
+.w98-statusbar {
+  background: var(--w98-surface);
+  border-top: 1px solid var(--w98-bevel-dark);
+  padding: 2px 4px;
+  font-family: "W95FA", "MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  display: flex;
+  gap: 2px;
+}
+
+.w98-statusbar-panel {
+  border: 1px solid;
+  border-color: var(--w98-bevel-dark) var(--w98-bevel-light) var(--w98-bevel-light) var(--w98-bevel-dark);
+  padding: 1px 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
