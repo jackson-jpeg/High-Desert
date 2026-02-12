@@ -9,6 +9,8 @@ interface TimelineViewProps {
   currentEpisodeId?: number;
   selectedEpisodeId?: number;
   onEpisodeClick: (episode: Episode) => void;
+  onEpisodeDoubleClick?: (episode: Episode) => void;
+  onAction?: (action: "scan" | "search") => void;
   className?: string;
 }
 
@@ -38,6 +40,8 @@ export function TimelineView({
   currentEpisodeId,
   selectedEpisodeId,
   onEpisodeClick,
+  onEpisodeDoubleClick,
+  onAction,
   className,
 }: TimelineViewProps) {
   const groups = groupByYear(episodes);
@@ -51,9 +55,26 @@ export function TimelineView({
         <div className="text-[13px] text-desktop-gray mb-2">
           Your library is empty
         </div>
-        <div className="text-[11px] text-bevel-dark leading-relaxed max-w-[280px]">
+        <div className="text-[11px] text-bevel-dark leading-relaxed max-w-[280px] mb-4">
           Scan a local folder or search the archive to start building your collection.
         </div>
+        {onAction && (
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => onAction("scan")}
+              className="text-[10px] text-desert-amber hover:text-desktop-gray cursor-pointer transition-colors-fast"
+            >
+              Scan Folder
+            </button>
+            <span className="text-[10px] text-bevel-dark/40">or</span>
+            <button
+              onClick={() => onAction("search")}
+              className="text-[10px] text-title-bar-blue hover:text-desktop-gray cursor-pointer transition-colors-fast"
+            >
+              Search Archive
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -81,6 +102,7 @@ export function TimelineView({
                 isPlaying={ep.id === currentEpisodeId}
                 isSelected={ep.id === selectedEpisodeId}
                 onClick={onEpisodeClick}
+                onDoubleClick={onEpisodeDoubleClick}
                 style={{ "--i": i } as React.CSSProperties}
                 className="animate-stagger"
               />

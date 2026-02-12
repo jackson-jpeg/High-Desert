@@ -22,10 +22,12 @@ export function useAudioPlayer() {
     position,
     volume,
     playbackRate,
+    error,
     loadEpisode,
     setPlaying,
     setPosition,
     setDuration,
+    setError,
     stop,
   } = usePlayerStore();
 
@@ -54,6 +56,7 @@ export function useAudioPlayer() {
         return;
       }
 
+      setError(null);
       loadEpisode(episode, url);
       audio.src = url;
       audio.currentTime = episode.playbackPosition ?? 0;
@@ -65,9 +68,10 @@ export function useAudioPlayer() {
         setPlaying(true);
       } catch (err) {
         console.error("[player] Playback failed:", err);
+        setError("Playback failed. The audio source may be unavailable.");
       }
     },
-    [getAudio, loadEpisode, setPlaying],
+    [getAudio, loadEpisode, setPlaying, setError],
   );
 
   // Play/pause toggle
@@ -137,7 +141,7 @@ export function useAudioPlayer() {
     return () => window.clearInterval(positionTimerRef.current);
   }, [playing]);
 
-  // Listen for audio ended
+  // Listen for audio ended + errors
   useEffect(() => {
     const audio = getAudio();
 
@@ -145,15 +149,28 @@ export function useAudioPlayer() {
     const onLoadedMetadata = () => {
       setDuration(audio.duration);
     };
+    const onError = () => {
+      setPlaying(false);
+      const code = audio.error?.code;
+      const messages: Record<number, string> = {
+        1: "Playback aborted.",
+        2: "Network error. Check your connection.",
+        3: "Audio decoding failed.",
+        4: "Audio source not supported or unavailable.",
+      };
+      setError(messages[code ?? 0] ?? "An unknown playback error occurred.");
+    };
 
     audio.addEventListener("ended", onEnded);
     audio.addEventListener("loadedmetadata", onLoadedMetadata);
+    audio.addEventListener("error", onError);
 
     return () => {
       audio.removeEventListener("ended", onEnded);
       audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+      audio.removeEventListener("error", onError);
     };
-  }, [getAudio, setPlaying, setDuration]);
+  }, [getAudio, setPlaying, setDuration, setError]);
 
   // Persist playback position periodically
   useEffect(() => {
@@ -186,5 +203,6 @@ export function useAudioPlayer() {
     position,
     volume,
     playbackRate,
+    error,
   };
 }

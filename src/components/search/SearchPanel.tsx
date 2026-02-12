@@ -45,8 +45,11 @@ function NoResults({ query }: { query: string }) {
       <div className="text-[13px] text-desktop-gray mb-2">
         No results for &ldquo;{query}&rdquo;
       </div>
-      <div className="text-[11px] text-bevel-dark leading-relaxed max-w-[280px]">
+      <div className="text-[11px] text-bevel-dark leading-relaxed max-w-[280px] mb-3">
         Try a different search term, like a guest name, date, or topic.
+      </div>
+      <div className="text-[10px] text-bevel-dark/60">
+        Examples: &ldquo;shadow people&rdquo;, &ldquo;Michio Kaku&rdquo;, &ldquo;1997&rdquo;
       </div>
     </div>
   );

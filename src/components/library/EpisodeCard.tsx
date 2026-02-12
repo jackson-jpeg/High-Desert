@@ -8,6 +8,7 @@ interface EpisodeCardProps {
   isPlaying?: boolean;
   isSelected?: boolean;
   onClick: (episode: Episode) => void;
+  onDoubleClick?: (episode: Episode) => void;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -17,6 +18,7 @@ export function EpisodeCard({
   isPlaying = false,
   isSelected = false,
   onClick,
+  onDoubleClick,
   className,
   style,
 }: EpisodeCardProps) {
@@ -34,6 +36,7 @@ export function EpisodeCard({
   return (
     <button
       onClick={() => onClick(episode)}
+      onDoubleClick={onDoubleClick ? () => onDoubleClick(episode) : undefined}
       style={style}
       className={cn(
         "w-full text-left p-3 w98-raised-dark bg-card-surface",

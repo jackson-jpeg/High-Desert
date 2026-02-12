@@ -73,3 +73,36 @@ body {
   outline: 1px dotted #C0C0C0;
   outline-offset: 2px;
 }
+
+/* ============================================
+   Dark Scrollbars
+   ============================================ */
+
+/* WebKit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0A0E1A;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2A2F43;
+  border: 1px solid #1A1F33;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3A3F53;
+}
+
+::-webkit-scrollbar-corner {
+  background: #0A0E1A;
+}
+
+/* Firefox */
+* {
+  scrollbar-color: #2A2F43 #0A0E1A;
+  scrollbar-width: thin;
+}

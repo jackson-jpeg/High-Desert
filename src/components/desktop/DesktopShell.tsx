@@ -5,6 +5,7 @@ import { MenuBar, StatusBar, Dialog, Button } from "@/components/win98";
 import type { Menu } from "@/components/win98";
 import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useCallback, useState } from "react";
+import { db } from "@/lib/db";
 
 interface DesktopShellProps {
   children: ReactNode;
@@ -19,38 +20,56 @@ const NAV_ITEMS = [
   { label: "Search", path: "/search" },
 ] as const;
 
+const SHORTCUTS = [
+  { keys: "Space", action: "Play / Pause" },
+  { keys: "\u2190", action: "Seek back 15s" },
+  { keys: "\u2192", action: "Seek forward 30s" },
+  { keys: "\u2191", action: "Volume up" },
+  { keys: "\u2193", action: "Volume down" },
+];
+
 export function DesktopShell({ children, player, episodeCount = 0, className }: DesktopShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const handleAbout = useCallback(() => setAboutOpen(true), []);
   const handleCloseAbout = useCallback(() => setAboutOpen(false), []);
+  const handleShortcuts = useCallback(() => setShortcutsOpen(true), []);
+  const handleCloseShortcuts = useCallback(() => setShortcutsOpen(false), []);
+
+  const handleClearLibrary = useCallback(async () => {
+    setClearing(true);
+    try {
+      await db.episodes.clear();
+      await db.scanSessions.clear();
+    } finally {
+      setClearing(false);
+      setClearOpen(false);
+    }
+  }, []);
+
+  const dispatchSort = useCallback((sort: string) => {
+    window.dispatchEvent(new CustomEvent("hd:sort", { detail: sort }));
+  }, []);
 
   const menus: Menu[] = [
     {
       label: "File",
       items: [
-        { label: "Open Folder...", shortcut: "Ctrl+O", onClick: () => {} },
+        { label: "Open Folder...", shortcut: "Ctrl+O", onClick: () => router.push("/scanner") },
         { separator: true, label: "" },
         { label: "Exit", onClick: () => window.close() },
       ],
     },
     {
-      label: "Edit",
-      items: [
-        { label: "Select All", shortcut: "Ctrl+A", onClick: () => {} },
-        { label: "Copy", shortcut: "Ctrl+C", onClick: () => {} },
-      ],
-    },
-    {
       label: "View",
       items: [
-        { label: "Compact View", onClick: () => {} },
-        { label: "Expanded View", onClick: () => {} },
-        { separator: true, label: "" },
-        { label: "Sort by Date", onClick: () => {} },
-        { label: "Sort by Name", onClick: () => {} },
+        { label: "Sort by Date", onClick: () => dispatchSort("date") },
+        { label: "Sort by Name", onClick: () => dispatchSort("name") },
       ],
     },
     {
@@ -66,14 +85,15 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           onClick: () => router.push("/search"),
         },
         { separator: true, label: "" },
-        { label: "Clear Library", onClick: () => {} },
+        { label: "Clear Library...", onClick: () => setClearOpen(true) },
       ],
     },
     {
       label: "Help",
       items: [
+        { label: "Keyboard Shortcuts", onClick: handleShortcuts },
+        { separator: true, label: "" },
         { label: "About High Desert", onClick: handleAbout },
-        { label: "Keyboard Shortcuts", shortcut: "Ctrl+/", onClick: () => {} },
       ],
     },
   ];
@@ -143,6 +163,50 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             v0.2.0 &mdash; The Midnight Desert
           </div>
           <Button onClick={handleCloseAbout}>OK</Button>
+        </div>
+      </Dialog>
+
+      {/* Keyboard shortcuts dialog */}
+      <Dialog
+        open={shortcutsOpen}
+        onClose={handleCloseShortcuts}
+        title="Keyboard Shortcuts"
+        width="300px"
+      >
+        <div className="p-4">
+          <div className="flex flex-col gap-2">
+            {SHORTCUTS.map(({ keys, action }) => (
+              <div key={keys} className="flex items-center justify-between">
+                <span className="text-[11px] text-desktop-gray">{action}</span>
+                <span className="text-[10px] text-desert-amber bg-desert-amber/10 px-1.5 py-0.5 tabular-nums">
+                  {keys}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end mt-4">
+            <Button onClick={handleCloseShortcuts}>OK</Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Clear library confirmation */}
+      <Dialog
+        open={clearOpen}
+        onClose={() => setClearOpen(false)}
+        title="Clear Library"
+        width="320px"
+      >
+        <div className="p-4 flex flex-col gap-4">
+          <div className="text-[11px] text-desktop-gray">
+            Remove all episodes and scan sessions from the library? This cannot be undone.
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button onClick={() => setClearOpen(false)}>Cancel</Button>
+            <Button variant="dark" onClick={handleClearLibrary} disabled={clearing}>
+              {clearing ? "Clearing..." : "Clear"}
+            </Button>
+          </div>
         </div>
       </Dialog>
     </div>
