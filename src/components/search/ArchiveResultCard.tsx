@@ -10,6 +10,7 @@ interface ArchiveResultCardProps {
   isAdded: boolean;
   onAdd: (result: ArchiveSearchResult) => void;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 export function ArchiveResultCard({
@@ -18,6 +19,7 @@ export function ArchiveResultCard({
   isAdded,
   onAdd,
   className,
+  style,
 }: ArchiveResultCardProps) {
   const date = result.date?.substring(0, 10);
 
@@ -28,8 +30,10 @@ export function ArchiveResultCard({
 
   return (
     <div
+      style={style}
       className={cn(
         "p-3 w98-raised-dark bg-card-surface flex flex-col gap-1",
+        "hover:bg-title-bar-blue/10 transition-colors-fast",
         className,
       )}
     >
@@ -39,8 +43,8 @@ export function ArchiveResultCard({
           {date ?? "Unknown date"}
         </span>
         {result.downloads != null && (
-          <span className="text-[9px] text-bevel-dark">
-            {result.downloads.toLocaleString()} downloads
+          <span className="text-[9px] text-bevel-dark tabular-nums">
+            {result.downloads.toLocaleString()} dl
           </span>
         )}
       </div>
@@ -52,30 +56,32 @@ export function ArchiveResultCard({
 
       {/* Description */}
       {description && (
-        <div className="text-[10px] text-bevel-dark line-clamp-2">
+        <div className="text-[10px] text-bevel-dark line-clamp-2 leading-relaxed">
           {description}
         </div>
       )}
 
       {/* Action row */}
       <div className="flex items-center justify-between mt-1">
-        <span className="text-[9px] text-static-green truncate">
+        <span className="text-[9px] text-bevel-dark truncate">
           {result.creator ?? "Art Bell"}
         </span>
-        {isAdded ? (
-          <span className="text-[10px] text-static-green px-2">
-            ✓ Added
-          </span>
-        ) : (
-          <Button
-            size="sm"
-            variant="dark"
-            onClick={() => onAdd(result)}
-            disabled={isAdding}
-          >
-            {isAdding ? "Adding..." : "Add"}
-          </Button>
-        )}
+        <div className="transition-state">
+          {isAdded ? (
+            <span className="text-[10px] text-static-green/80">
+              Added
+            </span>
+          ) : (
+            <Button
+              size="sm"
+              variant="dark"
+              onClick={() => onAdd(result)}
+              disabled={isAdding}
+            >
+              {isAdding ? "..." : "Add"}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

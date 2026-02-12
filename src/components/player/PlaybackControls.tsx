@@ -55,13 +55,13 @@ export function PlaybackControls({
           max={duration || 0}
           value={position}
           onChange={handleScrub}
-          className="flex-1 h-[6px] accent-title-bar-blue cursor-pointer"
+          className="flex-1 h-[6px] w98-range-dark cursor-pointer"
         />
         <span className="w-[45px] tabular-nums">{formatTime(duration)}</span>
       </div>
 
       {/* Transport buttons */}
-      <div className="flex items-center gap-1 justify-center">
+      <div className="flex items-center gap-2 justify-center">
         <Button variant="dark" size="sm" onClick={handleSeekBack} title="Back 15s">
           -15
         </Button>
@@ -93,7 +93,7 @@ export function PlaybackControls({
           step={0.05}
           value={volume}
           onChange={handleVolumeChange}
-          className="flex-1 h-[4px] accent-title-bar-blue cursor-pointer"
+          className="flex-1 h-[4px] w98-range-dark cursor-pointer"
         />
         <span className="w-[28px] tabular-nums">
           {Math.round(volume * 100)}%

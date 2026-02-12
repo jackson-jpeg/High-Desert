@@ -18,12 +18,14 @@ export interface Menu {
 
 export interface MenuBarProps {
   menus: Menu[];
+  variant?: "classic" | "dark";
   className?: string;
 }
 
-export function MenuBar({ menus, className }: MenuBarProps) {
+export function MenuBar({ menus, variant = "classic", className }: MenuBarProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
+  const isDark = variant === "dark";
 
   const handleClickOutside = useCallback((e: MouseEvent) => {
     if (barRef.current && !barRef.current.contains(e.target as Node)) {
@@ -41,7 +43,11 @@ export function MenuBar({ menus, className }: MenuBarProps) {
   return (
     <div
       ref={barRef}
-      className={cn("w98-menubar flex items-center relative", className)}
+      className={cn(
+        isDark ? "w98-menubar-dark" : "w98-menubar",
+        "flex items-center relative",
+        className,
+      )}
     >
       {menus.map((menu, i) => (
         <div key={menu.label} className="relative">
@@ -57,10 +63,13 @@ export function MenuBar({ menus, className }: MenuBarProps) {
             {menu.label}
           </button>
           {openIndex === i && (
-            <div className="w98-dropdown animate-fade-in">
+            <div className={cn(
+              isDark ? "w98-dropdown-dark" : "w98-dropdown",
+              "animate-fade-in",
+            )}>
               {menu.items.map((item, j) =>
                 item.separator ? (
-                  <div key={`sep-${j}`} className="w98-dropdown-separator" />
+                  <div key={`sep-${j}`} className={isDark ? "w98-dropdown-separator-dark" : "w98-dropdown-separator"} />
                 ) : (
                   <button
                     key={item.label}
@@ -77,7 +86,7 @@ export function MenuBar({ menus, className }: MenuBarProps) {
                     <span className="flex justify-between gap-4">
                       <span>{item.label}</span>
                       {item.shortcut && (
-                        <span className="text-[var(--w98-text-disabled)]">
+                        <span className="text-bevel-dark">
                           {item.shortcut}
                         </span>
                       )}

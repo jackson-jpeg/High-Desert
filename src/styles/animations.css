@@ -120,3 +120,45 @@
 .transition-colors-fast {
   transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
+
+/* Staggered card entry — apply to each card with inline --i */
+.animate-stagger {
+  opacity: 0;
+  animation: slide-up 0.3s var(--spring-smooth) forwards;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+
+/* Smooth state transition (add → added) */
+.transition-state {
+  transition: opacity 0.2s ease, transform 0.2s var(--spring-smooth);
+}
+
+/* Subtle scale on hover for interactive cards */
+.hover-lift {
+  transition: transform 0.15s var(--spring-snappy), box-shadow 0.15s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Skeleton loading pulse */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.15; }
+}
+
+.animate-skeleton {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+/* Dot loading animation */
+@keyframes dot-bounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-4px); }
+}
+
+.animate-dot-1 { animation: dot-bounce 1.2s ease-in-out infinite; }
+.animate-dot-2 { animation: dot-bounce 1.2s ease-in-out 0.15s infinite; }
+.animate-dot-3 { animation: dot-bounce 1.2s ease-in-out 0.3s infinite; }

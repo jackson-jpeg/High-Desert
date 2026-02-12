@@ -8,6 +8,7 @@ interface EpisodeCardProps {
   isPlaying?: boolean;
   onClick: (episode: Episode) => void;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 export function EpisodeCard({
@@ -15,6 +16,7 @@ export function EpisodeCard({
   isPlaying = false,
   onClick,
   className,
+  style,
 }: EpisodeCardProps) {
   const showLabel =
     episode.showType === "coast"
@@ -28,11 +30,12 @@ export function EpisodeCard({
   return (
     <button
       onClick={() => onClick(episode)}
+      style={style}
       className={cn(
         "w-full text-left p-3 w98-raised-dark bg-card-surface",
         "hover:bg-title-bar-blue/15 transition-colors-fast cursor-pointer",
         "flex flex-col gap-1",
-        isPlaying && "ring-1 ring-static-green/50 bg-title-bar-blue/10",
+        isPlaying && "ring-1 ring-static-green/40 bg-title-bar-blue/10",
         className,
       )}
     >

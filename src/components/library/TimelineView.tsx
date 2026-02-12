@@ -42,10 +42,15 @@ export function TimelineView({
 
   if (episodes.length === 0) {
     return (
-      <div className={cn("flex flex-col items-center justify-center py-16 text-center", className)}>
-        <div className="text-[14px] text-bevel-dark mb-2">No episodes found</div>
-        <div className="text-[11px] text-bevel-dark">
-          Use Library &rarr; Scan Folder to add episodes
+      <div className={cn("flex flex-col items-center justify-center py-24 text-center px-8", className)}>
+        <div className="text-[20px] text-desert-amber/60 mb-4">
+          ~
+        </div>
+        <div className="text-[13px] text-desktop-gray mb-2">
+          Your library is empty
+        </div>
+        <div className="text-[11px] text-bevel-dark leading-relaxed max-w-[280px]">
+          Scan a local folder or search the archive to start building your collection.
         </div>
       </div>
     );
@@ -66,13 +71,15 @@ export function TimelineView({
           </div>
 
           {/* Episode cards */}
-          <div className="flex flex-col gap-1 p-2">
-            {yearEpisodes.map((ep) => (
+          <div className="flex flex-col gap-[3px] p-2">
+            {yearEpisodes.map((ep, i) => (
               <EpisodeCard
                 key={ep.id}
                 episode={ep}
                 isPlaying={ep.id === currentEpisodeId}
                 onClick={onEpisodeClick}
+                style={{ "--i": i } as React.CSSProperties}
+                className="animate-stagger"
               />
             ))}
           </div>

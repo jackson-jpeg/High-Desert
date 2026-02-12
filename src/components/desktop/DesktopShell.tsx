@@ -79,7 +79,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       )}
     >
       {/* Top menu bar */}
-      <MenuBar menus={menus} className="flex-shrink-0" />
+      <MenuBar menus={menus} variant="dark" className="flex-shrink-0" />
 
       {/* Main content area */}
       <main className="flex-1 overflow-auto">{children}</main>
@@ -89,6 +89,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
 
       {/* Bottom status bar */}
       <StatusBar
+        variant="dark"
         panels={[
           { content: "Ready", flex: 1 },
           { content: `${episodeCount} episode${episodeCount !== 1 ? "s" : ""}`, width: "140px" },
@@ -111,7 +112,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             Art Bell Radio Archive
           </div>
           <div className="text-xs text-bevel-dark">
-            iOS 98 Edition &mdash; Windows 98 meets modern design
+            v0.2.0 &mdash; The Midnight Desert
           </div>
           <Button onClick={handleCloseAbout}>OK</Button>
         </div>

@@ -11,16 +11,18 @@ export interface StatusBarPanel {
 
 export interface StatusBarProps {
   panels: StatusBarPanel[];
+  variant?: "classic" | "dark";
   className?: string;
 }
 
-export function StatusBar({ panels, className }: StatusBarProps) {
+export function StatusBar({ panels, variant = "classic", className }: StatusBarProps) {
+  const isDark = variant === "dark";
   return (
-    <div className={cn("w98-statusbar", className)}>
+    <div className={cn(isDark ? "w98-statusbar-dark" : "w98-statusbar", className)}>
       {panels.map((panel, i) => (
         <div
           key={i}
-          className="w98-statusbar-panel w98-font"
+          className={cn(isDark ? "w98-statusbar-panel-dark" : "w98-statusbar-panel", "w98-font")}
           style={{
             flex: panel.flex ?? (i === 0 ? 1 : undefined),
             width: panel.width,

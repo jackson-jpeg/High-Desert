@@ -29,7 +29,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           className,
         )}
       >
-        <Oscilloscope className="w-[60px] h-[28px] rounded-sm flex-shrink-0" />
+        <Oscilloscope className="w-[72px] h-[32px] rounded-sm flex-shrink-0" />
         <NowPlaying className="flex-1 min-w-0" />
         <PlaybackControls
           onTogglePlay={togglePlay}
