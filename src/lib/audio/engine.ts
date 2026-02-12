@@ -45,6 +45,9 @@ export function initEngine(audio: HTMLAudioElement): void {
 
   mediaElement = audio;
 
+  // Set crossOrigin for remote URLs (must be set before createMediaElementSource)
+  audio.crossOrigin = "anonymous";
+
   // Create nodes
   sourceNode = ctx.createMediaElementSource(audio);
   gainNode = ctx.createGain();

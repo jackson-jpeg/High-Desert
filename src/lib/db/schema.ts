@@ -28,6 +28,11 @@ export interface Episode {
   playbackPosition?: number; // Seconds
   playCount?: number;
 
+  // Archive.org
+  sourceUrl?: string;          // archive.org streaming URL
+  source?: "local" | "archive"; // episode origin
+  archiveIdentifier?: string;  // "coast-to-coast-am-2007-04-07/file.mp3"
+
   // AI enrichment
   aiSummary?: string;
   aiTags?: string[];

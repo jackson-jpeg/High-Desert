@@ -44,13 +44,13 @@ export function useAudioPlayer() {
     async (episode: Episode, file?: File) => {
       const audio = getAudio();
 
-      // Create object URL from file if provided, else try to use filePath
+      // Create object URL from file, or use sourceUrl for archive episodes
       let url: string;
       if (file) {
         url = URL.createObjectURL(file);
+      } else if (episode.sourceUrl) {
+        url = episode.sourceUrl;
       } else {
-        // For episodes already in the DB, we can't play without a file reference
-        // This would need a file handle cache in a real app
         return;
       }
 

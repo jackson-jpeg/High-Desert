@@ -54,6 +54,11 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           shortcut: "Ctrl+Shift+S",
           onClick: () => router.push("/scanner"),
         },
+        {
+          label: "Search Archive...",
+          onClick: () => router.push("/search"),
+        },
+        { separator: true, label: "" },
         { label: "Clear Library", onClick: () => {} },
       ],
     },

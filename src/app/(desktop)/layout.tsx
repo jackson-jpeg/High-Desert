@@ -37,10 +37,17 @@ export default function DesktopLayout({
     const handler = async (e: Event) => {
       const episode = (e as CustomEvent<Episode>).detail;
 
-      // For local files we need to retrieve the file from the DB path
-      // Since we're using IndexedDB and files are referenced by path,
-      // we need to ask the user to re-select the folder.
-      // For now, we'll open a file picker for the specific file.
+      // Archive episodes stream directly — no file picker needed
+      if (episode.sourceUrl) {
+        try {
+          await playEpisode(episode);
+        } catch (err) {
+          console.error("[layout] Failed to play archive episode:", err);
+        }
+        return;
+      }
+
+      // For local files, open a file picker
       try {
         const input = document.createElement("input");
         input.type = "file";
@@ -48,7 +55,6 @@ export default function DesktopLayout({
 
         const file = await new Promise<File | null>((resolve) => {
           input.onchange = () => resolve(input.files?.[0] ?? null);
-          // Auto-cancel after timeout
           const timer = setTimeout(() => resolve(null), 60000);
           input.addEventListener("cancel", () => {
             clearTimeout(timer);
