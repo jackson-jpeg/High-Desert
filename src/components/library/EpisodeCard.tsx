@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils/cn";
 interface EpisodeCardProps {
   episode: Episode;
   isPlaying?: boolean;
+  isSelected?: boolean;
   onClick: (episode: Episode) => void;
   className?: string;
   style?: React.CSSProperties;
@@ -14,6 +15,7 @@ interface EpisodeCardProps {
 export function EpisodeCard({
   episode,
   isPlaying = false,
+  isSelected = false,
   onClick,
   className,
   style,
@@ -27,6 +29,8 @@ export function EpisodeCard({
           ? "Special"
           : null;
 
+  const isArchive = episode.source === "archive";
+
   return (
     <button
       onClick={() => onClick(episode)}
@@ -36,16 +40,24 @@ export function EpisodeCard({
         "hover:bg-title-bar-blue/15 transition-colors-fast cursor-pointer",
         "flex flex-col gap-1",
         isPlaying && "ring-1 ring-static-green/40 bg-title-bar-blue/10",
+        isSelected && !isPlaying && "bg-highlight-blue/20",
         className,
       )}
     >
-      {/* Top row: date + show type */}
+      {/* Top row: date + show type + source */}
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] text-desert-amber tabular-nums">
-          {episode.airDate ?? "Unknown date"}
-        </span>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[10px] text-desert-amber tabular-nums">
+            {episode.airDate ?? "Unknown date"}
+          </span>
+          {isArchive && (
+            <span className="text-[8px] text-title-bar-blue bg-title-bar-blue/15 px-1 py-px uppercase tracking-wider flex-shrink-0">
+              Archive
+            </span>
+          )}
+        </div>
         {showLabel && (
-          <span className="text-[9px] text-bevel-dark uppercase tracking-wider">
+          <span className="text-[9px] text-bevel-dark uppercase tracking-wider flex-shrink-0">
             {showLabel}
           </span>
         )}
@@ -61,7 +73,7 @@ export function EpisodeCard({
         <span className="text-[10px] text-static-green truncate">
           {episode.guestName || episode.topic || "\u00A0"}
         </span>
-        {episode.duration && (
+        {episode.duration != null && (
           <span className="text-[10px] text-bevel-dark tabular-nums flex-shrink-0">
             {formatDuration(episode.duration)}
           </span>

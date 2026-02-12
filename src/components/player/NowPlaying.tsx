@@ -4,10 +4,11 @@ import { usePlayerStore } from "@/stores/player-store";
 import { cn } from "@/lib/utils/cn";
 
 interface NowPlayingProps {
+  expanded?: boolean;
   className?: string;
 }
 
-export function NowPlaying({ className }: NowPlayingProps) {
+export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
   const episode = usePlayerStore((s) => s.currentEpisode);
 
   if (!episode) {
@@ -41,6 +42,29 @@ export function NowPlaying({ className }: NowPlayingProps) {
       <div className="text-[10px] text-bevel-dark truncate">
         {[showLabel, episode.airDate].filter(Boolean).join(" \u2014 ")}
       </div>
+
+      {/* Extended info in expanded mode */}
+      {expanded && (
+        <>
+          {episode.aiSummary && (
+            <div className="text-[10px] text-desktop-gray/70 leading-relaxed mt-1 line-clamp-2">
+              {episode.aiSummary}
+            </div>
+          )}
+          {episode.aiTags && episode.aiTags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {episode.aiTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="text-[8px] text-desert-amber/70 bg-desert-amber/10 px-1 py-px"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils/cn";
 import { MenuBar, StatusBar, Dialog, Button } from "@/components/win98";
 import type { Menu } from "@/components/win98";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useCallback, useState } from "react";
 
 interface DesktopShellProps {
@@ -13,8 +13,15 @@ interface DesktopShellProps {
   className?: string;
 }
 
+const NAV_ITEMS = [
+  { label: "Library", path: "/library" },
+  { label: "Scanner", path: "/scanner" },
+  { label: "Search", path: "/search" },
+] as const;
+
 export function DesktopShell({ children, player, episodeCount = 0, className }: DesktopShellProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [aboutOpen, setAboutOpen] = useState(false);
 
   const handleAbout = useCallback(() => setAboutOpen(true), []);
@@ -80,6 +87,27 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     >
       {/* Top menu bar */}
       <MenuBar menus={menus} variant="dark" className="flex-shrink-0" />
+
+      {/* Navigation tabs */}
+      <nav className="flex-shrink-0 flex items-center gap-0 bg-midnight border-b border-bevel-dark/20 px-2">
+        {NAV_ITEMS.map(({ label, path }) => {
+          const isActive = pathname === path;
+          return (
+            <button
+              key={path}
+              onClick={() => router.push(path)}
+              className={cn(
+                "w98-font text-[10px] px-3 py-1.5 cursor-pointer select-none transition-colors-fast",
+                isActive
+                  ? "text-desktop-gray border-b border-desert-amber"
+                  : "text-bevel-dark hover:text-desktop-gray border-b border-transparent",
+              )}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </nav>
 
       {/* Main content area */}
       <main className="flex-1 overflow-auto">{children}</main>

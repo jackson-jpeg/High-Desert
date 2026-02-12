@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils/cn";
 interface TimelineViewProps {
   episodes: Episode[];
   currentEpisodeId?: number;
+  selectedEpisodeId?: number;
   onEpisodeClick: (episode: Episode) => void;
   className?: string;
 }
@@ -35,6 +36,7 @@ function groupByYear(episodes: Episode[]): YearGroup[] {
 export function TimelineView({
   episodes,
   currentEpisodeId,
+  selectedEpisodeId,
   onEpisodeClick,
   className,
 }: TimelineViewProps) {
@@ -77,6 +79,7 @@ export function TimelineView({
                 key={ep.id}
                 episode={ep}
                 isPlaying={ep.id === currentEpisodeId}
+                isSelected={ep.id === selectedEpisodeId}
                 onClick={onEpisodeClick}
                 style={{ "--i": i } as React.CSSProperties}
                 className="animate-stagger"

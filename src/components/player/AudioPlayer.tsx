@@ -57,7 +57,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
       )}
     >
       <div className="flex items-start justify-between">
-        <NowPlaying />
+        <NowPlaying expanded />
         <button
           onClick={toggleMini}
           className="text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer"
