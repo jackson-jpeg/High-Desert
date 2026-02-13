@@ -90,13 +90,12 @@ export default function LibraryPage() {
     return list;
   }, [allEpisodes, search, sortMode]);
 
-  const handleEpisodeClick = useCallback((episode: Episode, e?: React.MouseEvent) => {
+  const handleEpisodeClick = useCallback((episode: Episode, e: React.MouseEvent) => {
     // Multi-select support via native event
-    const nativeEvent = e;
-    if (nativeEvent && (nativeEvent.shiftKey || nativeEvent.metaKey || nativeEvent.ctrlKey)) {
+    if (e.shiftKey || e.metaKey || e.ctrlKey) {
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        if (nativeEvent.shiftKey && lastClickedId != null) {
+        if (e.shiftKey && lastClickedId != null) {
           // Range select
           const allIds = filtered.map((ep) => ep.id!);
           const startIdx = allIds.indexOf(lastClickedId);
@@ -264,7 +263,7 @@ export default function LibraryPage() {
           <TimelineView
             episodes={filtered}
             currentEpisodeId={currentEpisodeId}
-            onEpisodeClick={(ep) => handleEpisodeClick(ep)}
+            onEpisodeClick={handleEpisodeClick}
             onEpisodeDoubleClick={handleDoubleClick}
             onEpisodeContextMenu={handleContextMenu}
             onAction={handleAction}

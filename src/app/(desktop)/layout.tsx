@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { DesktopShell } from "@/components/desktop/DesktopShell";
 import { AudioPlayer } from "@/components/player/AudioPlayer";
+import { ContinueBanner } from "@/components/library/ContinueBanner";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { usePlayerStore } from "@/stores/player-store";
 import { db, getPreference, setPreference } from "@/lib/db";
@@ -21,6 +22,8 @@ export default function DesktopLayout({
   const setVolume = usePlayerStore((s) => s.setVolume);
   const playing = usePlayerStore((s) => s.playing);
   const enqueue = usePlayerStore((s) => s.enqueue);
+  const currentEpisode = usePlayerStore((s) => s.currentEpisode);
+  const [continueEpisode, setContinueEpisode] = useState<Episode | null>(null);
 
   // Restore volume from prefs on mount
   useEffect(() => {
@@ -100,6 +103,28 @@ export default function DesktopLayout({
     });
   }, []);
 
+  // On mount, load last-played episode and show continue banner
+  useEffect(() => {
+    getPreference("last-episode-id").then(async (idStr) => {
+      if (!idStr) return;
+      const id = parseInt(idStr, 10);
+      if (isNaN(id)) return;
+      const ep = await db.episodes.get(id);
+      if (ep && (ep.playbackPosition ?? 0) > 0) {
+        setContinueEpisode(ep);
+      }
+    });
+  }, []);
+
+  const handleResume = useCallback((episode: Episode) => {
+    setContinueEpisode(null);
+    window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: episode }));
+  }, []);
+
+  const handleDismissContinue = useCallback(() => {
+    setContinueEpisode(null);
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -175,7 +200,18 @@ export default function DesktopLayout({
 
   return (
     <DesktopShell
-      player={<AudioPlayer />}
+      player={
+        <>
+          {continueEpisode && !currentEpisode && (
+            <ContinueBanner
+              episode={continueEpisode}
+              onResume={handleResume}
+              onDismiss={handleDismissContinue}
+            />
+          )}
+          <AudioPlayer />
+        </>
+      }
       episodeCount={episodeCount ?? 0}
     >
       {children}

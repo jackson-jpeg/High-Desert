@@ -8,7 +8,7 @@ interface EpisodeCardProps {
   isPlaying?: boolean;
   isSelected?: boolean;
   isMultiSelected?: boolean;
-  onClick: (episode: Episode) => void;
+  onClick: (episode: Episode, e: React.MouseEvent) => void;
   onDoubleClick?: (episode: Episode) => void;
   onContextMenu?: (episode: Episode, x: number, y: number) => void;
   className?: string;
@@ -50,7 +50,7 @@ export function EpisodeCard({
 
   return (
     <button
-      onClick={() => onClick(episode)}
+      onClick={(e) => onClick(episode, e)}
       onDoubleClick={onDoubleClick ? () => onDoubleClick(episode) : undefined}
       onContextMenu={handleContextMenu}
       style={style}

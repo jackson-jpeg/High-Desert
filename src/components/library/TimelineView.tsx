@@ -10,7 +10,7 @@ interface TimelineViewProps {
   episodes: Episode[];
   currentEpisodeId?: number;
   selectedEpisodeId?: number;
-  onEpisodeClick: (episode: Episode) => void;
+  onEpisodeClick: (episode: Episode, e: React.MouseEvent) => void;
   onEpisodeDoubleClick?: (episode: Episode) => void;
   onEpisodeContextMenu?: (episode: Episode, x: number, y: number) => void;
   onAction?: (action: "scan" | "search") => void;

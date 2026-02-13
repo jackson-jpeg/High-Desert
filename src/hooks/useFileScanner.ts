@@ -22,6 +22,7 @@ import {
   scanFallback,
   supportsDirectoryPicker,
 } from "@/lib/scanner/file-scanner";
+import { cacheAudioBlob, isOPFSSupported } from "@/lib/audio/cache";
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -114,6 +115,13 @@ export function useFileScanner(): UseFileScannerReturn {
 
         // 6. Save to Dexie
         await db.episodes.add(episode);
+
+        // 7. Cache audio blob to OPFS in background
+        if (isOPFSSupported()) {
+          cacheAudioBlob(fileHash, file).catch((err) => {
+            console.warn(`[scanner] OPFS cache failed for "${file.name}":`, err);
+          });
+        }
 
         return "new";
       } catch (error) {
