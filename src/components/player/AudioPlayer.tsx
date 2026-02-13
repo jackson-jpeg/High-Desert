@@ -73,15 +73,17 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           <button
             onClick={() => setShowQueue(!showQueue)}
             className={cn(
-              "text-[10px] cursor-pointer ml-1",
-              showQueue ? "text-desert-amber" : "text-bevel-dark hover:text-desktop-gray",
+              "text-[10px] cursor-pointer ml-1 px-1.5 py-0.5 transition-colors-fast",
+              showQueue
+                ? "text-desert-amber bg-desert-amber/10 w98-inset-dark"
+                : "text-bevel-dark hover:text-desktop-gray",
             )}
             title="Queue"
             aria-label={showQueue ? "Hide queue" : "Show queue"}
           >
             {"\u2630"}
             {queueLength > 0 && (
-              <span className="text-[8px] ml-0.5 text-bevel-dark">{queueLength}</span>
+              <span className="text-[8px] ml-0.5 tabular-nums">{queueLength}</span>
             )}
           </button>
           <button
@@ -114,15 +116,17 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           <button
             onClick={() => setShowQueue(!showQueue)}
             className={cn(
-              "text-[10px] cursor-pointer",
-              showQueue ? "text-desert-amber" : "text-bevel-dark hover:text-desktop-gray",
+              "text-[10px] cursor-pointer px-1.5 py-0.5 transition-colors-fast",
+              showQueue
+                ? "text-desert-amber bg-desert-amber/10 w98-inset-dark"
+                : "text-bevel-dark hover:text-desktop-gray",
             )}
             title="Queue"
             aria-label={showQueue ? "Hide queue" : "Show queue"}
           >
             {"\u2630"}
             {queueLength > 0 && (
-              <span className="text-[8px] ml-0.5 text-bevel-dark">{queueLength}</span>
+              <span className="text-[8px] ml-0.5 tabular-nums">{queueLength}</span>
             )}
           </button>
           <button

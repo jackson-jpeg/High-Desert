@@ -66,7 +66,7 @@ export function QueuePanel() {
             <div
               key={`${ep.id}-${i}`}
               className={cn(
-                "flex items-center gap-2 px-3 py-1.5 cursor-pointer",
+                "group flex items-center gap-2 px-3 py-1.5 cursor-pointer",
                 "hover:bg-title-bar-blue/10 transition-colors-fast",
                 isCurrent && "ring-1 ring-static-green/40 bg-title-bar-blue/10",
                 isPast && "opacity-50",

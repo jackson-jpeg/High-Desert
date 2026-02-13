@@ -3,6 +3,7 @@
 import type { Episode } from "@/lib/db/schema";
 import { Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
+import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
 
 interface EpisodeDetailProps {
@@ -165,6 +166,31 @@ export function EpisodeDetail({
           </div>
         )}
 
+        {/* Playback progress */}
+        {episode.playbackPosition != null && episode.playbackPosition > 0 && episode.duration != null && episode.duration > 0 && (
+          <div>
+            <div className="text-[9px] text-bevel-dark uppercase tracking-wider mb-1">
+              Progress
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-[4px] w98-inset-dark bg-inset-well overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full",
+                    episode.playbackPosition / episode.duration > 0.9
+                      ? "bg-static-green/60"
+                      : "bg-phosphor-amber/60",
+                  )}
+                  style={{ width: `${Math.min(100, (episode.playbackPosition / episode.duration) * 100)}%` }}
+                />
+              </div>
+              <span className="text-[9px] text-bevel-dark tabular-nums flex-shrink-0">
+                {formatTime(episode.playbackPosition)} / {formatDuration(episode.duration)}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Play buttons */}
         <div className="pt-1 flex items-center gap-2">
           <Button
@@ -178,7 +204,10 @@ export function EpisodeDetail({
           <Button
             variant="dark"
             size="sm"
-            onClick={() => usePlayerStore.getState().enqueueNext(episode)}
+            onClick={() => {
+              usePlayerStore.getState().enqueueNext(episode);
+              toast.info(`"${episode.title || episode.fileName}" plays next`);
+            }}
             disabled={isPlaying}
           >
             Play Next
@@ -186,7 +215,10 @@ export function EpisodeDetail({
           <Button
             variant="dark"
             size="sm"
-            onClick={() => usePlayerStore.getState().enqueue(episode)}
+            onClick={() => {
+              usePlayerStore.getState().enqueue(episode);
+              toast.info("Added to queue");
+            }}
           >
             Queue
           </Button>
@@ -223,4 +255,14 @@ function formatDuration(seconds: number): string {
     return `${h}h ${m}m`;
   }
   return `${m}m`;
+}
+
+function formatTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+  return `${m}:${String(s).padStart(2, "0")}`;
 }

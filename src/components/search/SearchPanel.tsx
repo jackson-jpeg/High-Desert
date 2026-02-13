@@ -240,7 +240,7 @@ export function SearchPanel() {
 
       {/* Content area */}
       <div className="flex-1 overflow-auto">
-        {loading ? (
+        {loading || (!hasInitialized && results.length === 0) ? (
           <LoadingSkeleton />
         ) : results.length === 0 && query ? (
           <NoResults query={query} />
@@ -267,19 +267,19 @@ export function SearchPanel() {
                 <button
                   onClick={handlePrevPage}
                   disabled={page <= 1 || loading}
-                  className="text-[10px] text-bevel-dark hover:text-desktop-gray disabled:opacity-30 disabled:cursor-default cursor-pointer transition-colors-fast"
+                  className="text-[10px] text-bevel-dark hover:text-desktop-gray disabled:opacity-30 disabled:cursor-default cursor-pointer transition-colors-fast px-2 py-1"
                 >
-                  Prev
+                  {"\u25C0"} Prev
                 </button>
                 <span className="text-[10px] text-bevel-dark tabular-nums">
-                  {page} / {totalResults > 0 ? Math.ceil(totalResults / 30) : 1}
+                  Page {page} of {totalResults > 0 ? Math.ceil(totalResults / 30) : 1}
                 </span>
                 <button
                   onClick={handleNextPage}
                   disabled={!hasMore || loading}
-                  className="text-[10px] text-bevel-dark hover:text-desktop-gray disabled:opacity-30 disabled:cursor-default cursor-pointer transition-colors-fast"
+                  className="text-[10px] text-bevel-dark hover:text-desktop-gray disabled:opacity-30 disabled:cursor-default cursor-pointer transition-colors-fast px-2 py-1"
                 >
-                  Next
+                  Next {"\u25B6"}
                 </button>
               </div>
             )}

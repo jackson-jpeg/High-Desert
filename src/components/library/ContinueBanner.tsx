@@ -33,12 +33,14 @@ export function ContinueBanner({ episode, onResume, onDismiss, className }: Cont
     return () => clearInterval(id);
   }, []);
 
-  if (!visible) return null;
-
-  const title = episode.title || episode.fileName;
   const progressPct = episode.duration && episode.playbackPosition
     ? Math.round((episode.playbackPosition / episode.duration) * 100)
     : 0;
+
+  // Don't show for near-completed episodes
+  if (!visible || progressPct > 95) return null;
+
+  const title = episode.title || episode.fileName;
   const posMin = Math.floor((episode.playbackPosition ?? 0) / 60);
   const posSec = Math.floor((episode.playbackPosition ?? 0) % 60);
   const countdownPct = Math.min(100, (elapsed / DISMISS_MS) * 100);

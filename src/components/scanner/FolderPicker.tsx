@@ -84,16 +84,24 @@ export function FolderPicker({
           )}
         >
           <div className="text-[24px] text-bevel-dark">
-            {dragOver ? "+" : "\u{1F4C1}"}
+            {disabled ? "\u23F3" : dragOver ? "+" : "\u{1F4C1}"}
           </div>
           <div className="text-[11px] text-bevel-dark text-center">
-            Drag &amp; drop a folder here
-            <br />
-            or
+            {disabled ? (
+              "Scanning in progress..."
+            ) : (
+              <>
+                Drag &amp; drop a folder here
+                <br />
+                or
+              </>
+            )}
           </div>
-          <Button variant="dark" onClick={handleBrowse} disabled={disabled}>
-            Browse...
-          </Button>
+          {!disabled && (
+            <Button variant="dark" onClick={handleBrowse}>
+              Browse...
+            </Button>
+          )}
         </div>
 
         {/* Hidden fallback input */}

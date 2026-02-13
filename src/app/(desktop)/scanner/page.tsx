@@ -18,14 +18,20 @@ export default function ScannerPage() {
     status === "completed" || status === "cancelled" || status === "error";
 
   return (
-    <div className="p-4 flex flex-col gap-4 max-w-2xl mx-auto">
+    <div className="p-4 flex flex-col gap-5 max-w-2xl mx-auto">
+      {/* Section header */}
+      <div className="flex items-center gap-2 px-1">
+        <span className="text-[10px] text-desert-amber font-bold uppercase tracking-wider">Import Sources</span>
+        <div className="flex-1 h-[1px] bg-gradient-to-r from-desert-amber/30 to-transparent" />
+      </div>
+
       {/* Featured collection import — one-click for the Ultimate Art Bell Collection */}
       <CollectionImport />
 
       {/* Divider */}
       <div className="flex items-center gap-3 px-1">
         <div className="flex-1 h-[1px] bg-bevel-dark/20" />
-        <span className="text-[9px] text-bevel-dark/60 uppercase tracking-widest">or search the full catalog</span>
+        <span className="text-[9px] text-bevel-dark/50 uppercase tracking-widest">or search the full catalog</span>
         <div className="flex-1 h-[1px] bg-bevel-dark/20" />
       </div>
 
@@ -35,7 +41,7 @@ export default function ScannerPage() {
       {/* Divider */}
       <div className="flex items-center gap-3 px-1">
         <div className="flex-1 h-[1px] bg-bevel-dark/20" />
-        <span className="text-[9px] text-bevel-dark/60 uppercase tracking-widest">or import local files</span>
+        <span className="text-[9px] text-bevel-dark/50 uppercase tracking-widest">or import local files</span>
         <div className="flex-1 h-[1px] bg-bevel-dark/20" />
       </div>
 
