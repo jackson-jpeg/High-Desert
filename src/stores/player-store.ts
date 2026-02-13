@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import type { Episode } from "@/lib/db/schema";
 
+export type RepeatMode = "off" | "one" | "all";
+
 export interface PlayerState {
   // Current track
   currentEpisode: Episode | null;
@@ -9,6 +11,8 @@ export interface PlayerState {
   // Queue
   queue: Episode[];
   queueIndex: number;
+  shuffle: boolean;
+  repeat: RepeatMode;
 
   // Playback state
   playing: boolean;
@@ -46,6 +50,10 @@ export interface PlayerState {
   hasNext: () => boolean;
   hasPrevious: () => boolean;
 
+  // Shuffle & repeat
+  toggleShuffle: () => void;
+  cycleRepeat: () => void;
+
   // Persistence
   restoreQueue: (queue: Episode[], queueIndex: number) => void;
 }
@@ -55,6 +63,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   objectUrl: null,
   queue: [],
   queueIndex: -1,
+  shuffle: false,
+  repeat: "off" as RepeatMode,
   playing: false,
   position: 0,
   duration: 0,
@@ -187,9 +197,30 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   next: () => {
-    const { queue, queueIndex } = get();
+    const { queue, queueIndex, shuffle, repeat } = get();
+
+    // Repeat one: return current track again
+    if (repeat === "one" && queueIndex >= 0 && queueIndex < queue.length) {
+      return queue[queueIndex];
+    }
+
+    // Shuffle: pick random unplayed track (or any if all played)
+    if (shuffle && queue.length > 1) {
+      let nextIdx: number;
+      do {
+        nextIdx = Math.floor(Math.random() * queue.length);
+      } while (nextIdx === queueIndex && queue.length > 1);
+      return queue[nextIdx];
+    }
+
     const nextIdx = queueIndex + 1;
-    if (nextIdx >= queue.length) return null;
+    if (nextIdx >= queue.length) {
+      // Repeat all: wrap around
+      if (repeat === "all" && queue.length > 0) {
+        return queue[0];
+      }
+      return null;
+    }
     return queue[nextIdx];
   },
 
@@ -201,7 +232,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   hasNext: () => {
-    const { queue, queueIndex } = get();
+    const { queue, queueIndex, repeat, shuffle } = get();
+    if (repeat === "one" || repeat === "all" || shuffle) return queue.length > 0;
     return queueIndex + 1 < queue.length;
   },
 
@@ -209,6 +241,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const { queueIndex } = get();
     return queueIndex > 0;
   },
+
+  toggleShuffle: () => set((s) => ({ shuffle: !s.shuffle })),
+
+  cycleRepeat: () => set((s) => {
+    const modes: RepeatMode[] = ["off", "all", "one"];
+    const idx = modes.indexOf(s.repeat);
+    return { repeat: modes[(idx + 1) % modes.length] };
+  }),
 
   restoreQueue: (queue, queueIndex) => {
     set({ queue, queueIndex });

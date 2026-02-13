@@ -30,6 +30,10 @@ export function PlaybackControls({
   const setPlaybackRate = usePlayerStore((s) => s.setPlaybackRate);
   const hasPrev = usePlayerStore((s) => s.hasPrevious());
   const hasNext = usePlayerStore((s) => s.hasNext());
+  const shuffle = usePlayerStore((s) => s.shuffle);
+  const repeat = usePlayerStore((s) => s.repeat);
+  const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
 
   const handleSeekBack = () => onSeek(position - 15);
   const handleSeekForward = () => onSeek(position + 30);
@@ -104,6 +108,28 @@ export function PlaybackControls({
         <Button variant="dark" size="sm" onClick={cycleRate} title="Speed" aria-label={`Playback speed ${playbackRate}x`}>
           {playbackRate}x
         </Button>
+        <button
+          onClick={toggleShuffle}
+          className={cn(
+            "text-[10px] cursor-pointer ml-1 px-1",
+            shuffle ? "text-desert-amber" : "text-bevel-dark hover:text-desktop-gray",
+          )}
+          title={shuffle ? "Shuffle on" : "Shuffle off"}
+          aria-label={shuffle ? "Disable shuffle" : "Enable shuffle"}
+        >
+          {"\u21C6"}
+        </button>
+        <button
+          onClick={cycleRepeat}
+          className={cn(
+            "text-[10px] cursor-pointer px-1",
+            repeat !== "off" ? "text-desert-amber" : "text-bevel-dark hover:text-desktop-gray",
+          )}
+          title={`Repeat: ${repeat}`}
+          aria-label={`Repeat mode: ${repeat}`}
+        >
+          {repeat === "one" ? "\u21BB1" : "\u21BB"}
+        </button>
       </div>
 
       {/* Volume */}

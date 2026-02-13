@@ -14,12 +14,24 @@ import { EpisodeDetail } from "@/components/library/EpisodeDetail";
 import { RecentlyPlayed } from "@/components/library/RecentlyPlayed";
 import { Window, Dialog, Button } from "@/components/win98";
 
-type SortMode = "date" | "name";
+type SortMode = "date" | "name" | "guest";
+type ShowFilter = "all" | "coast" | "dreamland" | "special" | "unknown";
+
+const SHOW_TABS: { key: ShowFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "coast", label: "Coast to Coast" },
+  { key: "dreamland", label: "Dreamland" },
+  { key: "special", label: "Specials" },
+  { key: "unknown", label: "Uncategorized" },
+];
 
 export default function LibraryPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("date");
+  const [showFilter, setShowFilter] = useState<ShowFilter>("all");
+  const [guestFilter, setGuestFilter] = useState<string | null>(null);
+  const [showFacets, setShowFacets] = useState(false);
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [lastClickedId, setLastClickedId] = useState<number | null>(null);
@@ -33,7 +45,7 @@ export default function LibraryPage() {
   useEffect(() => {
     const handler = (e: Event) => {
       const sort = (e as CustomEvent<string>).detail;
-      if (sort === "date" || sort === "name") setSortMode(sort);
+      if (sort === "date" || sort === "name" || sort === "guest") setSortMode(sort as SortMode);
     };
     window.addEventListener("hd:sort", handler);
     return () => window.removeEventListener("hd:sort", handler);
@@ -58,10 +70,60 @@ export default function LibraryPage() {
     [],
   );
 
+  // Show type counts for filter tabs
+  const showCounts = useMemo(() => {
+    if (!allEpisodes) return new Map<ShowFilter, number>();
+    const counts = new Map<ShowFilter, number>();
+    counts.set("all", allEpisodes.length);
+    for (const ep of allEpisodes) {
+      const type = (ep.showType ?? "unknown") as ShowFilter;
+      counts.set(type, (counts.get(type) ?? 0) + 1);
+    }
+    return counts;
+  }, [allEpisodes]);
+
+  // Top guests for faceted browsing
+  const topGuests = useMemo(() => {
+    if (!allEpisodes) return [];
+    const guestCounts = new Map<string, number>();
+    for (const ep of allEpisodes) {
+      if (ep.guestName) {
+        guestCounts.set(ep.guestName, (guestCounts.get(ep.guestName) ?? 0) + 1);
+      }
+    }
+    return Array.from(guestCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 30);
+  }, [allEpisodes]);
+
+  // Top topics for faceted browsing
+  const topTopics = useMemo(() => {
+    if (!allEpisodes) return [];
+    const topicCounts = new Map<string, number>();
+    for (const ep of allEpisodes) {
+      if (ep.topic) {
+        topicCounts.set(ep.topic, (topicCounts.get(ep.topic) ?? 0) + 1);
+      }
+    }
+    return Array.from(topicCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20);
+  }, [allEpisodes]);
+
   const filtered = useMemo(() => {
     if (!allEpisodes) return [];
 
     let list = allEpisodes;
+
+    // Show type filter
+    if (showFilter !== "all") {
+      list = list.filter((ep) => (ep.showType ?? "unknown") === showFilter);
+    }
+
+    // Guest filter
+    if (guestFilter) {
+      list = list.filter((ep) => ep.guestName === guestFilter);
+    }
 
     // Search filter (includes aiTags)
     if (search.trim()) {
@@ -73,6 +135,7 @@ export default function LibraryPage() {
           ep.guestName?.toLowerCase().includes(q) ||
           ep.topic?.toLowerCase().includes(q) ||
           ep.airDate?.includes(q) ||
+          ep.description?.toLowerCase().includes(q) ||
           ep.aiTags?.some((tag) => tag.toLowerCase().includes(q)),
       );
     }
@@ -84,19 +147,23 @@ export default function LibraryPage() {
         const nameB = (b.title || b.fileName).toLowerCase();
         return nameA.localeCompare(nameB);
       });
+    } else if (sortMode === "guest") {
+      list = [...list].sort((a, b) => {
+        const gA = (a.guestName || "").toLowerCase();
+        const gB = (b.guestName || "").toLowerCase();
+        return gA.localeCompare(gB) || (a.airDate ?? "").localeCompare(b.airDate ?? "");
+      });
     }
     // "date" is already the default order from Dexie (airDate desc)
 
     return list;
-  }, [allEpisodes, search, sortMode]);
+  }, [allEpisodes, search, sortMode, showFilter, guestFilter]);
 
   const handleEpisodeClick = useCallback((episode: Episode, e: React.MouseEvent) => {
-    // Multi-select support via native event
     if (e.shiftKey || e.metaKey || e.ctrlKey) {
       setSelectedIds((prev) => {
         const next = new Set(prev);
         if (e.shiftKey && lastClickedId != null) {
-          // Range select
           const allIds = filtered.map((ep) => ep.id!);
           const startIdx = allIds.indexOf(lastClickedId);
           const endIdx = allIds.indexOf(episode.id!);
@@ -107,7 +174,6 @@ export default function LibraryPage() {
             }
           }
         } else {
-          // Toggle single
           if (next.has(episode.id!)) {
             next.delete(episode.id!);
           } else {
@@ -228,6 +294,7 @@ export default function LibraryPage() {
         setSelectedIds(new Set());
         setSelectedEpisode(null);
         setFocusedIndex(-1);
+        setGuestFilter(null);
       }
     };
 
@@ -235,29 +302,155 @@ export default function LibraryPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [filtered, focusedIndex, selectedEpisode, selectedIds, handlePlay]);
 
+  const hasActiveFilters = showFilter !== "all" || guestFilter !== null;
+
   return (
     <div className="flex flex-col h-full">
-      <div className="p-3 flex-shrink-0">
+      <div className="p-3 pb-0 flex-shrink-0">
         <Window title="Library" variant="dark">
-          <div className="p-2">
+          <div className="p-2 flex flex-col gap-2">
             <SearchBar
               ref={searchBarRef}
               value={search}
               onChange={setSearch}
               resultCount={allEpisodes ? filtered.length : undefined}
             />
+
+            {/* Show type filter tabs */}
+            {allEpisodes && allEpisodes.length > 0 && (
+              <div className="flex items-center gap-0.5 overflow-x-auto">
+                {SHOW_TABS.map((tab) => {
+                  const count = showCounts.get(tab.key) ?? 0;
+                  const isActive = showFilter === tab.key;
+                  if (count === 0 && tab.key !== "all") return null;
+                  return (
+                    <button
+                      key={tab.key}
+                      onClick={() => {
+                        setShowFilter(tab.key);
+                        setGuestFilter(null);
+                      }}
+                      className={`
+                        px-2 py-0.5 text-[9px] cursor-pointer transition-colors-fast whitespace-nowrap
+                        ${isActive
+                          ? "bg-title-bar-blue/20 text-desktop-gray w98-inset-dark"
+                          : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10"
+                        }
+                      `}
+                    >
+                      {tab.label}
+                      <span className="ml-1 tabular-nums opacity-60">{count}</span>
+                    </button>
+                  );
+                })}
+
+                {/* Facets toggle */}
+                <button
+                  onClick={() => setShowFacets(!showFacets)}
+                  className={`
+                    ml-auto px-2 py-0.5 text-[9px] cursor-pointer transition-colors-fast
+                    ${showFacets ? "text-desert-amber" : "text-bevel-dark hover:text-desktop-gray"}
+                  `}
+                  title="Browse by guest or topic"
+                >
+                  {showFacets ? "Hide Facets" : "Browse"}
+                </button>
+              </div>
+            )}
+
+            {/* Active filter indicator */}
+            {hasActiveFilters && (
+              <div className="flex items-center gap-2 text-[9px]">
+                {guestFilter && (
+                  <span className="bg-static-green/15 text-static-green px-1.5 py-0.5 flex items-center gap-1">
+                    Guest: {guestFilter}
+                    <button
+                      onClick={() => setGuestFilter(null)}
+                      className="text-static-green/60 hover:text-static-green cursor-pointer"
+                    >
+                      x
+                    </button>
+                  </span>
+                )}
+                <button
+                  onClick={() => {
+                    setShowFilter("all");
+                    setGuestFilter(null);
+                  }}
+                  className="text-bevel-dark hover:text-desktop-gray cursor-pointer ml-auto"
+                >
+                  Clear filters
+                </button>
+              </div>
+            )}
           </div>
         </Window>
       </div>
 
       {/* Recently played */}
-      {recentlyPlayed && recentlyPlayed.length > 0 && !search.trim() && (
-        <div className="px-3 pb-2 flex-shrink-0">
+      {recentlyPlayed && recentlyPlayed.length > 0 && !search.trim() && !hasActiveFilters && (
+        <div className="px-3 py-2 flex-shrink-0">
           <RecentlyPlayed episodes={recentlyPlayed} onPlay={handlePlay} />
         </div>
       )}
 
       <div className="flex-1 overflow-hidden flex">
+        {/* Faceted browsing sidebar */}
+        {showFacets && allEpisodes && allEpisodes.length > 0 && (
+          <div className="w-[180px] flex-shrink-0 overflow-auto border-r border-bevel-dark/20 p-2 flex flex-col gap-3">
+            {/* Top Guests */}
+            {topGuests.length > 0 && (
+              <div>
+                <div className="text-[9px] text-desert-amber uppercase tracking-wider mb-1.5 font-bold">
+                  Guests
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  {topGuests.map(([guest, count]) => (
+                    <button
+                      key={guest}
+                      onClick={() => setGuestFilter(guestFilter === guest ? null : guest)}
+                      className={`
+                        text-left px-1.5 py-0.5 text-[9px] cursor-pointer transition-colors-fast truncate
+                        ${guestFilter === guest
+                          ? "bg-title-bar-blue/20 text-desktop-gray"
+                          : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10"
+                        }
+                      `}
+                    >
+                      {guest}
+                      <span className="ml-1 tabular-nums opacity-50">{count}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Top Topics */}
+            {topTopics.length > 0 && (
+              <div>
+                <div className="text-[9px] text-desert-amber uppercase tracking-wider mb-1.5 font-bold">
+                  Topics
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  {topTopics.map(([topic, count]) => (
+                    <button
+                      key={topic}
+                      onClick={() => {
+                        setSearch(topic);
+                        setShowFacets(false);
+                      }}
+                      className="text-left px-1.5 py-0.5 text-[9px] text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10 cursor-pointer transition-colors-fast truncate"
+                    >
+                      {topic}
+                      <span className="ml-1 tabular-nums opacity-50">{count}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Loading skeleton */}
         {allEpisodes === undefined && (
           <div className="flex-1 p-4 flex flex-col gap-2">

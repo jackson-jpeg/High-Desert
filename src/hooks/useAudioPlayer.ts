@@ -186,11 +186,23 @@ export function useAudioPlayer() {
     const audio = getAudio();
 
     const onEnded = () => {
-      const nextEp = usePlayerStore.getState().next();
+      const state = usePlayerStore.getState();
+
+      // Repeat one: just replay current track
+      if (state.repeat === "one") {
+        const audio = getAudio();
+        audio.currentTime = 0;
+        audio.play().catch(() => setPlaying(false));
+        return;
+      }
+
+      const nextEp = state.next();
       if (nextEp) {
-        usePlayerStore.getState().playFromQueue(
-          usePlayerStore.getState().queueIndex + 1,
-        );
+        // Find the proper queue index for the next episode
+        const nextIdx = state.queue.findIndex((e) => e.id === nextEp.id);
+        if (nextIdx !== -1) {
+          state.playFromQueue(nextIdx);
+        }
         window.dispatchEvent(
           new CustomEvent("hd:play-episode", { detail: nextEp }),
         );

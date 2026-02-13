@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { label: "Library", path: "/library" },
   { label: "Scanner", path: "/scanner" },
   { label: "Search", path: "/search" },
+  { label: "Stats", path: "/stats" },
 ] as const;
 
 const SHORTCUTS = [
@@ -85,6 +86,42 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     window.dispatchEvent(new CustomEvent("hd:sort", { detail: sort }));
   }, []);
 
+  const handleExport = useCallback(async () => {
+    const episodes = await db.episodes.toArray();
+    const data = {
+      version: "0.4.0",
+      exportedAt: new Date().toISOString(),
+      episodeCount: episodes.length,
+      episodes: episodes.map((ep) => ({
+        title: ep.title,
+        artist: ep.artist,
+        airDate: ep.airDate,
+        guestName: ep.guestName,
+        showType: ep.showType,
+        topic: ep.topic,
+        description: ep.description,
+        duration: ep.duration,
+        format: ep.format,
+        source: ep.source,
+        sourceUrl: ep.sourceUrl,
+        archiveIdentifier: ep.archiveIdentifier,
+        aiSummary: ep.aiSummary,
+        aiTags: ep.aiTags,
+        aiStatus: ep.aiStatus,
+        playbackPosition: ep.playbackPosition,
+        playCount: ep.playCount,
+        lastPlayedAt: ep.lastPlayedAt,
+      })),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `high-desert-library-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
   const menus: Menu[] = [
     {
       label: "File",
@@ -99,6 +136,9 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       items: [
         { label: "Sort by Date", onClick: () => dispatchSort("date") },
         { label: "Sort by Name", onClick: () => dispatchSort("name") },
+        { label: "Sort by Guest", onClick: () => dispatchSort("guest") },
+        { separator: true, label: "" },
+        { label: "Statistics", onClick: () => router.push("/stats") },
       ],
     },
     {
@@ -117,6 +157,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           label: "Import Catalog...",
           onClick: () => router.push("/scanner"),
         },
+        { separator: true, label: "" },
+        { label: "Export Library...", onClick: handleExport },
         { separator: true, label: "" },
         { label: "Clear Audio Cache...", onClick: handleOpenClearCache },
         { label: "Clear Library...", onClick: () => setClearOpen(true) },
@@ -197,7 +239,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             Art Bell Radio Archive
           </div>
           <div className="text-xs text-bevel-dark">
-            v0.3.0 &mdash; The Listening Experience
+            v0.4.0 &mdash; The Listening Experience
           </div>
           <Button onClick={handleCloseAbout}>OK</Button>
         </div>
