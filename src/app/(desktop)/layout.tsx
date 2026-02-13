@@ -98,17 +98,24 @@ export default function DesktopLayout({
     return () => window.removeEventListener("hd:play-episode", handler);
   }, [playEpisode, enqueue]);
 
-  // Persist last-episode-id whenever currentEpisode changes
+  // Persist last-episode-id and queue whenever they change
   useEffect(() => {
     return usePlayerStore.subscribe((state, prevState) => {
       if (state.currentEpisode?.id !== prevState.currentEpisode?.id && state.currentEpisode?.id) {
         setPreference("last-episode-id", String(state.currentEpisode.id));
       }
+      // Persist queue when it changes
+      if (state.queue !== prevState.queue || state.queueIndex !== prevState.queueIndex) {
+        const queueIds = state.queue.map((e) => e.id).filter(Boolean);
+        setPreference("queue-ids", JSON.stringify(queueIds));
+        setPreference("queue-index", String(state.queueIndex));
+      }
     });
   }, []);
 
-  // On mount, load last-played episode and show continue banner
+  // On mount, load last-played episode and restore queue
   useEffect(() => {
+    // Restore continue banner
     getPreference("last-episode-id").then(async (idStr) => {
       if (!idStr) return;
       const id = parseInt(idStr, 10);
@@ -116,6 +123,31 @@ export default function DesktopLayout({
       const ep = await db.episodes.get(id);
       if (ep && (ep.playbackPosition ?? 0) > 0) {
         setContinueEpisode(ep);
+      }
+    });
+
+    // Restore queue from prefs
+    Promise.all([
+      getPreference("queue-ids"),
+      getPreference("queue-index"),
+    ]).then(async ([idsJson, indexStr]) => {
+      if (!idsJson) return;
+      try {
+        const ids: number[] = JSON.parse(idsJson);
+        if (!Array.isArray(ids) || ids.length === 0) return;
+        const episodes = await db.episodes.where("id").anyOf(ids).toArray();
+        // Restore original order
+        const byId = new Map(episodes.map((e) => [e.id, e]));
+        const ordered = ids.map((id) => byId.get(id)).filter(Boolean) as Episode[];
+        if (ordered.length > 0) {
+          const idx = parseInt(indexStr ?? "-1", 10);
+          usePlayerStore.getState().restoreQueue(
+            ordered,
+            Math.min(Math.max(idx, -1), ordered.length - 1),
+          );
+        }
+      } catch {
+        // Ignore corrupt queue data
       }
     });
   }, []);
@@ -182,7 +214,7 @@ export default function DesktopLayout({
         case "KeyM":
           if (!e.metaKey && !e.ctrlKey) {
             e.preventDefault();
-            setVolume(volume > 0 ? 0 : 0.8);
+            usePlayerStore.getState().toggleMute();
           }
           break;
         case "Slash":

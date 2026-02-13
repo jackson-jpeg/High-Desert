@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const SCRAPE_URL = "https://archive.org/services/search/v1/scrape";
-const QUERY = 'mediatype:audio AND (creator:"Art Bell" OR title:"Coast to Coast")';
+const QUERY = 'mediatype:audio AND (creator:"Art Bell" OR title:"Coast to Coast" OR title:"Dreamland" OR subject:"Art Bell")';
 const FIELDS = "identifier,title,date,description,creator,downloads";
+const FETCH_TIMEOUT = 30000; // 30s
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -20,7 +21,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const res = await fetch(`${SCRAPE_URL}?${params.toString()}`);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+
+    const res = await fetch(`${SCRAPE_URL}?${params.toString()}`, {
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
 
     if (!res.ok) {
       return NextResponse.json(
@@ -29,13 +37,28 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const data = await res.json();
+    let data: Record<string, unknown>;
+    try {
+      data = await res.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid JSON from archive.org scrape API" },
+        { status: 502 },
+      );
+    }
+
     return NextResponse.json({
-      items: data.items ?? [],
-      cursor: data.cursor ?? null,
-      total: data.total ?? 0,
+      items: (data.items as unknown[]) ?? [],
+      cursor: (data.cursor as string) ?? null,
+      total: (data.total as number) ?? 0,
     });
   } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      return NextResponse.json(
+        { error: "Archive.org scrape request timed out" },
+        { status: 504 },
+      );
+    }
     console.error("[scrape] Error:", err);
     return NextResponse.json(
       { error: "Scrape request failed" },

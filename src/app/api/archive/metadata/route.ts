@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const AUDIO_FORMATS = new Set(["VBR MP3", "MP3", "128Kbps MP3", "64Kbps MP3", "Ogg Vorbis"]);
+const FETCH_TIMEOUT = 15000; // 15s
 
 export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id");
@@ -9,37 +10,77 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing id parameter" }, { status: 400 });
   }
 
-  const res = await fetch(`https://archive.org/metadata/${encodeURIComponent(id)}`, {
-    next: { revalidate: 3600 },
-  });
-
-  if (!res.ok) {
-    return NextResponse.json(
-      { error: "Archive.org metadata fetch failed" },
-      { status: res.status },
-    );
+  // Sanitize identifier
+  const sanitized = id.replace(/[^a-zA-Z0-9._-]/g, "");
+  if (!sanitized) {
+    return NextResponse.json({ error: "Invalid id parameter" }, { status: 400 });
   }
 
-  const data = await res.json();
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 
-  const audioFiles = (data.files ?? []).filter(
-    (f: Record<string, string>) => AUDIO_FORMATS.has(f.format),
-  );
+    const res = await fetch(
+      `https://archive.org/metadata/${encodeURIComponent(sanitized)}`,
+      {
+        signal: controller.signal,
+        next: { revalidate: 3600 },
+      },
+    );
 
-  return NextResponse.json({
-    identifier: data.metadata?.identifier,
-    metadata: {
-      title: data.metadata?.title,
-      date: data.metadata?.date,
-      description: data.metadata?.description,
-      creator: data.metadata?.creator,
-    },
-    files: audioFiles.map((f: Record<string, string>) => ({
-      name: f.name,
-      format: f.format,
-      size: f.size,
-      length: f.length,
-      source: f.source,
-    })),
-  });
+    clearTimeout(timeout);
+
+    if (!res.ok) {
+      return NextResponse.json(
+        { error: "Archive.org metadata fetch failed" },
+        { status: res.status },
+      );
+    }
+
+    let data: Record<string, unknown>;
+    try {
+      data = await res.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid JSON from archive.org" },
+        { status: 502 },
+      );
+    }
+
+    const metadata = data.metadata as Record<string, string> | undefined;
+    const files = data.files as Record<string, string>[] | undefined;
+
+    const audioFiles = (files ?? []).filter(
+      (f) => AUDIO_FORMATS.has(f.format),
+    );
+
+    return NextResponse.json({
+      identifier: metadata?.identifier,
+      metadata: {
+        title: metadata?.title,
+        date: metadata?.date,
+        description: metadata?.description,
+        creator: metadata?.creator,
+      },
+      files: audioFiles.map((f) => ({
+        name: f.name,
+        format: f.format,
+        size: f.size,
+        length: f.length,
+        source: f.source,
+      })),
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      return NextResponse.json(
+        { error: "Archive.org request timed out" },
+        { status: 504 },
+      );
+    }
+    console.error("[metadata] Error:", err);
+    return NextResponse.json(
+      { error: "Metadata fetch failed" },
+      { status: 500 },
+    );
+  }
 }

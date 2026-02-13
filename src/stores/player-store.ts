@@ -15,6 +15,7 @@ export interface PlayerState {
   position: number; // seconds
   duration: number; // seconds
   volume: number; // 0-1
+  preMuteVolume: number; // volume before muting, for restore
   playbackRate: number;
 
   // UI
@@ -27,6 +28,7 @@ export interface PlayerState {
   setPosition: (position: number) => void;
   setDuration: (duration: number) => void;
   setVolume: (volume: number) => void;
+  toggleMute: () => void;
   setPlaybackRate: (rate: number) => void;
   setError: (error: string | null) => void;
   toggleMini: () => void;
@@ -43,6 +45,9 @@ export interface PlayerState {
   previous: () => Episode | null;
   hasNext: () => boolean;
   hasPrevious: () => boolean;
+
+  // Persistence
+  restoreQueue: (queue: Episode[], queueIndex: number) => void;
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -54,6 +59,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   position: 0,
   duration: 0,
   volume: 0.8,
+  preMuteVolume: 0.8,
   playbackRate: 1,
   mini: true,
   error: null,
@@ -95,7 +101,22 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setPlaying: (playing) => set({ playing }),
   setPosition: (position) => set({ position }),
   setDuration: (duration) => set({ duration }),
-  setVolume: (volume) => set({ volume: Math.min(1, Math.max(0, volume)) }),
+  setVolume: (volume) => {
+    const clamped = Math.min(1, Math.max(0, volume));
+    set((s) => ({
+      volume: clamped,
+      // Track pre-mute volume when volume is being set to a non-zero value
+      preMuteVolume: clamped > 0 ? clamped : s.preMuteVolume,
+    }));
+  },
+  toggleMute: () => {
+    const { volume, preMuteVolume } = get();
+    if (volume > 0) {
+      set({ preMuteVolume: volume, volume: 0 });
+    } else {
+      set({ volume: preMuteVolume > 0 ? preMuteVolume : 0.8 });
+    }
+  },
   setPlaybackRate: (rate) => set({ playbackRate: rate }),
   setError: (error) => set({ error }),
   toggleMini: () => set((s) => ({ mini: !s.mini })),
@@ -187,5 +208,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   hasPrevious: () => {
     const { queueIndex } = get();
     return queueIndex > 0;
+  },
+
+  restoreQueue: (queue, queueIndex) => {
+    set({ queue, queueIndex });
   },
 }));

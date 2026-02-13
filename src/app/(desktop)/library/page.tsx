@@ -258,7 +258,17 @@ export default function LibraryPage() {
       )}
 
       <div className="flex-1 overflow-hidden flex">
+        {/* Loading skeleton */}
+        {allEpisodes === undefined && (
+          <div className="flex-1 p-4 flex flex-col gap-2">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-[82px] rounded w98-inset-dark bg-inset-well animate-pulse opacity-30" />
+            ))}
+          </div>
+        )}
+
         {/* Episode list */}
+        {allEpisodes !== undefined && (
         <div className="flex-1 overflow-auto min-w-0">
           <TimelineView
             episodes={filtered}
@@ -270,6 +280,7 @@ export default function LibraryPage() {
             selectedEpisodeId={selectedEpisode?.id}
           />
         </div>
+        )}
 
         {/* Detail panel */}
         {selectedEpisode && (

@@ -21,12 +21,14 @@ interface ScrapeResponse {
 /**
  * Async generator that scrapes the archive.org catalog in batches.
  * Yields batches of results and updates progress.
+ * Optionally resumes from a cursor position.
  */
 export async function* scrapeArchiveCatalog(
   signal: AbortSignal,
   onProgress: (update: Partial<ScrapeProgress>) => void,
+  resumeCursor?: string | null,
 ): AsyncGenerator<ArchiveSearchResult[], void, unknown> {
-  let cursor: string | null = null;
+  let cursor: string | null = resumeCursor ?? null;
   let fetched = 0;
   let total = 0;
 

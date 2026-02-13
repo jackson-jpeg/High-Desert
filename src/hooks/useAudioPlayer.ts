@@ -243,6 +243,139 @@ export function useAudioPlayer() {
     return () => window.clearInterval(interval);
   }, [currentEpisode?.id, playing]);
 
+  // Flush position on page unload
+  useEffect(() => {
+    const flush = () => {
+      const { position: pos, currentEpisode: ep } = usePlayerStore.getState();
+      if (ep?.id && pos > 0) {
+        // Use sendBeacon for reliable unload persistence
+        const payload = JSON.stringify({
+          id: ep.id,
+          playbackPosition: pos,
+          lastPlayedAt: Date.now(),
+        });
+        // Dexie can't run in unload, so persist via a direct IDB transaction
+        try {
+          const req = indexedDB.open("HighDesertDB");
+          req.onsuccess = () => {
+            const idb = req.result;
+            const tx = idb.transaction("episodes", "readwrite");
+            const store = tx.objectStore("episodes");
+            const getReq = store.get(ep.id!);
+            getReq.onsuccess = () => {
+              const record = getReq.result;
+              if (record) {
+                record.playbackPosition = pos;
+                record.lastPlayedAt = Date.now();
+                record.updatedAt = Date.now();
+                store.put(record);
+              }
+            };
+          };
+        } catch {
+          // Best-effort — if IDB fails during unload, position was saved within 5s
+        }
+      }
+    };
+
+    window.addEventListener("pagehide", flush);
+    window.addEventListener("beforeunload", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      window.removeEventListener("beforeunload", flush);
+    };
+  }, []);
+
+  // MediaSession API integration
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+
+    const session = navigator.mediaSession;
+
+    if (currentEpisode) {
+      session.metadata = new MediaMetadata({
+        title: currentEpisode.title || currentEpisode.fileName,
+        artist: currentEpisode.guestName
+          ? `Art Bell with ${currentEpisode.guestName}`
+          : currentEpisode.artist || "Art Bell",
+        album: currentEpisode.showType === "coast"
+          ? "Coast to Coast AM"
+          : currentEpisode.showType === "dreamland"
+            ? "Dreamland"
+            : "Art Bell Radio",
+      });
+    } else {
+      session.metadata = null;
+    }
+
+    session.playbackState = playing ? "playing" : "paused";
+  }, [currentEpisode, playing]);
+
+  // MediaSession action handlers
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+
+    const session = navigator.mediaSession;
+
+    const actions: [MediaSessionAction, MediaSessionActionHandler][] = [
+      ["play", () => togglePlay()],
+      ["pause", () => togglePlay()],
+      ["previoustrack", () => playPrevious()],
+      ["nexttrack", () => playNext()],
+      ["seekforward", (details) => {
+        const offset = (details as MediaSessionActionDetails & { seekOffset?: number }).seekOffset ?? 30;
+        const audio = getMediaElement();
+        if (audio?.src) seek(audio.currentTime + offset);
+      }],
+      ["seekbackward", (details) => {
+        const offset = (details as MediaSessionActionDetails & { seekOffset?: number }).seekOffset ?? 15;
+        const audio = getMediaElement();
+        if (audio?.src) seek(audio.currentTime - offset);
+      }],
+      ["seekto", (details) => {
+        const seekTime = (details as MediaSessionActionDetails & { seekTime?: number }).seekTime;
+        if (seekTime != null) seek(seekTime);
+      }],
+    ];
+
+    for (const [action, handler] of actions) {
+      try {
+        session.setActionHandler(action, handler);
+      } catch {
+        // Some actions may not be supported
+      }
+    }
+
+    return () => {
+      for (const [action] of actions) {
+        try {
+          session.setActionHandler(action, null);
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, [togglePlay, playNext, playPrevious, seek]);
+
+  // Update MediaSession position state
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    if (!currentEpisode || !playing) return;
+
+    const state = usePlayerStore.getState();
+    if (state.duration > 0) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: state.duration,
+          playbackRate: state.playbackRate,
+          position: Math.min(state.position, state.duration),
+        });
+      } catch {
+        // ignore
+      }
+    }
+  }, [currentEpisode, playing, position]);
+
   return {
     playEpisode,
     togglePlay,
