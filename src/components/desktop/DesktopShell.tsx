@@ -187,6 +187,11 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           onClick: () => router.push("/scanner"),
         },
         { separator: true, label: "" },
+        {
+          label: "AI Categorize All...",
+          onClick: () => router.push("/scanner"),
+        },
+        { separator: true, label: "" },
         { label: "Export Library...", onClick: handleExport },
         { separator: true, label: "" },
         { label: "Clear Audio Cache...", onClick: handleOpenClearCache },

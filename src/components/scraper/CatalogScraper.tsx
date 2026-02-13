@@ -56,6 +56,7 @@ export function CatalogScraper() {
     startScrape,
     cancelScrape,
     categorizeOnly,
+    recategorizeAll,
   } = useCatalogScraper();
 
   const [showErrors, setShowErrors] = useState(false);
@@ -289,8 +290,19 @@ export function CatalogScraper() {
             >
               Categorize Uncategorized
             </Button>
+            <Button
+              variant="dark"
+              size="sm"
+              onClick={recategorizeAll}
+            >
+              Re-categorize All Episodes
+            </Button>
             <div className="text-[9px] text-bevel-dark/60 leading-relaxed">
-              &ldquo;Import Only&rdquo; skips AI categorization (faster). You can categorize later with &ldquo;Categorize Uncategorized&rdquo;.
+              <strong>Import Only</strong> skips AI categorization (faster).
+              <br />
+              <strong>Categorize Uncategorized</strong> processes only pending/failed episodes.
+              <br />
+              <strong>Re-categorize All</strong> re-processes every episode to normalize titles, dates, guests, and tags for uniform sorting and filtering.
             </div>
           </div>
         )}

@@ -233,6 +233,8 @@ export function useCollectionImport() {
                 archiveIdentifier: ep.archiveIdentifier,
                 source: ep.source,
                 artist: ep.artist,
+                topic: ep.topic,
+                showType: ep.showType,
               })),
             }),
             signal: controller.signal,
@@ -242,8 +244,9 @@ export function useCollectionImport() {
             const results = await res.json();
             if (Array.isArray(results)) {
               for (let j = 0; j < results.length && j < chunk.length; j++) {
-                const { summary, tags, topic, guestName, airDate, showType } = results[j];
+                const { title, summary, tags, topic, guestName, airDate, showType } = results[j];
                 await db.episodes.update(chunk[j].id!, {
+                  title: title ?? chunk[j].title,
                   aiSummary: summary ?? undefined,
                   aiTags: tags ?? undefined,
                   topic: topic ?? chunk[j].topic,

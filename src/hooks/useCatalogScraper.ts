@@ -169,6 +169,8 @@ export function useCatalogScraper() {
                 archiveIdentifier: ep.archiveIdentifier,
                 source: ep.source,
                 artist: ep.artist,
+                topic: ep.topic,
+                showType: ep.showType,
               })),
             }),
             signal: controller.signal,
@@ -178,8 +180,9 @@ export function useCatalogScraper() {
             const results = await res.json();
             if (Array.isArray(results)) {
               for (let j = 0; j < results.length && j < chunk.length; j++) {
-                const { summary, tags, topic, guestName, airDate, showType } = results[j];
+                const { title, summary, tags, topic, guestName, airDate, showType } = results[j];
                 await db.episodes.update(chunk[j].id!, {
+                  title: title ?? chunk[j].title,
                   aiSummary: summary ?? undefined,
                   aiTags: tags ?? undefined,
                   topic: topic ?? chunk[j].topic,
@@ -238,6 +241,119 @@ export function useCatalogScraper() {
     store.setPhase("cancelled");
   }, [store]);
 
+  // Re-categorize ALL episodes (force uniform metadata)
+  const recategorizeAll = useCallback(async () => {
+    if (store.phase !== "idle" && store.phase !== "done" && store.phase !== "error" && store.phase !== "cancelled") {
+      return;
+    }
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    store.start();
+    store.setPhase("categorizing");
+
+    const allEpisodes = await db.episodes.toArray();
+
+    if (allEpisodes.length === 0) {
+      store.setPhase("done");
+      return;
+    }
+
+    store.updateProgress({ total: allEpisodes.length, fetched: allEpisodes.length });
+
+    const chunkSize = 10;
+    let categorized = 0;
+
+    try {
+      for (let i = 0; i < allEpisodes.length; i += chunkSize) {
+        if (controller.signal.aborted) {
+          store.setPhase("cancelled");
+          return;
+        }
+
+        const chunk = allEpisodes.slice(i, i + chunkSize);
+        store.setCurrentItem(`Batch ${Math.floor(i / chunkSize) + 1} of ${Math.ceil(allEpisodes.length / chunkSize)}`);
+
+        try {
+          const res = await fetchWithRetry("/api/categorize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              episodes: chunk.map((ep) => ({
+                title: ep.title,
+                fileName: ep.fileName,
+                airDate: ep.airDate,
+                guestName: ep.guestName,
+                description: ep.description,
+                archiveIdentifier: ep.archiveIdentifier,
+                source: ep.source,
+                artist: ep.artist,
+                topic: ep.topic,
+                showType: ep.showType,
+              })),
+            }),
+            signal: controller.signal,
+          }, { retries: 1 });
+
+          if (res.ok) {
+            const results = await res.json();
+            if (Array.isArray(results)) {
+              for (let j = 0; j < results.length && j < chunk.length; j++) {
+                const { title, summary, tags, topic, guestName, airDate, showType } = results[j];
+                await db.episodes.update(chunk[j].id!, {
+                  title: title ?? chunk[j].title,
+                  aiSummary: summary ?? undefined,
+                  aiTags: tags ?? undefined,
+                  topic: topic ?? chunk[j].topic,
+                  guestName: guestName ?? chunk[j].guestName,
+                  airDate: airDate ?? chunk[j].airDate,
+                  showType: showType ?? chunk[j].showType,
+                  aiStatus: "completed",
+                  updatedAt: Date.now(),
+                });
+                categorized++;
+              }
+              store.updateProgress({ categorized });
+            }
+          } else {
+            for (const ep of chunk) {
+              await db.episodes.update(ep.id!, { aiStatus: "failed", updatedAt: Date.now() });
+            }
+            store.addError(`Re-categorization failed for batch at index ${i}`);
+          }
+        } catch (err) {
+          if (controller.signal.aborted) {
+            store.setPhase("cancelled");
+            return;
+          }
+          const msg = err instanceof Error ? err.message : String(err);
+          store.addError(`Re-categorize batch error: ${msg}`);
+          for (const ep of chunk) {
+            await db.episodes.update(ep.id!, { aiStatus: "failed", updatedAt: Date.now() });
+          }
+        }
+
+        if (i + chunkSize < allEpisodes.length) {
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
+
+      store.setPhase("done");
+      toast.success(`Re-categorized ${categorized} episodes`);
+    } catch (err) {
+      if (controller.signal.aborted) {
+        store.setPhase("cancelled");
+        toast.info("Re-categorization cancelled");
+      } else {
+        const msg = err instanceof Error ? err.message : String(err);
+        store.addError(msg);
+        store.setPhase("error");
+        toast.error("Re-categorization failed");
+      }
+    }
+  }, [store]);
+
   // Categorize-only: run AI categorization on all pending episodes
   const categorizeOnly = useCallback(async () => {
     if (store.phase !== "idle" && store.phase !== "done" && store.phase !== "error" && store.phase !== "cancelled") {
@@ -289,6 +405,8 @@ export function useCatalogScraper() {
                 archiveIdentifier: ep.archiveIdentifier,
                 source: ep.source,
                 artist: ep.artist,
+                topic: ep.topic,
+                showType: ep.showType,
               })),
             }),
             signal: controller.signal,
@@ -298,8 +416,9 @@ export function useCatalogScraper() {
             const results = await res.json();
             if (Array.isArray(results)) {
               for (let j = 0; j < results.length && j < chunk.length; j++) {
-                const { summary, tags, topic, guestName, airDate, showType } = results[j];
+                const { title, summary, tags, topic, guestName, airDate, showType } = results[j];
                 await db.episodes.update(chunk[j].id!, {
+                  title: title ?? chunk[j].title,
                   aiSummary: summary ?? undefined,
                   aiTags: tags ?? undefined,
                   topic: topic ?? chunk[j].topic,
@@ -356,5 +475,6 @@ export function useCatalogScraper() {
     startScrape,
     cancelScrape,
     categorizeOnly,
+    recategorizeAll,
   };
 }

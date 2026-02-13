@@ -144,6 +144,8 @@ async function categorizeEpisode(episode: Episode) {
           archiveIdentifier: episode.archiveIdentifier,
           source: episode.source,
           artist: episode.artist,
+          topic: episode.topic,
+          showType: episode.showType,
         }],
       }),
     }, { retries: 1 });
@@ -157,8 +159,9 @@ async function categorizeEpisode(episode: Episode) {
 
     const results = await res.json();
     if (Array.isArray(results) && results[0] && episode.id) {
-      const { summary, tags, topic, guestName, airDate, showType } = results[0];
+      const { title, summary, tags, topic, guestName, airDate, showType } = results[0];
       await db.episodes.update(episode.id, {
+        title: title ?? episode.title,
         aiSummary: summary ?? undefined,
         aiTags: tags ?? undefined,
         topic: topic ?? episode.topic,

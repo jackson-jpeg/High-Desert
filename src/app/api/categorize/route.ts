@@ -12,6 +12,8 @@ interface EpisodeInput {
   archiveIdentifier?: string;
   source?: string;
   artist?: string;
+  topic?: string;
+  showType?: string;
 }
 
 const MAX_BATCH_SIZE = 10;
@@ -36,25 +38,40 @@ export async function POST(request: NextRequest) {
 
   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
-  const prompt = `You are an expert on Art Bell's radio career and shows: Coast to Coast AM (1988–2003, briefly 2013–2015), Dreamland (1993–2003), and various specials. Art Bell passed away in 2018.
+  const prompt = `You are an expert on Art Bell's radio career and shows: Coast to Coast AM (1988–2003, briefly 2013–2015), Dreamland (1993–2003), Dark Matter (2013), Midnight in the Desert (2015–2016), and various specials. Art Bell passed away in 2018.
 
-CRITICAL: The "airDate" field provided is often WRONG — especially for archive.org uploads where the date is the upload/digitization date (often 2010s-2020s), NOT the original broadcast date. You MUST determine the actual original air date using:
-1. The fileName — often contains the real date (e.g. "Art_Bell_1995-03-14.mp3", "c2c_970415.mp3", "ctc-am-2001-12-25.mp3")
+YOUR JOB: Make every episode's metadata clean, uniform, and accurate for use in a searchable archive player. Standardize everything.
+
+CRITICAL — DATES: The "airDate" field provided is often WRONG — especially for archive.org uploads where the date is the upload/digitization date (often 2010s-2020s), NOT the original broadcast date. Determine the ACTUAL original air date using:
+1. The fileName — often contains the real date (e.g. "Art_Bell_1995-03-14.mp3", "c2c_970415.mp3")
 2. The archiveIdentifier — often encodes the date (e.g. "coast-to-coast-am-1997-04-07")
-3. The title — may reference a date or year
-4. The description — may mention when the show originally aired
-5. The guest name — cross-reference with your knowledge of when specific guests appeared on Art Bell's shows
-6. Your knowledge of Art Bell's broadcast history
-
+3. The title or description — may reference when the show originally aired
+4. The guest name — cross-reference with your knowledge of when specific guests appeared
+5. Your knowledge of Art Bell's broadcast history
 If the provided airDate looks like an upload date (2010+) but other signals suggest a 1990s-2000s broadcast, trust the other signals.
 
-For each episode, return a JSON array with one object per episode containing:
-- "airDate": the actual original broadcast date in YYYY-MM-DD format (best estimate; use your knowledge of Art Bell's show history; null if truly unknown)
+CRITICAL — TITLES: Many titles are raw filenames or inconsistently formatted. You MUST return a clean, human-readable title. Rules:
+- Format: "Coast to Coast AM - [Topic/Guest]" or "Dreamland - [Topic/Guest]" or "Art Bell - [Topic/Guest]"
+- Remove file extensions (.mp3, .ogg, etc.), underscores, dashes used as separators
+- Remove redundant dates from the title (the airDate field handles dating)
+- Remove "Art Bell" from the middle of titles if it's already implied by the show name
+- If the title is already clean and descriptive, keep it as-is
+- Examples of good titles: "Coast to Coast AM - Mel's Hole with Mel Waters", "Dreamland - Remote Viewing with Ed Dames", "Art Bell - Open Lines"
+
+CRITICAL — GUEST NAMES: Standardize to full proper names. Fix common misspellings. Examples:
+- "Dr. Michio Kaku" not "Michio Kaku" or "M. Kaku" or "kaku"
+- "Richard C. Hoagland" not "Hoagland" or "richard hoagland"
+- "Linda Moulton Howe" not "LMH" or "linda howe"
+- Use null for Open Lines, best-of compilations, or no-guest episodes
+
+For each episode, return a JSON array with one object per episode:
+- "title": clean, standardized title (see rules above)
+- "airDate": original broadcast date as YYYY-MM-DD (null if truly unknown)
 - "showType": one of "coast", "dreamland", "special", or "unknown"
-- "summary": 1-2 sentence description of the episode's content
-- "tags": array of 3-5 relevant tags (e.g. "UFOs", "paranormal", "science", "conspiracy", "ghosts", "time travel", "remote viewing", "Area 51")
-- "topic": main topic in 2-4 words
-- "guestName": the guest's full name (use your knowledge of Art Bell's guest history to identify or correct; null if open lines/no guest)
+- "guestName": full proper name of the guest (null if none/open lines)
+- "topic": main topic in 2-5 words (e.g. "UFOs and Government Cover-ups", "Shadow People", "Time Travel Theory")
+- "summary": 1-2 sentence description of the episode content
+- "tags": array of 3-5 relevant lowercase tags (e.g. ["ufos", "paranormal", "science", "conspiracy", "ghosts", "remote viewing", "area 51", "prophecy", "cryptozoology"])
 
 Episodes:
 ${JSON.stringify(episodes, null, 2)}
