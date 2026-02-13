@@ -207,7 +207,7 @@ export function useCollectionImport() {
         .and((ep) => ep.archiveIdentifier === info.identifier)
         .toArray();
 
-      const chunkSize = 3;
+      const chunkSize = 10;
       let categorized = 0;
 
       for (let i = 0; i < uncategorized.length; i += chunkSize) {
@@ -238,7 +238,7 @@ export function useCollectionImport() {
               })),
             }),
             signal: controller.signal,
-          }, { retries: 2, delay: 3000 });
+          }, { retries: 2, delay: 1000 });
 
           if (res.ok) {
             const results = await res.json();
@@ -278,9 +278,9 @@ export function useCollectionImport() {
           }
         }
 
-        // 3s delay between batches to stay under rate limits
+        // 1s delay between batches
         if (i + chunkSize < uncategorized.length) {
-          await new Promise((r) => setTimeout(r, 3000));
+          await new Promise((r) => setTimeout(r, 1000));
         }
       }
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
+import Anthropic from "@anthropic-ai/sdk";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 interface EpisodeInput {
   title?: string;
@@ -16,11 +16,11 @@ interface EpisodeInput {
   showType?: string;
 }
 
-const MAX_BATCH_SIZE = 3;
+const MAX_BATCH_SIZE = 10;
 
 export async function POST(request: NextRequest) {
-  if (!GEMINI_API_KEY) {
-    return NextResponse.json({ error: "GEMINI_API_KEY not configured" }, { status: 500 });
+  if (!ANTHROPIC_API_KEY) {
+    return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 500 });
   }
 
   const { episodes } = (await request.json()) as { episodes: EpisodeInput[] };
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
   const prompt = `You are an expert on Art Bell's radio career and shows: Coast to Coast AM (1988–2003, briefly 2013–2015), Dreamland (1993–2003), Dark Matter (2013), Midnight in the Desert (2015–2016), and various specials. Art Bell passed away in 2018.
 
@@ -79,16 +79,20 @@ ${JSON.stringify(episodes, null, 2)}
 Respond ONLY with a valid JSON array.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-      },
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-5-20250929",
+      max_tokens: 4096,
+      messages: [{ role: "user", content: prompt }],
     });
 
-    const text = response.text ?? "[]";
-    const results = JSON.parse(text);
+    const textBlock = response.content.find((b) => b.type === "text");
+    const text = textBlock?.text ?? "[]";
+
+    // Extract JSON from potential markdown code fences
+    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/) ?? [null, text];
+    const jsonStr = jsonMatch[1]?.trim() ?? text.trim();
+
+    const results = JSON.parse(jsonStr);
 
     // Validate response shape
     if (!Array.isArray(results) || results.length !== episodes.length) {
@@ -100,8 +104,7 @@ Respond ONLY with a valid JSON array.`;
 
     return NextResponse.json(results);
   } catch (err) {
-    console.error("[categorize] Gemini error:", err);
-    // Forward rate limit errors so the client can back off
+    console.error("[categorize] Claude error:", err);
     const message = err instanceof Error ? err.message : String(err);
     if (message.includes("429") || message.toLowerCase().includes("rate") || message.toLowerCase().includes("quota")) {
       return NextResponse.json(

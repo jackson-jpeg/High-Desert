@@ -105,13 +105,13 @@ export function useArchiveSearch() {
       (r) => !store.addedIds.has(r.identifier) && !store.addingIds.has(r.identifier),
     );
 
-    // Batch into chunks of 3 with 3s delay between chunks (each triggers AI categorization)
-    const chunkSize = 3;
+    // Batch into chunks of 10 with 1s delay between chunks (each triggers AI categorization)
+    const chunkSize = 10;
     for (let i = 0; i < newResults.length; i += chunkSize) {
       const chunk = newResults.slice(i, i + chunkSize);
       await Promise.all(chunk.map((result) => addToLibrary(result)));
       if (i + chunkSize < newResults.length) {
-        await new Promise((r) => setTimeout(r, 3000));
+        await new Promise((r) => setTimeout(r, 1000));
       }
     }
   }, [store.addedIds, store.addingIds, addToLibrary]);
@@ -148,7 +148,7 @@ async function categorizeEpisode(episode: Episode) {
           showType: episode.showType,
         }],
       }),
-    }, { retries: 2, delay: 3000 });
+    }, { retries: 2, delay: 1000 });
 
     if (!res.ok) {
       if (episode.id) {

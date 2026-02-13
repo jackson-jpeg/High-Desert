@@ -1,23 +1,39 @@
 /**
- * Fetch with retry for transient failures (5xx, network errors).
+ * Fetch with retry for transient failures (5xx, network errors, rate limits).
  */
 
 interface RetryOptions {
   retries?: number;
   delay?: number;
   backoff?: number;
+  timeout?: number;
 }
 
 export async function fetchWithRetry(
   url: string,
   options?: RequestInit,
-  { retries = 3, delay = 1000, backoff = 2 }: RetryOptions = {},
+  { retries = 3, delay = 1000, backoff = 2, timeout = 30000 }: RetryOptions = {},
 ): Promise<Response> {
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await fetch(url, options);
+      // Timeout: abort if request takes too long
+      const controller = new AbortController();
+      const existingSignal = options?.signal;
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      // If caller passed their own signal, forward abort
+      if (existingSignal) {
+        if (existingSignal.aborted) {
+          clearTimeout(timeoutId);
+          throw new DOMException("Aborted", "AbortError");
+        }
+        existingSignal.addEventListener("abort", () => controller.abort(), { once: true });
+      }
+
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timeoutId);
 
       // Rate limited — respect Retry-After header, then retry
       if (res.status === 429) {
@@ -40,8 +56,15 @@ export async function fetchWithRetry(
       // Server error — retry
       lastError = new Error(`HTTP ${res.status}`);
     } catch (err) {
-      // Network error — retry
-      lastError = err instanceof Error ? err : new Error(String(err));
+      if (err instanceof DOMException && err.name === "AbortError") {
+        // Check if it was our timeout or the caller's signal
+        if (options?.signal?.aborted) {
+          throw err; // Caller cancelled — don't retry
+        }
+        lastError = new Error("Request timed out");
+      } else {
+        lastError = err instanceof Error ? err : new Error(String(err));
+      }
     }
 
     if (attempt < retries) {

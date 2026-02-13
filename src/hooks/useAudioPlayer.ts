@@ -54,16 +54,19 @@ export function useAudioPlayer() {
 
       // Create object URL from file, or use sourceUrl for archive episodes
       let url: string;
+      let isObjectUrl = false;
       if (file) {
         url = URL.createObjectURL(file);
+        isObjectUrl = true;
       } else if (episode.sourceUrl) {
         url = episode.sourceUrl;
       } else {
+        setError("No audio source available. Try re-importing this episode.");
         return;
       }
 
       setError(null);
-      loadEpisode(episode, url);
+      loadEpisode(episode, isObjectUrl ? url : "");
       audio.src = url;
       audio.currentTime = episode.playbackPosition ?? 0;
       audio.playbackRate = usePlayerStore.getState().playbackRate;
@@ -84,6 +87,8 @@ export function useAudioPlayer() {
       } catch (err) {
         console.error("[player] Playback failed:", err);
         setError("Playback failed. The audio source may be unavailable.");
+        // Revoke object URL on failure to prevent memory leaks
+        if (isObjectUrl) URL.revokeObjectURL(url);
       }
     },
     [getAudio, loadEpisode, setPlaying, setError],
@@ -113,8 +118,8 @@ export function useAudioPlayer() {
   const seek = useCallback(
     (seconds: number) => {
       const audio = getAudio();
-      if (!audio.src) return;
-      audio.currentTime = Math.max(0, Math.min(seconds, audio.duration || 0));
+      if (!audio.src || !audio.duration || !isFinite(audio.duration)) return;
+      audio.currentTime = Math.max(0, Math.min(seconds, audio.duration));
       setPosition(audio.currentTime);
     },
     [getAudio, setPosition],
