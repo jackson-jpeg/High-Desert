@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAdminStore } from "@/stores/admin-store";
 import { useFileScanner } from "@/hooks/useFileScanner";
 import { useScannerStore } from "@/stores/scanner-store";
 import { FolderPicker } from "@/components/scanner/FolderPicker";
@@ -9,9 +12,17 @@ import { CatalogScraper } from "@/components/scraper/CatalogScraper";
 import { CollectionImport } from "@/components/scraper/CollectionImport";
 
 export default function ScannerPage() {
+  const router = useRouter();
+  const isAdmin = useAdminStore((s) => s.isAdmin);
   const { startScan, startScanFallback, cancelScan, supportsNativePicker } =
     useFileScanner();
   const status = useScannerStore((s) => s.status);
+
+  useEffect(() => {
+    if (!isAdmin) router.replace("/library");
+  }, [isAdmin, router]);
+
+  if (!isAdmin) return null;
 
   const isScanning = status === "scanning";
   const hasResults =

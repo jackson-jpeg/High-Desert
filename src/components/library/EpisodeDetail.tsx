@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import type { Episode } from "@/lib/db/schema";
 import { Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
@@ -14,8 +15,16 @@ interface EpisodeDetailProps {
   onClose: () => void;
   onDelete?: (episode: Episode) => void;
   onRecategorize?: (episode: Episode) => void;
+  onEdit?: (id: number, fields: Partial<Episode>) => void;
   className?: string;
 }
+
+const SHOW_TYPE_OPTIONS: { value: Episode["showType"]; label: string }[] = [
+  { value: "coast", label: "Coast to Coast" },
+  { value: "dreamland", label: "Dreamland" },
+  { value: "special", label: "Special" },
+  { value: "unknown", label: "Unknown" },
+];
 
 export function EpisodeDetail({
   episode,
@@ -24,10 +33,54 @@ export function EpisodeDetail({
   onClose,
   onDelete,
   onRecategorize,
+  onEdit,
   className,
 }: EpisodeDetailProps) {
   const showLabel = getShowLabel(episode.showType);
   const isArchive = episode.source === "archive";
+
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editGuest, setEditGuest] = useState("");
+  const [editAirDate, setEditAirDate] = useState("");
+  const [editTopic, setEditTopic] = useState("");
+  const [editShowType, setEditShowType] = useState<Episode["showType"]>("unknown");
+  const [editSummary, setEditSummary] = useState("");
+
+  // Reset edit state when episode changes
+  useEffect(() => {
+    setEditing(false);
+  }, [episode.id]);
+
+  const startEditing = () => {
+    setEditTitle(episode.title ?? "");
+    setEditGuest(episode.guestName ?? "");
+    setEditAirDate(episode.airDate ?? "");
+    setEditTopic(episode.topic ?? "");
+    setEditShowType(episode.showType ?? "unknown");
+    setEditSummary(episode.aiSummary ?? "");
+    setEditing(true);
+  };
+
+  const handleSave = () => {
+    if (!onEdit || !episode.id) return;
+    onEdit(episode.id, {
+      title: editTitle || undefined,
+      guestName: editGuest || undefined,
+      airDate: editAirDate || undefined,
+      topic: editTopic || undefined,
+      showType: editShowType,
+      aiSummary: editSummary || undefined,
+    });
+    setEditing(false);
+    toast.success("Episode updated");
+  };
+
+  const handleCancel = () => {
+    setEditing(false);
+  };
+
+  const inputClass = "w-full bg-inset-well w98-inset-dark px-1.5 py-1 text-desktop-gray outline-none";
 
   return (
     <div
@@ -52,152 +105,231 @@ export function EpisodeDetail({
 
       {/* Body */}
       <div className="p-3 flex flex-col gap-2.5 overflow-auto">
-        {/* Title + date + duration */}
-        <div>
-          <div className="text-[14px] md:text-[12px] text-desktop-gray font-bold leading-snug">
-            {episode.title || episode.fileName}
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            {episode.airDate && (
-              <span className="text-[10px] text-desert-amber tabular-nums">
-                {episode.airDate}
-              </span>
-            )}
-            {episode.duration != null && (
-              <span className="text-[10px] text-bevel-dark/70 tabular-nums">
-                {formatDuration(episode.duration)}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Guest */}
-        {episode.guestName && (
-          <div className="text-[13px] md:text-[11px] text-static-green/80">
-            {episode.guestName}
-          </div>
-        )}
-
-        {/* Topic */}
-        {episode.topic && !episode.guestName && (
-          <div className="text-[13px] md:text-[11px] text-desktop-gray/80">
-            {episode.topic}
-          </div>
-        )}
-
-        {/* Summary or Description */}
-        {(episode.aiSummary || episode.description) && (
-          <div className="text-[12px] md:text-[10px] text-desktop-gray/60 leading-relaxed">
-            {episode.aiSummary || episode.description}
-          </div>
-        )}
-
-        {/* Tags */}
-        {episode.aiTags && episode.aiTags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {episode.aiTags.map((tag) => (
-              <span
-                key={tag}
-                className="text-[8px] text-desert-amber/70 bg-desert-amber/8 px-1.5 py-px"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Playback progress */}
-        {episode.playbackPosition != null && episode.playbackPosition > 0 && episode.duration != null && episode.duration > 0 && (
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-[3px] w98-inset-dark bg-inset-well overflow-hidden">
-              <div
-                className={cn(
-                  "h-full",
-                  episode.playbackPosition / episode.duration > 0.9
-                    ? "bg-static-green/50"
-                    : "bg-phosphor-amber/50",
-                )}
-                style={{ width: `${Math.min(100, (episode.playbackPosition / episode.duration) * 100)}%` }}
+        {editing ? (
+          /* ── Edit Mode ── */
+          <div className="flex flex-col gap-2">
+            <label className="flex flex-col gap-0.5">
+              <span className="text-[8px] text-bevel-dark uppercase tracking-wider">Title</span>
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className={cn(inputClass, "text-[12px]")}
               />
+            </label>
+            <label className="flex flex-col gap-0.5">
+              <span className="text-[8px] text-bevel-dark uppercase tracking-wider">Guest Name</span>
+              <input
+                type="text"
+                value={editGuest}
+                onChange={(e) => setEditGuest(e.target.value)}
+                className={cn(inputClass, "text-[11px]")}
+              />
+            </label>
+            <label className="flex flex-col gap-0.5">
+              <span className="text-[8px] text-bevel-dark uppercase tracking-wider">Air Date</span>
+              <input
+                type="text"
+                value={editAirDate}
+                onChange={(e) => setEditAirDate(e.target.value)}
+                placeholder="YYYY-MM-DD"
+                className={cn(inputClass, "text-[11px]")}
+              />
+            </label>
+            <label className="flex flex-col gap-0.5">
+              <span className="text-[8px] text-bevel-dark uppercase tracking-wider">Topic</span>
+              <input
+                type="text"
+                value={editTopic}
+                onChange={(e) => setEditTopic(e.target.value)}
+                className={cn(inputClass, "text-[11px]")}
+              />
+            </label>
+            <label className="flex flex-col gap-0.5">
+              <span className="text-[8px] text-bevel-dark uppercase tracking-wider">Show Type</span>
+              <select
+                value={editShowType}
+                onChange={(e) => setEditShowType(e.target.value as Episode["showType"])}
+                className={cn(inputClass, "text-[11px]")}
+              >
+                {SHOW_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-0.5">
+              <span className="text-[8px] text-bevel-dark uppercase tracking-wider">AI Summary</span>
+              <textarea
+                value={editSummary}
+                onChange={(e) => setEditSummary(e.target.value)}
+                rows={4}
+                className={cn(inputClass, "text-[10px] resize-y")}
+              />
+            </label>
+            <div className="flex items-center gap-2 pt-1">
+              <Button variant="dark" size="sm" onClick={handleSave}>Save</Button>
+              <Button size="sm" onClick={handleCancel}>Cancel</Button>
             </div>
-            <span className="text-[9px] text-bevel-dark/70 tabular-nums flex-shrink-0">
-              {formatTime(episode.playbackPosition)} / {formatDuration(episode.duration)}
-            </span>
           </div>
-        )}
+        ) : (
+          /* ── View Mode ── */
+          <>
+            {/* Title + date + duration */}
+            <div>
+              <div className="text-[14px] md:text-[12px] text-desktop-gray font-bold leading-snug">
+                {episode.title || episode.fileName}
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                {episode.airDate && (
+                  <span className="text-[10px] text-desert-amber tabular-nums">
+                    {episode.airDate}
+                  </span>
+                )}
+                {episode.duration != null && (
+                  <span className="text-[10px] text-bevel-dark/70 tabular-nums">
+                    {formatDuration(episode.duration)}
+                  </span>
+                )}
+              </div>
+            </div>
 
-        {/* Play stats */}
-        {(episode.playCount ?? 0) > 0 && (
-          <div className="text-[9px] text-bevel-dark/50 tabular-nums">
-            {episode.playCount != null && episode.playCount > 0 && `Played ${episode.playCount}x`}
-            {episode.lastPlayedAt != null && episode.lastPlayedAt > 0 && (
-              <> &middot; {new Date(episode.lastPlayedAt).toLocaleDateString()}</>
+            {/* Guest */}
+            {episode.guestName && (
+              <div className="text-[13px] md:text-[11px] text-static-green/80">
+                {episode.guestName}
+              </div>
             )}
-          </div>
+
+            {/* Topic */}
+            {episode.topic && !episode.guestName && (
+              <div className="text-[13px] md:text-[11px] text-desktop-gray/80">
+                {episode.topic}
+              </div>
+            )}
+
+            {/* Summary or Description */}
+            {(episode.aiSummary || episode.description) && (
+              <div className="text-[12px] md:text-[10px] text-desktop-gray/60 leading-relaxed">
+                {episode.aiSummary || episode.description}
+              </div>
+            )}
+
+            {/* Tags */}
+            {episode.aiTags && episode.aiTags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {episode.aiTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="text-[8px] text-desert-amber/70 bg-desert-amber/8 px-1.5 py-px"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Playback progress */}
+            {episode.playbackPosition != null && episode.playbackPosition > 0 && episode.duration != null && episode.duration > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-[3px] w98-inset-dark bg-inset-well overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full",
+                      episode.playbackPosition / episode.duration > 0.9
+                        ? "bg-static-green/50"
+                        : "bg-phosphor-amber/50",
+                    )}
+                    style={{ width: `${Math.min(100, (episode.playbackPosition / episode.duration) * 100)}%` }}
+                  />
+                </div>
+                <span className="text-[9px] text-bevel-dark/70 tabular-nums flex-shrink-0">
+                  {formatTime(episode.playbackPosition)} / {formatDuration(episode.duration)}
+                </span>
+              </div>
+            )}
+
+            {/* Play stats */}
+            {(episode.playCount ?? 0) > 0 && (
+              <div className="text-[9px] text-bevel-dark/50 tabular-nums">
+                {episode.playCount != null && episode.playCount > 0 && `Played ${episode.playCount}x`}
+                {episode.lastPlayedAt != null && episode.lastPlayedAt > 0 && (
+                  <> &middot; {new Date(episode.lastPlayedAt).toLocaleDateString()}</>
+                )}
+              </div>
+            )}
+
+            {/* Play buttons */}
+            <div className="flex items-center gap-2 pt-1">
+              <Button
+                variant="dark"
+                size="sm"
+                onClick={() => onPlay(episode)}
+                disabled={isPlaying}
+              >
+                {isPlaying ? "Playing" : "Play"}
+              </Button>
+              <Button
+                variant="dark"
+                size="sm"
+                onClick={() => {
+                  usePlayerStore.getState().enqueueNext(episode);
+                  toast.info(`"${episode.title || episode.fileName}" plays next`);
+                }}
+                disabled={isPlaying}
+              >
+                Play Next
+              </Button>
+              <Button
+                variant="dark"
+                size="sm"
+                onClick={() => {
+                  usePlayerStore.getState().enqueue(episode);
+                  toast.info("Added to queue");
+                }}
+              >
+                Queue
+              </Button>
+            </div>
+
+            {/* File info + management */}
+            <div className="flex items-center gap-2 border-t border-bevel-dark/15 pt-2 mt-0.5">
+              {episode.archiveIdentifier && (
+                <a
+                  href={`https://archive.org/details/${episode.archiveIdentifier}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+                >
+                  Archive
+                </a>
+              )}
+              {onEdit && (
+                <button
+                  onClick={startEditing}
+                  className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+                >
+                  Edit
+                </button>
+              )}
+              {onRecategorize && (
+                <button
+                  onClick={() => onRecategorize(episode)}
+                  className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+                >
+                  Re-categorize
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={() => onDelete(episode)}
+                  className="text-[12px] md:text-[9px] text-red-400/40 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast ml-auto min-h-[44px] md:min-h-0 flex items-center"
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+          </>
         )}
-
-        {/* Play buttons */}
-        <div className="flex items-center gap-2 pt-1">
-          <Button
-            variant="dark"
-            size="sm"
-            onClick={() => onPlay(episode)}
-            disabled={isPlaying}
-          >
-            {isPlaying ? "Playing" : "Play"}
-          </Button>
-          <Button
-            variant="dark"
-            size="sm"
-            onClick={() => {
-              usePlayerStore.getState().enqueueNext(episode);
-              toast.info(`"${episode.title || episode.fileName}" plays next`);
-            }}
-            disabled={isPlaying}
-          >
-            Play Next
-          </Button>
-          <Button
-            variant="dark"
-            size="sm"
-            onClick={() => {
-              usePlayerStore.getState().enqueue(episode);
-              toast.info("Added to queue");
-            }}
-          >
-            Queue
-          </Button>
-        </div>
-
-        {/* File info + management */}
-        <div className="flex items-center gap-2 border-t border-bevel-dark/15 pt-2 mt-0.5">
-          {episode.archiveIdentifier && (
-            <a
-              href={`https://archive.org/details/${episode.archiveIdentifier}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
-            >
-              Archive
-            </a>
-          )}
-          {onRecategorize && (
-            <button
-              onClick={() => onRecategorize(episode)}
-              className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
-            >
-              Re-categorize
-            </button>
-          )}
-          {onDelete && (
-            <button
-              onClick={() => onDelete(episode)}
-              className="text-[12px] md:text-[9px] text-red-400/40 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast ml-auto min-h-[44px] md:min-h-0 flex items-center"
-            >
-              Delete
-            </button>
-          )}
-        </div>
       </div>
     </div>
   );

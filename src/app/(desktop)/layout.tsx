@@ -7,6 +7,7 @@ import { AudioPlayer } from "@/components/player/AudioPlayer";
 import { ContinueBanner } from "@/components/library/ContinueBanner";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { usePlayerStore } from "@/stores/player-store";
+import { useAdminStore } from "@/stores/admin-store";
 import { db, getPreference, setPreference } from "@/lib/db";
 import type { Episode } from "@/lib/db/schema";
 import { getCachedAudio, cacheAudioBlob } from "@/lib/audio/cache";
@@ -24,6 +25,18 @@ export default function DesktopLayout({
   const enqueue = usePlayerStore((s) => s.enqueue);
   const currentEpisode = usePlayerStore((s) => s.currentEpisode);
   const [continueEpisode, setContinueEpisode] = useState<Episode | null>(null);
+
+  // Handle ?admin / ?viewer URL params on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("admin")) {
+      useAdminStore.getState().setAdmin(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (params.has("viewer")) {
+      useAdminStore.getState().setAdmin(false);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   // Restore volume from prefs on mount
   useEffect(() => {

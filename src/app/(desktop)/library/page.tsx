@@ -8,7 +8,8 @@ import type { Episode } from "@/lib/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
 import { useContextMenuStore } from "@/stores/context-menu-store";
 import { toast } from "@/stores/toast-store";
-import { deleteEpisode, recategorizeEpisode } from "@/lib/episodes/management";
+import { useAdminStore } from "@/stores/admin-store";
+import { deleteEpisode, recategorizeEpisode, updateEpisode } from "@/lib/episodes/management";
 import { SearchBar } from "@/components/library/SearchBar";
 import { TimelineView } from "@/components/library/TimelineView";
 import { EpisodeDetail } from "@/components/library/EpisodeDetail";
@@ -41,6 +42,7 @@ export default function LibraryPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const currentEpisodeId = usePlayerStore((s) => s.currentEpisode?.id);
+  const isAdmin = useAdminStore((s) => s.isAdmin);
   const searchBarRef = useRef<HTMLInputElement>(null);
 
   // Listen for sort events from the menu bar
@@ -214,8 +216,9 @@ export default function LibraryPage() {
   const handleContextMenu = useCallback((episode: Episode, x: number, y: number) => {
     const isPlaying = episode.id === currentEpisodeId;
     const store = usePlayerStore.getState();
+    const admin = useAdminStore.getState().isAdmin;
 
-    useContextMenuStore.getState().show(x, y, [
+    const items = [
       {
         label: "Play",
         onClick: () => handlePlay(episode),
@@ -236,25 +239,31 @@ export default function LibraryPage() {
           toast.info(`Added to queue`);
         },
       },
-      { label: "", onClick: () => {}, separator: true },
-      {
-        label: "Re-categorize",
-        onClick: () => recategorizeEpisode(episode.id!),
-      },
-      { label: "", onClick: () => {}, separator: true },
-      {
-        label: "Delete",
-        onClick: async () => {
-          if (selectedIds.size > 1 && selectedIds.has(episode.id!)) {
-            setDeleteOpen(true);
-          } else {
-            await deleteEpisode(episode.id!);
-            if (selectedEpisode?.id === episode.id) setSelectedEpisode(null);
-          }
-        },
-        danger: true,
-      },
-    ]);
+      ...(admin
+        ? [
+            { label: "", onClick: () => {}, separator: true },
+            {
+              label: "Re-categorize",
+              onClick: () => recategorizeEpisode(episode.id!),
+            },
+            { label: "", onClick: () => {}, separator: true },
+            {
+              label: "Delete",
+              onClick: async () => {
+                if (selectedIds.size > 1 && selectedIds.has(episode.id!)) {
+                  setDeleteOpen(true);
+                } else {
+                  await deleteEpisode(episode.id!);
+                  if (selectedEpisode?.id === episode.id) setSelectedEpisode(null);
+                }
+              },
+              danger: true,
+            },
+          ]
+        : []),
+    ];
+
+    useContextMenuStore.getState().show(x, y, items);
   }, [currentEpisodeId, handlePlay, selectedIds, selectedEpisode]);
 
   const handleBulkDelete = useCallback(async () => {
@@ -298,7 +307,7 @@ export default function LibraryPage() {
       } else if (e.code === "Enter" && selectedEpisode) {
         e.preventDefault();
         handlePlay(selectedEpisode);
-      } else if (e.code === "Delete" || e.code === "Backspace") {
+      } else if ((e.code === "Delete" || e.code === "Backspace") && useAdminStore.getState().isAdmin) {
         if (selectedIds.size > 0) {
           e.preventDefault();
           setDeleteOpen(true);
@@ -417,12 +426,14 @@ export default function LibraryPage() {
                 >
                   Add to Queue
                 </button>
-                <button
-                  onClick={() => setDeleteOpen(true)}
-                  className="text-red-400/60 hover:text-red-400 cursor-pointer transition-colors-fast"
-                >
-                  Delete
-                </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => setDeleteOpen(true)}
+                    className="text-red-400/60 hover:text-red-400 cursor-pointer transition-colors-fast"
+                  >
+                    Delete
+                  </button>
+                )}
                 <button
                   onClick={() => setSelectedIds(new Set())}
                   className="text-bevel-dark hover:text-desktop-gray cursor-pointer transition-colors-fast ml-auto"
@@ -518,14 +529,16 @@ export default function LibraryPage() {
                 No episodes matching &ldquo;{search}&rdquo;
               </div>
               <div className="text-[10px] text-bevel-dark mb-4">
-                Try a different search term, or search the archive.
+                Try a different search term{isAdmin ? ", or search the archive" : ""}.
               </div>
-              <button
-                onClick={() => router.push(`/search`)}
-                className="text-[10px] text-title-bar-blue hover:text-title-bar-blue/80 cursor-pointer transition-colors-fast px-3 py-1.5 w98-raised-dark bg-raised-surface"
-              >
-                Search Archive.org for &ldquo;{search}&rdquo;
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => router.push(`/search`)}
+                  className="text-[10px] text-title-bar-blue hover:text-title-bar-blue/80 cursor-pointer transition-colors-fast px-3 py-1.5 w98-raised-dark bg-raised-surface"
+                >
+                  Search Archive.org for &ldquo;{search}&rdquo;
+                </button>
+              )}
             </div>
           ) : (
             <TimelineView
@@ -534,7 +547,7 @@ export default function LibraryPage() {
               onEpisodeClick={handleEpisodeClick}
               onEpisodeDoubleClick={handleDoubleClick}
               onEpisodeContextMenu={handleContextMenu}
-              onAction={handleAction}
+              onAction={isAdmin ? handleAction : undefined}
               selectedEpisodeId={selectedEpisode?.id}
               selectedIds={selectedIds}
             />
@@ -561,11 +574,20 @@ export default function LibraryPage() {
                 isPlaying={selectedEpisode.id === currentEpisodeId}
                 onPlay={handlePlay}
                 onClose={handleCloseDetail}
-                onDelete={async (ep) => {
-                  await deleteEpisode(ep.id!);
-                  setSelectedEpisode(null);
-                }}
-                onRecategorize={(ep) => recategorizeEpisode(ep.id!)}
+                {...(isAdmin
+                  ? {
+                      onDelete: async (ep: Episode) => {
+                        await deleteEpisode(ep.id!);
+                        setSelectedEpisode(null);
+                      },
+                      onRecategorize: (ep: Episode) => recategorizeEpisode(ep.id!),
+                      onEdit: async (id: number, fields: Partial<Episode>) => {
+                        await updateEpisode(id, fields);
+                        const updated = await db.episodes.get(id);
+                        if (updated) setSelectedEpisode(updated);
+                      },
+                    }
+                  : {})}
               />
             </div>
           </>

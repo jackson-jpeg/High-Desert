@@ -36,6 +36,13 @@ export async function deleteEpisodes(ids: number[]): Promise<void> {
   }
 }
 
+export async function updateEpisode(
+  id: number,
+  fields: Partial<Pick<import("@/lib/db/schema").Episode, "title" | "guestName" | "airDate" | "topic" | "showType" | "aiSummary">>,
+): Promise<void> {
+  await db.episodes.update(id, { ...fields, updatedAt: Date.now() });
+}
+
 export async function recategorizeEpisode(id: number): Promise<void> {
   const episode = await db.episodes.get(id);
   if (!episode) return;

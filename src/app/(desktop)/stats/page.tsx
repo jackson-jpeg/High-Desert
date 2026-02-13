@@ -3,10 +3,12 @@
 import { useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
+import { useAdminStore } from "@/stores/admin-store";
 import { Window } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
 
 export default function StatsPage() {
+  const isAdmin = useAdminStore((s) => s.isAdmin);
   const episodes = useLiveQuery(() => db.episodes.toArray(), []);
 
   const stats = useMemo(() => {
@@ -135,7 +137,9 @@ export default function StatsPage() {
             <div className="text-[24px] text-desert-amber/30 select-none">{"\u{1F4E1}"}</div>
             <div className="text-[11px] text-bevel-dark">No episodes in the library yet.</div>
             <div className="text-[9px] text-bevel-dark/60">
-              Import episodes from the Scanner or Search page to see your station stats.
+              {isAdmin
+                ? "Import episodes from the Scanner or Search page to see your station stats."
+                : "No episodes in the library yet. Check back soon!"}
             </div>
           </div>
         </Window>

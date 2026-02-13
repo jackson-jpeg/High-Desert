@@ -9,6 +9,7 @@ import type { Menu } from "@/components/win98";
 import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useCallback, useEffect, useState } from "react";
 import { usePlayerStore } from "@/stores/player-store";
+import { useAdminStore } from "@/stores/admin-store";
 import { toast } from "@/stores/toast-store";
 import { db } from "@/lib/db";
 import { clearAudioCache, getCacheSize } from "@/lib/audio/cache";
@@ -49,6 +50,7 @@ const SHORTCUTS = [
 export function DesktopShell({ children, player, episodeCount = 0, className }: DesktopShellProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const isAdmin = useAdminStore((s) => s.isAdmin);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
@@ -161,8 +163,10 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     {
       label: "File",
       items: [
-        { label: "Open Folder...", shortcut: "Ctrl+O", onClick: () => router.push("/scanner") },
-        { separator: true, label: "" },
+        ...(isAdmin
+          ? [{ label: "Open Folder...", shortcut: "Ctrl+O", onClick: () => router.push("/scanner") },
+             { separator: true as const, label: "" }]
+          : []),
         { label: "Exit", onClick: () => window.close() },
       ],
     },
@@ -176,36 +180,38 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         { label: "Statistics", onClick: () => router.push("/stats") },
       ],
     },
-    {
-      label: "Library",
-      items: [
-        {
-          label: "Scan Folder...",
-          shortcut: "Ctrl+Shift+S",
-          onClick: () => router.push("/scanner"),
-        },
-        {
-          label: "Search Archive...",
-          onClick: () => router.push("/search"),
-        },
-        {
-          label: "Import Catalog...",
-          onClick: () => router.push("/scanner"),
-        },
-        { separator: true, label: "" },
-        {
-          label: scraperPhase === "categorizing" ? "Categorizing..." : "AI Categorize All...",
-          onClick: categorizeOnly,
-          disabled: scraperPhase === "categorizing" || scraperPhase === "scraping" || scraperPhase === "importing",
-        },
-        { separator: true, label: "" },
-        { label: "Export Library...", onClick: handleExport },
-        { label: "Export Library Seed...", onClick: exportLibrarySeed },
-        { separator: true, label: "" },
-        { label: "Clear Audio Cache...", onClick: handleOpenClearCache },
-        { label: "Clear Library...", onClick: () => setClearOpen(true) },
-      ],
-    },
+    ...(isAdmin
+      ? [{
+          label: "Library",
+          items: [
+            {
+              label: "Scan Folder...",
+              shortcut: "Ctrl+Shift+S",
+              onClick: () => router.push("/scanner"),
+            },
+            {
+              label: "Search Archive...",
+              onClick: () => router.push("/search"),
+            },
+            {
+              label: "Import Catalog...",
+              onClick: () => router.push("/scanner"),
+            },
+            { separator: true as const, label: "" },
+            {
+              label: scraperPhase === "categorizing" ? "Categorizing..." : "AI Categorize All...",
+              onClick: categorizeOnly,
+              disabled: scraperPhase === "categorizing" || scraperPhase === "scraping" || scraperPhase === "importing",
+            },
+            { separator: true as const, label: "" },
+            { label: "Export Library...", onClick: handleExport },
+            { label: "Export Library Seed...", onClick: exportLibrarySeed },
+            { separator: true as const, label: "" },
+            { label: "Clear Audio Cache...", onClick: handleOpenClearCache },
+            { label: "Clear Library...", onClick: () => setClearOpen(true) },
+          ],
+        }]
+      : []),
     {
       label: "Help",
       items: [
@@ -286,7 +292,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           "md:static md:justify-start md:gap-0 md:border-t-0 md:border-b md:border-bevel-dark/15 md:px-2 md:bg-midnight/80 md:backdrop-blur-xs md:pb-0",
         )}
       >
-        {NAV_ITEMS.map(({ label, path }) => {
+        {NAV_ITEMS.filter(({ path }) => isAdmin || (path !== "/scanner" && path !== "/search")).map(({ label, path }) => {
           const isActive = pathname === path;
           return (
             <button
@@ -381,7 +387,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
 
           {/* Version */}
           <div className="text-[8px] text-bevel-dark/40 mb-5">
-            v0.4.0
+            v0.4.0{isAdmin ? " (Admin)" : ""}
           </div>
 
           <Button onClick={handleCloseAbout}>OK</Button>
@@ -397,7 +403,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       >
         <div className="p-4">
           <div className="flex flex-col gap-1">
-            {SHORTCUTS.map(({ keys, action }) => (
+            {SHORTCUTS.filter(({ keys }) => isAdmin || keys !== "Delete").map(({ keys, action }) => (
               <div key={keys} className="flex items-center justify-between gap-3 py-0.5">
                 <span className="text-[10px] text-desktop-gray/80">{action}</span>
                 <span className="text-[9px] text-desert-amber/60 tabular-nums flex-shrink-0">
