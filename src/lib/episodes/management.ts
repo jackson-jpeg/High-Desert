@@ -54,6 +54,13 @@ export async function updateEpisode(
   await db.episodes.update(id, { ...fields, updatedAt: Date.now() });
 }
 
+export async function rateEpisode(id: number, rating: number | undefined): Promise<void> {
+  await db.episodes.update(id, {
+    rating: rating && rating >= 1 && rating <= 5 ? rating : undefined,
+    updatedAt: Date.now(),
+  });
+}
+
 export async function addBookmark(
   episodeId: number,
   position: number,

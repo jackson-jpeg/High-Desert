@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
 import { SleepTimer } from "./SleepTimer";
@@ -40,6 +41,17 @@ export function PlaybackControls({
   const repeat = usePlayerStore((s) => s.repeat);
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
   const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
+
+  // Seek preview tooltip
+  const [seekPreview, setSeekPreview] = useState<{ time: number; x: number } | null>(null);
+  const seekBarRef = useRef<HTMLDivElement>(null);
+
+  const handleSeekHover = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!duration || !seekBarRef.current) return;
+    const rect = seekBarRef.current.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    setSeekPreview({ time: pct * duration, x: e.clientX - rect.left });
+  }, [duration]);
 
   const handleSeekBack = () => onSeek(position - 15);
   const handleSeekForward = () => onSeek(position + 30);
@@ -127,7 +139,12 @@ export function PlaybackControls({
         <span className="w-[45px] text-right tabular-nums">
           {formatTime(position)}
         </span>
-        <div className="flex-1 relative">
+        <div
+          ref={seekBarRef}
+          className="flex-1 relative"
+          onMouseMove={handleSeekHover}
+          onMouseLeave={() => setSeekPreview(null)}
+        >
           <input
             type="range"
             min={0}
@@ -143,6 +160,17 @@ export function PlaybackControls({
             className="w-full h-[6px] w98-range-dark cursor-pointer"
           />
           <BookmarkMarkers mode="markers" />
+          {/* Seek preview tooltip */}
+          {seekPreview && (
+            <div
+              className="absolute bottom-full mb-1 -translate-x-1/2 pointer-events-none z-20"
+              style={{ left: seekPreview.x }}
+            >
+              <div className="bg-midnight/95 text-desert-amber text-[9px] px-1.5 py-0.5 tabular-nums border border-bevel-dark/30 whitespace-nowrap">
+                {formatTime(seekPreview.time)}
+              </div>
+            </div>
+          )}
         </div>
         <span className="w-[45px] tabular-nums">{formatTime(duration)}</span>
       </div>

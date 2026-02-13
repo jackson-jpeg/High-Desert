@@ -45,6 +45,7 @@ export interface Episode {
 
   // User actions
   favoritedAt?: number;   // Unix timestamp, undefined = not favorited
+  rating?: number;        // 1-5 star rating, undefined = unrated
 
   // Housekeeping
   scanSessionId?: number;

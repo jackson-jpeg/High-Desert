@@ -52,6 +52,7 @@ export async function seedLibraryIfEmpty(): Promise<boolean> {
       aiNotable: ep.aiNotable as boolean | undefined,
       aiStatus: (ep.aiStatus as Episode["aiStatus"]) ?? "completed",
       favoritedAt: ep.favoritedAt ? (ep.favoritedAt as number) : undefined,
+      rating: ep.rating as number | undefined,
       createdAt: now,
       updatedAt: now,
     }));
@@ -129,8 +130,9 @@ export async function exportLibrarySeed(): Promise<void> {
     if (ep.aiSeriesPart) obj.aiSeriesPart = ep.aiSeriesPart;
     if (ep.aiNotable) obj.aiNotable = ep.aiNotable;
     if (ep.aiStatus) obj.aiStatus = ep.aiStatus;
-    // v2: include favorites
+    // v2: include favorites + ratings
     if (ep.favoritedAt) obj.favoritedAt = ep.favoritedAt;
+    if (ep.rating) obj.rating = ep.rating;
     return obj;
   });
 

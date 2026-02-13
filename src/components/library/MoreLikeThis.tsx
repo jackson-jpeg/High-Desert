@@ -61,6 +61,11 @@ export function MoreLikeThis({ episode, onPlay, className }: MoreLikeThisProps) 
         score += 0.5;
       }
 
+      // Highly rated episodes get a boost
+      if (ep.rating && ep.rating >= 4) {
+        score += ep.rating - 3; // +1 for 4 stars, +2 for 5 stars
+      }
+
       // Close in time (within 30 days)
       if (episode.airDate && ep.airDate) {
         const d1 = new Date(episode.airDate).getTime();

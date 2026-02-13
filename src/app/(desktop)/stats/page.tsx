@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils/cn";
 export default function StatsPage() {
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const episodes = useLiveQuery(() => db.episodes.toArray(), []);
+  const history = useLiveQuery(() => db.history.orderBy("timestamp").reverse().toArray(), []);
 
   const stats = useMemo(() => {
     if (!episodes) return null;
@@ -94,6 +95,54 @@ export default function StatsPage() {
       decades.set(decade, (decades.get(decade) ?? 0) + count);
     }
 
+    // Category breakdown
+    const categoryCounts = new Map<string, number>();
+    for (const ep of episodes) {
+      if (ep.aiCategory) {
+        categoryCounts.set(ep.aiCategory, (categoryCounts.get(ep.aiCategory) ?? 0) + 1);
+      }
+    }
+    const topCategories = Array.from(categoryCounts.entries())
+      .sort((a, b) => b[1] - a[1]);
+    const maxCategoryCount = topCategories[0]?.[1] ?? 1;
+
+    // Notable episodes count
+    const notableCount = episodes.filter((e) => e.aiNotable).length;
+
+    // Series count
+    const seriesNames = new Set(episodes.filter((e) => e.aiSeries).map((e) => e.aiSeries!));
+
+    // Ratings stats
+    const rated = episodes.filter((e) => e.rating && e.rating >= 1);
+    const avgRating = rated.length > 0
+      ? rated.reduce((sum, e) => sum + (e.rating ?? 0), 0) / rated.length
+      : 0;
+    const fiveStarCount = episodes.filter((e) => e.rating === 5).length;
+
+    // Listening streak (consecutive days with history entries)
+    let streak = 0;
+    if (history && history.length > 0) {
+      const daySet = new Set<string>();
+      for (const entry of history) {
+        daySet.add(new Date(entry.timestamp).toISOString().slice(0, 10));
+      }
+      const today = new Date();
+      for (let d = 0; d < 365; d++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - d);
+        const key = date.toISOString().slice(0, 10);
+        if (daySet.has(key)) {
+          streak++;
+        } else if (d === 0) {
+          // Today hasn't been listened yet, still check yesterday
+          continue;
+        } else {
+          break;
+        }
+      }
+    }
+    const favoriteCount = episodes.filter((e) => !!e.favoritedAt).length;
+
     return {
       total,
       played: played.length,
@@ -116,8 +165,17 @@ export default function StatsPage() {
       decades: Array.from(decades.entries()).sort((a, b) => a[0].localeCompare(b[0])),
       uniqueGuests: guestCounts.size,
       uniqueTags: tagCounts.size,
+      topCategories,
+      maxCategoryCount,
+      notableCount,
+      seriesCount: seriesNames.size,
+      avgRating,
+      ratedCount: rated.length,
+      fiveStarCount,
+      streak,
+      favoriteCount,
     };
-  }, [episodes]);
+  }, [episodes, history]);
 
   if (!stats) {
     return (
@@ -191,6 +249,40 @@ export default function StatsPage() {
               value={stats.archiveCount.toLocaleString()}
               sub={`archive \u00B7 ${stats.localCount.toLocaleString()} local`}
               color="text-bevel-dark"
+            />
+          </div>
+
+          {/* Second row: enrichment stats */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-2">
+            <HeroStat
+              label="Notable"
+              value={stats.notableCount.toLocaleString()}
+              sub="iconic episodes"
+              color="text-yellow-400"
+            />
+            <HeroStat
+              label="Series"
+              value={stats.seriesCount.toLocaleString()}
+              sub="multi-part sets"
+              color="text-title-bar-blue"
+            />
+            <HeroStat
+              label="Favorites"
+              value={stats.favoriteCount.toLocaleString()}
+              sub={`${stats.ratedCount} rated`}
+              color="text-desert-amber"
+            />
+            <HeroStat
+              label="Avg Rating"
+              value={stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "\u2014"}
+              sub={stats.fiveStarCount > 0 ? `${stats.fiveStarCount} five-star` : "no ratings yet"}
+              color="text-desert-amber"
+            />
+            <HeroStat
+              label="Streak"
+              value={stats.streak > 0 ? `${stats.streak}d` : "\u2014"}
+              sub={stats.streak > 0 ? "consecutive days" : "listen today!"}
+              color="text-static-green"
             />
           </div>
 
@@ -328,6 +420,38 @@ export default function StatsPage() {
             </div>
           </div>
         </Window>
+
+        {/* ── Subject Breakdown ── Category chart */}
+        {stats.topCategories.length > 0 && (
+          <Window title="Subject Breakdown" variant="dark">
+            <div className="p-3">
+              <div className="flex flex-col gap-[3px]">
+                {stats.topCategories.map(([cat, count], i) => {
+                  const pct = (count / stats.maxCategoryCount) * 100;
+                  return (
+                    <div key={cat} className="flex items-center gap-2 group">
+                      <span className="text-[9px] text-desktop-gray truncate w-[120px] flex-shrink-0 text-right">
+                        {cat}
+                      </span>
+                      <div className="flex-1 h-[12px] w98-inset-dark bg-inset-well overflow-hidden">
+                        <div
+                          className="h-full bg-desert-amber/40 animate-bar-grow"
+                          style={{
+                            width: `${pct}%`,
+                            "--i": i,
+                          } as React.CSSProperties}
+                        />
+                      </div>
+                      <span className="text-[8px] text-bevel-dark tabular-nums w-[28px] text-right">
+                        {count}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </Window>
+        )}
 
         {/* ── Station Status ── AI + Sources */}
         <Window title="Station Status" variant="dark">

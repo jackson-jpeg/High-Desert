@@ -5,6 +5,7 @@ import type { Episode } from "@/lib/db/schema";
 import { Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
 import { toast } from "@/stores/toast-store";
+import { rateEpisode } from "@/lib/episodes/management";
 import { BookmarkList } from "@/components/player/BookmarkMarkers";
 import { MoreLikeThis } from "@/components/library/MoreLikeThis";
 import { cn } from "@/lib/utils/cn";
@@ -106,9 +107,15 @@ export function EpisodeDetail({
             {[showLabel, isArchive ? "Archive" : null].filter(Boolean).join(" \u00B7 ")}
           </span>
           {episode.aiCategory && (
-            <span className="text-[8px] text-desert-amber/60 bg-desert-amber/8 px-1 py-px">
+            <button
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("hd:filter-category", { detail: episode.aiCategory }));
+              }}
+              className="text-[8px] text-desert-amber/60 bg-desert-amber/8 px-1 py-px cursor-pointer hover:text-desert-amber hover:bg-desert-amber/15 transition-colors-fast"
+              title={`Filter by ${episode.aiCategory}`}
+            >
               {episode.aiCategory}
-            </span>
+            </button>
           )}
           {episode.aiNotable && (
             <span className="text-[9px] text-yellow-400/80" title="Notable episode">
@@ -267,16 +274,20 @@ export function EpisodeDetail({
               </div>
             )}
 
-            {/* Tags */}
+            {/* Tags (clickable) */}
             {episode.aiTags && episode.aiTags.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {episode.aiTags.map((tag) => (
-                  <span
+                  <button
                     key={tag}
-                    className="text-[8px] text-desert-amber/70 bg-desert-amber/8 px-1.5 py-px"
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent("hd:filter-tag", { detail: tag }));
+                    }}
+                    className="text-[8px] text-desert-amber/70 bg-desert-amber/8 px-1.5 py-px cursor-pointer hover:bg-desert-amber/15 hover:text-desert-amber transition-colors-fast"
+                    title={`Filter by "${tag}"`}
                   >
                     {tag}
-                  </span>
+                  </button>
                 ))}
               </div>
             )}
@@ -360,6 +371,34 @@ export function EpisodeDetail({
                 </button>
               )}
             </div>
+
+            {/* Star rating */}
+            {episode.id && (
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={async () => {
+                      const newRating = episode.rating === star ? undefined : star;
+                      await rateEpisode(episode.id!, newRating);
+                    }}
+                    className={cn(
+                      "text-[14px] md:text-[11px] cursor-pointer transition-colors-fast",
+                      star <= (episode.rating ?? 0)
+                        ? "text-desert-amber"
+                        : "text-bevel-dark/30 hover:text-desert-amber/60",
+                    )}
+                    title={`Rate ${star} star${star !== 1 ? "s" : ""}`}
+                    aria-label={`Rate ${star} star${star !== 1 ? "s" : ""}`}
+                  >
+                    {star <= (episode.rating ?? 0) ? "\u2605" : "\u2606"}
+                  </button>
+                ))}
+                {episode.rating && (
+                  <span className="text-[8px] text-bevel-dark/40 ml-1">{episode.rating}/5</span>
+                )}
+              </div>
+            )}
 
             {/* File info + management */}
             <div className="flex items-center gap-2 border-t border-bevel-dark/15 pt-2 mt-0.5">

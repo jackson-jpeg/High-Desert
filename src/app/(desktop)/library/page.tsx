@@ -70,6 +70,26 @@ export default function LibraryPage() {
     return () => window.removeEventListener("hd:focus-search", handler);
   }, []);
 
+  // Listen for tag/category click-to-filter events from detail panel
+  useEffect(() => {
+    const handleTag = (e: Event) => {
+      const tag = (e as CustomEvent<string>).detail;
+      setSearch(`tag:${tag}`);
+      setSelectedEpisode(null);
+    };
+    const handleCategory = (e: Event) => {
+      const cat = (e as CustomEvent<string>).detail;
+      setCategoryFilter(cat);
+      setSelectedEpisode(null);
+    };
+    window.addEventListener("hd:filter-tag", handleTag);
+    window.addEventListener("hd:filter-category", handleCategory);
+    return () => {
+      window.removeEventListener("hd:filter-tag", handleTag);
+      window.removeEventListener("hd:filter-category", handleCategory);
+    };
+  }, []);
+
   // Handle ?episode=ID deep link
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -240,6 +260,10 @@ export default function LibraryPage() {
             list = list.filter((ep) => (ep.playCount ?? 0) > 0);
           } else if (h === "notable") {
             list = list.filter((ep) => !!ep.aiNotable);
+          } else if (h === "rated") {
+            list = list.filter((ep) => !!ep.rating);
+          } else if (h === "series") {
+            list = list.filter((ep) => !!ep.aiSeries);
           }
         }
       }
