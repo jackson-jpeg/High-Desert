@@ -31,7 +31,14 @@ export function BookmarkMarkers(props: Props) {
   const duration = usePlayerStore((s) => s.duration);
 
   const bookmarks = useLiveQuery(
-    () => episodeId ? db.bookmarks.where("episodeId").equals(episodeId).sortBy("position") : [],
+    async () => {
+      if (!episodeId) return [];
+      try {
+        return await db.bookmarks.where("episodeId").equals(episodeId).sortBy("position");
+      } catch {
+        return [];
+      }
+    },
     [episodeId],
   );
 
@@ -146,7 +153,13 @@ export function BookmarkList({
 }) {
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const bookmarks = useLiveQuery(
-    () => db.bookmarks.where("episodeId").equals(episodeId).sortBy("position"),
+    async () => {
+      try {
+        return await db.bookmarks.where("episodeId").equals(episodeId).sortBy("position");
+      } catch {
+        return [];
+      }
+    },
     [episodeId],
   );
 

@@ -98,7 +98,14 @@ export default function LibraryPage() {
 
   // Bookmarked episode IDs for has:bookmark search operator
   const bookmarkedIds = useLiveQuery(
-    () => db.bookmarks.orderBy("episodeId").uniqueKeys().then((keys) => new Set(keys as number[])),
+    async () => {
+      try {
+        const bms = await db.bookmarks.toArray();
+        return new Set(bms.map((b) => b.episodeId));
+      } catch {
+        return new Set<number>();
+      }
+    },
     [],
   );
 
