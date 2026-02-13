@@ -95,32 +95,20 @@ export function QueuePanel() {
 
   return (
     <div className="w98-inset-dark bg-inset-well animate-slide-up">
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-bevel-dark/20">
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-bevel-dark/15">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-bevel-dark">
-            Queue ({queue.length})
+          <span className="text-[10px] text-bevel-dark/70">
+            {queue.length} track{queue.length !== 1 ? "s" : ""}
           </span>
-          {totalMinutes > 0 && (
-            <span className="text-[8px] text-bevel-dark/50 tabular-nums">
-              {totalMinutes > 60 ? `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m` : `${totalMinutes}m`}
-              {remainingMinutes > 0 && remainingMinutes !== totalMinutes && (
-                <span className="text-bevel-dark/30"> ({remainingMinutes}m left)</span>
-              )}
-            </span>
-          )}
-          {/* Shuffle/Repeat indicators */}
-          {shuffle && (
-            <span className="text-[8px] text-desert-amber" title="Shuffle on">{"\u21C6"}</span>
-          )}
-          {repeat !== "off" && (
-            <span className="text-[8px] text-desert-amber" title={`Repeat: ${repeat}`}>
-              {repeat === "one" ? "\u21BB1" : "\u21BB"}
+          {remainingMinutes > 0 && (
+            <span className="text-[8px] text-bevel-dark/40 tabular-nums">
+              {remainingMinutes > 60 ? `${Math.floor(remainingMinutes / 60)}h ${remainingMinutes % 60}m` : `${remainingMinutes}m`} left
             </span>
           )}
         </div>
         <button
           onClick={clearQueue}
-          className="text-[9px] text-bevel-dark hover:text-red-400 cursor-pointer transition-colors-fast"
+          className="text-[9px] text-bevel-dark/50 hover:text-red-400 cursor-pointer transition-colors-fast"
         >
           Clear
         </button>
@@ -151,34 +139,34 @@ export function QueuePanel() {
               onClick={() => handlePlay(i)}
             >
               {/* Drag handle */}
-              <span className="text-[8px] text-bevel-dark/30 cursor-grab active:cursor-grabbing flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="text-[8px] text-bevel-dark/20 cursor-grab active:cursor-grabbing flex-shrink-0 opacity-0 group-hover:opacity-60 transition-opacity">
                 {"\u2261"}
               </span>
-              <span className={cn(
-                "text-[9px] w-[16px] text-right tabular-nums flex-shrink-0",
-                isCurrent ? "text-static-green" : "text-bevel-dark",
-              )}>
-                {isCurrent ? "\u25B6" : i + 1}
-              </span>
+              {isCurrent && (
+                <span className="text-[9px] text-static-green/70 flex-shrink-0">
+                  {"\u25B6"}
+                </span>
+              )}
               <div className="flex-1 min-w-0">
                 <div className={cn(
                   "text-[10px] truncate",
-                  isCurrent ? "text-desktop-gray font-bold" : "text-desktop-gray",
+                  isCurrent ? "text-desktop-gray font-bold" : "text-desktop-gray/80",
                 )}>
                   {ep.title || ep.fileName}
                 </div>
-                <div className="text-[9px] text-bevel-dark truncate">
-                  {[ep.airDate, ep.guestName].filter(Boolean).join(" \u2014 ")}
-                  {ep.duration != null && ` \u00B7 ${Math.floor(ep.duration / 60)}m`}
-                </div>
+                {(ep.guestName || ep.airDate) && (
+                  <div className="text-[9px] text-bevel-dark/60 truncate">
+                    {[ep.guestName, ep.airDate].filter(Boolean).join(" \u00B7 ")}
+                  </div>
+                )}
               </div>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   removeFromQueue(i);
                 }}
-                className="text-[9px] text-bevel-dark hover:text-red-400 cursor-pointer flex-shrink-0 px-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                title="Remove from queue"
+                className="text-[9px] text-bevel-dark/30 hover:text-red-400 cursor-pointer flex-shrink-0 px-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Remove"
               >
                 {"\u2715"}
               </button>

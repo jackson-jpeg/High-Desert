@@ -45,30 +45,21 @@ export function EpisodeDetail({
     >
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-bevel-dark/20">
-        <div className="flex items-center gap-2 min-w-0">
-          {showLabel && (
-            <span className="text-[9px] text-bevel-dark uppercase tracking-wider flex-shrink-0">
-              {showLabel}
-            </span>
-          )}
-          {isArchive && (
-            <span className="text-[8px] text-desktop-gray/70 bg-bevel-dark/20 px-1.5 py-px uppercase tracking-wider flex-shrink-0">
-              Archive
-            </span>
-          )}
-        </div>
+        <span className="text-[9px] text-bevel-dark/70">
+          {[showLabel, isArchive ? "Archive" : null].filter(Boolean).join(" \u00B7 ")}
+        </span>
         <button
           onClick={onClose}
-          className="text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer flex-shrink-0 ml-2"
+          className="text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer flex-shrink-0"
           aria-label="Close detail"
         >
-          ✕
+          {"\u2715"}
         </button>
       </div>
 
       {/* Body */}
-      <div className="p-3 flex flex-col gap-3 overflow-auto">
-        {/* Title + date */}
+      <div className="p-3 flex flex-col gap-2.5 overflow-auto">
+        {/* Title + date + duration */}
         <div>
           <div className="text-[12px] text-desktop-gray font-bold leading-snug">
             {episode.title || episode.fileName}
@@ -80,7 +71,7 @@ export function EpisodeDetail({
               </span>
             )}
             {episode.duration != null && (
-              <span className="text-[10px] text-bevel-dark tabular-nums">
+              <span className="text-[10px] text-bevel-dark/70 tabular-nums">
                 {formatDuration(episode.duration)}
               </span>
             )}
@@ -89,122 +80,71 @@ export function EpisodeDetail({
 
         {/* Guest */}
         {episode.guestName && (
-          <div>
-            <div className="text-[9px] text-bevel-dark uppercase tracking-wider mb-0.5">
-              Guest
-            </div>
-            <div className="text-[11px] text-static-green">
-              {episode.guestName}
-            </div>
+          <div className="text-[11px] text-static-green/80">
+            {episode.guestName}
           </div>
         )}
 
         {/* Topic */}
-        {episode.topic && (
-          <div>
-            <div className="text-[9px] text-bevel-dark uppercase tracking-wider mb-0.5">
-              Topic
-            </div>
-            <div className="text-[11px] text-desktop-gray">
-              {episode.topic}
-            </div>
+        {episode.topic && !episode.guestName && (
+          <div className="text-[11px] text-desktop-gray/80">
+            {episode.topic}
           </div>
         )}
 
-        {/* Description */}
-        {episode.description && (
-          <div>
-            <div className="text-[9px] text-bevel-dark uppercase tracking-wider mb-0.5">
-              Description
-            </div>
-            <div className="text-[10px] text-desktop-gray/70 leading-relaxed">
-              {episode.description}
-            </div>
+        {/* Summary or Description */}
+        {(episode.aiSummary || episode.description) && (
+          <div className="text-[10px] text-desktop-gray/60 leading-relaxed">
+            {episode.aiSummary || episode.description}
           </div>
         )}
 
-        {/* AI Summary */}
-        {episode.aiSummary && (
-          <div>
-            <div className="text-[9px] text-bevel-dark uppercase tracking-wider mb-0.5">
-              Summary
-            </div>
-            <div className="text-[10px] text-desktop-gray/80 leading-relaxed">
-              {episode.aiSummary}
-            </div>
-          </div>
-        )}
-
-        {/* AI Tags */}
+        {/* Tags */}
         {episode.aiTags && episode.aiTags.length > 0 && (
-          <div>
-            <div className="text-[9px] text-bevel-dark uppercase tracking-wider mb-1">
-              Tags
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {episode.aiTags.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-[9px] text-desert-amber/80 bg-desert-amber/10 px-1.5 py-px"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* AI Status */}
-        {episode.aiStatus === "failed" && (
-          <div className="text-[9px] text-red-400/80 bg-red-400/10 px-2 py-1">
-            AI categorization failed
-          </div>
-        )}
-        {episode.aiStatus === "pending" && (
-          <div className="text-[9px] text-desert-amber/80 bg-desert-amber/10 px-2 py-1">
-            Awaiting AI categorization
+          <div className="flex flex-wrap gap-1">
+            {episode.aiTags.map((tag) => (
+              <span
+                key={tag}
+                className="text-[8px] text-desert-amber/70 bg-desert-amber/8 px-1.5 py-px"
+              >
+                {tag}
+              </span>
+            ))}
           </div>
         )}
 
         {/* Playback progress */}
         {episode.playbackPosition != null && episode.playbackPosition > 0 && episode.duration != null && episode.duration > 0 && (
-          <div>
-            <div className="text-[9px] text-bevel-dark uppercase tracking-wider mb-1">
-              Progress
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-[3px] w98-inset-dark bg-inset-well overflow-hidden">
+              <div
+                className={cn(
+                  "h-full",
+                  episode.playbackPosition / episode.duration > 0.9
+                    ? "bg-static-green/50"
+                    : "bg-phosphor-amber/50",
+                )}
+                style={{ width: `${Math.min(100, (episode.playbackPosition / episode.duration) * 100)}%` }}
+              />
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-[4px] w98-inset-dark bg-inset-well overflow-hidden">
-                <div
-                  className={cn(
-                    "h-full",
-                    episode.playbackPosition / episode.duration > 0.9
-                      ? "bg-static-green/60"
-                      : "bg-phosphor-amber/60",
-                  )}
-                  style={{ width: `${Math.min(100, (episode.playbackPosition / episode.duration) * 100)}%` }}
-                />
-              </div>
-              <span className="text-[9px] text-bevel-dark tabular-nums flex-shrink-0">
-                {formatTime(episode.playbackPosition)} / {formatDuration(episode.duration)}
-              </span>
-            </div>
+            <span className="text-[9px] text-bevel-dark/70 tabular-nums flex-shrink-0">
+              {formatTime(episode.playbackPosition)} / {formatDuration(episode.duration)}
+            </span>
           </div>
         )}
 
         {/* Play stats */}
         {(episode.playCount ?? 0) > 0 && (
-          <div className="flex items-center gap-3 text-[9px] text-bevel-dark/60 tabular-nums">
-            {episode.playCount != null && episode.playCount > 0 && (
-              <span>Played {episode.playCount}x</span>
-            )}
+          <div className="text-[9px] text-bevel-dark/50 tabular-nums">
+            {episode.playCount != null && episode.playCount > 0 && `Played ${episode.playCount}x`}
             {episode.lastPlayedAt != null && episode.lastPlayedAt > 0 && (
-              <span>Last: {new Date(episode.lastPlayedAt).toLocaleDateString()}</span>
+              <> &middot; {new Date(episode.lastPlayedAt).toLocaleDateString()}</>
             )}
           </div>
         )}
 
         {/* Play buttons */}
-        <div className="pt-1 flex items-center gap-2">
+        <div className="flex items-center gap-2 pt-1">
           <Button
             variant="dark"
             size="sm"
@@ -236,37 +176,22 @@ export function EpisodeDetail({
           </Button>
         </div>
 
-        {/* File info */}
-        <div className="flex flex-col gap-0.5">
-          <div className="text-[9px] text-bevel-dark uppercase tracking-wider">
-            File
-          </div>
-          <div className="text-[9px] text-bevel-dark/70 truncate" title={episode.fileName}>
-            {episode.fileName}
-          </div>
-          {episode.fileSize != null && episode.fileSize > 0 && (
-            <div className="text-[9px] text-bevel-dark/50 tabular-nums">
-              {(episode.fileSize / 1024 / 1024).toFixed(1)} MB
-            </div>
-          )}
-        </div>
-
-        {/* Management actions */}
-        <div className="flex items-center gap-2 border-t border-bevel-dark/20 pt-2">
+        {/* File info + management */}
+        <div className="flex items-center gap-2 border-t border-bevel-dark/15 pt-2 mt-0.5">
           {episode.archiveIdentifier && (
             <a
               href={`https://archive.org/details/${episode.archiveIdentifier}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[9px] text-title-bar-blue/70 hover:text-title-bar-blue cursor-pointer transition-colors-fast"
+              className="text-[9px] text-bevel-dark/50 hover:text-desktop-gray cursor-pointer transition-colors-fast"
             >
-              View on Archive.org
+              Archive
             </a>
           )}
           {onRecategorize && (
             <button
               onClick={() => onRecategorize(episode)}
-              className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer transition-colors-fast"
+              className="text-[9px] text-bevel-dark/50 hover:text-desktop-gray cursor-pointer transition-colors-fast"
             >
               Re-categorize
             </button>
@@ -274,7 +199,7 @@ export function EpisodeDetail({
           {onDelete && (
             <button
               onClick={() => onDelete(episode)}
-              className="text-[9px] text-red-400/60 hover:text-red-400 cursor-pointer transition-colors-fast ml-auto"
+              className="text-[9px] text-red-400/40 hover:text-red-400 cursor-pointer transition-colors-fast ml-auto"
             >
               Delete
             </button>

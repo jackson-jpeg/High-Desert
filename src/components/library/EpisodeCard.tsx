@@ -78,7 +78,7 @@ export function EpisodeCard({
         className,
       )}
     >
-      {/* Top row: date + show type + source + AI status */}
+      {/* Top row: date + status indicators */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           {isMultiSelected && (
@@ -89,38 +89,30 @@ export function EpisodeCard({
           <span className="text-[10px] text-desert-amber tabular-nums">
             {episode.airDate ?? "Unknown date"}
           </span>
-          {isArchive && (
-            <span className="text-[8px] text-desktop-gray/70 bg-bevel-dark/20 px-1 py-px uppercase tracking-wider flex-shrink-0">
-              Archive
-            </span>
-          )}
           {isPlaying && (
-            <span className="flex items-center gap-1 flex-shrink-0">
-              <span className="w-[4px] h-[4px] rounded-full bg-red-500 animate-on-air" />
-              <span className="text-[7px] text-red-400/70 uppercase tracking-wider">Live</span>
-            </span>
+            <span className="w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air flex-shrink-0" />
           )}
           {isCompleted && !isPlaying && (
-            <span className="text-[8px] text-static-green flex-shrink-0" title="Completed">
+            <span className="text-[9px] text-static-green/70 flex-shrink-0" title="Completed">
               {"\u2713"}
             </span>
           )}
           {hasProgress && !isCompleted && !isPlaying && (
-            <span className="text-[8px] text-desert-amber/70 flex-shrink-0 tabular-nums" title={`${Math.round(progressPct)}% played`}>
+            <span className="text-[8px] text-bevel-dark flex-shrink-0 tabular-nums" title={`${Math.round(progressPct)}% played`}>
               {Math.round(progressPct)}%
             </span>
           )}
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
           {episode.aiStatus === "failed" && (
-            <span className="text-[8px] text-red-400 bg-red-400/15 px-1 py-px uppercase tracking-wider flex-shrink-0">
-              AI Failed
+            <span className="w-[5px] h-[5px] rounded-full bg-red-400/60 flex-shrink-0" title="AI categorization failed" />
+          )}
+          {showLabel && (
+            <span className="text-[9px] text-bevel-dark/70 flex-shrink-0">
+              {showLabel}
             </span>
           )}
         </div>
-        {showLabel && (
-          <span className="text-[9px] text-bevel-dark uppercase tracking-wider flex-shrink-0">
-            {showLabel}
-          </span>
-        )}
       </div>
 
       {/* Title */}
@@ -129,17 +121,15 @@ export function EpisodeCard({
       </div>
 
       {/* Guest + duration */}
-      <div className="flex items-center justify-between gap-2 mt-1">
-        <span className="text-[10px] text-static-green truncate">
+      <div className="flex items-center justify-between gap-2 mt-0.5">
+        <span className="text-[10px] text-static-green/80 truncate">
           {episode.guestName || episode.topic || "\u00A0"}
         </span>
-        <span className="flex items-center gap-2 flex-shrink-0">
-          {episode.duration != null && (
-            <span className="text-[10px] text-bevel-dark tabular-nums">
-              {formatDuration(episode.duration)}
-            </span>
-          )}
-        </span>
+        {episode.duration != null && (
+          <span className="text-[10px] text-bevel-dark/70 tabular-nums flex-shrink-0">
+            {formatDuration(episode.duration)}
+          </span>
+        )}
       </div>
 
       {/* Playback progress bar */}

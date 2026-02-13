@@ -133,8 +133,8 @@ export function PlaybackControls({
       </div>
 
       {/* Volume */}
-      <div className="flex items-center gap-2 text-[10px] text-bevel-dark px-2">
-        <span>Vol</span>
+      <div className="flex items-center gap-2 text-[10px] text-bevel-dark/70 px-2">
+        <span className="text-[9px]">{volume === 0 ? "\u{1F507}" : "\u{1F509}"}</span>
         <input
           type="range"
           min={0}
@@ -150,7 +150,7 @@ export function PlaybackControls({
           aria-valuetext={`${Math.round(volume * 100)}%`}
           className="flex-1 h-[4px] w98-range-dark cursor-pointer"
         />
-        <span className="w-[28px] tabular-nums">
+        <span className="w-[28px] tabular-nums text-bevel-dark/50">
           {Math.round(volume * 100)}%
         </span>
       </div>

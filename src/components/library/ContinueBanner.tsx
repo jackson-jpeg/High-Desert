@@ -60,23 +60,16 @@ export function ContinueBanner({ episode, onResume, onDismiss, className }: Cont
         />
       </div>
 
-      <div className="px-4 py-3 flex items-center justify-between gap-3">
+      <div className="px-4 py-2.5 flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-[10px] text-bevel-dark">
-              Continue listening?
-            </span>
-            {progressPct > 0 && (
-              <span className="text-[8px] text-desert-amber/60 tabular-nums">
-                {posMin}:{String(posSec).padStart(2, "0")} &middot; {progressPct}%
-              </span>
-            )}
+          <div className="text-[9px] text-bevel-dark/60 mb-0.5">
+            Continue listening
           </div>
           <div className="text-[11px] text-desktop-gray font-bold truncate">
             {title}
           </div>
           {episode.guestName && (
-            <div className="text-[9px] text-static-green/70 truncate mt-0.5">
+            <div className="text-[9px] text-static-green/50 truncate mt-0.5">
               {episode.guestName}
             </div>
           )}

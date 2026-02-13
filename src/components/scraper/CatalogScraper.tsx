@@ -112,10 +112,8 @@ export function CatalogScraper() {
 
         {/* Idle description */}
         {phase === "idle" && (
-          <div className="text-[10px] text-bevel-dark leading-relaxed">
-            Import the complete Art Bell archive from archive.org. This three-phase process discovers all episodes
-            across collections, imports metadata, and uses AI to determine real broadcast dates, identify guests,
-            and categorize topics.
+          <div className="text-[10px] text-bevel-dark/70 leading-relaxed">
+            Import the complete Art Bell archive from archive.org. Discovers episodes, imports metadata, and uses AI to categorize.
           </div>
         )}
 
@@ -152,7 +150,7 @@ export function CatalogScraper() {
 
         {/* Phase description */}
         {isRunning && PHASE_DESCRIPTIONS[phase] && (
-          <div className="text-[9px] text-bevel-dark/80 leading-relaxed">
+          <div className="text-[9px] text-bevel-dark/50 leading-relaxed">
             {PHASE_DESCRIPTIONS[phase]}
           </div>
         )}

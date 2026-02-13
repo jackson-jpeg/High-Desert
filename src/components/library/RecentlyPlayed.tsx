@@ -14,12 +14,9 @@ export function RecentlyPlayed({ episodes, onPlay, className }: RecentlyPlayedPr
 
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <div className="flex items-center gap-2 px-1">
-        <span className="text-[9px] text-bevel-dark uppercase tracking-wider">
+      <div className="px-1">
+        <span className="text-[9px] text-bevel-dark/60 uppercase tracking-wider">
           Recently Played
-        </span>
-        <span className="text-[8px] text-bevel-dark/40 tabular-nums">
-          {episodes.length}
         </span>
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
@@ -42,29 +39,15 @@ export function RecentlyPlayed({ episodes, onPlay, className }: RecentlyPlayedPr
                 "flex flex-col gap-0.5 relative",
               )}
             >
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-[9px] text-desert-amber tabular-nums">
-                  {ep.airDate ?? "Unknown"}
-                </span>
-                {isCompleted ? (
-                  <span className="text-[8px] text-static-green flex-shrink-0">{"\u2713"}</span>
-                ) : hasProgress ? (
-                  <span className="text-[8px] text-desert-amber/60 tabular-nums flex-shrink-0">
-                    {posMin}m · {Math.round(progressPct)}%
-                  </span>
-                ) : null}
-              </div>
+              <span className="text-[9px] text-desert-amber/80 tabular-nums">
+                {ep.airDate ?? "Unknown"}
+              </span>
               <span className="text-[10px] text-desktop-gray font-bold truncate w-full text-left">
                 {ep.title || ep.fileName}
               </span>
               {ep.guestName && (
-                <span className="text-[9px] text-static-green/60 truncate w-full text-left">
+                <span className="text-[9px] text-static-green/50 truncate w-full text-left">
                   {ep.guestName}
-                </span>
-              )}
-              {ep.duration != null && !ep.guestName && (
-                <span className="text-[9px] text-bevel-dark/50 tabular-nums text-left">
-                  {formatDuration(ep.duration)}
                 </span>
               )}
               {/* Progress bar */}

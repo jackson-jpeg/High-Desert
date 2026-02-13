@@ -268,7 +268,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       <MenuBar menus={menus} variant="dark" className="flex-shrink-0 relative z-30" />
 
       {/* Navigation tabs */}
-      <nav className="flex-shrink-0 flex items-center gap-0 bg-midnight/80 border-b border-bevel-dark/20 px-2 relative z-10 backdrop-blur-xs">
+      <nav className="flex-shrink-0 flex items-center gap-0 bg-midnight/80 border-b border-bevel-dark/15 px-2 relative z-10 backdrop-blur-xs">
         {NAV_ITEMS.map(({ label, path }) => {
           const isActive = pathname === path;
           return (
@@ -286,14 +286,6 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             </button>
           );
         })}
-
-        {/* On-Air indicator */}
-        {isPlaying && (
-          <div className="ml-auto flex items-center gap-1.5 pr-1">
-            <span className="inline-block w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air" />
-            <span className="text-[8px] text-red-400/80 uppercase tracking-widest">On Air</span>
-          </div>
-        )}
       </nav>
 
       {/* Main content area */}
@@ -327,57 +319,38 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         title="About High Desert"
         width="400px"
       >
-        <div className="flex flex-col items-center gap-0 p-5 text-center bg-midnight/90">
-          {/* Decorative stars */}
-          <div className="text-[10px] text-desert-amber/40 tracking-[0.5em] mb-3 select-none crt-amber" style={{ fontSize: "8px" }}>
-            {"\u00B7  \u2726  \u00B7    \u2726       \u00B7   \u2726  \u00B7    \u2726       \u00B7"}
-          </div>
-          <div className="text-[10px] text-desert-amber/30 tracking-[0.3em] mb-4 select-none" style={{ fontSize: "8px" }}>
-            {"\u00B7       \u2726  \u00B7       \u00B7  \u2726       \u00B7       \u2726"}
-          </div>
-
+        <div className="flex flex-col items-center gap-0 p-6 text-center bg-midnight/90">
           {/* Title */}
           <div className="text-[18px] font-bold text-desert-amber crt-amber tracking-wider mb-1">
             HIGH DESERT
           </div>
-          <div className="text-[11px] text-desktop-gray mb-3">
+          <div className="text-[11px] text-desktop-gray/80 mb-4">
             Art Bell Radio Archive
           </div>
 
           {/* Separator */}
-          <div className="w-48 h-[1px] bg-gradient-to-r from-transparent via-desert-amber/40 to-transparent mb-3" />
-
-          {/* Version */}
-          <div className="text-[10px] text-bevel-dark mb-4">
-            v0.4.0 &middot; The Listening Experience
-          </div>
+          <div className="w-40 h-[1px] bg-gradient-to-r from-transparent via-desert-amber/30 to-transparent mb-4" />
 
           {/* Quote */}
-          <div className="text-[10px] text-static-green/80 italic mb-4" style={{
-            textShadow: "0 0 4px rgba(74, 222, 128, 0.3)",
+          <div className="text-[10px] text-static-green/60 italic mb-5" style={{
+            textShadow: "0 0 4px rgba(74, 222, 128, 0.2)",
           }}>
             &ldquo;From the Kingdom of Nye...&rdquo;
           </div>
 
           {/* Memorial */}
-          <div className="flex flex-col items-center gap-1 mb-4">
-            <div className="text-[10px] text-desert-amber/70">
+          <div className="flex flex-col items-center gap-0.5 mb-5">
+            <div className="text-[10px] text-desert-amber/60">
               Art Bell
             </div>
-            <div className="text-[9px] text-bevel-dark/80">
+            <div className="text-[9px] text-bevel-dark/60">
               1945 &ndash; 2018
-            </div>
-            <div className="text-[8px] text-bevel-dark/50 mt-0.5">
-              Pahrump, Nevada &middot; Late Night Radio
             </div>
           </div>
 
-          {/* Separator */}
-          <div className="w-48 h-[1px] bg-gradient-to-r from-transparent via-bevel-dark/30 to-transparent mb-3" />
-
-          {/* Tech info */}
-          <div className="text-[8px] text-bevel-dark/40 mb-4">
-            Next.js &middot; React &middot; Dexie &middot; Zustand &middot; archive.org
+          {/* Version */}
+          <div className="text-[8px] text-bevel-dark/40 mb-5">
+            v0.4.0
           </div>
 
           <Button onClick={handleCloseAbout}>OK</Button>
@@ -392,11 +365,11 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         width="320px"
       >
         <div className="p-4">
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             {SHORTCUTS.map(({ keys, action }) => (
-              <div key={keys} className="flex items-center justify-between gap-3">
-                <span className="text-[10px] text-desktop-gray">{action}</span>
-                <span className="text-[9px] text-desert-amber bg-desert-amber/10 px-1.5 py-0.5 tabular-nums flex-shrink-0">
+              <div key={keys} className="flex items-center justify-between gap-3 py-0.5">
+                <span className="text-[10px] text-desktop-gray/80">{action}</span>
+                <span className="text-[9px] text-desert-amber/60 tabular-nums flex-shrink-0">
                   {keys}
                 </span>
               </div>

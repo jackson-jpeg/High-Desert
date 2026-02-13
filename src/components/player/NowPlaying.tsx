@@ -35,19 +35,19 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
         {displayTitle}
       </div>
       {episode.guestName && (
-        <div className="text-[10px] text-static-green truncate">
+        <div className="text-[10px] text-static-green/80 truncate">
           {episode.guestName}
         </div>
       )}
-      <div className="text-[10px] text-bevel-dark truncate">
-        {[showLabel, episode.airDate].filter(Boolean).join(" \u2014 ")}
+      <div className="text-[10px] text-bevel-dark/70 truncate">
+        {[showLabel, episode.airDate].filter(Boolean).join(" \u00B7 ")}
       </div>
 
       {/* Extended info in expanded mode */}
       {expanded && (
         <>
           {episode.aiSummary && (
-            <div className="text-[10px] text-desktop-gray/70 leading-relaxed mt-1 line-clamp-2">
+            <div className="text-[10px] text-desktop-gray/50 leading-relaxed mt-1 line-clamp-2">
               {episode.aiSummary}
             </div>
           )}
@@ -56,7 +56,7 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
               {episode.aiTags.map((tag) => (
                 <span
                   key={tag}
-                  className="text-[8px] text-desert-amber/70 bg-desert-amber/10 px-1 py-px"
+                  className="text-[8px] text-desert-amber/50 px-1 py-px"
                 >
                   {tag}
                 </span>

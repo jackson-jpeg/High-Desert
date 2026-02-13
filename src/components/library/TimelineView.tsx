@@ -110,15 +110,15 @@ export function TimelineView({
     <div className={cn("flex flex-col h-full", className)}>
       {/* Sticky year header */}
       {currentYear && (
-        <div className="sticky top-0 z-10 bg-midnight/95 backdrop-blur-sm px-4 py-2 border-b border-bevel-dark/20 flex items-center gap-2">
-          <span className="text-[12px] text-desert-amber font-bold">
+        <div className="sticky top-0 z-10 bg-midnight/95 backdrop-blur-sm px-4 py-1.5 border-b border-bevel-dark/15 flex items-center gap-2">
+          <span className="text-[12px] text-desert-amber/90 font-bold tabular-nums">
             {currentYear}
           </span>
-          <span className="text-[10px] text-bevel-dark">
-            {yearCounts.get(currentYear) ?? 0} episodes
+          <span className="text-[9px] text-bevel-dark/50">
+            {yearCounts.get(currentYear) ?? 0}
           </span>
-          {/* Mini year nav dots */}
-          <div className="flex items-center gap-1 ml-auto">
+          {/* Year nav dots */}
+          <div className="flex items-center gap-[3px] ml-auto">
             {Array.from(yearCounts.keys())
               .filter((y) => y !== "Unknown")
               .sort()
@@ -126,10 +126,10 @@ export function TimelineView({
                 <span
                   key={year}
                   className={cn(
-                    "w-[4px] h-[4px] rounded-full",
-                    year === currentYear ? "bg-desert-amber" : "bg-bevel-dark/30",
+                    "w-[3px] h-[3px] rounded-full transition-colors-fast",
+                    year === currentYear ? "bg-desert-amber/80" : "bg-bevel-dark/20",
                   )}
-                  title={`${year} (${yearCounts.get(year)} episodes)`}
+                  title={`${year} (${yearCounts.get(year)})`}
                 />
               ))}
           </div>

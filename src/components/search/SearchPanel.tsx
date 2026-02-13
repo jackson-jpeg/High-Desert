@@ -10,18 +10,18 @@ import { toast } from "@/stores/toast-store";
 import type { ArchiveSearchResult } from "@/lib/archive/types";
 
 const COLLECTIONS = [
-  { label: "Most Popular", query: "Art Bell", icon: "\u2605" },
-  { label: "Coast to Coast AM", query: "Coast to Coast AM Art Bell", icon: "\u{1F30C}" },
-  { label: "Dreamland", query: "Dreamland Art Bell", icon: "\u263D" },
-  { label: "Area 51", query: "Area 51", icon: "\u{1F6F8}" },
-  { label: "UFOs & Aliens", query: "UFO alien", icon: "\u2727" },
-  { label: "Ghosts & Hauntings", query: "ghost haunting paranormal", icon: "\u{1F47B}" },
-  { label: "Shadow People", query: "shadow people", icon: "\u25CF" },
-  { label: "Remote Viewing", query: "remote viewing", icon: "\u{1F441}" },
-  { label: "Time Travel", query: "time travel", icon: "\u231A" },
-  { label: "Prophecy", query: "prophecy prediction", icon: "\u2604" },
-  { label: "Conspiracy", query: "conspiracy government", icon: "\u{1F50D}" },
-  { label: "Science", query: "science physics quantum", icon: "\u269B" },
+  { label: "Most Popular", query: "Art Bell" },
+  { label: "Coast to Coast AM", query: "Coast to Coast AM Art Bell" },
+  { label: "Dreamland", query: "Dreamland Art Bell" },
+  { label: "Area 51", query: "Area 51" },
+  { label: "UFOs", query: "UFO alien" },
+  { label: "Ghosts", query: "ghost haunting paranormal" },
+  { label: "Shadow People", query: "shadow people" },
+  { label: "Remote Viewing", query: "remote viewing" },
+  { label: "Time Travel", query: "time travel" },
+  { label: "Prophecy", query: "prophecy prediction" },
+  { label: "Conspiracy", query: "conspiracy government" },
+  { label: "Science", query: "science physics quantum" },
 ] as const;
 
 const FEATURED_GUESTS = [
@@ -211,15 +211,14 @@ export function SearchPanel() {
                     }
                   `}
                 >
-                  <span className="mr-0.5">{c.icon}</span>
                   {c.label}
                 </button>
               ))}
             </div>
 
             {/* Featured guests */}
-            <div className="flex flex-wrap gap-1">
-              <span className="text-[8px] text-bevel-dark/60 uppercase tracking-wider mr-1 self-center">Guests:</span>
+            <div className="flex flex-wrap gap-1 items-center">
+              <span className="text-[8px] text-bevel-dark/40 uppercase tracking-wider mr-0.5">Guests</span>
               {FEATURED_GUESTS.map((guest) => (
                 <button
                   key={guest}
@@ -227,8 +226,8 @@ export function SearchPanel() {
                   className={`
                     px-1.5 py-0.5 text-[9px] cursor-pointer transition-colors-fast
                     ${query === guest
-                      ? "bg-static-green/15 text-static-green"
-                      : "text-static-green/60 hover:text-static-green hover:bg-static-green/10"
+                      ? "bg-static-green/15 text-static-green/90"
+                      : "text-bevel-dark hover:text-static-green/80 hover:bg-static-green/5"
                     }
                   `}
                 >

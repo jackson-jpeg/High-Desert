@@ -67,14 +67,14 @@ export function ArchiveResultCard({
 
       {/* Description */}
       {description && (
-        <div className="text-[10px] text-bevel-dark line-clamp-2 leading-relaxed">
+        <div className="text-[10px] text-bevel-dark/70 line-clamp-2 leading-relaxed">
           {description}
         </div>
       )}
 
       {/* Action row */}
-      <div className="flex items-center justify-between mt-1">
-        <span className="text-[9px] text-bevel-dark truncate">
+      <div className="flex items-center justify-between mt-0.5">
+        <span className="text-[9px] text-bevel-dark/60 truncate">
           {result.creator ?? "Art Bell"}
         </span>
         <div className="transition-state">

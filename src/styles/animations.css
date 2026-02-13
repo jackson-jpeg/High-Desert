@@ -121,11 +121,11 @@
   transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
 
-/* Staggered card entry — apply to each card with inline --i */
+/* Staggered card entry — apply to each card with inline --i (caps at 300ms) */
 .animate-stagger {
   opacity: 0;
-  animation: slide-up 0.3s var(--spring-smooth) forwards;
-  animation-delay: calc(var(--i, 0) * 40ms);
+  animation: slide-up 0.25s var(--spring-smooth) forwards;
+  animation-delay: calc(min(var(--i, 0), 8) * 30ms);
 }
 
 /* Smooth state transition (add → added) */
@@ -166,29 +166,29 @@
 /* On-air indicator (pulsing red dot) */
 @keyframes on-air-pulse {
   0%, 100% {
-    opacity: 1;
-    box-shadow: 0 0 3px rgba(239, 68, 68, 0.6);
+    opacity: 0.8;
+    box-shadow: 0 0 2px rgba(239, 68, 68, 0.4);
   }
   50% {
-    opacity: 0.5;
-    box-shadow: 0 0 8px rgba(239, 68, 68, 0.9);
+    opacity: 0.4;
+    box-shadow: 0 0 5px rgba(239, 68, 68, 0.6);
   }
 }
 
 .animate-on-air {
-  animation: on-air-pulse 2s ease-in-out infinite;
+  animation: on-air-pulse 2.5s ease-in-out infinite;
 }
 
 /* Signal bars animation */
 @keyframes signal-bar {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 1; }
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.9; }
 }
 
-.animate-signal-1 { animation: signal-bar 1.5s ease-in-out infinite; }
-.animate-signal-2 { animation: signal-bar 1.5s ease-in-out 0.2s infinite; }
-.animate-signal-3 { animation: signal-bar 1.5s ease-in-out 0.4s infinite; }
-.animate-signal-4 { animation: signal-bar 1.5s ease-in-out 0.6s infinite; }
+.animate-signal-1 { animation: signal-bar 2.5s ease-in-out infinite; }
+.animate-signal-2 { animation: signal-bar 2.5s ease-in-out 0.3s infinite; }
+.animate-signal-3 { animation: signal-bar 2.5s ease-in-out 0.6s infinite; }
+.animate-signal-4 { animation: signal-bar 2.5s ease-in-out 0.9s infinite; }
 
 /* Status bar now-playing scroll */
 @keyframes status-scroll {
