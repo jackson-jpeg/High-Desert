@@ -47,7 +47,7 @@ export function EpisodeDetail({
             </span>
           )}
           {isArchive && (
-            <span className="text-[8px] text-title-bar-blue bg-title-bar-blue/15 px-1.5 py-px uppercase tracking-wider flex-shrink-0">
+            <span className="text-[8px] text-desktop-gray/70 bg-bevel-dark/20 px-1.5 py-px uppercase tracking-wider flex-shrink-0">
               Archive
             </span>
           )}
@@ -102,6 +102,18 @@ export function EpisodeDetail({
             </div>
             <div className="text-[11px] text-desktop-gray">
               {episode.topic}
+            </div>
+          </div>
+        )}
+
+        {/* Description */}
+        {episode.description && (
+          <div>
+            <div className="text-[9px] text-bevel-dark uppercase tracking-wider mb-0.5">
+              Description
+            </div>
+            <div className="text-[10px] text-desktop-gray/70 leading-relaxed">
+              {episode.description}
             </div>
           </div>
         )}

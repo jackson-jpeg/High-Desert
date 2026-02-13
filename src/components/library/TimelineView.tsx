@@ -111,7 +111,7 @@ export function TimelineView({
         className="flex-1 overflow-auto"
       >
         <div className="relative p-2" role="listbox" aria-label="Episodes" style={{ height: totalHeight }}>
-          {virtualItems.map(({ item: ep, index, offsetTop }) => (
+          {virtualItems.map(({ item: ep, offsetTop }) => (
             <div
               key={ep.id}
               className="absolute left-2 right-2"

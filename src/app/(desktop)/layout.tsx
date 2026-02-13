@@ -20,7 +20,6 @@ export default function DesktopLayout({
   const position = usePlayerStore((s) => s.position);
   const volume = usePlayerStore((s) => s.volume);
   const setVolume = usePlayerStore((s) => s.setVolume);
-  const playing = usePlayerStore((s) => s.playing);
   const enqueue = usePlayerStore((s) => s.enqueue);
   const currentEpisode = usePlayerStore((s) => s.currentEpisode);
   const [continueEpisode, setContinueEpisode] = useState<Episode | null>(null);

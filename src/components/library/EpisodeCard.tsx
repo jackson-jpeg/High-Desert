@@ -35,11 +35,21 @@ export function EpisodeCard({
           ? "Special"
           : null;
 
+  const showAccent =
+    episode.showType === "coast"
+      ? "border-l-2 border-l-title-bar-blue/60"
+      : episode.showType === "dreamland"
+        ? "border-l-2 border-l-static-green/50"
+        : episode.showType === "special"
+          ? "border-l-2 border-l-desert-amber/50"
+          : "";
+
   const isArchive = episode.source === "archive";
   const hasProgress = (episode.playbackPosition ?? 0) > 0 && (episode.duration ?? 0) > 0;
   const progressPct = hasProgress
     ? Math.min(100, ((episode.playbackPosition! / episode.duration!) * 100))
     : 0;
+  const isCompleted = hasProgress && progressPct > 90;
 
   const handleContextMenu = (e: React.MouseEvent) => {
     if (onContextMenu) {
@@ -61,6 +71,7 @@ export function EpisodeCard({
         "w-full text-left p-3 w98-raised-dark bg-card-surface relative",
         "hover:bg-title-bar-blue/15 transition-colors-fast cursor-pointer",
         "flex flex-col gap-1",
+        showAccent,
         isPlaying && "ring-1 ring-static-green/40 bg-title-bar-blue/10",
         isSelected && !isPlaying && "bg-highlight-blue/20",
         isMultiSelected && "bg-highlight-blue/30 ring-1 ring-highlight-blue/40",
@@ -79,8 +90,18 @@ export function EpisodeCard({
             {episode.airDate ?? "Unknown date"}
           </span>
           {isArchive && (
-            <span className="text-[8px] text-title-bar-blue bg-title-bar-blue/15 px-1 py-px uppercase tracking-wider flex-shrink-0">
+            <span className="text-[8px] text-desktop-gray/70 bg-bevel-dark/20 px-1 py-px uppercase tracking-wider flex-shrink-0">
               Archive
+            </span>
+          )}
+          {isCompleted && (
+            <span className="text-[8px] text-static-green flex-shrink-0" title="Completed">
+              {"\u2713"}
+            </span>
+          )}
+          {hasProgress && !isCompleted && (
+            <span className="text-[8px] text-desert-amber flex-shrink-0" title="In progress">
+              {"\u25CF"}
             </span>
           )}
           {episode.aiStatus === "failed" && (

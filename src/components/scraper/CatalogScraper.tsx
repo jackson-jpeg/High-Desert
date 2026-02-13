@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Window, Button, ProgressBar } from "@/components/win98";
 import { useCatalogScraper } from "@/hooks/useCatalogScraper";
 
@@ -64,6 +64,17 @@ export function CatalogScraper() {
   const isRunning = phase === "scraping" || phase === "importing" || phase === "categorizing";
   const isDone = phase === "done" || phase === "error" || phase === "cancelled";
 
+  // Tick every second while running for elapsed time display
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (isRunning) {
+      // Use a 0ms initial tick so the first update happens quickly via the interval callback
+      const id = window.setInterval(() => setNow(Date.now()), 1000);
+      return () => window.clearInterval(id);
+    }
+  }, [isRunning]);
+
   // Progress bar value (0-100)
   const progressPct = useMemo(() => {
     if (phase === "scraping" && total > 0) return Math.round((fetched / total) * 100);
@@ -76,19 +87,15 @@ export function CatalogScraper() {
   // Elapsed time
   const elapsed = useMemo(() => {
     if (!startedAt) return null;
-    if (isDone) {
-      // Use the phase end time
-      return Date.now() - startedAt;
-    }
-    return Date.now() - startedAt;
-  }, [startedAt, isDone, phase]);
+    return now - startedAt;
+  }, [startedAt, now]);
 
   // Phase elapsed
   const phaseElapsed = useMemo(() => {
     const phaseStart = phaseTimes[phase];
     if (!phaseStart) return 0;
-    return Date.now() - phaseStart;
-  }, [phaseTimes, phase]);
+    return now - phaseStart;
+  }, [phaseTimes, phase, now]);
 
   // Current phase rate
   const rateLabel = useMemo(() => {
@@ -97,9 +104,6 @@ export function CatalogScraper() {
     if (phase === "categorizing") return formatRate(categorized, phaseElapsed);
     return null;
   }, [phase, fetched, imported, duplicates, categorized, phaseElapsed]);
-
-  // Current step index for the stepper
-  const currentStepIdx = PHASE_STEPS.indexOf(phase as typeof PHASE_STEPS[number]);
 
   return (
     <Window title="Import Full Catalog" variant="dark">
@@ -286,7 +290,7 @@ export function CatalogScraper() {
               Categorize Uncategorized
             </Button>
             <div className="text-[9px] text-bevel-dark/60 leading-relaxed">
-              "Import Only" skips AI categorization (faster). You can categorize later with "Categorize Uncategorized".
+              &ldquo;Import Only&rdquo; skips AI categorization (faster). You can categorize later with &ldquo;Categorize Uncategorized&rdquo;.
             </div>
           </div>
         )}

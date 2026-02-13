@@ -25,7 +25,7 @@ const INITIAL: ScrapeProgress = {
   errors: 0,
 };
 
-export const useScraperStore = create<ScraperState>((set, get) => ({
+export const useScraperStore = create<ScraperState>((set) => ({
   ...INITIAL,
   errorMessages: [],
   startedAt: null,

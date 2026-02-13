@@ -6,6 +6,29 @@ import { cn } from "@/lib/utils/cn";
 
 export function ContextMenu() {
   const { open, position, items, hide } = useContextMenuStore();
+
+  if (!open) return null;
+
+  // Key on position to remount inner menu, resetting focus state
+  return (
+    <ContextMenuInner
+      key={`${position.x}-${position.y}`}
+      position={position}
+      items={items}
+      hide={hide}
+    />
+  );
+}
+
+function ContextMenuInner({
+  position,
+  items,
+  hide,
+}: {
+  position: { x: number; y: number };
+  items: { label: string; onClick: () => void; disabled?: boolean; separator?: boolean; danger?: boolean }[];
+  hide: () => void;
+}) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [focusedIdx, setFocusedIdx] = useState(-1);
 
@@ -15,28 +38,16 @@ export function ContextMenu() {
     .filter(({ item }) => !item.separator)
     .map(({ i }) => i);
 
-  // Reset focus when menu opens
+  // Adjust position if overflows viewport + focus container
   useEffect(() => {
-    if (open) {
-      setFocusedIdx(-1);
-      // Focus first item
-      requestAnimationFrame(() => {
-        if (actionIndices.length > 0) {
-          setFocusedIdx(actionIndices[0]);
-        }
-      });
-    }
-  }, [open]);
-
-  // Adjust position if overflows viewport
-  useEffect(() => {
-    if (!open || !menuRef.current) return;
+    if (!menuRef.current) return;
     const menu = menuRef.current;
     const rect = menu.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
-    let { x, y } = position;
+    let x = position.x;
+    let y = position.y;
     if (x + rect.width > vw) x = vw - rect.width - 4;
     if (y + rect.height > vh) y = vh - rect.height - 4;
     if (x < 0) x = 4;
@@ -44,12 +55,14 @@ export function ContextMenu() {
 
     menu.style.left = `${x}px`;
     menu.style.top = `${y}px`;
-  }, [open, position]);
+
+    requestAnimationFrame(() => {
+      menu.focus();
+    });
+  }, [position]);
 
   // Close on click outside
   useEffect(() => {
-    if (!open) return;
-
     const handleClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         hide();
@@ -58,7 +71,7 @@ export function ContextMenu() {
 
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [open, hide]);
+  }, [hide]);
 
   // Keyboard navigation
   const handleKeyDown = useCallback(
@@ -105,8 +118,6 @@ export function ContextMenu() {
     },
     [focusedIdx, actionIndices, items, hide],
   );
-
-  if (!open) return null;
 
   return (
     <div

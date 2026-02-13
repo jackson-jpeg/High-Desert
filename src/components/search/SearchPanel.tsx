@@ -1,11 +1,39 @@
 "use client";
 
-import { useCallback, useState, type FormEvent } from "react";
+import { useCallback, useState, useEffect, type FormEvent } from "react";
 import { Window, TextField, Button } from "@/components/win98";
 import { ArchiveResultCard } from "./ArchiveResultCard";
 import { useArchiveSearch } from "@/hooks/useArchiveSearch";
 import { useContextMenuStore } from "@/stores/context-menu-store";
 import type { ArchiveSearchResult } from "@/lib/archive/types";
+
+const COLLECTIONS = [
+  { label: "Most Popular", query: "Art Bell", icon: "\u2605" },
+  { label: "Coast to Coast AM", query: "Coast to Coast AM Art Bell", icon: "\u{1F30C}" },
+  { label: "Dreamland", query: "Dreamland Art Bell", icon: "\u263D" },
+  { label: "Area 51", query: "Area 51", icon: "\u{1F6F8}" },
+  { label: "UFOs & Aliens", query: "UFO alien", icon: "\u2727" },
+  { label: "Ghosts & Hauntings", query: "ghost haunting paranormal", icon: "\u{1F47B}" },
+  { label: "Shadow People", query: "shadow people", icon: "\u25CF" },
+  { label: "Remote Viewing", query: "remote viewing", icon: "\u{1F441}" },
+  { label: "Time Travel", query: "time travel", icon: "\u231A" },
+  { label: "Prophecy", query: "prophecy prediction", icon: "\u2604" },
+  { label: "Conspiracy", query: "conspiracy government", icon: "\u{1F50D}" },
+  { label: "Science", query: "science physics quantum", icon: "\u269B" },
+] as const;
+
+const FEATURED_GUESTS = [
+  "Michio Kaku",
+  "George Knapp",
+  "Richard Hoagland",
+  "Whitley Strieber",
+  "Ed Dames",
+  "Linda Moulton Howe",
+  "Malachi Martin",
+  "Robert Bigelow",
+  "John Lear",
+  "Mel Waters",
+];
 
 function LoadingSkeleton() {
   return (
@@ -25,22 +53,6 @@ function LoadingSkeleton() {
   );
 }
 
-function EmptyPrompt() {
-  return (
-    <div className="flex flex-col items-center justify-center py-24 text-center px-8">
-      <div className="text-[20px] text-desert-amber/60 mb-4">
-        ~
-      </div>
-      <div className="text-[13px] text-desktop-gray mb-2">
-        Search the Internet Archive
-      </div>
-      <div className="text-[11px] text-bevel-dark leading-relaxed max-w-[300px]">
-        Find Art Bell episodes from archive.org and add them directly to your library.
-      </div>
-    </div>
-  );
-}
-
 function NoResults({ query }: { query: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center px-8">
@@ -49,9 +61,6 @@ function NoResults({ query }: { query: string }) {
       </div>
       <div className="text-[11px] text-bevel-dark leading-relaxed max-w-[280px] mb-3">
         Try a different search term, like a guest name, date, or topic.
-      </div>
-      <div className="text-[10px] text-bevel-dark/60">
-        Examples: &ldquo;shadow people&rdquo;, &ldquo;Michio Kaku&rdquo;, &ldquo;1997&rdquo;
       </div>
     </div>
   );
@@ -73,6 +82,15 @@ export function SearchPanel() {
     addAllToLibrary,
   } = useArchiveSearch();
 
+  // Auto-search "Most Popular" on first load
+  const [hasInitialized, setHasInitialized] = useState(false);
+  useEffect(() => {
+    if (!hasInitialized && !query) {
+      setHasInitialized(true);
+      search("Art Bell");
+    }
+  }, [hasInitialized, query, search]);
+
   const handleSubmit = useCallback(
     (e: FormEvent) => {
       e.preventDefault();
@@ -81,6 +99,22 @@ export function SearchPanel() {
       }
     },
     [input, search],
+  );
+
+  const handleCollectionClick = useCallback(
+    (q: string) => {
+      setInput(q);
+      search(q);
+    },
+    [search],
+  );
+
+  const handleGuestClick = useCallback(
+    (guest: string) => {
+      setInput(guest);
+      search(guest);
+    },
+    [search],
   );
 
   const handleNextPage = useCallback(() => {
@@ -103,7 +137,6 @@ export function SearchPanel() {
         label: "Add to Library & Play",
         onClick: async () => {
           await addToLibrary(result);
-          // The episode will be in the DB after addToLibrary, play it via search
           const { db } = await import("@/lib/db");
           const episode = await db.episodes
             .where("archiveIdentifier")
@@ -122,29 +155,69 @@ export function SearchPanel() {
 
   const newCount = results.filter((r) => !addedIds.has(r.identifier)).length;
   const hasMore = page * 30 < totalResults;
-  const hasSearched = query.length > 0;
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-3 flex-shrink-0">
+      <div className="p-3 pb-0 flex-shrink-0">
         <Window title="Search Archive.org" variant="dark">
           <div className="p-2 flex flex-col gap-2">
             <form onSubmit={handleSubmit} className="flex gap-2">
               <TextField
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Search Art Bell episodes..."
+                placeholder="Search by guest, topic, date, or keyword..."
                 className="flex-1"
               />
               <Button size="sm" disabled={loading || !input.trim()}>
-                {loading ? "Searching..." : "Search"}
+                {loading ? "..." : "Search"}
               </Button>
             </form>
+
+            {/* Collection quick-picks */}
+            <div className="flex flex-wrap gap-1">
+              {COLLECTIONS.map((c) => (
+                <button
+                  key={c.label}
+                  onClick={() => handleCollectionClick(c.query)}
+                  className={`
+                    px-1.5 py-0.5 text-[9px] cursor-pointer transition-colors-fast
+                    ${query === c.query
+                      ? "bg-title-bar-blue/20 text-desktop-gray w98-inset-dark"
+                      : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10"
+                    }
+                  `}
+                >
+                  <span className="mr-0.5">{c.icon}</span>
+                  {c.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Featured guests */}
+            <div className="flex flex-wrap gap-1">
+              <span className="text-[8px] text-bevel-dark/60 uppercase tracking-wider mr-1 self-center">Guests:</span>
+              {FEATURED_GUESTS.map((guest) => (
+                <button
+                  key={guest}
+                  onClick={() => handleGuestClick(guest)}
+                  className={`
+                    px-1.5 py-0.5 text-[9px] cursor-pointer transition-colors-fast
+                    ${query === guest
+                      ? "bg-static-green/15 text-static-green"
+                      : "text-static-green/60 hover:text-static-green hover:bg-static-green/10"
+                    }
+                  `}
+                >
+                  {guest}
+                </button>
+              ))}
+            </div>
 
             {totalResults > 0 && !loading && (
               <div className="flex items-center justify-between">
                 <span className="text-[10px] text-bevel-dark">
                   {totalResults.toLocaleString()} results
+                  {query && <span className="text-bevel-dark/60"> for &ldquo;{query}&rdquo;</span>}
                 </span>
                 {newCount > 0 && (
                   <Button
@@ -165,17 +238,15 @@ export function SearchPanel() {
         </Window>
       </div>
 
-      {/* Content area: empty / loading / results */}
+      {/* Content area */}
       <div className="flex-1 overflow-auto">
         {loading ? (
           <LoadingSkeleton />
-        ) : !hasSearched ? (
-          <EmptyPrompt />
-        ) : results.length === 0 ? (
+        ) : results.length === 0 && query ? (
           <NoResults query={query} />
         ) : (
           <>
-            <div className="flex flex-col gap-[3px] px-3 pb-3">
+            <div className="flex flex-col gap-[3px] px-3 py-3">
               {results.map((result, i) => (
                 <ArchiveResultCard
                   key={result.identifier}
@@ -191,25 +262,27 @@ export function SearchPanel() {
             </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-center gap-6 py-4 pb-6">
-              <button
-                onClick={handlePrevPage}
-                disabled={page <= 1 || loading}
-                className="text-[10px] text-bevel-dark hover:text-desktop-gray disabled:opacity-30 disabled:cursor-default cursor-pointer transition-colors-fast"
-              >
-                Prev
-              </button>
-              <span className="text-[10px] text-bevel-dark tabular-nums">
-                {page} / {totalResults > 0 ? Math.ceil(totalResults / 30) : 1}
-              </span>
-              <button
-                onClick={handleNextPage}
-                disabled={!hasMore || loading}
-                className="text-[10px] text-bevel-dark hover:text-desktop-gray disabled:opacity-30 disabled:cursor-default cursor-pointer transition-colors-fast"
-              >
-                Next
-              </button>
-            </div>
+            {totalResults > 30 && (
+              <div className="flex items-center justify-center gap-6 py-4 pb-6">
+                <button
+                  onClick={handlePrevPage}
+                  disabled={page <= 1 || loading}
+                  className="text-[10px] text-bevel-dark hover:text-desktop-gray disabled:opacity-30 disabled:cursor-default cursor-pointer transition-colors-fast"
+                >
+                  Prev
+                </button>
+                <span className="text-[10px] text-bevel-dark tabular-nums">
+                  {page} / {totalResults > 0 ? Math.ceil(totalResults / 30) : 1}
+                </span>
+                <button
+                  onClick={handleNextPage}
+                  disabled={!hasMore || loading}
+                  className="text-[10px] text-bevel-dark hover:text-desktop-gray disabled:opacity-30 disabled:cursor-default cursor-pointer transition-colors-fast"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

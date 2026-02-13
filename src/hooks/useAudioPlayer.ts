@@ -260,12 +260,6 @@ export function useAudioPlayer() {
     const flush = () => {
       const { position: pos, currentEpisode: ep } = usePlayerStore.getState();
       if (ep?.id && pos > 0) {
-        // Use sendBeacon for reliable unload persistence
-        const payload = JSON.stringify({
-          id: ep.id,
-          playbackPosition: pos,
-          lastPlayedAt: Date.now(),
-        });
         // Dexie can't run in unload, so persist via a direct IDB transaction
         try {
           const req = indexedDB.open("HighDesertDB");
