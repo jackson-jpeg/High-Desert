@@ -6,6 +6,7 @@ import { FolderPicker } from "@/components/scanner/FolderPicker";
 import { ScanProgress } from "@/components/scanner/ScanProgress";
 import { ScanResults } from "@/components/scanner/ScanResults";
 import { CatalogScraper } from "@/components/scraper/CatalogScraper";
+import { CollectionImport } from "@/components/scraper/CollectionImport";
 
 export default function ScannerPage() {
   const { startScan, startScanFallback, cancelScan, supportsNativePicker } =
@@ -18,7 +19,17 @@ export default function ScannerPage() {
 
   return (
     <div className="p-4 flex flex-col gap-4 max-w-2xl mx-auto">
-      {/* Archive.org catalog import — primary action */}
+      {/* Featured collection import — one-click for the Ultimate Art Bell Collection */}
+      <CollectionImport />
+
+      {/* Divider */}
+      <div className="flex items-center gap-3 px-1">
+        <div className="flex-1 h-[1px] bg-bevel-dark/20" />
+        <span className="text-[9px] text-bevel-dark/60 uppercase tracking-widest">or search the full catalog</span>
+        <div className="flex-1 h-[1px] bg-bevel-dark/20" />
+      </div>
+
+      {/* Archive.org catalog search/import */}
       <CatalogScraper />
 
       {/* Divider */}

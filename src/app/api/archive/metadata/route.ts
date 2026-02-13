@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const AUDIO_FORMATS = new Set(["VBR MP3", "MP3", "128Kbps MP3", "64Kbps MP3", "Ogg Vorbis"]);
-const FETCH_TIMEOUT = 15000; // 15s
+const FETCH_TIMEOUT = 60000; // 60s — large collections like Ultimate Art Bell have 3900+ files
 
 export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id");
