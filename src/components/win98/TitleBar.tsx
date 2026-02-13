@@ -27,8 +27,8 @@ function TitleBarButton({
       onClick={onClick}
       aria-label={label}
       className={cn(
-        "w98-button !min-w-0 !px-1 !py-0 w-[16px] h-[14px]",
-        "flex items-center justify-center text-[9px] leading-none font-bold",
+        "w98-button !min-w-0 !px-1 !py-0 w-[44px] h-[44px] md:w-[16px] md:h-[14px]",
+        "flex items-center justify-center text-[14px] md:text-[9px] leading-none font-bold",
         "focus-visible:outline-dotted focus-visible:outline-1 focus-visible:outline-white focus-visible:outline-offset-[-2px]",
       )}
     >
@@ -57,7 +57,7 @@ export function TitleBar({
       {icon && <span className="mr-1 flex-shrink-0">{icon}</span>}
       <span
         className={cn(
-          "w98-font text-[11px] font-bold truncate flex-1",
+          "w98-font text-[13px] md:text-[11px] font-bold truncate flex-1",
           active ? "text-white" : "text-[#D4D4D4]",
         )}
       >

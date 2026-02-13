@@ -40,6 +40,17 @@
 }
 
 /* ============================================
+   Safe Area CSS Variables
+   ============================================ */
+
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* ============================================
    Global Styles
    ============================================ */
 
@@ -54,12 +65,28 @@ html {
 
 body {
   font-family: var(--font-w95);
+  font-size: 13px;
   background: #0A0E1A;
   color: #C0C0C0;
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: none;
   -moz-osx-font-smoothing: unset;
+}
+
+@media (min-width: 768px) {
+  body {
+    font-size: 11px;
+  }
+}
+
+/* Prevent double-tap zoom on interactive elements */
+button,
+a,
+[role="button"],
+input,
+select {
+  touch-action: manipulation;
 }
 
 /* Selection */

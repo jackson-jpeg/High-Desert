@@ -134,7 +134,7 @@ export function CollectionImport() {
             </div>
 
             {/* Stats grid */}
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               <MiniStat label="Imported" value={progress.imported} color="text-static-green" />
               <MiniStat label="Duplicates" value={progress.duplicates} color="text-desert-amber" />
               <MiniStat label="Categorized" value={progress.categorized} color="text-desktop-gray" />
@@ -176,7 +176,7 @@ export function CollectionImport() {
 
             {/* Stats */}
             {(progress.imported > 0 || progress.duplicates > 0) && (
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <MiniStat label="Imported" value={progress.imported} color="text-static-green" />
                 <MiniStat label="Duplicates" value={progress.duplicates} color="text-desert-amber" />
                 <MiniStat label="Categorized" value={progress.categorized} color="text-desktop-gray" />

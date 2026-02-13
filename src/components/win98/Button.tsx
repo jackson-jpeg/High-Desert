@@ -27,9 +27,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           variant === "dark" && [
             "w98-raised-dark bg-raised-surface text-desktop-gray",
           ],
-          size === "sm" && "px-2 py-0.5 text-[10px] min-w-0",
-          size === "md" && "px-4 py-1 text-[11px] min-w-[75px]",
-          size === "lg" && "px-6 py-1.5 text-[12px] min-w-[90px]",
+          size === "sm" && "px-3 py-2.5 text-[12px] min-h-[44px] min-w-0 md:px-2 md:py-0.5 md:text-[10px] md:min-h-0",
+          size === "md" && "px-4 py-2.5 text-[13px] min-h-[44px] min-w-[75px] md:py-1 md:text-[11px] md:min-h-0",
+          size === "lg" && "px-6 py-3 text-[14px] min-h-[44px] min-w-[90px] md:py-1.5 md:text-[12px] md:min-h-0",
           className,
         )}
         {...props}

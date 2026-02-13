@@ -11,6 +11,8 @@ interface PlaybackControlsProps {
   onStop: () => void;
   onPrevious?: () => void;
   onNext?: () => void;
+  /** Mobile expanded view: only render volume + shuffle/repeat */
+  mobileVolumeOnly?: boolean;
   className?: string;
 }
 
@@ -20,6 +22,7 @@ export function PlaybackControls({
   onStop,
   onPrevious,
   onNext,
+  mobileVolumeOnly = false,
   className,
 }: PlaybackControlsProps) {
   const playing = usePlayerStore((s) => s.playing);
@@ -53,10 +56,71 @@ export function PlaybackControls({
     setPlaybackRate(rates[(idx + 1) % rates.length]);
   };
 
+  // Mobile expanded player only shows volume + shuffle/repeat row
+  if (mobileVolumeOnly) {
+    return (
+      <div className={cn("flex flex-col gap-3", className)}>
+        {/* Volume */}
+        <div className="flex items-center gap-3 text-[12px] text-bevel-dark/70">
+          <span className="text-[14px]">{volume === 0 ? "\u{1F507}" : "\u{1F509}"}</span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={volume}
+            onChange={handleVolumeChange}
+            role="slider"
+            aria-label="Volume"
+            aria-valuemin={0}
+            aria-valuemax={1}
+            aria-valuenow={volume}
+            aria-valuetext={`${Math.round(volume * 100)}%`}
+            className="flex-1 h-[6px] w98-range-dark cursor-pointer"
+          />
+          <span className="w-[36px] tabular-nums text-bevel-dark/50">
+            {Math.round(volume * 100)}%
+          </span>
+        </div>
+
+        {/* Shuffle / Repeat / Speed */}
+        <div className="flex items-center justify-center gap-4">
+          <button
+            onClick={toggleShuffle}
+            className={cn(
+              "min-w-[44px] min-h-[44px] flex items-center justify-center text-[16px] cursor-pointer",
+              shuffle ? "text-desert-amber" : "text-bevel-dark active:text-desktop-gray",
+            )}
+            aria-label={shuffle ? "Disable shuffle" : "Enable shuffle"}
+          >
+            {"\u21C6"}
+          </button>
+          <button
+            onClick={cycleRepeat}
+            className={cn(
+              "min-w-[44px] min-h-[44px] flex items-center justify-center text-[16px] cursor-pointer",
+              repeat !== "off" ? "text-desert-amber" : "text-bevel-dark active:text-desktop-gray",
+            )}
+            aria-label={`Repeat mode: ${repeat}`}
+          >
+            {repeat === "one" ? "\u21BB1" : "\u21BB"}
+          </button>
+          <button
+            onClick={cycleRate}
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-[14px] text-desktop-gray cursor-pointer"
+            aria-label={`Playback speed ${playbackRate}x`}
+          >
+            {playbackRate}x
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       {/* Seek bar */}
-      <div className="flex items-center gap-2 text-[10px] text-bevel-dark">
+      <div className="flex items-center gap-2 text-[12px] md:text-[10px] text-bevel-dark">
         <span className="w-[45px] text-right tabular-nums">
           {formatTime(position)}
         </span>
@@ -112,7 +176,7 @@ export function PlaybackControls({
         <button
           onClick={toggleShuffle}
           className={cn(
-            "text-[10px] cursor-pointer ml-1 px-1",
+            "min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center text-[14px] md:text-[10px] cursor-pointer ml-1 px-1",
             shuffle ? "text-desert-amber" : "text-bevel-dark hover:text-desktop-gray",
           )}
           title={shuffle ? "Shuffle on" : "Shuffle off"}
@@ -123,7 +187,7 @@ export function PlaybackControls({
         <button
           onClick={cycleRepeat}
           className={cn(
-            "text-[10px] cursor-pointer px-1",
+            "min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center text-[14px] md:text-[10px] cursor-pointer px-1",
             repeat !== "off" ? "text-desert-amber" : "text-bevel-dark hover:text-desktop-gray",
           )}
           title={`Repeat: ${repeat}`}
@@ -134,8 +198,8 @@ export function PlaybackControls({
       </div>
 
       {/* Volume */}
-      <div className="flex items-center gap-2 text-[10px] text-bevel-dark/70 px-2">
-        <span className="text-[9px]">{volume === 0 ? "\u{1F507}" : "\u{1F509}"}</span>
+      <div className="flex items-center gap-2 text-[12px] md:text-[10px] text-bevel-dark/70 px-2">
+        <span className="text-[11px] md:text-[9px]">{volume === 0 ? "\u{1F507}" : "\u{1F509}"}</span>
         <input
           type="range"
           min={0}

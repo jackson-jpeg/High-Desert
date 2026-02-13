@@ -2,12 +2,18 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useContextMenuStore } from "@/stores/context-menu-store";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils/cn";
 
 export function ContextMenu() {
   const { open, position, items, hide } = useContextMenuStore();
+  const isMobile = useIsMobile();
 
   if (!open) return null;
+
+  if (isMobile) {
+    return <MobileActionSheet items={items} hide={hide} />;
+  }
 
   // Key on position to remount inner menu, resetting focus state
   return (
@@ -20,6 +26,69 @@ export function ContextMenu() {
   );
 }
 
+/** Mobile: bottom action sheet */
+function MobileActionSheet({
+  items,
+  hide,
+}: {
+  items: { label: string; onClick: () => void; disabled?: boolean; separator?: boolean; danger?: boolean }[];
+  hide: () => void;
+}) {
+  // Close on backdrop click
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-[100] bg-black/50"
+        onClick={hide}
+      />
+      {/* Sheet */}
+      <div className="fixed bottom-0 inset-x-0 z-[101] bg-raised-surface w98-raised-dark pb-[var(--safe-bottom)] animate-slide-up">
+        <div className="flex flex-col">
+          {items.map((item, i) => {
+            if (item.separator) {
+              return (
+                <div key={i} className="border-t border-bevel-dark/20" role="separator" />
+              );
+            }
+            return (
+              <button
+                key={i}
+                onClick={() => {
+                  if (!item.disabled) {
+                    item.onClick();
+                    hide();
+                  }
+                }}
+                disabled={item.disabled}
+                role="menuitem"
+                className={cn(
+                  "w-full text-left px-4 py-3 text-[14px] min-h-[48px] cursor-pointer",
+                  "active:bg-title-bar-blue/20 transition-colors-fast",
+                  item.disabled && "opacity-40 cursor-default",
+                  item.danger ? "text-red-400" : "text-desktop-gray",
+                )}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+          {/* Cancel row */}
+          <div className="border-t border-bevel-dark/20">
+            <button
+              onClick={hide}
+              className="w-full text-center px-4 py-3 text-[14px] min-h-[48px] text-bevel-dark cursor-pointer active:bg-title-bar-blue/10"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** Desktop: positioned dropdown */
 function ContextMenuInner({
   position,
   items,

@@ -60,14 +60,14 @@ export function ContinueBanner({ episode, onResume, onDismiss, className }: Cont
 
       <div className="px-4 py-2.5 flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <div className="text-[9px] text-bevel-dark/60 mb-0.5">
+          <div className="text-[11px] md:text-[9px] text-bevel-dark/60 mb-0.5">
             Continue listening
           </div>
-          <div className="text-[11px] text-desktop-gray font-bold truncate">
+          <div className="text-[13px] md:text-[11px] text-desktop-gray font-bold truncate">
             {title}
           </div>
           {episode.guestName && (
-            <div className="text-[9px] text-static-green/50 truncate mt-0.5">
+            <div className="text-[11px] md:text-[9px] text-static-green/50 truncate mt-0.5">
               {episode.guestName}
             </div>
           )}

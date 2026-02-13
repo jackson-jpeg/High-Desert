@@ -14,6 +14,7 @@ import { db } from "@/lib/db";
 import { clearAudioCache, getCacheSize } from "@/lib/audio/cache";
 import { useCatalogScraper } from "@/hooks/useCatalogScraper";
 import { exportLibrarySeed } from "@/lib/db/seed";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 
 interface DesktopShellProps {
   children: ReactNode;
@@ -48,6 +49,7 @@ const SHORTCUTS = [
 export function DesktopShell({ children, player, episodeCount = 0, className }: DesktopShellProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const isMobile = useIsMobile();
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
@@ -271,12 +273,21 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       {/* Desert night sky */}
       <Starfield />
 
-      {/* Top menu bar */}
-      <MenuBar menus={menus} variant="dark" className="flex-shrink-0 relative z-30" />
+      {/* Top menu bar — desktop only */}
+      <MenuBar menus={menus} variant="dark" className="flex-shrink-0 relative z-30 hidden md:flex" />
 
-      {/* Navigation tabs */}
-      <nav className="flex-shrink-0 flex items-center gap-0 bg-midnight/80 border-b border-bevel-dark/15 px-2 relative z-10 backdrop-blur-xs">
-        {NAV_ITEMS.map(({ label, path }) => {
+      {/* Navigation tabs — desktop: top horizontal, mobile: bottom tab bar */}
+      <nav
+        className={cn(
+          // Mobile: fixed bottom tab bar
+          "fixed bottom-0 inset-x-0 z-30 bg-midnight/95 backdrop-blur-sm border-t border-bevel-dark/15",
+          "flex items-stretch justify-around",
+          "pb-[var(--safe-bottom)]",
+          // Desktop: static top nav
+          "md:static md:justify-start md:gap-0 md:border-t-0 md:border-b md:border-bevel-dark/15 md:px-2 md:bg-midnight/80 md:backdrop-blur-xs md:pb-0",
+        )}
+      >
+        {NAV_ITEMS.map(({ label, path, icon }) => {
           const isActive = pathname === path;
           return (
             <button
@@ -284,25 +295,44 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               onClick={() => router.push(path)}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "w98-font text-[10px] px-3 py-1.5 cursor-pointer select-none transition-colors-fast",
+                "w98-font cursor-pointer select-none transition-colors-fast",
+                // Mobile: stacked icon + label, 56px tall
+                "flex flex-col items-center justify-center gap-0.5 min-h-[56px] flex-1 text-[10px]",
+                // Desktop: inline text only
+                "md:flex-row md:flex-none md:min-h-0 md:gap-0 md:px-3 md:py-1.5",
                 isActive
-                  ? "text-desktop-gray border-b-2 border-desert-amber"
-                  : "text-bevel-dark hover:text-desktop-gray border-b-2 border-transparent",
+                  ? "text-desktop-gray md:border-b-2 md:border-desert-amber"
+                  : "text-bevel-dark hover:text-desktop-gray md:border-b-2 md:border-transparent",
               )}
             >
-              {label}
+              <span className="text-[16px] md:hidden">{icon}</span>
+              <span className={cn(
+                "text-[10px]",
+                isActive && !isMobile && "text-desktop-gray",
+              )}>
+                {label}
+              </span>
             </button>
           );
         })}
       </nav>
 
-      {/* Main content area */}
-      <main className="flex-1 overflow-auto relative z-10">{children}</main>
+      {/* Main content area — padded on mobile to clear fixed player + tab bar */}
+      <main className="flex-1 overflow-auto relative z-10 pb-[calc(112px+var(--safe-bottom))] md:pb-0">
+        {children}
+      </main>
 
-      {/* Mini player slot */}
-      {player && <div className="flex-shrink-0 relative z-10">{player}</div>}
+      {/* Mini player slot — mobile: fixed above tab bar; desktop: static */}
+      {player && (
+        <div className={cn(
+          "fixed bottom-[calc(56px+var(--safe-bottom))] inset-x-0 z-20",
+          "md:static md:flex-shrink-0 md:relative md:z-10",
+        )}>
+          {player}
+        </div>
+      )}
 
-      {/* Bottom status bar */}
+      {/* Bottom status bar — desktop only */}
       <StatusBar
         variant="dark"
         panels={[
@@ -311,7 +341,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           { content: signalBars, width: "24px" },
           { content: clock, width: "72px" },
         ]}
-        className="flex-shrink-0 relative z-10"
+        className="flex-shrink-0 relative z-10 hidden md:flex"
       />
 
       {/* Global context menu */}

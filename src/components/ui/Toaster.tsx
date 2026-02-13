@@ -11,7 +11,7 @@ export function Toaster() {
 
   return (
     <div
-      className="fixed bottom-10 right-4 z-50 flex flex-col gap-1.5 pointer-events-none"
+      className="fixed bottom-[calc(130px+var(--safe-bottom))] md:bottom-10 right-4 z-50 flex flex-col gap-1.5 pointer-events-none"
       aria-live="polite"
     >
       {toasts.map((t) => (

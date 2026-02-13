@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils/cn";
 import { Button } from "@/components/win98";
 import type { ArchiveSearchResult } from "@/lib/archive/types";
+import { useLongPress } from "@/hooks/useLongPress";
 
 interface ArchiveResultCardProps {
   result: ArchiveSearchResult;
@@ -37,37 +38,45 @@ export function ArchiveResultCard({
     }
   };
 
+  const longPress = useLongPress((e) => {
+    if (onContextMenu) {
+      const touch = e.touches[0];
+      onContextMenu(result, touch?.clientX ?? 0, touch?.clientY ?? 0);
+    }
+  });
+
   return (
     <div
       style={style}
       onContextMenu={handleContextMenu}
+      {...longPress}
       className={cn(
         "p-3 w98-raised-dark bg-card-surface flex flex-col gap-1",
-        "hover:bg-title-bar-blue/10 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]",
+        "hover:bg-title-bar-blue/10 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)] active:bg-title-bar-blue/15",
         "transition-all duration-150 cursor-default",
         className,
       )}
     >
       {/* Top row: date + downloads */}
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] text-desert-amber tabular-nums">
+        <span className="text-[12px] md:text-[10px] text-desert-amber tabular-nums">
           {date ?? "Unknown date"}
         </span>
         {result.downloads != null && (
-          <span className="text-[9px] text-bevel-dark tabular-nums">
+          <span className="text-[11px] md:text-[9px] text-bevel-dark tabular-nums">
             {result.downloads.toLocaleString()} dl
           </span>
         )}
       </div>
 
       {/* Title */}
-      <div className="text-[11px] text-desktop-gray font-bold truncate">
+      <div className="text-[13px] md:text-[11px] text-desktop-gray font-bold truncate">
         {result.title}
       </div>
 
       {/* Description */}
       {description && (
-        <div className="text-[10px] text-bevel-dark/70 line-clamp-2 leading-relaxed">
+        <div className="text-[12px] md:text-[10px] text-bevel-dark/70 line-clamp-2 leading-relaxed">
           {description}
         </div>
       )}

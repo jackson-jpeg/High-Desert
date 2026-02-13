@@ -205,10 +205,10 @@ export function SearchPanel() {
                   key={c.label}
                   onClick={() => handleCollectionClick(c.query)}
                   className={cn(
-                    "px-1.5 py-0.5 text-[9px] cursor-pointer transition-colors-fast",
+                    "px-3 py-2 text-[12px] min-h-[36px] md:px-1.5 md:py-0.5 md:text-[9px] md:min-h-0 cursor-pointer transition-colors-fast",
                     query === c.query
                       ? "bg-title-bar-blue/20 text-desktop-gray w98-inset-dark"
-                      : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10",
+                      : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/10",
                   )}
                 >
                   {c.label}
@@ -218,16 +218,16 @@ export function SearchPanel() {
 
             {/* Featured guests */}
             <div className="flex flex-wrap gap-1 items-center">
-              <span className="text-[8px] text-bevel-dark/40 uppercase tracking-wider mr-0.5">Guests</span>
+              <span className="text-[10px] md:text-[8px] text-bevel-dark/40 uppercase tracking-wider mr-0.5">Guests</span>
               {FEATURED_GUESTS.map((guest) => (
                 <button
                   key={guest}
                   onClick={() => handleGuestClick(guest)}
                   className={cn(
-                    "px-1.5 py-0.5 text-[9px] cursor-pointer transition-colors-fast",
+                    "px-3 py-2 text-[12px] min-h-[36px] md:px-1.5 md:py-0.5 md:text-[9px] md:min-h-0 cursor-pointer transition-colors-fast",
                     query === guest
                       ? "bg-static-green/15 text-static-green/90"
-                      : "text-bevel-dark hover:text-static-green/80 hover:bg-static-green/5",
+                      : "text-bevel-dark hover:text-static-green/80 hover:bg-static-green/5 active:bg-static-green/5",
                   )}
                 >
                   {guest}

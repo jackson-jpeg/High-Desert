@@ -15,7 +15,7 @@ export function RecentlyPlayed({ episodes, onPlay, className }: RecentlyPlayedPr
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       <div className="px-1">
-        <span className="text-[9px] text-bevel-dark/60 uppercase tracking-wider">
+        <span className="text-[11px] md:text-[9px] text-bevel-dark/60 uppercase tracking-wider">
           Recently Played
         </span>
       </div>
@@ -38,14 +38,14 @@ export function RecentlyPlayed({ episodes, onPlay, className }: RecentlyPlayedPr
                 "flex flex-col gap-0.5 relative",
               )}
             >
-              <span className="text-[9px] text-desert-amber/80 tabular-nums">
+              <span className="text-[11px] md:text-[9px] text-desert-amber/80 tabular-nums">
                 {ep.airDate ?? "Unknown"}
               </span>
-              <span className="text-[10px] text-desktop-gray font-bold truncate w-full text-left">
+              <span className="text-[12px] md:text-[10px] text-desktop-gray font-bold truncate w-full text-left">
                 {ep.title || ep.fileName}
               </span>
               {ep.guestName && (
-                <span className="text-[9px] text-static-green/50 truncate w-full text-left">
+                <span className="text-[11px] md:text-[9px] text-static-green/50 truncate w-full text-left">
                   {ep.guestName}
                 </span>
               )}

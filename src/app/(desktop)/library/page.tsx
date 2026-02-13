@@ -14,6 +14,7 @@ import { TimelineView } from "@/components/library/TimelineView";
 import { EpisodeDetail } from "@/components/library/EpisodeDetail";
 import { RecentlyPlayed } from "@/components/library/RecentlyPlayed";
 import { Window, Dialog, Button } from "@/components/win98";
+import { cn } from "@/lib/utils/cn";
 
 type SortMode = "date" | "name" | "guest";
 type ShowFilter = "all" | "coast" | "dreamland" | "special" | "unknown";
@@ -346,10 +347,10 @@ export default function LibraryPage() {
                         setGuestFilter(null);
                       }}
                       className={`
-                        px-2 py-0.5 text-[9px] cursor-pointer transition-colors-fast whitespace-nowrap
+                        px-2 py-1 md:py-0.5 text-[12px] md:text-[9px] min-h-[36px] md:min-h-0 cursor-pointer transition-colors-fast whitespace-nowrap
                         ${isActive
                           ? "bg-title-bar-blue/20 text-desktop-gray w98-inset-dark"
-                          : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10"
+                          : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/10"
                         }
                       `}
                     >
@@ -442,9 +443,9 @@ export default function LibraryPage() {
       )}
 
       <div className="flex-1 overflow-hidden flex">
-        {/* Faceted browsing sidebar */}
+        {/* Faceted browsing sidebar — desktop only */}
         {showFacets && allEpisodes && allEpisodes.length > 0 && (
-          <div className="w-[180px] flex-shrink-0 overflow-auto border-r border-bevel-dark/20 p-2 flex flex-col gap-3">
+          <div className="hidden md:flex w-[180px] flex-shrink-0 overflow-auto border-r border-bevel-dark/20 p-2 flex-col gap-3">
             {/* Top Guests */}
             {topGuests.length > 0 && (
               <div>
@@ -541,21 +542,33 @@ export default function LibraryPage() {
         </div>
         )}
 
-        {/* Detail panel */}
+        {/* Detail panel — mobile: slide-up overlay; desktop: 280px sidebar */}
         {selectedEpisode && (
-          <div className="w-[280px] flex-shrink-0 overflow-auto border-l border-bevel-dark/20">
-            <EpisodeDetail
-              episode={selectedEpisode}
-              isPlaying={selectedEpisode.id === currentEpisodeId}
-              onPlay={handlePlay}
-              onClose={handleCloseDetail}
-              onDelete={async (ep) => {
-                await deleteEpisode(ep.id!);
-                setSelectedEpisode(null);
-              }}
-              onRecategorize={(ep) => recategorizeEpisode(ep.id!)}
+          <>
+            {/* Mobile backdrop */}
+            <div
+              className="fixed inset-0 bg-black/50 z-40 md:hidden"
+              onClick={handleCloseDetail}
             />
-          </div>
+            <div className={cn(
+              // Mobile: slide-up overlay from bottom
+              "fixed bottom-0 inset-x-0 z-50 max-h-[80vh] overflow-auto pb-[var(--safe-bottom)]",
+              // Desktop: static sidebar
+              "md:static md:w-[280px] md:flex-shrink-0 md:max-h-none md:pb-0 md:z-auto md:border-l md:border-bevel-dark/20",
+            )}>
+              <EpisodeDetail
+                episode={selectedEpisode}
+                isPlaying={selectedEpisode.id === currentEpisodeId}
+                onPlay={handlePlay}
+                onClose={handleCloseDetail}
+                onDelete={async (ep) => {
+                  await deleteEpisode(ep.id!);
+                  setSelectedEpisode(null);
+                }}
+                onRecategorize={(ep) => recategorizeEpisode(ep.id!)}
+              />
+            </div>
+          </>
         )}
       </div>
 

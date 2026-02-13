@@ -43,7 +43,7 @@ export function EpisodeDetail({
         </span>
         <button
           onClick={onClose}
-          className="text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer flex-shrink-0"
+          className="text-[12px] md:text-[10px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
           aria-label="Close detail"
         >
           {"\u2715"}
@@ -54,7 +54,7 @@ export function EpisodeDetail({
       <div className="p-3 flex flex-col gap-2.5 overflow-auto">
         {/* Title + date + duration */}
         <div>
-          <div className="text-[12px] text-desktop-gray font-bold leading-snug">
+          <div className="text-[14px] md:text-[12px] text-desktop-gray font-bold leading-snug">
             {episode.title || episode.fileName}
           </div>
           <div className="flex items-center gap-2 mt-1">
@@ -73,21 +73,21 @@ export function EpisodeDetail({
 
         {/* Guest */}
         {episode.guestName && (
-          <div className="text-[11px] text-static-green/80">
+          <div className="text-[13px] md:text-[11px] text-static-green/80">
             {episode.guestName}
           </div>
         )}
 
         {/* Topic */}
         {episode.topic && !episode.guestName && (
-          <div className="text-[11px] text-desktop-gray/80">
+          <div className="text-[13px] md:text-[11px] text-desktop-gray/80">
             {episode.topic}
           </div>
         )}
 
         {/* Summary or Description */}
         {(episode.aiSummary || episode.description) && (
-          <div className="text-[10px] text-desktop-gray/60 leading-relaxed">
+          <div className="text-[12px] md:text-[10px] text-desktop-gray/60 leading-relaxed">
             {episode.aiSummary || episode.description}
           </div>
         )}
@@ -176,7 +176,7 @@ export function EpisodeDetail({
               href={`https://archive.org/details/${episode.archiveIdentifier}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[9px] text-bevel-dark/50 hover:text-desktop-gray cursor-pointer transition-colors-fast"
+              className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
             >
               Archive
             </a>
@@ -184,7 +184,7 @@ export function EpisodeDetail({
           {onRecategorize && (
             <button
               onClick={() => onRecategorize(episode)}
-              className="text-[9px] text-bevel-dark/50 hover:text-desktop-gray cursor-pointer transition-colors-fast"
+              className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
             >
               Re-categorize
             </button>
@@ -192,7 +192,7 @@ export function EpisodeDetail({
           {onDelete && (
             <button
               onClick={() => onDelete(episode)}
-              className="text-[9px] text-red-400/40 hover:text-red-400 cursor-pointer transition-colors-fast ml-auto"
+              className="text-[12px] md:text-[9px] text-red-400/40 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast ml-auto min-h-[44px] md:min-h-0 flex items-center"
             >
               Delete
             </button>

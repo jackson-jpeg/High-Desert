@@ -3,6 +3,7 @@
 import type { Episode } from "@/lib/db/schema";
 import { cn } from "@/lib/utils/cn";
 import { formatDuration, getShowLabel } from "@/lib/utils/format";
+import { useLongPress } from "@/hooks/useLongPress";
 
 interface EpisodeCardProps {
   episode: Episode;
@@ -51,11 +52,19 @@ export function EpisodeCard({
     }
   };
 
+  const longPress = useLongPress((e) => {
+    if (onContextMenu) {
+      const touch = e.touches[0];
+      onContextMenu(episode, touch?.clientX ?? 0, touch?.clientY ?? 0);
+    }
+  });
+
   return (
     <button
       onClick={(e) => onClick(episode, e)}
       onDoubleClick={onDoubleClick ? () => onDoubleClick(episode) : undefined}
       onContextMenu={handleContextMenu}
+      {...longPress}
       style={style}
       role="option"
       aria-selected={isSelected || isPlaying}
@@ -63,7 +72,7 @@ export function EpisodeCard({
       className={cn(
         "w-full text-left p-3 w98-raised-dark bg-card-surface relative group",
         "transition-all duration-150 cursor-pointer",
-        "hover:bg-title-bar-blue/15 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]",
+        "hover:bg-title-bar-blue/15 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)] active:bg-title-bar-blue/20",
         showAccent,
         isPlaying && "ring-1 ring-static-green/40 bg-title-bar-blue/10",
         isSelected && !isPlaying && "bg-highlight-blue/20",
@@ -79,7 +88,7 @@ export function EpisodeCard({
               {"\u2713"}
             </span>
           )}
-          <span className="text-[10px] text-desert-amber tabular-nums">
+          <span className="text-[12px] md:text-[10px] text-desert-amber tabular-nums">
             {episode.airDate ?? "Unknown date"}
           </span>
           {isPlaying && (
@@ -109,17 +118,17 @@ export function EpisodeCard({
       </div>
 
       {/* Title */}
-      <div className="text-[11px] text-desktop-gray font-bold truncate mt-1">
+      <div className="text-[13px] md:text-[11px] text-desktop-gray font-bold truncate mt-1">
         {episode.title || episode.fileName}
       </div>
 
       {/* Guest + duration */}
       <div className="flex items-center justify-between gap-2 mt-0.5">
-        <span className="text-[10px] text-static-green/80 truncate">
+        <span className="text-[12px] md:text-[10px] text-static-green/80 truncate">
           {episode.guestName || episode.topic || "\u00A0"}
         </span>
         {episode.duration != null && (
-          <span className="text-[10px] text-bevel-dark/70 tabular-nums flex-shrink-0">
+          <span className="text-[12px] md:text-[10px] text-bevel-dark/70 tabular-nums flex-shrink-0">
             {formatDuration(episode.duration)}
           </span>
         )}

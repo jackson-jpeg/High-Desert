@@ -176,7 +176,7 @@ export function CatalogScraper() {
 
         {/* Stat grid */}
         {(isRunning || isDone) && (
-          <div className="grid grid-cols-3 gap-x-2 gap-y-1.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-x-2 gap-y-1.5">
             <StatCard label="Discovered" value={fetched} color="text-desktop-gray" />
             <StatCard label="Imported" value={imported} color="text-static-green" />
             <StatCard label="Duplicates" value={duplicates} color="text-desert-amber" />
