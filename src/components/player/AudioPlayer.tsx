@@ -67,11 +67,11 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   // ─── Mobile expanded overlay ───
   if (isMobile && mobileExpanded) {
     return (
-      <div className="fixed inset-0 z-50 bg-midnight flex flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)]">
+      <div className="fixed inset-0 z-50 bg-midnight/85 backdrop-blur-sm flex flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)]">
         {errorBanner}
 
         {/* Header: collapse + queue */}
-        <div className="flex items-center justify-between px-3 py-1 border-b border-bevel-dark/15">
+        <div className="flex items-center justify-between px-3 py-1 glass-bevel border-b">
           <button
             onClick={() => setMobileExpanded(false)}
             className="text-[14px] text-bevel-dark active:text-desktop-gray cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
@@ -176,7 +176,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   // ─── Mobile mini player ───
   if (isMobile && mini) {
     return (
-      <div className={cn("w98-raised-dark bg-raised-surface", className)}>
+      <div className={cn("w98-raised-dark bg-raised-surface glass-medium glass-promote", playing && "glass-glow-amber", className)}>
         {errorBanner}
         <div className="flex items-center gap-1 px-2 py-1.5">
           {/* Tap to expand */}

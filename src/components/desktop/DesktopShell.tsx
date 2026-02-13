@@ -308,8 +308,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       {/* Navigation tabs — desktop: top horizontal, mobile: bottom tab bar */}
       <nav
         className={cn(
-          // Mobile: fixed bottom tab bar
-          "fixed bottom-0 inset-x-0 z-30 bg-midnight/95 backdrop-blur-sm border-t border-bevel-dark/15",
+          // Mobile: fixed bottom tab bar with glass
+          "fixed bottom-0 inset-x-0 z-30 glass-light glass-promote",
           "flex items-stretch justify-around",
           "pb-[var(--safe-bottom)]",
           // Desktop: static top nav

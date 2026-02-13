@@ -41,11 +41,15 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[100] bg-black/50"
+        className="fixed inset-0 z-[100] glass-backdrop animate-glass-backdrop"
         onClick={hide}
       />
       {/* Sheet */}
-      <div className="fixed bottom-0 inset-x-0 z-[101] bg-raised-surface w98-raised-dark pb-[var(--safe-bottom)] animate-slide-up">
+      <div className="fixed bottom-0 inset-x-0 z-[101] glass-heavy rounded-t-2xl overflow-hidden pb-[var(--safe-bottom)] animate-glass-sheet">
+        {/* Grab handle */}
+        <div className="flex justify-center pt-2.5 pb-1">
+          <div className="w-8 h-[3px] rounded-full bg-white/15" />
+        </div>
         <div className="flex flex-col">
           {/* Admin toggle */}
           <button
@@ -53,7 +57,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout
               onToggleAdmin();
               hide();
             }}
-            className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-title-bar-blue/20 transition-colors-fast flex items-center justify-between"
+            className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center justify-between"
           >
             <span>Admin Mode</span>
             <span className={cn(
@@ -65,23 +69,23 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout
           </button>
 
           {/* About */}
-          <div className="border-t border-bevel-dark/20">
+          <div className="border-t glass-divider">
             <button
               onClick={() => {
                 onAbout();
                 hide();
               }}
-              className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-title-bar-blue/20 transition-colors-fast"
+              className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast"
             >
               About High Desert
             </button>
           </div>
 
           {/* Cancel */}
-          <div className="border-t border-bevel-dark/20">
+          <div className="border-t glass-divider">
             <button
               onClick={hide}
-              className="w-full text-center px-4 py-3 text-[14px] min-h-[48px] text-bevel-dark cursor-pointer active:bg-title-bar-blue/10"
+              className="w-full text-center px-4 py-3 text-[14px] min-h-[48px] text-bevel-dark cursor-pointer active:bg-white/[0.04]"
             >
               Cancel
             </button>

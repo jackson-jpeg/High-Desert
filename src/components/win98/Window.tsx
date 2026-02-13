@@ -36,7 +36,7 @@ export function Window({
       className={cn(
         "flex flex-col animate-window-open",
         variant === "classic" && "w98-raised bg-[var(--w98-surface)]",
-        variant === "dark" && "w98-raised-dark bg-raised-surface",
+        variant === "dark" && "w98-raised-dark bg-raised-surface glass-heavy",
         className,
       )}
     >

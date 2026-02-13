@@ -96,12 +96,12 @@ export function EpisodeDetail({
   return (
     <div
       className={cn(
-        "w98-raised-dark bg-raised-surface flex flex-col animate-slide-up",
+        "w98-raised-dark bg-raised-surface flex flex-col animate-slide-up glass-heavy",
         className,
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-bevel-dark/20">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-bevel-dark/20 glass-divider">
         <div className="flex items-center gap-1.5">
           <span className="text-[9px] text-bevel-dark/70">
             {[showLabel, isArchive ? "Archive" : null].filter(Boolean).join(" \u00B7 ")}
@@ -401,7 +401,7 @@ export function EpisodeDetail({
             )}
 
             {/* File info + management */}
-            <div className="flex items-center gap-2 border-t border-bevel-dark/15 pt-2 mt-0.5">
+            <div className="flex items-center gap-2 border-t border-bevel-dark/15 glass-divider pt-2 mt-0.5">
               {episode.archiveIdentifier && (
                 <a
                   href={`https://archive.org/details/${episode.archiveIdentifier}`}

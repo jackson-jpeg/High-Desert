@@ -112,7 +112,7 @@ export function TimelineView({
     <div className={cn("flex flex-col h-full", className)}>
       {/* Sticky year header */}
       {currentYear && (
-        <div className="sticky top-0 z-10 bg-midnight/95 backdrop-blur-sm px-4 py-1.5 border-b border-bevel-dark/15 flex items-center gap-2">
+        <div className="sticky top-0 z-10 bg-midnight/95 backdrop-blur-sm px-4 py-1.5 border-b border-bevel-dark/15 glass-light flex items-center gap-2">
           <span className="text-[12px] text-desert-amber/90 font-bold tabular-nums">
             {currentYear}
           </span>

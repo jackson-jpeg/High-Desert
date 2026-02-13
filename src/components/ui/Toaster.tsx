@@ -29,36 +29,39 @@ function ToastItem({ toast }: { toast: Toast }) {
     return () => clearTimeout(timer);
   }, [toast.id, toast.duration, removeToast]);
 
-  const accent =
+  const accentColor =
     toast.type === "success"
-      ? "border-l-static-green/70"
+      ? "bg-static-green/70"
       : toast.type === "error"
-        ? "border-l-red-400/70"
-        : "border-l-desert-amber/70";
+        ? "bg-red-400/70"
+        : "bg-desert-amber/70";
 
   return (
     <div
       className={cn(
-        "w98-raised-dark bg-raised-surface border-l-2 px-3 py-2 min-w-[200px] max-w-[320px]",
-        "pointer-events-auto animate-slide-up",
-        accent,
+        "w98-raised-dark bg-raised-surface min-w-[200px] max-w-[320px] overflow-hidden",
+        "pointer-events-auto animate-slide-up glass-medium animate-glass-toast",
       )}
     >
-      <div className="flex items-start gap-2">
-        <span className="text-[10px] flex-shrink-0 mt-px" aria-hidden="true">
-          {toast.type === "success" && <span className="text-static-green">{"\u2713"}</span>}
-          {toast.type === "error" && <span className="text-red-400">{"\u2716"}</span>}
-          {toast.type === "info" && <span className="text-desert-amber">{"\u25CF"}</span>}
-        </span>
-        <span className="text-[10px] text-desktop-gray leading-relaxed" role="status">
-          {toast.message}
-        </span>
-        <button
-          onClick={() => removeToast(toast.id)}
-          className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer flex-shrink-0 ml-auto"
-        >
-          {"\u2715"}
-        </button>
+      <div className="flex">
+        {/* Accent bar — survives glass border override */}
+        <div className={cn("w-[2px] flex-shrink-0", accentColor)} />
+        <div className="flex items-start gap-2 px-3 py-2 flex-1 min-w-0">
+          <span className="text-[10px] flex-shrink-0 mt-px" aria-hidden="true">
+            {toast.type === "success" && <span className="text-static-green">{"\u2713"}</span>}
+            {toast.type === "error" && <span className="text-red-400">{"\u2716"}</span>}
+            {toast.type === "info" && <span className="text-desert-amber">{"\u25CF"}</span>}
+          </span>
+          <span className="text-[10px] text-desktop-gray leading-relaxed" role="status">
+            {toast.message}
+          </span>
+          <button
+            onClick={() => removeToast(toast.id)}
+            className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer flex-shrink-0 ml-auto"
+          >
+            {"\u2715"}
+          </button>
+        </div>
       </div>
     </div>
   );

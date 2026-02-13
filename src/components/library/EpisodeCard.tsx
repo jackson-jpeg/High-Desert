@@ -72,11 +72,11 @@ export function EpisodeCard({
       aria-selected={isSelected || isPlaying}
       aria-label={`${episode.title || episode.fileName}${episode.airDate ? `, ${episode.airDate}` : ""}${isPlaying ? " (now playing)" : ""}`}
       className={cn(
-        "w-full text-left p-3 w98-raised-dark bg-card-surface relative group",
+        "w-full text-left p-3 w98-raised-dark bg-card-surface relative group glass-light",
         "transition-all duration-150 cursor-pointer",
         "hover:bg-title-bar-blue/15 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)] active:bg-title-bar-blue/20",
         showAccent,
-        isPlaying && "ring-1 ring-static-green/40 bg-title-bar-blue/10",
+        isPlaying && "ring-1 ring-static-green/40 bg-title-bar-blue/10 glass-glow-green",
         isSelected && !isPlaying && "bg-highlight-blue/20",
         isMultiSelected && "bg-highlight-blue/30 ring-1 ring-highlight-blue/40",
         className,
