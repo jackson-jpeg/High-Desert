@@ -84,8 +84,17 @@ body {
 button,
 a,
 [role="button"],
-input,
 select {
+  touch-action: manipulation;
+}
+
+/* Range sliders need full touch control — manipulation blocks swipe */
+input[type="range"] {
+  touch-action: none;
+}
+
+/* Other inputs just prevent double-tap zoom */
+input:not([type="range"]) {
   touch-action: manipulation;
 }
 

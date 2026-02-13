@@ -15,7 +15,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         className={cn(
           "w98-font cursor-pointer select-none outline-none",
-          "active:pt-[5px] active:pb-[3px] active:pl-[17px] active:pr-[15px]",
+          "md:active:pt-[5px] md:active:pb-[3px] md:active:pl-[17px] md:active:pr-[15px]",
           "focus-visible:outline-dotted focus-visible:outline-1 focus-visible:outline-offset-[-4px]",
           "disabled:text-[var(--w98-text-disabled)] disabled:cursor-default",
           variant === "default" && "w98-button",

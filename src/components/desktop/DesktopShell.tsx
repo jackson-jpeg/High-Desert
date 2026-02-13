@@ -14,7 +14,7 @@ import { db } from "@/lib/db";
 import { clearAudioCache, getCacheSize } from "@/lib/audio/cache";
 import { useCatalogScraper } from "@/hooks/useCatalogScraper";
 import { exportLibrarySeed } from "@/lib/db/seed";
-import { useIsMobile } from "@/hooks/useMediaQuery";
+
 
 interface DesktopShellProps {
   children: ReactNode;
@@ -24,10 +24,10 @@ interface DesktopShellProps {
 }
 
 const NAV_ITEMS = [
-  { label: "Library", path: "/library", icon: "\u{1F4DA}" },
-  { label: "Scanner", path: "/scanner", icon: "\u{1F4E1}" },
-  { label: "Search", path: "/search", icon: "\u{1F50D}" },
-  { label: "Stats", path: "/stats", icon: "\u{1F4CA}" },
+  { label: "Library", path: "/library" },
+  { label: "Scanner", path: "/scanner" },
+  { label: "Search", path: "/search" },
+  { label: "Stats", path: "/stats" },
 ] as const;
 
 const SHORTCUTS = [
@@ -49,7 +49,6 @@ const SHORTCUTS = [
 export function DesktopShell({ children, player, episodeCount = 0, className }: DesktopShellProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const isMobile = useIsMobile();
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
@@ -287,7 +286,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           "md:static md:justify-start md:gap-0 md:border-t-0 md:border-b md:border-bevel-dark/15 md:px-2 md:bg-midnight/80 md:backdrop-blur-xs md:pb-0",
         )}
       >
-        {NAV_ITEMS.map(({ label, path, icon }) => {
+        {NAV_ITEMS.map(({ label, path }) => {
           const isActive = pathname === path;
           return (
             <button
@@ -296,22 +295,16 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               aria-current={isActive ? "page" : undefined}
               className={cn(
                 "w98-font cursor-pointer select-none transition-colors-fast",
-                // Mobile: stacked icon + label, 56px tall
-                "flex flex-col items-center justify-center gap-0.5 min-h-[56px] flex-1 text-[10px]",
-                // Desktop: inline text only
-                "md:flex-row md:flex-none md:min-h-0 md:gap-0 md:px-3 md:py-1.5",
+                // Mobile: even tab bar items
+                "flex items-center justify-center min-h-[48px] flex-1 text-[12px]",
+                // Desktop: inline text tabs
+                "md:flex-none md:min-h-0 md:px-3 md:py-1.5 md:text-[10px]",
                 isActive
-                  ? "text-desktop-gray md:border-b-2 md:border-desert-amber"
-                  : "text-bevel-dark hover:text-desktop-gray md:border-b-2 md:border-transparent",
+                  ? "text-desktop-gray border-t-2 border-t-desert-amber md:border-t-0 md:border-b-2 md:border-b-desert-amber"
+                  : "text-bevel-dark active:text-desktop-gray md:hover:text-desktop-gray border-t-2 border-t-transparent md:border-t-0 md:border-b-2 md:border-b-transparent",
               )}
             >
-              <span className="text-[16px] md:hidden">{icon}</span>
-              <span className={cn(
-                "text-[10px]",
-                isActive && !isMobile && "text-desktop-gray",
-              )}>
-                {label}
-              </span>
+              {label}
             </button>
           );
         })}
