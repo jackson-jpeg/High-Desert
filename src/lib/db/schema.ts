@@ -16,6 +16,7 @@ export interface Episode {
   guestName?: string;
   showType?: "coast" | "dreamland" | "special" | "unknown";
   topic?: string;
+  description?: string;  // Archive.org description or user-provided
 
   // Audio info
   duration?: number;     // Seconds

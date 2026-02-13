@@ -62,6 +62,10 @@ export function useArchiveSearch() {
       const rawDate = item.metadata.date ?? result.date;
       const airDate = rawDate ? rawDate.substring(0, 10) : undefined;
 
+      // Strip HTML from description
+      const rawDesc = item.metadata.description ?? result.description;
+      const description = rawDesc ? rawDesc.replace(/<[^>]*>/g, "").substring(0, 500) : undefined;
+
       const episode: Omit<Episode, "id"> = {
         fileHash: `archive:${result.identifier}`,
         filePath: streamUrl,
@@ -70,6 +74,7 @@ export function useArchiveSearch() {
         title: item.metadata.title ?? result.title,
         artist: typeof item.metadata.creator === "string" ? item.metadata.creator : "Art Bell",
         airDate,
+        description,
         duration: bestFile.length ? parseFloat(bestFile.length) : undefined,
         format: "mp3",
         source: "archive",
@@ -132,6 +137,10 @@ async function categorizeEpisode(episode: Episode) {
           fileName: episode.fileName,
           airDate: episode.airDate,
           guestName: episode.guestName,
+          description: episode.description,
+          archiveIdentifier: episode.archiveIdentifier,
+          source: episode.source,
+          artist: episode.artist,
         }],
       }),
     }, { retries: 1 });
@@ -145,12 +154,14 @@ async function categorizeEpisode(episode: Episode) {
 
     const results = await res.json();
     if (Array.isArray(results) && results[0] && episode.id) {
-      const { summary, tags, topic, guestName } = results[0];
+      const { summary, tags, topic, guestName, airDate, showType } = results[0];
       await db.episodes.update(episode.id, {
         aiSummary: summary ?? undefined,
         aiTags: tags ?? undefined,
         topic: topic ?? episode.topic,
         guestName: guestName ?? episode.guestName,
+        airDate: airDate ?? episode.airDate,
+        showType: showType ?? episode.showType,
         aiStatus: "completed",
         updatedAt: Date.now(),
       });

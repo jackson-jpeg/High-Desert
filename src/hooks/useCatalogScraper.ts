@@ -73,6 +73,10 @@ export function useCatalogScraper() {
           const rawDate = archiveItem.metadata.date ?? item.date;
           const airDate = rawDate ? rawDate.substring(0, 10) : undefined;
 
+          // Strip HTML from description
+          const rawDesc = archiveItem.metadata.description ?? item.description;
+          const description = rawDesc ? rawDesc.replace(/<[^>]*>/g, "").substring(0, 500) : undefined;
+
           const episode: Omit<Episode, "id"> = {
             fileHash: `archive:${item.identifier}`,
             filePath: streamUrl,
@@ -81,6 +85,7 @@ export function useCatalogScraper() {
             title: archiveItem.metadata.title ?? item.title,
             artist: typeof archiveItem.metadata.creator === "string" ? archiveItem.metadata.creator : "Art Bell",
             airDate,
+            description,
             duration: bestFile.length ? parseFloat(bestFile.length) : undefined,
             format: "mp3",
             source: "archive",
@@ -135,6 +140,10 @@ export function useCatalogScraper() {
                 fileName: ep.fileName,
                 airDate: ep.airDate,
                 guestName: ep.guestName,
+                description: ep.description,
+                archiveIdentifier: ep.archiveIdentifier,
+                source: ep.source,
+                artist: ep.artist,
               })),
             }),
             signal: controller.signal,
@@ -144,12 +153,14 @@ export function useCatalogScraper() {
             const results = await res.json();
             if (Array.isArray(results)) {
               for (let j = 0; j < results.length && j < chunk.length; j++) {
-                const { summary, tags, topic, guestName } = results[j];
+                const { summary, tags, topic, guestName, airDate, showType } = results[j];
                 await db.episodes.update(chunk[j].id!, {
                   aiSummary: summary ?? undefined,
                   aiTags: tags ?? undefined,
                   topic: topic ?? chunk[j].topic,
                   guestName: guestName ?? chunk[j].guestName,
+                  airDate: airDate ?? chunk[j].airDate,
+                  showType: showType ?? chunk[j].showType,
                   aiStatus: "completed",
                   updatedAt: Date.now(),
                 });

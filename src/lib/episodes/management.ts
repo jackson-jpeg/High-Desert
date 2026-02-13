@@ -52,6 +52,10 @@ export async function recategorizeEpisode(id: number): Promise<void> {
           fileName: episode.fileName,
           airDate: episode.airDate,
           guestName: episode.guestName,
+          description: episode.description,
+          archiveIdentifier: episode.archiveIdentifier,
+          source: episode.source,
+          artist: episode.artist,
         }],
       }),
     }, { retries: 1 });
@@ -63,12 +67,14 @@ export async function recategorizeEpisode(id: number): Promise<void> {
 
     const results = await res.json();
     if (Array.isArray(results) && results[0]) {
-      const { summary, tags, topic, guestName } = results[0];
+      const { summary, tags, topic, guestName, airDate, showType } = results[0];
       await db.episodes.update(id, {
         aiSummary: summary ?? undefined,
         aiTags: tags ?? undefined,
         topic: topic ?? episode.topic,
         guestName: guestName ?? episode.guestName,
+        airDate: airDate ?? episode.airDate,
+        showType: showType ?? episode.showType,
         aiStatus: "completed",
         updatedAt: Date.now(),
       });
