@@ -4,7 +4,7 @@ import type { ArchiveSearchResult } from "./types";
 export interface ScrapeProgress {
   fetched: number;
   total: number;
-  cursor: string | null;
+  page: number;
   phase: "idle" | "scraping" | "importing" | "categorizing" | "done" | "error" | "cancelled";
   imported: number;
   duplicates: number;
@@ -14,31 +14,37 @@ export interface ScrapeProgress {
 
 interface ScrapeResponse {
   items: ArchiveSearchResult[];
-  cursor: string | null;
+  page: number;
+  totalPages: number;
   total: number;
 }
 
+const ROWS_PER_PAGE = 100;
+
 /**
- * Async generator that scrapes the archive.org catalog in batches.
- * Yields batches of results and updates progress.
- * Optionally resumes from a cursor position.
+ * Async generator that fetches the archive.org catalog page-by-page
+ * using advancedsearch.php. Yields batches of results and updates progress.
+ * Optionally resumes from a specific page number.
  */
 export async function* scrapeArchiveCatalog(
   signal: AbortSignal,
   onProgress: (update: Partial<ScrapeProgress>) => void,
-  resumeCursor?: string | null,
+  resumePage?: number,
 ): AsyncGenerator<ArchiveSearchResult[], void, unknown> {
-  let cursor: string | null = resumeCursor ?? null;
+  let page = resumePage ?? 1;
   let fetched = 0;
+  let totalPages = Infinity;
   let total = 0;
 
-  onProgress({ phase: "scraping", fetched: 0 });
+  onProgress({ phase: "scraping", fetched: 0, page });
 
-  do {
+  while (page <= totalPages) {
     if (signal.aborted) return;
 
-    const params = new URLSearchParams({ count: "100" });
-    if (cursor) params.set("cursor", cursor);
+    const params = new URLSearchParams({
+      page: String(page),
+      rows: String(ROWS_PER_PAGE),
+    });
 
     const res = await fetchWithRetry(
       `/api/archive/scrape?${params.toString()}`,
@@ -47,25 +53,31 @@ export async function* scrapeArchiveCatalog(
     );
 
     if (!res.ok) {
-      throw new Error(`Scrape failed: ${res.status}`);
+      throw new Error(`Catalog fetch failed: ${res.status}`);
     }
 
     const data: ScrapeResponse = await res.json();
 
+    // Update total on first response (or if it changed)
     if (data.total > 0 && total === 0) {
       total = data.total;
+      totalPages = data.totalPages;
       onProgress({ total });
     }
 
     fetched += data.items.length;
-    cursor = data.cursor;
-    onProgress({ fetched, cursor });
+    onProgress({ fetched, page });
 
     yield data.items;
 
+    page++;
+
+    // Stop if we got an empty page (safety valve)
+    if (data.items.length === 0) break;
+
     // 1s delay between pages
-    if (cursor) {
+    if (page <= totalPages) {
       await new Promise((r) => setTimeout(r, 1000));
     }
-  } while (cursor);
+  }
 }

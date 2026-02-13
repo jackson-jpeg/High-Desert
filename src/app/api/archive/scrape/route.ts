@@ -1,30 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const SCRAPE_URL = "https://archive.org/services/search/v1/scrape";
-const QUERY = 'mediatype:audio AND (creator:"Art Bell" OR title:"Coast to Coast" OR title:"Dreamland" OR subject:"Art Bell")';
+const SEARCH_URL = "https://archive.org/advancedsearch.php";
+
+// Broad query combining the curated collection + metadata fields
+// Note: "Dreamland" alone causes false positives (old songs); Art Bell's Dreamland
+// episodes are covered by collection:artbellshows and subject:"Art Bell"
+const QUERY = [
+  "mediatype:audio AND (",
+  'collection:artbellshows',
+  ' OR subject:"Art Bell"',
+  ' OR creator:"Art Bell"',
+  ' OR title:"Coast to Coast AM"',
+  ' OR title:"Art Bell"',
+  ' OR title:"Midnight in the Desert"',
+  ' OR title:"Area 2000"',
+  ")",
+].join("");
+
 const FIELDS = "identifier,title,date,description,creator,downloads";
-const FETCH_TIMEOUT = 30000; // 30s
+const FETCH_TIMEOUT = 30000;
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const cursor = searchParams.get("cursor") ?? "";
-  const count = Math.min(parseInt(searchParams.get("count") ?? "100", 10), 200);
+  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
+  const rows = Math.min(parseInt(searchParams.get("rows") ?? "100", 10), 200);
 
   const params = new URLSearchParams({
     q: QUERY,
-    fields: FIELDS,
-    count: String(count),
+    fl: FIELDS,
+    sort: "date asc",
+    output: "json",
+    rows: String(rows),
+    page: String(page),
   });
-
-  if (cursor) {
-    params.set("cursor", cursor);
-  }
 
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 
-    const res = await fetch(`${SCRAPE_URL}?${params.toString()}`, {
+    const res = await fetch(`${SEARCH_URL}?${params.toString()}`, {
       signal: controller.signal,
     });
 
@@ -32,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     if (!res.ok) {
       return NextResponse.json(
-        { error: `Archive.org scrape failed: ${res.status}` },
+        { error: `Archive.org search failed: ${res.status}` },
         { status: res.status },
       );
     }
@@ -42,26 +56,32 @@ export async function GET(request: NextRequest) {
       data = await res.json();
     } catch {
       return NextResponse.json(
-        { error: "Invalid JSON from archive.org scrape API" },
+        { error: "Invalid JSON from archive.org" },
         { status: 502 },
       );
     }
 
+    const response = data.response as { numFound?: number; docs?: unknown[] } | undefined;
+    const numFound = response?.numFound ?? 0;
+    const docs = (response?.docs as unknown[]) ?? [];
+    const totalPages = Math.ceil(numFound / rows);
+
     return NextResponse.json({
-      items: (data.items as unknown[]) ?? [],
-      cursor: (data.cursor as string) ?? null,
-      total: (data.total as number) ?? 0,
+      items: docs,
+      page,
+      totalPages,
+      total: numFound,
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
       return NextResponse.json(
-        { error: "Archive.org scrape request timed out" },
+        { error: "Archive.org request timed out" },
         { status: 504 },
       );
     }
     console.error("[scrape] Error:", err);
     return NextResponse.json(
-      { error: "Scrape request failed" },
+      { error: "Catalog request failed" },
       { status: 500 },
     );
   }

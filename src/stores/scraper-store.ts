@@ -17,7 +17,7 @@ interface ScraperState extends ScrapeProgress {
 const INITIAL: ScrapeProgress = {
   fetched: 0,
   total: 0,
-  cursor: null,
+  page: 0,
   phase: "idle",
   imported: 0,
   duplicates: 0,

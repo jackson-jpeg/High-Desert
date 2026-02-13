@@ -24,21 +24,22 @@ export function useCatalogScraper() {
     store.start();
 
     try {
-      // Phase 1: Scrape — collect all identifiers
+      // Phase 1: Scrape — collect all identifiers page by page
       const allItems: ArchiveSearchResult[] = [];
 
-      // Check for resume cursor
-      let resumeCursor: string | null = null;
+      // Check for resume page
+      let resumePage: number | undefined;
       if (options?.resume) {
-        resumeCursor = (await getPreference("scraper-cursor")) ?? null;
+        const saved = await getPreference("scraper-page");
+        if (saved) resumePage = parseInt(saved, 10);
       }
 
-      for await (const batch of scrapeArchiveCatalog(controller.signal, store.updateProgress, resumeCursor)) {
+      for await (const batch of scrapeArchiveCatalog(controller.signal, store.updateProgress, resumePage)) {
         allItems.push(...batch);
-        // Persist cursor for resumability
-        const currentCursor = useScraperStore.getState().cursor;
-        if (currentCursor) {
-          setPreference("scraper-cursor", currentCursor).catch(() => {});
+        // Persist current page for resumability
+        const currentPage = useScraperStore.getState().page;
+        if (currentPage > 0) {
+          setPreference("scraper-page", String(currentPage)).catch(() => {});
         }
       }
 
@@ -47,8 +48,8 @@ export function useCatalogScraper() {
         return;
       }
 
-      // Clear cursor on successful scrape completion
-      setPreference("scraper-cursor", "").catch(() => {});
+      // Clear saved page on successful completion
+      setPreference("scraper-page", "").catch(() => {});
 
       // Phase 2: Import — fetch metadata per item, save to Dexie
       store.setPhase("importing");

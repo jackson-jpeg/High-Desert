@@ -32,16 +32,29 @@ export function getStreamUrl(identifier: string, filename: string): string {
 }
 
 export function pickBestAudioFile(files: ArchiveFile[]): ArchiveFile | null {
-  // Prefer original source MP3s, then any MP3, sorted by size descending
+  // Prefer original source MP3s, then any MP3, then OGG/VBR, then any audio format
   const originals = files.filter((f) => f.source === "original" && f.name.endsWith(".mp3"));
   if (originals.length > 0) {
     return originals.sort((a, b) => Number(b.size ?? 0) - Number(a.size ?? 0))[0];
   }
 
-  const mp3s = files.filter((f) => f.format.includes("MP3"));
+  const mp3s = files.filter((f) => f.format.includes("MP3") || f.name.endsWith(".mp3"));
   if (mp3s.length > 0) {
     return mp3s.sort((a, b) => Number(b.size ?? 0) - Number(a.size ?? 0))[0];
   }
 
-  return files[0] ?? null;
+  // Fallback to OGG Vorbis (browser-playable)
+  const oggs = files.filter((f) => f.format.includes("Ogg") || f.name.endsWith(".ogg"));
+  if (oggs.length > 0) {
+    return oggs.sort((a, b) => Number(b.size ?? 0) - Number(a.size ?? 0))[0];
+  }
+
+  // Any audio file (FLAC, WAV, etc.)
+  const audioFormats = ["FLAC", "WAV", "AIFF", "VBR MP3"];
+  const audio = files.filter((f) => audioFormats.some((fmt) => f.format.includes(fmt)));
+  if (audio.length > 0) {
+    return audio.sort((a, b) => Number(b.size ?? 0) - Number(a.size ?? 0))[0];
+  }
+
+  return null;
 }

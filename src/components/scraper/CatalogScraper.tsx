@@ -15,7 +15,7 @@ const PHASE_LABELS: Record<string, string> = {
 };
 
 const PHASE_DESCRIPTIONS: Record<string, string> = {
-  scraping: "Scanning the full archive.org catalog using the Scraping API. This bypasses the 10K search limit to find every Art Bell episode.",
+  scraping: "Searching the archive.org catalog for Art Bell episodes across multiple collections and metadata fields. Expected: ~5,000+ episodes.",
   importing: "Fetching detailed metadata for each episode and saving to your local library. Duplicate episodes are automatically skipped.",
   categorizing: "Using Gemini AI to determine broadcast dates, identify guests, generate summaries, and tag topics for each episode.",
 };
@@ -113,7 +113,7 @@ export function CatalogScraper() {
         {phase === "idle" && (
           <div className="text-[10px] text-bevel-dark leading-relaxed">
             Import the complete Art Bell archive from archive.org. This three-phase process discovers all episodes
-            (no 10K limit), imports metadata, and uses AI to determine real broadcast dates, identify guests,
+            across collections, imports metadata, and uses AI to determine real broadcast dates, identify guests,
             and categorize topics.
           </div>
         )}
