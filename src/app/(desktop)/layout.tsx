@@ -10,6 +10,7 @@ import { usePlayerStore } from "@/stores/player-store";
 import { db, getPreference, setPreference } from "@/lib/db";
 import type { Episode } from "@/lib/db/schema";
 import { getCachedAudio, cacheAudioBlob } from "@/lib/audio/cache";
+import { seedLibraryIfEmpty } from "@/lib/db/seed";
 
 export default function DesktopLayout({
   children,
@@ -110,6 +111,11 @@ export default function DesktopLayout({
         setPreference("queue-index", String(state.queueIndex));
       }
     });
+  }, []);
+
+  // On mount, seed library if empty, then restore state
+  useEffect(() => {
+    seedLibraryIfEmpty().catch(() => {});
   }, []);
 
   // On mount, load last-played episode and restore queue

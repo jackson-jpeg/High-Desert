@@ -13,6 +13,7 @@ import { toast } from "@/stores/toast-store";
 import { db } from "@/lib/db";
 import { clearAudioCache, getCacheSize } from "@/lib/audio/cache";
 import { useCatalogScraper } from "@/hooks/useCatalogScraper";
+import { exportLibrarySeed } from "@/lib/db/seed";
 
 interface DesktopShellProps {
   children: ReactNode;
@@ -198,6 +199,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         },
         { separator: true, label: "" },
         { label: "Export Library...", onClick: handleExport },
+        { label: "Export Library Seed...", onClick: exportLibrarySeed },
         { separator: true, label: "" },
         { label: "Clear Audio Cache...", onClick: handleOpenClearCache },
         { label: "Clear Library...", onClick: () => setClearOpen(true) },
