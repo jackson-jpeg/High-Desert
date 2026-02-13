@@ -50,6 +50,9 @@ export interface PlayerState {
   hasNext: () => boolean;
   hasPrevious: () => boolean;
 
+  // Queue reorder
+  moveInQueue: (fromIndex: number, toIndex: number) => void;
+
   // Shuffle & repeat
   toggleShuffle: () => void;
   cycleRepeat: () => void;
@@ -240,6 +243,28 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   hasPrevious: () => {
     const { queueIndex } = get();
     return queueIndex > 0;
+  },
+
+  moveInQueue: (fromIndex, toIndex) => {
+    const { queue, queueIndex } = get();
+    if (fromIndex < 0 || fromIndex >= queue.length || toIndex < 0 || toIndex >= queue.length) return;
+    if (fromIndex === toIndex) return;
+
+    const newQueue = [...queue];
+    const [moved] = newQueue.splice(fromIndex, 1);
+    newQueue.splice(toIndex, 0, moved);
+
+    // Update queueIndex to track current playing item
+    let newIndex = queueIndex;
+    if (queueIndex === fromIndex) {
+      newIndex = toIndex;
+    } else if (fromIndex < queueIndex && toIndex >= queueIndex) {
+      newIndex = queueIndex - 1;
+    } else if (fromIndex > queueIndex && toIndex <= queueIndex) {
+      newIndex = queueIndex + 1;
+    }
+
+    set({ queue: newQueue, queueIndex: newIndex });
   },
 
   toggleShuffle: () => set((s) => ({ shuffle: !s.shuffle })),

@@ -191,6 +191,18 @@ export function EpisodeDetail({
           </div>
         )}
 
+        {/* Play stats */}
+        {(episode.playCount ?? 0) > 0 && (
+          <div className="flex items-center gap-3 text-[9px] text-bevel-dark/60 tabular-nums">
+            {episode.playCount != null && episode.playCount > 0 && (
+              <span>Played {episode.playCount}x</span>
+            )}
+            {episode.lastPlayedAt != null && episode.lastPlayedAt > 0 && (
+              <span>Last: {new Date(episode.lastPlayedAt).toLocaleDateString()}</span>
+            )}
+          </div>
+        )}
+
         {/* Play buttons */}
         <div className="pt-1 flex items-center gap-2">
           <Button
@@ -224,8 +236,33 @@ export function EpisodeDetail({
           </Button>
         </div>
 
+        {/* File info */}
+        <div className="flex flex-col gap-0.5">
+          <div className="text-[9px] text-bevel-dark uppercase tracking-wider">
+            File
+          </div>
+          <div className="text-[9px] text-bevel-dark/70 truncate" title={episode.fileName}>
+            {episode.fileName}
+          </div>
+          {episode.fileSize != null && episode.fileSize > 0 && (
+            <div className="text-[9px] text-bevel-dark/50 tabular-nums">
+              {(episode.fileSize / 1024 / 1024).toFixed(1)} MB
+            </div>
+          )}
+        </div>
+
         {/* Management actions */}
         <div className="flex items-center gap-2 border-t border-bevel-dark/20 pt-2">
+          {episode.archiveIdentifier && (
+            <a
+              href={`https://archive.org/details/${episode.archiveIdentifier}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[9px] text-title-bar-blue/70 hover:text-title-bar-blue cursor-pointer transition-colors-fast"
+            >
+              View on Archive.org
+            </a>
+          )}
           {onRecategorize && (
             <button
               onClick={() => onRecategorize(episode)}
