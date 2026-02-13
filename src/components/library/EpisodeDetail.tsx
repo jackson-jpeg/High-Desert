@@ -16,6 +16,7 @@ interface EpisodeDetailProps {
   onDelete?: (episode: Episode) => void;
   onRecategorize?: (episode: Episode) => void;
   onEdit?: (id: number, fields: Partial<Episode>) => void;
+  onToggleFavorite?: (episode: Episode) => void;
   className?: string;
 }
 
@@ -34,6 +35,7 @@ export function EpisodeDetail({
   onDelete,
   onRecategorize,
   onEdit,
+  onToggleFavorite,
   className,
 }: EpisodeDetailProps) {
   const showLabel = getShowLabel(episode.showType);
@@ -289,6 +291,18 @@ export function EpisodeDetail({
               >
                 Queue
               </Button>
+              {onToggleFavorite && (
+                <button
+                  onClick={() => onToggleFavorite(episode)}
+                  className={cn(
+                    "text-[14px] md:text-[12px] cursor-pointer transition-colors-fast ml-auto min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center",
+                    episode.favoritedAt ? "text-desert-amber" : "text-bevel-dark/40 hover:text-desert-amber",
+                  )}
+                  title={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
+                >
+                  {episode.favoritedAt ? "\u2605" : "\u2606"}
+                </button>
+              )}
             </div>
 
             {/* File info + management */}
@@ -303,6 +317,19 @@ export function EpisodeDetail({
                   Archive
                 </a>
               )}
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}/library?episode=${episode.id}`;
+                  navigator.clipboard.writeText(url).then(() => {
+                    toast.success("Link copied");
+                  }).catch(() => {
+                    toast.info(url);
+                  });
+                }}
+                className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+              >
+                Share
+              </button>
               {onEdit && (
                 <button
                   onClick={startEditing}

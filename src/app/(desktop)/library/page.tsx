@@ -9,11 +9,12 @@ import { usePlayerStore } from "@/stores/player-store";
 import { useContextMenuStore } from "@/stores/context-menu-store";
 import { toast } from "@/stores/toast-store";
 import { useAdminStore } from "@/stores/admin-store";
-import { deleteEpisode, recategorizeEpisode, updateEpisode } from "@/lib/episodes/management";
+import { deleteEpisode, recategorizeEpisode, updateEpisode, toggleFavorite } from "@/lib/episodes/management";
 import { SearchBar } from "@/components/library/SearchBar";
 import { TimelineView } from "@/components/library/TimelineView";
 import { EpisodeDetail } from "@/components/library/EpisodeDetail";
 import { RecentlyPlayed } from "@/components/library/RecentlyPlayed";
+import { PlaylistPanel, addToPlaylist } from "@/components/library/PlaylistPanel";
 import { Window, Dialog, Button } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
 
@@ -39,6 +40,7 @@ export default function LibraryPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [lastClickedId, setLastClickedId] = useState<number | null>(null);
   const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const currentEpisodeId = usePlayerStore((s) => s.currentEpisode?.id);
@@ -64,6 +66,21 @@ export default function LibraryPage() {
     return () => window.removeEventListener("hd:focus-search", handler);
   }, []);
 
+  // Handle ?episode=ID deep link
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const epId = params.get("episode");
+    if (!epId) return;
+    const id = parseInt(epId, 10);
+    if (isNaN(id)) return;
+    // Strip param from URL
+    window.history.replaceState({}, "", window.location.pathname);
+    // Load the episode
+    db.episodes.get(id).then((ep) => {
+      if (ep) setSelectedEpisode(ep);
+    });
+  }, []);
+
   const allEpisodes = useLiveQuery(
     () => db.episodes.orderBy("airDate").reverse().toArray(),
     [],
@@ -73,6 +90,8 @@ export default function LibraryPage() {
     () => db.episodes.where("lastPlayedAt").above(0).sortBy("lastPlayedAt").then((eps) => eps.reverse().slice(0, 5)),
     [],
   );
+
+  const allPlaylists = useLiveQuery(() => db.playlists.toArray(), []);
 
   // Show type counts for filter tabs
   const showCounts = useMemo(() => {
@@ -124,6 +143,11 @@ export default function LibraryPage() {
       list = list.filter((ep) => (ep.showType ?? "unknown") === showFilter);
     }
 
+    // Favorites filter
+    if (favoritesOnly) {
+      list = list.filter((ep) => !!ep.favoritedAt);
+    }
+
     // Guest filter
     if (guestFilter) {
       list = list.filter((ep) => ep.guestName === guestFilter);
@@ -161,7 +185,7 @@ export default function LibraryPage() {
     // "date" is already the default order from Dexie (airDate desc)
 
     return list;
-  }, [allEpisodes, search, sortMode, showFilter, guestFilter]);
+  }, [allEpisodes, search, sortMode, showFilter, guestFilter, favoritesOnly]);
 
   const handleEpisodeClick = useCallback((episode: Episode, e: React.MouseEvent) => {
     if (e.shiftKey || e.metaKey || e.ctrlKey) {
@@ -209,6 +233,11 @@ export default function LibraryPage() {
     router.push(action === "scan" ? "/scanner" : "/search");
   }, [router]);
 
+  const handleToggleFavorite = useCallback(async (episode: Episode) => {
+    const isFav = await toggleFavorite(episode.id!);
+    toast.info(isFav ? "Added to favorites" : "Removed from favorites");
+  }, []);
+
   const handleCloseDetail = useCallback(() => {
     setSelectedEpisode(null);
   }, []);
@@ -239,6 +268,23 @@ export default function LibraryPage() {
           toast.info(`Added to queue`);
         },
       },
+      { label: "", onClick: () => {}, separator: true },
+      {
+        label: episode.favoritedAt ? "Unfavorite" : "Favorite",
+        onClick: () => handleToggleFavorite(episode),
+      },
+      ...((allPlaylists && allPlaylists.length > 0)
+        ? [
+            { label: "", onClick: () => {}, separator: true },
+            ...allPlaylists.map((pl) => ({
+              label: `+ ${pl.name}`,
+              onClick: async () => {
+                await addToPlaylist(pl.id!, [episode.id!]);
+                toast.info(`Added to "${pl.name}"`);
+              },
+            })),
+          ]
+        : []),
       ...(admin
         ? [
             { label: "", onClick: () => {}, separator: true },
@@ -327,7 +373,7 @@ export default function LibraryPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [filtered, focusedIndex, selectedEpisode, selectedIds, handlePlay]);
 
-  const hasActiveFilters = showFilter !== "all" || guestFilter !== null;
+  const hasActiveFilters = showFilter !== "all" || guestFilter !== null || favoritesOnly;
 
   return (
     <div className="flex flex-col h-full">
@@ -369,6 +415,21 @@ export default function LibraryPage() {
                   );
                 })}
 
+                {/* Favorites toggle */}
+                <button
+                  onClick={() => setFavoritesOnly(!favoritesOnly)}
+                  className={`
+                    px-2 py-1 md:py-0.5 text-[12px] md:text-[9px] min-h-[36px] md:min-h-0 cursor-pointer transition-colors-fast whitespace-nowrap
+                    ${favoritesOnly
+                      ? "bg-desert-amber/15 text-desert-amber w98-inset-dark"
+                      : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/10"
+                    }
+                  `}
+                  title="Show favorites only"
+                >
+                  {"\u2605"}
+                </button>
+
                 {/* Facets toggle */}
                 <button
                   onClick={() => setShowFacets(!showFacets)}
@@ -401,6 +462,7 @@ export default function LibraryPage() {
                   onClick={() => {
                     setShowFilter("all");
                     setGuestFilter(null);
+                    setFavoritesOnly(false);
                   }}
                   className="text-bevel-dark hover:text-desktop-gray cursor-pointer ml-auto"
                 >
@@ -446,10 +508,15 @@ export default function LibraryPage() {
         </Window>
       </div>
 
-      {/* Recently played */}
-      {recentlyPlayed && recentlyPlayed.length > 0 && !search.trim() && !hasActiveFilters && (
-        <div className="px-3 py-2 flex-shrink-0">
-          <RecentlyPlayed episodes={recentlyPlayed} onPlay={handlePlay} />
+      {/* Recently played + Playlists row */}
+      {!search.trim() && !hasActiveFilters && (
+        <div className="px-3 py-2 flex-shrink-0 flex flex-col md:flex-row gap-3">
+          {recentlyPlayed && recentlyPlayed.length > 0 && (
+            <RecentlyPlayed episodes={recentlyPlayed} onPlay={handlePlay} />
+          )}
+          {(allPlaylists && allPlaylists.length > 0 || isAdmin) && (
+            <PlaylistPanel onPlayEpisode={handlePlay} className="hidden md:flex md:flex-col md:w-[200px] md:flex-shrink-0" />
+          )}
         </div>
       )}
 
@@ -548,6 +615,7 @@ export default function LibraryPage() {
               onEpisodeDoubleClick={handleDoubleClick}
               onEpisodeContextMenu={handleContextMenu}
               onAction={isAdmin ? handleAction : undefined}
+              onToggleFavorite={handleToggleFavorite}
               selectedEpisodeId={selectedEpisode?.id}
               selectedIds={selectedIds}
             />
@@ -574,6 +642,7 @@ export default function LibraryPage() {
                 isPlaying={selectedEpisode.id === currentEpisodeId}
                 onPlay={handlePlay}
                 onClose={handleCloseDetail}
+                onToggleFavorite={handleToggleFavorite}
                 {...(isAdmin
                   ? {
                       onDelete: async (ep: Episode) => {

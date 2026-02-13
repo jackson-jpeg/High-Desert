@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
+import { SleepTimer } from "./SleepTimer";
 import { cn } from "@/lib/utils/cn";
 import { formatTime } from "@/lib/utils/format";
 
@@ -112,6 +113,7 @@ export function PlaybackControls({
           >
             {playbackRate}x
           </button>
+          <SleepTimer variant="mobile" />
         </div>
       </div>
     );
@@ -197,7 +199,7 @@ export function PlaybackControls({
         </button>
       </div>
 
-      {/* Volume */}
+      {/* Volume + Sleep timer */}
       <div className="flex items-center gap-2 text-[12px] md:text-[10px] text-bevel-dark/70 px-2">
         <span className="text-[11px] md:text-[9px]">{volume === 0 ? "\u{1F507}" : "\u{1F509}"}</span>
         <input
@@ -218,6 +220,7 @@ export function PlaybackControls({
         <span className="w-[28px] tabular-nums text-bevel-dark/50">
           {Math.round(volume * 100)}%
         </span>
+        <SleepTimer variant="desktop" />
       </div>
     </div>
   );

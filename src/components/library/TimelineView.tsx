@@ -15,6 +15,7 @@ interface TimelineViewProps {
   onEpisodeDoubleClick?: (episode: Episode) => void;
   onEpisodeContextMenu?: (episode: Episode, x: number, y: number) => void;
   onAction?: (action: "scan" | "search") => void;
+  onToggleFavorite?: (episode: Episode) => void;
   className?: string;
 }
 
@@ -29,6 +30,7 @@ export function TimelineView({
   onEpisodeDoubleClick,
   onEpisodeContextMenu,
   onAction,
+  onToggleFavorite,
   className,
 }: TimelineViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -157,6 +159,7 @@ export function TimelineView({
                 onClick={onEpisodeClick}
                 onDoubleClick={onEpisodeDoubleClick}
                 onContextMenu={onEpisodeContextMenu}
+                onToggleFavorite={onToggleFavorite}
               />
             </div>
           ))}

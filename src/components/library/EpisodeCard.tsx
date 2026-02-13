@@ -13,6 +13,7 @@ interface EpisodeCardProps {
   onClick: (episode: Episode, e: React.MouseEvent) => void;
   onDoubleClick?: (episode: Episode) => void;
   onContextMenu?: (episode: Episode, x: number, y: number) => void;
+  onToggleFavorite?: (episode: Episode) => void;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -25,6 +26,7 @@ export function EpisodeCard({
   onClick,
   onDoubleClick,
   onContextMenu,
+  onToggleFavorite,
   className,
   style,
 }: EpisodeCardProps) {
@@ -108,6 +110,25 @@ export function EpisodeCard({
         <div className="flex items-center gap-2 flex-shrink-0">
           {episode.aiStatus === "failed" && (
             <span className="w-[5px] h-[5px] rounded-full bg-red-400/60 flex-shrink-0" title="AI categorization failed" />
+          )}
+          {onToggleFavorite && (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFavorite(episode);
+              }}
+              className={cn(
+                "text-[11px] md:text-[9px] flex-shrink-0 cursor-pointer transition-colors-fast",
+                episode.favoritedAt
+                  ? "text-desert-amber"
+                  : "text-bevel-dark/30 opacity-0 group-hover:opacity-100",
+              )}
+              title={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
+              role="button"
+              aria-label={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
+            >
+              {episode.favoritedAt ? "\u2605" : "\u2606"}
+            </span>
           )}
           {showLabel && (
             <span className="text-[9px] text-bevel-dark/70 flex-shrink-0">

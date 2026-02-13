@@ -111,11 +111,20 @@ export default function DesktopLayout({
     return () => window.removeEventListener("hd:play-episode", handler);
   }, [playEpisode, enqueue]);
 
-  // Persist last-episode-id and queue whenever they change
+  // Persist last-episode-id, queue, and record history whenever episode changes
   useEffect(() => {
     return usePlayerStore.subscribe((state, prevState) => {
       if (state.currentEpisode?.id !== prevState.currentEpisode?.id && state.currentEpisode?.id) {
         setPreference("last-episode-id", String(state.currentEpisode.id));
+        // Record listening history entry
+        const ep = state.currentEpisode;
+        db.history.add({
+          episodeId: ep.id!,
+          timestamp: Date.now(),
+          duration: 0,
+          episodeTitle: ep.title || ep.fileName,
+          guestName: ep.guestName,
+        }).catch(() => {});
       }
       // Persist queue when it changes
       if (state.queue !== prevState.queue || state.queueIndex !== prevState.queueIndex) {

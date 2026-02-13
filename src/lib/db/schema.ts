@@ -39,10 +39,31 @@ export interface Episode {
   aiTags?: string[];
   aiStatus?: "pending" | "completed" | "failed";
 
+  // User actions
+  favoritedAt?: number;   // Unix timestamp, undefined = not favorited
+
   // Housekeeping
   scanSessionId?: number;
   createdAt: number;     // Unix timestamp
   updatedAt: number;     // Unix timestamp
+}
+
+export interface Playlist {
+  id?: number;
+  name: string;
+  description?: string;
+  episodeIds: number[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface HistoryEntry {
+  id?: number;
+  episodeId: number;
+  timestamp: number;     // When playback started
+  duration: number;      // Seconds listened in this session
+  episodeTitle?: string; // Denormalized for display
+  guestName?: string;    // Denormalized for display
 }
 
 export interface ScanSession {

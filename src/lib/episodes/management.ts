@@ -36,6 +36,17 @@ export async function deleteEpisodes(ids: number[]): Promise<void> {
   }
 }
 
+export async function toggleFavorite(id: number): Promise<boolean> {
+  const episode = await db.episodes.get(id);
+  if (!episode) return false;
+  const isFav = !episode.favoritedAt;
+  await db.episodes.update(id, {
+    favoritedAt: isFav ? Date.now() : undefined,
+    updatedAt: Date.now(),
+  });
+  return isFav;
+}
+
 export async function updateEpisode(
   id: number,
   fields: Partial<Pick<import("@/lib/db/schema").Episode, "title" | "guestName" | "airDate" | "topic" | "showType" | "aiSummary">>,

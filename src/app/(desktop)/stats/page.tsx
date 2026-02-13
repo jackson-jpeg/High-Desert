@@ -5,6 +5,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { useAdminStore } from "@/stores/admin-store";
 import { Window } from "@/components/win98";
+import { HistoryPanel } from "@/components/library/HistoryPanel";
 import { cn } from "@/lib/utils/cn";
 
 export default function StatsPage() {
@@ -487,6 +488,9 @@ export default function StatsPage() {
           </div>
         </Window>
       )}
+
+      {/* Listening History */}
+      <HistoryPanel />
     </div>
   );
 }
