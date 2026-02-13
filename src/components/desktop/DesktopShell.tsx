@@ -12,6 +12,7 @@ import { usePlayerStore } from "@/stores/player-store";
 import { toast } from "@/stores/toast-store";
 import { db } from "@/lib/db";
 import { clearAudioCache, getCacheSize } from "@/lib/audio/cache";
+import { useCatalogScraper } from "@/hooks/useCatalogScraper";
 
 interface DesktopShellProps {
   children: ReactNode;
@@ -54,6 +55,9 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [cacheSize, setCacheSize] = useState<number | null>(null);
   const [clearingCache, setClearingCache] = useState(false);
   const [clock, setClock] = useState("");
+
+  // AI categorization (runs in-place, no navigation needed)
+  const { categorizeOnly, phase: scraperPhase } = useCatalogScraper();
 
   // Now-playing info from store
   const nowPlayingTitle = usePlayerStore((s) => s.currentEpisode?.title ?? s.currentEpisode?.fileName);
@@ -188,8 +192,9 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         },
         { separator: true, label: "" },
         {
-          label: "AI Categorize All...",
-          onClick: () => router.push("/scanner"),
+          label: scraperPhase === "categorizing" ? "Categorizing..." : "AI Categorize All...",
+          onClick: categorizeOnly,
+          disabled: scraperPhase === "categorizing" || scraperPhase === "scraping" || scraperPhase === "importing",
         },
         { separator: true, label: "" },
         { label: "Export Library...", onClick: handleExport },
