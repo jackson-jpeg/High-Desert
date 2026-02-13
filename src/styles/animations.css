@@ -162,3 +162,81 @@
 .animate-dot-1 { animation: dot-bounce 1.2s ease-in-out infinite; }
 .animate-dot-2 { animation: dot-bounce 1.2s ease-in-out 0.15s infinite; }
 .animate-dot-3 { animation: dot-bounce 1.2s ease-in-out 0.3s infinite; }
+
+/* On-air indicator (pulsing red dot) */
+@keyframes on-air-pulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 3px rgba(239, 68, 68, 0.6);
+  }
+  50% {
+    opacity: 0.5;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.9);
+  }
+}
+
+.animate-on-air {
+  animation: on-air-pulse 2s ease-in-out infinite;
+}
+
+/* Signal bars animation */
+@keyframes signal-bar {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+.animate-signal-1 { animation: signal-bar 1.5s ease-in-out infinite; }
+.animate-signal-2 { animation: signal-bar 1.5s ease-in-out 0.2s infinite; }
+.animate-signal-3 { animation: signal-bar 1.5s ease-in-out 0.4s infinite; }
+.animate-signal-4 { animation: signal-bar 1.5s ease-in-out 0.6s infinite; }
+
+/* Status bar now-playing scroll */
+@keyframes status-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-status-scroll {
+  animation: status-scroll 20s linear infinite;
+}
+
+/* Subtle glow pulse for stat emphasis */
+@keyframes stat-glow {
+  0%, 100% {
+    text-shadow: 0 0 2px currentColor;
+  }
+  50% {
+    text-shadow: 0 0 8px currentColor, 0 0 16px currentColor;
+  }
+}
+
+.animate-stat-glow {
+  animation: stat-glow 3s ease-in-out infinite;
+}
+
+/* Chart bar grow-in */
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  to {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+.animate-bar-grow {
+  animation: bar-grow 0.6s var(--spring-smooth) forwards;
+  animation-delay: calc(var(--i, 0) * 50ms);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+/* Tag cloud hover lift */
+.tag-cloud-item {
+  transition: transform 0.15s var(--spring-snappy), color 0.15s ease;
+}
+.tag-cloud-item:hover {
+  transform: scale(1.15);
+}
