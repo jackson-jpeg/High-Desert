@@ -17,7 +17,7 @@ interface TimelineViewProps {
   className?: string;
 }
 
-const ITEM_HEIGHT = 82; // approximate height of EpisodeCard + gap
+const ITEM_HEIGHT = 88; // EpisodeCard height: p-3 (24px) + 3 rows ~48px + gap-1 (8px) + margin (8px)
 
 export function TimelineView({
   episodes,

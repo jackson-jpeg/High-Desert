@@ -54,7 +54,7 @@ export default function LibraryPage() {
   );
 
   const recentlyPlayed = useLiveQuery(
-    () => db.episodes.where("lastPlayedAt").above(0).reverse().sortBy("lastPlayedAt").then((eps) => eps.slice(0, 5)),
+    () => db.episodes.where("lastPlayedAt").above(0).sortBy("lastPlayedAt").then((eps) => eps.reverse().slice(0, 5)),
     [],
   );
 

@@ -9,7 +9,7 @@ import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { usePlayerStore } from "@/stores/player-store";
 import { db, getPreference, setPreference } from "@/lib/db";
 import type { Episode } from "@/lib/db/schema";
-import { getCachedAudio } from "@/lib/audio/cache";
+import { getCachedAudio, cacheAudioBlob } from "@/lib/audio/cache";
 
 export default function DesktopLayout({
   children,
@@ -84,6 +84,10 @@ export default function DesktopLayout({
 
         if (file) {
           await playEpisode(episode, file);
+          // Cache to OPFS in background after playback starts
+          cacheAudioBlob(episode.fileHash, file).catch((err) => {
+            console.warn("[layout] OPFS cache failed:", err);
+          });
         }
       } catch (err) {
         console.error("[layout] Failed to play episode:", err);
