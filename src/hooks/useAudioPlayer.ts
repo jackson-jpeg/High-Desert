@@ -72,6 +72,15 @@ export function useAudioPlayer() {
       try {
         await audio.play();
         setPlaying(true);
+
+        // Increment play count in DB
+        if (episode.id) {
+          db.episodes.update(episode.id, {
+            playCount: (episode.playCount ?? 0) + 1,
+            lastPlayedAt: Date.now(),
+            updatedAt: Date.now(),
+          }).catch(() => {});
+        }
       } catch (err) {
         console.error("[player] Playback failed:", err);
         setError("Playback failed. The audio source may be unavailable.");

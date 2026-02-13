@@ -69,7 +69,7 @@ function drawWaveform(
   }
 }
 
-/** Draw a flat line (idle state) */
+/** Draw a breathing line with subtle noise (idle state) */
 export function drawIdleLine(canvas: HTMLCanvasElement): void {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -78,23 +78,36 @@ export function drawIdleLine(canvas: HTMLCanvasElement): void {
   ctx.clearRect(0, 0, width, height);
 
   const y = height / 2;
+  const t = Date.now() * 0.001; // time in seconds
+
+  // Breathing amplitude (subtle wobble when idle)
+  const breathe = Math.sin(t * 0.8) * 2;
 
   // Glow
   ctx.lineWidth = GLOW_WIDTH;
   ctx.strokeStyle = GLOW_COLOR;
   ctx.beginPath();
-  ctx.moveTo(0, y);
-  ctx.lineTo(width, y);
+  for (let x = 0; x < width; x++) {
+    // Subtle noise + sine breathing
+    const noise = (Math.sin(x * 0.05 + t * 3) + Math.sin(x * 0.08 + t * 1.7)) * 0.5;
+    const py = y + noise * breathe;
+    if (x === 0) ctx.moveTo(x, py);
+    else ctx.lineTo(x, py);
+  }
   ctx.stroke();
 
-  // Main
+  // Main line
   ctx.lineWidth = LINE_WIDTH;
   ctx.strokeStyle = PHOSPHOR_GREEN;
   ctx.shadowColor = PHOSPHOR_GREEN;
   ctx.shadowBlur = 8;
   ctx.beginPath();
-  ctx.moveTo(0, y);
-  ctx.lineTo(width, y);
+  for (let x = 0; x < width; x++) {
+    const noise = (Math.sin(x * 0.05 + t * 3) + Math.sin(x * 0.08 + t * 1.7)) * 0.5;
+    const py = y + noise * breathe;
+    if (x === 0) ctx.moveTo(x, py);
+    else ctx.lineTo(x, py);
+  }
   ctx.stroke();
   ctx.shadowBlur = 0;
 }
