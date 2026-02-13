@@ -15,6 +15,7 @@ import { db } from "@/lib/db";
 import { clearAudioCache, getCacheSize } from "@/lib/audio/cache";
 import { useCatalogScraper } from "@/hooks/useCatalogScraper";
 import { exportLibrarySeed } from "@/lib/db/seed";
+import { MobileMenuSheet } from "@/components/mobile/MobileMenuSheet";
 
 
 interface DesktopShellProps {
@@ -60,6 +61,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [cacheSize, setCacheSize] = useState<number | null>(null);
   const [clearingCache, setClearingCache] = useState(false);
   const [clock, setClock] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // AI categorization (runs in-place, no navigation needed)
   const { categorizeOnly, phase: scraperPhase } = useCatalogScraper();
@@ -88,6 +90,11 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const handleCloseAbout = useCallback(() => setAboutOpen(false), []);
   const handleShortcuts = useCallback(() => setShortcutsOpen(true), []);
   const handleCloseShortcuts = useCallback(() => setShortcutsOpen(false), []);
+  const handleToggleAdmin = useCallback(() => {
+    const next = !useAdminStore.getState().isAdmin;
+    useAdminStore.getState().setAdmin(next);
+    toast.info(next ? "Admin mode enabled" : "Admin mode disabled");
+  }, []);
 
   // Listen for ? key to toggle shortcuts
   useEffect(() => {
@@ -229,6 +236,11 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       items: [
         { label: "Keyboard Shortcuts", onClick: handleShortcuts },
         { separator: true, label: "" },
+        {
+          label: isAdmin ? "Disable Admin Mode" : "Enable Admin Mode",
+          onClick: handleToggleAdmin,
+        },
+        { separator: true, label: "" },
         { label: "About High Desert", onClick: handleAbout },
       ],
     },
@@ -326,6 +338,19 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             </button>
           );
         })}
+        {/* Mobile-only gear/settings tab */}
+        <button
+          onClick={() => setMobileMenuOpen(true)}
+          className={cn(
+            "w98-font cursor-pointer select-none transition-colors-fast",
+            "flex items-center justify-center min-h-[48px] flex-1 text-[12px]",
+            "text-bevel-dark active:text-desktop-gray border-t-2 border-t-transparent",
+            "md:hidden",
+          )}
+          aria-label="More options"
+        >
+          {"\u2699"}
+        </button>
       </nav>
 
       {/* Main content area — padded on mobile to clear fixed player + tab bar */}
@@ -449,6 +474,15 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           </div>
         </div>
       </Dialog>
+
+      {/* Mobile menu sheet */}
+      <MobileMenuSheet
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        isAdmin={isAdmin}
+        onToggleAdmin={handleToggleAdmin}
+        onAbout={handleAbout}
+      />
 
       {/* Clear audio cache confirmation */}
       <Dialog

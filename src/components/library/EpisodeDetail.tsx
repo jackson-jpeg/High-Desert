@@ -125,7 +125,7 @@ export function EpisodeDetail({
         </div>
         <button
           onClick={onClose}
-          className="text-[12px] md:text-[10px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+          className="text-[12px] md:text-[10px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-[32px] min-h-[32px] md:min-w-0 md:min-h-0 flex items-center justify-center"
           aria-label="Close detail"
         >
           {"\u2715"}
@@ -133,7 +133,7 @@ export function EpisodeDetail({
       </div>
 
       {/* Body */}
-      <div className="p-3 flex flex-col gap-2.5 overflow-auto">
+      <div className="p-3 flex flex-col gap-2.5 max-h-[50vh] overflow-auto md:max-h-none md:overflow-visible">
         {editing ? (
           /* ── Edit Mode ── */
           <div className="flex flex-col gap-2">
@@ -362,7 +362,7 @@ export function EpisodeDetail({
                 <button
                   onClick={() => onToggleFavorite(episode)}
                   className={cn(
-                    "text-[14px] md:text-[12px] cursor-pointer transition-colors-fast ml-auto min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center",
+                    "text-[14px] md:text-[12px] cursor-pointer transition-colors-fast ml-auto min-w-[32px] min-h-[32px] md:min-w-0 md:min-h-0 flex items-center justify-center",
                     episode.favoritedAt ? "text-desert-amber" : "text-bevel-dark/40 hover:text-desert-amber",
                   )}
                   title={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
@@ -407,7 +407,7 @@ export function EpisodeDetail({
                   href={`https://archive.org/details/${episode.archiveIdentifier}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+                  className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[32px] md:min-h-0 flex items-center"
                 >
                   Archive
                 </a>
@@ -421,14 +421,14 @@ export function EpisodeDetail({
                     toast.info(url);
                   });
                 }}
-                className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+                className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[32px] md:min-h-0 flex items-center"
               >
                 Share
               </button>
               {onEdit && (
                 <button
                   onClick={startEditing}
-                  className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+                  className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[32px] md:min-h-0 flex items-center"
                 >
                   Edit
                 </button>
@@ -436,7 +436,7 @@ export function EpisodeDetail({
               {onRecategorize && (
                 <button
                   onClick={() => onRecategorize(episode)}
-                  className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+                  className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[32px] md:min-h-0 flex items-center"
                 >
                   Re-categorize
                 </button>
@@ -444,7 +444,7 @@ export function EpisodeDetail({
               {onDelete && (
                 <button
                   onClick={() => onDelete(episode)}
-                  className="text-[12px] md:text-[9px] text-red-400/40 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast ml-auto min-h-[44px] md:min-h-0 flex items-center"
+                  className="text-[12px] md:text-[9px] text-red-400/40 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast ml-auto min-h-[32px] md:min-h-0 flex items-center"
                 >
                   Delete
                 </button>

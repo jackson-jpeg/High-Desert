@@ -133,7 +133,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
                 max={duration || 0}
                 value={position}
                 onChange={(e) => seek(Number(e.target.value))}
-                className="flex-1 h-[6px] w98-range-dark cursor-pointer"
+                className="flex-1 h-[8px] w98-range-dark cursor-pointer"
                 aria-label="Seek position"
               />
               <span className="w-[45px] tabular-nums">{formatTime(duration)}</span>

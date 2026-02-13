@@ -102,7 +102,7 @@ export function PlaybackControls({
           <button
             onClick={toggleShuffle}
             className={cn(
-              "min-w-[44px] min-h-[44px] flex items-center justify-center text-[16px] cursor-pointer",
+              "min-w-[32px] min-h-[32px] flex items-center justify-center text-[16px] cursor-pointer",
               shuffle ? "text-desert-amber" : "text-bevel-dark active:text-desktop-gray",
             )}
             aria-label={shuffle ? "Disable shuffle" : "Enable shuffle"}
@@ -112,7 +112,7 @@ export function PlaybackControls({
           <button
             onClick={cycleRepeat}
             className={cn(
-              "min-w-[44px] min-h-[44px] flex items-center justify-center text-[16px] cursor-pointer",
+              "min-w-[32px] min-h-[32px] flex items-center justify-center text-[16px] cursor-pointer",
               repeat !== "off" ? "text-desert-amber" : "text-bevel-dark active:text-desktop-gray",
             )}
             aria-label={`Repeat mode: ${repeat}`}
@@ -121,7 +121,7 @@ export function PlaybackControls({
           </button>
           <button
             onClick={cycleRate}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-[14px] text-desktop-gray cursor-pointer"
+            className="min-w-[32px] min-h-[32px] flex items-center justify-center text-[14px] text-desktop-gray cursor-pointer"
             aria-label={`Playback speed ${playbackRate}x`}
           >
             {playbackRate}x
@@ -210,7 +210,7 @@ export function PlaybackControls({
         <button
           onClick={toggleShuffle}
           className={cn(
-            "min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center text-[14px] md:text-[10px] cursor-pointer ml-1 px-1",
+            "min-w-[32px] min-h-[32px] md:min-w-0 md:min-h-0 flex items-center justify-center text-[14px] md:text-[10px] cursor-pointer ml-1 px-1",
             shuffle ? "text-desert-amber" : "text-bevel-dark hover:text-desktop-gray",
           )}
           title={shuffle ? "Shuffle on" : "Shuffle off"}
@@ -221,7 +221,7 @@ export function PlaybackControls({
         <button
           onClick={cycleRepeat}
           className={cn(
-            "min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center text-[14px] md:text-[10px] cursor-pointer px-1",
+            "min-w-[32px] min-h-[32px] md:min-w-0 md:min-h-0 flex items-center justify-center text-[14px] md:text-[10px] cursor-pointer px-1",
             repeat !== "off" ? "text-desert-amber" : "text-bevel-dark hover:text-desktop-gray",
           )}
           title={`Repeat: ${repeat}`}
