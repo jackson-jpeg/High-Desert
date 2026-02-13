@@ -25,15 +25,32 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
 
   if (!currentEpisode) return null;
 
+  const handleRetry = () => {
+    clearError(null);
+    if (currentEpisode) {
+      window.dispatchEvent(
+        new CustomEvent("hd:play-episode", { detail: currentEpisode }),
+      );
+    }
+  };
+
   const errorBanner = error && (
     <div className="flex items-center justify-between px-3 py-1.5 bg-red-900/30 border-b border-red-400/20">
       <span className="text-[10px] text-red-400">{error}</span>
-      <button
-        onClick={() => clearError(null)}
-        className="text-[10px] text-red-400/60 hover:text-red-400 cursor-pointer ml-2"
-      >
-        Dismiss
-      </button>
+      <div className="flex items-center gap-2 ml-2">
+        <button
+          onClick={handleRetry}
+          className="text-[10px] text-desert-amber/80 hover:text-desert-amber cursor-pointer"
+        >
+          Retry
+        </button>
+        <button
+          onClick={() => clearError(null)}
+          className="text-[10px] text-red-400/60 hover:text-red-400 cursor-pointer"
+        >
+          Dismiss
+        </button>
+      </div>
     </div>
   );
 

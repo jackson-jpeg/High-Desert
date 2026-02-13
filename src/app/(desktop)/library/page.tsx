@@ -278,6 +278,7 @@ export default function LibraryPage() {
             onEpisodeContextMenu={handleContextMenu}
             onAction={handleAction}
             selectedEpisodeId={selectedEpisode?.id}
+            selectedIds={selectedIds}
           />
         </div>
         )}

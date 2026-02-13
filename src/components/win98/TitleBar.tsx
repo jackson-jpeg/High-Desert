@@ -29,6 +29,7 @@ function TitleBarButton({
       className={cn(
         "w98-button !min-w-0 !px-1 !py-0 w-[16px] h-[14px]",
         "flex items-center justify-center text-[9px] leading-none font-bold",
+        "focus-visible:outline-dotted focus-visible:outline-1 focus-visible:outline-white focus-visible:outline-offset-[-2px]",
       )}
     >
       {children}

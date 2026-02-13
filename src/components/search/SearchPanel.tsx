@@ -200,7 +200,7 @@ export function SearchPanel() {
                 Prev
               </button>
               <span className="text-[10px] text-bevel-dark tabular-nums">
-                {page} / {Math.ceil(totalResults / 30)}
+                {page} / {totalResults > 0 ? Math.ceil(totalResults / 30) : 1}
               </span>
               <button
                 onClick={handleNextPage}

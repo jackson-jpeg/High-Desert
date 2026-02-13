@@ -119,8 +119,8 @@ export function PlaybackControls({
           role="slider"
           aria-label="Volume"
           aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(volume * 100)}
+          aria-valuemax={1}
+          aria-valuenow={volume}
           aria-valuetext={`${Math.round(volume * 100)}%`}
           className="flex-1 h-[4px] w98-range-dark cursor-pointer"
         />

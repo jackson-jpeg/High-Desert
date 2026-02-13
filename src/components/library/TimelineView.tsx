@@ -10,6 +10,7 @@ interface TimelineViewProps {
   episodes: Episode[];
   currentEpisodeId?: number;
   selectedEpisodeId?: number;
+  selectedIds?: Set<number>;
   onEpisodeClick: (episode: Episode, e: React.MouseEvent) => void;
   onEpisodeDoubleClick?: (episode: Episode) => void;
   onEpisodeContextMenu?: (episode: Episode, x: number, y: number) => void;
@@ -23,6 +24,7 @@ export function TimelineView({
   episodes,
   currentEpisodeId,
   selectedEpisodeId,
+  selectedIds,
   onEpisodeClick,
   onEpisodeDoubleClick,
   onEpisodeContextMenu,
@@ -119,6 +121,7 @@ export function TimelineView({
                 episode={ep}
                 isPlaying={ep.id === currentEpisodeId}
                 isSelected={ep.id === selectedEpisodeId}
+                isMultiSelected={selectedIds ? selectedIds.has(ep.id!) : false}
                 onClick={onEpisodeClick}
                 onDoubleClick={onEpisodeDoubleClick}
                 onContextMenu={onEpisodeContextMenu}

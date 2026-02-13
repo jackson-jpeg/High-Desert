@@ -70,6 +70,11 @@ export function EpisodeCard({
       {/* Top row: date + show type + source + AI status */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
+          {isMultiSelected && (
+            <span className="w-[12px] h-[12px] flex items-center justify-center w98-inset-dark bg-inset-well text-[8px] text-static-green flex-shrink-0">
+              {"\u2713"}
+            </span>
+          )}
           <span className="text-[10px] text-desert-amber tabular-nums">
             {episode.airDate ?? "Unknown date"}
           </span>
