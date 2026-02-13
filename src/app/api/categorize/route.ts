@@ -16,7 +16,7 @@ interface EpisodeInput {
   showType?: string;
 }
 
-const MAX_BATCH_SIZE = 10;
+const MAX_BATCH_SIZE = 3;
 
 export async function POST(request: NextRequest) {
   if (!GEMINI_API_KEY) {
@@ -101,6 +101,14 @@ Respond ONLY with a valid JSON array.`;
     return NextResponse.json(results);
   } catch (err) {
     console.error("[categorize] Gemini error:", err);
+    // Forward rate limit errors so the client can back off
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes("429") || message.toLowerCase().includes("rate") || message.toLowerCase().includes("quota")) {
+      return NextResponse.json(
+        { error: "Rate limited by AI provider" },
+        { status: 429, headers: { "Retry-After": "10" } },
+      );
+    }
     return NextResponse.json({ error: "AI categorization failed" }, { status: 500 });
   }
 }

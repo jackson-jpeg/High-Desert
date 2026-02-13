@@ -19,7 +19,20 @@ export async function fetchWithRetry(
     try {
       const res = await fetch(url, options);
 
-      // Don't retry client errors (4xx)
+      // Rate limited — respect Retry-After header, then retry
+      if (res.status === 429) {
+        const retryAfter = res.headers.get("Retry-After");
+        const waitMs = retryAfter
+          ? (parseInt(retryAfter, 10) || 10) * 1000
+          : delay * Math.pow(backoff, attempt);
+        lastError = new Error("Rate limited (429)");
+        if (attempt < retries) {
+          await new Promise((r) => setTimeout(r, Math.max(waitMs, 3000)));
+        }
+        continue;
+      }
+
+      // Don't retry other client errors (4xx)
       if (res.ok || (res.status >= 400 && res.status < 500)) {
         return res;
       }
