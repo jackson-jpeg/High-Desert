@@ -119,7 +119,7 @@ export default function StatsPage() {
     return (
       <div className="p-4 flex flex-col gap-4 max-w-5xl mx-auto">
         <Window title="Station Dashboard" variant="dark">
-          <div className="p-6 text-center">
+          <div className="p-6 text-center min-h-[200px] flex items-center justify-center">
             <div className="animate-dot-1 inline-block text-bevel-dark text-[10px]">Loading station data</div>
           </div>
         </Window>

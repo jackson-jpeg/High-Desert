@@ -79,6 +79,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
                 : "text-bevel-dark hover:text-desktop-gray",
             )}
             title="Queue"
+            aria-expanded={showQueue}
             aria-label={showQueue ? "Hide queue" : "Show queue"}
           >
             {"\u2630"}
@@ -110,43 +111,44 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
     >
       {errorBanner}
       <div className="p-3 flex flex-col gap-3">
-      <div className="flex items-start justify-between">
-        <NowPlaying expanded />
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowQueue(!showQueue)}
-            className={cn(
-              "text-[10px] cursor-pointer px-1.5 py-0.5 transition-colors-fast",
-              showQueue
-                ? "text-desert-amber bg-desert-amber/10 w98-inset-dark"
-                : "text-bevel-dark hover:text-desktop-gray",
-            )}
-            title="Queue"
-            aria-label={showQueue ? "Hide queue" : "Show queue"}
-          >
-            {"\u2630"}
-            {queueLength > 0 && (
-              <span className="text-[8px] ml-0.5 tabular-nums">{queueLength}</span>
-            )}
-          </button>
-          <button
-            onClick={toggleMini}
-            className="text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer"
-            title="Minimize player"
-            aria-label="Minimize player"
-          >
-            {"\u25BC"}
-          </button>
+        <div className="flex items-start justify-between">
+          <NowPlaying expanded />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowQueue(!showQueue)}
+              className={cn(
+                "text-[10px] cursor-pointer px-1.5 py-0.5 transition-colors-fast",
+                showQueue
+                  ? "text-desert-amber bg-desert-amber/10 w98-inset-dark"
+                  : "text-bevel-dark hover:text-desktop-gray",
+              )}
+              title="Queue"
+              aria-expanded={showQueue}
+              aria-label={showQueue ? "Hide queue" : "Show queue"}
+            >
+              {"\u2630"}
+              {queueLength > 0 && (
+                <span className="text-[8px] ml-0.5 tabular-nums">{queueLength}</span>
+              )}
+            </button>
+            <button
+              onClick={toggleMini}
+              className="text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer"
+              title="Minimize player"
+              aria-label="Minimize player"
+            >
+              {"\u25BC"}
+            </button>
+          </div>
         </div>
-      </div>
-      <Oscilloscope className="w-full h-[80px] rounded-sm" />
-      <PlaybackControls
-        onTogglePlay={togglePlay}
-        onSeek={seek}
-        onStop={stopPlayback}
-        onPrevious={playPrevious}
-        onNext={playNext}
-      />
+        <Oscilloscope className="w-full h-[80px] rounded-sm" />
+        <PlaybackControls
+          onTogglePlay={togglePlay}
+          onSeek={seek}
+          onStop={stopPlayback}
+          onPrevious={playPrevious}
+          onNext={playNext}
+        />
       </div>
       {showQueue && <QueuePanel />}
     </div>

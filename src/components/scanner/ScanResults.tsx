@@ -3,6 +3,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { Window } from "@/components/win98";
+import { formatTime } from "@/lib/utils/format";
 
 interface ScanResultsProps {
   className?: string;
@@ -50,7 +51,7 @@ export function ScanResults({ className }: ScanResultsProps) {
                   {ep.showType ?? "\u2014"}
                 </td>
                 <td className="px-2 py-1 text-right text-bevel-dark whitespace-nowrap">
-                  {ep.duration ? formatDuration(ep.duration) : "\u2014"}
+                  {ep.duration ? formatTime(ep.duration) : "\u2014"}
                 </td>
               </tr>
             ))}
@@ -59,14 +60,4 @@ export function ScanResults({ className }: ScanResultsProps) {
       </div>
     </Window>
   );
-}
-
-function formatDuration(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  if (h > 0) {
-    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }
-  return `${m}:${String(s).padStart(2, "0")}`;
 }

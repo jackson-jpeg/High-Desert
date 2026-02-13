@@ -41,8 +41,6 @@ export function ContinueBanner({ episode, onResume, onDismiss, className }: Cont
   if (!visible || progressPct > 95) return null;
 
   const title = episode.title || episode.fileName;
-  const posMin = Math.floor((episode.playbackPosition ?? 0) / 60);
-  const posSec = Math.floor((episode.playbackPosition ?? 0) % 60);
   const countdownPct = Math.min(100, (elapsed / DISMISS_MS) * 100);
 
   return (

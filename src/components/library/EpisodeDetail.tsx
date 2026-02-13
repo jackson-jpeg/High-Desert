@@ -5,6 +5,7 @@ import { Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
 import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
+import { formatDuration, formatTime, getShowLabel } from "@/lib/utils/format";
 
 interface EpisodeDetailProps {
   episode: Episode;
@@ -25,15 +26,7 @@ export function EpisodeDetail({
   onRecategorize,
   className,
 }: EpisodeDetailProps) {
-  const showLabel =
-    episode.showType === "coast"
-      ? "Coast to Coast AM"
-      : episode.showType === "dreamland"
-        ? "Dreamland"
-        : episode.showType === "special"
-          ? "Special"
-          : null;
-
+  const showLabel = getShowLabel(episode.showType);
   const isArchive = episode.source === "archive";
 
   return (
@@ -208,23 +201,4 @@ export function EpisodeDetail({
       </div>
     </div>
   );
-}
-
-function formatDuration(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) {
-    return `${h}h ${m}m`;
-  }
-  return `${m}m`;
-}
-
-function formatTime(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  if (h > 0) {
-    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }
-  return `${m}:${String(s).padStart(2, "0")}`;
 }

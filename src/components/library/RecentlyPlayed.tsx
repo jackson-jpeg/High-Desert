@@ -26,7 +26,6 @@ export function RecentlyPlayed({ episodes, onPlay, className }: RecentlyPlayedPr
             ? Math.min(100, (ep.playbackPosition! / ep.duration!) * 100)
             : 0;
           const isCompleted = hasProgress && progressPct > 90;
-          const posMin = Math.floor((ep.playbackPosition ?? 0) / 60);
 
           return (
             <button
@@ -68,11 +67,4 @@ export function RecentlyPlayed({ episodes, onPlay, className }: RecentlyPlayedPr
       </div>
     </div>
   );
-}
-
-function formatDuration(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
 }

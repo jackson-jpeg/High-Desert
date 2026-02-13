@@ -3,6 +3,7 @@
 import { Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
 import { cn } from "@/lib/utils/cn";
+import { formatTime } from "@/lib/utils/format";
 
 interface PlaybackControlsProps {
   onTogglePlay: () => void;
@@ -156,15 +157,4 @@ export function PlaybackControls({
       </div>
     </div>
   );
-}
-
-function formatTime(seconds: number): string {
-  if (!seconds || !isFinite(seconds)) return "0:00";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  if (h > 0) {
-    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }
-  return `${m}:${String(s).padStart(2, "0")}`;
 }

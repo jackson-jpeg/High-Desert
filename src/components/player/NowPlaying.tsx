@@ -2,6 +2,7 @@
 
 import { usePlayerStore } from "@/stores/player-store";
 import { cn } from "@/lib/utils/cn";
+import { getShowLabel } from "@/lib/utils/format";
 
 interface NowPlayingProps {
   expanded?: boolean;
@@ -20,14 +21,7 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
   }
 
   const displayTitle = episode.title || episode.fileName;
-  const showLabel =
-    episode.showType === "coast"
-      ? "Coast to Coast AM"
-      : episode.showType === "dreamland"
-        ? "Dreamland"
-        : episode.showType === "special"
-          ? "Special"
-          : "";
+  const showLabel = getShowLabel(episode.showType) ?? "";
 
   return (
     <div className={cn("flex flex-col gap-0.5 min-w-0", className)} aria-live="polite">

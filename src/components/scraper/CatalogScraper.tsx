@@ -214,6 +214,7 @@ export function CatalogScraper() {
           <div>
             <button
               onClick={() => setShowErrors(!showErrors)}
+              aria-expanded={showErrors}
               className="text-[9px] text-red-400/70 hover:text-red-400 cursor-pointer flex items-center gap-1"
             >
               <span className="text-[8px]">{showErrors ? "\u25BC" : "\u25B6"}</span>
@@ -255,6 +256,7 @@ export function CatalogScraper() {
 
               <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
+                aria-expanded={showAdvanced}
                 className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer ml-auto"
               >
                 {showAdvanced ? "Less options" : "More options"}

@@ -7,6 +7,7 @@ import { useArchiveSearch } from "@/hooks/useArchiveSearch";
 import { useContextMenuStore } from "@/stores/context-menu-store";
 import { usePlayerStore } from "@/stores/player-store";
 import { toast } from "@/stores/toast-store";
+import { cn } from "@/lib/utils/cn";
 import type { ArchiveSearchResult } from "@/lib/archive/types";
 
 const COLLECTIONS = [
@@ -203,13 +204,12 @@ export function SearchPanel() {
                 <button
                   key={c.label}
                   onClick={() => handleCollectionClick(c.query)}
-                  className={`
-                    px-1.5 py-0.5 text-[9px] cursor-pointer transition-colors-fast
-                    ${query === c.query
+                  className={cn(
+                    "px-1.5 py-0.5 text-[9px] cursor-pointer transition-colors-fast",
+                    query === c.query
                       ? "bg-title-bar-blue/20 text-desktop-gray w98-inset-dark"
-                      : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10"
-                    }
-                  `}
+                      : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10",
+                  )}
                 >
                   {c.label}
                 </button>
@@ -223,13 +223,12 @@ export function SearchPanel() {
                 <button
                   key={guest}
                   onClick={() => handleGuestClick(guest)}
-                  className={`
-                    px-1.5 py-0.5 text-[9px] cursor-pointer transition-colors-fast
-                    ${query === guest
+                  className={cn(
+                    "px-1.5 py-0.5 text-[9px] cursor-pointer transition-colors-fast",
+                    query === guest
                       ? "bg-static-green/15 text-static-green/90"
-                      : "text-bevel-dark hover:text-static-green/80 hover:bg-static-green/5"
-                    }
-                  `}
+                      : "text-bevel-dark hover:text-static-green/80 hover:bg-static-green/5",
+                  )}
                 >
                   {guest}
                 </button>

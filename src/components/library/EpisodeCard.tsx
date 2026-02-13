@@ -2,6 +2,7 @@
 
 import type { Episode } from "@/lib/db/schema";
 import { cn } from "@/lib/utils/cn";
+import { formatDuration, getShowLabel } from "@/lib/utils/format";
 
 interface EpisodeCardProps {
   episode: Episode;
@@ -26,14 +27,7 @@ export function EpisodeCard({
   className,
   style,
 }: EpisodeCardProps) {
-  const showLabel =
-    episode.showType === "coast"
-      ? "Coast to Coast AM"
-      : episode.showType === "dreamland"
-        ? "Dreamland"
-        : episode.showType === "special"
-          ? "Special"
-          : null;
+  const showLabel = getShowLabel(episode.showType);
 
   const showAccent =
     episode.showType === "coast"
@@ -44,7 +38,6 @@ export function EpisodeCard({
           ? "border-l-2 border-l-desert-amber/50"
           : "";
 
-  const isArchive = episode.source === "archive";
   const hasProgress = (episode.playbackPosition ?? 0) > 0 && (episode.duration ?? 0) > 0;
   const progressPct = hasProgress
     ? Math.min(100, ((episode.playbackPosition! / episode.duration!) * 100))
@@ -146,13 +139,4 @@ export function EpisodeCard({
       )}
     </button>
   );
-}
-
-function formatDuration(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) {
-    return `${h}h ${m}m`;
-  }
-  return `${m}m`;
 }

@@ -45,12 +45,12 @@ function ToastItem({ toast }: { toast: Toast }) {
       )}
     >
       <div className="flex items-start gap-2">
-        <span className="text-[10px] flex-shrink-0 mt-px">
+        <span className="text-[10px] flex-shrink-0 mt-px" aria-hidden="true">
           {toast.type === "success" && <span className="text-static-green">{"\u2713"}</span>}
           {toast.type === "error" && <span className="text-red-400">{"\u2716"}</span>}
           {toast.type === "info" && <span className="text-desert-amber">{"\u25CF"}</span>}
         </span>
-        <span className="text-[10px] text-desktop-gray leading-relaxed">
+        <span className="text-[10px] text-desktop-gray leading-relaxed" role="status">
           {toast.message}
         </span>
         <button

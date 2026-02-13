@@ -280,6 +280,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             <button
               key={path}
               onClick={() => router.push(path)}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
                 "w98-font text-[10px] px-3 py-1.5 cursor-pointer select-none transition-colors-fast",
                 isActive
