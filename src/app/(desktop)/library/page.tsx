@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import type { Episode } from "@/lib/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
 import { useContextMenuStore } from "@/stores/context-menu-store";
+import { toast } from "@/stores/toast-store";
 import { deleteEpisode, recategorizeEpisode } from "@/lib/episodes/management";
 import { SearchBar } from "@/components/library/SearchBar";
 import { TimelineView } from "@/components/library/TimelineView";
@@ -221,12 +222,18 @@ export default function LibraryPage() {
       },
       {
         label: "Play Next",
-        onClick: () => store.enqueueNext(episode),
+        onClick: () => {
+          store.enqueueNext(episode);
+          toast.info(`"${episode.title || episode.fileName}" plays next`);
+        },
         disabled: isPlaying,
       },
       {
         label: "Add to Queue",
-        onClick: () => store.enqueue(episode),
+        onClick: () => {
+          store.enqueue(episode);
+          toast.info(`Added to queue`);
+        },
       },
       { label: "", onClick: () => {}, separator: true },
       {
@@ -251,12 +258,14 @@ export default function LibraryPage() {
 
   const handleBulkDelete = useCallback(async () => {
     setDeleting(true);
+    const count = selectedIds.size;
     try {
       for (const id of selectedIds) {
         await deleteEpisode(id);
       }
       setSelectedIds(new Set());
       setSelectedEpisode(null);
+      toast.success(`Deleted ${count} episode${count !== 1 ? "s" : ""}`);
     } finally {
       setDeleting(false);
       setDeleteOpen(false);

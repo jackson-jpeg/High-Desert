@@ -14,37 +14,67 @@ export function RecentlyPlayed({ episodes, onPlay, className }: RecentlyPlayedPr
 
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <div className="text-[9px] text-bevel-dark uppercase tracking-wider px-1">
-        Recently Played
+      <div className="flex items-center gap-2 px-1">
+        <span className="text-[9px] text-bevel-dark uppercase tracking-wider">
+          Recently Played
+        </span>
+        <span className="text-[8px] text-bevel-dark/40 tabular-nums">
+          {episodes.length}
+        </span>
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
         {episodes.map((ep) => {
           const hasProgress = (ep.playbackPosition ?? 0) > 0 && (ep.duration ?? 0) > 0;
           const progressPct = hasProgress
             ? Math.min(100, (ep.playbackPosition! / ep.duration!) * 100)
             : 0;
+          const isCompleted = hasProgress && progressPct > 90;
+          const posMin = Math.floor((ep.playbackPosition ?? 0) / 60);
 
           return (
             <button
               key={ep.id}
               onClick={() => onPlay(ep)}
               className={cn(
-                "flex-shrink-0 w-[140px] p-2 w98-raised-dark bg-card-surface",
-                "hover:bg-title-bar-blue/15 transition-colors-fast cursor-pointer",
+                "flex-shrink-0 w-[160px] p-2 w98-raised-dark bg-card-surface group",
+                "hover:bg-title-bar-blue/15 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]",
+                "transition-all duration-150 cursor-pointer",
                 "flex flex-col gap-0.5 relative",
               )}
             >
-              <span className="text-[9px] text-desert-amber tabular-nums">
-                {ep.airDate ?? "Unknown"}
-              </span>
-              <span className="text-[10px] text-desktop-gray font-bold truncate">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[9px] text-desert-amber tabular-nums">
+                  {ep.airDate ?? "Unknown"}
+                </span>
+                {isCompleted ? (
+                  <span className="text-[8px] text-static-green flex-shrink-0">{"\u2713"}</span>
+                ) : hasProgress ? (
+                  <span className="text-[8px] text-desert-amber/60 tabular-nums flex-shrink-0">
+                    {posMin}m · {Math.round(progressPct)}%
+                  </span>
+                ) : null}
+              </div>
+              <span className="text-[10px] text-desktop-gray font-bold truncate w-full text-left">
                 {ep.title || ep.fileName}
               </span>
+              {ep.guestName && (
+                <span className="text-[9px] text-static-green/60 truncate w-full text-left">
+                  {ep.guestName}
+                </span>
+              )}
+              {ep.duration != null && !ep.guestName && (
+                <span className="text-[9px] text-bevel-dark/50 tabular-nums text-left">
+                  {formatDuration(ep.duration)}
+                </span>
+              )}
               {/* Progress bar */}
               {hasProgress && (
-                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-transparent">
+                <div className="absolute bottom-0 left-0 right-0 h-[2px]">
                   <div
-                    className="h-full bg-phosphor-amber/70"
+                    className={cn(
+                      "h-full",
+                      isCompleted ? "bg-static-green/40" : "bg-phosphor-amber/60",
+                    )}
                     style={{ width: `${progressPct}%` }}
                   />
                 </div>
@@ -55,4 +85,11 @@ export function RecentlyPlayed({ episodes, onPlay, className }: RecentlyPlayedPr
       </div>
     </div>
   );
+}
+
+function formatDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
 }

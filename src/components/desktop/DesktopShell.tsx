@@ -3,11 +3,13 @@
 import { cn } from "@/lib/utils/cn";
 import { MenuBar, StatusBar, Dialog, Button } from "@/components/win98";
 import { ContextMenu } from "@/components/win98/ContextMenu";
+import { Toaster } from "@/components/ui/Toaster";
 import { Starfield } from "./Starfield";
 import type { Menu } from "@/components/win98";
 import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useCallback, useEffect, useState } from "react";
 import { usePlayerStore } from "@/stores/player-store";
+import { toast } from "@/stores/toast-store";
 import { db } from "@/lib/db";
 import { clearAudioCache, getCacheSize } from "@/lib/audio/cache";
 
@@ -83,6 +85,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     try {
       await db.episodes.clear();
       await db.scanSessions.clear();
+      toast.success("Library cleared");
     } finally {
       setClearing(false);
       setClearOpen(false);
@@ -99,6 +102,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     setClearingCache(true);
     try {
       await clearAudioCache();
+      toast.success("Audio cache cleared");
     } finally {
       setClearingCache(false);
       setClearCacheOpen(false);
@@ -144,6 +148,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     a.download = `high-desert-library-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    toast.success(`Exported ${episodes.length} episodes`);
   }, []);
 
   const menus: Menu[] = [
@@ -293,6 +298,9 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
 
       {/* Global context menu */}
       <ContextMenu />
+
+      {/* Toast notifications */}
+      <Toaster />
 
       {/* About dialog */}
       <Dialog

@@ -18,7 +18,7 @@ interface TimelineViewProps {
   className?: string;
 }
 
-const ITEM_HEIGHT = 88; // EpisodeCard height: p-3 (24px) + 3 rows ~48px + gap-1 (8px) + margin (8px)
+const ITEM_HEIGHT = 88;
 
 export function TimelineView({
   episodes,
@@ -59,31 +59,47 @@ export function TimelineView({
 
   if (episodes.length === 0) {
     return (
-      <div className={cn("flex flex-col items-center justify-center py-24 text-center px-8", className)}>
-        <div className="text-[20px] text-desert-amber/60 mb-4">
-          ~
+      <div className={cn("flex flex-col items-center justify-center py-20 text-center px-8 animate-fade-in", className)}>
+        {/* Radio tower icon */}
+        <div className="relative mb-5">
+          <div className="text-[32px] text-desert-amber/20 select-none">{"\u{1F4E1}"}</div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-[3px] h-[3px] rounded-full bg-desert-amber/40 animate-on-air" />
+          </div>
         </div>
-        <div className="text-[13px] text-desktop-gray mb-2">
-          Your library is empty
+
+        <div className="text-[12px] text-desktop-gray mb-1.5 font-bold">
+          No episodes yet
         </div>
-        <div className="text-[11px] text-bevel-dark leading-relaxed max-w-[280px] mb-4">
-          Scan a local folder or search the archive to start building your collection.
+        <div className="text-[10px] text-bevel-dark leading-relaxed max-w-[300px] mb-5">
+          Start building your late-night radio archive. Import the Ultimate Art Bell Collection, search archive.org, or scan local files.
         </div>
+
         {onAction && (
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => onAction("scan")}
-              className="text-[10px] text-desert-amber hover:text-desktop-gray cursor-pointer transition-colors-fast"
-            >
-              Scan Folder
-            </button>
-            <span className="text-[10px] text-bevel-dark/40">or</span>
-            <button
-              onClick={() => onAction("search")}
-              className="text-[10px] text-title-bar-blue hover:text-desktop-gray cursor-pointer transition-colors-fast"
-            >
-              Search Archive
-            </button>
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => onAction("scan")}
+                className={cn(
+                  "text-[10px] px-3 py-1.5 w98-raised-dark bg-raised-surface",
+                  "text-desert-amber hover:bg-title-bar-blue/15 cursor-pointer transition-colors-fast",
+                )}
+              >
+                Import Collection
+              </button>
+              <button
+                onClick={() => onAction("search")}
+                className={cn(
+                  "text-[10px] px-3 py-1.5 w98-raised-dark bg-raised-surface",
+                  "text-title-bar-blue hover:bg-title-bar-blue/15 cursor-pointer transition-colors-fast",
+                )}
+              >
+                Search Archive
+              </button>
+            </div>
+            <span className="text-[8px] text-bevel-dark/40 mt-1">
+              Keyboard: / to search, Ctrl+Shift+S to scan
+            </span>
           </div>
         )}
       </div>
@@ -94,13 +110,29 @@ export function TimelineView({
     <div className={cn("flex flex-col h-full", className)}>
       {/* Sticky year header */}
       {currentYear && (
-        <div className="sticky top-0 z-10 bg-midnight/95 backdrop-blur-sm px-4 py-2 border-b border-bevel-dark/20">
+        <div className="sticky top-0 z-10 bg-midnight/95 backdrop-blur-sm px-4 py-2 border-b border-bevel-dark/20 flex items-center gap-2">
           <span className="text-[12px] text-desert-amber font-bold">
             {currentYear}
           </span>
-          <span className="text-[10px] text-bevel-dark ml-2">
-            ({yearCounts.get(currentYear) ?? 0} episodes)
+          <span className="text-[10px] text-bevel-dark">
+            {yearCounts.get(currentYear) ?? 0} episodes
           </span>
+          {/* Mini year nav dots */}
+          <div className="flex items-center gap-1 ml-auto">
+            {Array.from(yearCounts.keys())
+              .filter((y) => y !== "Unknown")
+              .sort()
+              .map((year) => (
+                <span
+                  key={year}
+                  className={cn(
+                    "w-[4px] h-[4px] rounded-full",
+                    year === currentYear ? "bg-desert-amber" : "bg-bevel-dark/30",
+                  )}
+                  title={`${year} (${yearCounts.get(year)} episodes)`}
+                />
+              ))}
+          </div>
         </div>
       )}
 

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { fetchWithRetry } from "@/lib/utils/retry";
 import { getStreamUrl } from "@/lib/archive/client";
 import { parseArtBellFilename, isArtBellFilename } from "@/lib/archive/filename-parser";
+import { toast } from "@/stores/toast-store";
 import type { Episode } from "@/lib/db/schema";
 import type { ArchiveFile } from "@/lib/archive/types";
 
@@ -74,6 +75,7 @@ export function useCollectionImport() {
       if (!res.ok) {
         update({ phase: "error" });
         addError(`Failed to load collection: ${res.status}`);
+        toast.error("Failed to load collection metadata");
         return null;
       }
 
@@ -95,6 +97,7 @@ export function useCollectionImport() {
       const msg = err instanceof Error ? err.message : String(err);
       update({ phase: "error" });
       addError(msg);
+      toast.error("Failed to load collection");
       return null;
     }
   }, [update, addError]);
@@ -185,12 +188,14 @@ export function useCollectionImport() {
 
       if (controller.signal.aborted) {
         update({ phase: "cancelled" });
+        toast.info(`Import cancelled — ${imported} episodes imported`);
         return;
       }
 
       // Phase 2: AI Categorization (optional)
       if (options?.skipCategorize || imported === 0) {
         update({ phase: "done", currentFile: null });
+        toast.success(`Imported ${imported} episodes (${duplicates} duplicates skipped)`);
         return;
       }
 
@@ -276,13 +281,16 @@ export function useCollectionImport() {
       }
 
       update({ phase: "done", currentFile: null });
+      toast.success(`Import complete — ${imported} episodes, ${categorized} categorized`);
     } catch (err) {
       if (controller.signal.aborted) {
         update({ phase: "cancelled" });
+        toast.info("Import cancelled");
       } else {
         const msg = err instanceof Error ? err.message : String(err);
         addError(msg);
         update({ phase: "error" });
+        toast.error("Import failed");
       }
     }
   }, [info, progress.phase, update, addError]);

@@ -43,7 +43,8 @@ export function ArchiveResultCard({
       onContextMenu={handleContextMenu}
       className={cn(
         "p-3 w98-raised-dark bg-card-surface flex flex-col gap-1",
-        "hover:bg-title-bar-blue/10 transition-colors-fast",
+        "hover:bg-title-bar-blue/10 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]",
+        "transition-all duration-150 cursor-default",
         className,
       )}
     >
@@ -78,8 +79,8 @@ export function ArchiveResultCard({
         </span>
         <div className="transition-state">
           {isAdded ? (
-            <span className="text-[10px] text-static-green/80">
-              Added
+            <span className="text-[10px] text-static-green/80 flex items-center gap-1">
+              <span>{"\u2713"}</span> Added
             </span>
           ) : (
             <Button

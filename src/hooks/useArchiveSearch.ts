@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { useSearchStore } from "@/stores/search-store";
 import { searchArchive, getArchiveItem, getStreamUrl, pickBestAudioFile } from "@/lib/archive/client";
 import { fetchWithRetry } from "@/lib/utils/retry";
+import { toast } from "@/stores/toast-store";
 import { db } from "@/lib/db";
 import type { Episode } from "@/lib/db/schema";
 import type { ArchiveSearchResult } from "@/lib/archive/types";
@@ -91,9 +92,11 @@ export function useArchiveSearch() {
       categorizeEpisode({ ...episode, id } as Episode);
 
       store.finishAdding(result.identifier);
+      toast.success(`Added "${result.title}"`);
     } catch (err) {
       console.error(`[archive] Failed to add ${result.identifier}:`, err);
       store.finishAdding(result.identifier);
+      toast.error(`Failed to add "${result.title}"`);
     }
   }, [store]);
 

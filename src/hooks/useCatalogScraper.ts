@@ -5,6 +5,7 @@ import { useScraperStore } from "@/stores/scraper-store";
 import { scrapeArchiveCatalog } from "@/lib/archive/scraper";
 import { getArchiveItem, getStreamUrl, pickBestAudioFile } from "@/lib/archive/client";
 import { fetchWithRetry } from "@/lib/utils/retry";
+import { toast } from "@/stores/toast-store";
 import { db, getPreference, setPreference } from "@/lib/db";
 import type { Episode } from "@/lib/db/schema";
 import type { ArchiveSearchResult } from "@/lib/archive/types";
@@ -218,13 +219,16 @@ export function useCatalogScraper() {
       }
 
       store.setPhase("done");
+      toast.success(`Catalog import complete — ${imported} episodes imported`);
     } catch (err) {
       if (controller.signal.aborted) {
         store.setPhase("cancelled");
+        toast.info("Catalog import cancelled");
       } else {
         const msg = err instanceof Error ? err.message : String(err);
         store.addError(msg);
         store.setPhase("error");
+        toast.error("Catalog import failed");
       }
     }
   }, [store]);
@@ -333,13 +337,16 @@ export function useCatalogScraper() {
       }
 
       store.setPhase("done");
+      toast.success(`Categorized ${categorized} episodes`);
     } catch (err) {
       if (controller.signal.aborted) {
         store.setPhase("cancelled");
+        toast.info("Categorization cancelled");
       } else {
         const msg = err instanceof Error ? err.message : String(err);
         store.addError(msg);
         store.setPhase("error");
+        toast.error("Categorization failed");
       }
     }
   }, [store]);

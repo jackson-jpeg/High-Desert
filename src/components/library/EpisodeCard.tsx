@@ -68,9 +68,9 @@ export function EpisodeCard({
       aria-selected={isSelected || isPlaying}
       aria-label={`${episode.title || episode.fileName}${episode.airDate ? `, ${episode.airDate}` : ""}${isPlaying ? " (now playing)" : ""}`}
       className={cn(
-        "w-full text-left p-3 w98-raised-dark bg-card-surface relative",
-        "hover:bg-title-bar-blue/15 transition-colors-fast cursor-pointer",
-        "flex flex-col gap-1",
+        "w-full text-left p-3 w98-raised-dark bg-card-surface relative group",
+        "transition-all duration-150 cursor-pointer",
+        "hover:bg-title-bar-blue/15 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]",
         showAccent,
         isPlaying && "ring-1 ring-static-green/40 bg-title-bar-blue/10",
         isSelected && !isPlaying && "bg-highlight-blue/20",
@@ -94,14 +94,20 @@ export function EpisodeCard({
               Archive
             </span>
           )}
-          {isCompleted && (
+          {isPlaying && (
+            <span className="flex items-center gap-1 flex-shrink-0">
+              <span className="w-[4px] h-[4px] rounded-full bg-red-500 animate-on-air" />
+              <span className="text-[7px] text-red-400/70 uppercase tracking-wider">Live</span>
+            </span>
+          )}
+          {isCompleted && !isPlaying && (
             <span className="text-[8px] text-static-green flex-shrink-0" title="Completed">
               {"\u2713"}
             </span>
           )}
-          {hasProgress && !isCompleted && (
-            <span className="text-[8px] text-desert-amber flex-shrink-0" title="In progress">
-              {"\u25CF"}
+          {hasProgress && !isCompleted && !isPlaying && (
+            <span className="text-[8px] text-desert-amber/70 flex-shrink-0 tabular-nums" title={`${Math.round(progressPct)}% played`}>
+              {Math.round(progressPct)}%
             </span>
           )}
           {episode.aiStatus === "failed" && (
@@ -118,27 +124,32 @@ export function EpisodeCard({
       </div>
 
       {/* Title */}
-      <div className="text-[11px] text-desktop-gray font-bold truncate">
+      <div className="text-[11px] text-desktop-gray font-bold truncate mt-1">
         {episode.title || episode.fileName}
       </div>
 
       {/* Guest + duration */}
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 mt-1">
         <span className="text-[10px] text-static-green truncate">
           {episode.guestName || episode.topic || "\u00A0"}
         </span>
-        {episode.duration != null && (
-          <span className="text-[10px] text-bevel-dark tabular-nums flex-shrink-0">
-            {formatDuration(episode.duration)}
-          </span>
-        )}
+        <span className="flex items-center gap-2 flex-shrink-0">
+          {episode.duration != null && (
+            <span className="text-[10px] text-bevel-dark tabular-nums">
+              {formatDuration(episode.duration)}
+            </span>
+          )}
+        </span>
       </div>
 
       {/* Playback progress bar */}
       {hasProgress && (
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-transparent">
+        <div className="absolute bottom-0 left-0 right-0 h-[2px]">
           <div
-            className="h-full bg-phosphor-amber/70"
+            className={cn(
+              "h-full",
+              isCompleted ? "bg-static-green/40" : "bg-phosphor-amber/60",
+            )}
             style={{ width: `${progressPct}%` }}
           />
         </div>
