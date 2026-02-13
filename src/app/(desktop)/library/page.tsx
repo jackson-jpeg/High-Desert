@@ -398,6 +398,38 @@ export default function LibraryPage() {
                 </button>
               </div>
             )}
+
+            {/* Multi-select action bar */}
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-2 text-[9px] bg-title-bar-blue/10 px-2 py-1 w98-inset-dark">
+                <span className="text-desktop-gray font-bold">
+                  {selectedIds.size} selected
+                </span>
+                <button
+                  onClick={() => {
+                    const store = usePlayerStore.getState();
+                    const episodes = allEpisodes?.filter((ep) => selectedIds.has(ep.id!)) ?? [];
+                    store.enqueueMany(episodes);
+                    toast.info(`Added ${episodes.length} episodes to queue`);
+                  }}
+                  className="text-title-bar-blue hover:text-title-bar-blue/80 cursor-pointer transition-colors-fast"
+                >
+                  Add to Queue
+                </button>
+                <button
+                  onClick={() => setDeleteOpen(true)}
+                  className="text-red-400/60 hover:text-red-400 cursor-pointer transition-colors-fast"
+                >
+                  Delete
+                </button>
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-bevel-dark hover:text-desktop-gray cursor-pointer transition-colors-fast ml-auto"
+                >
+                  Deselect
+                </button>
+              </div>
+            )}
           </div>
         </Window>
       </div>
@@ -478,16 +510,34 @@ export default function LibraryPage() {
         {/* Episode list */}
         {allEpisodes !== undefined && (
         <div className="flex-1 overflow-auto min-w-0">
-          <TimelineView
-            episodes={filtered}
-            currentEpisodeId={currentEpisodeId}
-            onEpisodeClick={handleEpisodeClick}
-            onEpisodeDoubleClick={handleDoubleClick}
-            onEpisodeContextMenu={handleContextMenu}
-            onAction={handleAction}
-            selectedEpisodeId={selectedEpisode?.id}
-            selectedIds={selectedIds}
-          />
+          {/* Filtered-to-zero state (library has episodes but filter/search yields none) */}
+          {filtered.length === 0 && allEpisodes.length > 0 && search.trim() ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center px-8">
+              <div className="text-[12px] text-desktop-gray mb-2">
+                No episodes matching &ldquo;{search}&rdquo;
+              </div>
+              <div className="text-[10px] text-bevel-dark mb-4">
+                Try a different search term, or search the archive.
+              </div>
+              <button
+                onClick={() => router.push(`/search`)}
+                className="text-[10px] text-title-bar-blue hover:text-title-bar-blue/80 cursor-pointer transition-colors-fast px-3 py-1.5 w98-raised-dark bg-raised-surface"
+              >
+                Search Archive.org for &ldquo;{search}&rdquo;
+              </button>
+            </div>
+          ) : (
+            <TimelineView
+              episodes={filtered}
+              currentEpisodeId={currentEpisodeId}
+              onEpisodeClick={handleEpisodeClick}
+              onEpisodeDoubleClick={handleDoubleClick}
+              onEpisodeContextMenu={handleContextMenu}
+              onAction={handleAction}
+              selectedEpisodeId={selectedEpisode?.id}
+              selectedIds={selectedIds}
+            />
+          )}
         </div>
         )}
 

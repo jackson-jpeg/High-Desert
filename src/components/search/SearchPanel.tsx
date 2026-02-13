@@ -5,6 +5,8 @@ import { Window, TextField, Button } from "@/components/win98";
 import { ArchiveResultCard } from "./ArchiveResultCard";
 import { useArchiveSearch } from "@/hooks/useArchiveSearch";
 import { useContextMenuStore } from "@/stores/context-menu-store";
+import { usePlayerStore } from "@/stores/player-store";
+import { toast } from "@/stores/toast-store";
 import type { ArchiveSearchResult } from "@/lib/archive/types";
 
 const COLLECTIONS = [
@@ -149,6 +151,28 @@ export function SearchPanel() {
           }
         },
         disabled: isAdded,
+      },
+      {
+        label: "Add to Queue",
+        onClick: async () => {
+          if (!isAdded) await addToLibrary(result);
+          const { db } = await import("@/lib/db");
+          const episode = await db.episodes
+            .where("archiveIdentifier")
+            .equals(result.identifier)
+            .first();
+          if (episode) {
+            usePlayerStore.getState().enqueue(episode);
+            toast.info("Added to queue");
+          }
+        },
+      },
+      { label: "", onClick: () => {}, separator: true },
+      {
+        label: "View on Archive.org",
+        onClick: () => {
+          window.open(`https://archive.org/details/${result.identifier}`, "_blank");
+        },
       },
     ]);
   }, [addedIds, addToLibrary]);

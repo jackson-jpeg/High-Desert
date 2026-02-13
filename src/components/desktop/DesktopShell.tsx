@@ -203,6 +203,16 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     },
   ];
 
+  // Navigate to library and highlight the current episode when clicking status bar
+  const handleStatusClick = useCallback(() => {
+    if (!hasEpisode) return;
+    if (pathname !== "/library") {
+      router.push("/library");
+    }
+    // Dispatch event so the library page can scroll to the current episode
+    window.dispatchEvent(new CustomEvent("hd:scroll-to-current"));
+  }, [hasEpisode, pathname, router]);
+
   // Status bar now-playing content
   const statusContent = (() => {
     if (!hasEpisode) return "Ready";
@@ -210,13 +220,16 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     const parts = [nowPlayingTitle];
     if (nowPlayingGuest) parts.push(nowPlayingGuest);
     return (
-      <span className="flex items-center gap-1.5">
+      <button
+        onClick={handleStatusClick}
+        className="flex items-center gap-1.5 cursor-pointer hover:text-desktop-gray transition-colors-fast text-left w-full"
+      >
         {isPlaying && (
           <span className="inline-block w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air flex-shrink-0" />
         )}
         <span className="text-bevel-dark">{icon}</span>
         <span className="truncate">{parts.join(" \u2014 ")}</span>
-      </span>
+      </button>
     );
   })();
 
