@@ -291,7 +291,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       <Starfield />
 
       {/* Top menu bar — desktop only */}
-      <MenuBar menus={menus} variant="dark" className="flex-shrink-0 relative z-30 hidden md:flex" />
+      <MenuBar menus={menus} variant="dark" className="flex-shrink-0 relative z-40 hidden md:flex" />
 
       {/* Navigation tabs — desktop: top horizontal, mobile: bottom tab bar */}
       <nav
