@@ -17,13 +17,26 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://highdesert.app"),
   title: "High Desert",
-  description: "Art Bell Radio Archive",
+  description: "Art Bell Radio Archive — Late night talk radio from the Kingdom of Nye",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "High Desert",
+  },
+  openGraph: {
+    title: "High Desert",
+    description: "Art Bell Radio Archive — Late night talk radio from the Kingdom of Nye",
+    siteName: "High Desert",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "High Desert",
+    description: "Art Bell Radio Archive — Late night talk radio from the Kingdom of Nye",
   },
 };
 
