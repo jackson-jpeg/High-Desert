@@ -1,7 +1,7 @@
 import Dexie, { type EntityTable } from "dexie";
-import type { Episode, ScanSession, UserPrefs, Playlist, HistoryEntry } from "./schema";
+import type { Episode, ScanSession, UserPrefs, Playlist, HistoryEntry, Bookmark } from "./schema";
 
-export type { Episode, ScanSession, UserPrefs, Playlist, HistoryEntry };
+export type { Episode, ScanSession, UserPrefs, Playlist, HistoryEntry, Bookmark };
 
 class HighDesertDB extends Dexie {
   episodes!: EntityTable<Episode, "id">;
@@ -9,6 +9,7 @@ class HighDesertDB extends Dexie {
   userPrefs!: EntityTable<UserPrefs, "id">;
   playlists!: EntityTable<Playlist, "id">;
   history!: EntityTable<HistoryEntry, "id">;
+  bookmarks!: EntityTable<Bookmark, "id">;
 
   constructor() {
     super("HighDesertDB");
@@ -41,6 +42,16 @@ class HighDesertDB extends Dexie {
       userPrefs: "++id, &key",
       playlists: "++id, name, createdAt",
       history: "++id, episodeId, timestamp",
+    });
+
+    this.version(5).stores({
+      episodes:
+        "++id, fileHash, airDate, guestName, showType, fileName, scanSessionId, createdAt, archiveIdentifier, lastPlayedAt, aiStatus, favoritedAt, *aiTags",
+      scanSessions: "++id, status, startedAt",
+      userPrefs: "++id, &key",
+      playlists: "++id, name, createdAt",
+      history: "++id, episodeId, timestamp",
+      bookmarks: "++id, episodeId, position, createdAt",
     });
   }
 }

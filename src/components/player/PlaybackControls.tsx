@@ -3,6 +3,7 @@
 import { Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
 import { SleepTimer } from "./SleepTimer";
+import { BookmarkMarkers } from "./BookmarkMarkers";
 import { cn } from "@/lib/utils/cn";
 import { formatTime } from "@/lib/utils/format";
 
@@ -126,20 +127,23 @@ export function PlaybackControls({
         <span className="w-[45px] text-right tabular-nums">
           {formatTime(position)}
         </span>
-        <input
-          type="range"
-          min={0}
-          max={duration || 0}
-          value={position}
-          onChange={handleScrub}
-          role="slider"
-          aria-label="Seek position"
-          aria-valuemin={0}
-          aria-valuemax={duration || 0}
-          aria-valuenow={position}
-          aria-valuetext={formatTime(position)}
-          className="flex-1 h-[6px] w98-range-dark cursor-pointer"
-        />
+        <div className="flex-1 relative">
+          <input
+            type="range"
+            min={0}
+            max={duration || 0}
+            value={position}
+            onChange={handleScrub}
+            role="slider"
+            aria-label="Seek position"
+            aria-valuemin={0}
+            aria-valuemax={duration || 0}
+            aria-valuenow={position}
+            aria-valuetext={formatTime(position)}
+            className="w-full h-[6px] w98-range-dark cursor-pointer"
+          />
+          <BookmarkMarkers mode="markers" />
+        </div>
         <span className="w-[45px] tabular-nums">{formatTime(duration)}</span>
       </div>
 
@@ -221,6 +225,7 @@ export function PlaybackControls({
           {Math.round(volume * 100)}%
         </span>
         <SleepTimer variant="desktop" />
+        <BookmarkMarkers mode="button" variant="desktop" />
       </div>
     </div>
   );

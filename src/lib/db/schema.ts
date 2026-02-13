@@ -66,6 +66,14 @@ export interface HistoryEntry {
   guestName?: string;    // Denormalized for display
 }
 
+export interface Bookmark {
+  id?: number;
+  episodeId: number;
+  position: number;     // Seconds into the episode
+  label: string;        // Short description of the moment
+  createdAt: number;
+}
+
 export interface ScanSession {
   id?: number;
   startedAt: number;

@@ -18,6 +18,14 @@ export async function seedLibraryIfEmpty(): Promise<boolean> {
     const raw: Record<string, unknown>[] = Array.isArray(data) ? data : data.episodes;
     if (!Array.isArray(raw) || raw.length === 0) return false;
 
+    // Track favorites from seed for restoration
+    const seedFavorites = new Set<string>();
+    for (const ep of raw) {
+      if (ep.favoritedAt) {
+        seedFavorites.add((ep.fileHash as string) ?? (ep.archiveIdentifier as string) ?? "");
+      }
+    }
+
     const now = Date.now();
     const episodes: Omit<Episode, "id">[] = raw.map((ep) => ({
       fileHash: (ep.fileHash as string) ?? `archive:${ep.archiveIdentifier ?? ep.fileName}`,
@@ -39,11 +47,39 @@ export async function seedLibraryIfEmpty(): Promise<boolean> {
       aiSummary: ep.aiSummary as string | undefined,
       aiTags: ep.aiTags as string[] | undefined,
       aiStatus: (ep.aiStatus as Episode["aiStatus"]) ?? "completed",
+      favoritedAt: ep.favoritedAt ? (ep.favoritedAt as number) : undefined,
       createdAt: now,
       updatedAt: now,
     }));
 
     await db.episodes.bulkAdd(episodes as Episode[]);
+
+    // Restore playlists from seed if present
+    if (data.playlists && Array.isArray(data.playlists)) {
+      try {
+        // We need to map fileHash references back to new IDs
+        const allEps = await db.episodes.toArray();
+        const hashToId = new Map(allEps.map((e) => [e.fileHash, e.id!]));
+
+        for (const pl of data.playlists as { name: string; description?: string; episodeHashes: string[] }[]) {
+          const episodeIds = (pl.episodeHashes ?? [])
+            .map((h: string) => hashToId.get(h))
+            .filter(Boolean) as number[];
+          if (episodeIds.length > 0 || pl.name) {
+            await db.playlists.add({
+              name: pl.name,
+              description: pl.description,
+              episodeIds,
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
+        }
+      } catch {
+        // Playlist restoration is best-effort
+      }
+    }
+
     toast.success(`Loaded ${episodes.length.toLocaleString()} episodes from catalog`);
     return true;
   } catch (err) {
@@ -85,11 +121,31 @@ export async function exportLibrarySeed(): Promise<void> {
     if (ep.aiSummary) obj.aiSummary = ep.aiSummary;
     if (ep.aiTags?.length) obj.aiTags = ep.aiTags;
     if (ep.aiStatus) obj.aiStatus = ep.aiStatus;
+    // v2: include favorites
+    if (ep.favoritedAt) obj.favoritedAt = ep.favoritedAt;
     return obj;
   });
 
+  // v2: include playlists (reference episodes by fileHash for portability)
+  const playlists = await db.playlists.toArray();
+  const idToHash = new Map(all.map((ep) => [ep.id!, ep.fileHash]));
+  const playlistSeed = playlists.map((pl) => ({
+    name: pl.name,
+    description: pl.description,
+    episodeHashes: pl.episodeIds
+      .map((id) => idToHash.get(id))
+      .filter(Boolean),
+  }));
+
+  // Wrap in envelope for v2 format
+  const envelope = {
+    version: 2,
+    episodes: seed,
+    ...(playlistSeed.length > 0 ? { playlists: playlistSeed } : {}),
+  };
+
   // Compact JSON (no pretty print) — gzips well on CDN
-  const json = JSON.stringify(seed);
+  const json = JSON.stringify(envelope);
   const blob = new Blob([json], { type: "application/json" });
   const sizeMB = (blob.size / 1024 / 1024).toFixed(1);
 

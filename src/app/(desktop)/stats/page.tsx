@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { useAdminStore } from "@/stores/admin-store";
 import { Window } from "@/components/win98";
 import { HistoryPanel } from "@/components/library/HistoryPanel";
+import { SmartPlaylists } from "@/components/library/SmartPlaylists";
 import { cn } from "@/lib/utils/cn";
 
 export default function StatsPage() {
@@ -489,8 +490,13 @@ export default function StatsPage() {
         </Window>
       )}
 
-      {/* Listening History */}
-      <HistoryPanel />
+      {/* Smart Playlists + History row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <SmartPlaylists onPlay={(ep) => {
+          window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: ep }));
+        }} />
+        <HistoryPanel />
+      </div>
     </div>
   );
 }

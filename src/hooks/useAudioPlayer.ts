@@ -7,6 +7,7 @@ import {
   setEngineVolume,
   resumeContext,
   getMediaElement,
+  notifySourceChanged,
 } from "@/lib/audio/engine";
 import { db } from "@/lib/db";
 import type { Episode } from "@/lib/db/schema";
@@ -42,6 +43,7 @@ export function useAudioPlayer() {
     if (!audioRef.current) {
       audioRef.current = new Audio();
       audioRef.current.preload = "metadata";
+      audioRef.current.crossOrigin = "anonymous";
       initEngine(audioRef.current);
     }
     return audioRef.current;
@@ -67,6 +69,7 @@ export function useAudioPlayer() {
 
       setError(null);
       loadEpisode(episode, isObjectUrl ? url : "");
+      notifySourceChanged();
       audio.src = url;
       audio.currentTime = episode.playbackPosition ?? 0;
       audio.playbackRate = usePlayerStore.getState().playbackRate;

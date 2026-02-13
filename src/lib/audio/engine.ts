@@ -15,15 +15,28 @@ let mediaElement: HTMLAudioElement | null = null;
 let audioContext: AudioContext | null = null;
 let analyserNode: AnalyserNode | null = null;
 let streamSource: MediaStreamAudioSourceNode | null = null;
-let analyserAttempted = false;
+let lastSrc = "";
 
 export function getAnalyserNode(): AnalyserNode | null {
-  // Lazy init: try once when first requested and audio is ready
-  if (!analyserAttempted && mediaElement?.src) {
-    analyserAttempted = true;
+  // Re-init if source changed (new episode loaded)
+  if (mediaElement && mediaElement.src !== lastSrc) {
+    lastSrc = mediaElement.src;
+    cleanupAnalyser();
+  }
+
+  // Lazy init: try when we don't have an analyser and audio is playing
+  if (!analyserNode && mediaElement?.src && !mediaElement.paused) {
     tryInitAnalyser();
   }
   return analyserNode;
+}
+
+/**
+ * Notify the engine that the audio source has changed.
+ * Resets the analyser so it can re-attach to the new stream.
+ */
+export function notifySourceChanged(): void {
+  cleanupAnalyser();
 }
 
 export function getMediaElement(): HTMLAudioElement | null {
@@ -70,6 +83,10 @@ function tryInitAnalyser(): void {
     if (!stream || stream.getAudioTracks().length === 0) return;
 
     audioContext = new AudioContext();
+    // Resume in case created outside a user gesture
+    if (audioContext.state === "suspended") {
+      audioContext.resume().catch(() => {});
+    }
     streamSource = audioContext.createMediaStreamSource(stream);
     analyserNode = audioContext.createAnalyser();
     analyserNode.fftSize = 2048;
@@ -90,5 +107,5 @@ function cleanupAnalyser(): void {
   streamSource = null;
   analyserNode = null;
   audioContext = null;
-  analyserAttempted = false;
+  lastSrc = "";
 }

@@ -15,6 +15,8 @@ import { TimelineView } from "@/components/library/TimelineView";
 import { EpisodeDetail } from "@/components/library/EpisodeDetail";
 import { RecentlyPlayed } from "@/components/library/RecentlyPlayed";
 import { PlaylistPanel, addToPlaylist } from "@/components/library/PlaylistPanel";
+import { OnThisDay } from "@/components/library/OnThisDay";
+import { SmartPlaylists } from "@/components/library/SmartPlaylists";
 import { Window, Dialog, Button } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
 
@@ -237,6 +239,39 @@ export default function LibraryPage() {
     const isFav = await toggleFavorite(episode.id!);
     toast.info(isFav ? "Added to favorites" : "Removed from favorites");
   }, []);
+
+  const handleShuffle = useCallback((showType?: string) => {
+    if (!allEpisodes || allEpisodes.length === 0) return;
+    let pool = allEpisodes;
+    if (showType && showType !== "all") {
+      pool = allEpisodes.filter((ep) => ep.showType === showType);
+    }
+    if (pool.length === 0) {
+      toast.info("No episodes to shuffle");
+      return;
+    }
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    const batch = shuffled.slice(0, 20);
+    const store = usePlayerStore.getState();
+    store.enqueueMany(batch);
+    if (batch[0]) {
+      window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: batch[0] }));
+    }
+    const label = showType && showType !== "all"
+      ? showType === "coast" ? "Coast to Coast" : showType === "dreamland" ? "Dreamland" : "Specials"
+      : "All Shows";
+    toast.info(`Shuffling ${batch.length} episodes from ${label}`);
+  }, [allEpisodes]);
+
+  // Listen for shuffle events from the menu bar
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const showType = (e as CustomEvent<string>).detail;
+      handleShuffle(showType);
+    };
+    window.addEventListener("hd:shuffle", handler);
+    return () => window.removeEventListener("hd:shuffle", handler);
+  }, [handleShuffle]);
 
   const handleCloseDetail = useCallback(() => {
     setSelectedEpisode(null);
@@ -508,14 +543,55 @@ export default function LibraryPage() {
         </Window>
       </div>
 
-      {/* Recently played + Playlists row */}
+      {/* Recently played + Playlists + Discovery row */}
       {!search.trim() && !hasActiveFilters && (
-        <div className="px-3 py-2 flex-shrink-0 flex flex-col md:flex-row gap-3">
-          {recentlyPlayed && recentlyPlayed.length > 0 && (
-            <RecentlyPlayed episodes={recentlyPlayed} onPlay={handlePlay} />
-          )}
-          {(allPlaylists && allPlaylists.length > 0 || isAdmin) && (
-            <PlaylistPanel onPlayEpisode={handlePlay} className="hidden md:flex md:flex-col md:w-[200px] md:flex-shrink-0" />
+        <div className="px-3 py-2 flex-shrink-0 flex flex-col gap-3">
+          {/* Top row: Recently Played + On This Day + Playlists */}
+          <div className="flex flex-col md:flex-row gap-3">
+            {recentlyPlayed && recentlyPlayed.length > 0 && (
+              <RecentlyPlayed episodes={recentlyPlayed} onPlay={handlePlay} />
+            )}
+            <OnThisDay onPlay={handlePlay} className="md:w-[220px] md:flex-shrink-0" />
+            {(allPlaylists && allPlaylists.length > 0 || isAdmin) && (
+              <PlaylistPanel onPlayEpisode={handlePlay} className="hidden md:flex md:flex-col md:w-[200px] md:flex-shrink-0" />
+            )}
+          </div>
+
+          {/* Shuffle buttons */}
+          {allEpisodes && allEpisodes.length > 5 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[8px] text-bevel-dark uppercase tracking-wider">Shuffle:</span>
+              <button
+                onClick={() => handleShuffle("all")}
+                className="text-[9px] text-desert-amber/70 hover:text-desert-amber cursor-pointer px-2 py-0.5 w98-raised-dark bg-card-surface transition-colors-fast"
+              >
+                Surprise Me
+              </button>
+              {(showCounts.get("coast") ?? 0) > 0 && (
+                <button
+                  onClick={() => handleShuffle("coast")}
+                  className="text-[9px] text-title-bar-blue/70 hover:text-title-bar-blue cursor-pointer px-2 py-0.5 w98-raised-dark bg-card-surface transition-colors-fast"
+                >
+                  Coast to Coast
+                </button>
+              )}
+              {(showCounts.get("dreamland") ?? 0) > 0 && (
+                <button
+                  onClick={() => handleShuffle("dreamland")}
+                  className="text-[9px] text-static-green/70 hover:text-static-green cursor-pointer px-2 py-0.5 w98-raised-dark bg-card-surface transition-colors-fast"
+                >
+                  Dreamland
+                </button>
+              )}
+              {(showCounts.get("special") ?? 0) > 0 && (
+                <button
+                  onClick={() => handleShuffle("special")}
+                  className="text-[9px] text-desert-amber/70 hover:text-desert-amber cursor-pointer px-2 py-0.5 w98-raised-dark bg-card-surface transition-colors-fast"
+                >
+                  Specials
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}

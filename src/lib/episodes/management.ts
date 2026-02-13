@@ -54,6 +54,27 @@ export async function updateEpisode(
   await db.episodes.update(id, { ...fields, updatedAt: Date.now() });
 }
 
+export async function addBookmark(
+  episodeId: number,
+  position: number,
+  label: string,
+): Promise<number | undefined> {
+  return db.bookmarks.add({
+    episodeId,
+    position,
+    label,
+    createdAt: Date.now(),
+  });
+}
+
+export async function removeBookmark(id: number): Promise<void> {
+  await db.bookmarks.delete(id);
+}
+
+export async function getBookmarks(episodeId: number) {
+  return db.bookmarks.where("episodeId").equals(episodeId).sortBy("position");
+}
+
 export async function recategorizeEpisode(id: number): Promise<void> {
   const episode = await db.episodes.get(id);
   if (!episode) return;
