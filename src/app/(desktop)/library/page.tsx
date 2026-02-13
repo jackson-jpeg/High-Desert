@@ -269,16 +269,22 @@ export default function LibraryPage() {
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
 
-      if (e.code === "ArrowUp" && (e.metaKey || e.ctrlKey)) {
+      if (e.code === "ArrowUp" && e.shiftKey) {
         e.preventDefault();
-        setFocusedIndex((prev) => Math.max(0, prev - 1));
-        const ep = filtered[Math.max(0, focusedIndex - 1)];
-        if (ep) setSelectedEpisode(ep);
-      } else if (e.code === "ArrowDown" && (e.metaKey || e.ctrlKey)) {
+        setFocusedIndex((prev) => {
+          const next = Math.max(0, prev - 1);
+          const ep = filtered[next];
+          if (ep) setSelectedEpisode(ep);
+          return next;
+        });
+      } else if (e.code === "ArrowDown" && e.shiftKey) {
         e.preventDefault();
-        setFocusedIndex((prev) => Math.min(filtered.length - 1, prev + 1));
-        const ep = filtered[Math.min(filtered.length - 1, focusedIndex + 1)];
-        if (ep) setSelectedEpisode(ep);
+        setFocusedIndex((prev) => {
+          const next = Math.min(filtered.length - 1, prev + 1);
+          const ep = filtered[next];
+          if (ep) setSelectedEpisode(ep);
+          return next;
+        });
       } else if (e.code === "Enter" && selectedEpisode) {
         e.preventDefault();
         handlePlay(selectedEpisode);
@@ -484,6 +490,11 @@ export default function LibraryPage() {
               isPlaying={selectedEpisode.id === currentEpisodeId}
               onPlay={handlePlay}
               onClose={handleCloseDetail}
+              onDelete={async (ep) => {
+                await deleteEpisode(ep.id!);
+                setSelectedEpisode(null);
+              }}
+              onRecategorize={(ep) => recategorizeEpisode(ep.id!)}
             />
           </div>
         )}

@@ -33,6 +33,7 @@ const SHORTCUTS = [
   { keys: "P", action: "Previous track" },
   { keys: "M", action: "Mute / Unmute" },
   { keys: "/ or Ctrl+F", action: "Focus search" },
+  { keys: "\u21E7\u2191 / \u21E7\u2193", action: "Navigate library" },
   { keys: "Enter", action: "Play selected" },
   { keys: "Delete", action: "Delete selected" },
   { keys: "Escape", action: "Clear selection" },

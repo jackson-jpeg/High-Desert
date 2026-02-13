@@ -77,6 +77,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
               showQueue ? "text-desert-amber" : "text-bevel-dark hover:text-desktop-gray",
             )}
             title="Queue"
+            aria-label={showQueue ? "Hide queue" : "Show queue"}
           >
             {"\u2630"}
             {queueLength > 0 && (
@@ -87,6 +88,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
             onClick={toggleMini}
             className="text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer ml-1"
             title="Expand player"
+            aria-label="Expand player"
           >
             {"\u25B2"}
           </button>
@@ -116,6 +118,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
               showQueue ? "text-desert-amber" : "text-bevel-dark hover:text-desktop-gray",
             )}
             title="Queue"
+            aria-label={showQueue ? "Hide queue" : "Show queue"}
           >
             {"\u2630"}
             {queueLength > 0 && (
@@ -126,6 +129,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
             onClick={toggleMini}
             className="text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer"
             title="Minimize player"
+            aria-label="Minimize player"
           >
             {"\u25BC"}
           </button>

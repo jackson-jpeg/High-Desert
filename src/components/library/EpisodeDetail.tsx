@@ -10,6 +10,8 @@ interface EpisodeDetailProps {
   isPlaying: boolean;
   onPlay: (episode: Episode) => void;
   onClose: () => void;
+  onDelete?: (episode: Episode) => void;
+  onRecategorize?: (episode: Episode) => void;
   className?: string;
 }
 
@@ -18,6 +20,8 @@ export function EpisodeDetail({
   isPlaying,
   onPlay,
   onClose,
+  onDelete,
+  onRecategorize,
   className,
 }: EpisodeDetailProps) {
   const showLabel =
@@ -149,6 +153,18 @@ export function EpisodeDetail({
           </div>
         )}
 
+        {/* AI Status */}
+        {episode.aiStatus === "failed" && (
+          <div className="text-[9px] text-red-400/80 bg-red-400/10 px-2 py-1">
+            AI categorization failed
+          </div>
+        )}
+        {episode.aiStatus === "pending" && (
+          <div className="text-[9px] text-desert-amber/80 bg-desert-amber/10 px-2 py-1">
+            Awaiting AI categorization
+          </div>
+        )}
+
         {/* Play buttons */}
         <div className="pt-1 flex items-center gap-2">
           <Button
@@ -174,6 +190,26 @@ export function EpisodeDetail({
           >
             Queue
           </Button>
+        </div>
+
+        {/* Management actions */}
+        <div className="flex items-center gap-2 border-t border-bevel-dark/20 pt-2">
+          {onRecategorize && (
+            <button
+              onClick={() => onRecategorize(episode)}
+              className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer transition-colors-fast"
+            >
+              Re-categorize
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => onDelete(episode)}
+              className="text-[9px] text-red-400/60 hover:text-red-400 cursor-pointer transition-colors-fast ml-auto"
+            >
+              Delete
+            </button>
+          )}
         </div>
       </div>
     </div>
