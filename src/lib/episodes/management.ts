@@ -49,7 +49,7 @@ export async function toggleFavorite(id: number): Promise<boolean> {
 
 export async function updateEpisode(
   id: number,
-  fields: Partial<Pick<import("@/lib/db/schema").Episode, "title" | "guestName" | "airDate" | "topic" | "showType" | "aiSummary">>,
+  fields: Partial<Pick<import("@/lib/db/schema").Episode, "title" | "guestName" | "airDate" | "topic" | "showType" | "aiSummary" | "aiCategory" | "aiSeries" | "aiSeriesPart" | "aiNotable">>,
 ): Promise<void> {
   await db.episodes.update(id, { ...fields, updatedAt: Date.now() });
 }
@@ -108,11 +108,15 @@ export async function recategorizeEpisode(id: number): Promise<void> {
 
     const results = await res.json();
     if (Array.isArray(results) && results[0]) {
-      const { title, summary, tags, topic, guestName, airDate, showType } = results[0];
+      const { title, summary, tags, topic, guestName, airDate, showType, category, series, seriesPart, notable } = results[0];
       await db.episodes.update(id, {
         title: title ?? episode.title,
         aiSummary: summary ?? undefined,
         aiTags: tags ?? undefined,
+        aiCategory: category ?? undefined,
+        aiSeries: series ?? undefined,
+        aiSeriesPart: seriesPart ?? undefined,
+        aiNotable: notable ?? false,
         topic: topic ?? episode.topic,
         guestName: guestName ?? episode.guestName,
         airDate: airDate ?? episode.airDate,

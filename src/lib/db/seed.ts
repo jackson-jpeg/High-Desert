@@ -46,6 +46,10 @@ export async function seedLibraryIfEmpty(): Promise<boolean> {
       archiveIdentifier: ep.archiveIdentifier as string | undefined,
       aiSummary: ep.aiSummary as string | undefined,
       aiTags: ep.aiTags as string[] | undefined,
+      aiCategory: ep.aiCategory as string | undefined,
+      aiSeries: ep.aiSeries as string | undefined,
+      aiSeriesPart: ep.aiSeriesPart as number | undefined,
+      aiNotable: ep.aiNotable as boolean | undefined,
       aiStatus: (ep.aiStatus as Episode["aiStatus"]) ?? "completed",
       favoritedAt: ep.favoritedAt ? (ep.favoritedAt as number) : undefined,
       createdAt: now,
@@ -120,6 +124,10 @@ export async function exportLibrarySeed(): Promise<void> {
     if (ep.archiveIdentifier) obj.archiveIdentifier = ep.archiveIdentifier;
     if (ep.aiSummary) obj.aiSummary = ep.aiSummary;
     if (ep.aiTags?.length) obj.aiTags = ep.aiTags;
+    if (ep.aiCategory) obj.aiCategory = ep.aiCategory;
+    if (ep.aiSeries) obj.aiSeries = ep.aiSeries;
+    if (ep.aiSeriesPart) obj.aiSeriesPart = ep.aiSeriesPart;
+    if (ep.aiNotable) obj.aiNotable = ep.aiNotable;
     if (ep.aiStatus) obj.aiStatus = ep.aiStatus;
     // v2: include favorites
     if (ep.favoritedAt) obj.favoritedAt = ep.favoritedAt;

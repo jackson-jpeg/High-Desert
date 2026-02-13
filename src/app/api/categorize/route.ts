@@ -64,6 +64,37 @@ CRITICAL — GUEST NAMES: Standardize to full proper names. Fix common misspelli
 - "Linda Moulton Howe" not "LMH" or "linda howe"
 - Use null for Open Lines, best-of compilations, or no-guest episodes
 
+CRITICAL — CATEGORY: Assign exactly ONE primary category from this list:
+- "UFOs & Aliens" — UFO sightings, alien abductions, Area 51, Roswell, disclosure, extraterrestrial contact
+- "Paranormal" — ghosts, hauntings, shadow people, poltergeists, near-death experiences, afterlife
+- "Conspiracy" — government cover-ups, JFK, NWO, secret societies, black projects, surveillance
+- "Science & Space" — physics, astronomy, Mars, comets, space exploration, quantum mechanics
+- "Prophecy & Predictions" — Nostradamus, remote viewing predictions, psychic forecasts, millennium, Y2K
+- "Cryptozoology" — Bigfoot, chupacabra, Mothman, Loch Ness, unknown creatures
+- "Earth Changes" — earthquakes, weather anomalies, pole shift, climate, volcanic activity, solar cycles
+- "Health & Medicine" — alternative medicine, nutrition, disease, consciousness, mind-body
+- "Time Travel & Physics" — time travel, parallel universes, wormholes, dimensional portals, Philadelphia Experiment
+- "Remote Viewing & Psychic" — remote viewing, ESP, psychic ability, astral projection, consciousness
+- "Open Lines" — open phone lines with callers, no specific guest topic
+- "Best Of & Replay" — best-of compilations, replays, retrospectives
+- "Other" — does not fit above categories
+Pick the BEST match. If an episode spans multiple topics, pick the dominant one.
+
+CRITICAL — SERIES DETECTION: Many episodes are multi-part series or recurring segments. Detect these:
+- "series": name of the series (e.g. "Mel's Hole", "Area 51: The Caller", "Shadow People", "JC Webster") or null if standalone
+- "seriesPart": part number (1, 2, 3...) or null if standalone
+- Look for patterns like "Part 1", "Part 2", "pt. 1", "pt. 2", "Night 1 of 3", Roman numerals (I, II, III), or sequential episodes with the same guest on consecutive dates discussing the same topic
+- Recurring guests who appear many times (like Richard C. Hoagland, Linda Moulton Howe, Ed Dames) do NOT count as a series — only multi-part connected episodes do
+
+NOTABLE EPISODES: Flag truly iconic/famous episodes. These include:
+- The Area 51 caller (frantic caller claiming to be ex-employee, Sept 1997)
+- Mel's Hole episodes (Mel Waters, first appearing Feb 1997)
+- The Art Bell / Hale-Bopp controversy
+- The Shadow People episode that coined the term
+- First appearances of major recurring guests
+- Any episode widely considered a "classic" by the Art Bell community
+- Set "notable" to true for these, false for ordinary episodes. Be selective — only ~5-10% of episodes should be notable.
+
 For each episode, return a JSON array with one object per episode:
 - "title": clean, standardized title (see rules above)
 - "airDate": original broadcast date as YYYY-MM-DD (null if truly unknown)
@@ -72,6 +103,10 @@ For each episode, return a JSON array with one object per episode:
 - "topic": main topic in 2-5 words (e.g. "UFOs and Government Cover-ups", "Shadow People", "Time Travel Theory")
 - "summary": 1-2 sentence description of the episode content
 - "tags": array of 3-5 relevant lowercase tags (e.g. ["ufos", "paranormal", "science", "conspiracy", "ghosts", "remote viewing", "area 51", "prophecy", "cryptozoology"])
+- "category": exactly one category from the list above (e.g. "UFOs & Aliens", "Paranormal", "Open Lines")
+- "series": series name if multi-part, null if standalone
+- "seriesPart": part number if multi-part, null if standalone
+- "notable": true if iconic/famous, false otherwise
 
 Episodes:
 ${JSON.stringify(episodes, null, 2)}

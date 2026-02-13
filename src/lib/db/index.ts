@@ -53,6 +53,16 @@ class HighDesertDB extends Dexie {
       history: "++id, episodeId, timestamp",
       bookmarks: "++id, episodeId, position, createdAt",
     });
+
+    this.version(6).stores({
+      episodes:
+        "++id, fileHash, airDate, guestName, showType, fileName, scanSessionId, createdAt, archiveIdentifier, lastPlayedAt, aiStatus, favoritedAt, aiCategory, aiSeries, *aiTags",
+      scanSessions: "++id, status, startedAt",
+      userPrefs: "++id, &key",
+      playlists: "++id, name, createdAt",
+      history: "++id, episodeId, timestamp",
+      bookmarks: "++id, episodeId, position, createdAt",
+    });
   }
 }
 

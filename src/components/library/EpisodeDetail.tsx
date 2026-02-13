@@ -50,6 +50,8 @@ export function EpisodeDetail({
   const [editTopic, setEditTopic] = useState("");
   const [editShowType, setEditShowType] = useState<Episode["showType"]>("unknown");
   const [editSummary, setEditSummary] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editSeries, setEditSeries] = useState("");
 
   // Reset edit state when episode changes
   useEffect(() => {
@@ -63,6 +65,8 @@ export function EpisodeDetail({
     setEditTopic(episode.topic ?? "");
     setEditShowType(episode.showType ?? "unknown");
     setEditSummary(episode.aiSummary ?? "");
+    setEditCategory(episode.aiCategory ?? "");
+    setEditSeries(episode.aiSeries ?? "");
     setEditing(true);
   };
 
@@ -75,6 +79,8 @@ export function EpisodeDetail({
       topic: editTopic || undefined,
       showType: editShowType,
       aiSummary: editSummary || undefined,
+      aiCategory: editCategory || undefined,
+      aiSeries: editSeries || undefined,
     });
     setEditing(false);
     toast.success("Episode updated");
@@ -95,9 +101,21 @@ export function EpisodeDetail({
     >
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-bevel-dark/20">
-        <span className="text-[9px] text-bevel-dark/70">
-          {[showLabel, isArchive ? "Archive" : null].filter(Boolean).join(" \u00B7 ")}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[9px] text-bevel-dark/70">
+            {[showLabel, isArchive ? "Archive" : null].filter(Boolean).join(" \u00B7 ")}
+          </span>
+          {episode.aiCategory && (
+            <span className="text-[8px] text-desert-amber/60 bg-desert-amber/8 px-1 py-px">
+              {episode.aiCategory}
+            </span>
+          )}
+          {episode.aiNotable && (
+            <span className="text-[9px] text-yellow-400/80" title="Notable episode">
+              {"\u272A"}
+            </span>
+          )}
+        </div>
         <button
           onClick={onClose}
           className="text-[12px] md:text-[10px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
@@ -162,6 +180,26 @@ export function EpisodeDetail({
               </select>
             </label>
             <label className="flex flex-col gap-0.5">
+              <span className="text-[8px] text-bevel-dark uppercase tracking-wider">Category</span>
+              <input
+                type="text"
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                placeholder="e.g. UFOs & Aliens, Paranormal, Conspiracy"
+                className={cn(inputClass, "text-[11px]")}
+              />
+            </label>
+            <label className="flex flex-col gap-0.5">
+              <span className="text-[8px] text-bevel-dark uppercase tracking-wider">Series</span>
+              <input
+                type="text"
+                value={editSeries}
+                onChange={(e) => setEditSeries(e.target.value)}
+                placeholder="e.g. Mel's Hole, Area 51 Caller"
+                className={cn(inputClass, "text-[11px]")}
+              />
+            </label>
+            <label className="flex flex-col gap-0.5">
               <span className="text-[8px] text-bevel-dark uppercase tracking-wider">AI Summary</span>
               <textarea
                 value={editSummary}
@@ -208,6 +246,17 @@ export function EpisodeDetail({
             {episode.topic && !episode.guestName && (
               <div className="text-[13px] md:text-[11px] text-desktop-gray/80">
                 {episode.topic}
+              </div>
+            )}
+
+            {/* Series */}
+            {episode.aiSeries && (
+              <div className="text-[10px] text-title-bar-blue/70 flex items-center gap-1">
+                <span>{"\u{1F4DA}"}</span>
+                <span>
+                  {episode.aiSeries}
+                  {episode.aiSeriesPart ? ` \u2014 Part ${episode.aiSeriesPart}` : ""}
+                </span>
               </div>
             )}
 

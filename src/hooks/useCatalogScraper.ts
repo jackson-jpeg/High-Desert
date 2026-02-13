@@ -180,11 +180,15 @@ export function useCatalogScraper() {
             const results = await res.json();
             if (Array.isArray(results)) {
               for (let j = 0; j < results.length && j < chunk.length; j++) {
-                const { title, summary, tags, topic, guestName, airDate, showType } = results[j];
+                const { title, summary, tags, topic, guestName, airDate, showType, category, series, seriesPart, notable } = results[j];
                 await db.episodes.update(chunk[j].id!, {
                   title: title ?? chunk[j].title,
                   aiSummary: summary ?? undefined,
                   aiTags: tags ?? undefined,
+                  aiCategory: category ?? undefined,
+                  aiSeries: series ?? undefined,
+                  aiSeriesPart: seriesPart ?? undefined,
+                  aiNotable: notable ?? false,
                   topic: topic ?? chunk[j].topic,
                   guestName: guestName ?? chunk[j].guestName,
                   airDate: airDate ?? chunk[j].airDate,
@@ -300,11 +304,15 @@ export function useCatalogScraper() {
             const results = await res.json();
             if (Array.isArray(results)) {
               for (let j = 0; j < results.length && j < chunk.length; j++) {
-                const { title, summary, tags, topic, guestName, airDate, showType } = results[j];
+                const { title, summary, tags, topic, guestName, airDate, showType, category, series, seriesPart, notable } = results[j];
                 await db.episodes.update(chunk[j].id!, {
                   title: title ?? chunk[j].title,
                   aiSummary: summary ?? undefined,
                   aiTags: tags ?? undefined,
+                  aiCategory: category ?? undefined,
+                  aiSeries: series ?? undefined,
+                  aiSeriesPart: seriesPart ?? undefined,
+                  aiNotable: notable ?? false,
                   topic: topic ?? chunk[j].topic,
                   guestName: guestName ?? chunk[j].guestName,
                   airDate: airDate ?? chunk[j].airDate,
@@ -416,11 +424,15 @@ export function useCatalogScraper() {
             const results = await res.json();
             if (Array.isArray(results)) {
               for (let j = 0; j < results.length && j < chunk.length; j++) {
-                const { title, summary, tags, topic, guestName, airDate, showType } = results[j];
+                const { title, summary, tags, topic, guestName, airDate, showType, category, series, seriesPart, notable } = results[j];
                 await db.episodes.update(chunk[j].id!, {
                   title: title ?? chunk[j].title,
                   aiSummary: summary ?? undefined,
                   aiTags: tags ?? undefined,
+                  aiCategory: category ?? undefined,
+                  aiSeries: series ?? undefined,
+                  aiSeriesPart: seriesPart ?? undefined,
+                  aiNotable: notable ?? false,
                   topic: topic ?? chunk[j].topic,
                   guestName: guestName ?? chunk[j].guestName,
                   airDate: airDate ?? chunk[j].airDate,

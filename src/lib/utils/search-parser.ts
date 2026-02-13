@@ -6,9 +6,12 @@
  *   year:1997        — match air date year
  *   tag:ufo          — match AI tag
  *   show:coast       — match show type (coast, dreamland, special)
+ *   cat:paranormal   — match AI category
+ *   series:mel       — match series name
  *   has:favorite     — has been favorited
  *   has:bookmark     — has bookmarks
  *   has:summary      — has AI summary
+ *   has:notable      — flagged as iconic/famous
  *
  * Everything else is treated as a free-text search term.
  */
@@ -19,10 +22,12 @@ export interface ParsedSearch {
   year?: string;        // year: operator
   tag?: string;         // tag: operator
   show?: string;        // show: operator
+  cat?: string;         // cat: operator (category)
+  series?: string;      // series: operator
   has?: string[];       // has: operators (multiple allowed)
 }
 
-const OPERATOR_RE = /\b(guest|year|tag|show|has):(\S+)/gi;
+const OPERATOR_RE = /\b(guest|year|tag|show|cat|series|has):(\S+)/gi;
 
 export function parseSearch(input: string): ParsedSearch {
   const result: ParsedSearch = { text: "", has: [] };
@@ -42,6 +47,12 @@ export function parseSearch(input: string): ParsedSearch {
         break;
       case "show":
         result.show = value.toLowerCase();
+        break;
+      case "cat":
+        result.cat = value.toLowerCase();
+        break;
+      case "series":
+        result.series = value.toLowerCase();
         break;
       case "has":
         result.has!.push(value.toLowerCase());

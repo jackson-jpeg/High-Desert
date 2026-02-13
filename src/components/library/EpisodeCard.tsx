@@ -96,6 +96,11 @@ export function EpisodeCard({
           {isPlaying && (
             <span className="w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air flex-shrink-0" />
           )}
+          {episode.aiNotable && !isPlaying && (
+            <span className="text-[9px] text-yellow-400/80 flex-shrink-0" title="Notable episode">
+              {"\u272A"}
+            </span>
+          )}
           {isCompleted && !isPlaying && (
             <span className="text-[9px] text-static-green/70 flex-shrink-0" title="Completed">
               {"\u2713"}
@@ -108,6 +113,11 @@ export function EpisodeCard({
           )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {episode.aiCategory && (
+            <span className="text-[7px] text-desert-amber/50 flex-shrink-0 hidden md:inline">
+              {episode.aiCategory}
+            </span>
+          )}
           {episode.aiStatus === "failed" && (
             <span className="w-[5px] h-[5px] rounded-full bg-red-400/60 flex-shrink-0" title="AI categorization failed" />
           )}
@@ -143,11 +153,18 @@ export function EpisodeCard({
         {episode.title || episode.fileName}
       </div>
 
-      {/* Guest + duration */}
+      {/* Guest + series + duration */}
       <div className="flex items-center justify-between gap-2 mt-0.5">
-        <span className="text-[12px] md:text-[10px] text-static-green/80 truncate">
-          {episode.guestName || episode.topic || "\u00A0"}
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0 truncate">
+          <span className="text-[12px] md:text-[10px] text-static-green/80 truncate">
+            {episode.guestName || episode.topic || "\u00A0"}
+          </span>
+          {episode.aiSeries && (
+            <span className="text-[8px] text-title-bar-blue/50 flex-shrink-0 hidden md:inline">
+              {episode.aiSeries}{episode.aiSeriesPart ? ` Pt.${episode.aiSeriesPart}` : ""}
+            </span>
+          )}
+        </div>
         {episode.duration != null && (
           <span className="text-[12px] md:text-[10px] text-bevel-dark/70 tabular-nums flex-shrink-0">
             {formatDuration(episode.duration)}

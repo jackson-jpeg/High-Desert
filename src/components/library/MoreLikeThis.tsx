@@ -46,6 +46,16 @@ export function MoreLikeThis({ episode, onPlay, className }: MoreLikeThisProps) 
         }
       }
 
+      // Same category (strong signal)
+      if (episode.aiCategory && ep.aiCategory === episode.aiCategory && episode.aiCategory !== "Other") {
+        score += 3;
+      }
+
+      // Same series (very strong)
+      if (episode.aiSeries && ep.aiSeries === episode.aiSeries) {
+        score += 8;
+      }
+
       // Same show type (small bonus)
       if (episode.showType && ep.showType === episode.showType && episode.showType !== "unknown") {
         score += 0.5;

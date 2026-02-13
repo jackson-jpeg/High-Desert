@@ -47,7 +47,10 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
             <span><span className="text-desert-amber/70">year:</span>1997</span>
             <span><span className="text-desert-amber/70">tag:</span>ufo</span>
             <span><span className="text-desert-amber/70">show:</span>coast</span>
+            <span><span className="text-desert-amber/70">cat:</span>paranormal</span>
+            <span><span className="text-desert-amber/70">series:</span>name</span>
             <span><span className="text-desert-amber/70">has:</span>favorite</span>
+            <span><span className="text-desert-amber/70">has:</span>notable</span>
             <span><span className="text-desert-amber/70">has:</span>bookmark</span>
             <span><span className="text-desert-amber/70">has:</span>played</span>
           </div>

@@ -44,6 +44,7 @@ export default function LibraryPage() {
   const [lastClickedId, setLastClickedId] = useState<number | null>(null);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const currentEpisodeId = usePlayerStore((s) => s.currentEpisode?.id);
@@ -121,6 +122,30 @@ export default function LibraryPage() {
     return counts;
   }, [allEpisodes]);
 
+  // Category counts for filter chips
+  const categoryCounts = useMemo(() => {
+    if (!allEpisodes) return new Map<string, number>();
+    const counts = new Map<string, number>();
+    for (const ep of allEpisodes) {
+      if (ep.aiCategory) {
+        counts.set(ep.aiCategory, (counts.get(ep.aiCategory) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [allEpisodes]);
+
+  // Series counts for facets
+  const seriesCounts = useMemo(() => {
+    if (!allEpisodes) return new Map<string, number>();
+    const counts = new Map<string, number>();
+    for (const ep of allEpisodes) {
+      if (ep.aiSeries) {
+        counts.set(ep.aiSeries, (counts.get(ep.aiSeries) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [allEpisodes]);
+
   // Top guests for faceted browsing
   const topGuests = useMemo(() => {
     if (!allEpisodes) return [];
@@ -169,6 +194,11 @@ export default function LibraryPage() {
       list = list.filter((ep) => ep.guestName === guestFilter);
     }
 
+    // Category filter
+    if (categoryFilter) {
+      list = list.filter((ep) => ep.aiCategory === categoryFilter);
+    }
+
     // Search filter with operator support
     if (search.trim()) {
       const parsed = parseSearch(search);
@@ -190,6 +220,14 @@ export default function LibraryPage() {
         const s = parsed.show;
         list = list.filter((ep) => ep.showType === s);
       }
+      if (parsed.cat) {
+        const c = parsed.cat;
+        list = list.filter((ep) => ep.aiCategory?.toLowerCase().includes(c));
+      }
+      if (parsed.series) {
+        const s = parsed.series;
+        list = list.filter((ep) => ep.aiSeries?.toLowerCase().includes(s));
+      }
       if (parsed.has && parsed.has.length > 0) {
         for (const h of parsed.has) {
           if (h === "favorite" || h === "fav") {
@@ -200,6 +238,8 @@ export default function LibraryPage() {
             list = list.filter((ep) => !!ep.aiSummary);
           } else if (h === "played") {
             list = list.filter((ep) => (ep.playCount ?? 0) > 0);
+          } else if (h === "notable") {
+            list = list.filter((ep) => !!ep.aiNotable);
           }
         }
       }
@@ -215,6 +255,8 @@ export default function LibraryPage() {
             ep.topic?.toLowerCase().includes(q) ||
             ep.airDate?.includes(q) ||
             ep.description?.toLowerCase().includes(q) ||
+            ep.aiCategory?.toLowerCase().includes(q) ||
+            ep.aiSeries?.toLowerCase().includes(q) ||
             ep.aiTags?.some((tag) => tag.toLowerCase().includes(q)),
         );
       }
@@ -237,7 +279,7 @@ export default function LibraryPage() {
     // "date" is already the default order from Dexie (airDate desc)
 
     return list;
-  }, [allEpisodes, search, sortMode, showFilter, guestFilter, favoritesOnly, bookmarkedIds]);
+  }, [allEpisodes, search, sortMode, showFilter, guestFilter, categoryFilter, favoritesOnly, bookmarkedIds]);
 
   const handleEpisodeClick = useCallback((episode: Episode, e: React.MouseEvent) => {
     if (e.shiftKey || e.metaKey || e.ctrlKey) {
@@ -451,6 +493,7 @@ export default function LibraryPage() {
         setSelectedEpisode(null);
         setFocusedIndex(-1);
         setGuestFilter(null);
+        setCategoryFilter(null);
       }
     };
 
@@ -458,7 +501,7 @@ export default function LibraryPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [filtered, focusedIndex, selectedEpisode, selectedIds, handlePlay]);
 
-  const hasActiveFilters = showFilter !== "all" || guestFilter !== null || favoritesOnly;
+  const hasActiveFilters = showFilter !== "all" || guestFilter !== null || categoryFilter !== null || favoritesOnly;
 
   return (
     <div className="flex flex-col h-full">
@@ -529,6 +572,30 @@ export default function LibraryPage() {
               </div>
             )}
 
+            {/* Category filter chips */}
+            {categoryCounts.size > 0 && !search.trim() && (
+              <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
+                <span className="text-[8px] text-bevel-dark/50 flex-shrink-0">Cat:</span>
+                {Array.from(categoryCounts.entries())
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([cat, count]) => (
+                    <button
+                      key={cat}
+                      onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
+                      className={cn(
+                        "text-[9px] px-1.5 py-0.5 whitespace-nowrap cursor-pointer transition-colors-fast flex-shrink-0",
+                        categoryFilter === cat
+                          ? "bg-desert-amber/20 text-desert-amber w98-inset-dark"
+                          : "text-bevel-dark/70 hover:text-desktop-gray hover:bg-title-bar-blue/10",
+                      )}
+                    >
+                      {cat}
+                      <span className="ml-1 tabular-nums opacity-50">{count}</span>
+                    </button>
+                  ))}
+              </div>
+            )}
+
             {/* Active filter indicator */}
             {hasActiveFilters && (
               <div className="flex items-center gap-2 text-[9px]">
@@ -543,10 +610,22 @@ export default function LibraryPage() {
                     </button>
                   </span>
                 )}
+                {categoryFilter && (
+                  <span className="bg-desert-amber/15 text-desert-amber px-1.5 py-0.5 flex items-center gap-1">
+                    {categoryFilter}
+                    <button
+                      onClick={() => setCategoryFilter(null)}
+                      className="text-desert-amber/60 hover:text-desert-amber cursor-pointer"
+                    >
+                      x
+                    </button>
+                  </span>
+                )}
                 <button
                   onClick={() => {
                     setShowFilter("all");
                     setGuestFilter(null);
+                    setCategoryFilter(null);
                     setFavoritesOnly(false);
                   }}
                   className="text-bevel-dark hover:text-desktop-gray cursor-pointer ml-auto"
@@ -676,6 +755,65 @@ export default function LibraryPage() {
                       <span className="ml-1 tabular-nums opacity-50">{count}</span>
                     </button>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Categories */}
+            {categoryCounts.size > 0 && (
+              <div>
+                <div className="text-[9px] text-desert-amber uppercase tracking-wider mb-1.5 font-bold">
+                  Categories
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  {Array.from(categoryCounts.entries())
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([cat, count]) => (
+                      <button
+                        key={cat}
+                        onClick={() => {
+                          setCategoryFilter(categoryFilter === cat ? null : cat);
+                          setShowFacets(false);
+                        }}
+                        className={cn(
+                          "text-left px-1.5 py-0.5 text-[9px] cursor-pointer transition-colors-fast truncate",
+                          categoryFilter === cat
+                            ? "bg-desert-amber/15 text-desert-amber"
+                            : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10",
+                        )}
+                      >
+                        {cat}
+                        <span className="ml-1 tabular-nums opacity-50">{count}</span>
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Series */}
+            {seriesCounts.size > 0 && (
+              <div>
+                <div className="text-[9px] text-desert-amber uppercase tracking-wider mb-1.5 font-bold">
+                  Series
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  {Array.from(seriesCounts.entries())
+                    .filter(([, count]) => count >= 2)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 20)
+                    .map(([series, count]) => (
+                      <button
+                        key={series}
+                        onClick={() => {
+                          setSearch(`series:${series.replace(/\s+/g, "_")}`);
+                          setShowFacets(false);
+                        }}
+                        className="text-left px-1.5 py-0.5 text-[9px] text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10 cursor-pointer transition-colors-fast truncate"
+                      >
+                        {series}
+                        <span className="ml-1 tabular-nums opacity-50">{count} parts</span>
+                      </button>
+                    ))}
                 </div>
               </div>
             )}

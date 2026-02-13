@@ -37,6 +37,10 @@ export interface Episode {
   // AI enrichment
   aiSummary?: string;
   aiTags?: string[];
+  aiCategory?: string;           // High-level subject: "UFOs & Aliens", "Paranormal", etc.
+  aiSeries?: string;             // Series name for multi-part episodes (e.g. "Mel's Hole")
+  aiSeriesPart?: number;         // Part number within a series
+  aiNotable?: boolean;           // Flagged as particularly famous/iconic episode
   aiStatus?: "pending" | "completed" | "failed";
 
   // User actions
