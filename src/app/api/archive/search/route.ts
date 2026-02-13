@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const q = searchParams.get("q") ?? "";
+  const rawQ = searchParams.get("q") ?? "";
   const page = parseInt(searchParams.get("page") ?? "1", 10);
   const rows = parseInt(searchParams.get("rows") ?? "30", 10);
 
-  if (!q.trim()) {
+  // Sanitize: strip special chars, enforce min length
+  const q = rawQ.replace(/['"\\<>]/g, "").trim();
+  if (q.length < 2) {
     return NextResponse.json({ numFound: 0, docs: [] });
   }
 

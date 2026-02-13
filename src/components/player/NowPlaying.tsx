@@ -30,7 +30,7 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
           : "";
 
   return (
-    <div className={cn("flex flex-col gap-0.5 min-w-0", className)}>
+    <div className={cn("flex flex-col gap-0.5 min-w-0", className)} aria-live="polite">
       <div className="text-[11px] text-desktop-gray font-bold truncate">
         {displayTitle}
       </div>

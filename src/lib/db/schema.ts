@@ -36,6 +36,7 @@ export interface Episode {
   // AI enrichment
   aiSummary?: string;
   aiTags?: string[];
+  aiStatus?: "pending" | "completed" | "failed";
 
   // Housekeeping
   scanSessionId?: number;

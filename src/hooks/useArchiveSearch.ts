@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { useSearchStore } from "@/stores/search-store";
 import { searchArchive, getArchiveItem, getStreamUrl, pickBestAudioFile } from "@/lib/archive/client";
+import { fetchWithRetry } from "@/lib/utils/retry";
 import { db } from "@/lib/db";
 import type { Episode } from "@/lib/db/schema";
 import type { ArchiveSearchResult } from "@/lib/archive/types";
@@ -74,6 +75,7 @@ export function useArchiveSearch() {
         source: "archive",
         sourceUrl: streamUrl,
         archiveIdentifier: result.identifier,
+        aiStatus: "pending",
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -94,8 +96,15 @@ export function useArchiveSearch() {
     const newResults = results.filter(
       (r) => !store.addedIds.has(r.identifier) && !store.addingIds.has(r.identifier),
     );
-    for (const result of newResults) {
-      await addToLibrary(result);
+
+    // Batch into chunks of 10 with 1s delay between chunks
+    const chunkSize = 10;
+    for (let i = 0; i < newResults.length; i += chunkSize) {
+      const chunk = newResults.slice(i, i + chunkSize);
+      await Promise.all(chunk.map((result) => addToLibrary(result)));
+      if (i + chunkSize < newResults.length) {
+        await new Promise((r) => setTimeout(r, 1000));
+      }
     }
   }, [store.addedIds, store.addingIds, addToLibrary]);
 
@@ -109,7 +118,12 @@ export function useArchiveSearch() {
 
 async function categorizeEpisode(episode: Episode) {
   try {
-    const res = await fetch("/api/categorize", {
+    // Set pending status
+    if (episode.id) {
+      await db.episodes.update(episode.id, { aiStatus: "pending", updatedAt: Date.now() });
+    }
+
+    const res = await fetchWithRetry("/api/categorize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -120,9 +134,14 @@ async function categorizeEpisode(episode: Episode) {
           guestName: episode.guestName,
         }],
       }),
-    });
+    }, { retries: 1 });
 
-    if (!res.ok) return;
+    if (!res.ok) {
+      if (episode.id) {
+        await db.episodes.update(episode.id, { aiStatus: "failed", updatedAt: Date.now() });
+      }
+      return;
+    }
 
     const results = await res.json();
     if (Array.isArray(results) && results[0] && episode.id) {
@@ -132,10 +151,14 @@ async function categorizeEpisode(episode: Episode) {
         aiTags: tags ?? undefined,
         topic: topic ?? episode.topic,
         guestName: guestName ?? episode.guestName,
+        aiStatus: "completed",
         updatedAt: Date.now(),
       });
     }
   } catch (err) {
     console.error("[categorize] Failed:", err);
+    if (episode.id) {
+      await db.episodes.update(episode.id, { aiStatus: "failed", updatedAt: Date.now() });
+    }
   }
 }

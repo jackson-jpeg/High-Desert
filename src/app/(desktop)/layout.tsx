@@ -8,17 +8,19 @@ import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { usePlayerStore } from "@/stores/player-store";
 import { db, getPreference, setPreference } from "@/lib/db";
 import type { Episode } from "@/lib/db/schema";
+import { getCachedAudio } from "@/lib/audio/cache";
 
 export default function DesktopLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { playEpisode, togglePlay, seek } = useAudioPlayer();
+  const { playEpisode, togglePlay, seek, playNext, playPrevious } = useAudioPlayer();
   const position = usePlayerStore((s) => s.position);
   const volume = usePlayerStore((s) => s.volume);
   const setVolume = usePlayerStore((s) => s.setVolume);
   const playing = usePlayerStore((s) => s.playing);
+  const enqueue = usePlayerStore((s) => s.enqueue);
 
   // Restore volume from prefs on mount
   useEffect(() => {
@@ -37,6 +39,9 @@ export default function DesktopLayout({
     const handler = async (e: Event) => {
       const episode = (e as CustomEvent<Episode>).detail;
 
+      // Also enqueue so manually-played episodes enter the queue
+      enqueue(episode);
+
       // Archive episodes stream directly — no file picker needed
       if (episode.sourceUrl) {
         try {
@@ -47,7 +52,18 @@ export default function DesktopLayout({
         return;
       }
 
-      // For local files, open a file picker
+      // For local files, check OPFS cache first
+      try {
+        const cached = await getCachedAudio(episode.fileHash);
+        if (cached) {
+          await playEpisode(episode, new File([cached], episode.fileName, { type: "audio/mpeg" }));
+          return;
+        }
+      } catch {
+        // OPFS not available, fall through to file picker
+      }
+
+      // Open a file picker as fallback
       try {
         const input = document.createElement("input");
         input.type = "file";
@@ -73,7 +89,16 @@ export default function DesktopLayout({
 
     window.addEventListener("hd:play-episode", handler);
     return () => window.removeEventListener("hd:play-episode", handler);
-  }, [playEpisode]);
+  }, [playEpisode, enqueue]);
+
+  // Persist last-episode-id whenever currentEpisode changes
+  useEffect(() => {
+    return usePlayerStore.subscribe((state, prevState) => {
+      if (state.currentEpisode?.id !== prevState.currentEpisode?.id && state.currentEpisode?.id) {
+        setPreference("last-episode-id", String(state.currentEpisode.id));
+      }
+    });
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -102,19 +127,48 @@ export default function DesktopLayout({
           seek(position + 30);
           break;
         case "ArrowUp":
-          e.preventDefault();
-          setVolume(Math.min(1, volume + 0.05));
+          if (!e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            setVolume(Math.min(1, volume + 0.05));
+          }
           break;
         case "ArrowDown":
-          e.preventDefault();
-          setVolume(Math.max(0, volume - 0.05));
+          if (!e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            setVolume(Math.max(0, volume - 0.05));
+          }
+          break;
+        case "KeyN":
+          if (!e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            playNext();
+          }
+          break;
+        case "KeyP":
+          if (!e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            playPrevious();
+          }
+          break;
+        case "KeyM":
+          if (!e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            setVolume(volume > 0 ? 0 : 0.8);
+          }
+          break;
+        case "Slash":
+        case "KeyF":
+          if (e.ctrlKey || e.metaKey || e.code === "Slash") {
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent("hd:focus-search"));
+          }
           break;
       }
     };
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [togglePlay, seek, position, volume, setVolume]);
+  }, [togglePlay, seek, position, volume, setVolume, playNext, playPrevious]);
 
   // Episode count for status bar — handled via DesktopShell's episodeCount prop
   const episodeCount = useLiveQuery(() => db.episodes.count(), []);

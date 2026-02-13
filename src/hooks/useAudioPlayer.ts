@@ -33,6 +33,12 @@ export function useAudioPlayer() {
 
   // Get or create the shared audio element
   const getAudio = useCallback((): HTMLAudioElement => {
+    // Reuse the engine's existing element if available (handles multiple hook instances)
+    const existing = getMediaElement();
+    if (existing) {
+      audioRef.current = existing;
+      return existing;
+    }
     if (!audioRef.current) {
       audioRef.current = new Audio();
       audioRef.current.preload = "metadata";
@@ -113,6 +119,40 @@ export function useAudioPlayer() {
     stop();
   }, [getAudio, stop]);
 
+  // Play next track in queue
+  const playNext = useCallback(() => {
+    const nextEp = usePlayerStore.getState().next();
+    if (nextEp) {
+      usePlayerStore.getState().playFromQueue(
+        usePlayerStore.getState().queueIndex + 1,
+      );
+      window.dispatchEvent(
+        new CustomEvent("hd:play-episode", { detail: nextEp }),
+      );
+    }
+  }, []);
+
+  // Play previous track (restart if >3s in, otherwise go back)
+  const playPrevious = useCallback(() => {
+    const state = usePlayerStore.getState();
+    if (state.position > 3) {
+      // Restart current track
+      const audio = getAudio();
+      if (audio.src) {
+        audio.currentTime = 0;
+        state.setPosition(0);
+      }
+      return;
+    }
+    const prevEp = state.previous();
+    if (prevEp) {
+      state.playFromQueue(state.queueIndex - 1);
+      window.dispatchEvent(
+        new CustomEvent("hd:play-episode", { detail: prevEp }),
+      );
+    }
+  }, [getAudio]);
+
   // Sync volume to engine
   useEffect(() => {
     setEngineVolume(volume);
@@ -145,7 +185,19 @@ export function useAudioPlayer() {
   useEffect(() => {
     const audio = getAudio();
 
-    const onEnded = () => setPlaying(false);
+    const onEnded = () => {
+      const nextEp = usePlayerStore.getState().next();
+      if (nextEp) {
+        usePlayerStore.getState().playFromQueue(
+          usePlayerStore.getState().queueIndex + 1,
+        );
+        window.dispatchEvent(
+          new CustomEvent("hd:play-episode", { detail: nextEp }),
+        );
+      } else {
+        setPlaying(false);
+      }
+    };
     const onLoadedMetadata = () => {
       setDuration(audio.duration);
     };
@@ -196,6 +248,8 @@ export function useAudioPlayer() {
     togglePlay,
     seek,
     stopPlayback,
+    playNext,
+    playPrevious,
     audioRef,
     currentEpisode,
     objectUrl,

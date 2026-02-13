@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { Oscilloscope } from "./Oscilloscope";
 import { PlaybackControls } from "./PlaybackControls";
 import { NowPlaying } from "./NowPlaying";
+import { QueuePanel } from "./QueuePanel";
 import { cn } from "@/lib/utils/cn";
 
 interface AudioPlayerProps {
@@ -12,12 +14,14 @@ interface AudioPlayerProps {
 }
 
 export function AudioPlayer({ className }: AudioPlayerProps) {
-  const { togglePlay, seek, stopPlayback } = useAudioPlayer();
+  const { togglePlay, seek, stopPlayback, playNext, playPrevious } = useAudioPlayer();
   const currentEpisode = usePlayerStore((s) => s.currentEpisode);
   const mini = usePlayerStore((s) => s.mini);
   const error = usePlayerStore((s) => s.error);
   const toggleMini = usePlayerStore((s) => s.toggleMini);
   const clearError = usePlayerStore((s) => s.setError);
+  const queueLength = usePlayerStore((s) => s.queue.length);
+  const [showQueue, setShowQueue] = useState(false);
 
   if (!currentEpisode) return null;
 
@@ -45,8 +49,23 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
             onTogglePlay={togglePlay}
             onSeek={seek}
             onStop={stopPlayback}
-            className="flex-shrink-0 w-[280px]"
+            onPrevious={playPrevious}
+            onNext={playNext}
+            className="flex-shrink-0 w-[340px]"
           />
+          <button
+            onClick={() => setShowQueue(!showQueue)}
+            className={cn(
+              "text-[10px] cursor-pointer ml-1",
+              showQueue ? "text-desert-amber" : "text-bevel-dark hover:text-desktop-gray",
+            )}
+            title="Queue"
+          >
+            {"\u2630"}
+            {queueLength > 0 && (
+              <span className="text-[8px] ml-0.5 text-bevel-dark">{queueLength}</span>
+            )}
+          </button>
           <button
             onClick={toggleMini}
             className="text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer ml-1"
@@ -55,6 +74,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
             {"\u25B2"}
           </button>
         </div>
+        {showQueue && <QueuePanel />}
       </div>
     );
   }
@@ -71,21 +91,39 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
       <div className="p-3 flex flex-col gap-3">
       <div className="flex items-start justify-between">
         <NowPlaying expanded />
-        <button
-          onClick={toggleMini}
-          className="text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer"
-          title="Minimize player"
-        >
-          {"\u25BC"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowQueue(!showQueue)}
+            className={cn(
+              "text-[10px] cursor-pointer",
+              showQueue ? "text-desert-amber" : "text-bevel-dark hover:text-desktop-gray",
+            )}
+            title="Queue"
+          >
+            {"\u2630"}
+            {queueLength > 0 && (
+              <span className="text-[8px] ml-0.5 text-bevel-dark">{queueLength}</span>
+            )}
+          </button>
+          <button
+            onClick={toggleMini}
+            className="text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer"
+            title="Minimize player"
+          >
+            {"\u25BC"}
+          </button>
+        </div>
       </div>
       <Oscilloscope className="w-full h-[80px] rounded-sm" />
       <PlaybackControls
         onTogglePlay={togglePlay}
         onSeek={seek}
         onStop={stopPlayback}
+        onPrevious={playPrevious}
+        onNext={playNext}
       />
       </div>
+      {showQueue && <QueuePanel />}
     </div>
   );
 }

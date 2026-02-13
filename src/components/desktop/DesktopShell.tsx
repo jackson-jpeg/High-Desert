@@ -2,10 +2,12 @@
 
 import { cn } from "@/lib/utils/cn";
 import { MenuBar, StatusBar, Dialog, Button } from "@/components/win98";
+import { ContextMenu } from "@/components/win98/ContextMenu";
 import type { Menu } from "@/components/win98";
 import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useCallback, useState } from "react";
 import { db } from "@/lib/db";
+import { clearAudioCache, getCacheSize } from "@/lib/audio/cache";
 
 interface DesktopShellProps {
   children: ReactNode;
@@ -26,6 +28,13 @@ const SHORTCUTS = [
   { keys: "\u2192", action: "Seek forward 30s" },
   { keys: "\u2191", action: "Volume up" },
   { keys: "\u2193", action: "Volume down" },
+  { keys: "N", action: "Next track" },
+  { keys: "P", action: "Previous track" },
+  { keys: "M", action: "Mute / Unmute" },
+  { keys: "/ or Ctrl+F", action: "Focus search" },
+  { keys: "Enter", action: "Play selected" },
+  { keys: "Delete", action: "Delete selected" },
+  { keys: "Escape", action: "Clear selection" },
 ];
 
 export function DesktopShell({ children, player, episodeCount = 0, className }: DesktopShellProps) {
@@ -35,6 +44,9 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [clearCacheOpen, setClearCacheOpen] = useState(false);
+  const [cacheSize, setCacheSize] = useState<number | null>(null);
+  const [clearingCache, setClearingCache] = useState(false);
 
   const handleAbout = useCallback(() => setAboutOpen(true), []);
   const handleCloseAbout = useCallback(() => setAboutOpen(false), []);
@@ -49,6 +61,23 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     } finally {
       setClearing(false);
       setClearOpen(false);
+    }
+  }, []);
+
+  const handleOpenClearCache = useCallback(async () => {
+    setClearCacheOpen(true);
+    const size = await getCacheSize();
+    setCacheSize(size);
+  }, []);
+
+  const handleClearCache = useCallback(async () => {
+    setClearingCache(true);
+    try {
+      await clearAudioCache();
+    } finally {
+      setClearingCache(false);
+      setClearCacheOpen(false);
+      setCacheSize(null);
     }
   }, []);
 
@@ -84,7 +113,12 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           label: "Search Archive...",
           onClick: () => router.push("/search"),
         },
+        {
+          label: "Import Catalog...",
+          onClick: () => router.push("/scanner"),
+        },
         { separator: true, label: "" },
+        { label: "Clear Audio Cache...", onClick: handleOpenClearCache },
         { label: "Clear Library...", onClick: () => setClearOpen(true) },
       ],
     },
@@ -145,6 +179,9 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         className="flex-shrink-0"
       />
 
+      {/* Global context menu */}
+      <ContextMenu />
+
       {/* About dialog */}
       <Dialog
         open={aboutOpen}
@@ -160,7 +197,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             Art Bell Radio Archive
           </div>
           <div className="text-xs text-bevel-dark">
-            v0.2.0 &mdash; The Midnight Desert
+            v0.3.0 &mdash; The Listening Experience
           </div>
           <Button onClick={handleCloseAbout}>OK</Button>
         </div>
@@ -205,6 +242,31 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             <Button onClick={() => setClearOpen(false)}>Cancel</Button>
             <Button variant="dark" onClick={handleClearLibrary} disabled={clearing}>
               {clearing ? "Clearing..." : "Clear"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Clear audio cache confirmation */}
+      <Dialog
+        open={clearCacheOpen}
+        onClose={() => setClearCacheOpen(false)}
+        title="Clear Audio Cache"
+        width="320px"
+      >
+        <div className="p-4 flex flex-col gap-4">
+          <div className="text-[11px] text-desktop-gray">
+            Remove all cached audio files from local storage?
+            {cacheSize != null && (
+              <span className="block mt-1 text-bevel-dark">
+                Cache size: {(cacheSize / 1024 / 1024).toFixed(1)} MB
+              </span>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button onClick={() => setClearCacheOpen(false)}>Cancel</Button>
+            <Button variant="dark" onClick={handleClearCache} disabled={clearingCache}>
+              {clearingCache ? "Clearing..." : "Clear Cache"}
             </Button>
           </div>
         </div>

@@ -24,6 +24,13 @@ class HighDesertDB extends Dexie {
       scanSessions: "++id, status, startedAt",
       userPrefs: "++id, &key",
     });
+
+    this.version(3).stores({
+      episodes:
+        "++id, fileHash, airDate, guestName, showType, fileName, scanSessionId, createdAt, archiveIdentifier, lastPlayedAt, aiStatus, *aiTags",
+      scanSessions: "++id, status, startedAt",
+      userPrefs: "++id, &key",
+    });
   }
 }
 

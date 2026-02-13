@@ -41,6 +41,8 @@ export function Dialog({
       <div
         className={cn("relative animate-dialog", className)}
         style={{ width, maxWidth: "90vw" }}
+        role="alertdialog"
+        aria-modal="true"
       >
         <Window onClose={onClose} {...windowProps}>
           {children}

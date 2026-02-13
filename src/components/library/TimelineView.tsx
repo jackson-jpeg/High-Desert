@@ -1,7 +1,9 @@
 "use client";
 
+import { useRef, useMemo } from "react";
 import type { Episode } from "@/lib/db/schema";
 import { EpisodeCard } from "./EpisodeCard";
+import { useVirtualList } from "@/hooks/useVirtualList";
 import { cn } from "@/lib/utils/cn";
 
 interface TimelineViewProps {
@@ -10,30 +12,12 @@ interface TimelineViewProps {
   selectedEpisodeId?: number;
   onEpisodeClick: (episode: Episode) => void;
   onEpisodeDoubleClick?: (episode: Episode) => void;
+  onEpisodeContextMenu?: (episode: Episode, x: number, y: number) => void;
   onAction?: (action: "scan" | "search") => void;
   className?: string;
 }
 
-interface YearGroup {
-  year: string;
-  episodes: Episode[];
-}
-
-function groupByYear(episodes: Episode[]): YearGroup[] {
-  const groups = new Map<string, Episode[]>();
-
-  for (const ep of episodes) {
-    const year = ep.airDate ? ep.airDate.slice(0, 4) : "Unknown";
-    const list = groups.get(year) ?? [];
-    list.push(ep);
-    groups.set(year, list);
-  }
-
-  // Sort years descending
-  return Array.from(groups.entries())
-    .sort(([a], [b]) => (b === "Unknown" ? -1 : a === "Unknown" ? 1 : b.localeCompare(a)))
-    .map(([year, episodes]) => ({ year, episodes }));
-}
+const ITEM_HEIGHT = 82; // approximate height of EpisodeCard + gap
 
 export function TimelineView({
   episodes,
@@ -41,10 +25,35 @@ export function TimelineView({
   selectedEpisodeId,
   onEpisodeClick,
   onEpisodeDoubleClick,
+  onEpisodeContextMenu,
   onAction,
   className,
 }: TimelineViewProps) {
-  const groups = groupByYear(episodes);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const { virtualItems, totalHeight, onScroll } = useVirtualList({
+    items: episodes,
+    itemHeight: ITEM_HEIGHT,
+    containerRef,
+    overscan: 5,
+  });
+
+  // Derive current year header from first visible episode
+  const currentYear = useMemo(() => {
+    if (virtualItems.length === 0) return null;
+    const firstEp = virtualItems[0].item;
+    return firstEp.airDate ? firstEp.airDate.slice(0, 4) : "Unknown";
+  }, [virtualItems]);
+
+  // Count episodes per year for header badge
+  const yearCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const ep of episodes) {
+      const year = ep.airDate ? ep.airDate.slice(0, 4) : "Unknown";
+      counts.set(year, (counts.get(year) ?? 0) + 1);
+    }
+    return counts;
+  }, [episodes]);
 
   if (episodes.length === 0) {
     return (
@@ -80,36 +89,44 @@ export function TimelineView({
   }
 
   return (
-    <div className={cn("flex flex-col", className)}>
-      {groups.map(({ year, episodes: yearEpisodes }) => (
-        <div key={year}>
-          {/* Sticky year header */}
-          <div className="sticky top-0 z-10 bg-midnight/95 backdrop-blur-sm px-4 py-2 border-b border-bevel-dark/20">
-            <span className="text-[12px] text-desert-amber font-bold">
-              {year}
-            </span>
-            <span className="text-[10px] text-bevel-dark ml-2">
-              ({yearEpisodes.length} episodes)
-            </span>
-          </div>
+    <div className={cn("flex flex-col h-full", className)}>
+      {/* Sticky year header */}
+      {currentYear && (
+        <div className="sticky top-0 z-10 bg-midnight/95 backdrop-blur-sm px-4 py-2 border-b border-bevel-dark/20">
+          <span className="text-[12px] text-desert-amber font-bold">
+            {currentYear}
+          </span>
+          <span className="text-[10px] text-bevel-dark ml-2">
+            ({yearCounts.get(currentYear) ?? 0} episodes)
+          </span>
+        </div>
+      )}
 
-          {/* Episode cards */}
-          <div className="flex flex-col gap-[3px] p-2">
-            {yearEpisodes.map((ep, i) => (
+      {/* Virtual scrolling container */}
+      <div
+        ref={containerRef}
+        onScroll={onScroll}
+        className="flex-1 overflow-auto"
+      >
+        <div className="relative p-2" role="listbox" aria-label="Episodes" style={{ height: totalHeight }}>
+          {virtualItems.map(({ item: ep, index, offsetTop }) => (
+            <div
+              key={ep.id}
+              className="absolute left-2 right-2"
+              style={{ top: offsetTop, height: ITEM_HEIGHT }}
+            >
               <EpisodeCard
-                key={ep.id}
                 episode={ep}
                 isPlaying={ep.id === currentEpisodeId}
                 isSelected={ep.id === selectedEpisodeId}
                 onClick={onEpisodeClick}
                 onDoubleClick={onEpisodeDoubleClick}
-                style={{ "--i": i } as React.CSSProperties}
-                className="animate-stagger"
+                onContextMenu={onEpisodeContextMenu}
               />
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
     </div>
   );
 }

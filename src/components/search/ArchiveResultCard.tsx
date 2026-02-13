@@ -9,6 +9,7 @@ interface ArchiveResultCardProps {
   isAdding: boolean;
   isAdded: boolean;
   onAdd: (result: ArchiveSearchResult) => void;
+  onContextMenu?: (result: ArchiveSearchResult, x: number, y: number) => void;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -18,6 +19,7 @@ export function ArchiveResultCard({
   isAdding,
   isAdded,
   onAdd,
+  onContextMenu,
   className,
   style,
 }: ArchiveResultCardProps) {
@@ -28,9 +30,17 @@ export function ArchiveResultCard({
     ? result.description.replace(/<[^>]*>/g, "").substring(0, 200)
     : null;
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (onContextMenu) {
+      e.preventDefault();
+      onContextMenu(result, e.clientX, e.clientY);
+    }
+  };
+
   return (
     <div
       style={style}
+      onContextMenu={handleContextMenu}
       className={cn(
         "p-3 w98-raised-dark bg-card-surface flex flex-col gap-1",
         "hover:bg-title-bar-blue/10 transition-colors-fast",

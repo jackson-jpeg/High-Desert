@@ -2,6 +2,7 @@
 
 import type { Episode } from "@/lib/db/schema";
 import { Button } from "@/components/win98";
+import { usePlayerStore } from "@/stores/player-store";
 import { cn } from "@/lib/utils/cn";
 
 interface EpisodeDetailProps {
@@ -136,8 +137,8 @@ export function EpisodeDetail({
           </div>
         )}
 
-        {/* Play button */}
-        <div className="pt-1">
+        {/* Play buttons */}
+        <div className="pt-1 flex items-center gap-2">
           <Button
             variant="dark"
             size="sm"
@@ -145,6 +146,21 @@ export function EpisodeDetail({
             disabled={isPlaying}
           >
             {isPlaying ? "Playing" : "Play"}
+          </Button>
+          <Button
+            variant="dark"
+            size="sm"
+            onClick={() => usePlayerStore.getState().enqueueNext(episode)}
+            disabled={isPlaying}
+          >
+            Play Next
+          </Button>
+          <Button
+            variant="dark"
+            size="sm"
+            onClick={() => usePlayerStore.getState().enqueue(episode)}
+          >
+            Queue
           </Button>
         </div>
       </div>

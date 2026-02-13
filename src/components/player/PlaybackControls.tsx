@@ -8,6 +8,8 @@ interface PlaybackControlsProps {
   onTogglePlay: () => void;
   onSeek: (seconds: number) => void;
   onStop: () => void;
+  onPrevious?: () => void;
+  onNext?: () => void;
   className?: string;
 }
 
@@ -15,6 +17,8 @@ export function PlaybackControls({
   onTogglePlay,
   onSeek,
   onStop,
+  onPrevious,
+  onNext,
   className,
 }: PlaybackControlsProps) {
   const playing = usePlayerStore((s) => s.playing);
@@ -24,6 +28,8 @@ export function PlaybackControls({
   const setVolume = usePlayerStore((s) => s.setVolume);
   const playbackRate = usePlayerStore((s) => s.playbackRate);
   const setPlaybackRate = usePlayerStore((s) => s.setPlaybackRate);
+  const hasPrev = usePlayerStore((s) => s.hasPrevious());
+  const hasNext = usePlayerStore((s) => s.hasNext());
 
   const handleSeekBack = () => onSeek(position - 15);
   const handleSeekForward = () => onSeek(position + 30);
@@ -55,6 +61,12 @@ export function PlaybackControls({
           max={duration || 0}
           value={position}
           onChange={handleScrub}
+          role="slider"
+          aria-label="Seek position"
+          aria-valuemin={0}
+          aria-valuemax={duration || 0}
+          aria-valuenow={position}
+          aria-valuetext={formatTime(position)}
           className="flex-1 h-[6px] w98-range-dark cursor-pointer"
         />
         <span className="w-[45px] tabular-nums">{formatTime(duration)}</span>
@@ -62,23 +74,34 @@ export function PlaybackControls({
 
       {/* Transport buttons */}
       <div className="flex items-center gap-2 justify-center">
-        <Button variant="dark" size="sm" onClick={handleSeekBack} title="Back 15s">
+        {onPrevious && (
+          <Button variant="dark" size="sm" onClick={onPrevious} disabled={!hasPrev} title="Previous" aria-label="Previous track">
+            |&laquo;
+          </Button>
+        )}
+        <Button variant="dark" size="sm" onClick={handleSeekBack} title="Back 15s" aria-label="Seek back 15 seconds">
           -15
         </Button>
-        <Button variant="dark" size="sm" onClick={onStop} title="Stop">
+        <Button variant="dark" size="sm" onClick={onStop} title="Stop" aria-label="Stop playback">
           {"\u25A0"}
         </Button>
         <Button
           variant="dark"
           onClick={onTogglePlay}
           title={playing ? "Pause" : "Play"}
+          aria-label={playing ? "Pause" : "Play"}
         >
           {playing ? "\u275A\u275A" : "\u25B6"}
         </Button>
-        <Button variant="dark" size="sm" onClick={handleSeekForward} title="Forward 30s">
+        <Button variant="dark" size="sm" onClick={handleSeekForward} title="Forward 30s" aria-label="Seek forward 30 seconds">
           +30
         </Button>
-        <Button variant="dark" size="sm" onClick={cycleRate} title="Speed">
+        {onNext && (
+          <Button variant="dark" size="sm" onClick={onNext} disabled={!hasNext} title="Next" aria-label="Next track">
+            &raquo;|
+          </Button>
+        )}
+        <Button variant="dark" size="sm" onClick={cycleRate} title="Speed" aria-label={`Playback speed ${playbackRate}x`}>
           {playbackRate}x
         </Button>
       </div>
@@ -93,6 +116,12 @@ export function PlaybackControls({
           step={0.05}
           value={volume}
           onChange={handleVolumeChange}
+          role="slider"
+          aria-label="Volume"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(volume * 100)}
+          aria-valuetext={`${Math.round(volume * 100)}%`}
           className="flex-1 h-[4px] w98-range-dark cursor-pointer"
         />
         <span className="w-[28px] tabular-nums">

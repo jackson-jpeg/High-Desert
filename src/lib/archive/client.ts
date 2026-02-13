@@ -1,4 +1,5 @@
 import type { ArchiveSearchResult, ArchiveItem, ArchiveFile } from "./types";
+import { fetchWithRetry } from "@/lib/utils/retry";
 
 interface SearchResponse {
   numFound: number;
@@ -15,13 +16,13 @@ export async function searchArchive(
     page: String(page),
     rows: String(rows),
   });
-  const res = await fetch(`/api/archive/search?${params.toString()}`);
+  const res = await fetchWithRetry(`/api/archive/search?${params.toString()}`);
   if (!res.ok) throw new Error("Search failed");
   return res.json();
 }
 
 export async function getArchiveItem(identifier: string): Promise<ArchiveItem> {
-  const res = await fetch(`/api/archive/metadata?id=${encodeURIComponent(identifier)}`);
+  const res = await fetchWithRetry(`/api/archive/metadata?id=${encodeURIComponent(identifier)}`);
   if (!res.ok) throw new Error("Metadata fetch failed");
   return res.json();
 }

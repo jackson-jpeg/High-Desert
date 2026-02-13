@@ -5,6 +5,7 @@ import { useScannerStore } from "@/stores/scanner-store";
 import { FolderPicker } from "@/components/scanner/FolderPicker";
 import { ScanProgress } from "@/components/scanner/ScanProgress";
 import { ScanResults } from "@/components/scanner/ScanResults";
+import { CatalogScraper } from "@/components/scraper/CatalogScraper";
 
 export default function ScannerPage() {
   const { startScan, startScanFallback, cancelScan, supportsNativePicker } =
@@ -30,6 +31,9 @@ export default function ScannerPage() {
 
       {/* Results table */}
       {hasResults && <ScanResults />}
+
+      {/* Catalog scraper */}
+      <CatalogScraper />
     </div>
   );
 }

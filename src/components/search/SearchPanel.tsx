@@ -4,6 +4,8 @@ import { useCallback, useState, type FormEvent } from "react";
 import { Window, TextField, Button } from "@/components/win98";
 import { ArchiveResultCard } from "./ArchiveResultCard";
 import { useArchiveSearch } from "@/hooks/useArchiveSearch";
+import { useContextMenuStore } from "@/stores/context-menu-store";
+import type { ArchiveSearchResult } from "@/lib/archive/types";
 
 function LoadingSkeleton() {
   return (
@@ -89,6 +91,35 @@ export function SearchPanel() {
     if (query && page > 1) search(query, page - 1);
   }, [query, page, search]);
 
+  const handleResultContextMenu = useCallback((result: ArchiveSearchResult, x: number, y: number) => {
+    const isAdded = addedIds.has(result.identifier);
+    useContextMenuStore.getState().show(x, y, [
+      {
+        label: "Add to Library",
+        onClick: () => addToLibrary(result),
+        disabled: isAdded,
+      },
+      {
+        label: "Add to Library & Play",
+        onClick: async () => {
+          await addToLibrary(result);
+          // The episode will be in the DB after addToLibrary, play it via search
+          const { db } = await import("@/lib/db");
+          const episode = await db.episodes
+            .where("archiveIdentifier")
+            .equals(result.identifier)
+            .first();
+          if (episode) {
+            window.dispatchEvent(
+              new CustomEvent("hd:play-episode", { detail: episode }),
+            );
+          }
+        },
+        disabled: isAdded,
+      },
+    ]);
+  }, [addedIds, addToLibrary]);
+
   const newCount = results.filter((r) => !addedIds.has(r.identifier)).length;
   const hasMore = page * 30 < totalResults;
   const hasSearched = query.length > 0;
@@ -152,6 +183,7 @@ export function SearchPanel() {
                   isAdding={addingIds.has(result.identifier)}
                   isAdded={addedIds.has(result.identifier)}
                   onAdd={addToLibrary}
+                  onContextMenu={handleResultContextMenu}
                   style={{ "--i": i } as React.CSSProperties}
                   className="animate-stagger"
                 />

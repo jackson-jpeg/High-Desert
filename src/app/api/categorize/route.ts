@@ -10,6 +10,8 @@ interface EpisodeInput {
   guestName?: string;
 }
 
+const MAX_BATCH_SIZE = 10;
+
 export async function POST(request: NextRequest) {
   if (!GEMINI_API_KEY) {
     return NextResponse.json({ error: "GEMINI_API_KEY not configured" }, { status: 500 });
@@ -19,6 +21,13 @@ export async function POST(request: NextRequest) {
 
   if (!episodes?.length) {
     return NextResponse.json({ error: "No episodes provided" }, { status: 400 });
+  }
+
+  if (episodes.length > MAX_BATCH_SIZE) {
+    return NextResponse.json(
+      { error: `Batch size exceeds maximum of ${MAX_BATCH_SIZE}` },
+      { status: 400 },
+    );
   }
 
   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
@@ -46,6 +55,15 @@ Respond ONLY with a valid JSON array.`;
 
     const text = response.text ?? "[]";
     const results = JSON.parse(text);
+
+    // Validate response shape
+    if (!Array.isArray(results) || results.length !== episodes.length) {
+      return NextResponse.json(
+        { error: "AI returned malformed response" },
+        { status: 502 },
+      );
+    }
+
     return NextResponse.json(results);
   } catch (err) {
     console.error("[categorize] Gemini error:", err);
