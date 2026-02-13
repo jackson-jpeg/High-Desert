@@ -6,6 +6,7 @@ import { Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
 import { toast } from "@/stores/toast-store";
 import { BookmarkList } from "@/components/player/BookmarkMarkers";
+import { MoreLikeThis } from "@/components/library/MoreLikeThis";
 import { cn } from "@/lib/utils/cn";
 import { formatDuration, formatTime, getShowLabel } from "@/lib/utils/format";
 
@@ -361,6 +362,9 @@ export function EpisodeDetail({
                 </button>
               )}
             </div>
+
+            {/* Recommendations */}
+            <MoreLikeThis episode={episode} onPlay={onPlay} />
           </>
         )}
       </div>

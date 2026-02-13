@@ -245,8 +245,17 @@ export default function DesktopLayout({
           }
           break;
         case "Slash":
+          if (e.shiftKey) {
+            // ? key = show shortcuts
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent("hd:toggle-shortcuts"));
+          } else {
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent("hd:focus-search"));
+          }
+          break;
         case "KeyF":
-          if (e.ctrlKey || e.metaKey || e.code === "Slash") {
+          if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
             window.dispatchEvent(new CustomEvent("hd:focus-search"));
           }

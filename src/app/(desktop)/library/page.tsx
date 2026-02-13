@@ -18,6 +18,7 @@ import { PlaylistPanel, addToPlaylist } from "@/components/library/PlaylistPanel
 import { OnThisDay } from "@/components/library/OnThisDay";
 import { SmartPlaylists } from "@/components/library/SmartPlaylists";
 import { Window, Dialog, Button } from "@/components/win98";
+import { parseSearch } from "@/lib/utils/search-parser";
 import { cn } from "@/lib/utils/cn";
 
 type SortMode = "date" | "name" | "guest";
@@ -95,6 +96,12 @@ export default function LibraryPage() {
 
   const allPlaylists = useLiveQuery(() => db.playlists.toArray(), []);
 
+  // Bookmarked episode IDs for has:bookmark search operator
+  const bookmarkedIds = useLiveQuery(
+    () => db.bookmarks.orderBy("episodeId").uniqueKeys().then((keys) => new Set(keys as number[])),
+    [],
+  );
+
   // Show type counts for filter tabs
   const showCounts = useMemo(() => {
     if (!allEpisodes) return new Map<ShowFilter, number>();
@@ -155,19 +162,55 @@ export default function LibraryPage() {
       list = list.filter((ep) => ep.guestName === guestFilter);
     }
 
-    // Search filter (includes aiTags)
+    // Search filter with operator support
     if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (ep) =>
-          ep.fileName.toLowerCase().includes(q) ||
-          ep.title?.toLowerCase().includes(q) ||
-          ep.guestName?.toLowerCase().includes(q) ||
-          ep.topic?.toLowerCase().includes(q) ||
-          ep.airDate?.includes(q) ||
-          ep.description?.toLowerCase().includes(q) ||
-          ep.aiTags?.some((tag) => tag.toLowerCase().includes(q)),
-      );
+      const parsed = parseSearch(search);
+
+      // Apply operators
+      if (parsed.guest) {
+        const g = parsed.guest;
+        list = list.filter((ep) => ep.guestName?.toLowerCase().includes(g));
+      }
+      if (parsed.year) {
+        const y = parsed.year;
+        list = list.filter((ep) => ep.airDate?.startsWith(y));
+      }
+      if (parsed.tag) {
+        const t = parsed.tag;
+        list = list.filter((ep) => ep.aiTags?.some((tag) => tag.toLowerCase().includes(t)));
+      }
+      if (parsed.show) {
+        const s = parsed.show;
+        list = list.filter((ep) => ep.showType === s);
+      }
+      if (parsed.has && parsed.has.length > 0) {
+        for (const h of parsed.has) {
+          if (h === "favorite" || h === "fav") {
+            list = list.filter((ep) => !!ep.favoritedAt);
+          } else if (h === "bookmark") {
+            list = list.filter((ep) => bookmarkedIds?.has(ep.id!));
+          } else if (h === "summary") {
+            list = list.filter((ep) => !!ep.aiSummary);
+          } else if (h === "played") {
+            list = list.filter((ep) => (ep.playCount ?? 0) > 0);
+          }
+        }
+      }
+
+      // Free-text search on remaining terms
+      if (parsed.text) {
+        const q = parsed.text.toLowerCase();
+        list = list.filter(
+          (ep) =>
+            ep.fileName.toLowerCase().includes(q) ||
+            ep.title?.toLowerCase().includes(q) ||
+            ep.guestName?.toLowerCase().includes(q) ||
+            ep.topic?.toLowerCase().includes(q) ||
+            ep.airDate?.includes(q) ||
+            ep.description?.toLowerCase().includes(q) ||
+            ep.aiTags?.some((tag) => tag.toLowerCase().includes(q)),
+        );
+      }
     }
 
     // Sort
@@ -187,7 +230,7 @@ export default function LibraryPage() {
     // "date" is already the default order from Dexie (airDate desc)
 
     return list;
-  }, [allEpisodes, search, sortMode, showFilter, guestFilter, favoritesOnly]);
+  }, [allEpisodes, search, sortMode, showFilter, guestFilter, favoritesOnly, bookmarkedIds]);
 
   const handleEpisodeClick = useCallback((episode: Episode, e: React.MouseEvent) => {
     if (e.shiftKey || e.metaKey || e.ctrlKey) {
@@ -553,9 +596,12 @@ export default function LibraryPage() {
             )}
             <OnThisDay onPlay={handlePlay} className="md:w-[220px] md:flex-shrink-0" />
             {(allPlaylists && allPlaylists.length > 0 || isAdmin) && (
-              <PlaylistPanel onPlayEpisode={handlePlay} className="hidden md:flex md:flex-col md:w-[200px] md:flex-shrink-0" />
+              <PlaylistPanel onPlayEpisode={handlePlay} className="md:w-[200px] md:flex-shrink-0" />
             )}
           </div>
+
+          {/* Smart Playlists — visible on mobile, hidden on desktop (shown on stats page) */}
+          <SmartPlaylists onPlay={handlePlay} className="md:hidden" />
 
           {/* Shuffle buttons */}
           {allEpisodes && allEpisodes.length > 5 && (

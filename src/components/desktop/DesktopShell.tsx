@@ -45,6 +45,7 @@ const SHORTCUTS = [
   { keys: "Enter", action: "Play selected" },
   { keys: "Delete", action: "Delete selected" },
   { keys: "Escape", action: "Clear selection" },
+  { keys: "?", action: "Show this dialog" },
 ];
 
 export function DesktopShell({ children, player, episodeCount = 0, className }: DesktopShellProps) {
@@ -87,6 +88,13 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const handleCloseAbout = useCallback(() => setAboutOpen(false), []);
   const handleShortcuts = useCallback(() => setShortcutsOpen(true), []);
   const handleCloseShortcuts = useCallback(() => setShortcutsOpen(false), []);
+
+  // Listen for ? key to toggle shortcuts
+  useEffect(() => {
+    const handler = () => setShortcutsOpen((prev) => !prev);
+    window.addEventListener("hd:toggle-shortcuts", handler);
+    return () => window.removeEventListener("hd:toggle-shortcuts", handler);
+  }, []);
 
   const handleClearLibrary = useCallback(async () => {
     setClearing(true);

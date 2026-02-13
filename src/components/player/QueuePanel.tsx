@@ -2,6 +2,9 @@
 
 import { useRef, useState } from "react";
 import { usePlayerStore } from "@/stores/player-store";
+import { useAdminStore } from "@/stores/admin-store";
+import { db } from "@/lib/db";
+import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
 
 export function QueuePanel() {
@@ -10,6 +13,22 @@ export function QueuePanel() {
   const removeFromQueue = usePlayerStore((s) => s.removeFromQueue);
   const moveInQueue = usePlayerStore((s) => s.moveInQueue);
   const clearQueue = usePlayerStore((s) => s.clearQueue);
+
+  const isAdmin = useAdminStore((s) => s.isAdmin);
+  const [savingPlaylist, setSavingPlaylist] = useState(false);
+  const [playlistName, setPlaylistName] = useState("");
+
+  const handleSaveAsPlaylist = async () => {
+    const name = playlistName.trim();
+    if (!name) return;
+    const episodeIds = queue.map((ep) => ep.id!).filter(Boolean);
+    if (episodeIds.length === 0) return;
+    const now = Date.now();
+    await db.playlists.add({ name, episodeIds, createdAt: now, updatedAt: now });
+    toast.success(`Saved "${name}" with ${episodeIds.length} tracks`);
+    setSavingPlaylist(false);
+    setPlaylistName("");
+  };
 
   // Drag-to-reorder state (desktop)
   const [dragFrom, setDragFrom] = useState<number | null>(null);
@@ -103,13 +122,53 @@ export function QueuePanel() {
             </span>
           )}
         </div>
-        <button
-          onClick={clearQueue}
-          className="text-[11px] md:text-[9px] text-bevel-dark/50 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center px-2"
-        >
-          Clear
-        </button>
+        <div className="flex items-center gap-1">
+          {isAdmin && !savingPlaylist && (
+            <button
+              onClick={() => setSavingPlaylist(true)}
+              className="text-[11px] md:text-[9px] text-bevel-dark/50 hover:text-desert-amber active:text-desert-amber cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center px-2"
+              title="Save queue as playlist"
+            >
+              Save
+            </button>
+          )}
+          <button
+            onClick={clearQueue}
+            className="text-[11px] md:text-[9px] text-bevel-dark/50 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center px-2"
+          >
+            Clear
+          </button>
+        </div>
       </div>
+      {savingPlaylist && (
+        <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-bevel-dark/15 bg-midnight/50">
+          <input
+            type="text"
+            value={playlistName}
+            onChange={(e) => setPlaylistName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSaveAsPlaylist();
+              if (e.key === "Escape") setSavingPlaylist(false);
+            }}
+            placeholder="Playlist name..."
+            autoFocus
+            className="flex-1 bg-inset-well w98-inset-dark px-1.5 py-0.5 text-[11px] md:text-[9px] text-desktop-gray outline-none"
+          />
+          <button
+            onClick={handleSaveAsPlaylist}
+            disabled={!playlistName.trim()}
+            className="text-[11px] md:text-[9px] text-static-green disabled:text-bevel-dark/30 cursor-pointer"
+          >
+            Save
+          </button>
+          <button
+            onClick={() => setSavingPlaylist(false)}
+            className="text-[11px] md:text-[9px] text-bevel-dark/50 cursor-pointer"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
       <div className="max-h-[240px] overflow-auto">
         {queue.map((ep, i) => {
           const isCurrent = i === queueIndex;
