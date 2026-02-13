@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# High Desert
+
+A desktop-grade web player for the Art Bell radio archive — late-night talk radio about UFOs, the paranormal, and the unexplained, broadcasting from the high desert of Pahrump, Nevada.
+
+**Live at [highdesert.app](https://highdesert.app)**
+
+## Features
+
+- **Windows 98 dark UI** — raised/inset bevels, title bars, context menus, and a system tray
+- **Glassmorphism on mobile** — frosted surfaces over an animated starfield
+- **Archive.org streaming** — browse and play thousands of episodes directly
+- **AI categorization** — Gemini-powered topic extraction, series detection, and guest identification
+- **Oscilloscope visualizer** — real-time Web Audio waveform in the player
+- **Keyboard navigation** — Space, arrows, N/P, M, / for search, ? for shortcut help
+- **Ratings & tags** — 5-star ratings with tag-based filtering
+- **Full-text search** — instant search across titles, guests, and descriptions
+- **Offline-first** — IndexedDB via Dexie with OPFS audio caching
+- **Deep links** — share episodes via `?episode=ID`
+
+## Tech Stack
+
+- **Next.js 16** (App Router) + **React 19**
+- **Tailwind CSS 4** with custom Win98 design tokens
+- **Dexie** (IndexedDB) for client-side storage
+- **Zustand** for player/UI state
+- **Web Audio API** for the oscilloscope
+- **Google Gemini** + **Anthropic Claude** for AI features
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+git clone https://github.com/jacksongoode/High-Desert.git
+cd High-Desert
+npm install
+cp .env.example .env.local   # add your API keys
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Required | Description |
+|---|---|---|
+| `GEMINI_API_KEY` | For AI features | Google Gemini — episode categorization and analysis |
+| `ANTHROPIC_API_KEY` | For AI features | Anthropic Claude — fallback AI provider |
 
-## Learn More
+Both keys are optional. The app works fully without them — AI categorization just won't be available.
 
-To learn more about Next.js, take a look at the following resources:
+## Scripts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run dev       # Start dev server
+npm run build     # Production build
+npm run start     # Start production server
+npm run lint      # ESLint
+```

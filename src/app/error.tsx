@@ -1,5 +1,7 @@
 "use client";
 
+import { Starfield } from "@/components/desktop/Starfield";
+
 export default function GlobalError({
   error,
   reset,
@@ -8,8 +10,9 @@ export default function GlobalError({
   reset: () => void;
 }) {
   return (
-    <div className="min-h-screen bg-midnight flex items-center justify-center p-8">
-      <div className="w98-raised-dark bg-raised-surface max-w-[400px] w-full">
+    <div className="relative min-h-screen bg-midnight flex items-center justify-center p-8">
+      <Starfield />
+      <div className="relative z-10 w98-raised-dark bg-raised-surface glass-heavy max-w-[400px] w-full animate-fade-in">
         <div className="w98-titlebar-gradient px-2 py-[2px] flex items-center">
           <span className="w98-font text-[11px] font-bold text-white truncate flex-1">
             High Desert - Error
