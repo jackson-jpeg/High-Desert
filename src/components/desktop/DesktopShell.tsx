@@ -27,6 +27,7 @@ interface DesktopShellProps {
 
 const NAV_ITEMS = [
   { label: "Library", path: "/library" },
+  { label: "Radio", path: "/radio" },
   { label: "Scanner", path: "/scanner" },
   { label: "Search", path: "/search" },
   { label: "Stats", path: "/stats" },
@@ -196,6 +197,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         { label: "Shuffle Coast to Coast", onClick: () => window.dispatchEvent(new CustomEvent("hd:shuffle", { detail: "coast" })) },
         { label: "Shuffle Dreamland", onClick: () => window.dispatchEvent(new CustomEvent("hd:shuffle", { detail: "dreamland" })) },
         { separator: true, label: "" },
+        { label: "Radio Dial", onClick: () => router.push("/radio") },
         { label: "Statistics", onClick: () => router.push("/stats") },
       ],
     },

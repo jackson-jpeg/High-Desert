@@ -1,0 +1,71 @@
+/* ============================================
+   Radio Dial Animations
+   ============================================ */
+
+/* Signal meter pulse at full strength */
+@keyframes signal-pulse {
+  0%, 100% {
+    opacity: 0.85;
+    box-shadow: 0 0 4px rgba(51, 255, 51, 0.3);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 8px rgba(51, 255, 51, 0.6);
+  }
+}
+
+/* Needle pulse (subtle red glow) */
+@keyframes needle-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px rgba(255, 32, 32, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 6px rgba(255, 32, 32, 0.7));
+  }
+}
+
+/* Static flicker overlay */
+@keyframes static-flicker {
+  0% { opacity: 0.8; }
+  10% { opacity: 0.6; }
+  20% { opacity: 0.85; }
+  30% { opacity: 0.5; }
+  40% { opacity: 0.75; }
+  50% { opacity: 0.9; }
+  60% { opacity: 0.55; }
+  70% { opacity: 0.8; }
+  80% { opacity: 0.65; }
+  90% { opacity: 0.7; }
+  100% { opacity: 0.8; }
+}
+
+.animate-static-flicker {
+  animation: static-flicker 0.3s steps(5) infinite;
+}
+
+/* Signal lock glow */
+@keyframes signal-lock {
+  0% {
+    text-shadow: 0 0 4px #33FF33;
+  }
+  50% {
+    text-shadow: 0 0 8px #33FF33, 0 0 16px #33FF3366;
+  }
+  100% {
+    text-shadow: 0 0 4px #33FF33;
+  }
+}
+
+.animate-signal-lock {
+  animation: signal-lock 2s ease-in-out infinite;
+}
+
+/* Scanning indicator */
+@keyframes scan-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-scan-sweep {
+  animation: scan-sweep 2s linear infinite;
+}

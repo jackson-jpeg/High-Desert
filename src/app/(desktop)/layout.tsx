@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { DesktopShell } from "@/components/desktop/DesktopShell";
 import { AudioPlayer } from "@/components/player/AudioPlayer";
@@ -18,6 +19,7 @@ export default function DesktopLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
   const { playEpisode, togglePlay, seek, playNext, playPrevious } = useAudioPlayer();
   const position = usePlayerStore((s) => s.position);
   const volume = usePlayerStore((s) => s.volume);
@@ -201,6 +203,9 @@ export default function DesktopLayout({
         return;
       }
 
+      // Radio dial page has its own keyboard handler
+      if (pathname === "/radio") return;
+
       switch (e.code) {
         case "Space":
           e.preventDefault();
@@ -265,7 +270,7 @@ export default function DesktopLayout({
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [togglePlay, seek, position, volume, setVolume, playNext, playPrevious]);
+  }, [togglePlay, seek, position, volume, setVolume, playNext, playPrevious, pathname]);
 
   // Episode count for status bar — handled via DesktopShell's episodeCount prop
   const episodeCount = useLiveQuery(() => db.episodes.count(), []);

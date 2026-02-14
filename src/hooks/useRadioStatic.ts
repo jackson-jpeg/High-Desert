@@ -1,0 +1,72 @@
+"use client";
+
+import { useEffect, useRef, useCallback } from "react";
+import {
+  initRadioStatic,
+  setStaticVolume,
+  muteStatic,
+  playLockTone,
+  destroyRadioStatic,
+  isRadioStaticInitialized,
+} from "@/lib/audio/radio-static";
+
+interface UseRadioStaticOptions {
+  signalStrength: number;
+  isLocked: boolean;
+  enabled: boolean;
+}
+
+export function useRadioStatic({
+  signalStrength,
+  isLocked,
+  enabled,
+}: UseRadioStaticOptions) {
+  const wasLocked = useRef(false);
+  const userInteracted = useRef(false);
+
+  // Initialize on first user interaction
+  const ensureInitialized = useCallback(() => {
+    if (!userInteracted.current) {
+      userInteracted.current = true;
+      if (!isRadioStaticInitialized()) {
+        initRadioStatic();
+      }
+    }
+  }, []);
+
+  // Update static volume reactively
+  useEffect(() => {
+    if (!enabled || !userInteracted.current) {
+      muteStatic();
+      return;
+    }
+
+    // Check reduced motion preference
+    const noMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (noMotion) {
+      muteStatic();
+      return;
+    }
+
+    setStaticVolume(signalStrength);
+  }, [signalStrength, enabled]);
+
+  // Play lock tone when signal locks
+  useEffect(() => {
+    if (isLocked && !wasLocked.current && userInteracted.current && enabled) {
+      playLockTone();
+    }
+    wasLocked.current = isLocked;
+  }, [isLocked, enabled]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      destroyRadioStatic();
+    };
+  }, []);
+
+  return { ensureInitialized };
+}

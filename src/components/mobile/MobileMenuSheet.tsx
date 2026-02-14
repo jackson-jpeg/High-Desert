@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 
 interface MobileMenuSheetProps {
@@ -12,6 +13,7 @@ interface MobileMenuSheetProps {
 }
 
 export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout }: MobileMenuSheetProps) {
+  const router = useRouter();
   const closingRef = useRef(false);
 
   const hide = useCallback(() => {
@@ -67,6 +69,19 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout
               {isAdmin ? "On" : "Off"}
             </span>
           </button>
+
+          {/* Radio Dial */}
+          <div className="border-t glass-divider">
+            <button
+              onClick={() => {
+                router.push("/radio");
+                hide();
+              }}
+              className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast"
+            >
+              Radio Dial
+            </button>
+          </div>
 
           {/* About */}
           <div className="border-t glass-divider">
