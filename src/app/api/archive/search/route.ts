@@ -22,10 +22,30 @@ export async function GET(request: NextRequest) {
     page: String(page),
   });
 
-  const res = await fetch(
-    `https://archive.org/advancedsearch.php?${params.toString()}`,
-    { next: { revalidate: 300 } },
-  );
+  let res: Response;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    res = await fetch(
+      `https://archive.org/advancedsearch.php?${params.toString()}`,
+      { signal: controller.signal, next: { revalidate: 300 } },
+    );
+
+    clearTimeout(timeout);
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      return NextResponse.json(
+        { error: "Archive.org request timed out" },
+        { status: 504 },
+      );
+    }
+    console.error("[search] Error:", err);
+    return NextResponse.json(
+      { error: "Archive.org search failed" },
+      { status: 500 },
+    );
+  }
 
   if (!res.ok) {
     return NextResponse.json(
@@ -34,6 +54,15 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const data = await res.json();
-  return NextResponse.json(data.response);
+  let data: Record<string, unknown>;
+  try {
+    data = await res.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON from archive.org" },
+      { status: 502 },
+    );
+  }
+
+  return NextResponse.json((data.response as Record<string, unknown>) ?? { numFound: 0, docs: [] });
 }

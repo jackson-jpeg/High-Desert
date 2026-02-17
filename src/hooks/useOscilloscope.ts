@@ -16,18 +16,11 @@ export function useOscilloscope() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Size canvas to match display
+    // Size canvas to match display (logical pixels — renderer uses these directly)
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * window.devicePixelRatio;
-      canvas.height = rect.height * window.devicePixelRatio;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-        // Reset the canvas dimensions for drawing (logical pixels)
-        canvas.width = rect.width;
-        canvas.height = rect.height;
-      }
+      canvas.width = rect.width;
+      canvas.height = rect.height;
     };
     resize();
 

@@ -27,13 +27,11 @@ export interface ParsedSearch {
   has?: string[];       // has: operators (multiple allowed)
 }
 
-const OPERATOR_RE = /\b(guest|year|tag|show|cat|series|has):(\S+)/gi;
-
 export function parseSearch(input: string): ParsedSearch {
   const result: ParsedSearch = { text: "", has: [] };
 
-  // Extract operators
-  const remaining = input.replace(OPERATOR_RE, (_, op: string, value: string) => {
+  // Extract operators — use replace with a fresh regex to avoid global state issues
+  const remaining = input.replace(/\b(guest|year|tag|show|cat|series|has):(\S+)/gi, (_, op: string, value: string) => {
     const key = op.toLowerCase();
     switch (key) {
       case "guest":
@@ -69,5 +67,6 @@ export function parseSearch(input: string): ParsedSearch {
  * Returns true if the search string contains any operators.
  */
 export function hasOperators(input: string): boolean {
-  return OPERATOR_RE.test(input);
+  // Use a fresh regex to avoid stateful global regex issues
+  return /\b(guest|year|tag|show|cat|series|has):(\S+)/i.test(input);
 }
