@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Episode } from "@/db/schema";
+import { toast } from "@/stores/toast-store";
 
 export type RepeatMode = "off" | "one" | "all";
 
@@ -156,6 +157,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     // Don't add duplicates
     if (queue.some((e) => e.id === episode.id)) return;
     set({ queue: [...queue, episode] });
+    // "Area 51 Caller" toast when adding to queue (not on first play)
+    if (queue.length > 0) {
+      toast.caller(episode.title || episode.fileName);
+    }
   },
 
   enqueueNext: (episode) => {

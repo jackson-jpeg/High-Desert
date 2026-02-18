@@ -34,7 +34,9 @@ function ToastItem({ toast }: { toast: Toast }) {
       ? "bg-static-green/70"
       : toast.type === "error"
         ? "bg-red-400/70"
-        : "bg-desert-amber/70";
+        : toast.type === "caller"
+          ? "bg-[#33FF33]/70"
+          : "bg-desert-amber/70";
 
   return (
     <div
@@ -51,9 +53,14 @@ function ToastItem({ toast }: { toast: Toast }) {
             {toast.type === "success" && <span className="text-static-green">{"\u2713"}</span>}
             {toast.type === "error" && <span className="text-red-400">{"\u2716"}</span>}
             {toast.type === "info" && <span className="text-desert-amber">{"\u25CF"}</span>}
+            {toast.type === "caller" && <span style={{ color: "#33FF33" }}>{"☎"}</span>}
           </span>
-          <span className="text-[10px] text-desktop-gray leading-relaxed" role="status">
-            {toast.message}
+          <span
+            className="text-[10px] leading-relaxed"
+            style={toast.type === "caller" ? { color: "#33FF33", textShadow: "0 0 6px rgba(51,255,51,0.3)" } : undefined}
+            role="status"
+          >
+            {toast.type === "caller" ? `INCOMING CALL — ${toast.message}` : toast.message}
           </span>
           <button
             onClick={() => removeToast(toast.id)}

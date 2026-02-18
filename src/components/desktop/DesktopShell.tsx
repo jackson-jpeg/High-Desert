@@ -11,15 +11,27 @@ import { Toaster } from "@/components/ui/Toaster";
 import { Starfield } from "./Starfield";
 import type { Menu } from "@/components/win98";
 import { useRouter, usePathname } from "next/navigation";
-import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
 import { toast } from "@/stores/toast-store";
-import { db } from "@/db";
+import { db, getPreference, setPreference } from "@/db";
 import { deduplicateEpisodes } from "@/db/deduplicate";
 import { useCatalogScraper } from "@/hooks/useCatalogScraper";
 import { exportLibrarySeed } from "@/db/seed";
 import { MobileMenuSheet } from "@/components/mobile/MobileMenuSheet";
+import { useLiveQuery } from "dexie-react-hooks";
+
+const CALLER_MESSAGES = [
+  "East of the Rockies, you\u2019re on the air...",
+  "West of the Rockies, first-time caller...",
+  "From the Kingdom of Nye, Nevada...",
+  "The wildcard line is open...",
+  "Somewhere in the night...",
+  "The desert is listening...",
+  "Coast to Coast, you\u2019re on the air...",
+  "From the high desert...",
+];
 
 
 interface DesktopShellProps {
@@ -45,11 +57,28 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [clearCacheOpen, setClearCacheOpen] = useState(false);
+  const [startupSoundOn, setStartupSoundOn] = useState(true);
   const [clock, setClock] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [callerIdx, setCallerIdx] = useState(() => Math.floor(Math.random() * CALLER_MESSAGES.length));
+  const [callerFade, setCallerFade] = useState(true);
   const navRef = useRef<HTMLElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const [bottomPadding, setBottomPadding] = useState(112); // fallback
+
+  // Load startup sound preference
+  useEffect(() => {
+    getPreference("startup-sound").then((v) => {
+      if (v === "off") setStartupSoundOn(false);
+    });
+  }, []);
+
+  const handleToggleStartupSound = useCallback(async () => {
+    const next = !startupSoundOn;
+    setStartupSoundOn(next);
+    await setPreference("startup-sound", next ? "on" : "off");
+    toast.info(next ? "Startup sound enabled" : "Startup sound disabled");
+  }, [startupSoundOn]);
 
   // Measure actual nav + player height
   useEffect(() => {
@@ -86,6 +115,34 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     tick();
     const id = setInterval(tick, 30000);
     return () => clearInterval(id);
+  }, []);
+
+  // Rotating caller line messages (every 30s)
+  useEffect(() => {
+    const id = setInterval(() => {
+      setCallerFade(false);
+      setTimeout(() => {
+        setCallerIdx((prev) => (prev + 1) % CALLER_MESSAGES.length);
+        setCallerFade(true);
+      }, 500);
+    }, 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Ghost to Ghost easter egg: detect Halloween season (Oct 28 - Nov 2)
+  const isHalloweenSeason = useMemo(() => {
+    const now = new Date();
+    const m = now.getMonth(); // 0-indexed
+    const d = now.getDate();
+    return (m === 9 && d >= 28) || (m === 10 && d <= 2);
+  }, []);
+
+  // Show counts for AboutDialog
+  const showCounts = useLiveQuery(async () => {
+    const coastToCoast = await db.episodes.where("showType").equals("coast-to-coast").count();
+    const dreamland = await db.episodes.where("showType").equals("dreamland").count();
+    const total = await db.episodes.count();
+    return { coastToCoast, dreamland, specials: total - coastToCoast - dreamland };
   }, []);
 
   const handleAbout = useCallback(() => setAboutOpen(true), []);
@@ -222,6 +279,11 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         { label: "Keyboard Shortcuts", onClick: handleShortcuts },
         { separator: true, label: "" },
         {
+          label: startupSoundOn ? "Startup Sound ✓" : "Startup Sound",
+          onClick: handleToggleStartupSound,
+        },
+        { separator: true, label: "" },
+        {
           label: isAdmin ? "Disable Admin Mode" : "Enable Admin Mode",
           onClick: handleToggleAdmin,
         },
@@ -241,9 +303,21 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     window.dispatchEvent(new CustomEvent("hd:scroll-to-current"));
   }, [hasEpisode, pathname, router]);
 
+  // Ghost to Ghost badge click handler
+  const handleGhostClick = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("hd:search", { detail: "ghost to ghost" }));
+  }, []);
+
   // Status bar now-playing content
   const statusContent = (() => {
-    if (!hasEpisode) return "Ready";
+    if (!hasEpisode) return (
+      <span
+        className="transition-opacity duration-500"
+        style={{ opacity: callerFade ? 1 : 0 }}
+      >
+        {CALLER_MESSAGES[callerIdx]}
+      </span>
+    );
     const icon = isPlaying ? "\u25B6" : "\u275A\u275A";
     const parts = [nowPlayingTitle];
     if (nowPlayingGuest) parts.push(nowPlayingGuest);
@@ -364,6 +438,19 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         variant="dark"
         panels={[
           { content: statusContent, flex: 1 },
+          ...(isHalloweenSeason ? [{
+            content: (
+              <button
+                onClick={handleGhostClick}
+                className="text-[9px] cursor-pointer hover:text-desert-amber transition-colors-fast"
+                style={{ color: "#FF8C00" }}
+                title="Ghost to Ghost AM Collection"
+              >
+                🎃 Ghost to Ghost
+              </button>
+            ),
+            width: "110px",
+          }] : []),
           { content: `${episodeCount.toLocaleString()} episode${episodeCount !== 1 ? "s" : ""}`, width: "120px" },
           { content: signalBars, width: "24px" },
           { content: clock, width: "72px" },
@@ -377,7 +464,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       {/* Toast notifications */}
       <Toaster />
 
-      <AboutDialog open={aboutOpen} onClose={handleCloseAbout} isAdmin={isAdmin} />
+      <AboutDialog open={aboutOpen} onClose={handleCloseAbout} isAdmin={isAdmin} episodeCount={episodeCount} showCounts={showCounts} />
       <ShortcutsDialog open={shortcutsOpen} onClose={handleCloseShortcuts} isAdmin={isAdmin} />
       <ClearLibraryDialog open={clearOpen} onClose={() => setClearOpen(false)} />
       <ClearCacheDialog open={clearCacheOpen} onClose={() => setClearCacheOpen(false)} />
@@ -390,6 +477,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         onToggleAdmin={handleToggleAdmin}
         onAbout={handleAbout}
         onShortcuts={handleShortcuts}
+        startupSoundOn={startupSoundOn}
+        onToggleStartupSound={handleToggleStartupSound}
       />
     </div>
   );

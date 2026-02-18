@@ -3,6 +3,7 @@
 import { usePlayerStore } from "@/stores/player-store";
 import { cn } from "@/lib/utils/cn";
 import { getShowLabel } from "@/lib/utils/format";
+import { CassetteTape } from "./CassetteTape";
 
 interface NowPlayingProps {
   expanded?: boolean;
@@ -24,7 +25,9 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
   const showLabel = getShowLabel(episode.showType) ?? "";
 
   return (
-    <div className={cn("flex flex-col gap-0.5 min-w-0", className)} aria-live="polite">
+    <div className={cn("flex items-start gap-2 min-w-0", className)} aria-live="polite">
+      <CassetteTape className="hidden md:block flex-shrink-0 mt-0.5" />
+      <div className="flex flex-col gap-0.5 min-w-0">
       <div className="text-[14px] md:text-[11px] text-desktop-gray font-bold truncate">
         {displayTitle}
       </div>
@@ -59,6 +62,7 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
           )}
         </>
       )}
+      </div>
     </div>
   );
 }

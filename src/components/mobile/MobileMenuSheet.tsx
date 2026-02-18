@@ -12,9 +12,11 @@ interface MobileMenuSheetProps {
   onAbout: () => void;
   onShuffle?: () => void;
   onShortcuts?: () => void;
+  startupSoundOn?: boolean;
+  onToggleStartupSound?: () => void;
 }
 
-export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout, onShuffle, onShortcuts }: MobileMenuSheetProps) {
+export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout, onShuffle, onShortcuts, startupSoundOn, onToggleStartupSound }: MobileMenuSheetProps) {
   const router = useRouter();
   const closingRef = useRef(false);
 
@@ -111,6 +113,27 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout
               Statistics
             </button>
           </div>
+
+          {/* Startup Sound */}
+          {onToggleStartupSound && (
+            <div className="border-t glass-divider">
+              <button
+                onClick={() => {
+                  onToggleStartupSound();
+                  hide();
+                }}
+                className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center justify-between"
+              >
+                <span>Startup Sound</span>
+                <span className={cn(
+                  "text-[12px]",
+                  startupSoundOn ? "text-desert-amber" : "text-bevel-dark/50",
+                )}>
+                  {startupSoundOn ? "On" : "Off"}
+                </span>
+              </button>
+            </div>
+          )}
 
           {/* About */}
           <div className="border-t glass-divider">

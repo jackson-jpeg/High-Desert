@@ -3,7 +3,7 @@ import { create } from "zustand";
 export interface Toast {
   id: string;
   message: string;
-  type: "success" | "error" | "info";
+  type: "success" | "error" | "info" | "caller";
   duration: number;
 }
 
@@ -34,4 +34,5 @@ export const toast = {
   success: (msg: string) => useToastStore.getState().addToast(msg, "success"),
   error: (msg: string) => useToastStore.getState().addToast(msg, "error", 6000),
   info: (msg: string) => useToastStore.getState().addToast(msg, "info"),
+  caller: (msg: string) => useToastStore.getState().addToast(msg, "caller", 3000),
 };

@@ -14,6 +14,7 @@ import type { Episode } from "@/db/schema";
 import { getCachedAudio, cacheAudioBlob } from "@/audio/cache";
 import { seedLibraryIfEmpty } from "@/db/seed";
 import { DBErrorBoundary } from "@/components/DBErrorBoundary";
+import { playStartupSound } from "@/audio/startup-sound";
 
 export default function DesktopLayout({
   children,
@@ -260,6 +261,21 @@ export default function DesktopLayout({
   // On mount, seed library if empty, then restore state
   useEffect(() => {
     seedLibraryIfEmpty().catch(() => {});
+  }, []);
+
+  // Startup sound on first interaction
+  useEffect(() => {
+    const handler = () => {
+      playStartupSound();
+      window.removeEventListener("click", handler);
+      window.removeEventListener("keydown", handler);
+    };
+    window.addEventListener("click", handler, { once: true });
+    window.addEventListener("keydown", handler, { once: true });
+    return () => {
+      window.removeEventListener("click", handler);
+      window.removeEventListener("keydown", handler);
+    };
   }, []);
 
   // On mount, load last-played episode and restore queue
