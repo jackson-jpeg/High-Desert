@@ -156,7 +156,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
             {value && (
               <button
                 onClick={() => onChange("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer min-w-[24px] min-h-[24px] flex items-center justify-center"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[14px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer min-w-[44px] min-h-[44px] md:min-w-[24px] md:min-h-[24px] flex items-center justify-center"
                 aria-label="Clear search"
               >
                 {"\u2715"}

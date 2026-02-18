@@ -105,17 +105,17 @@ function BookmarkButton({ variant, className }: { variant: "desktop" | "mobile";
           }}
           placeholder="Label..."
           autoFocus
-          className="bg-inset-well w98-inset-dark px-1.5 py-0.5 text-[10px] text-desktop-gray outline-none w-[100px]"
+          className="bg-inset-well w98-inset-dark px-2 py-1.5 md:px-1.5 md:py-0.5 text-[16px] md:text-[10px] text-desktop-gray outline-none flex-1 md:w-[100px] md:flex-initial"
         />
         <button
           onClick={handleAdd}
-          className="text-[9px] text-static-green cursor-pointer"
+          className="text-[12px] md:text-[9px] text-static-green active:text-static-green/80 cursor-pointer min-h-[44px] md:min-h-0 px-2 flex items-center"
         >
           Save
         </button>
         <button
           onClick={() => setShowInput(false)}
-          className="text-[9px] text-bevel-dark cursor-pointer"
+          className="text-[12px] md:text-[9px] text-bevel-dark active:text-desktop-gray cursor-pointer min-h-[44px] md:min-h-0 px-2 flex items-center"
         >
           Cancel
         </button>
@@ -179,19 +179,19 @@ export function BookmarkList({
 
   return (
     <div className={cn("flex flex-col gap-0.5", className)}>
-      <div className="text-[8px] text-desert-amber uppercase tracking-wider font-bold mb-0.5">
+      <div className="text-[11px] md:text-[8px] text-desert-amber uppercase tracking-wider font-bold mb-0.5">
         Bookmarks
       </div>
       {bookmarks.map((bm) => (
         <div key={bm.id} className="flex items-center gap-1.5 group">
           <button
             onClick={() => handleClick(bm)}
-            className="flex items-center gap-1.5 flex-1 min-w-0 text-left cursor-pointer hover:bg-title-bar-blue/10 px-1 py-0.5 transition-colors-fast"
+            className="flex items-center gap-1.5 flex-1 min-w-0 text-left cursor-pointer hover:bg-title-bar-blue/10 active:bg-title-bar-blue/10 px-2 py-2 md:px-1 md:py-0.5 min-h-[44px] md:min-h-0 transition-colors-fast"
           >
-            <span className="text-[9px] text-desert-amber tabular-nums flex-shrink-0">
+            <span className="text-[12px] md:text-[9px] text-desert-amber tabular-nums flex-shrink-0">
               {formatTime(bm.position)}
             </span>
-            <span className="text-[9px] text-desktop-gray/70 truncate">
+            <span className="text-[12px] md:text-[9px] text-desktop-gray/70 truncate">
               {bm.label}
             </span>
           </button>
@@ -201,7 +201,7 @@ export function BookmarkList({
                 await removeBookmark(bm.id!);
                 toast.info("Bookmark removed");
               }}
-              className="text-[8px] text-red-400/0 group-hover:text-red-400/50 hover:text-red-400 cursor-pointer transition-colors-fast flex-shrink-0 px-1"
+              className="text-[12px] md:text-[8px] text-red-400/50 md:text-red-400/0 md:group-hover:text-red-400/50 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
             >
               {"\u2715"}
             </button>

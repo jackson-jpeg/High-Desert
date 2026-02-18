@@ -75,10 +75,10 @@ export function OnThisDay({ onPlay, compact, className }: OnThisDayProps) {
               <span className="text-[10px] text-desert-amber tabular-nums w-[32px] flex-shrink-0">{year}</span>
               <div className="flex-1 min-w-0">
                 <div className="text-[10px] text-desktop-gray truncate">{ep.title || ep.fileName}</div>
-                {ep.guestName && <div className="text-[8px] text-static-green/60 truncate">{ep.guestName}</div>}
+                {ep.guestName && <div className="text-[10px] md:text-[8px] text-static-green/60 truncate">{ep.guestName}</div>}
               </div>
               {ep.showType && ep.showType !== "unknown" && (
-                <span className="text-[7px] text-bevel-dark/50 flex-shrink-0 uppercase">
+                <span className="text-[9px] md:text-[7px] text-bevel-dark/50 flex-shrink-0 uppercase">
                   {ep.showType === "coast" ? "C2C" : ep.showType === "dreamland" ? "DL" : "SP"}
                 </span>
               )}

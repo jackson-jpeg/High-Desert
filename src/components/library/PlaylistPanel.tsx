@@ -205,17 +205,17 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
                 <span className="text-[8px] text-bevel-dark/50 ml-1 tabular-nums">{pl.episodeIds.length}</span>
               </button>
               {isAdmin && (
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => { setEditingId(pl.id!); setEditName(pl.name); }}
-                    className="text-[8px] text-bevel-dark hover:text-desktop-gray cursor-pointer"
+                    className="text-[12px] md:text-[8px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
                     title="Rename"
                   >
                     {"\u270E"}
                   </button>
                   <button
                     onClick={() => handleDelete(pl.id!)}
-                    className="text-[8px] text-bevel-dark hover:text-red-400 cursor-pointer"
+                    className="text-[12px] md:text-[8px] text-bevel-dark hover:text-red-400 active:text-red-400 cursor-pointer min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
                     title="Delete playlist"
                   >
                     {"\u2715"}

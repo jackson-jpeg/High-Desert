@@ -91,7 +91,7 @@ export function EpisodeDetail({
     setEditing(false);
   };
 
-  const inputClass = "w-full bg-inset-well w98-inset-dark px-1.5 py-1 text-desktop-gray outline-none";
+  const inputClass = "w-full bg-inset-well w98-inset-dark px-2 py-2 md:px-1.5 md:py-1 text-[16px] md:text-[11px] text-desktop-gray outline-none";
 
   return (
     <div
@@ -108,7 +108,7 @@ export function EpisodeDetail({
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-bevel-dark/20 glass-divider">
         <div className="flex items-center gap-1.5">
-          <span className="text-[9px] text-bevel-dark/70">
+          <span className="text-[11px] md:text-[9px] text-bevel-dark/70">
             {[showLabel, isArchive ? "Archive" : null].filter(Boolean).join(" \u00B7 ")}
           </span>
           {episode.aiCategory && (
@@ -116,21 +116,21 @@ export function EpisodeDetail({
               onClick={() => {
                 window.dispatchEvent(new CustomEvent("hd:filter-category", { detail: episode.aiCategory }));
               }}
-              className="text-[8px] text-desert-amber/60 bg-desert-amber/8 px-1 py-px cursor-pointer hover:text-desert-amber hover:bg-desert-amber/15 transition-colors-fast"
+              className="text-[11px] md:text-[8px] text-desert-amber/60 bg-desert-amber/8 px-2 py-1 md:px-1 md:py-px cursor-pointer hover:text-desert-amber hover:bg-desert-amber/15 active:text-desert-amber active:bg-desert-amber/15 transition-colors-fast"
               title={`Filter by ${episode.aiCategory}`}
             >
               {episode.aiCategory}
             </button>
           )}
           {episode.aiNotable && (
-            <span className="text-[9px] text-yellow-400/80" title="Notable episode">
+            <span className="text-[11px] md:text-[9px] text-yellow-400/80" title="Notable episode">
               {"\u272A"}
             </span>
           )}
         </div>
         <button
           onClick={onClose}
-          className="text-[12px] md:text-[10px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-[32px] min-h-[32px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+          className="text-[14px] md:text-[10px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
           aria-label="Close detail"
         >
           {"\u2715"}
@@ -143,48 +143,48 @@ export function EpisodeDetail({
           /* ── Edit Mode ── */
           <div className="flex flex-col gap-2">
             <label className="flex flex-col gap-0.5">
-              <span className="text-[8px] text-bevel-dark uppercase tracking-wider">Title</span>
+              <span className="text-[11px] md:text-[8px] text-bevel-dark uppercase tracking-wider">Title</span>
               <input
                 type="text"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                className={cn(inputClass, "text-[12px]")}
+                className={inputClass}
               />
             </label>
             <label className="flex flex-col gap-0.5">
-              <span className="text-[8px] text-bevel-dark uppercase tracking-wider">Guest Name</span>
+              <span className="text-[11px] md:text-[8px] text-bevel-dark uppercase tracking-wider">Guest Name</span>
               <input
                 type="text"
                 value={editGuest}
                 onChange={(e) => setEditGuest(e.target.value)}
-                className={cn(inputClass, "text-[11px]")}
+                className={inputClass}
               />
             </label>
             <label className="flex flex-col gap-0.5">
-              <span className="text-[8px] text-bevel-dark uppercase tracking-wider">Air Date</span>
+              <span className="text-[11px] md:text-[8px] text-bevel-dark uppercase tracking-wider">Air Date</span>
               <input
                 type="text"
                 value={editAirDate}
                 onChange={(e) => setEditAirDate(e.target.value)}
                 placeholder="YYYY-MM-DD"
-                className={cn(inputClass, "text-[11px]")}
+                className={inputClass}
               />
             </label>
             <label className="flex flex-col gap-0.5">
-              <span className="text-[8px] text-bevel-dark uppercase tracking-wider">Topic</span>
+              <span className="text-[11px] md:text-[8px] text-bevel-dark uppercase tracking-wider">Topic</span>
               <input
                 type="text"
                 value={editTopic}
                 onChange={(e) => setEditTopic(e.target.value)}
-                className={cn(inputClass, "text-[11px]")}
+                className={inputClass}
               />
             </label>
             <label className="flex flex-col gap-0.5">
-              <span className="text-[8px] text-bevel-dark uppercase tracking-wider">Show Type</span>
+              <span className="text-[11px] md:text-[8px] text-bevel-dark uppercase tracking-wider">Show Type</span>
               <select
                 value={editShowType}
                 onChange={(e) => setEditShowType(e.target.value as Episode["showType"])}
-                className={cn(inputClass, "text-[11px]")}
+                className={inputClass}
               >
                 {SHOW_TYPE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -192,32 +192,32 @@ export function EpisodeDetail({
               </select>
             </label>
             <label className="flex flex-col gap-0.5">
-              <span className="text-[8px] text-bevel-dark uppercase tracking-wider">Category</span>
+              <span className="text-[11px] md:text-[8px] text-bevel-dark uppercase tracking-wider">Category</span>
               <input
                 type="text"
                 value={editCategory}
                 onChange={(e) => setEditCategory(e.target.value)}
                 placeholder="e.g. UFOs & Aliens, Paranormal, Conspiracy"
-                className={cn(inputClass, "text-[11px]")}
+                className={inputClass}
               />
             </label>
             <label className="flex flex-col gap-0.5">
-              <span className="text-[8px] text-bevel-dark uppercase tracking-wider">Series</span>
+              <span className="text-[11px] md:text-[8px] text-bevel-dark uppercase tracking-wider">Series</span>
               <input
                 type="text"
                 value={editSeries}
                 onChange={(e) => setEditSeries(e.target.value)}
                 placeholder="e.g. Mel's Hole, Area 51 Caller"
-                className={cn(inputClass, "text-[11px]")}
+                className={inputClass}
               />
             </label>
             <label className="flex flex-col gap-0.5">
-              <span className="text-[8px] text-bevel-dark uppercase tracking-wider">AI Summary</span>
+              <span className="text-[11px] md:text-[8px] text-bevel-dark uppercase tracking-wider">AI Summary</span>
               <textarea
                 value={editSummary}
                 onChange={(e) => setEditSummary(e.target.value)}
                 rows={4}
-                className={cn(inputClass, "text-[10px] resize-y")}
+                className={cn(inputClass, "resize-y")}
               />
             </label>
             <div className="flex items-center gap-2 pt-1">
@@ -293,7 +293,7 @@ export function EpisodeDetail({
                     onClick={() => {
                       window.dispatchEvent(new CustomEvent("hd:filter-tag", { detail: tag }));
                     }}
-                    className="text-[8px] text-desert-amber/70 bg-desert-amber/8 px-1.5 py-px cursor-pointer hover:bg-desert-amber/15 hover:text-desert-amber transition-colors-fast"
+                    className="text-[12px] md:text-[8px] text-desert-amber/70 bg-desert-amber/8 px-2.5 py-1.5 md:px-1.5 md:py-px cursor-pointer hover:bg-desert-amber/15 hover:text-desert-amber active:bg-desert-amber/15 active:text-desert-amber transition-colors-fast"
                     title={`Filter by "${tag}"`}
                   >
                     {tag}
@@ -321,7 +321,7 @@ export function EpisodeDetail({
                     style={{ width: `${Math.min(100, (episode.playbackPosition / episode.duration) * 100)}%` }}
                   />
                 </div>
-                <span className="text-[9px] text-bevel-dark/70 tabular-nums flex-shrink-0">
+                <span className="text-[11px] md:text-[9px] text-bevel-dark/70 tabular-nums flex-shrink-0">
                   {formatTime(episode.playbackPosition)} / {formatDuration(episode.duration)}
                 </span>
               </div>
@@ -329,7 +329,7 @@ export function EpisodeDetail({
 
             {/* Play stats */}
             {(episode.playCount ?? 0) > 0 && (
-              <div className="text-[9px] text-bevel-dark/50 tabular-nums">
+              <div className="text-[11px] md:text-[9px] text-bevel-dark/50 tabular-nums">
                 {episode.playCount != null && episode.playCount > 0 && `Played ${episode.playCount}x`}
                 {episode.lastPlayedAt != null && episode.lastPlayedAt > 0 && (
                   <> &middot; {new Date(episode.lastPlayedAt).toLocaleDateString()}</>
@@ -372,7 +372,7 @@ export function EpisodeDetail({
                 <button
                   onClick={() => onToggleFavorite(episode)}
                   className={cn(
-                    "text-[14px] md:text-[12px] cursor-pointer transition-colors-fast ml-auto min-w-[32px] min-h-[32px] md:min-w-0 md:min-h-0 flex items-center justify-center",
+                    "text-[16px] md:text-[12px] cursor-pointer transition-colors-fast ml-auto min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center",
                     episode.favoritedAt ? "text-desert-amber" : "text-bevel-dark/40 hover:text-desert-amber",
                   )}
                   title={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
@@ -393,10 +393,10 @@ export function EpisodeDetail({
                       await rateEpisode(episode.id!, newRating);
                     }}
                     className={cn(
-                      "text-[14px] md:text-[11px] cursor-pointer transition-colors-fast",
+                      "text-[20px] md:text-[11px] cursor-pointer transition-colors-fast min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center",
                       star <= (episode.rating ?? 0)
                         ? "text-desert-amber"
-                        : "text-bevel-dark/30 hover:text-desert-amber/60",
+                        : "text-bevel-dark/30 hover:text-desert-amber/60 active:text-desert-amber/60",
                     )}
                     title={`Rate ${star} star${star !== 1 ? "s" : ""}`}
                     aria-label={`Rate ${star} star${star !== 1 ? "s" : ""}`}
@@ -405,7 +405,7 @@ export function EpisodeDetail({
                   </button>
                 ))}
                 {episode.rating && (
-                  <span className="text-[8px] text-bevel-dark/40 ml-1">{episode.rating}/5</span>
+                  <span className="text-[11px] md:text-[8px] text-bevel-dark/40 ml-1">{episode.rating}/5</span>
                 )}
               </div>
             )}
@@ -417,7 +417,7 @@ export function EpisodeDetail({
                   href={`https://archive.org/details/${episode.archiveIdentifier}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[32px] md:min-h-0 flex items-center"
+                  className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
                 >
                   Archive
                 </a>
@@ -426,7 +426,7 @@ export function EpisodeDetail({
               {onEdit && (
                 <button
                   onClick={startEditing}
-                  className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[32px] md:min-h-0 flex items-center"
+                  className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
                 >
                   Edit
                 </button>
@@ -434,7 +434,7 @@ export function EpisodeDetail({
               {onRecategorize && (
                 <button
                   onClick={() => onRecategorize(episode)}
-                  className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[32px] md:min-h-0 flex items-center"
+                  className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
                 >
                   Re-categorize
                 </button>
@@ -442,7 +442,7 @@ export function EpisodeDetail({
               {onDelete && (
                 <button
                   onClick={() => onDelete(episode)}
-                  className="text-[12px] md:text-[9px] text-red-400/40 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast ml-auto min-h-[32px] md:min-h-0 flex items-center"
+                  className="text-[12px] md:text-[9px] text-red-400/40 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast ml-auto min-h-[44px] md:min-h-0 flex items-center"
                 >
                   Delete
                 </button>
@@ -495,7 +495,7 @@ function ShareButton({ episode }: { episode: Episode }) {
     return (
       <button
         onClick={copyLink}
-        className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[32px] md:min-h-0 flex items-center"
+        className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
       >
         Share
       </button>
@@ -506,7 +506,7 @@ function ShareButton({ episode }: { episode: Episode }) {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setMenuOpen(!menuOpen)}
-        className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[32px] md:min-h-0 flex items-center"
+        className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
       >
         Share
       </button>
@@ -514,13 +514,13 @@ function ShareButton({ episode }: { episode: Episode }) {
         <div className="absolute bottom-full mb-1 left-0 w98-raised-dark bg-raised-surface z-30 min-w-[120px] shadow-lg">
           <button
             onClick={copyLink}
-            className="w-full text-left px-2 py-1.5 text-[10px] text-desktop-gray/80 hover:bg-title-bar-blue/20 cursor-pointer transition-colors-fast"
+            className="w-full text-left px-3 py-3 md:px-2 md:py-1.5 text-[14px] md:text-[10px] text-desktop-gray/80 hover:bg-title-bar-blue/20 active:bg-title-bar-blue/20 cursor-pointer transition-colors-fast"
           >
             Copy Link
           </button>
           <button
             onClick={webShare}
-            className="w-full text-left px-2 py-1.5 text-[10px] text-desktop-gray/80 hover:bg-title-bar-blue/20 cursor-pointer transition-colors-fast"
+            className="w-full text-left px-3 py-3 md:px-2 md:py-1.5 text-[14px] md:text-[10px] text-desktop-gray/80 hover:bg-title-bar-blue/20 active:bg-title-bar-blue/20 cursor-pointer transition-colors-fast"
           >
             Share...
           </button>

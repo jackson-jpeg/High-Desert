@@ -74,10 +74,10 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
 
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-bevel-dark/20 glass-divider">
-        <span className="text-[9px] text-bevel-dark/70">Guest Profile</span>
+        <span className="text-[11px] md:text-[9px] text-bevel-dark/70">Guest Profile</span>
         <button
           onClick={onClose}
-          className="text-[12px] md:text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer flex-shrink-0 min-w-[32px] min-h-[32px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+          className="text-[14px] md:text-[10px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
           aria-label="Close"
         >
           ✕
@@ -105,7 +105,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
             {stats.categories.map(([cat, count]) => (
               <span
                 key={cat}
-                className="text-[8px] text-desert-amber/70 bg-desert-amber/8 px-1.5 py-px"
+                className="text-[11px] md:text-[8px] text-desert-amber/70 bg-desert-amber/8 px-2 py-1 md:px-1.5 md:py-px"
               >
                 {cat}
                 <span className="ml-0.5 opacity-50">{count}</span>
@@ -136,19 +136,19 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
                 <button
                   key={ep.id}
                   onClick={() => onPlay(ep)}
-                  className="text-left px-2 py-1.5 hover:bg-title-bar-blue/15 cursor-pointer transition-colors-fast w98-raised-dark bg-card-surface"
+                  className="text-left px-3 py-2.5 md:px-2 md:py-1.5 hover:bg-title-bar-blue/15 active:bg-title-bar-blue/15 cursor-pointer transition-colors-fast w98-raised-dark bg-card-surface"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] text-desert-amber tabular-nums flex-shrink-0">
+                    <span className="text-[12px] md:text-[10px] text-desert-amber tabular-nums flex-shrink-0">
                       {ep.airDate ?? "Unknown"}
                     </span>
                     {ep.duration != null && (
-                      <span className="text-[9px] text-bevel-dark/70 tabular-nums flex-shrink-0">
+                      <span className="text-[11px] md:text-[9px] text-bevel-dark/70 tabular-nums flex-shrink-0">
                         {formatDuration(ep.duration)}
                       </span>
                     )}
                   </div>
-                  <div className="text-[10px] text-desktop-gray truncate mt-0.5">
+                  <div className="text-[13px] md:text-[10px] text-desktop-gray truncate mt-0.5">
                     {ep.title || ep.fileName}
                   </div>
                   {hasProgress && (

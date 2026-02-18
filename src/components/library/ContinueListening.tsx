@@ -45,12 +45,12 @@ export function ContinueListening({ onPlay, className }: ContinueListeningProps)
     <div className={cn("w98-raised-dark bg-raised-surface animate-slide-up", className)}>
       <div className="px-3 py-2">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[9px] text-bevel-dark/60 uppercase tracking-wider">
+          <span className="text-[11px] md:text-[9px] text-bevel-dark/60 uppercase tracking-wider">
             Continue Listening
           </span>
           <button
             onClick={() => setDismissed(true)}
-            className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer"
+            className="text-[11px] md:text-[9px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer"
           >
             ✕
           </button>
