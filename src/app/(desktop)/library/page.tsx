@@ -16,12 +16,10 @@ import { EpisodeDetail } from "@/components/library/EpisodeDetail";
 import { RecentlyPlayed } from "@/components/library/RecentlyPlayed";
 import { PlaylistPanel, addToPlaylist } from "@/components/library/PlaylistPanel";
 import { OnThisDay } from "@/components/library/OnThisDay";
-import { SmartPlaylists } from "@/components/library/SmartPlaylists";
-import { Window, Dialog, Button } from "@/components/win98";
+import { Dialog, Button } from "@/components/win98";
 import { parseSearch } from "@/lib/utils/search-parser";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { GuestProfile } from "@/components/library/GuestProfile";
-import { ContinueListening } from "@/components/library/ContinueListening";
 import { cn } from "@/lib/utils/cn";
 
 type SortMode = "date" | "name" | "guest";
@@ -584,9 +582,9 @@ export default function LibraryPage() {
   }, [filtered, focusedIndex, selectedEpisode, selectedIds, handlePlay]);
 
   const [discoveryOpen, setDiscoveryOpen] = useState(() => {
-    if (typeof window === "undefined") return true;
+    if (typeof window === "undefined") return false;
     const saved = localStorage.getItem("hd-discovery-open");
-    return saved === null ? true : saved === "true";
+    return saved === null ? false : saved === "true";
   });
 
   const toggleDiscovery = useCallback(() => {
@@ -601,271 +599,113 @@ export default function LibraryPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Continue Listening strip */}
-      <div className="px-3 pt-2 flex-shrink-0">
-        <ContinueListening onPlay={handlePlay} />
-      </div>
-
-      <div className="p-3 pb-0 flex-shrink-0">
-        <Window title="Library" variant="dark">
-          <div className="p-2 flex flex-col gap-2">
-            <SearchBar
-              ref={searchBarRef}
-              value={search}
-              onChange={setSearch}
-              resultCount={allEpisodes ? filtered.length : undefined}
-              guests={searchGuests}
-              categories={searchCategories}
-              years={searchYears}
-            />
-
-            {/* Show type filter tabs */}
-            {allEpisodes && allEpisodes.length > 0 && (
-              <div className="flex items-center gap-0.5 overflow-x-auto">
-                {SHOW_TABS.map((tab) => {
-                  const count = showCounts.get(tab.key) ?? 0;
-                  const isActive = showFilter === tab.key;
-                  if (count === 0 && tab.key !== "all") return null;
-                  return (
-                    <button
-                      key={tab.key}
-                      onClick={() => {
-                        setShowFilter(tab.key);
-                        setGuestFilter(null);
-                      }}
-                      className={`
-                        px-2 py-1 md:py-0.5 text-[12px] md:text-[9px] min-h-[36px] md:min-h-0 cursor-pointer transition-colors-fast whitespace-nowrap
-                        ${isActive
-                          ? "bg-title-bar-blue/20 text-desktop-gray w98-inset-dark"
-                          : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/10"
-                        }
-                      `}
-                    >
-                      {tab.label}
-                      <span className="ml-1 tabular-nums opacity-60">{count}</span>
-                    </button>
-                  );
-                })}
-
-                {/* Favorites toggle */}
+      {/* Search + Show Type Pills — single compact row */}
+      <div className="flex items-center gap-2 px-3 py-2 flex-shrink-0">
+        <SearchBar
+          ref={searchBarRef}
+          value={search}
+          onChange={setSearch}
+          resultCount={allEpisodes ? filtered.length : undefined}
+          guests={searchGuests}
+          categories={searchCategories}
+          years={searchYears}
+          className="flex-1"
+        />
+        {allEpisodes && allEpisodes.length > 0 && (
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            {SHOW_TABS.map((tab) => {
+              const count = showCounts.get(tab.key) ?? 0;
+              const isActive = showFilter === tab.key;
+              if (count === 0 && tab.key !== "all") return null;
+              return (
                 <button
-                  onClick={() => setFavoritesOnly(!favoritesOnly)}
-                  className={`
-                    px-2 py-1 md:py-0.5 text-[12px] md:text-[9px] min-h-[36px] md:min-h-0 cursor-pointer transition-colors-fast whitespace-nowrap
-                    ${favoritesOnly
-                      ? "bg-desert-amber/15 text-desert-amber w98-inset-dark"
-                      : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/10"
-                    }
-                  `}
-                  title="Show favorites only"
-                >
-                  {"\u2605"}
-                </button>
-
-                {/* Facets toggle */}
-                <button
-                  onClick={() => setShowFacets(!showFacets)}
-                  className={`
-                    ml-auto px-2 py-0.5 text-[9px] cursor-pointer transition-colors-fast
-                    ${showFacets ? "text-desert-amber" : "text-bevel-dark hover:text-desktop-gray"}
-                  `}
-                  title="Browse by guest or topic"
-                >
-                  {showFacets ? "Hide Facets" : "Browse"}
-                </button>
-              </div>
-            )}
-
-            {/* Category filter chips */}
-            {categoryCounts.size > 0 && !search.trim() && (
-              <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
-                <span className="text-[8px] text-bevel-dark/50 flex-shrink-0">Cat:</span>
-                {Array.from(categoryCounts.entries())
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([cat, count]) => (
-                    <button
-                      key={cat}
-                      onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
-                      className={cn(
-                        "text-[9px] px-1.5 py-0.5 whitespace-nowrap cursor-pointer transition-colors-fast flex-shrink-0",
-                        categoryFilter === cat
-                          ? "bg-desert-amber/20 text-desert-amber w98-inset-dark"
-                          : "text-bevel-dark/70 hover:text-desktop-gray hover:bg-title-bar-blue/10",
-                      )}
-                    >
-                      {cat}
-                      <span className="ml-1 tabular-nums opacity-50">{count}</span>
-                    </button>
-                  ))}
-              </div>
-            )}
-
-            {/* Mood quick filters */}
-            {!search.trim() && allEpisodes && allEpisodes.length > 0 && (
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {[
-                  { label: "Late Night Classics", query: "has:notable" },
-                  { label: "Deep Conspiracies", query: "cat:conspiracy" },
-                  { label: "Space & Science", query: "cat:space" },
-                  { label: "Paranormal", query: "cat:paranormal" },
-                  { label: "Open Lines", query: "guest:Open Lines" },
-                ].map((mood) => (
-                  <button
-                    key={mood.label}
-                    onClick={() => setSearch(mood.query)}
-                    className="text-[8px] px-2 py-0.5 rounded-full border border-bevel-dark/20 text-bevel-dark/70 hover:text-desktop-gray hover:border-desert-amber/30 cursor-pointer transition-colors-fast"
-                  >
-                    {mood.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Active filter indicator */}
-            {hasActiveFilters && (
-              <div className="flex items-center gap-2 text-[9px]">
-                {guestFilter && (
-                  <span className="bg-static-green/15 text-static-green px-1.5 py-0.5 flex items-center gap-1">
-                    Guest: {guestFilter}
-                    <button
-                      onClick={() => setGuestFilter(null)}
-                      className="text-static-green/60 hover:text-static-green cursor-pointer"
-                    >
-                      x
-                    </button>
-                  </span>
-                )}
-                {categoryFilter && (
-                  <span className="bg-desert-amber/15 text-desert-amber px-1.5 py-0.5 flex items-center gap-1">
-                    {categoryFilter}
-                    <button
-                      onClick={() => setCategoryFilter(null)}
-                      className="text-desert-amber/60 hover:text-desert-amber cursor-pointer"
-                    >
-                      x
-                    </button>
-                  </span>
-                )}
-                <button
+                  key={tab.key}
                   onClick={() => {
-                    setShowFilter("all");
+                    setShowFilter(tab.key);
                     setGuestFilter(null);
-                    setCategoryFilter(null);
-                    setFavoritesOnly(false);
                   }}
-                  className="text-bevel-dark hover:text-desktop-gray cursor-pointer ml-auto"
+                  className={cn(
+                    "px-2 py-0.5 text-[9px] cursor-pointer transition-colors-fast whitespace-nowrap",
+                    isActive
+                      ? "bg-title-bar-blue/20 text-desktop-gray w98-inset-dark"
+                      : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10",
+                  )}
                 >
-                  Clear filters
+                  {tab.label}
                 </button>
-              </div>
-            )}
-
-            {/* Multi-select action bar */}
-            {selectedIds.size > 0 && (
-              <div className="flex items-center gap-2 text-[9px] bg-title-bar-blue/10 px-2 py-1 w98-inset-dark">
-                <span className="text-desktop-gray font-bold">
-                  {selectedIds.size} selected
-                </span>
-                <button
-                  onClick={() => {
-                    const store = usePlayerStore.getState();
-                    const episodes = allEpisodes?.filter((ep) => selectedIds.has(ep.id!)) ?? [];
-                    store.enqueueMany(episodes);
-                    toast.info(`Added ${episodes.length} episodes to queue`);
-                  }}
-                  className="text-title-bar-blue hover:text-title-bar-blue/80 cursor-pointer transition-colors-fast"
-                >
-                  Add to Queue
-                </button>
-                {isAdmin && (
-                  <button
-                    onClick={() => setDeleteOpen(true)}
-                    className="text-red-400/60 hover:text-red-400 cursor-pointer transition-colors-fast"
-                  >
-                    Delete
-                  </button>
-                )}
-                <button
-                  onClick={() => setSelectedIds(new Set())}
-                  className="text-bevel-dark hover:text-desktop-gray cursor-pointer transition-colors-fast ml-auto"
-                >
-                  Deselect
-                </button>
-              </div>
-            )}
+              );
+            })}
           </div>
-        </Window>
+        )}
       </div>
 
-      {/* Discovery section — collapsible */}
+      {/* Active filter indicator + multi-select bar — only when needed */}
+      {(hasActiveFilters || selectedIds.size > 0) && (
+        <div className="px-3 pb-1 flex-shrink-0 flex flex-col gap-1">
+          {hasActiveFilters && (
+            <div className="flex items-center gap-2 text-[9px]">
+              {guestFilter && (
+                <span className="bg-static-green/15 text-static-green px-1.5 py-0.5 flex items-center gap-1">
+                  Guest: {guestFilter}
+                  <button onClick={() => setGuestFilter(null)} className="text-static-green/60 hover:text-static-green cursor-pointer">x</button>
+                </span>
+              )}
+              {categoryFilter && (
+                <span className="bg-desert-amber/15 text-desert-amber px-1.5 py-0.5 flex items-center gap-1">
+                  {categoryFilter}
+                  <button onClick={() => setCategoryFilter(null)} className="text-desert-amber/60 hover:text-desert-amber cursor-pointer">x</button>
+                </span>
+              )}
+              <button
+                onClick={() => { setShowFilter("all"); setGuestFilter(null); setCategoryFilter(null); setFavoritesOnly(false); }}
+                className="text-bevel-dark hover:text-desktop-gray cursor-pointer ml-auto"
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-2 text-[9px] bg-title-bar-blue/10 px-2 py-1 w98-inset-dark">
+              <span className="text-desktop-gray font-bold">{selectedIds.size} selected</span>
+              <button
+                onClick={() => {
+                  const store = usePlayerStore.getState();
+                  const episodes = allEpisodes?.filter((ep) => selectedIds.has(ep.id!)) ?? [];
+                  store.enqueueMany(episodes);
+                  toast.info(`Added ${episodes.length} episodes to queue`);
+                }}
+                className="text-title-bar-blue hover:text-title-bar-blue/80 cursor-pointer transition-colors-fast"
+              >
+                Add to Queue
+              </button>
+              {isAdmin && (
+                <button onClick={() => setDeleteOpen(true)} className="text-red-400/60 hover:text-red-400 cursor-pointer transition-colors-fast">Delete</button>
+              )}
+              <button onClick={() => setSelectedIds(new Set())} className="text-bevel-dark hover:text-desktop-gray cursor-pointer transition-colors-fast ml-auto">Deselect</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Discovery section — collapsed by default, compact when open */}
       {!search.trim() && !hasActiveFilters && (
-        <div className="px-3 py-1 flex-shrink-0">
-          {/* Toggle bar + inline shuffle buttons */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={toggleDiscovery}
-              className="text-[9px] text-bevel-dark uppercase tracking-wider px-1 py-1 cursor-pointer hover:text-desktop-gray transition-colors-fast flex-shrink-0"
-            >
-              {discoveryOpen ? "▾" : "▸"} Explore
-            </button>
-            {/* Shuffle buttons inline */}
-            {allEpisodes && allEpisodes.length > 5 && (
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <button
-                  onClick={() => handleShuffle("all")}
-                  className="text-[9px] text-desert-amber/70 hover:text-desert-amber cursor-pointer px-1.5 py-0.5 w98-raised-dark bg-card-surface transition-colors-fast"
-                >
-                  Surprise Me
-                </button>
-                {(showCounts.get("coast") ?? 0) > 0 && (
-                  <button
-                    onClick={() => handleShuffle("coast")}
-                    className="text-[9px] text-title-bar-blue/70 hover:text-title-bar-blue cursor-pointer px-1.5 py-0.5 w98-raised-dark bg-card-surface transition-colors-fast"
-                  >
-                    C2C
-                  </button>
-                )}
-                {(showCounts.get("dreamland") ?? 0) > 0 && (
-                  <button
-                    onClick={() => handleShuffle("dreamland")}
-                    className="text-[9px] text-static-green/70 hover:text-static-green cursor-pointer px-1.5 py-0.5 w98-raised-dark bg-card-surface transition-colors-fast"
-                  >
-                    Dreamland
-                  </button>
-                )}
-                {(showCounts.get("special") ?? 0) > 0 && (
-                  <button
-                    onClick={() => handleShuffle("special")}
-                    className="text-[9px] text-desert-amber/70 hover:text-desert-amber cursor-pointer px-1.5 py-0.5 w98-raised-dark bg-card-surface transition-colors-fast"
-                  >
-                    Specials
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+        <div className="px-3 flex-shrink-0">
+          <button
+            onClick={toggleDiscovery}
+            className="text-[9px] text-bevel-dark uppercase tracking-wider px-1 py-0.5 cursor-pointer hover:text-desktop-gray transition-colors-fast"
+          >
+            {discoveryOpen ? "▾" : "▸"} Explore
+          </button>
 
-          {/* Collapsible discovery content */}
           {discoveryOpen && (
-            <div className="flex flex-col gap-2 mt-2">
-              {/* Top row: Recently Played + On This Day + Playlists */}
-              <div className="flex flex-col md:flex-row gap-2">
-                {recentlyPlayed && recentlyPlayed.length > 0 && (
-                  <WidgetErrorBoundary name="Recently Played">
-                    <RecentlyPlayed episodes={recentlyPlayed} onPlay={handlePlay} />
-                  </WidgetErrorBoundary>
-                )}
-                <WidgetErrorBoundary name="On This Day">
-                  <OnThisDay onPlay={handlePlay} className="md:w-[220px] md:flex-shrink-0" />
+            <div className="flex gap-2 mt-1 mb-1 overflow-hidden" style={{ maxHeight: "100px" }}>
+              {recentlyPlayed && recentlyPlayed.length > 0 && (
+                <WidgetErrorBoundary name="Recently Played">
+                  <RecentlyPlayed episodes={recentlyPlayed.slice(0, 4)} onPlay={handlePlay} compact />
                 </WidgetErrorBoundary>
-                {(allPlaylists && allPlaylists.length > 0 || isAdmin) && (
-                  <PlaylistPanel onPlayEpisode={handlePlay} className="md:w-[200px] md:flex-shrink-0" />
-                )}
-              </div>
-
-              {/* Smart Playlists — mobile only */}
-              <WidgetErrorBoundary name="Smart Playlists">
-                <SmartPlaylists onPlay={handlePlay} className="md:hidden" />
+              )}
+              <WidgetErrorBoundary name="On This Day">
+                <OnThisDay onPlay={handlePlay} compact className="md:w-[220px] md:flex-shrink-0" />
               </WidgetErrorBoundary>
             </div>
           )}

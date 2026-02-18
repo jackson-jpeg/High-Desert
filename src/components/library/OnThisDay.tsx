@@ -9,11 +9,11 @@ import { cn } from "@/lib/utils/cn";
 
 interface OnThisDayProps {
   onPlay: (episode: Episode) => void;
+  compact?: boolean;
   className?: string;
 }
 
-export function OnThisDay({ onPlay, className }: OnThisDayProps) {
-  // Avoid hydration mismatch: compute date on client only
+export function OnThisDay({ onPlay, compact, className }: OnThisDayProps) {
   const [monthDay, setMonthDay] = useState<string | null>(null);
   const [monthName, setMonthName] = useState("");
   useEffect(() => {
@@ -29,12 +29,34 @@ export function OnThisDay({ onPlay, className }: OnThisDayProps) {
 
   const matches = useMemo(() => {
     if (!allEpisodes || !monthDay) return [];
-    return allEpisodes
+    const sorted = allEpisodes
       .filter((ep) => ep.airDate?.slice(5) === monthDay)
       .sort((a, b) => (a.airDate ?? "").localeCompare(b.airDate ?? ""));
-  }, [allEpisodes, monthDay]);
+    return compact ? sorted.slice(0, 3) : sorted;
+  }, [allEpisodes, monthDay, compact]);
 
   if (!monthDay || matches.length === 0) return null;
+
+  if (compact) {
+    return (
+      <div className={cn("flex flex-col gap-0.5", className)}>
+        <span className="text-[8px] text-bevel-dark/50 uppercase tracking-wider px-1">{monthName}</span>
+        {matches.map((ep) => {
+          const year = ep.airDate?.slice(0, 4);
+          return (
+            <button
+              key={ep.id}
+              onClick={() => onPlay(ep)}
+              className="flex items-center gap-1.5 text-left px-1.5 py-1 w98-raised-dark bg-card-surface cursor-pointer hover:bg-title-bar-blue/15 transition-colors-fast"
+            >
+              <span className="text-[8px] text-desert-amber tabular-nums">{year}</span>
+              <span className="text-[9px] text-desktop-gray truncate flex-1">{ep.title || ep.fileName}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <Window title={`On This Day \u00B7 ${monthName}`} variant="dark" className={className}>
@@ -50,18 +72,10 @@ export function OnThisDay({ onPlay, className }: OnThisDayProps) {
                 "cursor-pointer hover:bg-title-bar-blue/15 active:bg-title-bar-blue/20 transition-colors-fast",
               )}
             >
-              <span className="text-[10px] text-desert-amber tabular-nums w-[32px] flex-shrink-0">
-                {year}
-              </span>
+              <span className="text-[10px] text-desert-amber tabular-nums w-[32px] flex-shrink-0">{year}</span>
               <div className="flex-1 min-w-0">
-                <div className="text-[10px] text-desktop-gray truncate">
-                  {ep.title || ep.fileName}
-                </div>
-                {ep.guestName && (
-                  <div className="text-[8px] text-static-green/60 truncate">
-                    {ep.guestName}
-                  </div>
-                )}
+                <div className="text-[10px] text-desktop-gray truncate">{ep.title || ep.fileName}</div>
+                {ep.guestName && <div className="text-[8px] text-static-green/60 truncate">{ep.guestName}</div>}
               </div>
               {ep.showType && ep.showType !== "unknown" && (
                 <span className="text-[7px] text-bevel-dark/50 flex-shrink-0 uppercase">
