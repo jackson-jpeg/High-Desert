@@ -41,6 +41,7 @@ export function TimelineView({
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Responsive item height — mobile needs more space for larger text
+  // Hydration-safe: start false, sync in useEffect (project convention)
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
