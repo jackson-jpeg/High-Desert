@@ -33,6 +33,26 @@ const SHOW_TABS: { key: ShowFilter; label: string }[] = [
   { key: "unknown", label: "Uncategorized" },
 ];
 
+const MOOD_FILTERS: {
+  label: string;
+  category?: string;
+  search?: string;
+  filter?: (
+    setFav: (v: boolean) => void,
+    setCat: (v: string | null) => void,
+    setSearch: (v: string) => void,
+  ) => void;
+}[] = [
+  { label: "Late Night Classics", search: "has:notable" },
+  { label: "Deep Conspiracies", category: "Conspiracy" },
+  { label: "Space & Science", category: "Science & Space" },
+  { label: "Paranormal", category: "Paranormal" },
+  { label: "Open Lines", category: "Open Lines" },
+  { label: "UFOs", category: "UFOs & Aliens" },
+  { label: "Time Travel", category: "Time Travel & Physics" },
+  { label: "Cryptids", category: "Cryptozoology" },
+];
+
 export default function LibraryPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -687,6 +707,40 @@ export default function LibraryPage() {
               <button onClick={() => setSelectedIds(new Set())} className="text-bevel-dark hover:text-desktop-gray cursor-pointer transition-colors-fast ml-auto">Deselect</button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Mood quick filters — visible when no free-text search */}
+      {!search.trim() && allEpisodes && allEpisodes.length > 0 && (
+        <div className="flex items-center gap-1.5 md:gap-1 px-3 pb-1 flex-shrink-0 overflow-x-auto -mx-3 px-3 md:mx-0">
+          {MOOD_FILTERS.map((mood) => {
+            const isActive = (mood.category && categoryFilter === mood.category) || (mood.search && search === mood.search);
+            return (
+              <button
+                key={mood.label}
+                onClick={() => {
+                  if (isActive) {
+                    setCategoryFilter(null);
+                    setSearch("");
+                  } else if (mood.category) {
+                    setCategoryFilter(mood.category);
+                  } else if (mood.search) {
+                    setSearch(mood.search);
+                  } else if (mood.filter) {
+                    mood.filter(setFavoritesOnly, setCategoryFilter, setSearch);
+                  }
+                }}
+                className={cn(
+                  "px-3 py-1.5 md:px-2 md:py-0.5 text-[11px] md:text-[9px] whitespace-nowrap flex-shrink-0 cursor-pointer transition-colors-fast",
+                  isActive
+                    ? "bg-desert-amber/15 text-desert-amber w98-inset-dark"
+                    : "text-bevel-dark/60 hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/15",
+                )}
+              >
+                {mood.label}
+              </button>
+            );
+          })}
         </div>
       )}
 
