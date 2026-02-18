@@ -66,6 +66,7 @@ SHOW_PREFIXES = [
     "Dreamland with Art Bell - ",
     "Dreamland - ",
     "Dark Matter - ",
+    "Special - ",
 ]
 
 def normalize_title(title: str, guest: str, show_type: str) -> str:
