@@ -24,6 +24,10 @@ export function useOscilloscope() {
     };
     resize();
 
+    // ResizeObserver for proper canvas sizing on layout changes
+    const ro = new ResizeObserver(() => resize());
+    ro.observe(canvas);
+
     const draw = () => {
       const analyser = getAnalyserNode();
       const playing = usePlayerStore.getState().playing;
@@ -41,6 +45,7 @@ export function useOscilloscope() {
 
     return () => {
       cancelAnimationFrame(rafRef.current);
+      ro.disconnect();
     };
   }, []);
 

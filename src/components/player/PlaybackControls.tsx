@@ -33,6 +33,7 @@ export function PlaybackControls({
   const duration = usePlayerStore((s) => s.duration);
   const volume = usePlayerStore((s) => s.volume);
   const setVolume = usePlayerStore((s) => s.setVolume);
+  const toggleMute = usePlayerStore((s) => s.toggleMute);
   const playbackRate = usePlayerStore((s) => s.playbackRate);
   const setPlaybackRate = usePlayerStore((s) => s.setPlaybackRate);
   const hasPrev = usePlayerStore((s) => s.queueIndex > 0);
@@ -245,7 +246,15 @@ export function PlaybackControls({
 
       {/* Volume + Sleep timer */}
       <div className="flex items-center gap-2 text-[12px] md:text-[10px] text-bevel-dark/70 px-2">
-        <span className="text-[11px] md:text-[9px]">{volume === 0 ? "\u{1F507}" : "\u{1F509}"}</span>
+        <button
+          onClick={toggleMute}
+          className="text-[11px] md:text-[9px] cursor-pointer hover:text-desert-amber transition-colors"
+          title={volume === 0 ? "Unmute" : "Mute"}
+          aria-label={volume === 0 ? "Unmute" : "Mute"}
+        >
+          {volume === 0 ? "\u{1F507}" : "\u{1F509}"}
+        </button>
+        <VolumeKnob volume={volume} />
         <input
           type="range"
           min={0}
@@ -268,5 +277,36 @@ export function PlaybackControls({
         <BookmarkMarkers mode="button" variant="desktop" />
       </div>
     </div>
+  );
+}
+
+/** Tiny decorative volume knob SVG (desktop only) */
+function VolumeKnob({ volume }: { volume: number }) {
+  // 0% = 7 o'clock (210°), 100% = 5 o'clock (150° + 360° = 510°), ~300° range
+  const angle = 210 + volume * 300;
+  const rad = (angle * Math.PI) / 180;
+  const cx = 10, cy = 10, r = 6;
+  const nx = cx + Math.cos(rad) * r * 0.7;
+  const ny = cy + Math.sin(rad) * r * 0.7;
+
+  return (
+    <svg
+      width={20}
+      height={20}
+      viewBox="0 0 20 20"
+      className="hidden md:block flex-shrink-0"
+      aria-hidden="true"
+    >
+      <circle cx={cx} cy={cy} r={r} fill="var(--color-bevel-dark, #2a2a2a)" stroke="var(--color-bevel-dark, #333)" strokeWidth={1} />
+      <line
+        x1={cx}
+        y1={cy}
+        x2={nx}
+        y2={ny}
+        stroke="var(--color-desert-amber, #d4a84b)"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
