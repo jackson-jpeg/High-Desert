@@ -305,6 +305,24 @@ export default function LibraryPage() {
     return list;
   }, [allEpisodes, search, sortMode, showFilter, guestFilter, categoryFilter, favoritesOnly, bookmarkedIds]);
 
+  // Scroll to currently playing episode
+  useEffect(() => {
+    const handler = () => {
+      if (!currentEpisodeId || !filtered.length) return;
+      const idx = filtered.findIndex((ep) => ep.id === currentEpisodeId);
+      if (idx !== -1) {
+        setSelectedEpisode(filtered[idx]);
+        setFocusedIndex(idx);
+        const container = document.querySelector('[role="listbox"]')?.parentElement;
+        if (container) {
+          container.scrollTop = idx * 88 - container.clientHeight / 2 + 44;
+        }
+      }
+    };
+    window.addEventListener("hd:scroll-to-current", handler);
+    return () => window.removeEventListener("hd:scroll-to-current", handler);
+  }, [currentEpisodeId, filtered]);
+
   const handleEpisodeClick = useCallback((episode: Episode, e: React.MouseEvent) => {
     if (e.shiftKey || e.metaKey || e.ctrlKey) {
       setSelectedIds((prev) => {
@@ -872,7 +890,17 @@ export default function LibraryPage() {
         {allEpisodes === undefined && (
           <div className="flex-1 p-4 flex flex-col gap-2">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-[82px] rounded w98-inset-dark bg-inset-well animate-pulse opacity-30" />
+              <div
+                key={i}
+                className="h-[82px] rounded w98-inset-dark bg-inset-well animate-skeleton"
+                style={{ animationDelay: `${i * 100}ms` }}
+              >
+                <div className="p-3 flex flex-col gap-2">
+                  <div className="h-[10px] bg-bevel-dark/10 rounded w-[80px]" />
+                  <div className="h-[12px] bg-bevel-dark/10 rounded w-[200px]" />
+                  <div className="h-[10px] bg-bevel-dark/10 rounded w-[120px]" />
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -919,14 +947,14 @@ export default function LibraryPage() {
           <>
             {/* Mobile backdrop */}
             <div
-              className="fixed inset-0 bg-black/50 z-40 md:hidden"
+              className="fixed inset-0 bg-black/50 z-40 md:hidden animate-glass-backdrop"
               onClick={handleCloseDetail}
             />
             <div className={cn(
               // Mobile: slide-up overlay from bottom
-              "fixed bottom-0 inset-x-0 z-50 max-h-[80vh] overflow-auto pb-[var(--safe-bottom)]",
-              // Desktop: static sidebar
-              "md:static md:w-[280px] md:flex-shrink-0 md:max-h-none md:pb-0 md:z-auto md:border-l md:border-bevel-dark/20",
+              "fixed bottom-0 inset-x-0 z-50 max-h-[80vh] overflow-auto pb-[var(--safe-bottom)] animate-glass-sheet rounded-t-xl",
+              // Desktop: static sidebar with fade-in
+              "md:static md:w-[280px] md:flex-shrink-0 md:max-h-none md:pb-0 md:z-auto md:border-l md:border-bevel-dark/20 md:animate-fade-in md:rounded-none",
             )}>
               <EpisodeDetail
                 episode={selectedEpisode}

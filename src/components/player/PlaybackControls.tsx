@@ -35,8 +35,11 @@ export function PlaybackControls({
   const setVolume = usePlayerStore((s) => s.setVolume);
   const playbackRate = usePlayerStore((s) => s.playbackRate);
   const setPlaybackRate = usePlayerStore((s) => s.setPlaybackRate);
-  const hasPrev = usePlayerStore((s) => s.hasPrevious());
-  const hasNext = usePlayerStore((s) => s.hasNext());
+  const hasPrev = usePlayerStore((s) => s.queueIndex > 0);
+  const hasNext = usePlayerStore((s) => {
+    if (s.repeat === "one" || s.repeat === "all" || s.shuffle) return s.queue.length > 0;
+    return s.queueIndex + 1 < s.queue.length;
+  });
   const shuffle = usePlayerStore((s) => s.shuffle);
   const repeat = usePlayerStore((s) => s.repeat);
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);

@@ -23,6 +23,8 @@ export function RadioDial({ episodes }: RadioDialProps) {
   const isMobile = useIsMobile();
 
   const position = useRadioDialStore((s) => s.position);
+  const zoom = useRadioDialStore((s) => s.zoom);
+  const setZoom = useRadioDialStore((s) => s.setZoom);
   const lockedEpisode = useRadioDialStore((s) => s.lockedEpisode);
   const signalStrength = useRadioDialStore((s) => s.signalStrength);
   const staticEnabled = useRadioDialStore((s) => s.staticEnabled);
@@ -295,8 +297,24 @@ export function RadioDial({ episodes }: RadioDialProps) {
         {yearBar}
 
         {/* Tuning Strip */}
-        <div className="flex-1 min-h-[80px] w98-inset-dark rounded">
-          <TuningStrip index={index} className="rounded" />
+        <div className="flex-1 min-h-[80px] flex gap-1">
+          <div className="flex-1 w98-inset-dark rounded">
+            <TuningStrip index={index} className="rounded" />
+          </div>
+          {/* Zoom controls */}
+          <div className="flex flex-col items-center justify-center gap-1 w-[20px]">
+            <button
+              onClick={() => setZoom(zoom + 0.5)}
+              className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer w-full text-center"
+              title="Zoom in (Ctrl+Scroll)"
+            >+</button>
+            <span className="text-[7px] text-bevel-dark/40 tabular-nums">{zoom.toFixed(1)}x</span>
+            <button
+              onClick={() => setZoom(zoom - 0.5)}
+              className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer w-full text-center"
+              title="Zoom out (Ctrl+Scroll)"
+            >-</button>
+          </div>
         </div>
 
         {/* Controls row */}

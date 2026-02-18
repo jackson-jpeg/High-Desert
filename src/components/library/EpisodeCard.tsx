@@ -70,6 +70,7 @@ export function EpisodeCard({
       style={style}
       role="option"
       aria-selected={isSelected || isPlaying}
+      title={episode.aiSummary || undefined}
       aria-label={`${episode.title || episode.fileName}${episode.airDate ? `, ${episode.airDate}` : ""}${isPlaying ? " (now playing)" : ""}`}
       className={cn(
         "w-full text-left p-3 w98-raised-dark bg-card-surface relative group glass-light",
@@ -118,6 +119,11 @@ export function EpisodeCard({
           )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {episode.rating && (
+            <span className="text-[8px] text-desert-amber/60 flex-shrink-0 tabular-nums hidden md:inline" title={`Rated ${episode.rating}/5`}>
+              {"★".repeat(episode.rating)}
+            </span>
+          )}
           {episode.aiCategory && (
             <span className="text-[7px] text-desert-amber/50 flex-shrink-0 hidden md:inline">
               {episode.aiCategory}

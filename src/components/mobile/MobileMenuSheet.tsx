@@ -10,9 +10,10 @@ interface MobileMenuSheetProps {
   isAdmin: boolean;
   onToggleAdmin: () => void;
   onAbout: () => void;
+  onShuffle?: () => void;
 }
 
-export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout }: MobileMenuSheetProps) {
+export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout, onShuffle }: MobileMenuSheetProps) {
   const router = useRouter();
   const closingRef = useRef(false);
 
@@ -69,6 +70,20 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout
               {isAdmin ? "On" : "Off"}
             </span>
           </button>
+
+          {/* Surprise Me */}
+          <div className="border-t glass-divider">
+            <button
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("hd:shuffle", { detail: "all" }));
+                hide();
+              }}
+              className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desert-amber cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-2"
+            >
+              <span>{"\u21C6"}</span>
+              <span>Surprise Me — Shuffle All</span>
+            </button>
+          </div>
 
           {/* Radio Dial */}
           <div className="border-t glass-divider">

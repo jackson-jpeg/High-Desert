@@ -20,7 +20,7 @@ export default function GlobalError({
         </div>
         <div className="p-4 flex flex-col gap-3">
           <div className="text-[12px] text-desktop-gray font-bold">
-            Something went wrong
+            We&apos;re experiencing technical difficulties
           </div>
           <div className="w98-inset-dark bg-inset-well p-3">
             <div className="text-[10px] text-red-400 leading-relaxed font-mono break-all">

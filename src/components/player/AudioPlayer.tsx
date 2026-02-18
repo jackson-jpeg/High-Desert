@@ -178,8 +178,18 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
 
   // ─── Mobile mini player ───
   if (isMobile && mini) {
+    const progressPct = duration > 0 ? (position / duration) * 100 : 0;
     return (
-      <div className={cn("w98-raised-dark bg-raised-surface glass-medium glass-promote", playing && "glass-glow-amber", className)}>
+      <div className={cn("w98-raised-dark bg-raised-surface glass-medium glass-promote relative", playing && "glass-glow-amber", className)}>
+        {/* Mini progress bar at top */}
+        {duration > 0 && (
+          <div className="absolute top-0 left-0 right-0 h-[2px]">
+            <div
+              className="h-full bg-desert-amber/60 transition-[width] duration-300"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        )}
         {errorBanner}
         <div className="flex items-center gap-1 px-2 py-1.5">
           {/* Tap to expand */}
