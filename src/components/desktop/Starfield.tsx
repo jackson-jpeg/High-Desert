@@ -185,7 +185,7 @@ export function Starfield() {
       />
       <div
         className="fixed inset-0 pointer-events-none transition-[background-color] duration-1000"
-        style={{ zIndex: 0, backgroundColor: tintColor }}
+        style={{ zIndex: 0, backgroundColor: tintColor, willChange: "opacity" }}
         aria-hidden="true"
       />
     </>

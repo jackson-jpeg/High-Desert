@@ -67,16 +67,19 @@ export function EpisodeCard({
 
   // Swipe actions (mobile)
   const cardRef = useRef<HTMLButtonElement>(null);
-  const swipeState = useRef({ startX: 0, startY: 0, lastX: 0, swiping: false });
+  const swipeState = useRef({ startX: 0, startY: 0, lastX: 0, swiping: false, blocked: false });
 
   const onTouchStartSwipe = useCallback((e: React.TouchEvent) => {
     const t = e.touches[0];
-    swipeState.current = { startX: t.clientX, startY: t.clientY, lastX: t.clientX, swiping: false };
+    // Dead zone: ignore swipes starting within 30px of left edge to avoid conflicting with iOS back-swipe
+    const inDeadZone = t.clientX < 30;
+    swipeState.current = { startX: t.clientX, startY: t.clientY, lastX: t.clientX, swiping: false, blocked: inDeadZone };
   }, []);
 
   const onTouchMoveSwipe = useCallback((e: React.TouchEvent) => {
     const t = e.touches[0];
     const s = swipeState.current;
+    if (s.blocked) return;
     const dx = t.clientX - s.startX;
     const dy = t.clientY - s.startY;
     if (!s.swiping && Math.abs(dy) > Math.abs(dx)) return;

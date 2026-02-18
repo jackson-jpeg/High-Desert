@@ -11,7 +11,7 @@ import { Toaster } from "@/components/ui/Toaster";
 import { Starfield } from "./Starfield";
 import type { Menu } from "@/components/win98";
 import { useRouter, usePathname } from "next/navigation";
-import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
 import { toast } from "@/stores/toast-store";
@@ -60,7 +60,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [startupSoundOn, setStartupSoundOn] = useState(true);
   const [clock, setClock] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [callerIdx, setCallerIdx] = useState(() => Math.floor(Math.random() * CALLER_MESSAGES.length));
+  const [callerIdx, setCallerIdx] = useState(0);
   const [callerFade, setCallerFade] = useState(true);
   const navRef = useRef<HTMLElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
@@ -117,6 +117,11 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     return () => clearInterval(id);
   }, []);
 
+  // Randomize initial caller message on client only (avoids hydration mismatch)
+  useEffect(() => {
+    setCallerIdx(Math.floor(Math.random() * CALLER_MESSAGES.length));
+  }, []);
+
   // Rotating caller line messages (every 30s)
   useEffect(() => {
     const id = setInterval(() => {
@@ -130,11 +135,13 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   }, []);
 
   // Ghost to Ghost easter egg: detect Halloween season (Oct 28 - Nov 2)
-  const isHalloweenSeason = useMemo(() => {
+  // Computed in useEffect to avoid hydration mismatch (server build time vs client time)
+  const [isHalloweenSeason, setIsHalloweenSeason] = useState(false);
+  useEffect(() => {
     const now = new Date();
     const m = now.getMonth(); // 0-indexed
     const d = now.getDate();
-    return (m === 9 && d >= 28) || (m === 10 && d <= 2);
+    setIsHalloweenSeason((m === 9 && d >= 28) || (m === 10 && d <= 2));
   }, []);
 
   // Show counts for AboutDialog

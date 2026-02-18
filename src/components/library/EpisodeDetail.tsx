@@ -138,7 +138,7 @@ export function EpisodeDetail({
       </div>
 
       {/* Body */}
-      <div className="p-3 flex flex-col gap-2.5 max-h-[60vh] overflow-auto overscroll-contain md:max-h-none md:overflow-visible">
+      <div className="p-3 pb-[calc(0.75rem+var(--safe-bottom))] md:pb-3 flex flex-col gap-2.5 max-h-[80vh] md:max-h-none overflow-auto overscroll-contain md:overflow-visible">
         {editing ? (
           /* ── Edit Mode ── */
           <div className="flex flex-col gap-2">

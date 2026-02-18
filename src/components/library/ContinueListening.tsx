@@ -31,7 +31,7 @@ export function ContinueListening({ onPlay, className }: ContinueListeningProps)
         const pct = ep.playbackPosition / ep.duration;
         return pct > 0.1 && pct < 0.9;
       })
-      .slice(0, 3);
+      .slice(0, 5); // fetch up to 5, display limited by CSS
   }, []);
 
   // Auto-hide when something starts playing
@@ -57,7 +57,7 @@ export function ContinueListening({ onPlay, className }: ContinueListeningProps)
         </div>
 
         <div className="flex gap-2 overflow-x-auto">
-          {inProgress.map((ep) => {
+          {inProgress.slice(0, 3).map((ep, i) => {
             const pct = ep.duration && ep.playbackPosition
               ? Math.round((ep.playbackPosition / ep.duration) * 100)
               : 0;
@@ -65,7 +65,10 @@ export function ContinueListening({ onPlay, className }: ContinueListeningProps)
               <button
                 key={ep.id}
                 onClick={() => onPlay(ep)}
-                className="flex-shrink-0 w-[200px] md:w-[180px] p-2 w98-raised-dark bg-card-surface hover:bg-title-bar-blue/15 cursor-pointer transition-colors-fast text-left"
+                className={cn(
+                  "flex-shrink-0 w-[200px] md:w-[180px] p-2 w98-raised-dark bg-card-surface hover:bg-title-bar-blue/15 cursor-pointer transition-colors-fast text-left",
+                  i >= 2 && "hidden md:block",
+                )}
               >
                 <div className="text-[11px] md:text-[10px] text-desktop-gray font-bold truncate">
                   {ep.title || ep.fileName}

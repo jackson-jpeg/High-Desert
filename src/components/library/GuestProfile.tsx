@@ -85,7 +85,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
       </div>
 
       {/* Body */}
-      <div className="p-3 flex flex-col gap-3 max-h-[60vh] overflow-auto overscroll-contain md:max-h-none md:flex-1 md:overflow-auto">
+      <div className="p-3 pb-[calc(0.75rem+var(--safe-bottom))] md:pb-3 flex flex-col gap-3 max-h-[80vh] md:max-h-none overflow-auto overscroll-contain md:flex-1">
         {/* Name */}
         <div className="text-[16px] md:text-[14px] text-static-green font-bold">
           {guestName}

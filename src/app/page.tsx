@@ -165,7 +165,7 @@ export default function WelcomePage() {
             color: "#C0C0C0",
             background: "#1a1a2e",
             border: "2px outset #808080",
-            padding: "8px 32px",
+            padding: "12px 40px",
             letterSpacing: "2px",
           }}
           onMouseDown={(e) => {
