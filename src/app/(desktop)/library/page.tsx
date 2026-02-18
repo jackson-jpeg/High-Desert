@@ -20,6 +20,8 @@ import { SmartPlaylists } from "@/components/library/SmartPlaylists";
 import { Window, Dialog, Button } from "@/components/win98";
 import { parseSearch } from "@/lib/utils/search-parser";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
+import { GuestProfile } from "@/components/library/GuestProfile";
+import { ContinueListening } from "@/components/library/ContinueListening";
 import { cn } from "@/lib/utils/cn";
 
 type SortMode = "date" | "name" | "guest";
@@ -47,6 +49,7 @@ export default function LibraryPage() {
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [guestProfileName, setGuestProfileName] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const currentEpisodeId = usePlayerStore((s) => s.currentEpisode?.id);
   const isAdmin = useAdminStore((s) => s.isAdmin);
@@ -83,11 +86,18 @@ export default function LibraryPage() {
       setCategoryFilter(cat);
       setSelectedEpisode(null);
     };
+    const handleGuest = (e: Event) => {
+      const name = (e as CustomEvent<string>).detail;
+      setGuestProfileName(name);
+      setSelectedEpisode(null);
+    };
     window.addEventListener("hd:filter-tag", handleTag);
     window.addEventListener("hd:filter-category", handleCategory);
+    window.addEventListener("hd:show-guest", handleGuest);
     return () => {
       window.removeEventListener("hd:filter-tag", handleTag);
       window.removeEventListener("hd:filter-category", handleCategory);
+      window.removeEventListener("hd:show-guest", handleGuest);
     };
   }, []);
 
@@ -370,6 +380,11 @@ export default function LibraryPage() {
     router.push(action === "scan" ? "/scanner" : "/search");
   }, [router]);
 
+  const handleQueue = useCallback((episode: Episode) => {
+    usePlayerStore.getState().enqueue(episode);
+    toast.info("Added to queue");
+  }, []);
+
   const handleToggleFavorite = useCallback(async (episode: Episode) => {
     const isFav = await toggleFavorite(episode.id!);
     toast.info(isFav ? "Added to favorites" : "Removed from favorites");
@@ -562,6 +577,11 @@ export default function LibraryPage() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Continue Listening strip */}
+      <div className="px-3 pt-2 flex-shrink-0">
+        <ContinueListening onPlay={handlePlay} />
+      </div>
+
       <div className="p-3 pb-0 flex-shrink-0">
         <Window title="Library" variant="dark">
           <div className="p-2 flex flex-col gap-2">
@@ -969,11 +989,32 @@ export default function LibraryPage() {
               onEpisodeContextMenu={handleContextMenu}
               onAction={isAdmin ? handleAction : undefined}
               onToggleFavorite={handleToggleFavorite}
+              onQueue={handleQueue}
               selectedEpisodeId={selectedEpisode?.id}
               selectedIds={selectedIds}
             />
           )}
         </div>
+        )}
+
+        {/* Guest Profile panel */}
+        {guestProfileName && !selectedEpisode && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/50 z-40 md:hidden animate-glass-backdrop"
+              onClick={() => setGuestProfileName(null)}
+            />
+            <div className={cn(
+              "fixed bottom-0 inset-x-0 z-50 max-h-[80vh] overflow-auto pb-[var(--safe-bottom)] animate-glass-sheet rounded-t-xl",
+              "md:static md:w-[280px] md:flex-shrink-0 md:max-h-none md:pb-0 md:z-auto md:border-l md:border-bevel-dark/20 md:animate-fade-in md:rounded-none",
+            )}>
+              <GuestProfile
+                guestName={guestProfileName}
+                onPlay={handlePlay}
+                onClose={() => setGuestProfileName(null)}
+              />
+            </div>
+          </>
         )}
 
         {/* Detail panel — mobile: slide-up overlay; desktop: 280px sidebar */}

@@ -3,6 +3,7 @@
 import { useRef, useMemo } from "react";
 import type { Episode } from "@/db/schema";
 import { EpisodeCard } from "./EpisodeCard";
+import { YearNavigator } from "./YearNavigator";
 import { useVirtualList } from "@/hooks/useVirtualList";
 import { cn } from "@/lib/utils/cn";
 
@@ -16,6 +17,7 @@ interface TimelineViewProps {
   onEpisodeContextMenu?: (episode: Episode, x: number, y: number) => void;
   onAction?: (action: "scan" | "search") => void;
   onToggleFavorite?: (episode: Episode) => void;
+  onQueue?: (episode: Episode) => void;
   className?: string;
 }
 
@@ -31,11 +33,12 @@ export function TimelineView({
   onEpisodeContextMenu,
   onAction,
   onToggleFavorite,
+  onQueue,
   className,
 }: TimelineViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { virtualItems, totalHeight, onScroll } = useVirtualList({
+  const { virtualItems, totalHeight, onScroll, scrollToIndex } = useVirtualList({
     items: episodes,
     itemHeight: ITEM_HEIGHT,
     containerRef,
@@ -58,6 +61,19 @@ export function TimelineView({
     }
     return counts;
   }, [episodes]);
+
+  const sortedYears = useMemo(() => {
+    return Array.from(yearCounts.entries())
+      .filter(([y]) => y !== "Unknown")
+      .sort(([a], [b]) => a.localeCompare(b));
+  }, [yearCounts]);
+
+  const handleYearClick = useMemo(() => {
+    return (year: string) => {
+      const idx = episodes.findIndex((ep) => ep.airDate?.startsWith(year));
+      if (idx !== -1) scrollToIndex(idx);
+    };
+  }, [episodes, scrollToIndex]);
 
   if (episodes.length === 0) {
     return (
@@ -138,32 +154,42 @@ export function TimelineView({
         </div>
       )}
 
-      {/* Virtual scrolling container */}
-      <div
-        ref={containerRef}
-        onScroll={onScroll}
-        className="flex-1 overflow-auto"
-      >
-        <div className="relative p-2" role="listbox" aria-label="Episodes" style={{ height: totalHeight }}>
-          {virtualItems.map(({ item: ep, offsetTop }) => (
-            <div
-              key={ep.id}
-              className="absolute left-2 right-2"
-              style={{ top: offsetTop, height: ITEM_HEIGHT }}
-            >
-              <EpisodeCard
-                episode={ep}
-                isPlaying={ep.id === currentEpisodeId}
-                isSelected={ep.id === selectedEpisodeId}
-                isMultiSelected={selectedIds ? selectedIds.has(ep.id!) : false}
-                onClick={onEpisodeClick}
-                onDoubleClick={onEpisodeDoubleClick}
-                onContextMenu={onEpisodeContextMenu}
-                onToggleFavorite={onToggleFavorite}
-              />
-            </div>
-          ))}
+      {/* Virtual scrolling container + year nav */}
+      <div className="flex-1 overflow-hidden flex">
+        <div
+          ref={containerRef}
+          onScroll={onScroll}
+          className="flex-1 overflow-auto"
+        >
+          <div className="relative p-2" role="listbox" aria-label="Episodes" style={{ height: totalHeight }}>
+            {virtualItems.map(({ item: ep, offsetTop }) => (
+              <div
+                key={ep.id}
+                className="absolute left-2 right-2"
+                style={{ top: offsetTop, height: ITEM_HEIGHT }}
+              >
+                <EpisodeCard
+                  episode={ep}
+                  isPlaying={ep.id === currentEpisodeId}
+                  isSelected={ep.id === selectedEpisodeId}
+                  isMultiSelected={selectedIds ? selectedIds.has(ep.id!) : false}
+                  onClick={onEpisodeClick}
+                  onDoubleClick={onEpisodeDoubleClick}
+                  onContextMenu={onEpisodeContextMenu}
+                  onToggleFavorite={onToggleFavorite}
+                  onQueue={onQueue}
+                />
+              </div>
+            ))}
+          </div>
         </div>
+        {sortedYears.length > 1 && (
+          <YearNavigator
+            years={sortedYears}
+            currentYear={currentYear}
+            onYearClick={handleYearClick}
+          />
+        )}
       </div>
     </div>
   );

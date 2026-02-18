@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
+import { usePlayerStore } from "@/stores/player-store";
 
 interface Star {
   x: number;
@@ -25,8 +26,15 @@ interface Meteor {
  * Stars twinkle slowly; shooting stars streak across every ~20s.
  * Respects prefers-reduced-motion.
  */
+const TINT_COLORS: Record<string, string> = {
+  coast: "rgba(0, 0, 128, 0.03)",
+  dreamland: "rgba(74, 222, 128, 0.03)",
+  special: "rgba(212, 168, 67, 0.03)",
+};
+
 export function Starfield() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const showType = usePlayerStore((s) => s.currentEpisode?.showType);
   const starsRef = useRef<Star[]>([]);
   const meteorsRef = useRef<Meteor[]>([]);
 
@@ -165,12 +173,21 @@ export function Starfield() {
     };
   }, [generateStars]);
 
+  const tintColor = showType ? TINT_COLORS[showType] ?? "transparent" : "transparent";
+
   return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 pointer-events-none"
-      style={{ zIndex: 0 }}
-      aria-hidden="true"
-    />
+    <>
+      <canvas
+        ref={canvasRef}
+        className="fixed inset-0 pointer-events-none"
+        style={{ zIndex: 0 }}
+        aria-hidden="true"
+      />
+      <div
+        className="fixed inset-0 pointer-events-none transition-[background-color] duration-1000"
+        style={{ zIndex: 0, backgroundColor: tintColor }}
+        aria-hidden="true"
+      />
+    </>
   );
 }

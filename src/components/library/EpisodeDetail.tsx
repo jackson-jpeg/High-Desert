@@ -249,7 +249,12 @@ export function EpisodeDetail({
 
             {/* Guest */}
             {episode.guestName && (
-              <div className="text-[13px] md:text-[11px] text-static-green/80">
+              <div
+                className="text-[13px] md:text-[11px] text-static-green/80 hover:text-static-green hover:underline cursor-pointer w-fit"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent("hd:show-guest", { detail: episode.guestName }));
+                }}
+              >
                 {episode.guestName}
               </div>
             )}

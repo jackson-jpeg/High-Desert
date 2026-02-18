@@ -8,6 +8,7 @@ import { Window } from "@/components/win98";
 import { HistoryPanel } from "@/components/library/HistoryPanel";
 import { SmartPlaylists } from "@/components/library/SmartPlaylists";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
+import { ListeningStats } from "@/components/library/ListeningStats";
 import { cn } from "@/lib/utils/cn";
 
 export default function StatsPage() {
@@ -216,6 +217,9 @@ export default function StatsPage() {
 
   return (
     <div className="p-4 flex flex-col gap-4 max-w-5xl mx-auto">
+
+      {/* Listening Stats Banner */}
+      <ListeningStats />
 
       {/* ── Signal Report ── Hero stats */}
       <Window title="Signal Report" variant="dark">

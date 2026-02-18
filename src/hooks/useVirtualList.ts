@@ -19,6 +19,7 @@ interface UseVirtualListReturn<T> {
   virtualItems: VirtualItem<T>[];
   totalHeight: number;
   onScroll: () => void;
+  scrollToIndex: (index: number) => void;
 }
 
 export function useVirtualList<T>({
@@ -64,5 +65,12 @@ export function useVirtualList<T>({
     return result;
   }, [items, itemHeight, scrollTop, overscan, containerHeight]);
 
-  return { virtualItems, totalHeight, onScroll };
+  const scrollToIndex = useCallback((index: number) => {
+    const el = containerRef.current;
+    if (el) {
+      el.scrollTop = Math.max(0, index * itemHeight - el.clientHeight / 2 + itemHeight / 2);
+    }
+  }, [containerRef, itemHeight]);
+
+  return { virtualItems, totalHeight, onScroll, scrollToIndex };
 }

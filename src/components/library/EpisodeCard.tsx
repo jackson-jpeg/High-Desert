@@ -3,7 +3,9 @@
 import type { Episode } from "@/db/schema";
 import { cn } from "@/lib/utils/cn";
 import { formatDuration, getShowLabel } from "@/lib/utils/format";
+import { useRef, useCallback } from "react";
 import { useLongPress } from "@/hooks/useLongPress";
+import { MiniWaveform } from "./MiniWaveform";
 
 interface EpisodeCardProps {
   episode: Episode;
@@ -14,6 +16,7 @@ interface EpisodeCardProps {
   onDoubleClick?: (episode: Episode) => void;
   onContextMenu?: (episode: Episode, x: number, y: number) => void;
   onToggleFavorite?: (episode: Episode) => void;
+  onQueue?: (episode: Episode) => void;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -27,6 +30,7 @@ export function EpisodeCard({
   onDoubleClick,
   onContextMenu,
   onToggleFavorite,
+  onQueue,
   className,
   style,
 }: EpisodeCardProps) {
@@ -61,12 +65,56 @@ export function EpisodeCard({
     }
   });
 
+  // Swipe actions (mobile)
+  const cardRef = useRef<HTMLButtonElement>(null);
+  const swipeState = useRef({ startX: 0, startY: 0, lastX: 0, swiping: false });
+
+  const onTouchStartSwipe = useCallback((e: React.TouchEvent) => {
+    const t = e.touches[0];
+    swipeState.current = { startX: t.clientX, startY: t.clientY, lastX: t.clientX, swiping: false };
+  }, []);
+
+  const onTouchMoveSwipe = useCallback((e: React.TouchEvent) => {
+    const t = e.touches[0];
+    const s = swipeState.current;
+    const dx = t.clientX - s.startX;
+    const dy = t.clientY - s.startY;
+    if (!s.swiping && Math.abs(dy) > Math.abs(dx)) return;
+    if (Math.abs(dx) > 15) s.swiping = true;
+    s.lastX = t.clientX;
+    if (s.swiping && cardRef.current) {
+      const clamped = Math.max(-100, Math.min(100, dx));
+      cardRef.current.style.transform = `translateX(${clamped}px)`;
+      cardRef.current.style.transition = "none";
+    }
+  }, []);
+
+  const onTouchEndSwipe = useCallback(() => {
+    const s = swipeState.current;
+    const dx = s.lastX - s.startX;
+    if (cardRef.current) {
+      cardRef.current.style.transform = "";
+      cardRef.current.style.transition = "transform 0.2s ease-out";
+    }
+    if (s.swiping) {
+      if (dx > 60 && onQueue) {
+        onQueue(episode);
+      } else if (dx < -60 && onToggleFavorite) {
+        onToggleFavorite(episode);
+      }
+    }
+    s.swiping = false;
+  }, [episode, onQueue, onToggleFavorite]);
+
   return (
     <button
+      ref={cardRef}
       onClick={(e) => onClick(episode, e)}
       onDoubleClick={onDoubleClick ? () => onDoubleClick(episode) : undefined}
       onContextMenu={handleContextMenu}
-      {...longPress}
+      onTouchStart={(e) => { longPress.onTouchStart(e); onTouchStartSwipe(e); }}
+      onTouchMove={(e) => { longPress.onTouchMove(e); onTouchMoveSwipe(e); }}
+      onTouchEnd={(e) => { longPress.onTouchEnd(e); onTouchEndSwipe(); }}
       style={style}
       role="option"
       aria-selected={isSelected || isPlaying}
@@ -172,9 +220,21 @@ export function EpisodeCard({
       {/* Guest + series + duration */}
       <div className="flex items-center justify-between gap-2 mt-0.5">
         <div className="flex items-center gap-1.5 min-w-0 truncate">
-          <span className="text-[12px] md:text-[10px] text-static-green/80 truncate">
-            {episode.guestName || episode.topic || "\u00A0"}
-          </span>
+          {episode.guestName ? (
+            <span
+              className="text-[12px] md:text-[10px] text-static-green/80 truncate hover:text-static-green hover:underline cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.dispatchEvent(new CustomEvent("hd:show-guest", { detail: episode.guestName }));
+              }}
+            >
+              {episode.guestName}
+            </span>
+          ) : (
+            <span className="text-[12px] md:text-[10px] text-static-green/80 truncate">
+              {episode.topic || "\u00A0"}
+            </span>
+          )}
           {episode.aiSeries && (
             <span className="text-[8px] text-title-bar-blue/50 flex-shrink-0 hidden md:inline">
               {episode.aiSeries}{episode.aiSeriesPart ? ` Pt.${episode.aiSeriesPart}` : ""}
@@ -188,16 +248,10 @@ export function EpisodeCard({
         )}
       </div>
 
-      {/* Playback progress bar */}
+      {/* Mini waveform progress indicator */}
       {hasProgress && (
-        <div className="absolute bottom-0 left-0 right-0 h-[2px]">
-          <div
-            className={cn(
-              "h-full",
-              isCompleted ? "bg-static-green/40" : "bg-phosphor-amber/60",
-            )}
-            style={{ width: `${progressPct}%` }}
-          />
+        <div className="absolute bottom-1 right-2">
+          <MiniWaveform progress={progressPct} completed={isCompleted} />
         </div>
       )}
     </button>
