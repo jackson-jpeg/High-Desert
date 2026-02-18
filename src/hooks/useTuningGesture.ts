@@ -69,7 +69,7 @@ export function useTuningGesture({
       if (!dragging.current) return;
       const dx = e.clientX - lastX.current;
       lastX.current = e.clientX;
-      const pxToDays = BASE_PX_TO_DAYS * (2 / useRadioDialStore.getState().zoom);
+      const pxToDays = BASE_PX_TO_DAYS * (2 / (useRadioDialStore.getState().zoom || 2));
       tune(-dx * pxToDays);
       // Clamp
       const pos = useRadioDialStore.getState().position;
@@ -145,7 +145,7 @@ export function useTuningGesture({
 
       const dx = touch.clientX - lastX.current;
       lastX.current = touch.clientX;
-      const pxToDays = BASE_PX_TO_DAYS * (2 / useRadioDialStore.getState().zoom);
+      const pxToDays = BASE_PX_TO_DAYS * (2 / (useRadioDialStore.getState().zoom || 2));
       velocity.current = -dx * pxToDays;
       tune(-dx * pxToDays);
       const pos = useRadioDialStore.getState().position;

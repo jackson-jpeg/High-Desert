@@ -40,7 +40,7 @@ function dayIndexToDate(dayIndex: number, earliest: Date): Date {
 
 function dayIndexToFrequency(dayIndex: number, totalDays: number): number {
   // Map 0..totalDays → 530..1700 kHz
-  if (totalDays === 0) return 530;
+  if (!totalDays || !Number.isFinite(dayIndex)) return 530;
   return 530 + (dayIndex / totalDays) * (1700 - 530);
 }
 

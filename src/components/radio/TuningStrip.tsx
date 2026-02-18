@@ -109,10 +109,16 @@ export function TuningStrip({ index, className }: TuningStripProps) {
 
       const centerX = w / 2;
       const pos = useRadioDialStore.getState().position;
-      const pxPerDay = useRadioDialStore.getState().zoom;
+      const pxPerDay = useRadioDialStore.getState().zoom || 2;
       const tickAreaTop = 8;
       const tickAreaBottom = h - 24;
       const tickHeight = tickAreaBottom - tickAreaTop;
+
+      // Guard against non-finite values
+      if (!Number.isFinite(pos) || !Number.isFinite(pxPerDay) || tickHeight <= 0) {
+        animId = requestAnimationFrame(render);
+        return;
+      }
 
       // Viewport in days
       const viewDaysHalf = (w / 2) / pxPerDay;
