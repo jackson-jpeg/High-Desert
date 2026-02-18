@@ -304,13 +304,14 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       >
         {NAV_ITEMS.filter(({ path }) => isAdmin || (path !== "/scanner" && path !== "/search")).map(({ label, path, icon }) => {
           const isActive = pathname === path;
+          const showNowPlaying = path === "/library" && isPlaying && !isActive;
           return (
             <button
               key={path}
               onClick={() => router.push(path)}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "w98-font cursor-pointer select-none transition-colors-fast",
+                "w98-font cursor-pointer select-none transition-colors-fast relative",
                 // Mobile: stacked icon + label
                 "flex flex-col items-center justify-center min-h-[48px] flex-1 gap-0.5",
                 // Desktop: inline text tabs (no icon)
@@ -322,6 +323,9 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             >
               <span className="text-[16px] leading-none md:hidden">{icon}</span>
               <span className="text-[10px] md:text-[10px]">{label}</span>
+              {showNowPlaying && (
+                <span className="absolute top-1 right-1/4 md:top-auto md:right-auto md:-top-0.5 md:left-1/2 w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air" />
+              )}
             </button>
           );
         })}
