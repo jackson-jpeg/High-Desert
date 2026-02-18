@@ -219,7 +219,7 @@ export default function StatsPage() {
       {/* ── Signal Report ── Hero stats */}
       <Window title="Signal Report" variant="dark">
         <div className="p-3">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
             <HeroStat
               label="Episodes"
               value={stats.total.toLocaleString()}
@@ -253,7 +253,7 @@ export default function StatsPage() {
           </div>
 
           {/* Second row: enrichment stats */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-2">
+          <div className="grid grid-cols-3 md:grid-cols-5 gap-2 mt-2">
             <HeroStat
               label="Notable"
               value={stats.notableCount.toLocaleString()}
@@ -331,10 +331,10 @@ export default function StatsPage() {
                   const yearHours = (stats.yearDurations.get(year) ?? 0) / 3600;
                   return (
                     <div key={year} className="flex items-center gap-2 group">
-                      <span className="text-[9px] text-desert-amber tabular-nums w-[32px] text-right">
+                      <span className="text-[11px] md:text-[9px] text-desert-amber tabular-nums w-[36px] md:w-[32px] text-right">
                         {year}
                       </span>
-                      <div className="flex-1 h-[14px] w98-inset-dark bg-inset-well overflow-hidden">
+                      <div className="flex-1 h-[18px] md:h-[14px] w98-inset-dark bg-inset-well overflow-hidden">
                         <div
                           className="h-full animate-bar-grow relative"
                           style={{
@@ -593,7 +593,7 @@ export default function StatsPage() {
             <div className="flex flex-wrap gap-x-2 gap-y-1.5 justify-center">
               {stats.topTags.map(([tag, count]) => {
                 const ratio = count / stats.maxTagCount;
-                const size = 8 + ratio * 8; // 8px to 16px
+                const size = 9 + ratio * 9; // 9px to 18px
                 const opacity = 0.3 + ratio * 0.7; // 0.3 to 1.0
                 return (
                   <span
@@ -632,14 +632,14 @@ function HeroStat({ label, value, sub, color }: {
   color: string;
 }) {
   return (
-    <div className="flex flex-col items-center p-2 w98-inset-dark bg-inset-well gap-0.5">
-      <div className={cn("text-[16px] font-bold tabular-nums", color)}>
+    <div className="flex flex-col items-center p-2.5 md:p-2 w98-inset-dark bg-inset-well gap-0.5">
+      <div className={cn("text-[18px] md:text-[16px] font-bold tabular-nums", color)}>
         {value}
       </div>
-      <div className="text-[8px] text-bevel-dark uppercase tracking-wider">
+      <div className="text-[9px] md:text-[8px] text-bevel-dark uppercase tracking-wider">
         {label}
       </div>
-      <div className="text-[7px] text-bevel-dark/50 truncate max-w-full">
+      <div className="text-[8px] md:text-[7px] text-bevel-dark/50 truncate max-w-full text-center">
         {sub}
       </div>
     </div>
