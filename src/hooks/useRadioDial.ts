@@ -218,7 +218,7 @@ export function useRadioDial(episodes: Episode[] | undefined) {
 
     const dir = scanning === "forward" ? 1 : -1;
     const SCAN_SPEED = 5; // days per tick at 60fps → ~5 days/sec at 16ms interval
-    const PAUSE_DURATION = 1500;
+    const PAUSE_DURATION = 3500; // longer pause to allow audio preview
     const GAP_THRESHOLD = 30;
 
     let lastEpisodeDay = -1;
@@ -244,7 +244,15 @@ export function useRadioDial(episodes: Episode[] | undefined) {
           lastEpisodeDay = station.dayIndex;
           scanPauseRef.current = true;
           setPosition(station.dayIndex);
+
+          // Dispatch scan preview event for brief audio snippet
+          window.dispatchEvent(
+            new CustomEvent("hd:scan-preview", { detail: station.episode }),
+          );
+
           scanTimerRef.current = setTimeout(() => {
+            // Stop preview before moving on
+            window.dispatchEvent(new CustomEvent("hd:scan-preview-stop"));
             scanPauseRef.current = false;
           }, PAUSE_DURATION);
           return;

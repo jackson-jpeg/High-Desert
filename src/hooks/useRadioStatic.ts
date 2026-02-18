@@ -9,6 +9,7 @@ import {
   destroyRadioStatic,
   isRadioStaticInitialized,
 } from "@/audio/radio-static";
+import { usePlayerStore } from "@/stores/player-store";
 
 interface UseRadioStaticOptions {
   signalStrength: number;
@@ -34,9 +35,12 @@ export function useRadioStatic({
     }
   }, []);
 
+  // Mute static when main player is actively playing
+  const mainPlayerPlaying = usePlayerStore((s) => s.playing);
+
   // Update static volume reactively
   useEffect(() => {
-    if (!enabled || !userInteracted.current) {
+    if (!enabled || !userInteracted.current || mainPlayerPlaying) {
       muteStatic();
       return;
     }
@@ -51,7 +55,7 @@ export function useRadioStatic({
     }
 
     setStaticVolume(signalStrength);
-  }, [signalStrength, enabled]);
+  }, [signalStrength, enabled, mainPlayerPlaying]);
 
   // Play lock tone when signal locks
   useEffect(() => {

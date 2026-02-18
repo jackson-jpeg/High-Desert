@@ -11,6 +11,7 @@ import { TuningStrip } from "./TuningStrip";
 import { FrequencyDisplay } from "./FrequencyDisplay";
 import { SignalMeter } from "./SignalMeter";
 import { DialControls } from "./DialControls";
+import { RadioShortcuts } from "./RadioShortcuts";
 import type { Episode } from "@/db/schema";
 
 interface RadioDialProps {
@@ -171,6 +172,46 @@ export function RadioDial({ episodes }: RadioDialProps) {
   ) : null;
 
   if (!index) {
+    // Check if we're still loading or genuinely empty
+    const isEmpty = episodes && episodes.length === 0;
+    const noValidDates = episodes && episodes.length > 0 && !episodes.some((e) => e.airDate);
+
+    if (isEmpty) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-4">
+          <div className="text-[14px] text-desert-amber/60 w98-font">No Stations Found</div>
+          <div className="text-[11px] text-bevel-dark max-w-[280px]">
+            The radio dial needs episodes to tune into. Import some from the archive or scan local files.
+          </div>
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={() => router.push("/search")}
+              className="w98-raised-dark bg-raised-surface text-desktop-gray px-3 py-1 text-[10px] cursor-pointer hover:text-desert-amber transition-colors-fast"
+            >
+              Search Archive
+            </button>
+            <button
+              onClick={() => router.push("/scanner")}
+              className="w98-raised-dark bg-raised-surface text-desktop-gray px-3 py-1 text-[10px] cursor-pointer hover:text-desert-amber transition-colors-fast"
+            >
+              Scan Files
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (noValidDates) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full gap-2 text-center px-4">
+          <div className="text-[14px] text-desert-amber/60 w98-font">No Dated Episodes</div>
+          <div className="text-[11px] text-bevel-dark max-w-[280px]">
+            The radio dial maps episodes by air date. Try running AI categorization to detect original broadcast dates.
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex items-center justify-center h-full text-bevel-dark text-[11px]">
         Loading station index...
@@ -211,12 +252,15 @@ export function RadioDial({ episodes }: RadioDialProps) {
         {/* Controls + Signal */}
         <div className="flex-shrink-0 px-3 pb-2 flex flex-col gap-2">
           <SignalMeter signalStrength={signalStrength} />
-          <DialControls
-            lockedEpisode={lockedEpisode}
-            isLocked={isLocked}
-            onLockNearest={lockToNearest}
-            className="justify-center flex-wrap"
-          />
+          <div className="flex items-center gap-2">
+            <DialControls
+              lockedEpisode={lockedEpisode}
+              isLocked={isLocked}
+              onLockNearest={lockToNearest}
+              className="justify-center flex-wrap flex-1"
+            />
+            <RadioShortcuts />
+          </div>
         </div>
       </div>
     );
@@ -267,6 +311,7 @@ export function RadioDial({ episodes }: RadioDialProps) {
             signalStrength={signalStrength}
             className="w-[120px] flex-shrink-0"
           />
+          <RadioShortcuts />
         </div>
       </div>
     </Window>

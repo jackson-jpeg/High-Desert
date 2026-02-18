@@ -14,9 +14,12 @@ export interface RadioDialState {
   staticEnabled: boolean;
   // Sub-station index for same-date episodes
   subStationIndex: number;
+  // Zoom level (px per day)
+  zoom: number;
 
   // Actions
   setPosition: (pos: number) => void;
+  setZoom: (zoom: number) => void;
   tune: (delta: number) => void;
   lockEpisode: (ep: Episode | null) => void;
   setSignalStrength: (s: number) => void;
@@ -33,8 +36,10 @@ export const useRadioDialStore = create<RadioDialState>((set, get) => ({
   scanning: null,
   staticEnabled: true,
   subStationIndex: 0,
+  zoom: 2, // px per day (default)
 
   setPosition: (pos) => set({ position: pos, subStationIndex: 0 }),
+  setZoom: (zoom) => set({ zoom: Math.max(0.5, Math.min(10, zoom)) }),
 
   tune: (delta) => {
     const { position } = get();

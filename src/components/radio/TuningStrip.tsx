@@ -38,6 +38,7 @@ export function TuningStrip({ index, className }: TuningStripProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const position = useRadioDialStore((s) => s.position);
   const signalStrength = useRadioDialStore((s) => s.signalStrength);
+  const zoom = useRadioDialStore((s) => s.zoom);
 
   // Year label hit areas for click-to-jump
   const [yearHitAreas, setYearHitAreas] = useState<
@@ -108,7 +109,7 @@ export function TuningStrip({ index, className }: TuningStripProps) {
 
       const centerX = w / 2;
       const pos = useRadioDialStore.getState().position;
-      const pxPerDay = 2; // 2px per day
+      const pxPerDay = useRadioDialStore.getState().zoom;
       const tickAreaTop = 8;
       const tickAreaBottom = h - 24;
       const tickHeight = tickAreaBottom - tickAreaTop;
@@ -246,7 +247,7 @@ export function TuningStrip({ index, className }: TuningStripProps) {
       cancelAnimationFrame(animId);
       window.removeEventListener("resize", resize);
     };
-  }, [index]);
+  }, [index, zoom]);
 
   return (
     <canvas

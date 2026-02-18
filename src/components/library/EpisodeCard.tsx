@@ -76,6 +76,8 @@ export function EpisodeCard({
         "transition-all duration-150 cursor-pointer",
         "hover:bg-title-bar-blue/15 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)] active:bg-title-bar-blue/20",
         showAccent,
+        episode.aiNotable && !isPlaying && "border-l-desert-amber/70 bg-desert-amber/[0.03]",
+        episode.favoritedAt && !isPlaying && !episode.aiNotable && "bg-desert-amber/[0.02]",
         isPlaying && "ring-1 ring-static-green/40 bg-title-bar-blue/10 glass-glow-green",
         isSelected && !isPlaying && "bg-highlight-blue/20",
         isMultiSelected && "bg-highlight-blue/30 ring-1 ring-highlight-blue/40",
@@ -97,8 +99,11 @@ export function EpisodeCard({
             <span className="w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air flex-shrink-0" />
           )}
           {episode.aiNotable && !isPlaying && (
-            <span className="text-[9px] text-yellow-400/80 flex-shrink-0" title="Notable episode">
-              {"\u272A"}
+            <span
+              className="text-[10px] text-yellow-400 flex-shrink-0 drop-shadow-[0_0_3px_rgba(250,204,21,0.4)]"
+              title="Notable episode — a classic Art Bell moment"
+            >
+              {"\u2605"}
             </span>
           )}
           {isCompleted && !isPlaying && (

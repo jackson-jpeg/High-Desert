@@ -70,6 +70,43 @@ export default function DesktopLayout({
         return;
       }
 
+      // Resolve streaming URL from archiveIdentifier if available
+      if (!episode.sourceUrl && episode.archiveIdentifier) {
+        try {
+          const [identifier, fileName] = episode.archiveIdentifier.includes("/")
+            ? [episode.archiveIdentifier.split("/")[0], episode.archiveIdentifier.split("/").slice(1).join("/")]
+            : [episode.archiveIdentifier, null];
+
+          if (fileName) {
+            // Direct URL construction
+            const resolvedUrl = `https://archive.org/download/${identifier}/${encodeURIComponent(fileName)}`;
+            episode.sourceUrl = resolvedUrl;
+          } else {
+            // Fetch metadata to find the best audio file
+            const res = await fetch(`/api/archive/metadata?id=${encodeURIComponent(identifier)}`);
+            if (res.ok) {
+              const data = await res.json();
+              const files = data.files as { name: string; format: string }[];
+              const best = files.find((f) => f.format === "VBR MP3") || files.find((f) => f.format.includes("MP3")) || files[0];
+              if (best) {
+                episode.sourceUrl = `https://archive.org/download/${identifier}/${encodeURIComponent(best.name)}`;
+              }
+            }
+          }
+
+          if (episode.sourceUrl) {
+            // Persist the resolved URL so we don't have to do this again
+            if (episode.id) {
+              db.episodes.update(episode.id, { sourceUrl: episode.sourceUrl }).catch(() => {});
+            }
+            await playEpisode(episode);
+            return;
+          }
+        } catch (err) {
+          console.error("[layout] Failed to resolve archive URL:", err);
+        }
+      }
+
       // For local files, check OPFS cache first
       try {
         const cached = await getCachedAudio(episode.fileHash);
@@ -112,6 +149,88 @@ export default function DesktopLayout({
     window.addEventListener("hd:play-episode", handler);
     return () => window.removeEventListener("hd:play-episode", handler);
   }, [playEpisode, enqueue]);
+
+  // Scan preview: brief audio snippet during radio scan
+  useEffect(() => {
+    let previewAudio: HTMLAudioElement | null = null;
+    let fadeTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const handlePreview = async (e: Event) => {
+      const episode = (e as CustomEvent<Episode>).detail;
+      if (!episode.sourceUrl) return;
+
+      // Don't preview if main player is playing
+      if (usePlayerStore.getState().playing) return;
+
+      try {
+        // Stop any existing preview
+        if (previewAudio) {
+          previewAudio.pause();
+          previewAudio.src = "";
+        }
+
+        previewAudio = new Audio(episode.sourceUrl);
+        previewAudio.volume = 0;
+        previewAudio.crossOrigin = "anonymous";
+
+        // Start from a random point (skip first 30s intro if long enough)
+        previewAudio.currentTime = (episode.duration && episode.duration > 120)
+          ? 30 + Math.random() * Math.min(episode.duration - 60, 300)
+          : 0;
+
+        await previewAudio.play();
+
+        // Fade in over 300ms
+        let vol = 0;
+        const fadeIn = setInterval(() => {
+          vol = Math.min(vol + 0.05, 0.3);
+          if (previewAudio) previewAudio.volume = vol;
+          if (vol >= 0.3) clearInterval(fadeIn);
+        }, 30);
+
+        // Auto-fade-out after 2.5s
+        fadeTimer = setTimeout(() => {
+          if (!previewAudio) return;
+          const fadeOut = setInterval(() => {
+            if (!previewAudio) { clearInterval(fadeOut); return; }
+            previewAudio.volume = Math.max(0, previewAudio.volume - 0.05);
+            if (previewAudio.volume <= 0) {
+              clearInterval(fadeOut);
+              previewAudio.pause();
+              previewAudio.src = "";
+            }
+          }, 30);
+        }, 2500);
+      } catch {
+        // Preview failed silently — not critical
+      }
+    };
+
+    const handlePreviewStop = () => {
+      if (fadeTimer) clearTimeout(fadeTimer);
+      if (previewAudio) {
+        // Quick fade out
+        const audio = previewAudio;
+        const fadeOut = setInterval(() => {
+          audio.volume = Math.max(0, audio.volume - 0.1);
+          if (audio.volume <= 0) {
+            clearInterval(fadeOut);
+            audio.pause();
+            audio.src = "";
+          }
+        }, 20);
+        previewAudio = null;
+      }
+    };
+
+    window.addEventListener("hd:scan-preview", handlePreview);
+    window.addEventListener("hd:scan-preview-stop", handlePreviewStop);
+    return () => {
+      window.removeEventListener("hd:scan-preview", handlePreview);
+      window.removeEventListener("hd:scan-preview-stop", handlePreviewStop);
+      handlePreviewStop();
+    };
+  }, []);
 
   // Persist last-episode-id, queue, and record history whenever episode changes
   useEffect(() => {

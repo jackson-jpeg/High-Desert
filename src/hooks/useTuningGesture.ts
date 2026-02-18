@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useRadioDialStore } from "@/stores/radio-dial-store";
 
-const PX_TO_DAYS = 0.5; // 1px drag = 0.5 days
+const BASE_PX_TO_DAYS = 0.5; // 1px drag = 0.5 days at default zoom
 
 interface GestureOptions {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -20,6 +20,7 @@ export function useTuningGesture({
 }: GestureOptions) {
   const tune = useRadioDialStore((s) => s.tune);
   const setPosition = useRadioDialStore((s) => s.setPosition);
+  const setZoom = useRadioDialStore((s) => s.setZoom);
 
   // Drag state
   const dragging = useRef(false);
@@ -68,7 +69,8 @@ export function useTuningGesture({
       if (!dragging.current) return;
       const dx = e.clientX - lastX.current;
       lastX.current = e.clientX;
-      tune(-dx * PX_TO_DAYS);
+      const pxToDays = BASE_PX_TO_DAYS * (2 / useRadioDialStore.getState().zoom);
+      tune(-dx * pxToDays);
       // Clamp
       const pos = useRadioDialStore.getState().position;
       if (pos < 0 || pos > totalDays) setPosition(clamp(pos));
@@ -88,7 +90,7 @@ export function useTuningGesture({
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
-  }, [canvasRef, tune, setPosition, totalDays, clamp, onYearClick, yearLabelHitAreas]);
+  }, [canvasRef, tune, setPosition, setZoom, totalDays, clamp, onYearClick, yearLabelHitAreas]);
 
   // Touch handlers with momentum
   useEffect(() => {
@@ -96,8 +98,20 @@ export function useTuningGesture({
     if (!canvas) return;
 
     let touchId: number | null = null;
+    let pinchStartDist = 0;
+    let pinchStartZoom = 2;
 
     const onTouchStart = (e: TouchEvent) => {
+      // Pinch-to-zoom with 2 fingers
+      if (e.touches.length === 2) {
+        dragging.current = false;
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        pinchStartDist = Math.hypot(dx, dy);
+        pinchStartZoom = useRadioDialStore.getState().zoom;
+        return;
+      }
+
       if (e.touches.length !== 1) return;
       const touch = e.touches[0];
       touchId = touch.identifier;
@@ -111,6 +125,17 @@ export function useTuningGesture({
     };
 
     const onTouchMove = (e: TouchEvent) => {
+      // Handle pinch zoom
+      if (e.touches.length === 2 && pinchStartDist > 0) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.hypot(dx, dy);
+        const scale = dist / pinchStartDist;
+        setZoom(pinchStartZoom * scale);
+        return;
+      }
+
       if (!dragging.current || touchId === null) return;
       const touch = Array.from(e.changedTouches).find(
         (t) => t.identifier === touchId,
@@ -120,8 +145,9 @@ export function useTuningGesture({
 
       const dx = touch.clientX - lastX.current;
       lastX.current = touch.clientX;
-      velocity.current = -dx * PX_TO_DAYS;
-      tune(-dx * PX_TO_DAYS);
+      const pxToDays = BASE_PX_TO_DAYS * (2 / useRadioDialStore.getState().zoom);
+      velocity.current = -dx * pxToDays;
+      tune(-dx * pxToDays);
       const pos = useRadioDialStore.getState().position;
       if (pos < 0 || pos > totalDays) setPosition(clamp(pos));
     };
@@ -159,7 +185,7 @@ export function useTuningGesture({
       canvas.removeEventListener("touchend", onTouchEnd);
       if (momentumId.current) cancelAnimationFrame(momentumId.current);
     };
-  }, [canvasRef, tune, setPosition, totalDays, clamp]);
+  }, [canvasRef, tune, setPosition, setZoom, totalDays, clamp]);
 
   // Scroll wheel
   useEffect(() => {
@@ -168,6 +194,13 @@ export function useTuningGesture({
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      // Ctrl+wheel = zoom
+      if (e.ctrlKey || e.metaKey) {
+        const currentZoom = useRadioDialStore.getState().zoom;
+        const delta = e.deltaY > 0 ? -0.3 : 0.3;
+        setZoom(currentZoom + delta);
+        return;
+      }
       const days = e.shiftKey ? 30 : 1;
       const dir = e.deltaY > 0 ? 1 : -1;
       tune(dir * days);
@@ -177,7 +210,7 @@ export function useTuningGesture({
 
     canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => canvas.removeEventListener("wheel", onWheel);
-  }, [canvasRef, tune, setPosition, totalDays, clamp]);
+  }, [canvasRef, tune, setPosition, setZoom, totalDays, clamp]);
 
   return { dragging };
 }
