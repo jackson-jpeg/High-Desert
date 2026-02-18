@@ -148,9 +148,20 @@ export function Starfield() {
     animId = requestAnimationFrame(render);
     window.addEventListener("resize", resize);
 
+    // Pause when tab is hidden to save battery
+    const onVisibility = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(animId);
+      } else {
+        animId = requestAnimationFrame(render);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [generateStars]);
 

@@ -1,10 +1,13 @@
 /// <reference lib="webworker" />
 
-const CACHE_NAME = "hd-shell-v1";
+const CACHE_NAME = "hd-shell-v2";
 const STATIC_ASSETS = [
   "/",
   "/library",
   "/radio",
+  "/scanner",
+  "/search",
+  "/stats",
   "/manifest.json",
   "/fonts/W95FA.woff2",
   "/icons/icon-192.png",
@@ -41,11 +44,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets (fonts, icons, images): cache-first
+  // Static assets (fonts, icons, images, JS/CSS chunks): cache-first
   if (
     url.pathname.startsWith("/fonts/") ||
     url.pathname.startsWith("/icons/") ||
-    url.pathname.match(/\.(woff2?|png|jpg|svg|ico)$/)
+    url.pathname.startsWith("/_next/static/") ||
+    url.pathname.match(/\.(woff2?|png|jpg|svg|ico|js|css)$/)
   ) {
     event.respondWith(
       caches.match(event.request).then((cached) => {

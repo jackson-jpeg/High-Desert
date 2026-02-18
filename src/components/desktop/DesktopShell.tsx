@@ -30,11 +30,11 @@ interface DesktopShellProps {
 }
 
 const NAV_ITEMS = [
-  { label: "Library", path: "/library", icon: "\u{1F4DA}" },
-  { label: "Radio", path: "/radio", icon: "\u{1F4FB}" },
-  { label: "Scanner", path: "/scanner", icon: "\u{1F4C1}" },
-  { label: "Search", path: "/search", icon: "\u{1F50D}" },
-  { label: "Stats", path: "/stats", icon: "\u{1F4CA}" },
+  { label: "Library", path: "/library" },
+  { label: "Radio", path: "/radio" },
+  { label: "Scanner", path: "/scanner" },
+  { label: "Search", path: "/search" },
+  { label: "Stats", path: "/stats" },
 ] as const;
 
 export function DesktopShell({ children, player, episodeCount = 0, className }: DesktopShellProps) {
@@ -302,7 +302,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           "md:static md:justify-start md:gap-0 md:border-t-0 md:border-b md:border-bevel-dark/15 md:px-2 md:bg-midnight/80 md:backdrop-blur-xs md:pb-0",
         )}
       >
-        {NAV_ITEMS.filter(({ path }) => isAdmin || (path !== "/scanner" && path !== "/search")).map(({ label, path, icon }) => {
+        {NAV_ITEMS.filter(({ path }) => isAdmin || (path !== "/scanner" && path !== "/search")).map(({ label, path }) => {
           const isActive = pathname === path;
           const showNowPlaying = path === "/library" && isPlaying && !isActive;
           return (
@@ -312,36 +312,32 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               aria-current={isActive ? "page" : undefined}
               className={cn(
                 "w98-font cursor-pointer select-none transition-colors-fast relative",
-                // Mobile: stacked icon + label
-                "flex flex-col items-center justify-center min-h-[48px] flex-1 gap-0.5",
-                // Desktop: inline text tabs (no icon)
-                "md:flex-row md:flex-none md:min-h-0 md:px-3 md:py-1.5 md:gap-0",
+                "flex items-center justify-center min-h-[48px] flex-1 text-[12px]",
+                "md:flex-none md:min-h-0 md:px-3 md:py-1.5 md:text-[10px]",
                 isActive
                   ? "text-desktop-gray border-t-2 border-t-desert-amber md:border-t-0 md:border-b-2 md:border-b-desert-amber"
                   : "text-bevel-dark active:text-desktop-gray md:hover:text-desktop-gray border-t-2 border-t-transparent md:border-t-0 md:border-b-2 md:border-b-transparent",
               )}
             >
-              <span className="text-[16px] leading-none md:hidden">{icon}</span>
-              <span className="text-[10px] md:text-[10px]">{label}</span>
+              {label}
               {showNowPlaying && (
-                <span className="absolute top-1 right-1/4 md:top-auto md:right-auto md:-top-0.5 md:left-1/2 w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air" />
+                <span className="absolute top-1.5 right-[calc(50%-18px)] md:-top-0.5 md:right-auto md:left-1/2 w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air" />
               )}
             </button>
           );
         })}
-        {/* Mobile-only gear/settings tab */}
+        {/* Mobile-only more tab */}
         <button
           onClick={() => setMobileMenuOpen(true)}
           className={cn(
             "w98-font cursor-pointer select-none transition-colors-fast",
-            "flex flex-col items-center justify-center min-h-[48px] flex-1 gap-0.5",
+            "flex items-center justify-center min-h-[48px] flex-1 text-[12px]",
             "text-bevel-dark active:text-desktop-gray border-t-2 border-t-transparent",
             "md:hidden",
           )}
           aria-label="More options"
         >
-          <span className="text-[16px] leading-none">{"\u2699"}</span>
-          <span className="text-[10px]">More</span>
+          More
         </button>
       </nav>
 
