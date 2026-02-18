@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
 import { SleepTimer } from "./SleepTimer";

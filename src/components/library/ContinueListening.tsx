@@ -6,7 +6,6 @@ import { db } from "@/db";
 import type { Episode } from "@/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
 import { cn } from "@/lib/utils/cn";
-import { formatDuration } from "@/lib/utils/format";
 
 interface ContinueListeningProps {
   onPlay: (episode: Episode) => void;
@@ -16,6 +15,11 @@ interface ContinueListeningProps {
 export function ContinueListening({ onPlay, className }: ContinueListeningProps) {
   const [dismissed, setDismissed] = useState(false);
   const playing = usePlayerStore((s) => s.playing);
+
+  // Auto-hide when something starts playing
+  useEffect(() => {
+    if (playing) setDismissed(true); // eslint-disable-line react-hooks/set-state-in-effect -- latch: once playing, stay dismissed
+  }, [playing]);
 
   // Get in-progress episodes: >10% and <90% progress, sorted by lastPlayedAt desc
   const inProgress = useLiveQuery(async () => {
@@ -33,11 +37,6 @@ export function ContinueListening({ onPlay, className }: ContinueListeningProps)
       })
       .slice(0, 5); // fetch up to 5, display limited by CSS
   }, []);
-
-  // Auto-hide when something starts playing
-  useEffect(() => {
-    if (playing) setDismissed(true);
-  }, [playing]);
 
   if (dismissed || !inProgress || inProgress.length === 0) return null;
 

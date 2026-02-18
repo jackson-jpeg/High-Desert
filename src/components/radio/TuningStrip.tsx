@@ -13,7 +13,6 @@ const COLOR_UNKNOWN = "#808080"; // bevel-dark
 const COLOR_YEAR_LABEL = "#D4A843";
 const COLOR_MONTH_TICK = "#808080";
 const COLOR_NEEDLE = "#FF2020";
-const COLOR_BG = "#080C16";
 const COLOR_STRIP_BG = "#0F1520";
 
 function getShowColor(showType: string): string {
@@ -37,7 +36,6 @@ interface TuningStripProps {
 export function TuningStrip({ index, className }: TuningStripProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const position = useRadioDialStore((s) => s.position);
-  const signalStrength = useRadioDialStore((s) => s.signalStrength);
   const zoom = useRadioDialStore((s) => s.zoom);
 
   // Year label hit areas for click-to-jump

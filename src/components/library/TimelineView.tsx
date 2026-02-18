@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useMemo, useState, useEffect } from "react";
+import { useRef, useMemo } from "react";
 import type { Episode } from "@/db/schema";
 import { EpisodeCard } from "./EpisodeCard";
 import { YearNavigator } from "./YearNavigator";
 import { useVirtualList } from "@/hooks/useVirtualList";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils/cn";
 
 interface TimelineViewProps {
@@ -40,16 +41,7 @@ export function TimelineView({
 }: TimelineViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Responsive item height — mobile needs more space for larger text
-  // Hydration-safe: start false, sync in useEffect (project convention)
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
-    setIsMobile(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
+  const isMobile = useIsMobile();
   const ITEM_HEIGHT = isMobile ? ITEM_HEIGHT_MOBILE : ITEM_HEIGHT_DESKTOP;
 
   const { virtualItems, totalHeight, onScroll, scrollToIndex } = useVirtualList({

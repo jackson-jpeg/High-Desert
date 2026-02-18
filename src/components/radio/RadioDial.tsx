@@ -22,7 +22,6 @@ export function RadioDial({ episodes }: RadioDialProps) {
   const router = useRouter();
   const isMobile = useIsMobile();
 
-  const position = useRadioDialStore((s) => s.position);
   const zoom = useRadioDialStore((s) => s.zoom);
   const setZoom = useRadioDialStore((s) => s.setZoom);
   const lockedEpisode = useRadioDialStore((s) => s.lockedEpisode);
@@ -31,7 +30,6 @@ export function RadioDial({ episodes }: RadioDialProps) {
   const scanning = useRadioDialStore((s) => s.scanning);
   const subStationIndex = useRadioDialStore((s) => s.subStationIndex);
   const tune = useRadioDialStore((s) => s.tune);
-  const setPosition = useRadioDialStore((s) => s.setPosition);
   const stopScan = useRadioDialStore((s) => s.stopScan);
 
   const {

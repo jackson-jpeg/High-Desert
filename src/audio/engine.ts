@@ -111,12 +111,4 @@ function tryInitAnalyser(): void {
   }
 }
 
-function cleanupAnalyser(): void {
-  // With createMediaElementSource, the graph is permanently bound.
-  // Never tear it down once connected.
-  if (elementConnected) return;
-
-  try { audioContext?.close(); } catch { /* ignore */ }
-  analyserNode = null;
-  audioContext = null;
-}
+// cleanupAnalyser removed — createMediaElementSource graph is permanently bound

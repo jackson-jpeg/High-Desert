@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { forwardRef, useState, useEffect, useRef, useCallback } from "react";
 import { TextField } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
 
@@ -50,8 +50,8 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
       if (suppressRef.current) { suppressRef.current = false; return; }
       const q = value.trim().toLowerCase();
       if (!q) {
-        // Show recent searches
         const recent = getRecentSearches();
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- derived from value change, not an external subscription
         setSuggestions(recent.map((s) => ({ type: "recent", label: s, query: s })));
         setActiveIdx(-1);
         return;
@@ -59,7 +59,6 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
 
       const results: Suggestion[] = [];
 
-      // Guest matches
       if (guests) {
         for (const g of guests) {
           if (results.length >= 8) break;
@@ -70,7 +69,6 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
         }
       }
 
-      // Category matches
       if (categories) {
         for (const c of categories) {
           if (results.filter((r) => r.type === "category").length >= 2) break;
@@ -80,7 +78,6 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
         }
       }
 
-      // Year matches
       if (years) {
         for (const y of years) {
           if (results.filter((r) => r.type === "year").length >= 2) break;

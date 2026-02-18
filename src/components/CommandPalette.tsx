@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { db } from "@/db";
-import type { Episode } from "@/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
 import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";

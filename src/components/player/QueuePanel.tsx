@@ -84,9 +84,6 @@ export function QueuePanel() {
     dragCountRef.current = 0;
   };
 
-  // Total queue duration
-  const totalSeconds = queue.reduce((sum, ep) => sum + (ep.duration ?? 0), 0);
-
   // Remaining queue duration (from current track onward)
   const remainingSeconds = queue
     .slice(queueIndex + 1)

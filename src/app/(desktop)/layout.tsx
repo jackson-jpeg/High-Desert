@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useState } from "react";
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { DesktopShell } from "@/components/desktop/DesktopShell";
@@ -27,7 +27,6 @@ export default function DesktopLayout({
   const volume = usePlayerStore((s) => s.volume);
   const setVolume = usePlayerStore((s) => s.setVolume);
   const enqueue = usePlayerStore((s) => s.enqueue);
-  const currentEpisode = usePlayerStore((s) => s.currentEpisode);
   // Continue listening is now handled by ContinueListening on the library page
 
   // Handle ?viewer URL param on mount (logout only — login requires password)

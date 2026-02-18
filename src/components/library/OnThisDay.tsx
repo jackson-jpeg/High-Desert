@@ -18,6 +18,7 @@ export function OnThisDay({ onPlay, compact, className }: OnThisDayProps) {
   const [monthName, setMonthName] = useState("");
   useEffect(() => {
     const now = new Date();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe: null on SSR, computed once on client
     setMonthDay(`${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`);
     setMonthName(now.toLocaleDateString("en-US", { month: "long", day: "numeric" }));
   }, []);

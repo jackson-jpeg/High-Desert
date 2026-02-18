@@ -56,7 +56,7 @@ export function EpisodeDetail({
 
   // Reset edit state when episode changes
   useEffect(() => {
-    setEditing(false);
+    setEditing(false); // eslint-disable-line react-hooks/set-state-in-effect -- reset derived state on prop change
   }, [episode.id]);
 
   const startEditing = () => {

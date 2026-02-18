@@ -14,7 +14,7 @@ import { SearchBar } from "@/components/library/SearchBar";
 import { TimelineView } from "@/components/library/TimelineView";
 import { EpisodeDetail } from "@/components/library/EpisodeDetail";
 import { RecentlyPlayed } from "@/components/library/RecentlyPlayed";
-import { PlaylistPanel, addToPlaylist } from "@/components/library/PlaylistPanel";
+import { addToPlaylist } from "@/components/library/PlaylistPanel";
 import { OnThisDay } from "@/components/library/OnThisDay";
 import { Dialog, Button } from "@/components/win98";
 import { parseSearch } from "@/lib/utils/search-parser";
@@ -518,7 +518,7 @@ export default function LibraryPage() {
     ];
 
     useContextMenuStore.getState().show(x, y, items);
-  }, [currentEpisodeId, handlePlay, selectedIds, selectedEpisode]);
+  }, [currentEpisodeId, handlePlay, handleToggleFavorite, selectedIds, selectedEpisode, allPlaylists]);
 
   const handleBulkDelete = useCallback(async () => {
     setDeleting(true);

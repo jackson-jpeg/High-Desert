@@ -10,13 +10,11 @@ interface MobileMenuSheetProps {
   isAdmin: boolean;
   onToggleAdmin: () => void;
   onAbout: () => void;
-  onShuffle?: () => void;
-  onShortcuts?: () => void;
   startupSoundOn?: boolean;
   onToggleStartupSound?: () => void;
 }
 
-export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout, onShuffle, onShortcuts, startupSoundOn, onToggleStartupSound }: MobileMenuSheetProps) {
+export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout, startupSoundOn, onToggleStartupSound }: MobileMenuSheetProps) {
   const router = useRouter();
   const closingRef = useRef(false);
 

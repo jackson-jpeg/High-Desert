@@ -1,7 +1,8 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 interface PageTransitionProps {
   children: ReactNode;
@@ -11,16 +12,13 @@ export function PageTransition({ children }: PageTransitionProps) {
   const pathname = usePathname();
   const [visible, setVisible] = useState(true);
   const prevPath = useRef(pathname);
-  const [reducedMotion, setReducedMotion] = useState(false);
-
-  useEffect(() => {
-    setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  }, []);
+  const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
   useEffect(() => {
     if (pathname !== prevPath.current) {
       prevPath.current = pathname;
       if (reducedMotion) return;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: triggers page transition animation
       setVisible(false);
       requestAnimationFrame(() => {
         requestAnimationFrame(() => setVisible(true));

@@ -121,7 +121,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
 
   // Randomize initial caller message on client only (avoids hydration mismatch)
   useEffect(() => {
-    setCallerIdx(Math.floor(Math.random() * CALLER_MESSAGES.length));
+    setCallerIdx(Math.floor(Math.random() * CALLER_MESSAGES.length)); // eslint-disable-line react-hooks/set-state-in-effect -- hydration-safe: 0 on SSR, randomized on client
   }, []);
 
   // Rotating caller line messages (every 30s)
@@ -137,13 +137,12 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   }, []);
 
   // Ghost to Ghost easter egg: detect Halloween season (Oct 28 - Nov 2)
-  // Computed in useEffect to avoid hydration mismatch (server build time vs client time)
   const [isHalloweenSeason, setIsHalloweenSeason] = useState(false);
   useEffect(() => {
     const now = new Date();
     const m = now.getMonth(); // 0-indexed
     const d = now.getDate();
-    setIsHalloweenSeason((m === 9 && d >= 28) || (m === 10 && d <= 2));
+    setIsHalloweenSeason((m === 9 && d >= 28) || (m === 10 && d <= 2)); // eslint-disable-line react-hooks/set-state-in-effect -- hydration-safe: false on SSR, computed on client
   }, []);
 
   // Show counts for AboutDialog
@@ -547,7 +546,6 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         isAdmin={isAdmin}
         onToggleAdmin={handleToggleAdmin}
         onAbout={handleAbout}
-        onShortcuts={handleShortcuts}
         startupSoundOn={startupSoundOn}
         onToggleStartupSound={handleToggleStartupSound}
       />
