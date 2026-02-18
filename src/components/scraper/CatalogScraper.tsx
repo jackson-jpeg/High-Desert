@@ -66,7 +66,7 @@ export function CatalogScraper() {
   const isDone = phase === "done" || phase === "error" || phase === "cancelled";
 
   // Tick every second while running for elapsed time display
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(0);
 
   useEffect(() => {
     if (isRunning) {

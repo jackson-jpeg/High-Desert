@@ -581,11 +581,13 @@ export default function LibraryPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [filtered, focusedIndex, selectedEpisode, selectedIds, handlePlay]);
 
-  const [discoveryOpen, setDiscoveryOpen] = useState(() => {
-    if (typeof window === "undefined") return false;
+  const [discoveryOpen, setDiscoveryOpen] = useState(false);
+
+  // Sync discovery state from localStorage after hydration
+  useEffect(() => {
     const saved = localStorage.getItem("hd-discovery-open");
-    return saved === null ? false : saved === "true";
-  });
+    if (saved === "true") setDiscoveryOpen(true);
+  }, []);
 
   const toggleDiscovery = useCallback(() => {
     setDiscoveryOpen((prev) => {
