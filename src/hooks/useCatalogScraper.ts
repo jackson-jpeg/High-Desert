@@ -7,6 +7,7 @@ import { getArchiveItem, getStreamUrl, pickBestAudioFile } from "@/services/arch
 import { fetchWithRetry } from "@/lib/utils/retry";
 import { toast } from "@/stores/toast-store";
 import { db, getPreference, setPreference } from "@/db";
+import { findDuplicateEpisode } from "@/db/deduplicate";
 import type { Episode } from "@/db/schema";
 import type { ArchiveSearchResult } from "@/services/archive/types";
 
@@ -66,11 +67,11 @@ export function useCatalogScraper() {
         store.setCurrentItem(item.identifier);
 
         try {
-          // Check for existing
-          const existing = await db.episodes
-            .where("archiveIdentifier")
-            .equals(item.identifier)
-            .first();
+          // Check for existing via findDuplicateEpisode (checks archiveIdentifier + fileHash)
+          const existing = await findDuplicateEpisode({
+            archiveIdentifier: item.identifier,
+            fileHash: `archive:${item.identifier}`,
+          });
 
           if (existing) {
             duplicates++;

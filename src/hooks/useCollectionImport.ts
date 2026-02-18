@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { db } from "@/db";
+import { findDuplicateEpisode } from "@/db/deduplicate";
 import { fetchWithRetry } from "@/lib/utils/retry";
 import { getStreamUrl } from "@/services/archive/client";
 import { parseArtBellFilename, isArtBellFilename } from "@/services/archive/filename-parser";
@@ -135,11 +136,11 @@ export function useCollectionImport() {
         try {
           const fileHash = `archive:${info.identifier}:${file.name}`;
 
-          // Deduplicate
-          const existing = await db.episodes
-            .where("fileHash")
-            .equals(fileHash)
-            .first();
+          // Deduplicate via findDuplicateEpisode (checks archiveIdentifier + fileHash)
+          const existing = await findDuplicateEpisode({
+            fileHash,
+            archiveIdentifier: `${info.identifier}/${file.name}`,
+          });
 
           if (existing) {
             duplicates++;

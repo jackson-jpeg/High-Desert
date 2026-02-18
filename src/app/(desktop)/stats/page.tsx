@@ -7,6 +7,7 @@ import { useAdminStore } from "@/stores/admin-store";
 import { Window } from "@/components/win98";
 import { HistoryPanel } from "@/components/library/HistoryPanel";
 import { SmartPlaylists } from "@/components/library/SmartPlaylists";
+import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { cn } from "@/lib/utils/cn";
 
 export default function StatsPage() {
@@ -616,10 +617,14 @@ export default function StatsPage() {
 
       {/* Smart Playlists + History row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SmartPlaylists onPlay={(ep) => {
-          window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: ep }));
-        }} />
-        <HistoryPanel />
+        <WidgetErrorBoundary name="Smart Playlists">
+          <SmartPlaylists onPlay={(ep) => {
+            window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: ep }));
+          }} />
+        </WidgetErrorBoundary>
+        <WidgetErrorBoundary name="History">
+          <HistoryPanel />
+        </WidgetErrorBoundary>
       </div>
     </div>
   );

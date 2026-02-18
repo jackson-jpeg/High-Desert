@@ -19,6 +19,7 @@ import { OnThisDay } from "@/components/library/OnThisDay";
 import { SmartPlaylists } from "@/components/library/SmartPlaylists";
 import { Window, Dialog, Button } from "@/components/win98";
 import { parseSearch } from "@/lib/utils/search-parser";
+import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { cn } from "@/lib/utils/cn";
 
 type SortMode = "date" | "name" | "guest";
@@ -720,16 +721,22 @@ export default function LibraryPage() {
           {/* Top row: Recently Played + On This Day + Playlists */}
           <div className="flex flex-col md:flex-row gap-3">
             {recentlyPlayed && recentlyPlayed.length > 0 && (
-              <RecentlyPlayed episodes={recentlyPlayed} onPlay={handlePlay} />
+              <WidgetErrorBoundary name="Recently Played">
+                <RecentlyPlayed episodes={recentlyPlayed} onPlay={handlePlay} />
+              </WidgetErrorBoundary>
             )}
-            <OnThisDay onPlay={handlePlay} className="md:w-[220px] md:flex-shrink-0" />
+            <WidgetErrorBoundary name="On This Day">
+              <OnThisDay onPlay={handlePlay} className="md:w-[220px] md:flex-shrink-0" />
+            </WidgetErrorBoundary>
             {(allPlaylists && allPlaylists.length > 0 || isAdmin) && (
               <PlaylistPanel onPlayEpisode={handlePlay} className="md:w-[200px] md:flex-shrink-0" />
             )}
           </div>
 
           {/* Smart Playlists — visible on mobile, hidden on desktop (shown on stats page) */}
-          <SmartPlaylists onPlay={handlePlay} className="md:hidden" />
+          <WidgetErrorBoundary name="Smart Playlists">
+            <SmartPlaylists onPlay={handlePlay} className="md:hidden" />
+          </WidgetErrorBoundary>
 
           {/* Shuffle buttons */}
           {allEpisodes && allEpisodes.length > 5 && (
