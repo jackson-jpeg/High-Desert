@@ -1,13 +1,15 @@
 "use client";
 
 import { cn } from "@/lib/utils/cn";
-import { MenuBar, StatusBar, Button } from "@/components/win98";
+import { MenuBar, StatusBar, Button, Dialog, TextField } from "@/components/win98";
 import { AboutDialog } from "./AboutDialog";
 import { ShortcutsDialog } from "./ShortcutsDialog";
 import { ClearLibraryDialog } from "./ClearLibraryDialog";
 import { ClearCacheDialog } from "./ClearCacheDialog";
 import { ContextMenu } from "@/components/win98/ContextMenu";
 import { Toaster } from "@/components/ui/Toaster";
+import { CommandPalette } from "@/components/CommandPalette";
+import { PageTransition } from "@/components/PageTransition";
 import { Starfield } from "./Starfield";
 import type { Menu } from "@/components/win98";
 import { useRouter, usePathname } from "next/navigation";
@@ -156,11 +158,32 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const handleCloseAbout = useCallback(() => setAboutOpen(false), []);
   const handleShortcuts = useCallback(() => setShortcutsOpen(true), []);
   const handleCloseShortcuts = useCallback(() => setShortcutsOpen(false), []);
+  const [adminPromptOpen, setAdminPromptOpen] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminError, setAdminError] = useState(false);
+
   const handleToggleAdmin = useCallback(() => {
-    const next = !useAdminStore.getState().isAdmin;
-    useAdminStore.getState().setAdmin(next);
-    toast.info(next ? "Admin mode enabled" : "Admin mode disabled");
+    if (useAdminStore.getState().isAdmin) {
+      useAdminStore.getState().logout();
+      toast.info("Admin mode disabled");
+    } else {
+      setAdminPassword("");
+      setAdminError(false);
+      setAdminPromptOpen(true);
+    }
   }, []);
+
+  const handleAdminLogin = useCallback(async () => {
+    const success = await useAdminStore.getState().login(adminPassword);
+    if (success) {
+      setAdminPromptOpen(false);
+      setAdminPassword("");
+      setAdminError(false);
+      toast.info("Admin mode enabled");
+    } else {
+      setAdminError(true);
+    }
+  }, [adminPassword]);
 
   // Listen for ? key to toggle shortcuts
   useEffect(() => {
@@ -331,6 +354,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     return (
       <button
         onClick={handleStatusClick}
+        onDoubleClick={() => window.dispatchEvent(new CustomEvent("hd:toggle-ultra-mini"))}
         className="flex items-center gap-1.5 cursor-pointer hover:text-desktop-gray transition-colors-fast text-left w-full"
       >
         {isPlaying && (
@@ -427,7 +451,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         className="flex-1 overflow-auto relative z-10 md:pb-0"
         style={{ paddingBottom: `calc(${bottomPadding}px + var(--safe-bottom))` }}
       >
-        {children}
+        <PageTransition>{children}</PageTransition>
       </main>
 
       {/* Mini player slot — mobile: fixed above tab bar; desktop: static */}
@@ -475,6 +499,9 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       <ShortcutsDialog open={shortcutsOpen} onClose={handleCloseShortcuts} isAdmin={isAdmin} />
       <ClearLibraryDialog open={clearOpen} onClose={() => setClearOpen(false)} />
       <ClearCacheDialog open={clearCacheOpen} onClose={() => setClearCacheOpen(false)} />
+
+      {/* Command palette (Ctrl+K / Cmd+K) */}
+      <CommandPalette />
 
       {/* Mobile menu sheet */}
       <MobileMenuSheet

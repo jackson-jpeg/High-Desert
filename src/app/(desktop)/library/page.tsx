@@ -205,6 +205,30 @@ export default function LibraryPage() {
       .slice(0, 20);
   }, [allEpisodes]);
 
+  // Search suggestion data
+  const searchGuests = useMemo(() => {
+    if (!allEpisodes) return [];
+    const set = new Set<string>();
+    for (const ep of allEpisodes) { if (ep.guestName) set.add(ep.guestName); }
+    return Array.from(set).sort();
+  }, [allEpisodes]);
+
+  const searchCategories = useMemo(() => {
+    if (!allEpisodes) return [];
+    const set = new Set<string>();
+    for (const ep of allEpisodes) { if (ep.aiCategory) set.add(ep.aiCategory); }
+    return Array.from(set).sort();
+  }, [allEpisodes]);
+
+  const searchYears = useMemo(() => {
+    if (!allEpisodes) return [];
+    const set = new Set<string>();
+    for (const ep of allEpisodes) {
+      if (ep.airDate) { const y = ep.airDate.slice(0, 4); if (y.length === 4) set.add(y); }
+    }
+    return Array.from(set).sort().reverse();
+  }, [allEpisodes]);
+
   const filtered = useMemo(() => {
     if (!allEpisodes) return [];
 
@@ -590,6 +614,9 @@ export default function LibraryPage() {
               value={search}
               onChange={setSearch}
               resultCount={allEpisodes ? filtered.length : undefined}
+              guests={searchGuests}
+              categories={searchCategories}
+              years={searchYears}
             />
 
             {/* Show type filter tabs */}
@@ -670,6 +697,27 @@ export default function LibraryPage() {
                       <span className="ml-1 tabular-nums opacity-50">{count}</span>
                     </button>
                   ))}
+              </div>
+            )}
+
+            {/* Mood quick filters */}
+            {!search.trim() && allEpisodes && allEpisodes.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[
+                  { label: "Late Night Classics", query: "has:notable" },
+                  { label: "Deep Conspiracies", query: "cat:conspiracy" },
+                  { label: "Space & Science", query: "cat:space" },
+                  { label: "Paranormal", query: "cat:paranormal" },
+                  { label: "Open Lines", query: "guest:Open Lines" },
+                ].map((mood) => (
+                  <button
+                    key={mood.label}
+                    onClick={() => setSearch(mood.query)}
+                    className="text-[8px] px-2 py-0.5 rounded-full border border-bevel-dark/20 text-bevel-dark/70 hover:text-desktop-gray hover:border-desert-amber/30 cursor-pointer transition-colors-fast"
+                  >
+                    {mood.label}
+                  </button>
+                ))}
               </div>
             )}
 

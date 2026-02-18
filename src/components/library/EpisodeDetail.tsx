@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Episode } from "@/db/schema";
 import { Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
@@ -422,19 +422,7 @@ export function EpisodeDetail({
                   Archive
                 </a>
               )}
-              <button
-                onClick={() => {
-                  const url = `${window.location.origin}/library?episode=${episode.id}`;
-                  navigator.clipboard.writeText(url).then(() => {
-                    toast.success("Link copied");
-                  }).catch(() => {
-                    toast.info(url);
-                  });
-                }}
-                className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[32px] md:min-h-0 flex items-center"
-              >
-                Share
-              </button>
+              <ShareButton episode={episode} />
               {onEdit && (
                 <button
                   onClick={startEditing}
@@ -466,6 +454,78 @@ export function EpisodeDetail({
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function ShareButton({ episode }: { episode: Episode }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpen]);
+
+  const url = typeof window !== "undefined"
+    ? `${window.location.origin}/library?episode=${episode.id}`
+    : "";
+  const shareText = `🎙️ ${episode.title || episode.fileName}${episode.guestName ? ` — Art Bell with ${episode.guestName}` : ""}${episode.airDate ? ` (${episode.airDate})` : ""} — Listen on High Desert`;
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(url).then(() => toast.success("Link copied")).catch(() => toast.info(url));
+    setMenuOpen(false);
+  };
+
+  const webShare = async () => {
+    try {
+      await navigator.share({ title: episode.title || episode.fileName, text: shareText, url });
+    } catch { /* user cancelled */ }
+    setMenuOpen(false);
+  };
+
+  const hasWebShare = typeof navigator !== "undefined" && !!navigator.share;
+
+  if (!hasWebShare) {
+    // No Web Share API — just copy link directly
+    return (
+      <button
+        onClick={copyLink}
+        className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[32px] md:min-h-0 flex items-center"
+      >
+        Share
+      </button>
+    );
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setMenuOpen(!menuOpen)}
+        className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[32px] md:min-h-0 flex items-center"
+      >
+        Share
+      </button>
+      {menuOpen && (
+        <div className="absolute bottom-full mb-1 left-0 w98-raised-dark bg-raised-surface z-30 min-w-[120px] shadow-lg">
+          <button
+            onClick={copyLink}
+            className="w-full text-left px-2 py-1.5 text-[10px] text-desktop-gray/80 hover:bg-title-bar-blue/20 cursor-pointer transition-colors-fast"
+          >
+            Copy Link
+          </button>
+          <button
+            onClick={webShare}
+            className="w-full text-left px-2 py-1.5 text-[10px] text-desktop-gray/80 hover:bg-title-bar-blue/20 cursor-pointer transition-colors-fast"
+          >
+            Share...
+          </button>
+        </div>
+      )}
     </div>
   );
 }

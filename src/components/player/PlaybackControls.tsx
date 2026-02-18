@@ -1,12 +1,37 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
 import { SleepTimer } from "./SleepTimer";
 import { BookmarkMarkers } from "./BookmarkMarkers";
 import { cn } from "@/lib/utils/cn";
 import { formatTime } from "@/lib/utils/format";
+
+/** Tooltip showing the next episode info on hover */
+function NextEpisodeTooltip() {
+  const [show, setShow] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const nextEp = usePlayerStore((s) => {
+    const idx = s.queueIndex + 1;
+    if (idx < s.queue.length) return s.queue[idx];
+    if (s.repeat === "all" && s.queue.length > 0) return s.queue[0];
+    return null;
+  });
+
+  const handleEnter = () => {
+    setShow(true);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setShow(false), 2000);
+  };
+  const handleLeave = () => {
+    setShow(false);
+    if (timerRef.current) clearTimeout(timerRef.current);
+  };
+
+  return { nextEp, show, handleEnter, handleLeave };
+}
 
 interface PlaybackControlsProps {
   onTogglePlay: () => void;
@@ -213,9 +238,7 @@ export function PlaybackControls({
           +30
         </Button>
         {onNext && (
-          <Button variant="dark" size="sm" onClick={onNext} disabled={!hasNext} title="Next" aria-label="Next track">
-            &raquo;|
-          </Button>
+          <NextButtonWithTooltip onNext={onNext} hasNext={hasNext} />
         )}
         <Button variant="dark" size="sm" onClick={cycleRate} title="Speed" aria-label={`Playback speed ${playbackRate}x`}>
           {playbackRate}x
@@ -276,6 +299,29 @@ export function PlaybackControls({
         <SleepTimer variant="desktop" />
         <BookmarkMarkers mode="button" variant="desktop" />
       </div>
+    </div>
+  );
+}
+
+/** Next button with "Up Next" tooltip on hover (desktop only) */
+function NextButtonWithTooltip({ onNext, hasNext }: { onNext: () => void; hasNext: boolean }) {
+  const { nextEp, show, handleEnter, handleLeave } = NextEpisodeTooltip();
+
+  return (
+    <div className="relative" onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
+      <Button variant="dark" size="sm" onClick={onNext} disabled={!hasNext} title="Next" aria-label="Next track">
+        &raquo;|
+      </Button>
+      {show && nextEp && (
+        <div className="hidden md:block absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+          <div className="w98-raised-dark bg-raised-surface px-2 py-1.5 max-w-[200px] whitespace-nowrap">
+            <div className="text-[9px] text-bevel-dark/50 mb-0.5">Up Next</div>
+            <div className="text-[9px] text-desktop-gray truncate">{nextEp.title || nextEp.fileName}</div>
+            {nextEp.guestName && <div className="text-[9px] text-static-green/70 truncate">{nextEp.guestName}</div>}
+            {nextEp.airDate && <div className="text-[9px] text-bevel-dark/60">{nextEp.airDate}</div>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

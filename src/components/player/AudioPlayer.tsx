@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { Oscilloscope } from "./Oscilloscope";
@@ -34,7 +34,15 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   });
   const [showQueue, setShowQueue] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState(false);
+  const [ultraMini, setUltraMini] = useState(false);
   const isMobile = useIsMobile();
+
+  // Listen for double-click on status bar now-playing to toggle ultra-mini
+  useEffect(() => {
+    const handler = () => setUltraMini((prev) => !prev);
+    window.addEventListener("hd:toggle-ultra-mini", handler);
+    return () => window.removeEventListener("hd:toggle-ultra-mini", handler);
+  }, []);
 
   if (!currentEpisode) return null;
 
@@ -209,6 +217,49 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
             {"\u00BB|"}
           </Button>
         </div>
+      </div>
+    );
+  }
+
+  // ─── Desktop ultra-mini taskbar player ───
+  if (!isMobile && mini && ultraMini) {
+    const progressPct = duration > 0 ? (position / duration) * 100 : 0;
+    return (
+      <div
+        className={cn("w98-raised-dark bg-raised-surface h-[28px] flex items-center gap-2 px-2 relative", className)}
+        onDoubleClick={() => setUltraMini(false)}
+      >
+        {/* Ultra-compact seek bar behind content */}
+        {duration > 0 && (
+          <div className="absolute bottom-0 left-0 right-0 h-[2px]">
+            <div className="h-full bg-desert-amber/50 transition-[width] duration-300" style={{ width: `${progressPct}%` }} />
+          </div>
+        )}
+        {/* Cassette icon + title */}
+        <span className="text-[9px] flex-shrink-0">📼</span>
+        <span className="text-[9px] text-desktop-gray/80 truncate flex-1 min-w-0">
+          {currentEpisode.title || currentEpisode.fileName}
+        </span>
+        {/* Compact seek */}
+        <input
+          type="range"
+          min={0}
+          max={duration || 0}
+          value={position}
+          onChange={(e) => seek(Number(e.target.value))}
+          className="w-[80px] h-[2px] w98-range-dark cursor-pointer flex-shrink-0"
+          aria-label="Seek"
+        />
+        {/* Play/pause */}
+        <button onClick={togglePlay} className="text-[10px] text-desktop-gray cursor-pointer flex-shrink-0" aria-label={playing ? "Pause" : "Play"}>
+          {playing ? "\u275A\u275A" : "\u25B6"}
+        </button>
+        {/* Next */}
+        <button onClick={playNext} disabled={!hasNext} className="text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer disabled:opacity-30 flex-shrink-0" aria-label="Next">
+          »|
+        </button>
+        {/* Expand */}
+        <button onClick={() => setUltraMini(false)} className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer flex-shrink-0" aria-label="Expand">▲</button>
       </div>
     );
   }
