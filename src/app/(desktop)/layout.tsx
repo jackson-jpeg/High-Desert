@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { DesktopShell } from "@/components/desktop/DesktopShell";
 import { AudioPlayer } from "@/components/player/AudioPlayer";
-import { ContinueBanner } from "@/components/library/ContinueBanner";
+// ContinueBanner replaced by ContinueListening on library page
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
@@ -28,7 +28,7 @@ export default function DesktopLayout({
   const setVolume = usePlayerStore((s) => s.setVolume);
   const enqueue = usePlayerStore((s) => s.enqueue);
   const currentEpisode = usePlayerStore((s) => s.currentEpisode);
-  const [continueEpisode, setContinueEpisode] = useState<Episode | null>(null);
+  // Continue listening is now handled by ContinueListening on the library page
 
   // Handle ?viewer URL param on mount (logout only — login requires password)
   useEffect(() => {
@@ -277,16 +277,7 @@ export default function DesktopLayout({
 
   // On mount, load last-played episode and restore queue
   useEffect(() => {
-    // Restore continue banner
-    getPreference("last-episode-id").then(async (idStr) => {
-      if (!idStr) return;
-      const id = parseInt(idStr, 10);
-      if (isNaN(id)) return;
-      const ep = await db.episodes.get(id);
-      if (ep && (ep.playbackPosition ?? 0) > 0) {
-        setContinueEpisode(ep);
-      }
-    });
+    // Continue listening is now handled by ContinueListening on the library page
 
     // Restore queue from prefs
     Promise.all([
@@ -314,14 +305,7 @@ export default function DesktopLayout({
     });
   }, []);
 
-  const handleResume = useCallback((episode: Episode) => {
-    setContinueEpisode(null);
-    window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: episode }));
-  }, []);
-
-  const handleDismissContinue = useCallback(() => {
-    setContinueEpisode(null);
-  }, []);
+  // handleResume/handleDismissContinue removed — ContinueListening handles this
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -413,16 +397,7 @@ export default function DesktopLayout({
       <div data-hydrated="">
       <DesktopShell
         player={
-          <>
-            {continueEpisode && !currentEpisode && (
-              <ContinueBanner
-                episode={continueEpisode}
-                onResume={handleResume}
-                onDismiss={handleDismissContinue}
-              />
-            )}
-            <AudioPlayer />
-          </>
+<AudioPlayer />
         }
         episodeCount={episodeCount ?? 0}
       >
