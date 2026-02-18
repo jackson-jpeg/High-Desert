@@ -33,25 +33,7 @@ const SHOW_TABS: { key: ShowFilter; label: string }[] = [
   { key: "unknown", label: "Uncategorized" },
 ];
 
-const MOOD_FILTERS: {
-  label: string;
-  category?: string;
-  search?: string;
-  filter?: (
-    setFav: (v: boolean) => void,
-    setCat: (v: string | null) => void,
-    setSearch: (v: string) => void,
-  ) => void;
-}[] = [
-  { label: "Late Night Classics", search: "has:notable" },
-  { label: "Deep Conspiracies", category: "Conspiracy" },
-  { label: "Space & Science", category: "Science & Space" },
-  { label: "Paranormal", category: "Paranormal" },
-  { label: "Open Lines", category: "Open Lines" },
-  { label: "UFOs", category: "UFOs & Aliens" },
-  { label: "Time Travel", category: "Time Travel & Physics" },
-  { label: "Cryptids", category: "Cryptozoology" },
-];
+// Mood filters are derived from actual episode data — see `moodFilters` memo below
 
 export default function LibraryPage() {
   const router = useRouter();
@@ -182,6 +164,43 @@ export default function LibraryPage() {
     }
     return counts;
   }, [allEpisodes]);
+
+  // Dynamic mood filters — only shows categories that actually exist in the library
+  const moodFilters = useMemo(() => {
+    if (!allEpisodes) return [];
+    const filters: { label: string; kind: "notable" | "favorite" | "category"; category?: string }[] = [];
+
+    // Notable episodes
+    const notableCount = allEpisodes.filter((ep) => !!ep.aiNotable).length;
+    if (notableCount > 0) filters.push({ label: "Late Night Classics", kind: "notable" });
+
+    // Favorites
+    const favCount = allEpisodes.filter((ep) => !!ep.favoritedAt).length;
+    if (favCount > 0) filters.push({ label: "Favorites", kind: "favorite" });
+
+    // Top categories by episode count (only those with 3+ episodes)
+    const sorted = Array.from(categoryCounts.entries())
+      .filter(([cat, count]) => count >= 3 && cat !== "Other" && cat !== "Best Of & Replay")
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8);
+
+    // Friendly labels for long category names
+    const SHORT_LABELS: Record<string, string> = {
+      "UFOs & Aliens": "UFOs",
+      "Science & Space": "Space & Science",
+      "Time Travel & Physics": "Time Travel",
+      "Remote Viewing & Psychic": "Psychic",
+      "Prophecy & Predictions": "Prophecy",
+      "Health & Medicine": "Health",
+      "Earth Changes": "Earth Changes",
+    };
+
+    for (const [cat] of sorted) {
+      filters.push({ label: SHORT_LABELS[cat] ?? cat, kind: "category", category: cat });
+    }
+
+    return filters;
+  }, [allEpisodes, categoryCounts]);
 
   // Series counts for facets
   const seriesCounts = useMemo(() => {
@@ -710,24 +729,34 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Mood quick filters — visible when no free-text search */}
-      {!search.trim() && allEpisodes && allEpisodes.length > 0 && (
+      {/* Mood quick filters — derived from actual episode data */}
+      {(!search.trim() || search === "has:notable") && moodFilters.length > 0 && (
         <div className="flex items-center gap-1.5 md:gap-1 px-3 pb-1 flex-shrink-0 overflow-x-auto -mx-3 px-3 md:mx-0">
-          {MOOD_FILTERS.map((mood) => {
-            const isActive = (mood.category && categoryFilter === mood.category) || (mood.search && search === mood.search);
+          {moodFilters.map((mood) => {
+            const isActive =
+              (mood.kind === "category" && categoryFilter === mood.category) ||
+              (mood.kind === "notable" && search === "has:notable") ||
+              (mood.kind === "favorite" && favoritesOnly);
             return (
               <button
                 key={mood.label}
                 onClick={() => {
                   if (isActive) {
                     setCategoryFilter(null);
+                    setFavoritesOnly(false);
                     setSearch("");
-                  } else if (mood.category) {
-                    setCategoryFilter(mood.category);
-                  } else if (mood.search) {
-                    setSearch(mood.search);
-                  } else if (mood.filter) {
-                    mood.filter(setFavoritesOnly, setCategoryFilter, setSearch);
+                  } else if (mood.kind === "category") {
+                    setCategoryFilter(mood.category!);
+                    setFavoritesOnly(false);
+                    setSearch("");
+                  } else if (mood.kind === "notable") {
+                    setSearch("has:notable");
+                    setCategoryFilter(null);
+                    setFavoritesOnly(false);
+                  } else if (mood.kind === "favorite") {
+                    setFavoritesOnly(true);
+                    setCategoryFilter(null);
+                    setSearch("");
                   }
                 }}
                 className={cn(
