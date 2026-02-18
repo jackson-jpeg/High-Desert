@@ -32,7 +32,9 @@ export function PageTransition({ children }: PageTransitionProps) {
     <div
       style={{
         opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(8px)",
+        // Only apply transform during transition — translateY(0) creates a containing block
+        // that traps position:fixed children (e.g. mobile detail panels, backdrops)
+        transform: visible ? "none" : "translateY(8px)",
         transition: reducedMotion ? "none" : "opacity 200ms ease-out, transform 200ms ease-out",
       }}
     >
