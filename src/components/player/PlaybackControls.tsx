@@ -148,6 +148,15 @@ export function PlaybackControls({
           onMouseMove={handleSeekHover}
           onMouseLeave={() => setSeekPreview(null)}
         >
+          {/* Visual progress fill behind the range input */}
+          {duration > 0 && (
+            <div className="absolute top-1/2 left-0 right-0 h-[4px] -mt-[2px] pointer-events-none z-0 overflow-hidden rounded-sm">
+              <div
+                className="h-full bg-desert-amber/25 transition-[width] duration-100"
+                style={{ width: `${(position / duration) * 100}%` }}
+              />
+            </div>
+          )}
           <input
             type="range"
             min={0}
@@ -160,7 +169,7 @@ export function PlaybackControls({
             aria-valuemax={duration || 0}
             aria-valuenow={position}
             aria-valuetext={formatTime(position)}
-            className="w-full h-[6px] w98-range-dark cursor-pointer"
+            className="w-full h-[6px] w98-range-dark cursor-pointer relative z-[1]"
           />
           <BookmarkMarkers mode="markers" />
           {/* Seek preview tooltip */}

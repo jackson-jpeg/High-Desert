@@ -11,9 +11,10 @@ interface MobileMenuSheetProps {
   onToggleAdmin: () => void;
   onAbout: () => void;
   onShuffle?: () => void;
+  onShortcuts?: () => void;
 }
 
-export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout, onShuffle }: MobileMenuSheetProps) {
+export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout, onShuffle, onShortcuts }: MobileMenuSheetProps) {
   const router = useRouter();
   const closingRef = useRef(false);
 
@@ -95,6 +96,19 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout
               className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast"
             >
               Radio Dial
+            </button>
+          </div>
+
+          {/* Statistics */}
+          <div className="border-t glass-divider">
+            <button
+              onClick={() => {
+                router.push("/stats");
+                hide();
+              }}
+              className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast"
+            >
+              Statistics
             </button>
           </div>
 

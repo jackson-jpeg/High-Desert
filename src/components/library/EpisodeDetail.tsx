@@ -100,6 +100,11 @@ export function EpisodeDetail({
         className,
       )}
     >
+      {/* Mobile drag handle */}
+      <div className="flex justify-center pt-2 pb-0.5 md:hidden">
+        <div className="w-8 h-[3px] rounded-full bg-white/15" />
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-bevel-dark/20 glass-divider">
         <div className="flex items-center gap-1.5">

@@ -75,7 +75,8 @@ export function EpisodeCard({
       className={cn(
         "w-full text-left p-3 w98-raised-dark bg-card-surface relative group glass-light",
         "transition-all duration-150 cursor-pointer",
-        "hover:bg-title-bar-blue/15 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)] active:bg-title-bar-blue/20",
+        "hover:bg-title-bar-blue/15 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]",
+        "active:bg-title-bar-blue/20 active:translate-y-0 active:shadow-none",
         showAccent,
         episode.aiNotable && !isPlaying && "border-l-desert-amber/70 bg-desert-amber/[0.03]",
         episode.favoritedAt && !isPlaying && !episode.aiNotable && "bg-desert-amber/[0.02]",
@@ -89,7 +90,7 @@ export function EpisodeCard({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           {isMultiSelected && (
-            <span className="w-[12px] h-[12px] flex items-center justify-center w98-inset-dark bg-inset-well text-[8px] text-static-green flex-shrink-0">
+            <span className="w-[14px] h-[14px] md:w-[12px] md:h-[12px] flex items-center justify-center w98-inset-dark bg-inset-well text-[9px] md:text-[8px] text-static-green flex-shrink-0">
               {"\u2713"}
             </span>
           )}

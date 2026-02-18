@@ -12,7 +12,7 @@ interface ContinueBannerProps {
   className?: string;
 }
 
-const DISMISS_MS = 10000;
+const DISMISS_MS = 15000;
 
 export function ContinueBanner({ episode, onResume, onDismiss, className }: ContinueBannerProps) {
   const [visible, setVisible] = useState(true);
@@ -74,14 +74,14 @@ export function ContinueBanner({ episode, onResume, onDismiss, className }: Cont
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <Button size="sm" variant="dark" onClick={() => onResume(episode)}>
-            Resume
+            {"\u25B6"} Resume
           </Button>
           <button
             onClick={() => {
               setVisible(false);
               onDismiss();
             }}
-            className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer transition-colors-fast"
+            className="text-[11px] md:text-[9px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[36px] md:min-h-0 px-2"
           >
             Dismiss
           </button>

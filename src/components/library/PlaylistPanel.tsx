@@ -122,7 +122,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
           {playlistEpisodes.map((ep, i) => (
             <div
               key={ep.id}
-              className="flex items-center gap-2 px-2 py-1.5 w98-raised-dark bg-card-surface cursor-pointer hover:bg-title-bar-blue/15 transition-colors-fast"
+              className="flex items-center gap-2 px-2.5 py-2 md:py-1.5 w98-raised-dark bg-card-surface min-h-[44px] md:min-h-0 cursor-pointer hover:bg-title-bar-blue/15 active:bg-title-bar-blue/20 transition-colors-fast"
               onClick={() => onPlayEpisode(ep)}
             >
               <span className="text-[8px] text-bevel-dark/50 tabular-nums w-[14px] text-right">{i + 1}</span>

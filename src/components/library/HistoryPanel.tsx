@@ -64,8 +64,8 @@ export function HistoryPanel({ onPlayEpisode, className }: HistoryPanelProps) {
                   key={entry.id}
                   onClick={() => handleClick(entry)}
                   className={cn(
-                    "flex items-center gap-2 text-left px-2 py-1.5 w98-raised-dark bg-card-surface",
-                    "cursor-pointer hover:bg-title-bar-blue/15 transition-colors-fast",
+                    "flex items-center gap-2 text-left px-2.5 py-2 md:py-1.5 w98-raised-dark bg-card-surface min-h-[44px] md:min-h-0",
+                    "cursor-pointer hover:bg-title-bar-blue/15 active:bg-title-bar-blue/20 transition-colors-fast",
                   )}
                 >
                   <div className="flex-1 min-w-0">

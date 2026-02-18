@@ -19,7 +19,7 @@ export function RecentlyPlayed({ episodes, onPlay, className }: RecentlyPlayedPr
           Recently Played
         </span>
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+      <div className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-thin snap-x snap-mandatory md:snap-none">
         {episodes.map((ep) => {
           const hasProgress = (ep.playbackPosition ?? 0) > 0 && (ep.duration ?? 0) > 0;
           const progressPct = hasProgress
@@ -32,8 +32,9 @@ export function RecentlyPlayed({ episodes, onPlay, className }: RecentlyPlayedPr
               key={ep.id}
               onClick={() => onPlay(ep)}
               className={cn(
-                "flex-shrink-0 w-[160px] p-2 w98-raised-dark bg-card-surface group",
+                "flex-shrink-0 w-[180px] md:w-[160px] p-2.5 md:p-2 w98-raised-dark bg-card-surface group snap-start",
                 "hover:bg-title-bar-blue/15 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]",
+                "active:bg-title-bar-blue/20",
                 "transition-all duration-150 cursor-pointer",
                 "flex flex-col gap-0.5 relative",
               )}

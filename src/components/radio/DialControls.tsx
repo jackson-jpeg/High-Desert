@@ -46,7 +46,7 @@ export function DialControls({
   }, [lockedEpisode]);
 
   return (
-    <div className={`flex items-center gap-2 ${className ?? ""}`}>
+    <div className={`flex items-center gap-1.5 md:gap-2 ${className ?? ""}`}>
       <Button
         variant="dark"
         size="sm"
@@ -54,7 +54,7 @@ export function DialControls({
         aria-label="Scan backward"
         className={scanning === "backward" ? "!text-desert-amber" : ""}
       >
-        {scanning === "backward" ? "\u25C0 Stop" : "\u25C0\u25C0 Scan"}
+        {scanning === "backward" ? "\u25C0 Stop" : "\u25C0\u25C0"}
       </Button>
 
       <Button
@@ -88,7 +88,7 @@ export function DialControls({
         aria-label="Scan forward"
         className={scanning === "forward" ? "!text-desert-amber" : ""}
       >
-        {scanning === "forward" ? "Stop \u25B6" : "Scan \u25B6\u25B6"}
+        {scanning === "forward" ? "Stop \u25B6" : "\u25B6\u25B6"}
       </Button>
     </div>
   );

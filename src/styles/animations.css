@@ -242,6 +242,46 @@
 }
 
 /* ============================================
+   Reduced Motion
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-window-open,
+  .animate-dialog,
+  .animate-slide-up,
+  .animate-fade-in,
+  .animate-stagger,
+  .animate-bar-grow,
+  .animate-glass-sheet,
+  .animate-glass-backdrop,
+  .animate-glass-toast {
+    animation-duration: 0.01ms !important;
+  }
+
+  .animate-on-air,
+  .animate-pulse-glow,
+  .animate-stat-glow,
+  .animate-skeleton,
+  .animate-signal-1,
+  .animate-signal-2,
+  .animate-signal-3,
+  .animate-signal-4,
+  .glass-glow-amber {
+    animation: none !important;
+  }
+
+  .hover-lift:hover {
+    transform: none;
+  }
+
+  .transition-colors-fast,
+  .transition-press,
+  .transition-state {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================
    Glass Animations (Mobile Only)
    ============================================ */
 

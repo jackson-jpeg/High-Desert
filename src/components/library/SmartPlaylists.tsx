@@ -126,30 +126,30 @@ export function SmartPlaylists({ onPlay, className }: SmartPlaylistsProps) {
                 <div className="flex items-center gap-2 px-2 pb-1">
                   <button
                     onClick={() => handlePlayAll(list)}
-                    className="text-[8px] text-title-bar-blue hover:text-title-bar-blue/80 cursor-pointer"
+                    className="text-[11px] md:text-[8px] text-title-bar-blue hover:text-title-bar-blue/80 active:text-title-bar-blue cursor-pointer min-h-[32px] md:min-h-0 px-1"
                   >
-                    Play All
+                    {"\u25B6"} Play All
                   </button>
                   <button
                     onClick={() => handleShuffle(list)}
-                    className="text-[8px] text-desert-amber hover:text-desert-amber/80 cursor-pointer"
+                    className="text-[11px] md:text-[8px] text-desert-amber hover:text-desert-amber/80 active:text-desert-amber cursor-pointer min-h-[32px] md:min-h-0 px-1"
                   >
-                    Shuffle
+                    {"\u21C6"} Shuffle
                   </button>
                 </div>
                 {list.episodes.slice(0, 15).map((ep) => (
                   <button
                     key={ep.id}
                     onClick={() => onPlay(ep)}
-                    className="flex items-center gap-2 text-left px-2 py-1 cursor-pointer hover:bg-title-bar-blue/10 transition-colors-fast"
+                    className="flex items-center gap-2 text-left px-2 py-2 md:py-1 min-h-[36px] md:min-h-0 cursor-pointer hover:bg-title-bar-blue/10 active:bg-title-bar-blue/15 transition-colors-fast"
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="text-[9px] text-desktop-gray/80 truncate">
+                      <div className="text-[11px] md:text-[9px] text-desktop-gray/80 truncate">
                         {ep.title || ep.fileName}
                       </div>
                     </div>
                     {ep.airDate && (
-                      <span className="text-[7px] text-bevel-dark/40 tabular-nums flex-shrink-0">
+                      <span className="text-[9px] md:text-[7px] text-bevel-dark/40 tabular-nums flex-shrink-0">
                         {ep.airDate}
                       </span>
                     )}
