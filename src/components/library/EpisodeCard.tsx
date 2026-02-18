@@ -73,7 +73,7 @@ export function EpisodeCard({
       title={episode.aiSummary || undefined}
       aria-label={`${episode.title || episode.fileName}${episode.airDate ? `, ${episode.airDate}` : ""}${isPlaying ? " (now playing)" : ""}`}
       className={cn(
-        "w-full text-left p-3 w98-raised-dark bg-card-surface relative group glass-light",
+        "w-full text-left p-3 md:p-1.5 w98-raised-dark bg-card-surface relative group glass-light",
         "transition-all duration-150 cursor-pointer",
         "hover:bg-title-bar-blue/15 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]",
         "active:bg-title-bar-blue/20 active:translate-y-0 active:shadow-none",
@@ -86,7 +86,7 @@ export function EpisodeCard({
         className,
       )}
     >
-      {/* Top row: date + status indicators */}
+      {/* Top row: date + indicators + title (title inline on desktop) */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           {isMultiSelected && (
@@ -94,7 +94,7 @@ export function EpisodeCard({
               {"\u2713"}
             </span>
           )}
-          <span className="text-[12px] md:text-[10px] text-desert-amber tabular-nums">
+          <span className="text-[12px] md:text-[10px] text-desert-amber tabular-nums flex-shrink-0">
             {episode.airDate ?? "Unknown date"}
           </span>
           {isPlaying && (
@@ -118,6 +118,10 @@ export function EpisodeCard({
               {Math.round(progressPct)}%
             </span>
           )}
+          {/* Title inline on desktop */}
+          <span className="hidden md:inline text-[11px] text-desktop-gray font-bold truncate">
+            {episode.title || episode.fileName}
+          </span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {episode.rating && (
@@ -140,7 +144,7 @@ export function EpisodeCard({
                 onToggleFavorite(episode);
               }}
               className={cn(
-                "text-[11px] md:text-[9px] flex-shrink-0 cursor-pointer transition-colors-fast",
+                "text-[11px] md:text-[9px] min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors-fast",
                 episode.favoritedAt
                   ? "text-desert-amber"
                   : "text-bevel-dark/30 opacity-0 group-hover:opacity-100",
@@ -160,8 +164,8 @@ export function EpisodeCard({
         </div>
       </div>
 
-      {/* Title */}
-      <div className="text-[13px] md:text-[11px] text-desktop-gray font-bold truncate mt-1">
+      {/* Title — mobile only (shown inline on desktop above) */}
+      <div className="text-[13px] text-desktop-gray font-bold truncate mt-1 md:hidden">
         {episode.title || episode.fileName}
       </div>
 

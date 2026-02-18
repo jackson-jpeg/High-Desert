@@ -316,7 +316,7 @@ export default function LibraryPage() {
         setFocusedIndex(idx);
         const container = document.querySelector('[role="listbox"]')?.parentElement;
         if (container) {
-          container.scrollTop = idx * 88 - container.clientHeight / 2 + 44;
+          container.scrollTop = idx * 72 - container.clientHeight / 2 + 36;
         }
       }
     };
@@ -544,6 +544,20 @@ export default function LibraryPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [filtered, focusedIndex, selectedEpisode, selectedIds, handlePlay]);
 
+  const [discoveryOpen, setDiscoveryOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const saved = localStorage.getItem("hd-discovery-open");
+    return saved === null ? true : saved === "true";
+  });
+
+  const toggleDiscovery = useCallback(() => {
+    setDiscoveryOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem("hd-discovery-open", String(next));
+      return next;
+    });
+  }, []);
+
   const hasActiveFilters = showFilter !== "all" || guestFilter !== null || categoryFilter !== null || favoritesOnly;
 
   return (
@@ -715,63 +729,76 @@ export default function LibraryPage() {
         </Window>
       </div>
 
-      {/* Recently played + Playlists + Discovery row */}
+      {/* Discovery section — collapsible */}
       {!search.trim() && !hasActiveFilters && (
-        <div className="px-3 py-2 flex-shrink-0 flex flex-col gap-3">
-          {/* Top row: Recently Played + On This Day + Playlists */}
-          <div className="flex flex-col md:flex-row gap-3">
-            {recentlyPlayed && recentlyPlayed.length > 0 && (
-              <WidgetErrorBoundary name="Recently Played">
-                <RecentlyPlayed episodes={recentlyPlayed} onPlay={handlePlay} />
-              </WidgetErrorBoundary>
-            )}
-            <WidgetErrorBoundary name="On This Day">
-              <OnThisDay onPlay={handlePlay} className="md:w-[220px] md:flex-shrink-0" />
-            </WidgetErrorBoundary>
-            {(allPlaylists && allPlaylists.length > 0 || isAdmin) && (
-              <PlaylistPanel onPlayEpisode={handlePlay} className="md:w-[200px] md:flex-shrink-0" />
+        <div className="px-3 py-1 flex-shrink-0">
+          {/* Toggle bar + inline shuffle buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleDiscovery}
+              className="text-[9px] text-bevel-dark uppercase tracking-wider px-1 py-1 cursor-pointer hover:text-desktop-gray transition-colors-fast flex-shrink-0"
+            >
+              {discoveryOpen ? "▾" : "▸"} Explore
+            </button>
+            {/* Shuffle buttons inline */}
+            {allEpisodes && allEpisodes.length > 5 && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  onClick={() => handleShuffle("all")}
+                  className="text-[9px] text-desert-amber/70 hover:text-desert-amber cursor-pointer px-1.5 py-0.5 w98-raised-dark bg-card-surface transition-colors-fast"
+                >
+                  Surprise Me
+                </button>
+                {(showCounts.get("coast") ?? 0) > 0 && (
+                  <button
+                    onClick={() => handleShuffle("coast")}
+                    className="text-[9px] text-title-bar-blue/70 hover:text-title-bar-blue cursor-pointer px-1.5 py-0.5 w98-raised-dark bg-card-surface transition-colors-fast"
+                  >
+                    C2C
+                  </button>
+                )}
+                {(showCounts.get("dreamland") ?? 0) > 0 && (
+                  <button
+                    onClick={() => handleShuffle("dreamland")}
+                    className="text-[9px] text-static-green/70 hover:text-static-green cursor-pointer px-1.5 py-0.5 w98-raised-dark bg-card-surface transition-colors-fast"
+                  >
+                    Dreamland
+                  </button>
+                )}
+                {(showCounts.get("special") ?? 0) > 0 && (
+                  <button
+                    onClick={() => handleShuffle("special")}
+                    className="text-[9px] text-desert-amber/70 hover:text-desert-amber cursor-pointer px-1.5 py-0.5 w98-raised-dark bg-card-surface transition-colors-fast"
+                  >
+                    Specials
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
-          {/* Smart Playlists — visible on mobile, hidden on desktop (shown on stats page) */}
-          <WidgetErrorBoundary name="Smart Playlists">
-            <SmartPlaylists onPlay={handlePlay} className="md:hidden" />
-          </WidgetErrorBoundary>
+          {/* Collapsible discovery content */}
+          {discoveryOpen && (
+            <div className="flex flex-col gap-2 mt-2">
+              {/* Top row: Recently Played + On This Day + Playlists */}
+              <div className="flex flex-col md:flex-row gap-2">
+                {recentlyPlayed && recentlyPlayed.length > 0 && (
+                  <WidgetErrorBoundary name="Recently Played">
+                    <RecentlyPlayed episodes={recentlyPlayed} onPlay={handlePlay} />
+                  </WidgetErrorBoundary>
+                )}
+                <WidgetErrorBoundary name="On This Day">
+                  <OnThisDay onPlay={handlePlay} className="md:w-[220px] md:flex-shrink-0" />
+                </WidgetErrorBoundary>
+                {(allPlaylists && allPlaylists.length > 0 || isAdmin) && (
+                  <PlaylistPanel onPlayEpisode={handlePlay} className="md:w-[200px] md:flex-shrink-0" />
+                )}
+              </div>
 
-          {/* Shuffle buttons */}
-          {allEpisodes && allEpisodes.length > 5 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[8px] text-bevel-dark uppercase tracking-wider">Shuffle:</span>
-              <button
-                onClick={() => handleShuffle("all")}
-                className="text-[9px] text-desert-amber/70 hover:text-desert-amber cursor-pointer px-2 py-0.5 w98-raised-dark bg-card-surface transition-colors-fast"
-              >
-                Surprise Me
-              </button>
-              {(showCounts.get("coast") ?? 0) > 0 && (
-                <button
-                  onClick={() => handleShuffle("coast")}
-                  className="text-[9px] text-title-bar-blue/70 hover:text-title-bar-blue cursor-pointer px-2 py-0.5 w98-raised-dark bg-card-surface transition-colors-fast"
-                >
-                  Coast to Coast
-                </button>
-              )}
-              {(showCounts.get("dreamland") ?? 0) > 0 && (
-                <button
-                  onClick={() => handleShuffle("dreamland")}
-                  className="text-[9px] text-static-green/70 hover:text-static-green cursor-pointer px-2 py-0.5 w98-raised-dark bg-card-surface transition-colors-fast"
-                >
-                  Dreamland
-                </button>
-              )}
-              {(showCounts.get("special") ?? 0) > 0 && (
-                <button
-                  onClick={() => handleShuffle("special")}
-                  className="text-[9px] text-desert-amber/70 hover:text-desert-amber cursor-pointer px-2 py-0.5 w98-raised-dark bg-card-surface transition-colors-fast"
-                >
-                  Specials
-                </button>
-              )}
+              {/* Smart Playlists — mobile only */}
+              <WidgetErrorBoundary name="Smart Playlists">
+                <SmartPlaylists onPlay={handlePlay} className="md:hidden" />
+              </WidgetErrorBoundary>
             </div>
           )}
         </div>

@@ -19,7 +19,7 @@ interface TimelineViewProps {
   className?: string;
 }
 
-const ITEM_HEIGHT = 88;
+const ITEM_HEIGHT = 72;
 
 export function TimelineView({
   episodes,

@@ -38,7 +38,7 @@ export function OnThisDay({ onPlay, className }: OnThisDayProps) {
 
   return (
     <Window title={`On This Day \u00B7 ${monthName}`} variant="dark" className={className}>
-      <div className="p-2 flex flex-col gap-1 max-h-[200px] overflow-auto">
+      <div className="p-2 flex flex-col gap-1 max-h-[200px] md:max-h-[120px] overflow-auto">
         {matches.map((ep) => {
           const year = ep.airDate?.slice(0, 4);
           return (
