@@ -348,7 +348,8 @@ export default function LibraryPage() {
         setFocusedIndex(idx);
         const container = document.querySelector('[role="listbox"]')?.parentElement;
         if (container) {
-          container.scrollTop = idx * 72 - container.clientHeight / 2 + 36;
+          const itemH = window.innerWidth < 768 ? 88 : 72;
+        container.scrollTop = idx * itemH - container.clientHeight / 2 + itemH / 2;
         }
       }
     };
@@ -601,8 +602,8 @@ export default function LibraryPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Search + Show Type Pills — single compact row */}
-      <div className="flex items-center gap-2 px-3 py-2 flex-shrink-0">
+      {/* Search + Show Type Pills */}
+      <div className="flex flex-col gap-1.5 px-3 py-2 flex-shrink-0 md:flex-row md:items-center md:gap-2">
         <SearchBar
           ref={searchBarRef}
           value={search}
@@ -614,7 +615,7 @@ export default function LibraryPage() {
           className="flex-1"
         />
         {allEpisodes && allEpisodes.length > 0 && (
-          <div className="flex items-center gap-0.5 flex-shrink-0">
+          <div className="flex items-center gap-1 md:gap-0.5 flex-shrink-0 overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0">
             {SHOW_TABS.map((tab) => {
               const count = showCounts.get(tab.key) ?? 0;
               const isActive = showFilter === tab.key;
@@ -627,10 +628,10 @@ export default function LibraryPage() {
                     setGuestFilter(null);
                   }}
                   className={cn(
-                    "px-2 py-0.5 text-[9px] cursor-pointer transition-colors-fast whitespace-nowrap",
+                    "px-3 py-1.5 text-[12px] md:px-2 md:py-0.5 md:text-[9px] cursor-pointer transition-colors-fast whitespace-nowrap flex-shrink-0",
                     isActive
                       ? "bg-title-bar-blue/20 text-desktop-gray w98-inset-dark"
-                      : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10",
+                      : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/20",
                   )}
                 >
                   {tab.label}
@@ -645,29 +646,29 @@ export default function LibraryPage() {
       {(hasActiveFilters || selectedIds.size > 0) && (
         <div className="px-3 pb-1 flex-shrink-0 flex flex-col gap-1">
           {hasActiveFilters && (
-            <div className="flex items-center gap-2 text-[9px]">
+            <div className="flex items-center gap-2 text-[12px] md:text-[9px]">
               {guestFilter && (
-                <span className="bg-static-green/15 text-static-green px-1.5 py-0.5 flex items-center gap-1">
+                <span className="bg-static-green/15 text-static-green px-2 py-1 md:px-1.5 md:py-0.5 flex items-center gap-1">
                   Guest: {guestFilter}
-                  <button onClick={() => setGuestFilter(null)} className="text-static-green/60 hover:text-static-green cursor-pointer">x</button>
+                  <button onClick={() => setGuestFilter(null)} className="text-static-green/60 hover:text-static-green active:text-static-green cursor-pointer min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center">x</button>
                 </span>
               )}
               {categoryFilter && (
-                <span className="bg-desert-amber/15 text-desert-amber px-1.5 py-0.5 flex items-center gap-1">
+                <span className="bg-desert-amber/15 text-desert-amber px-2 py-1 md:px-1.5 md:py-0.5 flex items-center gap-1">
                   {categoryFilter}
-                  <button onClick={() => setCategoryFilter(null)} className="text-desert-amber/60 hover:text-desert-amber cursor-pointer">x</button>
+                  <button onClick={() => setCategoryFilter(null)} className="text-desert-amber/60 hover:text-desert-amber active:text-desert-amber cursor-pointer min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center">x</button>
                 </span>
               )}
               <button
                 onClick={() => { setShowFilter("all"); setGuestFilter(null); setCategoryFilter(null); setFavoritesOnly(false); }}
-                className="text-bevel-dark hover:text-desktop-gray cursor-pointer ml-auto"
+                className="text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer ml-auto min-h-[44px] md:min-h-0 flex items-center"
               >
                 Clear filters
               </button>
             </div>
           )}
           {selectedIds.size > 0 && (
-            <div className="flex items-center gap-2 text-[9px] bg-title-bar-blue/10 px-2 py-1 w98-inset-dark">
+            <div className="flex items-center gap-2 text-[12px] md:text-[9px] bg-title-bar-blue/10 px-2 py-2 md:py-1 w98-inset-dark">
               <span className="text-desktop-gray font-bold">{selectedIds.size} selected</span>
               <button
                 onClick={() => {
@@ -694,13 +695,13 @@ export default function LibraryPage() {
         <div className="px-3 flex-shrink-0">
           <button
             onClick={toggleDiscovery}
-            className="text-[9px] text-bevel-dark uppercase tracking-wider px-1 py-0.5 cursor-pointer hover:text-desktop-gray transition-colors-fast"
+            className="text-[12px] md:text-[9px] text-bevel-dark uppercase tracking-wider px-2 py-2 md:px-1 md:py-0.5 cursor-pointer hover:text-desktop-gray active:text-desktop-gray transition-colors-fast"
           >
             {discoveryOpen ? "▾" : "▸"} Explore
           </button>
 
           {discoveryOpen && (
-            <div className="flex gap-2 mt-1 mb-1 overflow-hidden" style={{ maxHeight: "100px" }}>
+            <div className="flex flex-col md:flex-row gap-2 mt-1 mb-1 overflow-hidden max-h-[200px] md:max-h-[100px]">
               {recentlyPlayed && recentlyPlayed.length > 0 && (
                 <WidgetErrorBoundary name="Recently Played">
                   <RecentlyPlayed episodes={recentlyPlayed.slice(0, 4)} onPlay={handlePlay} compact />

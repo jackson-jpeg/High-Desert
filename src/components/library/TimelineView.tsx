@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useState, useEffect } from "react";
 import type { Episode } from "@/db/schema";
 import { EpisodeCard } from "./EpisodeCard";
 import { YearNavigator } from "./YearNavigator";
@@ -21,7 +21,9 @@ interface TimelineViewProps {
   className?: string;
 }
 
-const ITEM_HEIGHT = 72;
+// Mobile cards need more height for larger text sizes
+const ITEM_HEIGHT_MOBILE = 88;
+const ITEM_HEIGHT_DESKTOP = 72;
 
 export function TimelineView({
   episodes,
@@ -37,6 +39,17 @@ export function TimelineView({
   className,
 }: TimelineViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Responsive item height — mobile needs more space for larger text
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  const ITEM_HEIGHT = isMobile ? ITEM_HEIGHT_MOBILE : ITEM_HEIGHT_DESKTOP;
 
   const { virtualItems, totalHeight, onScroll, scrollToIndex } = useVirtualList({
     items: episodes,
@@ -135,8 +148,8 @@ export function TimelineView({
           <span className="text-[9px] text-bevel-dark/50">
             {yearCounts.get(currentYear) ?? 0}
           </span>
-          {/* Year nav dots */}
-          <div className="flex items-center gap-[3px] ml-auto">
+          {/* Year nav dots — desktop only */}
+          <div className="hidden md:flex items-center gap-[3px] ml-auto">
             {Array.from(yearCounts.keys())
               .filter((y) => y !== "Unknown")
               .sort()
