@@ -90,12 +90,77 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="preconnect" href="https://archive.org" />
+        <link rel="dns-prefetch" href="https://archive.org" />
+        <link rel="preconnect" href="https://ia800100.us.archive.org" crossOrigin="anonymous" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
       <body className={`${w95fa.variable} bg-midnight antialiased`}>
+        {/* Inline loading screen — shows before JS hydrates, prevents white flash */}
+        <div
+          id="app-loading"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "#0A0E1A",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            transition: "opacity 0.3s ease",
+          }}
+        >
+          <div style={{ textAlign: "center" }}>
+            <div
+              style={{
+                color: "#D4A843",
+                fontFamily: "W95FA, monospace",
+                fontSize: "16px",
+                fontWeight: "bold",
+                letterSpacing: "2px",
+                textShadow: "0 0 8px rgba(212,168,67,0.3)",
+              }}
+            >
+              HIGH DESERT
+            </div>
+            <div
+              style={{
+                color: "#808080",
+                fontFamily: "W95FA, monospace",
+                fontSize: "10px",
+                marginTop: "8px",
+              }}
+            >
+              Loading...
+            </div>
+          </div>
+        </div>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Remove loading screen once React hydrates
+              if (typeof window !== 'undefined') {
+                var observer = new MutationObserver(function() {
+                  var el = document.getElementById('app-loading');
+                  if (el && document.querySelector('[data-hydrated]')) {
+                    el.style.opacity = '0';
+                    setTimeout(function() { el.remove(); }, 300);
+                    observer.disconnect();
+                  }
+                });
+                observer.observe(document.body, { childList: true, subtree: true });
+                // Fallback: remove after 5s regardless
+                setTimeout(function() {
+                  var el = document.getElementById('app-loading');
+                  if (el) { el.style.opacity = '0'; setTimeout(function() { el.remove(); }, 300); }
+                }, 5000);
+              }
+            `,
+          }}
+        />
         <ServiceWorkerRegistration />
         {children}
       </body>

@@ -1,11 +1,13 @@
 {
-  "name": "High Desert",
+  "name": "High Desert — Art Bell Radio Archive",
   "short_name": "High Desert",
-  "description": "Art Bell Radio Archive",
+  "description": "Stream thousands of Art Bell episodes — Coast to Coast AM, Dreamland, and more.",
   "start_url": "/library",
   "display": "standalone",
   "background_color": "#0A0E1A",
   "theme_color": "#0A0E1A",
+  "orientation": "any",
+  "categories": ["entertainment", "music"],
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -16,6 +18,12 @@
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

@@ -1,2 +1,7 @@
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /scanner
+Disallow: /search
+
+Sitemap: https://highdesert.app/sitemap.xml

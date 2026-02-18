@@ -13,6 +13,7 @@ import { db, getPreference, setPreference } from "@/db";
 import type { Episode } from "@/db/schema";
 import { getCachedAudio, cacheAudioBlob } from "@/audio/cache";
 import { seedLibraryIfEmpty } from "@/db/seed";
+import { DBErrorBoundary } from "@/components/DBErrorBoundary";
 
 export default function DesktopLayout({
   children,
@@ -395,22 +396,26 @@ export default function DesktopLayout({
   const episodeCount = useLiveQuery(() => db.episodes.count(), []);
 
   return (
-    <DesktopShell
-      player={
-        <>
-          {continueEpisode && !currentEpisode && (
-            <ContinueBanner
-              episode={continueEpisode}
-              onResume={handleResume}
-              onDismiss={handleDismissContinue}
-            />
-          )}
-          <AudioPlayer />
-        </>
-      }
-      episodeCount={episodeCount ?? 0}
-    >
-      {children}
-    </DesktopShell>
+    <DBErrorBoundary>
+      <div data-hydrated="">
+      <DesktopShell
+        player={
+          <>
+            {continueEpisode && !currentEpisode && (
+              <ContinueBanner
+                episode={continueEpisode}
+                onResume={handleResume}
+                onDismiss={handleDismissContinue}
+              />
+            )}
+            <AudioPlayer />
+          </>
+        }
+        episodeCount={episodeCount ?? 0}
+      >
+        {children}
+      </DesktopShell>
+      </div>
+    </DBErrorBoundary>
   );
 }
