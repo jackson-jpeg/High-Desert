@@ -526,8 +526,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             </div>
           )}
           <div className="flex justify-end gap-2">
-            <Button onClick={() => setAdminPromptOpen(false)}>Cancel</Button>
-            <Button variant="dark" onClick={handleAdminLogin}>Login</Button>
+            <Button type="button" onClick={() => setAdminPromptOpen(false)}>Cancel</Button>
+            <Button type="submit" variant="dark">Login</Button>
           </div>
         </form>
       </Dialog>
