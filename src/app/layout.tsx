@@ -141,21 +141,22 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              // Remove loading screen once React hydrates
+              // Hide loading screen once React hydrates (use display:none, not remove(),
+              // because removing a React-managed DOM node causes NotFoundError during reconciliation)
               if (typeof window !== 'undefined') {
                 var observer = new MutationObserver(function() {
                   var el = document.getElementById('app-loading');
                   if (el && document.querySelector('[data-hydrated]')) {
                     el.style.opacity = '0';
-                    setTimeout(function() { el.remove(); }, 300);
+                    setTimeout(function() { if (el) el.style.display = 'none'; }, 300);
                     observer.disconnect();
                   }
                 });
                 observer.observe(document.body, { childList: true, subtree: true });
-                // Fallback: remove after 5s regardless
+                // Fallback: hide after 5s regardless
                 setTimeout(function() {
                   var el = document.getElementById('app-loading');
-                  if (el) { el.style.opacity = '0'; setTimeout(function() { el.remove(); }, 300); }
+                  if (el) { el.style.opacity = '0'; setTimeout(function() { if (el) el.style.display = 'none'; }, 300); }
                 }, 5000);
               }
             `,
