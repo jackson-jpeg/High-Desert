@@ -44,6 +44,9 @@ export function useAudioPlayer() {
       audioRef.current = new Audio();
       audioRef.current.preload = "metadata";
       audioRef.current.crossOrigin = "anonymous";
+      // Required for iOS background/lock screen playback
+      audioRef.current.setAttribute("playsinline", "");
+      audioRef.current.setAttribute("webkit-playsinline", "");
       initEngine(audioRef.current);
     }
     return audioRef.current;
@@ -228,14 +231,26 @@ export function useAudioPlayer() {
       setError(messages[code ?? 0] ?? "An unknown playback error occurred.");
     };
 
+    // Sync store when iOS/lock screen controls trigger play/pause directly
+    const onPlay = () => {
+      if (!usePlayerStore.getState().playing) setPlaying(true);
+    };
+    const onPause = () => {
+      if (usePlayerStore.getState().playing) setPlaying(false);
+    };
+
     audio.addEventListener("ended", onEnded);
     audio.addEventListener("loadedmetadata", onLoadedMetadata);
     audio.addEventListener("error", onError);
+    audio.addEventListener("play", onPlay);
+    audio.addEventListener("pause", onPause);
 
     return () => {
       audio.removeEventListener("ended", onEnded);
       audio.removeEventListener("loadedmetadata", onLoadedMetadata);
       audio.removeEventListener("error", onError);
+      audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("pause", onPause);
     };
   }, [getAudio, setPlaying, setDuration, setError]);
 
@@ -312,6 +327,10 @@ export function useAudioPlayer() {
           : currentEpisode.showType === "dreamland"
             ? "Dreamland"
             : "Art Bell Radio",
+        artwork: [
+          { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+          { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+        ],
       });
     } else {
       session.metadata = null;
@@ -366,18 +385,23 @@ export function useAudioPlayer() {
     };
   }, [togglePlay, playNext, playPrevious, seek]);
 
-  // Update MediaSession position state
+  // Update MediaSession position state (throttled to avoid excessive updates)
+  const lastPositionUpdateRef = useRef(0);
   useEffect(() => {
     if (!("mediaSession" in navigator)) return;
     if (!currentEpisode || !playing) return;
 
+    const now = Date.now();
+    if (now - lastPositionUpdateRef.current < 5000) return;
+    lastPositionUpdateRef.current = now;
+
     const state = usePlayerStore.getState();
-    if (state.duration > 0) {
+    if (state.duration > 0 && isFinite(state.duration)) {
       try {
         navigator.mediaSession.setPositionState({
           duration: state.duration,
           playbackRate: state.playbackRate,
-          position: Math.min(state.position, state.duration),
+          position: Math.min(Math.max(0, state.position), state.duration),
         });
       } catch {
         // ignore

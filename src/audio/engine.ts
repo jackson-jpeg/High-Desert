@@ -19,6 +19,17 @@ let audioContext: AudioContext | null = null;
 let analyserNode: AnalyserNode | null = null;
 let elementConnected = false;
 
+/**
+ * Detect iOS/iPadOS — createMediaElementSource routes audio through
+ * AudioContext which iOS suspends on lock screen, killing playback.
+ * We skip the analyser entirely on these devices.
+ */
+function isIOSDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
 export function getAnalyserNode(): AnalyserNode | null {
   // Lazy init: try when we don't have an analyser and audio is playing
   if (!analyserNode && mediaElement?.src && !mediaElement.paused) {
@@ -75,6 +86,8 @@ export function resumeContext(): Promise<void> {
  */
 function tryInitAnalyser(): void {
   if (analyserNode || !mediaElement || elementConnected) return;
+  // Never route through AudioContext on iOS — it kills background playback
+  if (isIOSDevice()) return;
 
   try {
     audioContext = new AudioContext();
