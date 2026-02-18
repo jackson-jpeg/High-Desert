@@ -173,9 +173,17 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     }
   }, []);
 
-  const handleAdminLogin = useCallback(async () => {
-    const success = await useAdminStore.getState().login(adminPassword);
-    if (success) {
+  const handleAdminLogin = async () => {
+    const pw = adminPassword;
+    // Hash and verify inline to avoid any closure/async issues with store
+    const encoder = new TextEncoder();
+    const data = encoder.encode(pw);
+    const buffer = await crypto.subtle.digest("SHA-256", data);
+    const hash = Array.from(new Uint8Array(buffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
+    const EXPECTED = "7740185e7b5e8ec29b31a918cd2b8d0d491c864072ed360e48999355974280d4";
+    if (hash === EXPECTED) {
+      try { localStorage.setItem("hd-admin", "1"); } catch {}
+      useAdminStore.setState({ isAdmin: true });
       setAdminPromptOpen(false);
       setAdminPassword("");
       setAdminError(false);
@@ -183,7 +191,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     } else {
       setAdminError(true);
     }
-  }, [adminPassword]);
+  };
 
   // Listen for ? key to toggle shortcuts
   useEffect(() => {
@@ -506,7 +514,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       {/* Admin password dialog */}
       <Dialog open={adminPromptOpen} onClose={() => setAdminPromptOpen(false)} title="Admin Login" width="300px">
         <form
-          onSubmit={(e) => { e.preventDefault(); handleAdminLogin(); }}
+          onSubmit={async (e) => { e.preventDefault(); e.stopPropagation(); await handleAdminLogin(); }}
           className="p-4 flex flex-col gap-3"
         >
           <div className="text-[10px] text-desktop-gray">
