@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Episode } from "@/lib/db/schema";
+import type { Episode } from "@/db/schema";
 
 export interface RadioDialState {
   // Tuning position (days from earliest episode)

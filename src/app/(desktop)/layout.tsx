@@ -9,10 +9,10 @@ import { ContinueBanner } from "@/components/library/ContinueBanner";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
-import { db, getPreference, setPreference } from "@/lib/db";
-import type { Episode } from "@/lib/db/schema";
-import { getCachedAudio, cacheAudioBlob } from "@/lib/audio/cache";
-import { seedLibraryIfEmpty } from "@/lib/db/seed";
+import { db, getPreference, setPreference } from "@/db";
+import type { Episode } from "@/db/schema";
+import { getCachedAudio, cacheAudioBlob } from "@/audio/cache";
+import { seedLibraryIfEmpty } from "@/db/seed";
 
 export default function DesktopLayout({
   children,

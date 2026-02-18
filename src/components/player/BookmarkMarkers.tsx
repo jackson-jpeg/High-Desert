@@ -2,11 +2,11 @@
 
 import { useState, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
-import type { Bookmark } from "@/lib/db/schema";
+import { db } from "@/db";
+import type { Bookmark } from "@/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
-import { addBookmark, removeBookmark } from "@/lib/episodes/management";
+import { addBookmark, removeBookmark } from "@/services/episodes/management";
 import { toast } from "@/stores/toast-store";
 import { formatTime } from "@/lib/utils/format";
 import { cn } from "@/lib/utils/cn";

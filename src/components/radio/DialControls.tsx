@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { Button } from "@/components/win98";
 import { useRadioDialStore } from "@/stores/radio-dial-store";
-import type { Episode } from "@/lib/db/schema";
+import type { Episode } from "@/db/schema";
 
 interface DialControlsProps {
   lockedEpisode: Episode | null;

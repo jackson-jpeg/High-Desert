@@ -12,17 +12,17 @@
 
 import { useCallback, useRef } from "react";
 import { useScannerStore } from "@/stores/scanner-store";
-import { db } from "@/lib/db";
-import type { Episode } from "@/lib/db/schema";
-import { hashFile } from "@/lib/scanner/hasher";
-import { extractMetadata } from "@/lib/scanner/metadata";
-import { parseFilename } from "@/lib/scanner/filename-parser";
+import { db } from "@/db";
+import type { Episode } from "@/db/schema";
+import { hashFile } from "@/services/scanner/hasher";
+import { extractMetadata } from "@/services/scanner/metadata";
+import { parseFilename } from "@/services/scanner/filename-parser";
 import {
   scanDirectory,
   scanFallback,
   supportsDirectoryPicker,
-} from "@/lib/scanner/file-scanner";
-import { cacheAudioBlob, isOPFSSupported } from "@/lib/audio/cache";
+} from "@/services/scanner/file-scanner";
+import { cacheAudioBlob, isOPFSSupported } from "@/audio/cache";
 
 // ── Helpers ────────────────────────────────────────────────────────────
 

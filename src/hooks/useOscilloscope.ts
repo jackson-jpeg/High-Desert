@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { getAnalyserNode } from "@/lib/audio/engine";
+import { getAnalyserNode } from "@/audio/engine";
 import {
   drawOscilloscope,
   drawIdleLine,
-} from "@/lib/audio/oscilloscope-renderer";
+} from "@/audio/oscilloscope-renderer";
 import { usePlayerStore } from "@/stores/player-store";
 
 export function useOscilloscope() {

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import "./globals.css";
 
 const w95fa = localFont({
@@ -95,6 +96,7 @@ export default function RootLayout({
         />
       </head>
       <body className={`${w95fa.variable} bg-midnight antialiased`}>
+        <ServiceWorkerRegistration />
         {children}
       </body>
     </html>

@@ -2,8 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
-import type { Episode } from "@/lib/db/schema";
+import { db } from "@/db";
+import type { Episode } from "@/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
 import { Window } from "@/components/win98";
 import { toast } from "@/stores/toast-store";

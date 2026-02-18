@@ -3,13 +3,13 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/db";
-import type { Episode } from "@/lib/db/schema";
+import { db } from "@/db";
+import type { Episode } from "@/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
 import { useContextMenuStore } from "@/stores/context-menu-store";
 import { toast } from "@/stores/toast-store";
 import { useAdminStore } from "@/stores/admin-store";
-import { deleteEpisode, recategorizeEpisode, updateEpisode, toggleFavorite } from "@/lib/episodes/management";
+import { deleteEpisode, recategorizeEpisode, updateEpisode, toggleFavorite } from "@/services/episodes/management";
 import { SearchBar } from "@/components/library/SearchBar";
 import { TimelineView } from "@/components/library/TimelineView";
 import { EpisodeDetail } from "@/components/library/EpisodeDetail";

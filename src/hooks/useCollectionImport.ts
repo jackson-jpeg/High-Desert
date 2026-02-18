@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { db } from "@/lib/db";
+import { db } from "@/db";
 import { fetchWithRetry } from "@/lib/utils/retry";
-import { getStreamUrl } from "@/lib/archive/client";
-import { parseArtBellFilename, isArtBellFilename } from "@/lib/archive/filename-parser";
+import { getStreamUrl } from "@/services/archive/client";
+import { parseArtBellFilename, isArtBellFilename } from "@/services/archive/filename-parser";
 import { toast } from "@/stores/toast-store";
-import type { Episode } from "@/lib/db/schema";
-import type { ArchiveFile } from "@/lib/archive/types";
+import type { Episode } from "@/db/schema";
+import type { ArchiveFile } from "@/services/archive/types";
 
 export interface CollectionInfo {
   identifier: string;
@@ -222,7 +222,7 @@ export function useCollectionImport() {
         try {
           const res = await fetchWithRetry("/api/categorize", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "x-hd-admin": "true" },
             body: JSON.stringify({
               episodes: chunk.map((ep) => ({
                 title: ep.title,

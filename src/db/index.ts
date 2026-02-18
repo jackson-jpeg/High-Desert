@@ -33,6 +33,11 @@ class HighDesertDB extends Dexie {
         "++id, fileHash, airDate, guestName, showType, fileName, scanSessionId, createdAt, archiveIdentifier, lastPlayedAt, aiStatus, *aiTags",
       scanSessions: "++id, status, startedAt",
       userPrefs: "++id, &key",
+    }).upgrade((tx) => {
+      return tx.table("episodes").toCollection().modify((ep) => {
+        if (ep.aiStatus === undefined) ep.aiStatus = "pending";
+        if (ep.lastPlayedAt === undefined) ep.lastPlayedAt = 0;
+      });
     });
 
     this.version(4).stores({
@@ -42,6 +47,10 @@ class HighDesertDB extends Dexie {
       userPrefs: "++id, &key",
       playlists: "++id, name, createdAt",
       history: "++id, episodeId, timestamp",
+    }).upgrade((tx) => {
+      return tx.table("episodes").toCollection().modify((ep) => {
+        if (ep.favoritedAt === undefined) ep.favoritedAt = undefined;
+      });
     });
 
     this.version(5).stores({
@@ -62,6 +71,11 @@ class HighDesertDB extends Dexie {
       playlists: "++id, name, createdAt",
       history: "++id, episodeId, timestamp",
       bookmarks: "++id, episodeId, position, createdAt",
+    }).upgrade((tx) => {
+      return tx.table("episodes").toCollection().modify((ep) => {
+        if (ep.aiCategory === undefined) ep.aiCategory = null;
+        if (ep.aiSeries === undefined) ep.aiSeries = null;
+      });
     });
   }
 }

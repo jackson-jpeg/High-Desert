@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/win98";
-import type { Episode } from "@/lib/db/schema";
+import type { Episode } from "@/db/schema";
 import { cn } from "@/lib/utils/cn";
 
 interface ContinueBannerProps {

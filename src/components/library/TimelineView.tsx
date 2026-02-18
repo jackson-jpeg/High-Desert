@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useMemo } from "react";
-import type { Episode } from "@/lib/db/schema";
+import type { Episode } from "@/db/schema";
 import { EpisodeCard } from "./EpisodeCard";
 import { useVirtualList } from "@/hooks/useVirtualList";
 import { cn } from "@/lib/utils/cn";

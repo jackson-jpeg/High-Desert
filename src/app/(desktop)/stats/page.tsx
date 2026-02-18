@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
+import { db } from "@/db";
 import { useAdminStore } from "@/stores/admin-store";
 import { Window } from "@/components/win98";
 import { HistoryPanel } from "@/components/library/HistoryPanel";

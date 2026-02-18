@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { Episode } from "@/lib/db/schema";
+import type { Episode } from "@/db/schema";
 import { Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
 import { toast } from "@/stores/toast-store";
-import { rateEpisode } from "@/lib/episodes/management";
+import { rateEpisode } from "@/services/episodes/management";
 import { BookmarkList } from "@/components/player/BookmarkMarkers";
 import { MoreLikeThis } from "@/components/library/MoreLikeThis";
 import { cn } from "@/lib/utils/cn";

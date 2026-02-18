@@ -1,8 +1,8 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
-import type { HistoryEntry } from "@/lib/db/schema";
+import { db } from "@/db";
+import type { HistoryEntry } from "@/db/schema";
 import { Window } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
 

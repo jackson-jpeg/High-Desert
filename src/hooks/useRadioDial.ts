@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useEffect, useRef, useCallback } from "react";
-import type { Episode } from "@/lib/db/schema";
+import type { Episode } from "@/db/schema";
 import { useRadioDialStore } from "@/stores/radio-dial-store";
 
 // ---------- Types ----------

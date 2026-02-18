@@ -1,6 +1,6 @@
-import { db } from "@/lib/db";
+import { db } from "@/db";
 import { usePlayerStore } from "@/stores/player-store";
-import { removeCachedAudio } from "@/lib/audio/cache";
+import { removeCachedAudio } from "@/audio/cache";
 import { fetchWithRetry } from "@/lib/utils/retry";
 
 export async function deleteEpisode(id: number): Promise<void> {
@@ -49,7 +49,7 @@ export async function toggleFavorite(id: number): Promise<boolean> {
 
 export async function updateEpisode(
   id: number,
-  fields: Partial<Pick<import("@/lib/db/schema").Episode, "title" | "guestName" | "airDate" | "topic" | "showType" | "aiSummary" | "aiCategory" | "aiSeries" | "aiSeriesPart" | "aiNotable">>,
+  fields: Partial<Pick<import("@/db/schema").Episode, "title" | "guestName" | "airDate" | "topic" | "showType" | "aiSummary" | "aiCategory" | "aiSeries" | "aiSeriesPart" | "aiNotable">>,
 ): Promise<void> {
   await db.episodes.update(id, { ...fields, updatedAt: Date.now() });
 }
@@ -91,7 +91,7 @@ export async function recategorizeEpisode(id: number): Promise<void> {
   try {
     const res = await fetchWithRetry("/api/categorize", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-hd-admin": "true" },
       body: JSON.stringify({
         episodes: [{
           title: episode.title,

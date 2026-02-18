@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Episode } from "@/lib/db/schema";
+import type { Episode } from "@/db/schema";
 
 export type RepeatMode = "off" | "one" | "all";
 
@@ -56,6 +56,9 @@ export interface PlayerState {
   // Shuffle & repeat
   toggleShuffle: () => void;
   cycleRepeat: () => void;
+
+  // Unified play trigger
+  playTrack: (episode: Episode) => void;
 
   // Persistence
   restoreQueue: (queue: Episode[], queueIndex: number) => void;
@@ -202,17 +205,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   next: () => {
     const { queue, queueIndex, shuffle, repeat } = get();
 
-    // Repeat one: return current track again
+    // Repeat one: return current track again (index stays the same)
     if (repeat === "one" && queueIndex >= 0 && queueIndex < queue.length) {
       return queue[queueIndex];
     }
 
-    // Shuffle: pick random unplayed track (or any if all played)
+    // Shuffle: pick random different track
     if (shuffle && queue.length > 1) {
       let nextIdx: number;
       do {
         nextIdx = Math.floor(Math.random() * queue.length);
       } while (nextIdx === queueIndex && queue.length > 1);
+      set({ queueIndex: nextIdx });
       return queue[nextIdx];
     }
 
@@ -220,10 +224,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (nextIdx >= queue.length) {
       // Repeat all: wrap around
       if (repeat === "all" && queue.length > 0) {
+        set({ queueIndex: 0 });
         return queue[0];
       }
       return null;
     }
+    set({ queueIndex: nextIdx });
     return queue[nextIdx];
   },
 
@@ -231,6 +237,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const { queue, queueIndex } = get();
     const prevIdx = queueIndex - 1;
     if (prevIdx < 0) return null;
+    set({ queueIndex: prevIdx });
     return queue[prevIdx];
   },
 
@@ -274,6 +281,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const idx = modes.indexOf(s.repeat);
     return { repeat: modes[(idx + 1) % modes.length] };
   }),
+
+  playTrack: (episode) => {
+    // Unified: update queue index if in queue, then dispatch play event
+    const { queue } = get();
+    const idx = queue.findIndex((e) => e.id === episode.id);
+    if (idx !== -1) {
+      set({ queueIndex: idx });
+    }
+    window.dispatchEvent(
+      new CustomEvent("hd:play-episode", { detail: episode }),
+    );
+  },
 
   restoreQueue: (queue, queueIndex) => {
     set({ queue, queueIndex });

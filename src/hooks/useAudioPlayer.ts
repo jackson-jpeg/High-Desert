@@ -8,9 +8,9 @@ import {
   resumeContext,
   getMediaElement,
   notifySourceChanged,
-} from "@/lib/audio/engine";
-import { db } from "@/lib/db";
-import type { Episode } from "@/lib/db/schema";
+} from "@/audio/engine";
+import { db } from "@/db";
+import type { Episode } from "@/db/schema";
 
 export function useAudioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -138,14 +138,10 @@ export function useAudioPlayer() {
 
   // Play next track in queue
   const playNext = useCallback(() => {
-    const nextEp = usePlayerStore.getState().next();
+    const state = usePlayerStore.getState();
+    const nextEp = state.next();
     if (nextEp) {
-      usePlayerStore.getState().playFromQueue(
-        usePlayerStore.getState().queueIndex + 1,
-      );
-      window.dispatchEvent(
-        new CustomEvent("hd:play-episode", { detail: nextEp }),
-      );
+      state.playTrack(nextEp);
     }
   }, []);
 
@@ -163,10 +159,7 @@ export function useAudioPlayer() {
     }
     const prevEp = state.previous();
     if (prevEp) {
-      state.playFromQueue(state.queueIndex - 1);
-      window.dispatchEvent(
-        new CustomEvent("hd:play-episode", { detail: prevEp }),
-      );
+      state.playTrack(prevEp);
     }
   }, [getAudio]);
 
@@ -215,14 +208,7 @@ export function useAudioPlayer() {
 
       const nextEp = state.next();
       if (nextEp) {
-        // Find the proper queue index for the next episode
-        const nextIdx = state.queue.findIndex((e) => e.id === nextEp.id);
-        if (nextIdx !== -1) {
-          state.playFromQueue(nextIdx);
-        }
-        window.dispatchEvent(
-          new CustomEvent("hd:play-episode", { detail: nextEp }),
-        );
+        state.playTrack(nextEp);
       } else {
         setPlaying(false);
       }

@@ -2,9 +2,9 @@
 
 import { useState, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
-import type { Playlist } from "@/lib/db/schema";
-import type { Episode } from "@/lib/db/schema";
+import { db } from "@/db";
+import type { Playlist } from "@/db/schema";
+import type { Episode } from "@/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
 import { toast } from "@/stores/toast-store";

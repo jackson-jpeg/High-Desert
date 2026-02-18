@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
-import { db } from "@/lib/db";
+import { db } from "@/db";
 import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
 

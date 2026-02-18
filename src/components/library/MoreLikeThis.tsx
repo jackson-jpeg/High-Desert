@@ -2,8 +2,8 @@
 
 import { useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
-import type { Episode } from "@/lib/db/schema";
+import { db } from "@/db";
+import type { Episode } from "@/db/schema";
 import { cn } from "@/lib/utils/cn";
 
 interface MoreLikeThisProps {

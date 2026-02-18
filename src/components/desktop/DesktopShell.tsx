@@ -1,20 +1,24 @@
 "use client";
 
 import { cn } from "@/lib/utils/cn";
-import { MenuBar, StatusBar, Dialog, Button } from "@/components/win98";
+import { MenuBar, StatusBar, Button } from "@/components/win98";
+import { AboutDialog } from "./AboutDialog";
+import { ShortcutsDialog } from "./ShortcutsDialog";
+import { ClearLibraryDialog } from "./ClearLibraryDialog";
+import { ClearCacheDialog } from "./ClearCacheDialog";
 import { ContextMenu } from "@/components/win98/ContextMenu";
 import { Toaster } from "@/components/ui/Toaster";
 import { Starfield } from "./Starfield";
 import type { Menu } from "@/components/win98";
 import { useRouter, usePathname } from "next/navigation";
-import { ReactNode, useCallback, useEffect, useState } from "react";
+import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
 import { toast } from "@/stores/toast-store";
-import { db } from "@/lib/db";
-import { clearAudioCache, getCacheSize } from "@/lib/audio/cache";
+import { db } from "@/db";
+import { deduplicateEpisodes } from "@/db/deduplicate";
 import { useCatalogScraper } from "@/hooks/useCatalogScraper";
-import { exportLibrarySeed } from "@/lib/db/seed";
+import { exportLibrarySeed } from "@/db/seed";
 import { MobileMenuSheet } from "@/components/mobile/MobileMenuSheet";
 
 
@@ -33,23 +37,6 @@ const NAV_ITEMS = [
   { label: "Stats", path: "/stats" },
 ] as const;
 
-const SHORTCUTS = [
-  { keys: "Space", action: "Play / Pause" },
-  { keys: "\u2190", action: "Seek back 15s" },
-  { keys: "\u2192", action: "Seek forward 30s" },
-  { keys: "\u2191", action: "Volume up" },
-  { keys: "\u2193", action: "Volume down" },
-  { keys: "N", action: "Next track" },
-  { keys: "P", action: "Previous track" },
-  { keys: "M", action: "Mute / Unmute" },
-  { keys: "/ or Ctrl+F", action: "Focus search" },
-  { keys: "\u21E7\u2191 / \u21E7\u2193", action: "Navigate library" },
-  { keys: "Enter", action: "Play selected" },
-  { keys: "Delete", action: "Delete selected" },
-  { keys: "Escape", action: "Clear selection" },
-  { keys: "?", action: "Show this dialog" },
-];
-
 export function DesktopShell({ children, player, episodeCount = 0, className }: DesktopShellProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -57,12 +44,26 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
-  const [clearing, setClearing] = useState(false);
   const [clearCacheOpen, setClearCacheOpen] = useState(false);
-  const [cacheSize, setCacheSize] = useState<number | null>(null);
-  const [clearingCache, setClearingCache] = useState(false);
   const [clock, setClock] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+  const playerRef = useRef<HTMLDivElement>(null);
+  const [bottomPadding, setBottomPadding] = useState(112); // fallback
+
+  // Measure actual nav + player height
+  useEffect(() => {
+    const measure = () => {
+      const navH = navRef.current?.offsetHeight ?? 56;
+      const playerH = playerRef.current?.offsetHeight ?? 56;
+      setBottomPadding(navH + playerH);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (navRef.current) ro.observe(navRef.current);
+    if (playerRef.current) ro.observe(playerRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   // AI categorization (runs in-place, no navigation needed)
   const { categorizeOnly, phase: scraperPhase } = useCatalogScraper();
@@ -102,36 +103,6 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     const handler = () => setShortcutsOpen((prev) => !prev);
     window.addEventListener("hd:toggle-shortcuts", handler);
     return () => window.removeEventListener("hd:toggle-shortcuts", handler);
-  }, []);
-
-  const handleClearLibrary = useCallback(async () => {
-    setClearing(true);
-    try {
-      await db.episodes.clear();
-      await db.scanSessions.clear();
-      toast.success("Library cleared");
-    } finally {
-      setClearing(false);
-      setClearOpen(false);
-    }
-  }, []);
-
-  const handleOpenClearCache = useCallback(async () => {
-    setClearCacheOpen(true);
-    const size = await getCacheSize();
-    setCacheSize(size);
-  }, []);
-
-  const handleClearCache = useCallback(async () => {
-    setClearingCache(true);
-    try {
-      await clearAudioCache();
-      toast.success("Audio cache cleared");
-    } finally {
-      setClearingCache(false);
-      setClearCacheOpen(false);
-      setCacheSize(null);
-    }
   }, []);
 
   const dispatchSort = useCallback((sort: string) => {
@@ -228,7 +199,19 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             { label: "Export Library...", onClick: handleExport },
             { label: "Export Library Seed...", onClick: exportLibrarySeed },
             { separator: true as const, label: "" },
-            { label: "Clear Audio Cache...", onClick: handleOpenClearCache },
+            {
+              label: "Deduplicate Library...",
+              onClick: async () => {
+                const result = await deduplicateEpisodes();
+                if (result.duplicatesRemoved > 0) {
+                  toast.success(`Removed ${result.duplicatesRemoved} duplicate${result.duplicatesRemoved !== 1 ? "s" : ""} from ${result.groupsMerged} group${result.groupsMerged !== 1 ? "s" : ""}`);
+                } else {
+                  toast.info("No duplicates found");
+                }
+              },
+            },
+            { separator: true as const, label: "" },
+            { label: "Clear Audio Cache...", onClick: () => setClearCacheOpen(true) },
             { label: "Clear Library...", onClick: () => setClearOpen(true) },
           ],
         }]
@@ -309,6 +292,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
 
       {/* Navigation tabs — desktop: top horizontal, mobile: bottom tab bar */}
       <nav
+        ref={navRef}
         className={cn(
           // Mobile: fixed bottom tab bar with glass
           "fixed bottom-0 inset-x-0 z-30 glass-light glass-promote",
@@ -356,13 +340,16 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       </nav>
 
       {/* Main content area — padded on mobile to clear fixed player + tab bar */}
-      <main className="flex-1 overflow-auto relative z-10 pb-[calc(112px+var(--safe-bottom))] md:pb-0">
+      <main
+        className="flex-1 overflow-auto relative z-10 md:pb-0"
+        style={{ paddingBottom: `calc(${bottomPadding}px + var(--safe-bottom))` }}
+      >
         {children}
       </main>
 
       {/* Mini player slot — mobile: fixed above tab bar; desktop: static */}
       {player && (
-        <div className={cn(
+        <div ref={playerRef} className={cn(
           "fixed bottom-[calc(56px+var(--safe-bottom))] inset-x-0 z-20",
           "md:static md:flex-shrink-0 md:relative md:z-10",
         )}>
@@ -388,94 +375,10 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       {/* Toast notifications */}
       <Toaster />
 
-      {/* About dialog */}
-      <Dialog
-        open={aboutOpen}
-        onClose={handleCloseAbout}
-        title="About High Desert"
-        width="400px"
-      >
-        <div className="flex flex-col items-center gap-0 p-6 text-center bg-midnight/90">
-          {/* Title */}
-          <div className="text-[18px] font-bold text-desert-amber crt-amber tracking-wider mb-1">
-            HIGH DESERT
-          </div>
-          <div className="text-[11px] text-desktop-gray/80 mb-4">
-            Art Bell Radio Archive
-          </div>
-
-          {/* Separator */}
-          <div className="w-40 h-[1px] bg-gradient-to-r from-transparent via-desert-amber/30 to-transparent mb-4" />
-
-          {/* Quote */}
-          <div className="text-[10px] text-static-green/60 italic mb-5" style={{
-            textShadow: "0 0 4px rgba(74, 222, 128, 0.2)",
-          }}>
-            &ldquo;From the Kingdom of Nye...&rdquo;
-          </div>
-
-          {/* Memorial */}
-          <div className="flex flex-col items-center gap-0.5 mb-5">
-            <div className="text-[10px] text-desert-amber/60">
-              Art Bell
-            </div>
-            <div className="text-[9px] text-bevel-dark/60">
-              1945 &ndash; 2018
-            </div>
-          </div>
-
-          {/* Version */}
-          <div className="text-[8px] text-bevel-dark/40 mb-5">
-            v0.4.0{isAdmin ? " (Admin)" : ""}
-          </div>
-
-          <Button onClick={handleCloseAbout}>OK</Button>
-        </div>
-      </Dialog>
-
-      {/* Keyboard shortcuts dialog */}
-      <Dialog
-        open={shortcutsOpen}
-        onClose={handleCloseShortcuts}
-        title="Keyboard Shortcuts"
-        width="320px"
-      >
-        <div className="p-4">
-          <div className="flex flex-col gap-1">
-            {SHORTCUTS.filter(({ keys }) => isAdmin || keys !== "Delete").map(({ keys, action }) => (
-              <div key={keys} className="flex items-center justify-between gap-3 py-0.5">
-                <span className="text-[10px] text-desktop-gray/80">{action}</span>
-                <span className="text-[9px] text-desert-amber/60 tabular-nums flex-shrink-0">
-                  {keys}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-end mt-4">
-            <Button onClick={handleCloseShortcuts}>OK</Button>
-          </div>
-        </div>
-      </Dialog>
-
-      {/* Clear library confirmation */}
-      <Dialog
-        open={clearOpen}
-        onClose={() => setClearOpen(false)}
-        title="Clear Library"
-        width="320px"
-      >
-        <div className="p-4 flex flex-col gap-4">
-          <div className="text-[11px] text-desktop-gray">
-            Remove all episodes and scan sessions from the library? This cannot be undone.
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button onClick={() => setClearOpen(false)}>Cancel</Button>
-            <Button variant="dark" onClick={handleClearLibrary} disabled={clearing}>
-              {clearing ? "Clearing..." : "Clear"}
-            </Button>
-          </div>
-        </div>
-      </Dialog>
+      <AboutDialog open={aboutOpen} onClose={handleCloseAbout} isAdmin={isAdmin} />
+      <ShortcutsDialog open={shortcutsOpen} onClose={handleCloseShortcuts} isAdmin={isAdmin} />
+      <ClearLibraryDialog open={clearOpen} onClose={() => setClearOpen(false)} />
+      <ClearCacheDialog open={clearCacheOpen} onClose={() => setClearCacheOpen(false)} />
 
       {/* Mobile menu sheet */}
       <MobileMenuSheet
@@ -485,31 +388,6 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         onToggleAdmin={handleToggleAdmin}
         onAbout={handleAbout}
       />
-
-      {/* Clear audio cache confirmation */}
-      <Dialog
-        open={clearCacheOpen}
-        onClose={() => setClearCacheOpen(false)}
-        title="Clear Audio Cache"
-        width="320px"
-      >
-        <div className="p-4 flex flex-col gap-4">
-          <div className="text-[11px] text-desktop-gray">
-            Remove all cached audio files from local storage?
-            {cacheSize != null && (
-              <span className="block mt-1 text-bevel-dark">
-                Cache size: {(cacheSize / 1024 / 1024).toFixed(1)} MB
-              </span>
-            )}
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button onClick={() => setClearCacheOpen(false)}>Cancel</Button>
-            <Button variant="dark" onClick={handleClearCache} disabled={clearingCache}>
-              {clearingCache ? "Clearing..." : "Clear Cache"}
-            </Button>
-          </div>
-        </div>
-      </Dialog>
     </div>
   );
 }

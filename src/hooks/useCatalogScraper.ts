@@ -2,13 +2,13 @@
 
 import { useCallback, useRef } from "react";
 import { useScraperStore } from "@/stores/scraper-store";
-import { scrapeArchiveCatalog } from "@/lib/archive/scraper";
-import { getArchiveItem, getStreamUrl, pickBestAudioFile } from "@/lib/archive/client";
+import { scrapeArchiveCatalog } from "@/services/archive/scraper";
+import { getArchiveItem, getStreamUrl, pickBestAudioFile } from "@/services/archive/client";
 import { fetchWithRetry } from "@/lib/utils/retry";
 import { toast } from "@/stores/toast-store";
-import { db, getPreference, setPreference } from "@/lib/db";
-import type { Episode } from "@/lib/db/schema";
-import type { ArchiveSearchResult } from "@/lib/archive/types";
+import { db, getPreference, setPreference } from "@/db";
+import type { Episode } from "@/db/schema";
+import type { ArchiveSearchResult } from "@/services/archive/types";
 
 export function useCatalogScraper() {
   const store = useScraperStore();
@@ -158,7 +158,7 @@ export function useCatalogScraper() {
         try {
           const res = await fetchWithRetry("/api/categorize", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "x-hd-admin": "true" },
             body: JSON.stringify({
               episodes: chunk.map((ep) => ({
                 title: ep.title,
@@ -282,7 +282,7 @@ export function useCatalogScraper() {
         try {
           const res = await fetchWithRetry("/api/categorize", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "x-hd-admin": "true" },
             body: JSON.stringify({
               episodes: chunk.map((ep) => ({
                 title: ep.title,
@@ -402,7 +402,7 @@ export function useCatalogScraper() {
         try {
           const res = await fetchWithRetry("/api/categorize", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "x-hd-admin": "true" },
             body: JSON.stringify({
               episodes: chunk.map((ep) => ({
                 title: ep.title,

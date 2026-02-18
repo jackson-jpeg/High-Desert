@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils/cn";
 import { Button } from "@/components/win98";
-import type { ArchiveSearchResult } from "@/lib/archive/types";
+import type { ArchiveSearchResult } from "@/services/archive/types";
 import { useLongPress } from "@/hooks/useLongPress";
 
 interface ArchiveResultCardProps {

@@ -27,8 +27,11 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   const queueLength = usePlayerStore((s) => s.queue.length);
   const position = usePlayerStore((s) => s.position);
   const duration = usePlayerStore((s) => s.duration);
-  const hasPrev = usePlayerStore((s) => s.hasPrevious());
-  const hasNext = usePlayerStore((s) => s.hasNext());
+  const hasPrev = usePlayerStore((s) => s.queueIndex > 0);
+  const hasNext = usePlayerStore((s) => {
+    if (s.repeat === "one" || s.repeat === "all" || s.shuffle) return s.queue.length > 0;
+    return s.queueIndex + 1 < s.queue.length;
+  });
   const [showQueue, setShowQueue] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState(false);
   const isMobile = useIsMobile();

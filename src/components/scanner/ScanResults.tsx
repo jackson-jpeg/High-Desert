@@ -1,7 +1,7 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
+import { db } from "@/db";
 import { Window } from "@/components/win98";
 import { formatTime } from "@/lib/utils/format";
 

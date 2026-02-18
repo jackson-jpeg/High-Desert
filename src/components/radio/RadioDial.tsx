@@ -11,7 +11,7 @@ import { TuningStrip } from "./TuningStrip";
 import { FrequencyDisplay } from "./FrequencyDisplay";
 import { SignalMeter } from "./SignalMeter";
 import { DialControls } from "./DialControls";
-import type { Episode } from "@/lib/db/schema";
+import type { Episode } from "@/db/schema";
 
 interface RadioDialProps {
   episodes: Episode[] | undefined;

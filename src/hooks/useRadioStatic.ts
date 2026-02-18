@@ -8,7 +8,7 @@ import {
   playLockTone,
   destroyRadioStatic,
   isRadioStaticInitialized,
-} from "@/lib/audio/radio-static";
+} from "@/audio/radio-static";
 
 interface UseRadioStaticOptions {
   signalStrength: number;

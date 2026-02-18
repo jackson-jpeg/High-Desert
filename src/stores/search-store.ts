@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { ArchiveSearchResult } from "@/lib/archive/types";
+import type { ArchiveSearchResult } from "@/services/archive/types";
 
 export interface SearchState {
   query: string;

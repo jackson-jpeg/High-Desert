@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { ScrapeProgress } from "@/lib/archive/scraper";
+import type { ScrapeProgress } from "@/services/archive/scraper";
 
 interface ScraperState extends ScrapeProgress {
   errorMessages: string[];

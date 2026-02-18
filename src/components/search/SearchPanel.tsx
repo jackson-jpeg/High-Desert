@@ -8,7 +8,7 @@ import { useContextMenuStore } from "@/stores/context-menu-store";
 import { usePlayerStore } from "@/stores/player-store";
 import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
-import type { ArchiveSearchResult } from "@/lib/archive/types";
+import type { ArchiveSearchResult } from "@/services/archive/types";
 
 const COLLECTIONS = [
   { label: "Most Popular", query: "Art Bell" },
@@ -140,7 +140,7 @@ export function SearchPanel() {
         label: "Add to Library & Play",
         onClick: async () => {
           await addToLibrary(result);
-          const { db } = await import("@/lib/db");
+          const { db } = await import("@/db");
           const episode = await db.episodes
             .where("archiveIdentifier")
             .equals(result.identifier)
@@ -157,7 +157,7 @@ export function SearchPanel() {
         label: "Add to Queue",
         onClick: async () => {
           if (!isAdded) await addToLibrary(result);
-          const { db } = await import("@/lib/db");
+          const { db } = await import("@/db");
           const episode = await db.episodes
             .where("archiveIdentifier")
             .equals(result.identifier)

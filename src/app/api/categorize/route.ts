@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
@@ -19,6 +20,21 @@ interface EpisodeInput {
 const MAX_BATCH_SIZE = 10;
 
 export async function POST(request: NextRequest) {
+  // Auth: require admin header
+  if (request.headers.get("x-hd-admin") !== "true") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Rate limit: 10 req/min per IP
+  const ip = getClientIp(request);
+  const rl = rateLimit(`categorize:${ip}`, { maxRequests: 10, windowMs: 60_000 });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Rate limited" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
   if (!ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 500 });
   }
@@ -38,7 +54,7 @@ export async function POST(request: NextRequest) {
 
   const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
-  const prompt = `You are an expert on Art Bell's radio career and shows: Coast to Coast AM (1988–2003, briefly 2013–2015), Dreamland (1993–2003), Dark Matter (2013), Midnight in the Desert (2015–2016), and various specials. Art Bell passed away in 2018.
+  const systemPrompt = `You are an expert on Art Bell's radio career and shows: Coast to Coast AM (1988–2003, briefly 2013–2015), Dreamland (1993–2003), Dark Matter (2013), Midnight in the Desert (2015–2016), and various specials. Art Bell passed away in 2018.
 
 YOUR JOB: Make every episode's metadata clean, uniform, and accurate for use in a searchable archive player. Standardize everything.
 
@@ -108,16 +124,14 @@ For each episode, return a JSON array with one object per episode:
 - "seriesPart": part number if multi-part, null if standalone
 - "notable": true if iconic/famous, false otherwise
 
-Episodes:
-${JSON.stringify(episodes, null, 2)}
-
 Respond ONLY with a valid JSON array.`;
 
   try {
     const response = await client.messages.create({
       model: "claude-sonnet-4-5-20250929",
       max_tokens: 4096,
-      messages: [{ role: "user", content: prompt }],
+      system: systemPrompt,
+      messages: [{ role: "user", content: `Categorize these episodes:\n${JSON.stringify(episodes, null, 2)}` }],
     });
 
     const textBlock = response.content.find((b) => b.type === "text");

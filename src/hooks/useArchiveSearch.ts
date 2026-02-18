@@ -2,12 +2,12 @@
 
 import { useCallback } from "react";
 import { useSearchStore } from "@/stores/search-store";
-import { searchArchive, getArchiveItem, getStreamUrl, pickBestAudioFile } from "@/lib/archive/client";
+import { searchArchive, getArchiveItem, getStreamUrl, pickBestAudioFile } from "@/services/archive/client";
 import { fetchWithRetry } from "@/lib/utils/retry";
 import { toast } from "@/stores/toast-store";
-import { db } from "@/lib/db";
-import type { Episode } from "@/lib/db/schema";
-import type { ArchiveSearchResult } from "@/lib/archive/types";
+import { db } from "@/db";
+import type { Episode } from "@/db/schema";
+import type { ArchiveSearchResult } from "@/services/archive/types";
 
 export function useArchiveSearch() {
   const store = useSearchStore();
@@ -133,7 +133,7 @@ async function categorizeEpisode(episode: Episode) {
 
     const res = await fetchWithRetry("/api/categorize", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-hd-admin": "true" },
       body: JSON.stringify({
         episodes: [{
           title: episode.title,

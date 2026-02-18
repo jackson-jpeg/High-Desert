@@ -1,6 +1,6 @@
 "use client";
 
-import type { Episode } from "@/lib/db/schema";
+import type { Episode } from "@/db/schema";
 import { cn } from "@/lib/utils/cn";
 import { formatDuration, getShowLabel } from "@/lib/utils/format";
 import { useLongPress } from "@/hooks/useLongPress";
