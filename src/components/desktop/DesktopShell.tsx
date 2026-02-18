@@ -503,6 +503,35 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       {/* Command palette (Ctrl+K / Cmd+K) */}
       <CommandPalette />
 
+      {/* Admin password dialog */}
+      <Dialog open={adminPromptOpen} onClose={() => setAdminPromptOpen(false)} title="Admin Login" width="300px">
+        <form
+          onSubmit={(e) => { e.preventDefault(); handleAdminLogin(); }}
+          className="p-4 flex flex-col gap-3"
+        >
+          <div className="text-[10px] text-desktop-gray">
+            Enter the admin password to enable admin mode.
+          </div>
+          <TextField
+            type="password"
+            value={adminPassword}
+            onChange={(e) => { setAdminPassword(e.target.value); setAdminError(false); }}
+            placeholder="Password"
+            autoFocus
+            className="w-full"
+          />
+          {adminError && (
+            <div className="text-[9px] text-red-400">
+              Incorrect password.
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button onClick={() => setAdminPromptOpen(false)}>Cancel</Button>
+            <Button variant="dark" onClick={handleAdminLogin}>Login</Button>
+          </div>
+        </form>
+      </Dialog>
+
       {/* Mobile menu sheet */}
       <MobileMenuSheet
         open={mobileMenuOpen}

@@ -30,14 +30,11 @@ export default function DesktopLayout({
   const currentEpisode = usePlayerStore((s) => s.currentEpisode);
   const [continueEpisode, setContinueEpisode] = useState<Episode | null>(null);
 
-  // Handle ?admin / ?viewer URL params on mount
+  // Handle ?viewer URL param on mount (logout only — login requires password)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.has("admin")) {
-      useAdminStore.getState().setAdmin(true);
-      window.history.replaceState({}, "", window.location.pathname);
-    } else if (params.has("viewer")) {
-      useAdminStore.getState().setAdmin(false);
+    if (params.has("viewer")) {
+      useAdminStore.getState().logout();
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
