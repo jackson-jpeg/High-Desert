@@ -27,8 +27,6 @@ interface AdminState {
   login: (password: string) => Promise<boolean>;
   /** Log out of admin mode. */
   logout: () => void;
-  /** Directly set admin mode (for URL params / toggles). */
-  setAdmin: (value: boolean) => void;
 }
 
 export const useAdminStore = create<AdminState>((set) => ({
@@ -47,13 +45,5 @@ export const useAdminStore = create<AdminState>((set) => ({
   logout: () => {
     try { localStorage.removeItem(STORAGE_KEY); } catch {}
     set({ isAdmin: false });
-  },
-
-  setAdmin: (value: boolean) => {
-    try {
-      if (value) localStorage.setItem(STORAGE_KEY, "1");
-      else localStorage.removeItem(STORAGE_KEY);
-    } catch {}
-    set({ isAdmin: value });
   },
 }));
