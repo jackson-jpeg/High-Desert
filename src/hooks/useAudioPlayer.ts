@@ -313,11 +313,18 @@ export function useAudioPlayer() {
       }
     };
 
+    // visibilitychange fires more reliably on iOS than pagehide/beforeunload
+    const onVisChange = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+
     window.addEventListener("pagehide", flush);
     window.addEventListener("beforeunload", flush);
+    document.addEventListener("visibilitychange", onVisChange);
     return () => {
       window.removeEventListener("pagehide", flush);
       window.removeEventListener("beforeunload", flush);
+      document.removeEventListener("visibilitychange", onVisChange);
     };
   }, []);
 

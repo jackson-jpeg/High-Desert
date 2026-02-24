@@ -15,6 +15,7 @@ import { getCachedAudio, cacheAudioBlob } from "@/audio/cache";
 import { seedLibraryIfEmpty } from "@/db/seed";
 import { DBErrorBoundary } from "@/components/DBErrorBoundary";
 import { playStartupSound } from "@/audio/startup-sound";
+import { toast } from "@/stores/toast-store";
 
 export default function DesktopLayout({
   children,
@@ -102,6 +103,7 @@ export default function DesktopLayout({
           }
         } catch (err) {
           console.error("[layout] Failed to resolve archive URL:", err);
+          toast.error("Couldn't reach archive.org. Check your connection.");
         }
       }
 
@@ -262,7 +264,11 @@ export default function DesktopLayout({
   // Startup sound on first interaction
   useEffect(() => {
     const handler = () => {
-      playStartupSound();
+      try {
+        playStartupSound();
+      } catch {
+        // AudioContext may be blocked — not critical
+      }
       window.removeEventListener("click", handler);
       window.removeEventListener("keydown", handler);
     };

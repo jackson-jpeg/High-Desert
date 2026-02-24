@@ -66,10 +66,20 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Navigation requests: network-first with shell fallback
+  // Navigation requests: network-first with 5s timeout, then cache fallback
   if (event.request.mode === "navigate") {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match("/library").then(r => r || caches.match("/")))
+      Promise.race([
+        fetch(event.request),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000)),
+      ])
+        .then((response) => {
+          // Cache the fresh navigation response for offline use
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => caches.match(event.request).then(r => r || caches.match("/library").then(r => r || caches.match("/"))))
     );
     return;
   }

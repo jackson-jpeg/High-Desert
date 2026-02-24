@@ -232,7 +232,7 @@ export function EpisodeDetail({
           <>
             {/* Title + date + duration */}
             <div>
-              <div className="text-[14px] md:text-[12px] text-desktop-gray font-bold leading-snug">
+              <div className="text-[14px] md:text-[12px] text-desktop-gray font-bold leading-snug break-words">
                 {episode.title || episode.fileName}
               </div>
               <div className="flex items-center gap-2 mt-1">
