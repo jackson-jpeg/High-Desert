@@ -41,7 +41,7 @@ export function OnThisDay({ onPlay, compact, className }: OnThisDayProps) {
   if (compact) {
     return (
       <div className={cn("flex flex-col gap-0.5", className)}>
-        <span className="text-[8px] text-bevel-dark/50 uppercase tracking-wider px-1">{monthName}</span>
+        <span className="text-[8px] text-bevel-dark/70 uppercase tracking-wider px-1">{monthName}</span>
         {matches.map((ep) => {
           const year = ep.airDate?.slice(0, 4);
           return (

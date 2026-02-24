@@ -341,11 +341,10 @@ export function EpisodeDetail({
             <div className="flex items-center gap-2 pt-1">
               <Button
                 variant="dark"
-                size="sm"
                 onClick={() => onPlay(episode)}
                 disabled={isPlaying}
               >
-                {isPlaying ? "Playing" : "Play"}
+                {isPlaying ? "Playing" : "\u25B6 Play"}
               </Button>
               <Button
                 variant="dark"

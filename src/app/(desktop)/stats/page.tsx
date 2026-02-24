@@ -224,7 +224,7 @@ export default function StatsPage() {
       {/* ── Signal Report ── Hero stats */}
       <Window title="Signal Report" variant="dark">
         <div className="p-3">
-          <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
             <HeroStat
               label="Episodes"
               value={stats.total.toLocaleString()}
@@ -258,7 +258,7 @@ export default function StatsPage() {
           </div>
 
           {/* Second row: enrichment stats */}
-          <div className="grid grid-cols-3 md:grid-cols-5 gap-2 mt-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mt-2">
             <HeroStat
               label="Notable"
               value={stats.notableCount.toLocaleString()}

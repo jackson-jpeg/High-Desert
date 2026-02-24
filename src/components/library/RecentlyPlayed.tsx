@@ -42,7 +42,7 @@ export function RecentlyPlayed({ episodes, onPlay, compact, className }: Recentl
               className={cn(
                 "flex-shrink-0 w98-raised-dark bg-card-surface group",
                 "hover:bg-title-bar-blue/15 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]",
-                "active:bg-title-bar-blue/20",
+                "active:bg-title-bar-blue/25 active:scale-[0.98]",
                 "transition-all duration-150 cursor-pointer",
                 "flex flex-col gap-0.5 relative",
                 compact ? "w-[130px] p-1.5" : "w-[180px] md:w-[140px] p-2.5 md:p-1.5 snap-start",

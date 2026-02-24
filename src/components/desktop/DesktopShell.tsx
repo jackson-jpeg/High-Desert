@@ -449,7 +449,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           )}
           aria-label="More options"
         >
-          More
+          More ▾
         </button>
       </nav>
 

@@ -1070,7 +1070,7 @@ export default function LibraryPage() {
               onTouchEnd={onDetailTouchEnd}
               className={cn(
               // Mobile: slide-up overlay from bottom
-              "fixed bottom-0 inset-x-0 z-50 max-h-[80vh] overflow-auto pb-[var(--safe-bottom)] animate-glass-sheet rounded-t-xl",
+              "fixed bottom-0 inset-x-0 z-50 max-h-[80vh] overflow-auto pb-[var(--safe-bottom)] animate-glass-sheet rounded-t-xl will-change-transform",
               // Desktop: sticky sidebar with fade-in — stays in view as you scroll
               "md:sticky md:top-0 md:w-[280px] md:flex-shrink-0 md:max-h-screen md:overflow-auto md:pb-0 md:z-auto md:border-l md:border-bevel-dark/20 md:animate-fade-in md:rounded-none",
             )}>

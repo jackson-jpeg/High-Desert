@@ -32,11 +32,11 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
         {displayTitle}
       </div>
       {episode.guestName && (
-        <div className="text-[12px] md:text-[10px] text-static-green/80 truncate">
+        <div className="hidden md:block text-[10px] text-static-green/80 truncate">
           {episode.guestName}
         </div>
       )}
-      <div className="text-[12px] md:text-[10px] text-bevel-dark/70 truncate">
+      <div className="text-[11px] md:text-[10px] text-bevel-dark/70 truncate">
         {[showLabel, episode.airDate].filter(Boolean).join(" \u00B7 ")}
       </div>
 
