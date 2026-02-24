@@ -9,7 +9,7 @@ A desktop-grade web player for the Art Bell radio archive — late-night talk ra
 - **Windows 98 dark UI** — raised/inset bevels, title bars, context menus, and a system tray
 - **Glassmorphism on mobile** — frosted surfaces over an animated starfield
 - **Archive.org streaming** — browse and play thousands of episodes directly
-- **AI categorization** — Gemini-powered topic extraction, series detection, and guest identification
+- **AI categorization** — Claude-powered topic extraction, series detection, and guest identification
 - **Oscilloscope visualizer** — real-time Web Audio waveform in the player
 - **Keyboard navigation** — Space, arrows, N/P, M, / for search, ? for shortcut help
 - **Ratings & tags** — 5-star ratings with tag-based filtering
@@ -24,7 +24,7 @@ A desktop-grade web player for the Art Bell radio archive — late-night talk ra
 - **Dexie** (IndexedDB) for client-side storage
 - **Zustand** for player/UI state
 - **Web Audio API** for the oscilloscope
-- **Google Gemini** + **Anthropic Claude** for AI features
+- **Anthropic Claude** for AI features
 
 ## Getting Started
 
@@ -42,10 +42,11 @@ Open [http://localhost:3000](http://localhost:3000).
 
 | Variable | Required | Description |
 |---|---|---|
-| `GEMINI_API_KEY` | For AI features | Google Gemini — episode categorization and analysis |
-| `ANTHROPIC_API_KEY` | For AI features | Anthropic Claude — fallback AI provider |
+| `ANTHROPIC_API_KEY` | For AI features | Anthropic Claude — episode categorization and analysis |
+| `ADMIN_API_TOKEN` | For AI features | Shared secret authorizing `/api/categorize` requests |
+| `NEXT_PUBLIC_ADMIN_TOKEN` | For AI features | Client-side token (must match `ADMIN_API_TOKEN`) |
 
-Both keys are optional. The app works fully without them — AI categorization just won't be available.
+All keys are optional. The app works fully without them — AI categorization just won't be available.
 
 ## Scripts
 

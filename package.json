@@ -10,8 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",
-    "@google/genai": "^1.41.0",
-    "clsx": "^2.1.1",
+"clsx": "^2.1.1",
     "dexie": "^4.3.0",
     "dexie-react-hooks": "^4.2.0",
     "music-metadata-browser": "^2.5.11",

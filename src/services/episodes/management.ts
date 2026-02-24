@@ -91,7 +91,7 @@ export async function recategorizeEpisode(id: number): Promise<void> {
   try {
     const res = await fetchWithRetry("/api/categorize", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-hd-admin": "true" },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? ""}` },
       body: JSON.stringify({
         episodes: [{
           title: episode.title,

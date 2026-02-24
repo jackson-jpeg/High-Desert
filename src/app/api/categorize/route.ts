@@ -20,8 +20,11 @@ interface EpisodeInput {
 const MAX_BATCH_SIZE = 10;
 
 export async function POST(request: NextRequest) {
-  // Auth: require admin header
-  if (request.headers.get("x-hd-admin") !== "true") {
+  // Auth: require valid admin token
+  const authHeader = request.headers.get("authorization");
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const adminToken = process.env.ADMIN_API_TOKEN;
+  if (!adminToken || token !== adminToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

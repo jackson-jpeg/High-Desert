@@ -69,7 +69,7 @@ self.addEventListener("fetch", (event) => {
   // Navigation requests: network-first with shell fallback
   if (event.request.mode === "navigate") {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match("/library") || caches.match("/"))
+      fetch(event.request).catch(() => caches.match("/library").then(r => r || caches.match("/")))
     );
     return;
   }

@@ -49,7 +49,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout
         onClick={hide}
       />
       {/* Sheet */}
-      <div className="fixed bottom-0 inset-x-0 z-[101] glass-heavy rounded-t-2xl overflow-hidden pb-[var(--safe-bottom)] animate-glass-sheet">
+      <div role="dialog" aria-modal="true" aria-label="Menu" className="fixed bottom-0 inset-x-0 z-[101] glass-heavy rounded-t-2xl overflow-hidden pb-[var(--safe-bottom)] animate-glass-sheet">
         {/* Grab handle */}
         <div className="flex justify-center pt-2.5 pb-1">
           <div className="w-8 h-[3px] rounded-full bg-white/15" />
@@ -61,6 +61,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout
               onToggleAdmin();
               hide();
             }}
+            aria-pressed={isAdmin}
             className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center justify-between"
           >
             <span>Admin Mode</span>
@@ -120,6 +121,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout
                   onToggleStartupSound();
                   hide();
                 }}
+                aria-pressed={startupSoundOn ?? false}
                 className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center justify-between"
               >
                 <span>Startup Sound</span>
