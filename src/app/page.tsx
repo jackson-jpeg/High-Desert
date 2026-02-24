@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils/cn";
 
 export default function WelcomePage() {
   const router = useRouter();
@@ -158,7 +159,8 @@ export default function WelcomePage() {
         {/* Enter button */}
         <button
           onClick={handleEnter}
-          className="cursor-pointer select-none transition-all"
+          disabled={isReturning}
+          className={cn("cursor-pointer select-none transition-all", isReturning && "opacity-50 pointer-events-none")}
           style={{
             fontFamily: "W95FA, monospace",
             fontSize: "12px",
@@ -175,14 +177,8 @@ export default function WelcomePage() {
             (e.target as HTMLElement).style.borderStyle = "outset";
           }}
         >
-          ENTER THE ARCHIVE
+          {isReturning ? "REDIRECTING..." : "ENTER THE ARCHIVE"}
         </button>
-
-        {isReturning && (
-          <div className="text-[9px]" style={{ color: "#808080", fontFamily: "W95FA, monospace" }}>
-            Redirecting to library...
-          </div>
-        )}
 
         {/* Footer */}
         <div className="text-[8px] mt-4" style={{ color: "#808080", fontFamily: "W95FA, monospace", opacity: 0.4 }}>

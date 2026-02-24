@@ -22,6 +22,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   const playing = usePlayerStore((s) => s.playing);
   const mini = usePlayerStore((s) => s.mini);
   const error = usePlayerStore((s) => s.error);
+  const buffering = usePlayerStore((s) => s.buffering);
   const toggleMini = usePlayerStore((s) => s.toggleMini);
   const clearError = usePlayerStore((s) => s.setError);
   const queueLength = usePlayerStore((s) => s.queue.length);
@@ -57,7 +58,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
 
   const errorBanner = error && (
     <div className="flex items-center justify-between px-3 py-1.5 bg-red-900/30 border-b border-red-400/20">
-      <span className="text-[12px] md:text-[10px] text-red-400">{error}</span>
+      <span className="text-[12px] md:text-[10px] text-red-400 break-words min-w-0">{error}</span>
       <div className="flex items-center gap-2 ml-2">
         <button
           onClick={handleRetry}
@@ -120,7 +121,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
 
             {/* Now Playing */}
             <div className="text-center px-2">
-              <div className="text-[16px] text-desktop-gray font-bold truncate">
+              <div className="text-[16px] text-desktop-gray font-bold truncate" title={currentEpisode.title || currentEpisode.fileName}>
                 {currentEpisode.title || currentEpisode.fileName}
               </div>
               {currentEpisode.guestName && (
@@ -131,6 +132,11 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
               {currentEpisode.airDate && (
                 <div className="text-[12px] text-bevel-dark/70 mt-1">
                   {currentEpisode.airDate}
+                </div>
+              )}
+              {buffering && (
+                <div className="text-[10px] text-desert-amber/70 mt-1 animate-pulse">
+                  Buffering...
                 </div>
               )}
             </div>
@@ -158,8 +164,8 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
               <Button variant="dark" size="sm" onClick={() => seek(position - 15)} aria-label="Seek back 15 seconds">
                 -15
               </Button>
-              <Button variant="dark" onClick={togglePlay} aria-label={playing ? "Pause" : "Play"}>
-                {playing ? "\u275A\u275A" : "\u25B6"}
+              <Button variant="dark" onClick={togglePlay} aria-label={buffering ? "Buffering" : playing ? "Pause" : "Play"}>
+                {buffering ? "\u29D7" : playing ? "\u275A\u275A" : "\u25B6"}
               </Button>
               <Button variant="dark" size="sm" onClick={() => seek(position + 30)} aria-label="Seek forward 30 seconds">
                 +30
@@ -209,8 +215,8 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
             <NowPlaying className="pointer-events-none" />
           </button>
           {/* Play/Pause */}
-          <Button variant="dark" size="sm" onClick={togglePlay} aria-label={playing ? "Pause" : "Play"}>
-            {playing ? "\u275A\u275A" : "\u25B6"}
+          <Button variant="dark" size="sm" onClick={togglePlay} aria-label={buffering ? "Buffering" : playing ? "Pause" : "Play"}>
+            {buffering ? "\u29D7" : playing ? "\u275A\u275A" : "\u25B6"}
           </Button>
           {/* Next */}
           <Button variant="dark" size="sm" onClick={playNext} disabled={!hasNext} aria-label="Next track">
@@ -251,8 +257,8 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           aria-label="Seek"
         />
         {/* Play/pause */}
-        <button onClick={togglePlay} className="text-[10px] text-desktop-gray cursor-pointer flex-shrink-0" aria-label={playing ? "Pause" : "Play"}>
-          {playing ? "\u275A\u275A" : "\u25B6"}
+        <button onClick={togglePlay} className="text-[10px] text-desktop-gray cursor-pointer flex-shrink-0" aria-label={buffering ? "Buffering" : playing ? "Pause" : "Play"}>
+          {buffering ? "\u29D7" : playing ? "\u275A\u275A" : "\u25B6"}
         </button>
         {/* Next */}
         <button onClick={playNext} disabled={!hasNext} className="text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer disabled:opacity-30 flex-shrink-0" aria-label="Next">

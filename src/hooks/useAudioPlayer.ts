@@ -239,11 +239,19 @@ export function useAudioPlayer() {
       if (usePlayerStore.getState().playing) setPlaying(false);
     };
 
+    const { setBuffering } = usePlayerStore.getState();
+    const onWaiting = () => setBuffering(true);
+    const onCanPlay = () => setBuffering(false);
+    const onPlaying = () => setBuffering(false);
+
     audio.addEventListener("ended", onEnded);
     audio.addEventListener("loadedmetadata", onLoadedMetadata);
     audio.addEventListener("error", onError);
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
+    audio.addEventListener("waiting", onWaiting);
+    audio.addEventListener("canplay", onCanPlay);
+    audio.addEventListener("playing", onPlaying);
 
     return () => {
       audio.removeEventListener("ended", onEnded);
@@ -251,6 +259,9 @@ export function useAudioPlayer() {
       audio.removeEventListener("error", onError);
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("waiting", onWaiting);
+      audio.removeEventListener("canplay", onCanPlay);
+      audio.removeEventListener("playing", onPlaying);
     };
   }, [getAudio, setPlaying, setDuration, setError]);
 

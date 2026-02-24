@@ -54,7 +54,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout
         <div className="flex justify-center pt-2.5 pb-1">
           <div className="w-8 h-[3px] rounded-full bg-white/15" />
         </div>
-        <div className="flex flex-col">
+        <div className="flex flex-col max-h-[60vh] overflow-y-auto">
           {/* Admin toggle */}
           <button
             onClick={() => {

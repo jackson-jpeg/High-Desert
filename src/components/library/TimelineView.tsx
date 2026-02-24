@@ -99,7 +99,7 @@ export function TimelineView({
           Start building your late-night radio archive. Import the Ultimate Art Bell Collection, search archive.org, or scan local files.
         </div>
 
-        {onAction && (
+        {onAction ? (
           <div className="flex flex-col items-center gap-2">
             <div className="flex items-center gap-3">
               <button
@@ -124,6 +124,10 @@ export function TimelineView({
             <span className="text-[8px] text-bevel-dark/40 mt-1">
               Keyboard: / to search, Ctrl+Shift+S to scan
             </span>
+          </div>
+        ) : (
+          <div className="text-[9px] text-bevel-dark/50 italic">
+            The library is being set up. Episodes will appear shortly.
           </div>
         )}
       </div>

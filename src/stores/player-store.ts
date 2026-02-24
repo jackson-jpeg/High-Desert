@@ -26,6 +26,7 @@ export interface PlayerState {
   // UI
   mini: boolean;
   error: string | null;
+  buffering: boolean;
 
   // Actions
   loadEpisode: (episode: Episode, objectUrl: string) => void;
@@ -36,6 +37,7 @@ export interface PlayerState {
   toggleMute: () => void;
   setPlaybackRate: (rate: number) => void;
   setError: (error: string | null) => void;
+  setBuffering: (buffering: boolean) => void;
   toggleMini: () => void;
   stop: () => void;
 
@@ -80,6 +82,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   playbackRate: 1,
   mini: true,
   error: null,
+  buffering: false,
 
   loadEpisode: (episode, objectUrl) => {
     // Revoke previous object URL
@@ -136,6 +139,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
   setPlaybackRate: (rate) => set({ playbackRate: rate }),
   setError: (error) => set({ error }),
+  setBuffering: (buffering) => set({ buffering }),
   toggleMini: () => set((s) => ({ mini: !s.mini })),
 
   stop: () => {

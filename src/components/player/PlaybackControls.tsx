@@ -54,6 +54,7 @@ export function PlaybackControls({
   className,
 }: PlaybackControlsProps) {
   const playing = usePlayerStore((s) => s.playing);
+  const buffering = usePlayerStore((s) => s.buffering);
   const position = usePlayerStore((s) => s.position);
   const duration = usePlayerStore((s) => s.duration);
   const volume = usePlayerStore((s) => s.volume);
@@ -229,10 +230,10 @@ export function PlaybackControls({
         <Button
           variant="dark"
           onClick={onTogglePlay}
-          title={playing ? "Pause" : "Play"}
-          aria-label={playing ? "Pause" : "Play"}
+          title={buffering ? "Buffering" : playing ? "Pause" : "Play"}
+          aria-label={buffering ? "Buffering" : playing ? "Pause" : "Play"}
         >
-          {playing ? "\u275A\u275A" : "\u25B6"}
+          {buffering ? "\u29D7" : playing ? "\u275A\u275A" : "\u25B6"}
         </Button>
         <Button variant="dark" size="sm" onClick={handleSeekForward} title="Forward 30s" aria-label="Seek forward 30 seconds">
           +30
