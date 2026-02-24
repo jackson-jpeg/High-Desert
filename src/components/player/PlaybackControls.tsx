@@ -7,6 +7,7 @@ import { SleepTimer } from "./SleepTimer";
 import { BookmarkMarkers } from "./BookmarkMarkers";
 import { cn } from "@/lib/utils/cn";
 import { formatTime } from "@/lib/utils/format";
+import { toast } from "@/stores/toast-store";
 
 /** Tooltip showing the next episode info on hover */
 function NextEpisodeTooltip() {
@@ -97,7 +98,9 @@ export function PlaybackControls({
   const cycleRate = () => {
     const rates = [0.5, 0.75, 1, 1.25, 1.5, 2];
     const idx = rates.indexOf(playbackRate);
-    setPlaybackRate(rates[(idx + 1) % rates.length]);
+    const newRate = rates[(idx + 1) % rates.length];
+    setPlaybackRate(newRate);
+    toast.info(`Speed: ${newRate}x`);
   };
 
   // Mobile expanded player only shows volume + shuffle/repeat row
@@ -136,6 +139,7 @@ export function PlaybackControls({
               shuffle ? "text-desert-amber" : "text-bevel-dark active:text-desktop-gray",
             )}
             aria-label={shuffle ? "Disable shuffle" : "Enable shuffle"}
+            aria-pressed={shuffle}
           >
             {"\u21C6"}
           </button>
@@ -146,6 +150,7 @@ export function PlaybackControls({
               repeat !== "off" ? "text-desert-amber" : "text-bevel-dark active:text-desktop-gray",
             )}
             aria-label={`Repeat mode: ${repeat}`}
+            aria-pressed={repeat !== "off"}
           >
             {repeat === "one" ? "\u21BB1" : "\u21BB"}
           </button>
@@ -252,6 +257,7 @@ export function PlaybackControls({
           )}
           title={shuffle ? "Shuffle on" : "Shuffle off"}
           aria-label={shuffle ? "Disable shuffle" : "Enable shuffle"}
+          aria-pressed={shuffle}
         >
           {"\u21C6"}
         </button>
@@ -263,6 +269,7 @@ export function PlaybackControls({
           )}
           title={`Repeat: ${repeat}`}
           aria-label={`Repeat mode: ${repeat}`}
+          aria-pressed={repeat !== "off"}
         >
           {repeat === "one" ? "\u21BB1" : "\u21BB"}
         </button>

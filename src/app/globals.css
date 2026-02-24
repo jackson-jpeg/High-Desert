@@ -107,8 +107,12 @@ input:not([type="range"]) {
 
 /* Focus visible for accessibility */
 :focus-visible {
-  outline: 1px dotted #C0C0C0;
+  outline: 2px solid #D4A843;
   outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* ============================================

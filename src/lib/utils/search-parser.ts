@@ -16,6 +16,11 @@
  * Everything else is treated as a free-text search term.
  */
 
+export interface ComparisonOp {
+  op: ">" | ">=" | "<" | "<=" | "=";
+  value: number;
+}
+
 export interface ParsedSearch {
   text: string;         // Free-text portion
   guest?: string;       // guest: operator
@@ -25,13 +30,23 @@ export interface ParsedSearch {
   cat?: string;         // cat: operator (category)
   series?: string;      // series: operator
   has?: string[];       // has: operators (multiple allowed)
+  duration?: ComparisonOp;   // duration:>60 (minutes)
+  rating?: ComparisonOp;     // rating:>=4
+  favorited?: boolean;       // favorited:true
+}
+
+function parseComparison(value: string): ComparisonOp | undefined {
+  const m = value.match(/^(>=?|<=?)?(\d+)$/);
+  if (!m) return undefined;
+  const op = (m[1] || "=") as ComparisonOp["op"];
+  return { op, value: Number(m[2]) };
 }
 
 export function parseSearch(input: string): ParsedSearch {
   const result: ParsedSearch = { text: "", has: [] };
 
   // Extract operators — use replace with a fresh regex to avoid global state issues
-  const remaining = input.replace(/\b(guest|year|tag|show|cat|series|has):(\S+)/gi, (_, op: string, value: string) => {
+  const remaining = input.replace(/\b(guest|year|tag|show|cat|series|has|duration|rating|favorited):(\S+)/gi, (_, op: string, value: string) => {
     const key = op.toLowerCase();
     switch (key) {
       case "guest":
@@ -55,6 +70,15 @@ export function parseSearch(input: string): ParsedSearch {
       case "has":
         result.has!.push(value.toLowerCase());
         break;
+      case "duration":
+        result.duration = parseComparison(value);
+        break;
+      case "rating":
+        result.rating = parseComparison(value);
+        break;
+      case "favorited":
+        result.favorited = value.toLowerCase() === "true";
+        break;
     }
     return ""; // Remove from text
   });
@@ -68,5 +92,5 @@ export function parseSearch(input: string): ParsedSearch {
  */
 export function hasOperators(input: string): boolean {
   // Use a fresh regex to avoid stateful global regex issues
-  return /\b(guest|year|tag|show|cat|series|has):(\S+)/i.test(input);
+  return /\b(guest|year|tag|show|cat|series|has|duration|rating|favorited):(\S+)/i.test(input);
 }

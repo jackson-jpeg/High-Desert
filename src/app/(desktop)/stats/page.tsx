@@ -1,20 +1,41 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
 import { useAdminStore } from "@/stores/admin-store";
-import { Window } from "@/components/win98";
+import { Window, Button } from "@/components/win98";
 import { HistoryPanel } from "@/components/library/HistoryPanel";
 import { SmartPlaylists } from "@/components/library/SmartPlaylists";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { ListeningStats } from "@/components/library/ListeningStats";
 import { cn } from "@/lib/utils/cn";
+import { getCacheSize, clearAudioCache } from "@/audio/cache";
+import { toast } from "@/stores/toast-store";
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const units = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${units[i]}`;
+}
 
 export default function StatsPage() {
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const episodes = useLiveQuery(() => db.episodes.toArray(), []);
   const history = useLiveQuery(() => db.history.orderBy("timestamp").reverse().toArray(), []);
+
+  // Audio cache size
+  const [cacheSize, setCacheSize] = useState<number | null>(null);
+  useEffect(() => {
+    getCacheSize().then(setCacheSize);
+  }, []);
+  const handleClearCache = useCallback(async () => {
+    await clearAudioCache();
+    setCacheSize(0);
+    toast.success("Audio cache cleared");
+  }, []);
 
   const stats = useMemo(() => {
     if (!episodes) return null;
@@ -513,6 +534,27 @@ export default function StatsPage() {
             </div>
           </div>
         </Window>
+
+        {/* ── Audio Cache ── OPFS storage */}
+        {cacheSize !== null && (
+          <Window title="Audio Cache" variant="dark">
+            <div className="p-3 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[12px] md:text-[10px] text-desktop-gray">
+                  {cacheSize > 0 ? formatBytes(cacheSize) : "Empty"}
+                </div>
+                <div className="text-[10px] md:text-[8px] text-bevel-dark/60">
+                  Offline audio cached in OPFS
+                </div>
+              </div>
+              {cacheSize > 0 && (
+                <Button variant="dark" size="sm" onClick={handleClearCache}>
+                  Clear Cache
+                </Button>
+              )}
+            </div>
+          </Window>
+        )}
 
         {/* ── Frequent Callers ── Top guests */}
         {stats.topGuests.length > 0 && (

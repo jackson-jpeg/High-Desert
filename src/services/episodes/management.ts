@@ -28,6 +28,21 @@ export async function deleteEpisode(id: number): Promise<void> {
 
   // Delete from Dexie
   await db.episodes.delete(id);
+
+  // Cascade: remove related history and bookmarks
+  await db.history.where("episodeId").equals(id).delete();
+  await db.bookmarks.where("episodeId").equals(id).delete();
+
+  // Remove from any playlists
+  const playlists = await db.playlists.toArray();
+  for (const pl of playlists) {
+    if (pl.episodeIds.includes(id)) {
+      await db.playlists.update(pl.id!, {
+        episodeIds: pl.episodeIds.filter((eid) => eid !== id),
+        updatedAt: Date.now(),
+      });
+    }
+  }
 }
 
 export async function deleteEpisodes(ids: number[]): Promise<void> {

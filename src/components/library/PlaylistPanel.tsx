@@ -6,7 +6,6 @@ import { db } from "@/db";
 import type { Playlist } from "@/db/schema";
 import type { Episode } from "@/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
-import { useAdminStore } from "@/stores/admin-store";
 import { toast } from "@/stores/toast-store";
 import { Button, Dialog } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
@@ -17,7 +16,6 @@ interface PlaylistPanelProps {
 }
 
 export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) {
-  const isAdmin = useAdminStore((s) => s.isAdmin);
   const playlists = useLiveQuery(() => db.playlists.orderBy("createdAt").reverse().toArray(), []);
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [playlistEpisodes, setPlaylistEpisodes] = useState<Episode[]>([]);
@@ -81,6 +79,23 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
     setSelectedPlaylist((prev) => prev ? { ...prev, episodeIds: newIds } : null);
   }, []);
 
+  const handleMoveEpisode = useCallback(async (playlistId: number, fromIdx: number, toIdx: number) => {
+    const playlist = await db.playlists.get(playlistId);
+    if (!playlist) return;
+    const ids = [...playlist.episodeIds];
+    const [moved] = ids.splice(fromIdx, 1);
+    ids.splice(toIdx, 0, moved);
+    await db.playlists.update(playlistId, { episodeIds: ids, updatedAt: Date.now() });
+    // Update local state
+    setPlaylistEpisodes((prev) => {
+      const next = [...prev];
+      const [ep] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, ep);
+      return next;
+    });
+    setSelectedPlaylist((prev) => prev ? { ...prev, episodeIds: ids } : null);
+  }, []);
+
   const handlePlayAll = useCallback(() => {
     if (playlistEpisodes.length === 0) return;
     const store = usePlayerStore.getState();
@@ -103,7 +118,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
           <span className="text-[11px] text-desktop-gray font-bold truncate flex-1">
             {selectedPlaylist.name}
           </span>
-          <span className="text-[9px] text-bevel-dark tabular-nums">
+          <span className="text-[11px] md:text-[9px] text-bevel-dark tabular-nums">
             {playlistEpisodes.length} ep{playlistEpisodes.length !== 1 ? "s" : ""}
           </span>
         </div>
@@ -122,35 +137,60 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
           {playlistEpisodes.map((ep, i) => (
             <div
               key={ep.id}
-              className="flex items-center gap-2 px-2.5 py-2 md:py-1.5 w98-raised-dark bg-card-surface min-h-[44px] md:min-h-0 cursor-pointer hover:bg-title-bar-blue/15 active:bg-title-bar-blue/20 transition-colors-fast"
+              className="flex items-center gap-2 px-2.5 py-2 md:py-1.5 w98-raised-dark bg-card-surface min-h-[44px] md:min-h-0 cursor-pointer hover:bg-title-bar-blue/15 active:bg-title-bar-blue/20 transition-colors-fast group/ep"
               onClick={() => onPlayEpisode(ep)}
             >
-              <span className="text-[8px] text-bevel-dark/50 tabular-nums w-[14px] text-right">{i + 1}</span>
+              <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleMoveEpisode(selectedPlaylist.id!, i, i - 1); }}
+                  disabled={i === 0}
+                  className={cn(
+                    "text-[10px] md:text-[8px] cursor-pointer leading-none min-w-[24px] min-h-[24px] md:min-w-0 md:min-h-0 flex items-center justify-center",
+                    "md:opacity-0 md:group-hover/ep:opacity-100 transition-opacity",
+                    i === 0 ? "text-bevel-dark/10 cursor-default" : "text-bevel-dark/40 hover:text-desktop-gray",
+                  )}
+                  aria-label="Move up"
+                >
+                  {"\u25B2"}
+                </button>
+                <span className="text-[8px] text-bevel-dark/50 tabular-nums w-[14px] text-center">{i + 1}</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleMoveEpisode(selectedPlaylist.id!, i, i + 1); }}
+                  disabled={i === playlistEpisodes.length - 1}
+                  className={cn(
+                    "text-[10px] md:text-[8px] cursor-pointer leading-none min-w-[24px] min-h-[24px] md:min-w-0 md:min-h-0 flex items-center justify-center",
+                    "md:opacity-0 md:group-hover/ep:opacity-100 transition-opacity",
+                    i === playlistEpisodes.length - 1 ? "text-bevel-dark/10 cursor-default" : "text-bevel-dark/40 hover:text-desktop-gray",
+                  )}
+                  aria-label="Move down"
+                >
+                  {"\u25BC"}
+                </button>
+              </div>
               <div className="flex-1 min-w-0">
-                <div className="text-[10px] text-desktop-gray truncate">{ep.title || ep.fileName}</div>
-                <div className="text-[8px] text-bevel-dark truncate">
+                <div className="text-[11px] md:text-[10px] text-desktop-gray truncate">{ep.title || ep.fileName}</div>
+                <div className="text-[10px] md:text-[8px] text-bevel-dark truncate">
                   {[ep.airDate, ep.guestName].filter(Boolean).join(" \u2014 ")}
                 </div>
               </div>
-              {isAdmin && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveFromPlaylist(selectedPlaylist.id!, ep.id!);
-                  }}
-                  className="text-[9px] text-bevel-dark/30 hover:text-red-400 cursor-pointer flex-shrink-0"
-                  title="Remove from playlist"
-                >
-                  {"\u2715"}
-                </button>
-              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemoveFromPlaylist(selectedPlaylist.id!, ep.id!);
+                }}
+                className="text-[9px] text-bevel-dark/30 hover:text-red-400 cursor-pointer flex-shrink-0"
+                title="Remove from playlist"
+                aria-label="Remove from playlist"
+              >
+                {"\u2715"}
+              </button>
             </div>
           ))}
         </div>
 
         {playlistEpisodes.length === 0 && (
-          <div className="text-[9px] text-bevel-dark/50 text-center py-4">
-            {isAdmin ? "Right-click episodes to add them to this playlist." : "This playlist is empty."}
+          <div className="text-[11px] md:text-[9px] text-bevel-dark/50 text-center py-4">
+            {"Right-click episodes to add them to this playlist."}
           </div>
         )}
       </div>
@@ -161,20 +201,18 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       <div className="flex items-center justify-between">
-        <span className="text-[9px] text-desert-amber uppercase tracking-wider font-bold">Playlists</span>
-        {isAdmin && (
-          <button
-            onClick={() => setCreateOpen(true)}
-            className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer"
-          >
-            + New
-          </button>
-        )}
+        <span className="text-[11px] md:text-[9px] text-desert-amber uppercase tracking-wider font-bold">Playlists</span>
+        <button
+          onClick={() => setCreateOpen(true)}
+          className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer"
+        >
+          + New
+        </button>
       </div>
 
       {(!playlists || playlists.length === 0) && (
-        <div className="text-[9px] text-bevel-dark/50 text-center py-3">
-          {isAdmin ? "Create your first playlist." : "No playlists yet."}
+        <div className="text-[11px] md:text-[9px] text-bevel-dark/50 text-center py-3">
+          Create your first playlist.
         </div>
       )}
 
@@ -199,29 +237,29 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
             <>
               <button
                 onClick={() => loadPlaylist(pl)}
-                className="flex-1 text-left text-[10px] text-desktop-gray hover:text-desert-amber cursor-pointer py-1 truncate transition-colors-fast"
+                className="flex-1 text-left text-[12px] md:text-[10px] text-desktop-gray hover:text-desert-amber cursor-pointer py-1 truncate transition-colors-fast"
               >
                 {pl.name}
-                <span className="text-[8px] text-bevel-dark/50 ml-1 tabular-nums">{pl.episodeIds.length}</span>
+                <span className="text-[10px] md:text-[8px] text-bevel-dark/50 ml-1 tabular-nums">{pl.episodeIds.length}</span>
               </button>
-              {isAdmin && (
-                <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => { setEditingId(pl.id!); setEditName(pl.name); }}
-                    className="text-[12px] md:text-[8px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
-                    title="Rename"
-                  >
-                    {"\u270E"}
-                  </button>
-                  <button
-                    onClick={() => handleDelete(pl.id!)}
-                    className="text-[12px] md:text-[8px] text-bevel-dark hover:text-red-400 active:text-red-400 cursor-pointer min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
-                    title="Delete playlist"
-                  >
-                    {"\u2715"}
-                  </button>
-                </div>
-              )}
+              <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => { setEditingId(pl.id!); setEditName(pl.name); }}
+                  className="text-[12px] md:text-[8px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+                  title="Rename"
+                  aria-label="Rename playlist"
+                >
+                  {"\u270E"}
+                </button>
+                <button
+                  onClick={() => handleDelete(pl.id!)}
+                  className="text-[12px] md:text-[8px] text-bevel-dark hover:text-red-400 active:text-red-400 cursor-pointer min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+                  title="Delete playlist"
+                  aria-label="Delete playlist"
+                >
+                  {"\u2715"}
+                </button>
+              </div>
             </>
           )}
         </div>

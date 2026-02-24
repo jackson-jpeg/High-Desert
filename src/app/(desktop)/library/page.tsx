@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, useDeferredValue } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useRouter } from "next/navigation";
 import { db } from "@/db";
@@ -17,11 +17,21 @@ import { RecentlyPlayed } from "@/components/library/RecentlyPlayed";
 import { addToPlaylist } from "@/components/library/PlaylistPanel";
 import { OnThisDay } from "@/components/library/OnThisDay";
 import { Dialog, Button } from "@/components/win98";
-import { parseSearch } from "@/lib/utils/search-parser";
+import { parseSearch, type ComparisonOp } from "@/lib/utils/search-parser";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { GuestProfile } from "@/components/library/GuestProfile";
 import { cn } from "@/lib/utils/cn";
 import { useIsMobile } from "@/hooks/useMediaQuery";
+
+function matchComparison(actual: number, op: ComparisonOp["op"], target: number): boolean {
+  switch (op) {
+    case ">": return actual > target;
+    case ">=": return actual >= target;
+    case "<": return actual < target;
+    case "<=": return actual <= target;
+    case "=": return actual === target;
+  }
+}
 
 type SortMode = "date" | "name" | "guest";
 type ShowFilter = "all" | "coast" | "dreamland" | "special" | "unknown";
@@ -39,6 +49,7 @@ const SHOW_TABS: { key: ShowFilter; label: string }[] = [
 export default function LibraryPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [sortMode, setSortMode] = useState<SortMode>("date");
   const [showFilter, setShowFilter] = useState<ShowFilter>("all");
   const [guestFilter, setGuestFilter] = useState<string | null>(null);
@@ -294,8 +305,8 @@ export default function LibraryPage() {
     }
 
     // Search filter with operator support
-    if (search.trim()) {
-      const parsed = parseSearch(search);
+    if (deferredSearch.trim()) {
+      const parsed = parseSearch(deferredSearch);
 
       // Apply operators
       if (parsed.guest) {
@@ -342,6 +353,30 @@ export default function LibraryPage() {
         }
       }
 
+      // Duration filter (input in minutes, stored in seconds)
+      if (parsed.duration) {
+        const { op, value } = parsed.duration;
+        const secs = value * 60;
+        list = list.filter((ep) => {
+          if (ep.duration == null) return false;
+          return matchComparison(ep.duration, op, secs);
+        });
+      }
+
+      // Rating filter
+      if (parsed.rating) {
+        const { op, value } = parsed.rating;
+        list = list.filter((ep) => {
+          if (!ep.rating) return false;
+          return matchComparison(ep.rating, op, value);
+        });
+      }
+
+      // Favorited filter
+      if (parsed.favorited) {
+        list = list.filter((ep) => !!ep.favoritedAt);
+      }
+
       // Free-text search on remaining terms
       if (parsed.text) {
         const q = parsed.text.toLowerCase();
@@ -377,7 +412,7 @@ export default function LibraryPage() {
     // "date" is already the default order from Dexie (airDate desc)
 
     return list;
-  }, [allEpisodes, search, sortMode, showFilter, guestFilter, categoryFilter, favoritesOnly, bookmarkedIds]);
+  }, [allEpisodes, deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, favoritesOnly, bookmarkedIds]);
 
   // Scroll to currently playing episode
   useEffect(() => {

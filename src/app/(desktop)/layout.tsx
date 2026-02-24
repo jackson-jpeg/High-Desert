@@ -96,7 +96,7 @@ export default function DesktopLayout({
           if (episode.sourceUrl) {
             // Persist the resolved URL so we don't have to do this again
             if (episode.id) {
-              db.episodes.update(episode.id, { sourceUrl: episode.sourceUrl }).catch(() => {});
+              db.episodes.update(episode.id, { sourceUrl: episode.sourceUrl }).catch((err) => { console.warn("[layout] Failed to persist sourceUrl:", err); });
             }
             await playEpisode(episode);
             return;
@@ -245,7 +245,7 @@ export default function DesktopLayout({
           duration: 0,
           episodeTitle: ep.title || ep.fileName,
           guestName: ep.guestName,
-        }).catch(() => {});
+        }).catch((err) => { console.warn("[layout] Failed to record history:", err); });
       }
       // Persist queue when it changes
       if (state.queue !== prevState.queue || state.queueIndex !== prevState.queueIndex) {
@@ -258,7 +258,7 @@ export default function DesktopLayout({
 
   // On mount, seed library if empty, then restore state
   useEffect(() => {
-    seedLibraryIfEmpty().catch(() => {});
+    seedLibraryIfEmpty().catch((err) => { console.warn("[layout] Failed to seed library:", err); });
   }, []);
 
   // Startup sound on first interaction

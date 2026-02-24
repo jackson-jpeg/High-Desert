@@ -41,7 +41,7 @@ export function useCatalogScraper() {
         // Persist current page for resumability
         const currentPage = useScraperStore.getState().page;
         if (currentPage > 0) {
-          setPreference("scraper-page", String(currentPage)).catch(() => {});
+          setPreference("scraper-page", String(currentPage)).catch((err) => { console.warn("[scraper] Failed to save page:", err); });
         }
       }
 
@@ -51,7 +51,7 @@ export function useCatalogScraper() {
       }
 
       // Clear saved page on successful completion
-      setPreference("scraper-page", "").catch(() => {});
+      setPreference("scraper-page", "").catch((err) => { console.warn("[scraper] Failed to clear page:", err); });
 
       // Phase 2: Import — fetch metadata per item, save to Dexie
       store.setPhase("importing");

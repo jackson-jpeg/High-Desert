@@ -108,6 +108,22 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
       }
     }
 
+    // Merge AI fields and metadata gaps from duplicates into keeper
+    for (const dupe of dupes) {
+      if (!keeper.aiSummary && dupe.aiSummary) keeper.aiSummary = dupe.aiSummary;
+      if (!keeper.aiCategory && dupe.aiCategory) keeper.aiCategory = dupe.aiCategory;
+      if (!keeper.aiTags?.length && dupe.aiTags?.length) keeper.aiTags = dupe.aiTags;
+      if (!keeper.aiSeries && dupe.aiSeries) keeper.aiSeries = dupe.aiSeries;
+      if (!keeper.aiSeriesPart && dupe.aiSeriesPart) keeper.aiSeriesPart = dupe.aiSeriesPart;
+      if (!keeper.aiNotable && dupe.aiNotable) keeper.aiNotable = dupe.aiNotable;
+      if (keeper.aiStatus !== "completed" && dupe.aiStatus === "completed") keeper.aiStatus = dupe.aiStatus;
+      if (!keeper.title && dupe.title) keeper.title = dupe.title;
+      if (!keeper.guestName && dupe.guestName) keeper.guestName = dupe.guestName;
+      if (!keeper.topic && dupe.topic) keeper.topic = dupe.topic;
+      if (!keeper.description && dupe.description) keeper.description = dupe.description;
+      if (!keeper.sourceUrl && dupe.sourceUrl) keeper.sourceUrl = dupe.sourceUrl;
+    }
+
     // Update keeper with merged data
     await db.episodes.update(keeper.id!, {
       playCount: totalPlayCount,
@@ -116,6 +132,18 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
       duration: bestDuration || keeper.duration,
       favoritedAt: keeper.favoritedAt,
       rating: keeper.rating,
+      aiSummary: keeper.aiSummary,
+      aiCategory: keeper.aiCategory,
+      aiTags: keeper.aiTags,
+      aiSeries: keeper.aiSeries,
+      aiSeriesPart: keeper.aiSeriesPart,
+      aiNotable: keeper.aiNotable,
+      aiStatus: keeper.aiStatus,
+      title: keeper.title,
+      guestName: keeper.guestName,
+      topic: keeper.topic,
+      description: keeper.description,
+      sourceUrl: keeper.sourceUrl,
       updatedAt: Date.now(),
     });
 

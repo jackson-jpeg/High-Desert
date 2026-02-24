@@ -22,6 +22,7 @@ import { deduplicateEpisodes } from "@/db/deduplicate";
 import { useCatalogScraper } from "@/hooks/useCatalogScraper";
 import { exportLibrarySeed } from "@/db/seed";
 import { MobileMenuSheet } from "@/components/mobile/MobileMenuSheet";
+import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { useLiveQuery } from "dexie-react-hooks";
 
 const CALLER_MESSAGES = [
@@ -64,9 +65,27 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [callerIdx, setCallerIdx] = useState(0);
   const [callerFade, setCallerFade] = useState(true);
+  const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const navRef = useRef<HTMLElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const [bottomPadding, setBottomPadding] = useState(112); // fallback
+
+  // PWA install prompt
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const handleInstall = useCallback(async () => {
+    if (!installPrompt) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (installPrompt as any).prompt();
+    setInstallPrompt(null);
+  }, [installPrompt]);
 
   // Load startup sound preference
   useEffect(() => {
@@ -396,11 +415,16 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         className,
       )}
     >
+      {/* Offline/online banner */}
+      <OfflineIndicator />
+
       {/* Desert night sky */}
       <Starfield />
 
       {/* Top menu bar — desktop only */}
-      <MenuBar menus={menus} variant="dark" className="flex-shrink-0 relative z-40 hidden md:flex" />
+      <header>
+        <MenuBar menus={menus} variant="dark" className="flex-shrink-0 relative z-40 hidden md:flex" />
+      </header>
 
       {/* Navigation tabs — desktop: top horizontal, mobile: bottom tab bar */}
       <nav
@@ -463,15 +487,16 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
 
       {/* Mini player slot — mobile: fixed above tab bar; desktop: static */}
       {player && (
-        <div ref={playerRef} className={cn(
+        <section aria-label="Audio player" ref={playerRef} className={cn(
           "fixed bottom-[calc(56px+var(--safe-bottom))] inset-x-0 z-20",
           "md:static md:flex-shrink-0 md:relative md:z-10",
         )}>
           {player}
-        </div>
+        </section>
       )}
 
       {/* Bottom status bar — desktop only */}
+      <footer>
       <StatusBar
         variant="dark"
         panels={[
@@ -489,12 +514,25 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             ),
             width: "110px",
           }] : []),
+          ...(installPrompt ? [{
+            content: (
+              <button
+                onClick={handleInstall}
+                className="text-[9px] cursor-pointer hover:text-desert-amber transition-colors-fast text-static-green"
+                title="Install High Desert as an app"
+              >
+                Install App
+              </button>
+            ),
+            width: "72px",
+          }] : []),
           { content: `${episodeCount.toLocaleString()} episode${episodeCount !== 1 ? "s" : ""}`, width: "120px" },
           { content: signalBars, width: "24px" },
           { content: clock, width: "72px" },
         ]}
         className="flex-shrink-0 relative z-10 hidden md:flex"
       />
+      </footer>
 
       {/* Global context menu */}
       <ContextMenu />

@@ -5,7 +5,9 @@
  * from File objects using the music-metadata-browser library.
  */
 
-import * as mm from "music-metadata-browser";
+// Dynamically imported to avoid loading ~25KB in the main bundle
+// Only used when admin uses the scanner feature
+type MM = typeof import("music-metadata-browser");
 
 export interface AudioMetadata {
   title?: string;
@@ -70,6 +72,7 @@ export async function extractMetadata(file: File): Promise<AudioMetadata> {
   const result: AudioMetadata = {};
 
   try {
+    const mm: MM = await import("music-metadata-browser");
     const parsed = await mm.parseBlob(file, {
       duration: true,
       skipCovers: true,  // We don't need album art

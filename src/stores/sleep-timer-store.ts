@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { usePlayerStore } from "./player-store";
 
-export type SleepPreset = 15 | 30 | 45 | 60 | 90 | 0;
+export type SleepPreset = number;
 
 interface SleepTimerState {
   /** Seconds remaining, 0 = off */

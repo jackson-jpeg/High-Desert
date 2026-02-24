@@ -83,7 +83,7 @@ export function setStaticVolume(signalStrength: number): void {
 
   // Resume context if suspended (browser autoplay policy)
   if (ctx.state === "suspended") {
-    ctx.resume().catch(() => {});
+    ctx.resume().catch((err) => { console.warn("[radio-static] Failed to resume context:", err); });
   }
 
   const volume = Math.max(0, 1 - signalStrength) * 0.15; // Max 15% volume
@@ -106,7 +106,7 @@ export function playLockTone(): void {
 
   // Resume context if needed
   if (ctx.state === "suspended") {
-    ctx.resume().catch(() => {});
+    ctx.resume().catch((err) => { console.warn("[radio-static] Failed to resume context:", err); });
   }
 
   const osc = ctx.createOscillator();

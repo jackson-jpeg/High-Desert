@@ -88,7 +88,7 @@ export function useAudioPlayer() {
             playCount: (episode.playCount ?? 0) + 1,
             lastPlayedAt: Date.now(),
             updatedAt: Date.now(),
-          }).catch(() => {});
+          }).catch((err) => { console.warn("[player] Failed to update play count:", err); });
         }
       } catch (err) {
         console.error("[player] Playback failed:", err);

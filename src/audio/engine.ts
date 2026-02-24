@@ -102,7 +102,7 @@ function tryInitAnalyser(): void {
 
     // Resume in case created outside a user gesture
     if (audioContext.state === "suspended") {
-      audioContext.resume().catch(() => {});
+      audioContext.resume().catch((err) => { console.warn("[engine] Failed to resume AudioContext:", err); });
     }
   } catch {
     // createMediaElementSource not supported or CORS issue — that's fine,

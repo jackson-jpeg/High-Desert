@@ -3,7 +3,7 @@
 import type { Episode } from "@/db/schema";
 import { cn } from "@/lib/utils/cn";
 import { formatDuration, getShowLabel } from "@/lib/utils/format";
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, memo } from "react";
 import { useLongPress } from "@/hooks/useLongPress";
 import { MiniWaveform } from "./MiniWaveform";
 
@@ -21,7 +21,7 @@ interface EpisodeCardProps {
   style?: React.CSSProperties;
 }
 
-export function EpisodeCard({
+export const EpisodeCard = memo(function EpisodeCard({
   episode,
   isPlaying = false,
   isSelected = false,
@@ -202,6 +202,7 @@ export function EpisodeCard({
               )}
               title={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
               role="button"
+              aria-pressed={!!episode.favoritedAt}
               aria-label={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
             >
               {episode.favoritedAt ? "\u2605" : "\u2606"}
@@ -259,4 +260,17 @@ export function EpisodeCard({
       )}
     </button>
   );
-}
+}, (prev, next) => {
+  return (
+    prev.episode === next.episode &&
+    prev.isPlaying === next.isPlaying &&
+    prev.isSelected === next.isSelected &&
+    prev.isMultiSelected === next.isMultiSelected &&
+    prev.onClick === next.onClick &&
+    prev.onDoubleClick === next.onDoubleClick &&
+    prev.onContextMenu === next.onContextMenu &&
+    prev.onToggleFavorite === next.onToggleFavorite &&
+    prev.onQueue === next.onQueue &&
+    prev.className === next.className
+  );
+});

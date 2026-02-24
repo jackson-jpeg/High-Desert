@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { useSleepTimerStore, type SleepPreset } from "@/stores/sleep-timer-store";
+import { useState, useRef } from "react";
+import { useSleepTimerStore } from "@/stores/sleep-timer-store";
 import { cn } from "@/lib/utils/cn";
 
-const PRESETS: { label: string; minutes: SleepPreset }[] = [
+const PRESETS: { label: string; minutes: number }[] = [
   { label: "15m", minutes: 15 },
   { label: "30m", minutes: 30 },
   { label: "45m", minutes: 45 },
@@ -28,6 +28,8 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
   const start = useSleepTimerStore((s) => s.start);
   const cancel = useSleepTimerStore((s) => s.cancel);
   const [open, setOpen] = useState(false);
+  const [customMin, setCustomMin] = useState("");
+  const customRef = useRef<HTMLInputElement>(null);
 
   const isMobile = variant === "mobile";
 
@@ -66,6 +68,7 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
         )}
         title="Sleep timer"
         aria-label="Set sleep timer"
+        aria-expanded={false}
       >
         {"\u{1F319}"}
       </button>
@@ -95,8 +98,34 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
           {label}
         </button>
       ))}
+      <input
+        ref={customRef}
+        type="number"
+        min={1}
+        max={480}
+        value={customMin}
+        onChange={(e) => setCustomMin(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            const mins = parseInt(customMin, 10);
+            if (mins >= 1 && mins <= 480) {
+              start(mins);
+              setOpen(false);
+              setCustomMin("");
+            }
+          }
+        }}
+        placeholder="min"
+        className={cn(
+          "bg-inset-well w98-inset-dark text-desktop-gray text-center outline-none tabular-nums",
+          isMobile
+            ? "w-[52px] h-[44px] text-[13px] px-1"
+            : "w-[36px] h-[18px] text-[9px] px-0.5",
+        )}
+        aria-label="Custom sleep timer minutes"
+      />
       <button
-        onClick={() => setOpen(false)}
+        onClick={() => { setOpen(false); setCustomMin(""); }}
         className={cn(
           "cursor-pointer transition-colors-fast",
           isMobile

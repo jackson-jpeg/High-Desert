@@ -149,6 +149,11 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
               onKeyDown={handleKeyDown}
               placeholder="Search episodes... (try guest: year: tag:)"
               className="w-full"
+              role="combobox"
+              aria-expanded={showSuggestions && suggestions.length > 0}
+              aria-controls="search-suggestions"
+              aria-activedescendant={activeIdx >= 0 ? `search-suggestion-${activeIdx}` : undefined}
+              aria-autocomplete="list"
             />
             {value && (
               <button
@@ -162,10 +167,13 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
 
             {/* Autocomplete dropdown */}
             {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 z-40 mt-0.5 w98-raised-dark bg-raised-surface max-h-[200px] overflow-auto shadow-lg overscroll-contain">
+              <div id="search-suggestions" role="listbox" className="absolute top-full left-0 right-0 z-40 mt-0.5 w98-raised-dark bg-raised-surface max-h-[200px] overflow-auto shadow-lg overscroll-contain">
                 {suggestions.map((s, i) => (
                   <button
                     key={`${s.type}-${s.label}`}
+                    id={`search-suggestion-${i}`}
+                    role="option"
+                    aria-selected={i === activeIdx}
                     onClick={() => selectSuggestion(s)}
                     className={cn(
                       "w-full text-left px-3 md:px-2 py-2.5 md:py-1 min-h-[44px] md:min-h-0 text-[13px] md:text-[10px] cursor-pointer flex items-center gap-2 transition-colors-fast",
@@ -209,6 +217,9 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
             <span><span className="text-desert-amber/70">has:</span>notable</span>
             <span><span className="text-desert-amber/70">has:</span>bookmark</span>
             <span><span className="text-desert-amber/70">has:</span>played</span>
+            <span><span className="text-desert-amber/70">duration:</span>&gt;60</span>
+            <span><span className="text-desert-amber/70">rating:</span>&gt;=4</span>
+            <span><span className="text-desert-amber/70">favorited:</span>true</span>
           </div>
         )}
       </div>
