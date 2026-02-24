@@ -95,7 +95,7 @@ export function Dialog({
       <div
         ref={dialogRef}
         className={cn("relative animate-dialog", className)}
-        style={{ width, maxWidth: "90vw" }}
+        style={{ width, maxWidth: "calc(90vw - var(--safe-left, 0px) - var(--safe-right, 0px))" }}
         role="alertdialog"
         aria-modal="true"
         tabIndex={-1}

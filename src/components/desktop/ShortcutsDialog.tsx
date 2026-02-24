@@ -53,7 +53,7 @@ interface ShortcutsDialogProps {
 export function ShortcutsDialog({ open, onClose, isAdmin }: ShortcutsDialogProps) {
   return (
     <Dialog open={open} onClose={onClose} title="Keyboard Shortcuts" width="360px">
-      <div className="p-3 max-h-[400px] overflow-y-auto">
+      <div className="p-3 max-h-[calc(80vh-120px)] md:max-h-[400px] overflow-y-auto">
         <div className="flex flex-col gap-3">
           {SECTIONS.map((section) => {
             const shortcuts = section.shortcuts.filter(

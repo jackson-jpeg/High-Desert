@@ -11,7 +11,7 @@ export function Toaster() {
 
   return (
     <div
-      className="fixed top-[calc(var(--safe-top)+8px)] md:top-auto md:bottom-10 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-4 z-50 flex flex-col gap-1.5 pointer-events-none"
+      className="fixed top-[calc(var(--safe-top)+8px)] md:top-auto md:bottom-10 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-4 z-50 flex flex-col gap-1.5 pointer-events-none w-[calc(100vw-2rem)] md:w-auto max-w-[360px]"
       aria-live="polite"
     >
       {toasts.map((t) => (
@@ -56,7 +56,7 @@ function ToastItem({ toast }: { toast: Toast }) {
             {toast.type === "caller" && <span style={{ color: "#33FF33" }}>{"☎"}</span>}
           </span>
           <span
-            className="text-[10px] leading-relaxed"
+            className="text-[12px] md:text-[10px] leading-relaxed"
             style={toast.type === "caller" ? { color: "#33FF33", textShadow: "0 0 6px rgba(51,255,51,0.3)" } : undefined}
             role="status"
           >
@@ -64,7 +64,7 @@ function ToastItem({ toast }: { toast: Toast }) {
           </span>
           <button
             onClick={() => removeToast(toast.id)}
-            className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer flex-shrink-0 ml-auto"
+            className="text-[12px] md:text-[9px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 ml-auto min-w-[32px] min-h-[32px] md:min-w-0 md:min-h-0 flex items-center justify-center"
           >
             {"\u2715"}
           </button>

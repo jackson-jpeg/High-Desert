@@ -56,9 +56,9 @@ export function AboutDialog({
 
   return (
     <Dialog open={open} onClose={onClose} title="About High Desert" width="440px">
-      <div className="flex bg-midnight/90 p-0">
+      <div className="flex flex-col md:flex-row bg-midnight/90 p-0">
         {/* Left: icon/starfield area */}
-        <div className="w-[80px] flex-shrink-0 relative overflow-hidden border-r border-bevel-dark/20">
+        <div className="hidden md:block w-[80px] flex-shrink-0 relative overflow-hidden border-r border-bevel-dark/20">
           <canvas ref={canvasRef} className="absolute inset-0" />
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-[28px] leading-none" style={{ textShadow: "0 0 12px rgba(212,168,67,0.5)" }}>

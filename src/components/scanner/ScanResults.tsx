@@ -21,7 +21,7 @@ export function ScanResults({ className }: ScanResultsProps) {
 
   return (
     <Window title={`Library (${episodes.length} episodes)`} variant="dark" className={className}>
-      <div className="max-h-[300px] overflow-auto">
+      <div className="max-h-[60vh] md:max-h-[300px] overflow-auto overscroll-contain">
         {/* Desktop: table */}
         <table className="w-full text-[11px] hidden md:table">
           <thead>
@@ -64,7 +64,7 @@ export function ScanResults({ className }: ScanResultsProps) {
           {episodes.map((ep) => (
             <div
               key={ep.id}
-              className="p-3 border-b border-bevel-dark/10 active:bg-title-bar-blue/10"
+              className="p-3 min-h-[56px] border-b border-bevel-dark/10 active:bg-title-bar-blue/10"
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[12px] text-desert-amber tabular-nums">
