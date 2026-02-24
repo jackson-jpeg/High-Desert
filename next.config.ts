@@ -22,7 +22,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob:",
               "font-src 'self'",
-              "connect-src 'self' https://archive.org https://*.archive.org https://generativelanguage.googleapis.com https://api.anthropic.com",
+              "connect-src 'self' https://archive.org https://*.archive.org https://api.anthropic.com",
               "media-src 'self' blob: https://archive.org https://*.archive.org",
               "worker-src 'self' blob:",
               "frame-ancestors 'none'",

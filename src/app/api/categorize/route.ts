@@ -42,6 +42,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 500 });
   }
 
+  // Guard against oversized payloads
+  const contentLength = parseInt(request.headers.get("content-length") ?? "0", 10);
+  if (contentLength > 1_000_000) {
+    return NextResponse.json({ error: "Payload too large" }, { status: 413 });
+  }
+
   const { episodes } = (await request.json()) as { episodes: EpisodeInput[] };
 
   if (!episodes?.length) {
