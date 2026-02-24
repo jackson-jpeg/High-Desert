@@ -76,10 +76,10 @@ export function CollectionImport() {
                     Featured
                   </span>
                 </div>
-                <div className="text-[9px] text-bevel-dark leading-relaxed mb-2">
+                <div className="text-[11px] md:text-[9px] text-bevel-dark leading-relaxed mb-2">
                   {FEATURED_COLLECTION.description}
                 </div>
-                <div className="flex items-center gap-3 text-[9px]">
+                <div className="flex items-center gap-3 text-[11px] md:text-[9px]">
                   <span className="text-desert-amber tabular-nums">{FEATURED_COLLECTION.episodeCount} episodes</span>
                   <span className="text-bevel-dark/60">{FEATURED_COLLECTION.dateRange}</span>
                 </div>
@@ -128,7 +128,7 @@ export function CollectionImport() {
 
             {/* Current file */}
             <div className="w98-inset-dark bg-inset-well px-2 py-1 min-h-[20px]">
-              <div className="text-[9px] text-desktop-gray truncate">
+              <div className="text-[11px] md:text-[9px] text-desktop-gray truncate">
                 {progress.currentFile || "\u00A0"}
               </div>
             </div>
@@ -197,9 +197,9 @@ export function CollectionImport() {
           <div>
             <button
               onClick={() => setShowErrors(!showErrors)}
-              className="text-[9px] text-red-400/70 hover:text-red-400 cursor-pointer flex items-center gap-1"
+              className="text-[11px] md:text-[9px] text-red-400/70 hover:text-red-400 cursor-pointer flex items-center gap-1 min-h-[44px] md:min-h-0"
             >
-              <span className="text-[8px]">{showErrors ? "\u25BC" : "\u25B6"}</span>
+              <span className="text-[10px] md:text-[8px]">{showErrors ? "\u25BC" : "\u25B6"}</span>
               {progress.errorMessages.length} error{progress.errorMessages.length !== 1 ? "s" : ""}
             </button>
             {showErrors && (
@@ -219,7 +219,7 @@ export function CollectionImport() {
           <div className="border-t border-bevel-dark/20 pt-2">
             <button
               onClick={() => setShowCustom(!showCustom)}
-              className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer"
+              className="text-[11px] md:text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer min-h-[44px] md:min-h-0"
             >
               {showCustom ? "Hide custom import" : "Import from other collection..."}
             </button>
@@ -252,11 +252,11 @@ export function CollectionImport() {
 
 function MiniStat({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className={cn("flex flex-col items-center p-1.5 w98-inset-dark bg-inset-well")}>
-      <div className={cn("text-[12px] font-bold tabular-nums", color)}>
+    <div className={cn("flex flex-col items-center p-2 md:p-1.5 w98-inset-dark bg-inset-well")}>
+      <div className={cn("text-[14px] md:text-[12px] font-bold tabular-nums", color)}>
         {value.toLocaleString()}
       </div>
-      <div className="text-[8px] text-bevel-dark uppercase tracking-wider">
+      <div className="text-[10px] md:text-[8px] text-bevel-dark uppercase tracking-wider">
         {label}
       </div>
     </div>

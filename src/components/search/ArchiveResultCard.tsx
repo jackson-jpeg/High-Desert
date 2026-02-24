@@ -83,12 +83,12 @@ export function ArchiveResultCard({
 
       {/* Action row */}
       <div className="flex items-center justify-between mt-0.5">
-        <span className="text-[9px] text-bevel-dark/60 truncate">
+        <span className="text-[11px] md:text-[9px] text-bevel-dark/60 truncate">
           {result.creator ?? "Art Bell"}
         </span>
         <div className="transition-state">
           {isAdded ? (
-            <span className="text-[10px] text-static-green/80 flex items-center gap-1">
+            <span className="text-[12px] md:text-[10px] text-static-green/80 flex items-center gap-1">
               <span>{"\u2713"}</span> Added
             </span>
           ) : (

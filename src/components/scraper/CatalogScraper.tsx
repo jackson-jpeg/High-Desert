@@ -112,7 +112,7 @@ export function CatalogScraper() {
 
         {/* Idle description */}
         {phase === "idle" && (
-          <div className="text-[10px] text-bevel-dark/70 leading-relaxed">
+          <div className="text-[12px] md:text-[10px] text-bevel-dark/70 leading-relaxed">
             Import the complete Art Bell archive from archive.org. Discovers episodes, imports metadata, and uses AI to categorize.
           </div>
         )}
@@ -142,7 +142,7 @@ export function CatalogScraper() {
                 </div>
               );
             })}
-            <div className="ml-2 text-[9px] text-desktop-gray flex-1 truncate">
+            <div className="ml-2 text-[11px] md:text-[9px] text-desktop-gray flex-1 truncate">
               {PHASE_LABELS[phase] ?? phase}
             </div>
           </div>
@@ -150,7 +150,7 @@ export function CatalogScraper() {
 
         {/* Phase description */}
         {isRunning && PHASE_DESCRIPTIONS[phase] && (
-          <div className="text-[9px] text-bevel-dark/50 leading-relaxed">
+          <div className="text-[11px] md:text-[9px] text-bevel-dark/50 leading-relaxed">
             {PHASE_DESCRIPTIONS[phase]}
           </div>
         )}
@@ -163,11 +163,11 @@ export function CatalogScraper() {
         {/* Current item + rate */}
         {isRunning && (
           <div className="w98-inset-dark bg-inset-well px-2 py-1 min-h-[20px] flex items-center justify-between">
-            <div className="text-[9px] text-desktop-gray truncate flex-1 mr-2">
+            <div className="text-[11px] md:text-[9px] text-desktop-gray truncate flex-1 mr-2">
               {currentItem || "\u00A0"}
             </div>
             {rateLabel && (
-              <div className="text-[9px] text-bevel-dark tabular-nums flex-shrink-0">
+              <div className="text-[11px] md:text-[9px] text-bevel-dark tabular-nums flex-shrink-0">
                 {rateLabel}
               </div>
             )}
@@ -215,9 +215,9 @@ export function CatalogScraper() {
             <button
               onClick={() => setShowErrors(!showErrors)}
               aria-expanded={showErrors}
-              className="text-[9px] text-red-400/70 hover:text-red-400 cursor-pointer flex items-center gap-1"
+              className="text-[11px] md:text-[9px] text-red-400/70 hover:text-red-400 cursor-pointer flex items-center gap-1 min-h-[44px] md:min-h-0"
             >
-              <span className="text-[8px]">{showErrors ? "\u25BC" : "\u25B6"}</span>
+              <span className="text-[10px] md:text-[8px]">{showErrors ? "\u25BC" : "\u25B6"}</span>
               {errorMessages.length} error{errorMessages.length !== 1 ? "s" : ""}
             </button>
             {showErrors && (
@@ -257,7 +257,7 @@ export function CatalogScraper() {
               <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 aria-expanded={showAdvanced}
-                className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer ml-auto"
+                className="text-[11px] md:text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer ml-auto min-h-[44px] md:min-h-0"
               >
                 {showAdvanced ? "Less options" : "More options"}
               </button>
@@ -313,11 +313,11 @@ export function CatalogScraper() {
 
 function StatCard({ label, value, color }: { label: string; value: number | string; color: string }) {
   return (
-    <div className="flex flex-col items-center p-1.5 w98-inset-dark bg-inset-well rounded-sm">
-      <div className={`text-[12px] font-bold tabular-nums ${color}`}>
+    <div className="flex flex-col items-center p-2 md:p-1.5 w98-inset-dark bg-inset-well rounded-sm">
+      <div className={`text-[14px] md:text-[12px] font-bold tabular-nums ${color}`}>
         {typeof value === "number" ? value.toLocaleString() : value}
       </div>
-      <div className="text-[8px] text-bevel-dark uppercase tracking-wider">
+      <div className="text-[10px] md:text-[8px] text-bevel-dark uppercase tracking-wider">
         {label}
       </div>
     </div>

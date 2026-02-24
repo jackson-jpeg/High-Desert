@@ -257,7 +257,7 @@ export function TuningStrip({ index, className }: TuningStripProps) {
     <canvas
       ref={canvasRef}
       className={className}
-      style={{ width: "100%", height: "100%", cursor: "grab" }}
+      style={{ width: "100%", height: "100%", cursor: "grab", touchAction: "none" }}
       role="slider"
       aria-label="Radio tuning dial"
       aria-valuemin={0}
