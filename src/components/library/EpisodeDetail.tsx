@@ -91,7 +91,7 @@ export function EpisodeDetail({
     setEditing(false);
   };
 
-  const inputClass = "w-full bg-inset-well w98-inset-dark px-2 py-2 md:px-1.5 md:py-1 text-[16px] md:text-[11px] text-desktop-gray outline-none";
+  const inputClass = "w-full bg-inset-well w98-inset-dark px-2 py-2 md:px-1.5 md:py-1 text-[16px] md:text-[11px] text-desktop-gray outline-none min-h-[44px] md:min-h-0";
 
   return (
     <div
@@ -148,6 +148,7 @@ export function EpisodeDetail({
                 type="text"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
+                autoComplete="off"
                 className={inputClass}
               />
             </label>
@@ -157,13 +158,14 @@ export function EpisodeDetail({
                 type="text"
                 value={editGuest}
                 onChange={(e) => setEditGuest(e.target.value)}
+                autoComplete="off"
                 className={inputClass}
               />
             </label>
             <label className="flex flex-col gap-0.5">
               <span className="text-[11px] md:text-[8px] text-bevel-dark uppercase tracking-wider">Air Date</span>
               <input
-                type="text"
+                type="date"
                 value={editAirDate}
                 onChange={(e) => setEditAirDate(e.target.value)}
                 placeholder="YYYY-MM-DD"

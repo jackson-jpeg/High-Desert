@@ -100,8 +100,8 @@ export function QueuePanel() {
           <div className="text-[12px] md:text-[10px] text-bevel-dark text-center">
             Queue is empty
           </div>
-          <div className="text-[11px] md:text-[8px] text-bevel-dark/50 text-center leading-relaxed">
-            Right-click episodes to add, or use Play Next in the detail panel
+          <div className="text-[12px] md:text-[8px] text-bevel-dark/50 text-center leading-relaxed">
+            Tap an episode and use Play Next, or long-press to add to queue
           </div>
         </div>
       </div>

@@ -120,7 +120,7 @@ export function PlaybackControls({
             aria-valuemax={1}
             aria-valuenow={volume}
             aria-valuetext={`${Math.round(volume * 100)}%`}
-            className="flex-1 h-[6px] w98-range-dark cursor-pointer"
+            className="flex-1 h-[16px] md:h-[6px] w98-range-dark cursor-pointer"
           />
           <span className="w-[36px] tabular-nums text-bevel-dark/50">
             {Math.round(volume * 100)}%

@@ -162,19 +162,19 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
 
             {/* Autocomplete dropdown */}
             {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 z-40 mt-0.5 w98-raised-dark bg-raised-surface max-h-[200px] overflow-auto shadow-lg">
+              <div className="absolute top-full left-0 right-0 z-40 mt-0.5 w98-raised-dark bg-raised-surface max-h-[200px] overflow-auto shadow-lg overscroll-contain">
                 {suggestions.map((s, i) => (
                   <button
                     key={`${s.type}-${s.label}`}
                     onClick={() => selectSuggestion(s)}
                     className={cn(
-                      "w-full text-left px-2 py-1 text-[11px] md:text-[10px] cursor-pointer flex items-center gap-2 transition-colors-fast",
+                      "w-full text-left px-3 md:px-2 py-2.5 md:py-1 min-h-[44px] md:min-h-0 text-[13px] md:text-[10px] cursor-pointer flex items-center gap-2 transition-colors-fast",
                       i === activeIdx
                         ? "bg-title-bar-blue/30 text-desktop-gray"
-                        : "text-desktop-gray/80 hover:bg-title-bar-blue/15",
+                        : "text-desktop-gray/80 hover:bg-title-bar-blue/15 active:bg-title-bar-blue/20",
                     )}
                   >
-                    <span className="text-[8px] text-bevel-dark/50 w-[48px] flex-shrink-0">{typeLabels[s.type]}</span>
+                    <span className="text-[9px] md:text-[8px] text-bevel-dark/50 w-[48px] flex-shrink-0">{typeLabels[s.type]}</span>
                     <span className="truncate">{s.label}</span>
                   </button>
                 ))}
