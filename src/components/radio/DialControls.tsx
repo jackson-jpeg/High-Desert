@@ -46,7 +46,7 @@ export function DialControls({
   }, [lockedEpisode]);
 
   return (
-    <div className={`flex items-center gap-1.5 md:gap-2 ${className ?? ""}`}>
+    <div className={`flex items-center gap-2 md:gap-2 flex-wrap justify-center ${className ?? ""}`}>
       <Button
         variant="dark"
         size="sm"

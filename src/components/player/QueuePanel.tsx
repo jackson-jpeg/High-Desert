@@ -6,6 +6,7 @@ import { useAdminStore } from "@/stores/admin-store";
 import { db } from "@/db";
 import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 
 export function QueuePanel() {
   const queue = usePlayerStore((s) => s.queue);
@@ -14,6 +15,7 @@ export function QueuePanel() {
   const moveInQueue = usePlayerStore((s) => s.moveInQueue);
   const clearQueue = usePlayerStore((s) => s.clearQueue);
 
+  const isMobile = useIsMobile();
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const [savingPlaylist, setSavingPlaylist] = useState(false);
   const [playlistName, setPlaylistName] = useState("");
@@ -149,7 +151,9 @@ export function QueuePanel() {
             }}
             placeholder="Playlist name..."
             autoFocus
-            className="flex-1 bg-inset-well w98-inset-dark px-1.5 py-0.5 text-[11px] md:text-[9px] text-desktop-gray outline-none"
+            autoComplete="off"
+            spellCheck={false}
+            className="flex-1 bg-inset-well w98-inset-dark px-1.5 py-1.5 md:py-0.5 text-[14px] md:text-[9px] text-desktop-gray outline-none min-h-[44px] md:min-h-0"
           />
           <button
             onClick={handleSaveAsPlaylist}
@@ -174,13 +178,13 @@ export function QueuePanel() {
           return (
             <div
               key={`${ep.id}-${i}`}
-              draggable
-              onDragStart={(e) => handleDragStart(e, i)}
-              onDragEnter={() => handleDragEnter(i)}
-              onDragLeave={handleDragLeave}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, i)}
-              onDragEnd={handleDragEnd}
+              draggable={!isMobile}
+              onDragStart={isMobile ? undefined : (e) => handleDragStart(e, i)}
+              onDragEnter={isMobile ? undefined : () => handleDragEnter(i)}
+              onDragLeave={isMobile ? undefined : handleDragLeave}
+              onDragOver={isMobile ? undefined : handleDragOver}
+              onDrop={isMobile ? undefined : (e) => handleDrop(e, i)}
+              onDragEnd={isMobile ? undefined : handleDragEnd}
               className={cn(
                 "group flex items-center gap-2 px-3 py-1.5 min-h-[44px] md:min-h-0 cursor-pointer select-none",
                 "hover:bg-title-bar-blue/10 active:bg-title-bar-blue/10 transition-colors-fast",

@@ -262,7 +262,7 @@ export function CommandPalette() {
                     key={item.id}
                     onClick={() => executeResult(item)}
                     className={cn(
-                      "w-full text-left px-3 py-1.5 flex flex-col cursor-pointer transition-colors-fast",
+                      "w-full text-left px-3 py-2.5 md:py-1.5 min-h-[44px] md:min-h-0 flex flex-col justify-center cursor-pointer transition-colors-fast",
                       idx === activeIndex
                         ? "bg-title-bar-blue/30 text-desktop-gray"
                         : "text-desktop-gray/80 hover:bg-title-bar-blue/15",

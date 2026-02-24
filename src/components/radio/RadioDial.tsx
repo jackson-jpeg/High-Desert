@@ -161,7 +161,7 @@ export function RadioDial({ episodes }: RadioDialProps) {
             ensureInitialized();
             jumpToYear(year);
           }}
-          className="text-[9px] md:text-[8px] px-1.5 py-0.5 min-h-[28px] md:min-h-0 text-desert-amber/60 hover:text-desert-amber cursor-pointer transition-colors-fast whitespace-nowrap flex-shrink-0"
+          className="text-[10px] md:text-[8px] px-2 md:px-1.5 py-1.5 md:py-0.5 min-h-[44px] md:min-h-0 text-desert-amber/60 hover:text-desert-amber active:text-desert-amber cursor-pointer transition-colors-fast whitespace-nowrap flex-shrink-0"
           role="tab"
           aria-label={`Jump to ${year}`}
         >

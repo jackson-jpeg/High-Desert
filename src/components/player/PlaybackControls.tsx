@@ -196,7 +196,7 @@ export function PlaybackControls({
             aria-valuemax={duration || 0}
             aria-valuenow={position}
             aria-valuetext={formatTime(position)}
-            className="w-full h-[6px] w98-range-dark cursor-pointer relative z-[1]"
+            className="w-full h-[20px] md:h-[6px] w98-range-dark cursor-pointer relative z-[1]"
           />
           <BookmarkMarkers mode="markers" />
           {/* Seek preview tooltip */}

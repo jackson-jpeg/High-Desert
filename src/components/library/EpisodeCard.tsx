@@ -225,7 +225,7 @@ export function EpisodeCard({
         <div className="flex items-center gap-1.5 min-w-0 truncate">
           {episode.guestName ? (
             <span
-              className="text-[12px] md:text-[10px] text-static-green/80 truncate hover:text-static-green hover:underline cursor-pointer"
+              className="text-[13px] md:text-[10px] text-static-green/90 md:text-static-green/80 truncate hover:text-static-green hover:underline active:text-static-green cursor-pointer py-0.5 -my-0.5"
               onClick={(e) => {
                 e.stopPropagation();
                 window.dispatchEvent(new CustomEvent("hd:show-guest", { detail: episode.guestName }));
