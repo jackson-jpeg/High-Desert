@@ -61,7 +61,7 @@ export function ListeningStats({ className }: ListeningStatsProps) {
 
   return (
     <div className={cn(
-      "w98-inset-dark bg-inset-well px-3 py-1.5 flex items-center gap-4 text-[9px]",
+      "w98-inset-dark bg-inset-well px-3 py-2 md:py-1.5 flex flex-wrap items-center gap-3 md:gap-4 text-[11px] md:text-[9px]",
       className,
     )}>
       {stats.streak > 0 && (

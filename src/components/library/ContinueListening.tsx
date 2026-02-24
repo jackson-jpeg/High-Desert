@@ -65,7 +65,7 @@ export function ContinueListening({ onPlay, className }: ContinueListeningProps)
                 key={ep.id}
                 onClick={() => onPlay(ep)}
                 className={cn(
-                  "flex-shrink-0 w-[200px] md:w-[180px] p-2 w98-raised-dark bg-card-surface hover:bg-title-bar-blue/15 cursor-pointer transition-colors-fast text-left",
+                  "flex-shrink-0 w-[200px] md:w-[180px] p-2 w98-raised-dark bg-card-surface hover:bg-title-bar-blue/15 active:bg-title-bar-blue/25 active:scale-[0.98] cursor-pointer transition-all duration-150 text-left",
                   i >= 2 && "hidden md:block",
                 )}
               >

@@ -107,15 +107,15 @@ export function SmartPlaylists({ onPlay, className }: SmartPlaylistsProps) {
             <button
               onClick={() => setExpanded(expanded === list.key ? null : list.key)}
               className={cn(
-                "flex items-center gap-2 w-full text-left px-2 py-1.5 cursor-pointer transition-colors-fast",
+                "flex items-center gap-2 w-full text-left px-2 py-2.5 md:py-1.5 min-h-[44px] md:min-h-0 cursor-pointer transition-colors-fast",
                 expanded === list.key
                   ? "bg-title-bar-blue/15 text-desktop-gray"
                   : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10",
               )}
             >
-              <span className="text-[10px]">{list.icon}</span>
-              <span className="text-[10px] flex-1">{list.label}</span>
-              <span className="text-[8px] text-bevel-dark/50 tabular-nums">
+              <span className="text-[12px] md:text-[10px]">{list.icon}</span>
+              <span className="text-[12px] md:text-[10px] flex-1">{list.label}</span>
+              <span className="text-[10px] md:text-[8px] text-bevel-dark/50 tabular-nums">
                 {list.episodes.length}
               </span>
             </button>

@@ -319,9 +319,9 @@ export default function StatsPage() {
             <div className="p-3">
               {/* Decade summary */}
               {stats.decades.length > 1 && (
-                <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center gap-3 mb-3 overflow-x-auto">
                   {stats.decades.map(([decade, count]) => (
-                    <span key={decade} className="text-[9px] text-bevel-dark">
+                    <span key={decade} className="text-[10px] md:text-[9px] text-bevel-dark whitespace-nowrap flex-shrink-0">
                       <span className="text-desktop-gray">{decade}</span>
                       <span className="text-bevel-dark/60 ml-1">{count.toLocaleString()}</span>
                     </span>
@@ -356,7 +356,7 @@ export default function StatsPage() {
                           )}
                         </div>
                       </div>
-                      <span className="text-[8px] text-bevel-dark/60 tabular-nums w-[48px] text-right opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-[8px] text-bevel-dark/60 tabular-nums w-[36px] md:w-[48px] text-right opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         {yearHours.toFixed(0)}h
                       </span>
                       {pct <= 20 && (
@@ -435,7 +435,7 @@ export default function StatsPage() {
                   const pct = (count / stats.maxCategoryCount) * 100;
                   return (
                     <div key={cat} className="flex items-center gap-2 group">
-                      <span className="text-[9px] text-desktop-gray truncate w-[120px] flex-shrink-0 text-right">
+                      <span className="text-[10px] md:text-[9px] text-desktop-gray truncate w-[80px] md:w-[120px] flex-shrink-0 text-right">
                         {cat}
                       </span>
                       <div className="flex-1 h-[12px] w98-inset-dark bg-inset-well overflow-hidden">
@@ -524,7 +524,7 @@ export default function StatsPage() {
                     <span className="text-[8px] text-bevel-dark/60 tabular-nums w-[14px] text-right">
                       {i + 1}
                     </span>
-                    <span className="text-[10px] text-desktop-gray truncate w-[140px] flex-shrink-0">
+                    <span className="text-[11px] md:text-[10px] text-desktop-gray truncate w-[100px] md:w-[140px] flex-shrink-0">
                       {guest}
                     </span>
                     <div className="flex-1 h-[10px] w98-inset-dark bg-inset-well overflow-hidden">
@@ -561,15 +561,15 @@ export default function StatsPage() {
                         {i + 1}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <div className="text-[10px] text-desktop-gray truncate font-bold">
+                        <div className="text-[12px] md:text-[10px] text-desktop-gray truncate font-bold">
                           {ep.title || ep.fileName}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           {ep.airDate && (
-                            <span className="text-[8px] text-desert-amber tabular-nums">{ep.airDate}</span>
+                            <span className="text-[9px] md:text-[8px] text-desert-amber tabular-nums">{ep.airDate}</span>
                           )}
                           {ep.guestName && (
-                            <span className="text-[8px] text-static-green/70 truncate">{ep.guestName}</span>
+                            <span className="text-[9px] md:text-[8px] text-static-green/70 truncate">{ep.guestName}</span>
                           )}
                         </div>
                         <div className="h-[3px] w98-inset-dark bg-inset-well mt-1 overflow-hidden">
@@ -598,7 +598,7 @@ export default function StatsPage() {
             <div className="flex flex-wrap gap-x-2 gap-y-1.5 justify-center">
               {stats.topTags.map(([tag, count]) => {
                 const ratio = count / stats.maxTagCount;
-                const size = 9 + ratio * 9; // 9px to 18px
+                const size = 10 + ratio * 10; // 10px to 20px
                 const opacity = 0.3 + ratio * 0.7; // 0.3 to 1.0
                 return (
                   <span
