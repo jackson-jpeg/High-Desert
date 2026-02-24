@@ -21,6 +21,7 @@ import { parseSearch } from "@/lib/utils/search-parser";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { GuestProfile } from "@/components/library/GuestProfile";
 import { cn } from "@/lib/utils/cn";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 
 type SortMode = "date" | "name" | "guest";
 type ShowFilter = "all" | "coast" | "dreamland" | "special" | "unknown";
@@ -53,6 +54,7 @@ export default function LibraryPage() {
   const [deleting, setDeleting] = useState(false);
   const currentEpisodeId = usePlayerStore((s) => s.currentEpisode?.id);
   const isAdmin = useAdminStore((s) => s.isAdmin);
+  const isMobile = useIsMobile();
   const searchBarRef = useRef<HTMLInputElement>(null);
 
   // Listen for sort events from the menu bar
@@ -621,13 +623,60 @@ export default function LibraryPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [filtered, focusedIndex, selectedEpisode, selectedIds, handlePlay]);
 
+  // Detail panel swipe-down-to-close
+  const detailSwipe = useRef({ startY: 0, currentY: 0, swiping: false });
+  const detailRef = useRef<HTMLDivElement>(null);
+
+  const onDetailTouchStart = useCallback((e: React.TouchEvent) => {
+    // Only activate from the top 48px (drag handle area)
+    const rect = detailRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const touchY = e.touches[0].clientY;
+    if (touchY - rect.top > 48) return;
+    detailSwipe.current = { startY: touchY, currentY: touchY, swiping: true };
+  }, []);
+
+  const onDetailTouchMove = useCallback((e: React.TouchEvent) => {
+    const s = detailSwipe.current;
+    if (!s.swiping) return;
+    s.currentY = e.touches[0].clientY;
+    const dy = s.currentY - s.startY;
+    if (dy > 0 && detailRef.current) {
+      detailRef.current.style.transform = `translateY(${dy}px)`;
+      detailRef.current.style.transition = "none";
+    }
+  }, []);
+
+  const onDetailTouchEnd = useCallback(() => {
+    const s = detailSwipe.current;
+    if (!s.swiping) return;
+    s.swiping = false;
+    const dy = s.currentY - s.startY;
+    if (detailRef.current) {
+      detailRef.current.style.transform = "";
+      detailRef.current.style.transition = "transform 0.2s ease-out";
+    }
+    if (dy > 80) {
+      handleCloseDetail();
+    }
+  }, [handleCloseDetail]);
+
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
+  const [swipeTip, setSwipeTip] = useState(false);
 
   // Sync discovery state from localStorage after hydration
   useEffect(() => {
     const saved = localStorage.getItem("hd-discovery-open");
     if (saved === "true") setDiscoveryOpen(true);
   }, []);
+
+  // Show swipe gesture tip once on mobile
+  useEffect(() => {
+    if (!isMobile || !allEpisodes || allEpisodes.length === 0) return;
+    if (localStorage.getItem("hd-swipe-tip-seen")) return;
+    const timer = setTimeout(() => setSwipeTip(true), 1500);
+    return () => clearTimeout(timer);
+  }, [isMobile, allEpisodes]);
 
   const toggleDiscovery = useCallback(() => {
     setDiscoveryOpen((prev) => {
@@ -641,8 +690,8 @@ export default function LibraryPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Search + Show Type Pills */}
-      <div className="flex flex-col gap-1.5 px-3 py-2 flex-shrink-0 md:flex-row md:items-center md:gap-2">
+      {/* Search + Show Type Pills — sticky on mobile so users can refine while scrolling */}
+      <div className="flex flex-col gap-1.5 px-3 py-2 flex-shrink-0 md:flex-row md:items-center md:gap-2 sticky top-0 z-20 bg-midnight/95 backdrop-blur-sm md:static md:bg-transparent md:backdrop-blur-none">
         <SearchBar
           ref={searchBarRef}
           value={search}
@@ -770,6 +819,21 @@ export default function LibraryPage() {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* Swipe gesture tip — shown once on mobile */}
+      {swipeTip && (
+        <div className="mx-3 mb-1 px-3 py-2 bg-desert-amber/10 border border-desert-amber/20 rounded flex items-center justify-between gap-2 flex-shrink-0 md:hidden animate-fade-in">
+          <span className="text-[11px] text-desert-amber/80">
+            Swipe cards: {"\u2190"} favorite {"\u00B7"} queue {"\u2192"}
+          </span>
+          <button
+            onClick={() => { setSwipeTip(false); localStorage.setItem("hd-swipe-tip-seen", "1"); }}
+            className="text-[11px] text-bevel-dark/50 active:text-desktop-gray cursor-pointer min-w-[28px] min-h-[28px] flex items-center justify-center"
+          >
+            OK
+          </button>
         </div>
       )}
 
@@ -999,12 +1063,21 @@ export default function LibraryPage() {
               className="fixed inset-0 bg-black/50 z-40 md:hidden animate-glass-backdrop"
               onClick={handleCloseDetail}
             />
-            <div className={cn(
+            <div
+              ref={detailRef}
+              onTouchStart={onDetailTouchStart}
+              onTouchMove={onDetailTouchMove}
+              onTouchEnd={onDetailTouchEnd}
+              className={cn(
               // Mobile: slide-up overlay from bottom
               "fixed bottom-0 inset-x-0 z-50 max-h-[80vh] overflow-auto pb-[var(--safe-bottom)] animate-glass-sheet rounded-t-xl",
               // Desktop: sticky sidebar with fade-in — stays in view as you scroll
               "md:sticky md:top-0 md:w-[280px] md:flex-shrink-0 md:max-h-screen md:overflow-auto md:pb-0 md:z-auto md:border-l md:border-bevel-dark/20 md:animate-fade-in md:rounded-none",
             )}>
+              {/* Mobile drag handle */}
+              <div className="flex justify-center pt-2 pb-1 md:hidden">
+                <div className="w-8 h-[3px] rounded-full bg-white/15" />
+              </div>
               <EpisodeDetail
                 episode={selectedEpisode}
                 isPlaying={selectedEpisode.id === currentEpisodeId}
@@ -1030,6 +1103,18 @@ export default function LibraryPage() {
           </>
         )}
       </div>
+
+      {/* Floating "Now Playing" button — mobile only */}
+      {isMobile && currentEpisodeId && !selectedEpisode && (
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent("hd:scroll-to-current"))}
+          className="fixed bottom-[120px] right-3 z-25 w-[40px] h-[40px] rounded-full bg-midnight/90 border border-desert-amber/30 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+          aria-label="Scroll to now playing"
+          title="Scroll to now playing"
+        >
+          <span className="w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air" />
+        </button>
+      )}
 
       {/* Bulk delete confirmation */}
       <Dialog
