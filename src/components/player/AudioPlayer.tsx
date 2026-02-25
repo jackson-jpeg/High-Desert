@@ -144,15 +144,16 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
             {/* Seek bar */}
             <div className="flex items-center gap-2 text-[12px] text-bevel-dark">
               <span className="w-[45px] text-right tabular-nums">{formatTime(position)}</span>
-              <input
-                type="range"
-                min={0}
-                max={duration || 0}
-                value={position}
-                onChange={(e) => seek(Number(e.target.value))}
-                className="flex-1 h-[8px] w98-range-dark cursor-pointer"
-                aria-label="Seek position"
-              />
+            <input
+              type="range"
+              min={0}
+              max={duration || 0}
+              value={position}
+              onChange={(e) => seek(Number(e.target.value))}
+              disabled={!duration}
+              className="flex-1 h-[8px] w98-range-dark cursor-pointer"
+              aria-label="Seek position"
+            />
               <span className="w-[45px] tabular-nums">{formatTime(duration)}</span>
             </div>
 
@@ -247,15 +248,16 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           {currentEpisode.title || currentEpisode.fileName}
         </span>
         {/* Compact seek */}
-        <input
-          type="range"
-          min={0}
-          max={duration || 0}
-          value={position}
-          onChange={(e) => seek(Number(e.target.value))}
-          className="w-[80px] h-[2px] w98-range-dark cursor-pointer flex-shrink-0"
-          aria-label="Seek"
-        />
+          <input
+            type="range"
+            min={0}
+            max={duration || 0}
+            value={position}
+            onChange={(e) => seek(Number(e.target.value))}
+            disabled={!duration}
+            className="w-[80px] h-[2px] w98-range-dark cursor-pointer flex-shrink-0"
+            aria-label="Seek"
+          />
         {/* Play/pause */}
         <button onClick={togglePlay} className="text-[10px] text-desktop-gray cursor-pointer flex-shrink-0" aria-label={buffering ? "Buffering" : playing ? "Pause" : "Play"}>
           {buffering ? "\u29D7" : playing ? "\u275A\u275A" : "\u25B6"}
