@@ -91,6 +91,7 @@ function tryInitAnalyser(): void {
 
   try {
     audioContext = new AudioContext();
+    if (!audioContext) return;
     const source = audioContext.createMediaElementSource(mediaElement);
     analyserNode = audioContext.createAnalyser();
     analyserNode.fftSize = 2048;
