@@ -9,9 +9,31 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = request.nextUrl;
+  
+  if (!searchParams.has("q")) {
+    return NextResponse.json(
+      { error: "Missing required parameter: q" },
+      { status: 400 }
+    );
+  }
+  
   const rawQ = searchParams.get("q") ?? "";
   const page = parseInt(searchParams.get("page") ?? "1", 10);
   const rows = parseInt(searchParams.get("rows") ?? "30", 10);
+  
+  if (isNaN(page) || page < 1) {
+    return NextResponse.json(
+      { error: "Invalid page parameter" },
+      { status: 400 }
+    );
+  }
+  
+  if (isNaN(rows) || rows < 1 || rows > 200) {
+    return NextResponse.json(
+      { error: "Invalid rows parameter (max 200)" },
+      { status: 400 }
+    );
+  }
 
   // Sanitize: strip special chars, enforce min length
   const q = rawQ.replace(/['"\\<>]/g, "").trim();
