@@ -1,21 +1,20 @@
-/// <reference lib="webworker" />
-
-const CACHE_NAME = "hd-shell-v2";
+const CACHE_NAME = 'hd-shell-v2';
 const STATIC_ASSETS = [
-  "/",
-  "/library",
-  "/radio",
-  "/scanner",
-  "/search",
-  "/stats",
-  "/manifest.json",
-  "/fonts/W95FA.woff2",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
+  '/',
+  '/library',
+  '/radio',
+  '/scanner',
+  '/search',
+  '/stats',
+  '/offline',
+  '/manifest.json',
+  '/fonts/W95FA.woff2',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
 ];
 
 // Install: pre-cache app shell
-self.addEventListener("install", (event) => {
+self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
   );
@@ -23,7 +22,7 @@ self.addEventListener("install", (event) => {
 });
 
 // Activate: clean old caches
-self.addEventListener("activate", (event) => {
+self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
@@ -33,11 +32,11 @@ self.addEventListener("activate", (event) => {
 });
 
 // Fetch strategy
-self.addEventListener("fetch", (event) => {
+self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
   // API routes: network-first
-  if (url.pathname.startsWith("/api/")) {
+  if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(event.request).catch(() => caches.match(event.request))
     );
@@ -46,9 +45,9 @@ self.addEventListener("fetch", (event) => {
 
   // Static assets (fonts, icons, images, JS/CSS chunks): cache-first
   if (
-    url.pathname.startsWith("/fonts/") ||
-    url.pathname.startsWith("/icons/") ||
-    url.pathname.startsWith("/_next/static/") ||
+    url.pathname.startsWith('/fonts/') ||
+    url.pathname.startsWith('/icons/') ||
+    url.pathname.startsWith('/_next/static/') ||
     url.pathname.match(/\.(woff2?|png|jpg|svg|ico|js|css)$/)
   ) {
     event.respondWith(
@@ -67,11 +66,11 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Navigation requests: network-first with 5s timeout, then cache fallback
-  if (event.request.mode === "navigate") {
+  if (event.request.mode === 'navigate') {
     event.respondWith(
       Promise.race([
         fetch(event.request),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000)),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
       ])
         .then((response) => {
           // Cache the fresh navigation response for offline use
@@ -79,13 +78,28 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           return response;
         })
-        .catch(() => caches.match(event.request).then(r => r || caches.match("/library").then(r => r || caches.match("/"))))
+        .catch(() => caches.match(event.request))
     );
     return;
   }
 
-  // Everything else: network-first
+  // Default: cache-then-network fallback
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).then((response) => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      });
+    })
   );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
