@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { Episode } from "@/db/schema";
 import { Button } from "@/components/win98";
+import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { usePlayerStore } from "@/stores/player-store";
 import { toast } from "@/stores/toast-store";
 import { rateEpisode } from "@/services/episodes/management";
@@ -30,7 +31,7 @@ const SHOW_TYPE_OPTIONS: { value: Episode["showType"]; label: string }[] = [
   { value: "unknown", label: "Unknown" },
 ];
 
-export function EpisodeDetail({
+function EpisodeDetailContent({
   episode,
   isPlaying,
   onPlay,
@@ -456,6 +457,14 @@ export function EpisodeDetail({
         )}
       </div>
     </div>
+  );
+}
+
+export function EpisodeDetail(props: EpisodeDetailProps) {
+  return (
+    <WidgetErrorBoundary name="EpisodeDetail">
+      <EpisodeDetailContent {...props} />
+    </WidgetErrorBoundary>
   );
 }
 
