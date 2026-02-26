@@ -16,7 +16,7 @@ interface PlaylistPanelProps {
 }
 
 export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) {
-  const playlists = useLiveQuery(() => db.playlists.orderBy("createdAt").reverse().toArray(), []);
+  const playlists = useLiveQuery(() => db.playlists.orderBy("createdAt").reverse().toArray(), []) ?? [];
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [playlistEpisodes, setPlaylistEpisodes] = useState<Episode[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
@@ -27,14 +27,17 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
 
   const loadPlaylist = useCallback(async (playlist: Playlist) => {
     setSelectedPlaylist(playlist);
-    if (!playlist?.episodeIds?.length) {
+    if (!playlist || !Array.isArray(playlist.episodeIds) || playlist.episodeIds.length === 0) {
       setPlaylistEpisodes([]);
       return;
     }
     const episodes = await db.episodes.where("id").anyOf(playlist.episodeIds).toArray();
     // Preserve order
     const byId = new Map(episodes.map((e) => [e.id, e]));
-    setPlaylistEpisodes(playlist.episodeIds.map((id) => byId.get(id)).filter(Boolean) as Episode[]);
+    const orderedEpisodes = playlist.episodeIds
+      .map((id) => byId.get(id))
+      .filter((ep): ep is Episode => ep != null);
+    setPlaylistEpisodes(orderedEpisodes);
   }, []);
 
   const handleCreate = useCallback(async () => {
@@ -134,7 +137,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
         )}
 
         <div className="flex flex-col gap-1 max-h-[300px] overflow-auto">
-          {playlistEpisodes?.map((ep, i) => ep && (
+          {playlistEpisodes.map((ep, i) => (
             <div
               key={ep.id}
               className="flex items-center gap-2 px-2.5 py-2 md:py-1.5 w98-raised-dark bg-card-surface min-h-[44px] md:min-h-0 cursor-pointer hover:bg-title-bar-blue/15 active:bg-title-bar-blue/20 transition-colors-fast group/ep"
@@ -210,7 +213,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
         </button>
       </div>
 
-      {(!playlists?.length) && (
+      {playlists.length === 0 && (
         <div className="p-4 flex flex-col items-center justify-center text-center min-h-[120px]">
           <div className="text-[13px] text-desktop-gray font-bold mb-1">No Playlists</div>
           <div className="text-[11px] md:text-[9px] text-bevel-dark/60 mb-3">Create your first playlist to get started.</div>
@@ -223,7 +226,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
         </div>
       )}
 
-      {playlists?.map((pl) => pl && (
+      {playlists.map((pl) => pl && (
         <div key={pl.id} className="flex items-center gap-1 group">
           {editingId === pl.id ? (
             <form
