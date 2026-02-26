@@ -47,27 +47,50 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Validate response structure
+    if (!data || typeof data !== 'object') {
+      return NextResponse.json(
+        { error: "Invalid response structure from archive.org" },
+        { status: 502 }
+      );
+    }
+
     const metadata = data.metadata as Record<string, string> | undefined;
     const files = data.files as Record<string, string>[] | undefined;
 
-    const audioFiles = (files ?? []).filter(
-      (f) => AUDIO_FORMATS.has(f.format),
+    // Ensure metadata and files are valid
+    if (!metadata || typeof metadata !== 'object') {
+      return NextResponse.json(
+        { error: "Missing or invalid metadata in response" },
+        { status: 502 }
+      );
+    }
+
+    if (!Array.isArray(files)) {
+      return NextResponse.json(
+        { error: "Missing or invalid files array in response" },
+        { status: 502 }
+      );
+    }
+
+    const audioFiles = files.filter(
+      (f) => typeof f === 'object' && f !== null && AUDIO_FORMATS.has(String(f.format)),
     );
 
     return NextResponse.json({
-      identifier: metadata?.identifier,
+      identifier: String(metadata?.identifier || ''),
       metadata: {
-        title: metadata?.title,
-        date: metadata?.date,
-        description: metadata?.description,
-        creator: metadata?.creator,
+        title: String(metadata?.title || ''),
+        date: String(metadata?.date || ''),
+        description: String(metadata?.description || ''),
+        creator: String(metadata?.creator || ''),
       },
       files: audioFiles.map((f) => ({
-        name: f.name,
-        format: f.format,
-        size: f.size,
-        length: f.length,
-        source: f.source,
+        name: String(f.name || ''),
+        format: String(f.format || ''),
+        size: String(f.size || ''),
+        length: String(f.length || ''),
+        source: String(f.source || ''),
       })),
     });
   } catch (err) {
