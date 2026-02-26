@@ -264,6 +264,15 @@ export function SearchPanel() {
           <LoadingSkeleton />
         ) : results.length === 0 && query ? (
           <NoResults query={query} />
+        ) : results.length === 0 && !query ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center px-8">
+            <div className="text-[13px] text-desktop-gray mb-2">
+              Search the Archive
+            </div>
+            <div className="text-[11px] text-bevel-dark leading-relaxed max-w-[280px] mb-3">
+              Try searching for a guest, topic, or date to discover episodes.
+            </div>
+          </div>
         ) : (
           <>
             <div className="flex flex-col gap-[3px] px-3 py-3">
