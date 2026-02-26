@@ -41,18 +41,34 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const res = await fetch(
-      `https://archive.org/metadata/${encodeURIComponent(sanitized)}`,
-      {
-        signal: AbortSignal.timeout(FETCH_TIMEOUT),
-        next: { revalidate: 3600 },
-      },
-    );
+    let res: Response;
+    try {
+      res = await fetch(
+        `https://archive.org/metadata/${encodeURIComponent(sanitized)}`,
+        {
+          signal: AbortSignal.timeout(FETCH_TIMEOUT),
+          next: { revalidate: 3600 },
+        },
+      );
+    } catch (fetchError) {
+      console.error("[metadata] Fetch error:", fetchError);
+      return NextResponse.json(
+        { error: "Failed to connect to archive.org" },
+        { status: 503 },
+      );
+    }
 
     if (!res.ok) {
+      const status = res.status;
+      const errorMessage = status === 404 
+        ? "Archive.org metadata not found" 
+        : status >= 500 
+        ? "Archive.org server error" 
+        : "Archive.org metadata fetch failed";
+      
       return NextResponse.json(
-        { error: "Archive.org metadata fetch failed" },
-        { status: res.status },
+        { error: errorMessage },
+        { status },
       );
     }
 
