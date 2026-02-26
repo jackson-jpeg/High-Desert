@@ -60,7 +60,7 @@ export function BookmarkMarkers(props: Props) {
             onClick={(e) => {
               e.stopPropagation();
               const audio = document.querySelector("audio");
-              if (audio) audio.currentTime = bm.position;
+              if (audio && audio.currentTime !== undefined) audio.currentTime = bm.position;
               usePlayerStore.getState().setPosition(bm.position);
             }}
             title={`${bm.label} (${formatTime(bm.position)})`}
