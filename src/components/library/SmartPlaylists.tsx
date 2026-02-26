@@ -191,8 +191,7 @@ export function SmartPlaylists({ onPlay, className }: SmartPlaylistsProps) {
       <SmartPlaylistsContent onPlay={onPlay} className={className} />
     </SmartPlaylistErrorBoundary>
   );
-}rrorBoundary>
-      <SmartPlaylistsContent onPlay={onPlay} className={className} />
+}
     </SmartPlaylistErrorBoundary>
   );
 }
