@@ -23,10 +23,17 @@ export async function cacheAudioBlob(fileHash: string, blob: Blob): Promise<void
   if (!isOPFSSupported()) return;
   const dir = await getCacheDir();
   const key = sanitizeKey(fileHash);
+  
+  // Check storage quota and cleanup if needed
+  await cleanupIfNeeded(blob.size);
+  
   const fileHandle = await dir.getFileHandle(key, { create: true });
   const writable = await fileHandle.createWritable();
   await writable.write(blob);
   await writable.close();
+  
+  // Update last access time
+  await updateLastAccessTime(key);
 }
 
 export async function getCachedAudio(fileHash: string): Promise<Blob | null> {
@@ -38,6 +45,9 @@ export async function getCachedAudio(fileHash: string): Promise<Blob | null> {
     const file = await fileHandle.getFile();
     // Validate the cached file isn't empty/corrupt
     if (file.size === 0) return null;
+    
+    // Update last access time on successful read
+    await updateLastAccessTime(key);
     return file;
   } catch {
     return null;
@@ -127,4 +137,152 @@ export async function getCacheSize(): Promise<number> {
     // Ignore errors
   }
   return total;
+}
+
+async function getCacheEntries(): Promise<Array<{key: string, size: number, lastAccess: number}>> {
+  if (!isOPFSSupported()) return [];
+  const entries: Array<{key: string, size: number, lastAccess: number}> = [];
+  try {
+    const dir = await getCacheDir();
+    const metadataDir = await getMetadataDir();
+    
+    for await (const [name, handle] of dir as unknown as AsyncIterable<[string, FileSystemHandle]>) {
+      if (handle.kind === "file") {
+        const file = await (handle as FileSystemFileHandle).getFile();
+        const lastAccess = await getLastAccessTime(name, metadataDir);
+        entries.push({
+          key: name,
+          size: file.size,
+          lastAccess
+        });
+      }
+    }
+  } catch {
+    // Ignore errors
+  }
+  return entries;
+}
+
+async function getMetadataDir(): Promise<FileSystemDirectoryHandle> {
+  const root = await navigator.storage.getDirectory();
+  return root.getDirectoryHandle(`${CACHE_DIR}-metadata`, { create: true });
+}
+
+async function getLastAccessTime(key: string, metadataDir?: FileSystemDirectoryHandle): Promise<number> {
+  if (!isOPFSSupported()) return Date.now();
+  try {
+    const dir = metadataDir || await getMetadataDir();
+    const fileHandle = await dir.getFileHandle(`${key}.access`, { create: false });
+    const file = await fileHandle.getFile();
+    const text = await file.text();
+    return parseInt(text, 10) || Date.now();
+  } catch {
+    return Date.now();
+  }
+}
+
+async function updateLastAccessTime(key: string): Promise<void> {
+  if (!isOPFSSupported()) return;
+  try {
+    const dir = await getMetadataDir();
+    const fileHandle = await dir.getFileHandle(`${key}.access`, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(String(Date.now()));
+    await writable.close();
+  } catch {
+    // Ignore errors
+  }
+}
+
+async function cleanupIfNeeded(newSize: number): Promise<void> {
+  if (!isOPFSSupported()) return;
+  
+  const MAX_CACHE_SIZE = 500 * 1024 * 1024; // 500MB
+  const currentSize = await getCacheSize();
+  
+  if (currentSize + newSize > MAX_CACHE_SIZE) {
+    const entries = await getCacheEntries();
+    // Sort by last access time (oldest first)
+    entries.sort((a, b) => a.lastAccess - b.lastAccess);
+    
+    let sizeToFree = (currentSize + newSize) - MAX_CACHE_SIZE;
+    
+    for (const entry of entries) {
+      if (sizeToFree <= 0) break;
+      
+      try {
+        const dir = await getCacheDir();
+        await dir.removeEntry(entry.key);
+        
+        // Also remove metadata
+        const metadataDir = await getMetadataDir();
+        await metadataDir.removeEntry(`${entry.key}.access`).catch(() => {});
+        
+        sizeToFree -= entry.size;
+      } catch {
+        // Ignore errors during cleanup
+      }
+    }
+  }
+}ait fileHandle.createWritable();
+    await writable.write(Date.now().toString());
+    await writable.close();
+  } catch {
+    // Ignore errors
+  }
+}
+
+async function cleanupIfNeeded(newBlobSize: number): Promise<void> {
+  if (!isOPFSSupported()) return;
+  
+  try {
+    const { usage, quota } = await navigator.storage.estimate();
+    if (!quota || !usage) return;
+    
+    const projectedUsage = usage + newBlobSize;
+    const usageRatio = projectedUsage / quota;
+    
+    // Start cleanup if projected usage exceeds 80% of quota
+    if (usageRatio > 0.8) {
+      await evictLRUCache();
+    }
+  } catch {
+    // Ignore errors if storage estimation fails
+  }
+}
+
+async function evictLRUCache(): Promise<void> {
+  if (!isOPFSSupported()) return;
+  
+  try {
+    const entries = await getCacheEntries();
+    if (entries.length === 0) return;
+    
+    // Sort by last access time (oldest first)
+    entries.sort((a, b) => a.lastAccess - b.lastAccess);
+    
+    const { usage, quota } = await navigator.storage.estimate();
+    if (!quota || !usage) return;
+    
+    const targetUsage = quota * 0.6; // Target 60% usage after cleanup
+    let currentUsage = usage;
+    
+    const dir = await getCacheDir();
+    const metadataDir = await getMetadataDir();
+    
+    // Remove oldest entries until we're under target
+    for (const entry of entries) {
+      if (currentUsage <= targetUsage) break;
+      
+      try {
+        await dir.removeEntry(entry.key);
+        await metadataDir.removeEntry(`${entry.key}.access`);
+        currentUsage -= entry.size;
+      } catch {
+        // Ignore removal errors
+      }
+    }
+  } catch {
+    // Ignore cleanup errors
+  }
 }
