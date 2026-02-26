@@ -13,6 +13,7 @@ import { useIsMobile } from "@/hooks/useMediaQuery";
 import { Button } from "@/components/win98";
 import { formatTime } from "@/lib/utils/format";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
+import { AudioErrorBoundary } from "@/components/AudioErrorBoundary";
 
 interface AudioPlayerProps {
   className?: string;
@@ -440,7 +441,9 @@ function AudioPlayerContent({ className }: AudioPlayerProps) {
 export function AudioPlayer({ className }: AudioPlayerProps) {
   return (
     <WidgetErrorBoundary name="Audio Player">
-      <AudioPlayerContent className={className} />
+      <AudioErrorBoundary>
+        <AudioPlayerContent className={className} />
+      </AudioErrorBoundary>
     </WidgetErrorBoundary>
   );
 }
