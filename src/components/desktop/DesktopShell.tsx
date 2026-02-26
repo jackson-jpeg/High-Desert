@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils/cn";
-import { MenuBar, StatusBar, Button, Dialog, TextField } from "@/components/win98";
+import { MenuBar, StatusBar, Button } from "@/components/win98";
 import { AboutDialog } from "./AboutDialog";
 import { ShortcutsDialog } from "./ShortcutsDialog";
 import { ClearLibraryDialog } from "./ClearLibraryDialog";
