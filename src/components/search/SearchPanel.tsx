@@ -88,6 +88,11 @@ export function SearchPanel() {
         return;
       }
 
+      if (trimmed.length > 200) {
+        toast.error('Search query too long (max 200 characters)');
+        return;
+      }
+
       // Validate search parameters
       const parsed = parseSearch(trimmed);
       const hasText = parsed.text && parsed.text.length > 0;
