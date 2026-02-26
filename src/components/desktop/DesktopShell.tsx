@@ -85,6 +85,9 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
 
   const handleInstall = useCallback(async () => {
     if (!installPrompt) return;
+    if (window.electronAPI) {
+      await window.electronAPI.openExternal("https://github.com/your-org/your-repo/releases");
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (installPrompt as any).prompt();
     setInstallPrompt(null);
