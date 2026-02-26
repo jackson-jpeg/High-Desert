@@ -47,6 +47,12 @@ export function QueuePanel() {
     const state = usePlayerStore.getState();
     if (!state || typeof state.playFromQueue !== 'function') return;
     
+    // Check if audio context is available before attempting to play
+    if (typeof window !== 'undefined' && !window.AudioContext && !(window as any).webkitAudioContext) {
+      console.warn('Audio context not available');
+      return;
+    }
+    
     const episode = state.playFromQueue(index);
     if (episode) {
       window.dispatchEvent(
