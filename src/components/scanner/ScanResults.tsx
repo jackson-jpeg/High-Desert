@@ -86,10 +86,10 @@ function ScanResultsContent({ className }: ScanResultsProps) {
       <Window title="Library" variant="dark" className={className}>
         <div className="p-4 text-center">
           <div className="text-[11px] text-bevel-dark mb-2">
-            No folders found
+            No episodes found
           </div>
           <div className="text-[10px] text-desktop-gray">
-            Start scanning to add files from your archive.
+            Scan a folder to add files from your archive.
           </div>
         </div>
       </Window>
