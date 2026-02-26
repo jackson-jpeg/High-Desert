@@ -110,8 +110,8 @@ export function QueuePanel() {
 
   // Remaining queue duration (from current track onward)
   const remainingSeconds = queue
-    .slice(queueIndex + 1)
-    .reduce((sum, ep) => sum + (ep.duration ?? 0), 0);
+    ?.slice(queueIndex + 1)
+    .reduce((sum, ep) => sum + (ep?.duration ?? 0), 0) ?? 0;
   const remainingMinutes = Math.round(remainingSeconds / 60);
 
   if (queue.length === 0) {
@@ -135,7 +135,7 @@ export function QueuePanel() {
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-bevel-dark/15">
         <div className="flex items-center gap-2">
           <span className="text-[12px] md:text-[10px] text-bevel-dark/70">
-            {queue.length} track{queue.length !== 1 ? "s" : ""}
+            {queue?.length ?? 0} track{(queue?.length ?? 0) !== 1 ? "s" : ""}
           </span>
           {remainingMinutes > 0 && (
             <span className="text-[10px] md:text-[8px] text-bevel-dark/40 tabular-nums">
@@ -193,7 +193,7 @@ export function QueuePanel() {
         </div>
       )}
       <div className="max-h-[240px] overflow-auto">
-        {queue.map((ep, i) => {
+        {queue?.map((ep, i) => {
           const isCurrent = i === queueIndex;
           const isPast = i < queueIndex;
           const isDragTarget = dragOver === i && dragFrom !== i;
@@ -240,7 +240,7 @@ export function QueuePanel() {
                     e.stopPropagation();
                     if (i < queue.length - 1) moveInQueue(i, i + 1);
                   }}
-                  disabled={i === queue.length - 1}
+                  disabled={i === (queue?.length ?? 0) - 1}
                   className="text-[10px] text-bevel-dark/40 active:text-desktop-gray disabled:opacity-20 cursor-pointer px-1"
                   aria-label="Move down"
                 >
