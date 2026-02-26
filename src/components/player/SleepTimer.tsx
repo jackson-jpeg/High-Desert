@@ -96,7 +96,7 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
         <button
           key={minutes}
           onClick={() => {
-            if (Number.isInteger(minutes) && minutes >= 1 && minutes <= 480) {
+            if (Number.isInteger(minutes) && minutes >= 1 && minutes <= 180) {
               start(minutes);
               setOpen(false);
             }
@@ -115,13 +115,13 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
         ref={customRef}
         type="number"
         min={1}
-        max={480}
+        max={180}
         value={customMin}
         onChange={(e) => setCustomMin(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               const mins = parseInt(customMin, 10);
-              if (Number.isInteger(mins) && mins >= 1 && mins <= 480) {
+              if (Number.isInteger(mins) && mins >= 1 && mins <= 180) {
                 start(mins);
                 setOpen(false);
                 setCustomMin("");

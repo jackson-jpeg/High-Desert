@@ -37,7 +37,7 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
   active: false,
 
   start: (minutes) => {
-    if (!Number.isFinite(minutes) || minutes < 1 || minutes > 480) {
+    if (!Number.isFinite(minutes) || minutes < 1 || minutes > 180) {
       get().cancel();
       return;
     }
