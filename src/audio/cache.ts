@@ -71,6 +71,40 @@ export async function isCacheValid(fileHash: string): Promise<boolean> {
   }
 }
 
+export async function extractAudioMetadata(blob: Blob): Promise<{
+  title?: string;
+  artist?: string;
+  album?: string;
+  duration?: number;
+  error?: string;
+}> {
+  try {
+    const metadata = await parseBlob(blob, {
+      duration: true,
+      skipCovers: true,
+      skipPostHeaders: true
+    });
+    
+    return {
+      title: metadata.common.title,
+      artist: metadata.common.artist,
+      album: metadata.common.album,
+      duration: metadata.format.duration
+    };
+  } catch (error) {
+    console.warn('[audio] Failed to extract metadata:', error instanceof Error ? error.message : 'Unknown error');
+    
+    // Return partial metadata or error indication
+    return {
+      error: error instanceof Error ? error.message : 'Metadata extraction failed',
+      title: undefined,
+      artist: undefined,
+      album: undefined,
+      duration: undefined
+    };
+  }
+}
+
 /**
  * Pattern for handling stale OPFS blob URLs:
  *
@@ -197,7 +231,66 @@ async function updateLastAccessTime(key: string): Promise<void> {
 async function cleanupIfNeeded(newSize: number): Promise<void> {
   if (!isOPFSSupported()) return;
   
-  const MAX_CACHE_SIZE = 500 * 1024 * 1024; // 500MB
+  const MAX_CACHE_SIZE = 500 * 1024 * 1024; // 500 MB
+  
+  try {
+    const currentSize = await getCacheSize();
+    if (currentSize + newSize > MAX_CACHE_SIZE) {
+      const entries = await getCacheEntries();
+      // Sort by last access time (oldest first)
+      entries.sort((a, b) => a.lastAccess - b.lastAccess);
+      
+      let freed = 0;
+      const dir = await getCacheDir();
+      const metadataDir = await getMetadataDir();
+      
+      for (const entry of entries) {
+        if (freed >= newSize) break;
+        
+        try {
+          await dir.removeEntry(entry.key);
+          await metadataDir.removeEntry(`${entry.key}.access`).catch(() => {});
+          freed += entry.size;
+        } catch {
+          // Ignore removal errors
+        }
+      }
+    }
+  } catch {
+    // Ignore cleanup errors
+  }
+}
+
+/**
+ * Extract audio metadata using music-metadata-browser with error handling
+ */
+export async function extractAudioMetadata(blob: Blob): Promise<{
+  duration?: number;
+  title?: string;
+  artist?: string;
+  album?: string;
+  picture?: ArrayBuffer;
+} | null> {
+  try {
+    // Dynamically import music-metadata-browser to avoid bundling issues
+    const { parseBlob } = await import('music-metadata-browser');
+    const metadata = await parseBlob(blob, { 
+      duration: true,
+      skipCovers: false 
+    });
+    
+    return {
+      duration: metadata.format.duration,
+      title: metadata.common.title,
+      artist: metadata.common.artist,
+      album: metadata.common.album,
+      picture: metadata.common.picture?.[0]?.data
+    };
+  } catch (error) {
+    console.warn('Failed to extract audio metadata:', error);
+    return null;
+  }
+}24; // 500MB
   const currentSize = await getCacheSize();
   
   if (currentSize + newSize > MAX_CACHE_SIZE) {
@@ -223,66 +316,5 @@ async function cleanupIfNeeded(newSize: number): Promise<void> {
         // Ignore errors during cleanup
       }
     }
-  }
-}ait fileHandle.createWritable();
-    await writable.write(Date.now().toString());
-    await writable.close();
-  } catch {
-    // Ignore errors
-  }
-}
-
-async function cleanupIfNeeded(newBlobSize: number): Promise<void> {
-  if (!isOPFSSupported()) return;
-  
-  try {
-    const { usage, quota } = await navigator.storage.estimate();
-    if (!quota || !usage) return;
-    
-    const projectedUsage = usage + newBlobSize;
-    const usageRatio = projectedUsage / quota;
-    
-    // Start cleanup if projected usage exceeds 80% of quota
-    if (usageRatio > 0.8) {
-      await evictLRUCache();
-    }
-  } catch {
-    // Ignore errors if storage estimation fails
-  }
-}
-
-async function evictLRUCache(): Promise<void> {
-  if (!isOPFSSupported()) return;
-  
-  try {
-    const entries = await getCacheEntries();
-    if (entries.length === 0) return;
-    
-    // Sort by last access time (oldest first)
-    entries.sort((a, b) => a.lastAccess - b.lastAccess);
-    
-    const { usage, quota } = await navigator.storage.estimate();
-    if (!quota || !usage) return;
-    
-    const targetUsage = quota * 0.6; // Target 60% usage after cleanup
-    let currentUsage = usage;
-    
-    const dir = await getCacheDir();
-    const metadataDir = await getMetadataDir();
-    
-    // Remove oldest entries until we're under target
-    for (const entry of entries) {
-      if (currentUsage <= targetUsage) break;
-      
-      try {
-        await dir.removeEntry(entry.key);
-        await metadataDir.removeEntry(`${entry.key}.access`);
-        currentUsage -= entry.size;
-      } catch {
-        // Ignore removal errors
-      }
-    }
-  } catch {
-    // Ignore cleanup errors
   }
 }
