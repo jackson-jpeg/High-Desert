@@ -6,8 +6,8 @@ const FETCH_TIMEOUT = 25000; // 25s — allow for slow archive.org responses whi
 export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id");
 
-  if (!id) {
-    return NextResponse.json({ error: "Missing id parameter" }, { status: 400 });
+  if (!id || typeof id !== 'string') {
+    return NextResponse.json({ error: "Missing or invalid id parameter" }, { status: 400 });
   }
 
   // Sanitize identifier
@@ -55,8 +55,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const metadata = data.metadata as Record<string, string> | undefined;
-    const files = data.files as Record<string, string>[] | undefined;
+    const metadata = data.metadata as Record<string, unknown> | undefined;
+    const files = data.files as Record<string, unknown>[] | undefined;
 
     // Ensure metadata and files are valid
     if (!metadata || typeof metadata !== 'object') {
