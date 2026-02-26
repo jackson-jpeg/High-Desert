@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { Window } from "@/components/win98";
 import { formatTime } from "@/lib/utils/format";
 import { ScannerErrorBoundary } from "./ScannerErrorBoundary";
+import { useScannerStore } from "@/stores/scanner-store";
 
 interface ScanResultsProps {
   className?: string;
@@ -15,12 +16,13 @@ function ScanResultsContent({ className }: ScanResultsProps) {
     () => db.episodes.orderBy("airDate").reverse().toArray(),
     [],
   );
+  const { status } = useScannerStore();
 
-  if (!episodes || episodes.length === 0) {
+  if (status === "scanning" || !episodes || episodes.length === 0) {
     return (
       <Window title="Library" variant="dark" className={className}>
         <div className="p-4 text-[11px] text-bevel-dark">
-          Scanning your folder...
+          {status === "scanning" ? "Scanning your folder..." : "No episodes found. Start scanning to add files."}
         </div>
       </Window>
     );
@@ -102,11 +104,6 @@ function ScanResultsContent({ className }: ScanResultsProps) {
 
 export function ScanResults({ className }: ScanResultsProps) {
   return (
-    <ScannerErrorBoundary>
-      <ScanResultsContent className={className} />
-    </ScannerErrorBoundary>
-  );
-} (
     <ScannerErrorBoundary>
       <ScanResultsContent className={className} />
     </ScannerErrorBoundary>
