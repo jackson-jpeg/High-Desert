@@ -68,6 +68,7 @@ export function PlaybackControls({
     if (s.repeat === "one" || s.repeat === "all" || s.shuffle) return s.queue.length > 0;
     return s.queueIndex + 1 < s.queue.length;
   });
+  const hasEpisode = usePlayerStore((s) => !!s.currentEpisode);
   const shuffle = usePlayerStore((s) => s.shuffle);
   const repeat = usePlayerStore((s) => s.repeat);
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
@@ -242,6 +243,7 @@ export function PlaybackControls({
         <Button
           variant="dark"
           onClick={onTogglePlay}
+          disabled={!hasEpisode}
           title={buffering ? "Buffering" : playing ? "Pause" : "Play"}
           aria-label={buffering ? "Buffering" : playing ? "Pause" : "Play"}
         >
