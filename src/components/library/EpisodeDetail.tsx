@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils/cn";
 import { formatDuration, formatTime, getShowLabel } from "@/lib/utils/format";
 
 interface EpisodeDetailProps {
-  episode: Episode;
+  episode: Episode | null | undefined;
   isPlaying: boolean;
   onPlay: (episode: Episode) => void;
   onClose: () => void;
@@ -42,6 +42,14 @@ function EpisodeDetailContent({
   onToggleFavorite,
   className,
 }: EpisodeDetailProps) {
+  if (!episode) {
+    return (
+      <div className={cn("w98-raised-dark bg-raised-surface p-4", className)}>
+        <div className="text-desktop-gray text-sm">Episode data unavailable</div>
+        <Button onClick={onClose} className="mt-2">Close</Button>
+      </div>
+    );
+  }
   const showLabel = getShowLabel(episode.showType);
   const isArchive = episode.source === "archive";
 
@@ -58,7 +66,7 @@ function EpisodeDetailContent({
   // Reset edit state when episode changes
   useEffect(() => {
     setEditing(false); // eslint-disable-line react-hooks/set-state-in-effect -- reset derived state on prop change
-  }, [episode.id]);
+  }, [episode?.id]);
 
   const startEditing = () => {
     setEditTitle(episode.title ?? "");
@@ -73,7 +81,7 @@ function EpisodeDetailContent({
   };
 
   const handleSave = () => {
-    if (!onEdit || !episode.id) return;
+    if (!onEdit || !episode?.id) return;
     onEdit(episode.id, {
       title: editTitle || undefined,
       guestName: editGuest || undefined,
@@ -234,7 +242,7 @@ function EpisodeDetailContent({
             {/* Title + date + duration */}
             <div>
               <div className="text-[14px] md:text-[12px] text-desktop-gray font-bold leading-snug break-words">
-                {episode.title || episode.fileName}
+                {episode?.title || episode?.fileName || "Untitled Episode"}
               </div>
               <div className="flex items-center gap-2 mt-1">
                 {episode.airDate && (
@@ -344,8 +352,8 @@ function EpisodeDetailContent({
             <div className="flex items-center gap-2 pt-1">
               <Button
                 variant="dark"
-                onClick={() => onPlay(episode)}
-                disabled={isPlaying}
+                onClick={() => episode && onPlay(episode)}
+                disabled={isPlaying || !episode}
               >
                 {isPlaying ? "Playing" : "\u25B6 Play"}
               </Button>
@@ -353,6 +361,7 @@ function EpisodeDetailContent({
                 variant="dark"
                 size="sm"
                 onClick={() => {
+                  if (!episode) return;
                   usePlayerStore.getState().enqueueNext(episode);
                   toast.info(`"${episode.title || episode.fileName}" plays next`);
                 }}
@@ -452,7 +461,7 @@ function EpisodeDetailContent({
             </div>
 
             {/* Recommendations */}
-            <MoreLikeThis episode={episode} onPlay={onPlay} />
+            {episode && <MoreLikeThis episode={episode} onPlay={onPlay} />}
           </>
         )}
       </div>
