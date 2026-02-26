@@ -39,23 +39,7 @@ const FEATURED_GUESTS = [
   "Mel Waters",
 ];
 
-function LoadingSkeleton() {
-  return (
-    <div className="flex flex-col gap-[3px] px-3 pb-3">
-      {Array.from({ length: 6 }, (_, i) => (
-        <div
-          key={i}
-          className="p-3 w98-raised-dark bg-card-surface animate-skeleton"
-          style={{ animationDelay: `${i * 100}ms` }}
-        >
-          <div className="h-[10px] w-[80px] bg-bevel-dark/20 mb-2" />
-          <div className="h-[11px] w-[60%] bg-bevel-dark/20 mb-2" />
-          <div className="h-[10px] w-[40%] bg-bevel-dark/20" />
-        </div>
-      ))}
-    </div>
-  );
-}
+import { SearchPanelSkeleton } from "./SearchPanelSkeleton";
 
 function NoResults({ query }: { query: string }) {
   return (
