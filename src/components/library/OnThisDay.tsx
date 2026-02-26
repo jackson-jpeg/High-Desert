@@ -36,7 +36,22 @@ export function OnThisDay({ onPlay, compact, className }: OnThisDayProps) {
     return compact ? sorted.slice(0, 3) : sorted;
   }, [allEpisodes, monthDay, compact]);
 
-  if (!monthDay || matches.length === 0) return null;
+  if (!monthDay) {
+    return (
+      <div className={cn("flex flex-col gap-0.5", className)}>
+        <span className="text-[8px] text-bevel-dark/70 uppercase tracking-wider px-1">Loading...</span>
+      </div>
+    );
+  }
+
+  if (matches.length === 0) {
+    return (
+      <div className={cn("flex flex-col gap-0.5", className)}>
+        <span className="text-[8px] text-bevel-dark/70 uppercase tracking-wider px-1">{monthName}</span>
+        <div className="text-[9px] text-desktop-gray/60 px-1.5 py-1">No episodes found for this day</div>
+      </div>
+    );
+  }
 
   if (compact) {
     return (
