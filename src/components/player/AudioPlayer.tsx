@@ -423,7 +423,7 @@ function AudioPlayerContent({ className }: AudioPlayerProps) {
             </button>
           </div>
         </div>
-        {!webAudioUnsupported && <Oscilloscope className="w-full h-[80px] rounded-sm" />}
+          {!webAudioUnsupported && <Oscilloscope className="w-full h-[80px] rounded-sm" />}
         <PlaybackControls
           onTogglePlay={togglePlay}
           onSeek={seek}
