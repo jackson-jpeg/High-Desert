@@ -58,7 +58,7 @@ export function Starfield() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const noMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const noMotion = typeof window !== 'undefined' && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let animId: number;
     let lastMeteorAt = performance.now();
     let nextMeteorIn = 8000 + Math.random() * 12000;
