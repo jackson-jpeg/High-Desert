@@ -31,6 +31,17 @@ export async function GET(request: NextRequest) {
       { status: 400 }
     );
   }
+  
+  // Additional validation for query parameter
+  if (rawQ.length > 500) {
+    return NextResponse.json(
+      { error: "Query parameter q is too long (max 500 characters)" },
+      { status: 400 }
+    );
+  }
+  
+  // SQL-injection defense: rely on parameterised queries & escaping in downstream fetch,
+  // not on brittle regexes.  The query is URL-encoded and sent to archive.org, not executed locally.
   const page = parseInt(searchParams.get("page") ?? "1", 10);
   const rows = parseInt(searchParams.get("rows") ?? "30", 10);
   
