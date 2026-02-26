@@ -205,26 +205,64 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
             )}
 
             {/* Autocomplete dropdown */}
-            {showSuggestions && suggestions.length > 0 && (
+            {showSuggestions && (
               <div id="search-suggestions" role="listbox" className="absolute top-full left-0 right-0 z-40 mt-0.5 w98-raised-dark bg-raised-surface max-h-[200px] overflow-auto shadow-lg overscroll-contain">
-                {suggestions.map((s, i) => (
-                  <button
-                    key={`${s.type}-${s.label}`}
-                    id={`search-suggestion-${i}`}
-                    role="option"
-                    aria-selected={i === activeIdx}
-                    onClick={() => selectSuggestion(s)}
-                    className={cn(
-                      "w-full text-left px-3 md:px-2 py-2.5 md:py-1 min-h-[44px] md:min-h-0 text-[13px] md:text-[10px] cursor-pointer flex items-center gap-2 transition-colors-fast",
-                      i === activeIdx
-                        ? "bg-title-bar-blue/30 text-desktop-gray"
-                        : "text-desktop-gray/80 hover:bg-title-bar-blue/15 active:bg-title-bar-blue/20",
-                    )}
-                  >
-                    <span className="text-[9px] md:text-[8px] text-bevel-dark/50 w-[48px] flex-shrink-0">{typeLabels[s.type]}</span>
-                    <span className="truncate">{s.label}</span>
-                  </button>
-                ))}
+                {searchLoading ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="w-full px-3 md:px-2 py-2.5 md:py-1 min-h-[44px] md:min-h-0 flex items-center gap-2 animate-skeleton">
+                      <div className="text-[9px] md:text-[8px] text-bevel-dark/50 w-[48px] flex-shrink-0">
+                        <div className="h-[8px] bg-bevel-dark/10 rounded w-full"></div>
+                      </div>
+                      <div className="flex-1">
+                        <div className="h-[10px] bg-bevel-dark/10 rounded w-3/4"></div>
+                      </div>
+                    </div>
+                  ))
+                ) : suggestions.length > 0 ? (
+                  suggestions.map((s, i) => (
+                    <button
+                      key={`${s.type}-${s.label}`}
+                      id={`search-suggestion-${i}`}
+                      role="option"
+                      aria-selected={i === activeIdx}
+                      onClick={() => selectSuggestion(s)}
+                      className={cn(
+                        "w-full text-left px-3 md:px-2 py-2.5 md:py-1 min-h-[44px] md:min-h-0 text-[13px] md:text-[10px] cursor-pointer flex items-center gap-2 transition-colors-fast",
+                        i === activeIdx
+                          ? "bg-title-bar-blue/30 text-desktop-gray"
+                          : "text-desktop-gray/80 hover:bg-title-bar-blue/15 active:bg-title-bar-blue/20",
+                      )}
+                    >
+                      <span className="text-[9px] md:text-[8px] text-bevel-dark/50 w-[48px] flex-shrink-0">{typeLabels[s.type]}</span>
+                      <span className="truncate">{s.label}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-3 md:px-2 py-2.5 md:py-1 text-[13px] md:text-[10px] text-desktop-gray/60">
+                    No suggestions
+                  </div>
+                )}
+              </div>
+            )}                      id={`search-suggestion-${i}`}
+                      role="option"
+                      aria-selected={i === activeIdx}
+                      onClick={() => selectSuggestion(s)}
+                      className={cn(
+                        "w-full text-left px-3 md:px-2 py-2.5 md:py-1 min-h-[44px] md:min-h-0 text-[13px] md:text-[10px] cursor-pointer flex items-center gap-2 transition-colors-fast",
+                        i === activeIdx
+                          ? "bg-title-bar-blue/30 text-desktop-gray"
+                          : "text-desktop-gray/80 hover:bg-title-bar-blue/15 active:bg-title-bar-blue/20",
+                      )}
+                    >
+                      <span className="text-[9px] md:text-[8px] text-bevel-dark/50 w-[48px] flex-shrink-0">{typeLabels[s.type]}</span>
+                      <span className="truncate">{s.label}</span>
+                    </button>
+                  ))
+                ) : value.trim() && !searchLoading ? (
+                  <div className="w-full px-3 md:px-2 py-2.5 md:py-1 min-h-[44px] md:min-h-0 text-[13px] md:text-[10px] text-desktop-gray/60 text-center">
+                    No suggestions found
+                  </div>
+                ) : null}
               </div>
             )}
           </div>
@@ -250,9 +288,11 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
           )}
           <button
             onClick={() => setShowHelp(!showHelp)}
+            disabled={searchLoading}
             className={cn(
               "text-[12px] md:text-[10px] cursor-pointer transition-colors-fast flex-shrink-0 min-w-[32px] min-h-[32px] md:min-w-0 md:min-h-0 flex items-center justify-center",
               showHelp ? "text-desert-amber" : "text-bevel-dark/40 hover:text-bevel-dark active:text-bevel-dark",
+              searchLoading && "opacity-50 cursor-not-allowed"
             )}
             title="Search syntax help"
           >
