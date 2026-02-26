@@ -12,6 +12,7 @@ const BAR_HEIGHTS = [4, 6, 8, 6, 4];
 const THRESHOLDS = [20, 40, 60, 80, 100];
 
 export function MiniWaveform({ progress, completed, className }: MiniWaveformProps) {
+  if (progress == null) return null;
   return (
     <div className={cn("flex items-end gap-[1px] h-[8px]", className)}>
       {BAR_HEIGHTS.map((h, i) => {
