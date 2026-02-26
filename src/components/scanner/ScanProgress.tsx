@@ -74,6 +74,13 @@ export function ScanProgress({ onCancel }: ScanProgressProps) {
           </div>
         )}
 
+        {/* No collection data message */}
+        {status === "idle" && (
+          <div className="text-center text-[11px] text-desktop-gray">
+            No scan in progress. Select a folder to begin.
+          </div>
+        )}
+
         {/* Loading state */}
         {isInitializing && (
           <div className="text-center text-[11px] text-desktop-gray">
