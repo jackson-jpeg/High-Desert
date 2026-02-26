@@ -63,29 +63,29 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
 
       const results: Suggestion[] = [];
 
-      if (guests) {
+      if (guests && Array.isArray(guests)) {
         for (const g of guests) {
           if (results.length >= 8) break;
-          if (g.toLowerCase().includes(q)) {
+          if (g && g.toLowerCase().includes(q)) {
             results.push({ type: "guest", label: g, query: `guest:${g}` });
             if (results.filter((r) => r.type === "guest").length >= 3) break;
           }
         }
       }
 
-      if (categories) {
+      if (categories && Array.isArray(categories)) {
         for (const c of categories) {
           if (results.filter((r) => r.type === "category").length >= 2) break;
-          if (c.toLowerCase().includes(q)) {
+          if (c && c.toLowerCase().includes(q)) {
             results.push({ type: "category", label: c, query: `cat:${c}` });
           }
         }
       }
 
-      if (years) {
+      if (years && Array.isArray(years)) {
         for (const y of years) {
           if (results.filter((r) => r.type === "year").length >= 2) break;
-          if (y.includes(q)) {
+          if (y && y.includes(q)) {
             results.push({ type: "year", label: y, query: `year:${y}` });
           }
         }
