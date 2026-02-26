@@ -8,6 +8,7 @@ import { usePlayerStore } from "@/stores/player-store";
 import { Window } from "@/components/win98";
 import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
+import { SmartPlaylistsSkeleton } from "./SmartPlaylistsSkeleton";
 
 interface SmartPlaylistsProps {
   onPlay: (episode: Episode) => void;
@@ -78,7 +79,7 @@ function SmartPlaylistsContent({ onPlay, className }: SmartPlaylistsProps) {
     return result;
   }, [allEpisodes]);
 
-  if (lists.length === 0) return null;
+  if (lists.length === 0) return <SmartPlaylistsSkeleton />;
 
   const handlePlayAll = (list: SmartList) => {
     const store = usePlayerStore.getState();
