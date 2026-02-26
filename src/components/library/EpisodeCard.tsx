@@ -269,7 +269,7 @@ export const EpisodeCard = memo(function EpisodeCard({
       )}
 
       {/* Mini waveform progress indicator */}
-      {hasProgress && (
+      {hasProgress && episode && (
         <div className="absolute bottom-1 right-2">
           <MiniWaveform progress={progressPct} completed={isCompleted} />
         </div>
