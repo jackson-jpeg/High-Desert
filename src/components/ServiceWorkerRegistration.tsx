@@ -6,6 +6,8 @@ import { toast } from "@/stores/toast-store";
 export function ServiceWorkerRegistration() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [showInstall, setShowInstall] = useState(false);
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -31,6 +33,18 @@ export function ServiceWorkerRegistration() {
           window.location.reload();
         }
       });
+
+      // Listen for PWA install prompt
+      const handleBeforeInstallPrompt = (e: Event) => {
+        e.preventDefault();
+        setInstallPrompt(e);
+        setShowInstall(true);
+      };
+      window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+      return () => {
+        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      };
     }
   }, []);
 
@@ -54,6 +68,31 @@ export function ServiceWorkerRegistration() {
       );
     }
   }, [updateAvailable]);
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setShowInstall(false);
+      setInstallPrompt(null);
+    }
+  };
+
+  useEffect(() => {
+    if (showInstall) {
+      toast.info(
+        "Install High Desert",
+        {
+          duration: Infinity,
+          action: {
+            label: "Install",
+            onClick: handleInstall,
+          },
+        }
+      );
+    }
+  }, [showInstall]);
 
   return null;
 }
