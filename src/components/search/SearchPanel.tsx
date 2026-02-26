@@ -260,11 +260,11 @@ export function SearchPanel() {
 
       {/* Content area */}
       <div className="flex-1 overflow-auto">
-        {loading || (!hasInitialized && results.length === 0) ? (
+        {loading || (!hasInitialized && (!results || results.length === 0)) ? (
           <LoadingSkeleton />
-        ) : results.length === 0 && query ? (
+        ) : (!results || results.length === 0) && query ? (
           <NoResults query={query} />
-        ) : results.length === 0 && !query ? (
+        ) : (!results || results.length === 0) && !query ? (
           <div className="flex flex-col items-center justify-center py-16 text-center px-8">
             <div className="text-[13px] text-desktop-gray mb-2">
               Search the Archive
@@ -276,7 +276,7 @@ export function SearchPanel() {
         ) : (
           <>
             <div className="flex flex-col gap-[3px] px-3 py-3">
-              {results.map((result, i) => (
+              {results?.map((result, i) => (
                 <ArchiveResultCard
                   key={result.identifier}
                   result={result}
