@@ -16,7 +16,13 @@ export function ScanResults({ className }: ScanResultsProps) {
   );
 
   if (!episodes || episodes.length === 0) {
-    return null;
+    return (
+      <Window title="Library" variant="dark" className={className}>
+        <div className="p-4 text-[11px] text-bevel-dark">
+          Scanning your folder...
+        </div>
+      </Window>
+    );
   }
 
   return (
