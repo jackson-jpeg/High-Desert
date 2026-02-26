@@ -6,7 +6,7 @@ import type { Episode } from "@/db/schema";
 import { cn } from "@/lib/utils/cn";
 
 interface ContinueBannerProps {
-  episode: Episode;
+  episode: Episode | null;
   onResume: (episode: Episode) => void;
   onDismiss: () => void;
   className?: string;
@@ -15,7 +15,28 @@ interface ContinueBannerProps {
 const DISMISS_MS = 15000;
 
 export function ContinueBanner({ episode, onResume, onDismiss, className }: ContinueBannerProps) {
-  if (!episode) return null;
+  if (!episode) {
+    return (
+      <div
+        className={cn(
+          "w98-raised-dark bg-raised-surface relative overflow-hidden animate-slide-up",
+          className,
+        )}
+      >
+        <div className="px-4 py-2.5 flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="h-[9px] bg-bevel-dark/10 rounded w-[100px] animate-skeleton mb-1" />
+            <div className="h-[11px] bg-bevel-dark/10 rounded w-[200px] animate-skeleton" />
+            <div className="h-[9px] bg-bevel-dark/10 rounded w-[120px] animate-skeleton mt-0.5" />
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="h-[24px] bg-bevel-dark/10 rounded w-[70px] animate-skeleton" />
+            <div className="h-[24px] bg-bevel-dark/10 rounded w-[50px] animate-skeleton" />
+          </div>
+        </div>
+      </div>
+    );
+  }
   const [visible, setVisible] = useState(true);
   const [elapsed, setElapsed] = useState(0);
 
