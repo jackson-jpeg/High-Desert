@@ -38,14 +38,14 @@ export const useRadioDialStore = create<RadioDialState>((set, get) => ({
   subStationIndex: 0,
   zoom: 2, // px per day (default)
 
-  setPosition: (pos) => set({ position: Number.isFinite(pos) ? pos : 0, subStationIndex: 0 }),
+  setPosition: (pos) => set({ position: Math.max(0, Math.min(pos, 99999)), subStationIndex: 0 }),
   setZoom: (zoom) => set({ zoom: Math.max(0.5, Math.min(10, zoom)) }),
 
   tune: (delta) => {
     if (!Number.isFinite(delta)) return;
     const { position } = get();
-    const next = position + delta;
-    set({ position: Number.isFinite(next) ? next : position, subStationIndex: 0 });
+    const next = Math.max(0, Math.min(position + delta, 99999));
+    set({ position: next, subStationIndex: 0 });
   },
 
   lockEpisode: (ep) => set({ lockedEpisode: ep }),
