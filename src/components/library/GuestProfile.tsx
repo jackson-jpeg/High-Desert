@@ -9,6 +9,17 @@ import { Button } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
 import { formatDuration } from "@/lib/utils/format";
 
+function isValidImageUrl(url: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  try {
+    const parsed = new URL(url);
+    return ['http:', 'https:'].includes(parsed.protocol) && 
+           /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(parsed.pathname);
+  } catch {
+    return false;
+  }
+}
+
 interface GuestProfileProps {
   guestName: string;
   onPlay: (episode: Episode) => void;
@@ -167,6 +178,16 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
         <div className="text-[16px] md:text-[14px] text-static-green font-bold truncate" title={guestName}>
           {guestName.length > 50 ? `${guestName.slice(0, 50)}…` : guestName}
         </div>
+        
+        {/* Profile Image */}
+        {episodes[0]?.guestImage && isValidImageUrl(episodes[0].guestImage) && (
+          <img 
+            src={episodes[0].guestImage} 
+            alt={`${guestName} profile`}
+            className="w-16 h-16 rounded-full object-cover mt-2 border border-bevel-dark/20"
+            onError={(e) => (e.currentTarget.style.display = 'none')}
+          />
+        )}
 
         {/* Stats */}
         {stats && (
