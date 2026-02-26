@@ -86,8 +86,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Ensure metadata and files are valid
+    if (!metadata || typeof metadata !== 'object') {
+      return NextResponse.json(
+        { error: "Missing or invalid metadata in response" },
+        { status: 502 }
+      );
+    }
+
+    if (!Array.isArray(files)) {
+      return NextResponse.json(
+        { error: "Missing or invalid files array in response" },
+        { status: 502 }
+      );
+    }
+
     const audioFiles = files.filter(
-      (f) => typeof f === 'object' && f !== null && AUDIO_FORMATS.has(String(f.format)),
+      (f) => typeof f === 'object' && f !== null && AUDIO_FORMATS.has(String((f as Record<string, unknown>).format)),
     );
 
     return NextResponse.json({
@@ -98,13 +113,16 @@ export async function GET(request: NextRequest) {
         description: String(metadata?.description || ''),
         creator: String(metadata?.creator || ''),
       },
-      files: audioFiles.map((f) => ({
-        name: String(f.name || ''),
-        format: String(f.format || ''),
-        size: String(f.size || ''),
-        length: String(f.length || ''),
-        source: String(f.source || ''),
-      })),
+      files: audioFiles.map((f) => {
+        const file = f as Record<string, unknown>;
+        return {
+          name: String(file.name || ''),
+          format: String(file.format || ''),
+          size: String(file.size || ''),
+          length: String(file.length || ''),
+          source: String(file.source || ''),
+        };
+      }),
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
