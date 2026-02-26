@@ -101,43 +101,50 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Ensure metadata and files are valid
-    if (!metadata || typeof metadata !== 'object') {
+    // Validate required metadata fields
+    const identifier = String(metadata?.identifier || '');
+    if (!identifier) {
       return NextResponse.json(
-        { error: "Missing or invalid metadata in response" },
+        { error: "Missing identifier in metadata" },
         { status: 502 }
       );
     }
 
-    if (!Array.isArray(files)) {
+    // Validate file structure
+    const validFiles = files.filter(
+      (f): f is Record<string, unknown> => 
+        typeof f === 'object' && 
+        f !== null && 
+        typeof f.name === 'string' && 
+        f.name.length > 0
+    );
+
+    if (validFiles.length === 0 && files.length > 0) {
       return NextResponse.json(
-        { error: "Missing or invalid files array in response" },
+        { error: "No valid files found in response" },
         { status: 502 }
       );
     }
 
-    const audioFiles = files.filter(
-      (f) => typeof f === 'object' && f !== null && AUDIO_FORMATS.has(String((f as Record<string, unknown>).format)),
+    const audioFiles = validFiles.filter(
+      (f) => AUDIO_FORMATS.has(String(f.format)),
     );
 
     return NextResponse.json({
-      identifier: String(metadata?.identifier || ''),
+      identifier,
       metadata: {
         title: String(metadata?.title || ''),
         date: String(metadata?.date || ''),
         description: String(metadata?.description || ''),
         creator: String(metadata?.creator || ''),
       },
-      files: audioFiles.map((f) => {
-        const file = f as Record<string, unknown>;
-        return {
-          name: String(file.name || ''),
-          format: String(file.format || ''),
-          size: String(file.size || ''),
-          length: String(file.length || ''),
-          source: String(file.source || ''),
-        };
-      }),
+      files: audioFiles.map((f) => ({
+        name: String(f.name || ''),
+        format: String(f.format || ''),
+        size: String(f.size || ''),
+        length: String(f.length || ''),
+        source: String(f.source || ''),
+      })),
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
