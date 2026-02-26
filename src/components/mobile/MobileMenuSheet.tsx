@@ -14,7 +14,7 @@ interface MobileMenuSheetProps {
   onToggleStartupSound?: () => void;
 }
 
-export const MobileMenuSheet: React.FC<MobileMenuSheetProps> = ({ open, onClose, isAdmin, onToggleAdmin, onAbout, startupSoundOn, onToggleStartupSound }) => {
+const MobileMenuSheetContent: React.FC<MobileMenuSheetProps> = ({ open, onClose, isAdmin, onToggleAdmin, onAbout, startupSoundOn, onToggleStartupSound }) => {
   const router = useRouter();
   const closingRef = useRef(false);
 
@@ -160,5 +160,13 @@ export const MobileMenuSheet: React.FC<MobileMenuSheetProps> = ({ open, onClose,
         </div>
       </div>
     </>
+  );
+}
+
+export const MobileMenuSheet: React.FC<MobileMenuSheetProps> = (props) => {
+  return (
+    <MobileMenuErrorBoundary>
+      <MobileMenuSheetContent {...props} />
+    </MobileMenuErrorBoundary>
   );
 }
