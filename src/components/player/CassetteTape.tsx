@@ -14,6 +14,7 @@ export function CassetteTape({ className }: CassetteTapeProps) {
   const playing = usePlayerStore((s) => s.playing);
   const position = usePlayerStore((s) => s.position);
   const duration = usePlayerStore((s) => s.duration);
+  const audioContext = usePlayerStore((s) => s.audioContext);
 
   const progress = duration > 0 ? position / duration : 0;
   // Left reel: fast at start, slow at end. Right reel: opposite.
