@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
+import { GlobalErrorBoundary } from "@/components/GlobalErrorBoundary";
 import "./globals.css";
 
 const w95fa = localFont({
@@ -215,7 +216,7 @@ export default function RootLayout({
           }}
         />
         <ServiceWorkerRegistration />
-        {children}
+        <GlobalErrorBoundary>{children}</GlobalErrorBoundary>
       </body>
     </html>
   );
