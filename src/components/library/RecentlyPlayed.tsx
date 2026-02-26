@@ -11,7 +11,22 @@ interface RecentlyPlayedProps {
 }
 
 export function RecentlyPlayed({ episodes, onPlay, compact, className }: RecentlyPlayedProps) {
-  if (episodes.length === 0) return null;
+  if (episodes.length === 0) {
+    return (
+      <div className={cn("flex flex-col gap-1", className)}>
+        {!compact && (
+          <div className="px-1">
+            <span className="text-[11px] md:text-[9px] text-bevel-dark/60 uppercase tracking-wider">
+              Recently Played
+            </span>
+          </div>
+        )}
+        <div className="text-[11px] md:text-[9px] text-bevel-dark/50 px-2 py-4 text-center">
+          No recently played episodes
+        </div>
+      </div>
+    );
+  }
 
   const displayEpisodes = compact ? episodes.slice(0, 4) : episodes;
 
