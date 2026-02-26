@@ -13,6 +13,69 @@ class HighDesertDB extends Dexie {
 
   constructor() {
     super("HighDesertDB");
+    
+    // Hook into Dexie's transaction events for performance monitoring
+    this.on('ready', () => {
+      this.use({
+        stack: 'dbcore',
+        name: 'PerformanceMonitor',
+        create: (downlevelDB) => ({
+          ...downlevelDB,
+          table: (tableName) => {
+            const table = downlevelDB.table(tableName);
+            return {
+              ...table,
+              mutate: (req) => {
+                const markName = `db:${tableName}:${req.type}:start`;
+                performance.mark(markName);
+                const result = table.mutate(req);
+                if (result && typeof result.then === 'function') {
+                  return result.finally(() => {
+                    performance.mark(`${markName.replace(':start', ':end')}`);
+                    performance.measure(
+                      `db:${tableName}:${req.type}`,
+                      markName,
+                      `${markName.replace(':start', ':end')}`
+                    );
+                  });
+                } else {
+                  performance.mark(`${markName.replace(':start', ':end')}`);
+                  performance.measure(
+                    `db:${tableName}:${req.type}`,
+                    markName,
+                    `${markName.replace(':start', ':end')}`
+                  );
+                  return result;
+                }
+              },
+              query: (req) => {
+                const markName = `db:${tableName}:query:start`;
+                performance.mark(markName);
+                const result = table.query(req);
+                if (result && typeof result.then === 'function') {
+                  return result.finally(() => {
+                    performance.mark(`${markName.replace(':start', ':end')}`);
+                    performance.measure(
+                      `db:${tableName}:query`,
+                      markName,
+                      `${markName.replace(':start', ':end')}`
+                    );
+                  });
+                } else {
+                  performance.mark(`${markName.replace(':start', ':end')}`);
+                  performance.measure(
+                    `db:${tableName}:query`,
+                    markName,
+                    `${markName.replace(':start', ':end')}`
+                  );
+                  return result;
+                }
+              }
+            };
+          }
+        })
+      });
+    });
 
     this.version(1).stores({
       episodes:
@@ -100,18 +163,119 @@ export const db = new HighDesertDB();
 export async function getPreference(
   key: string
 ): Promise<string | undefined> {
+  performance.mark(`getPreference:${key}:start`);
   const pref = await db.userPrefs.where("key").equals(key).first();
+  performance.mark(`getPreference:${key}:end`);
+  performance.measure(`getPreference:${key}`, `getPreference:${key}:start`, `getPreference:${key}:end`);
   return pref?.value;
+}
+
+export async function setPreference(key: string, value: string): Promise<void> {
+  performance.mark(`setPreference:${key}:start`);
+  await db.userPrefs.put({ key, value });
+  performance.mark(`setPreference:${key}:end`);
+  performance.measure(`setPreference:${key}`, `setPreference:${key}:start`, `setPreference:${key}:end`);
+}
+
+export async function getEpisode(id: number): Promise<Episode | undefined> {
+  performance.mark(`getEpisode:${id}:start`);
+  const ep = await db.episodes.get(id);
+  performance.mark(`getEpisode:${id}:end`);
+  performance.measure(`getEpisode:${id}`, `getEpisode:${id}:start`, `getEpisode:${id}:end`);
+  return ep;
+}
+
+export async function saveEpisode(episode: Episode): Promise<number> {
+  performance.mark(`saveEpisode:${episode.id || 'new'}:start`);
+  const id = await db.episodes.put(episode);
+  performance.mark(`saveEpisode:${episode.id || 'new'}:end`);
+  performance.measure(`saveEpisode:${episode.id || 'new'}`, `saveEpisode:${episode.id || 'new'}:start`, `saveEpisode:${episode.id || 'new'}:end`);
+  return id;
+}
+
+export async function deleteEpisode(id: number): Promise<void> {
+  performance.mark(`deleteEpisode:${id}:start`);
+  await db.episodes.delete(id);
+  performance.mark(`deleteEpisode:${id}:end`);
+  performance.measure(`deleteEpisode:${id}`, `deleteEpisode:${id}:start`, `deleteEpisode:${id}:end`);
+}
+
+export async function getAllEpisodes(): Promise<Episode[]> {
+  performance.mark(`getAllEpisodes:start`);
+  const eps = await db.episodes.toArray();
+  performance.mark(`getAllEpisodes:end`);
+  performance.measure(`getAllEpisodes`, `getAllEpisodes:start`, `getAllEpisodes:end`);
+  return eps;
+}
+
+export async function getRecentEpisodes(limit: number = 50): Promise<Episode[]> {
+  performance.mark(`getRecentEpisodes:${limit}:start`);
+  const eps = await db.episodes.orderBy('createdAt').reverse().limit(limit).toArray();
+  performance.mark(`getRecentEpisodes:${limit}:end`);
+  performance.measure(`getRecentEpisodes:${limit}`, `getRecentEpisodes:${limit}:start`, `getRecentEpisodes:${limit}:end`);
+  return eps;
+}
+
+export async function getEpisodesBySeries(seriesName: string): Promise<Episode[]> {
+  performance.mark(`getEpisodesBySeries:${seriesName}:start`);
+  const eps = await db.episodes.where('showType').equals(seriesName).toArray();
+  performance.mark(`getEpisodesBySeries:${seriesName}:end`);
+  performance.measure(`getEpisodesBySeries:${seriesName}`, `getEpisodesBySeries:${seriesName}:start`, `getEpisodesBySeries:${seriesName}:end`);
+  return eps;
+}
+
+export async function getSeries(): Promise<string[]> {
+  performance.mark(`getSeries:start`);
+  const series = await db.episodes.orderBy('showType').uniqueKeys();
+  performance.mark(`getSeries:end`);
+  performance.measure(`getSeries`, `getSeries:start`, `getSeries:end`);
+  return series as string[];
+}
+
+export async function saveSeries(seriesName: string): Promise<void> {
+  performance.mark(`saveSeries:${seriesName}:start`);
+  // Series are implicit via episodes; no-op or future extension
+  performance.mark(`saveSeries:${seriesName}:end`);
+  performance.measure(`saveSeries:${seriesName}`, `saveSeries:${seriesName}:start`, `saveSeries:${seriesName}:end`);
+}
+
+export async function deleteSeries(seriesName: string): Promise<void> {
+  performance.mark(`deleteSeries:${seriesName}:start`);
+  await db.episodes.where('showType').equals(seriesName).delete();
+  performance.mark(`deleteSeries:${seriesName}:end`);
+  performance.measure(`deleteSeries:${seriesName}`, `deleteSeries:${seriesName}:start`, `deleteSeries:${seriesName}:end`);
+}
+
+export async function getAllSeries(): Promise<string[]> {
+  performance.mark(`getAllSeries:start`);
+  const series = await getSeries();
+  performance.mark(`getAllSeries:end`);
+  performance.measure(`getAllSeries`, `getAllSeries:start`, `getAllSeries:end`);
+  return series;
+}'db:getPreference:start');
+  try {
+    const pref = await db.userPrefs.where("key").equals(key).first();
+    return pref?.value;
+  } finally {
+    performance.mark('db:getPreference:end');
+    performance.measure('db:getPreference', 'db:getPreference:start', 'db:getPreference:end');
+  }
 }
 
 export async function setPreference(
   key: string,
   value: string
 ): Promise<void> {
-  const existing = await db.userPrefs.where("key").equals(key).first();
-  if (existing) {
-    await db.userPrefs.update(existing.id!, { value });
-  } else {
-    await db.userPrefs.add({ key, value });
+  performance.mark('db:setPreference:start');
+  try {
+    const existing = await db.userPrefs.where("key").equals(key).first();
+    if (existing) {
+      await db.userPrefs.update(existing.id!, { value });
+    } else {
+      await db.userPrefs.add({ key, value });
+    }
+  } finally {
+    performance.mark('db:setPreference:end');
+    performance.measure('db:setPreference', 'db:setPreference:start', 'db:setPreference:end');
   }
 }
