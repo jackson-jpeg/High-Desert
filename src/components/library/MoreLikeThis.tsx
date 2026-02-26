@@ -27,7 +27,7 @@ function MoreLikeThisInner({ episode, onPlay, className }: MoreLikeThisProps) {
   );
 
   const recommendations = useMemo(() => {
-    if (!allEpisodes || allEpisodes.length < 2) return [];
+    if (!allEpisodes || allEpisodes.length < 2 || !episode) return [];
 
     const tags = new Set(episode.aiTags ?? []);
     const scores = new Map<number, number>();
