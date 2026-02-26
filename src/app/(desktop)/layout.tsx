@@ -402,7 +402,9 @@ export default function DesktopLayout({
       <div data-hydrated="">
       <DesktopShell
         player={
-<AudioPlayer />
+          <AudioErrorBoundary>
+            <AudioPlayer />
+          </AudioErrorBoundary>
         }
         episodeCount={episodeCount ?? 0}
       >
