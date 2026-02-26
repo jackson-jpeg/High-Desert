@@ -84,11 +84,18 @@ export function PlaybackControls({
     setSeekPreview({ time: pct * duration, x: e.clientX - rect.left });
   }, [duration]);
 
-  const handleSeekBack = () => onSeek(position - 15);
-  const handleSeekForward = () => onSeek(position + 30);
+  const handleSeekBack = () => {
+    const audio = document.querySelector('audio');
+    if (audio) onSeek(position - 15);
+  };
+  const handleSeekForward = () => {
+    const audio = document.querySelector('audio');
+    if (audio) onSeek(position + 30);
+  };
 
   const handleScrub = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onSeek(Number(e.target.value));
+    const audio = document.querySelector('audio');
+    if (audio) onSeek(Number(e.target.value));
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
