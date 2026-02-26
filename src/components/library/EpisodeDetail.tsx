@@ -55,16 +55,20 @@ function EpisodeDetailContent({
   const hasValidMetadata = episode?.title || episode?.fileName;
   const hasValidDate = episode?.airDate;
   const hasValidDuration = typeof episode?.duration === 'number' && episode.duration > 0;
+  const hasValidAudioSource = episode?.sourceUrl || episode?.filePath;
   
-  if (!hasValidMetadata || !hasValidDate || !hasValidDuration) {
+  if (!hasValidMetadata || !hasValidDate || !hasValidDuration || !hasValidAudioSource) {
+    const missingFields = [];
+    if (!hasValidMetadata) missingFields.push("title or filename");
+    if (!hasValidDate) missingFields.push("air date");
+    if (!hasValidDuration) missingFields.push("duration");
+    if (!hasValidAudioSource) missingFields.push("audio source");
+    
     return (
       <div className={cn("w98-raised-dark bg-raised-surface p-4", className)}>
         <div className="text-desktop-gray text-sm mb-2">
-          {!hasValidMetadata && "Episode title or filename missing"}
-          {!hasValidMetadata && !hasValidDate && <br />}
-          {!hasValidDate && "Air date missing"}
-          {(!hasValidMetadata || !hasValidDate) && !hasValidDuration && <br />}
-          {!hasValidDuration && "Duration invalid or missing"}
+          <div className="font-bold mb-1">Episode data incomplete</div>
+          <div>Missing: {missingFields.join(', ')}</div>
         </div>
         <Button onClick={onClose} className="mt-2">Close</Button>
       </div>
@@ -72,6 +76,16 @@ function EpisodeDetailContent({
   }
   const showLabel = getShowLabel(episode?.showType ?? "unknown");
   const isArchive = episode?.source === "archive";
+  
+  // Safe access to episode properties with fallbacks
+  const safeTitle = episode?.title || episode?.fileName || "Untitled Episode";
+  const safeDate = episode?.airDate || "Unknown date";
+  const safeDuration = episode?.duration || 0;
+  const safeGuest = episode?.guestName || "Unknown guest";
+  const safeTopic = episode?.topic || "No topic available";
+  const safeSummary = episode?.aiSummary || "No summary available";
+  const safeCategory = episode?.aiCategory || "Uncategorized";
+  const safeSeries = episode?.aiSeries || "";
 
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -90,7 +104,7 @@ function EpisodeDetailContent({
 
   const startEditing = () => {
     if (!episode) return;
-    setEditTitle(episode.title ?? "");
+    setEditTitle(episode.title ?? episode.fileName ?? "");
     setEditGuest(episode.guestName ?? "");
     setEditAirDate(episode.airDate ?? "");
     setEditTopic(episode.topic ?? "");
