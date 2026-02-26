@@ -126,6 +126,7 @@ export function playLockTone(): void {
   }
 
   try {
+    if (!ctx) return;
     const osc = ctx.createOscillator();
     const env = ctx.createGain();
 
