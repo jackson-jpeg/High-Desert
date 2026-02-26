@@ -79,15 +79,18 @@ export function SearchPanel() {
     }
   }, [hasInitialized, query, search]);
 
-  const handleSubmit = useCallback(
+    const handleSubmit = useCallback(
     (e: FormEvent) => {
       e.preventDefault();
       const trimmed = input.trim();
-      if (!trimmed) return;
+      if (!trimmed) {
+        toast.error('Please enter a search query');
+        return;
+      }
 
       // Validate search parameters
       const parsed = parseSearch(trimmed);
-      const hasText = parsed.text.length > 0;
+      const hasText = parsed.text && parsed.text.length > 0;
       const hasOperators = Object.keys(parsed).some(
         (k) => k !== 'text' && parsed[k as keyof typeof parsed] !== undefined && (k !== 'has' || (parsed.has && parsed.has.length > 0))
       );
@@ -119,11 +122,11 @@ export function SearchPanel() {
   );
 
   const handleNextPage = useCallback(() => {
-    if (query) search(query, page + 1);
+    if (query && query.trim()) search(query, page + 1);
   }, [query, page, search]);
 
   const handlePrevPage = useCallback(() => {
-    if (query && page > 1) search(query, page - 1);
+    if (query && query.trim() && page > 1) search(query, page - 1);
   }, [query, page, search]);
 
   const handleResultContextMenu = useCallback((result: ArchiveSearchResult, x: number, y: number) => {
