@@ -119,7 +119,17 @@ export const EpisodeCard = memo(function EpisodeCard({
   return (
     <button
       ref={cardRef}
-      onClick={(e) => onClick(episode, e)}
+      onClick={(e) => {
+        // Check if audio source exists before attempting to play
+        if (!episode.sourceUrl && !episode.filePath) {
+          window.dispatchEvent(new CustomEvent('hd:toast', {
+            detail: { message: 'Audio file not found. Please re-import this episode.', type: 'error' }
+          }));
+          e.preventDefault();
+          return;
+        }
+        onClick(episode, e);
+      }}
       onDoubleClick={onDoubleClick ? () => onDoubleClick(episode) : undefined}
       onContextMenu={handleContextMenu}
       onTouchStart={(e) => { longPress.onTouchStart(e); onTouchStartSwipe(e); }}
