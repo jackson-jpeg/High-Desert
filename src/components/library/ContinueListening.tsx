@@ -40,6 +40,8 @@ function ContinueListeningContent({ onPlay, className }: ContinueListeningProps)
 
     return eps
       .filter((ep) => {
+        if (!ep || typeof ep !== 'object') return false;
+        if (!ep.id || !ep.fileName) return false;
         if (!ep.duration || !ep.playbackPosition) return false;
         const pct = ep.playbackPosition / ep.duration;
         return pct > 0.1 && pct < 0.9;
@@ -66,6 +68,7 @@ function ContinueListeningContent({ onPlay, className }: ContinueListeningProps)
 
         <div className="flex gap-2 overflow-x-auto">
           {inProgress.slice(0, 3).map((ep, i) => {
+            if (!ep || !ep.id || !ep.fileName) return null;
             const pct = ep.duration && ep.playbackPosition
               ? Math.round((ep.playbackPosition / ep.duration) * 100)
               : 0;
