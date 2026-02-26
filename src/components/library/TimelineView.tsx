@@ -81,55 +81,15 @@ export function TimelineView({
     };
   }, [episodes, scrollToIndex]);
 
-  if (episodes.length === 0) {
+  if (!episodes || episodes.length === 0) {
     return (
       <div className={cn("flex flex-col items-center justify-center py-20 text-center px-8 animate-fade-in", className)}>
-        {/* Radio tower icon */}
-        <div className="relative mb-5">
-          <div className="text-[32px] text-desert-amber/20 select-none">{"\u{1F4E1}"}</div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-[3px] h-[3px] rounded-full bg-desert-amber/40 animate-on-air" />
-          </div>
-        </div>
-
         <div className="text-[12px] text-desktop-gray mb-1.5 font-bold">
-          No episodes yet
+          No timeline data
         </div>
-        <div className="text-[10px] text-bevel-dark leading-relaxed max-w-[300px] mb-5">
-          Start building your late-night radio archive. Import the Ultimate Art Bell Collection, search archive.org, or scan local files.
+        <div className="text-[10px] text-bevel-dark leading-relaxed max-w-[300px]">
+          No episodes found. Import the Ultimate Art Bell Collection, search archive.org, or scan local files to build your late-night radio archive.
         </div>
-
-        {onAction ? (
-          <div className="flex flex-col items-center gap-2">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => onAction("scan")}
-                className={cn(
-                  "text-[10px] px-3 py-1.5 w98-raised-dark bg-raised-surface",
-                  "text-desert-amber hover:bg-title-bar-blue/15 cursor-pointer transition-colors-fast",
-                )}
-              >
-                Import Collection
-              </button>
-              <button
-                onClick={() => onAction("search")}
-                className={cn(
-                  "text-[10px] px-3 py-1.5 w98-raised-dark bg-raised-surface",
-                  "text-title-bar-blue hover:bg-title-bar-blue/15 cursor-pointer transition-colors-fast",
-                )}
-              >
-                Search Archive
-              </button>
-            </div>
-            <span className="text-[8px] text-bevel-dark/40 mt-1">
-              Keyboard: / to search, Ctrl+Shift+S to scan
-            </span>
-          </div>
-        ) : (
-          <div className="text-[9px] text-bevel-dark/50 italic">
-            The library is being set up. Episodes will appear shortly.
-          </div>
-        )}
       </div>
     );
   }
