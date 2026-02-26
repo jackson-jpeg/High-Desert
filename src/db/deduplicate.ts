@@ -82,8 +82,13 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
   let allEpisodes: Episode[] = [];
   try {
     allEpisodes = (await db.episodes.toArray()) ?? [];
-  } catch (error) {
-    console.error('[Deduplication] Failed to fetch episodes:', error);
+  } catch (error: any) {
+    if (error?.name === 'QuotaExceededError') {
+      console.error('[Deduplication] IndexedDB quota exceeded:', error);
+      alert('Storage full: Cannot deduplicate episodes. Please free up space or use a non-private browsing window.');
+    } else {
+      console.error('[Deduplication] Failed to fetch episodes:', error);
+    }
     return {
       totalBefore: 0,
       duplicatesRemoved: 0,
@@ -179,8 +184,14 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
         sourceUrl: keeper.sourceUrl,
         updatedAt: Date.now(),
       });
-    } catch (error) {
-      console.error('[Deduplication] Failed to update keeper episode:', error);
+    } catch (error: any) {
+      if (error?.name === 'QuotaExceededError') {
+        console.error('[Deduplication] IndexedDB quota exceeded during update:', error);
+        alert('Storage full: Cannot save deduplication changes. Please free up space.');
+        break;
+      } else {
+        console.error('[Deduplication] Failed to update keeper episode:', error);
+      }
       continue;
     }
 
@@ -188,24 +199,39 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
     const dupeIds = dupes.map((d) => d?.id).filter((id): id is string => id != null);
     try {
       await db?.episodes?.bulkDelete(dupeIds);
-    } catch (error) {
-      console.error('[Deduplication] Failed to delete duplicate episodes:', error);
+    } catch (error: any) {
+      if (error?.name === 'QuotaExceededError') {
+        console.error('[Deduplication] IndexedDB quota exceeded during deletion:', error);
+        alert('Storage full: Cannot remove duplicate episodes. Please free up space.');
+      } else {
+        console.error('[Deduplication] Failed to delete duplicate episodes:', error);
+      }
     }
 
-    // Also update any history/bookmark/playlist references
+      // Also update any history/bookmark/playlist references
     for (const dupeId of dupeIds) {
       if (db?.history) {
         try {
           await db.history.where("episodeId").equals(dupeId).modify({ episodeId: keeper.id! });
-        } catch (error) {
-          console.error(`[Deduplication] Failed to update history for episode ${dupeId}:`, error);
+        } catch (error: any) {
+          if (error?.name === 'QuotaExceededError') {
+            console.error('[Deduplication] IndexedDB quota exceeded during history update:', error);
+            break;
+          } else {
+            console.error(`[Deduplication] Failed to update history for episode ${dupeId}:`, error);
+          }
         }
       }
       if (db?.bookmarks) {
         try {
           await db.bookmarks.where("episodeId").equals(dupeId).modify({ episodeId: keeper.id! });
-        } catch (error) {
-          console.error(`[Deduplication] Failed to update bookmarks for episode ${dupeId}:`, error);
+        } catch (error: any) {
+          if (error?.name === 'QuotaExceededError') {
+            console.error('[Deduplication] IndexedDB quota exceeded during bookmarks update:', error);
+            break;
+          } else {
+            console.error(`[Deduplication] Failed to update bookmarks for episode ${dupeId}:`, error);
+          }
         }
       }
     }
@@ -215,8 +241,13 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
       let playlists: Playlist[] = [];
       try {
         playlists = (await db.playlists.toArray()) ?? [];
-      } catch (error) {
-        console.error('[Deduplication] Failed to fetch playlists:', error);
+      } catch (error: any) {
+        if (error?.name === 'QuotaExceededError') {
+          console.error('[Deduplication] IndexedDB quota exceeded during playlist fetch:', error);
+          break;
+        } else {
+          console.error('[Deduplication] Failed to fetch playlists:', error);
+        }
         continue;
       }
       
@@ -227,8 +258,13 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
             .filter((id, i, arr) => arr.indexOf(id) === i); // remove duplicates
           try {
             await db.playlists.update(playlist.id!, { episodeIds: newIds });
-          } catch (error) {
-            console.error(`[Deduplication] Failed to update playlist ${playlist.id}:`, error);
+          } catch (error: any) {
+            if (error?.name === 'QuotaExceededError') {
+              console.error('[Deduplication] IndexedDB quota exceeded during playlist update:', error);
+              break;
+            } else {
+              console.error(`[Deduplication] Failed to update playlist ${playlist.id}:`, error);
+            }
           }
         }
       }
@@ -264,8 +300,13 @@ export async function findDuplicateEpisode(
         .startsWith(base)
         .first();
       if (existing) return existing;
-    } catch (error) {
-      console.error('[Deduplication] Failed to query by archiveIdentifier:', error);
+    } catch (error: any) {
+      if (error?.name === 'QuotaExceededError') {
+        console.error('[Deduplication] IndexedDB quota exceeded during duplicate check:', error);
+        alert('Storage full: Cannot check for duplicates. Please free up space.');
+      } else {
+        console.error('[Deduplication] Failed to query by archiveIdentifier:', error);
+      }
     }
   }
 
@@ -277,8 +318,13 @@ export async function findDuplicateEpisode(
         .equals(ep.fileHash)
         .first();
       if (existing) return existing;
-    } catch (error) {
-      console.error('[Deduplication] Failed to query by fileHash:', error);
+    } catch (error: any) {
+      if (error?.name === 'QuotaExceededError') {
+        console.error('[Deduplication] IndexedDB quota exceeded during duplicate check:', error);
+        alert('Storage full: Cannot check for duplicates. Please free up space.');
+      } else {
+        console.error('[Deduplication] Failed to query by fileHash:', error);
+      }
     }
   }
 
