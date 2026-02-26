@@ -116,8 +116,8 @@ export default function LibraryPage() {
 
   // Handle ?episode=ID deep link
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const epId = params.get("episode");
+    const params = new URLSearchParams(window?.location?.search ?? "");
+    const epId = params?.get("episode");
     if (!epId) return;
     const id = parseInt(epId, 10);
     if (isNaN(id)) return;
