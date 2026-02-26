@@ -10,7 +10,18 @@ interface YearNavigatorProps {
 }
 
 export function YearNavigator({ years, currentYear, onYearClick, className }: YearNavigatorProps) {
-  if (years.length === 0) return null;
+  if (years.length === 0) {
+    return (
+      <div
+        className={cn(
+          "hidden md:flex flex-col items-center justify-center gap-[2px] w-[40px] flex-shrink-0 sticky top-0 h-full overflow-auto py-2",
+          className,
+        )}
+      >
+        <div className="text-[8px] text-bevel-dark/50 animate-pulse">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div
