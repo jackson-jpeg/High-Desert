@@ -14,6 +14,8 @@ export function useOscilloscope() {
   const rafRef = useRef<number>(0);
   const tuningRef = useRef(false);
   const tuningTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
   useEffect(() => {
     // Detect reduced motion preference
@@ -50,8 +52,13 @@ export function useOscilloscope() {
     const ro = new ResizeObserver(() => resize());
     ro.observe(canvas);
 
+    // Cache the analyser and source nodes once
+    if (!analyserRef.current) {
+      analyserRef.current = getAnalyserNode();
+    }
+
     const draw = () => {
-      const analyser = getAnalyserNode();
+      const analyser = analyserRef.current;
       const playing = usePlayerStore.getState().playing;
 
       if (tuningRef.current) {
@@ -72,6 +79,16 @@ export function useOscilloscope() {
       ro.disconnect();
       unsub();
       if (tuningTimerRef.current) clearTimeout(tuningTimerRef.current);
+      
+      // Disconnect and release audio nodes to prevent memory leaks
+      if (analyserRef.current) {
+        analyserRef.current.disconnect();
+        analyserRef.current = null;
+      }
+      if (sourceRef.current) {
+        sourceRef.current.disconnect();
+        sourceRef.current = null;
+      }
     };
   }, []);
 
