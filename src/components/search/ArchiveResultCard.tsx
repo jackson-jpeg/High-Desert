@@ -24,7 +24,12 @@ export function ArchiveResultCard({
   className,
   style,
 }: ArchiveResultCardProps) {
-  const date = result.date?.substring(0, 10);
+  // Validate required metadata
+  const hasValidTitle = result.title && result.title.trim().length > 0;
+  const hasValidDate = result.date && result.date.trim().length > 0;
+  const hasValidCreator = result.creator && result.creator.trim().length > 0;
+
+  const date = hasValidDate ? result.date.substring(0, 10) : null;
 
   // Strip HTML tags from description
   const description = result.description
@@ -71,7 +76,7 @@ export function ArchiveResultCard({
 
       {/* Title */}
       <div className="text-[13px] md:text-[11px] text-desktop-gray font-bold truncate">
-        {result.title}
+        {hasValidTitle ? result.title : "Untitled Episode"}
       </div>
 
       {/* Description */}
@@ -84,7 +89,7 @@ export function ArchiveResultCard({
       {/* Action row */}
       <div className="flex items-center justify-between mt-0.5">
         <span className="text-[11px] md:text-[9px] text-bevel-dark/60 truncate">
-          {result.creator ?? "Art Bell"}
+          {hasValidCreator ? result.creator : "Unknown Host"}
         </span>
         <div className="transition-state">
           {isAdded ? (
