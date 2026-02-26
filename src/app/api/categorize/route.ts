@@ -164,12 +164,118 @@ Respond ONLY with a valid JSON array.`;
   } catch (err) {
     console.error("[categorize] Claude error:", err);
     const message = err instanceof Error ? err.message : String(err);
+    
+    // Check if it's a rate limit error
     if (message.includes("429") || message.toLowerCase().includes("rate") || message.toLowerCase().includes("quota")) {
       return NextResponse.json(
         { error: "Rate limited by AI provider" },
         { status: 429, headers: { "Retry-After": "10" } },
       );
     }
-    return NextResponse.json({ error: "AI categorization failed" }, { status: 500 });
+
+    // Try Gemini API as fallback
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    if (!GEMINI_API_KEY) {
+      console.error("[categorize] GEMINI_API_KEY not configured");
+      return NextResponse.json(
+        { error: "AI categorization failed", details: "Claude failed and Gemini key missing" },
+        { status: 500 }
+      );
+    }
+
+    console.log("[categorize] Attempting Gemini fallback...");
+    try {
+      const geminiResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: `Categorize these episodes:
+${JSON.stringify(episodes, null, 2)}` }]
+            }],
+            systemInstruction: {
+              parts: [{ text: systemPrompt }]
+            },
+            generationConfig: {
+              temperature: 0.1,
+              responseMimeType: "application/json",
+            },
+          }),
+        }
+      );
+
+      if (!geminiResponse.ok) {
+        const geminiError = await geminiResponse.text();
+        console.error("[categorize] Gemini API error:", {
+          status: geminiResponse.status,
+          error: geminiError
+        });
+        
+        if (geminiResponse.status === 429) {
+          return NextResponse.json(
+            { error: "Both AI providers rate limited" },
+            { status: 429, headers: { "Retry-After": "30" } },
+          );
+        }
+        
+        return NextResponse.json(
+          { error: "Both AI providers unavailable", details: `Claude failed; Gemini returned ${geminiResponse.status}` },
+          { status: 503 }
+        );
+      }
+
+      const geminiData = await geminiResponse.json();
+      const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+      
+      // Extract JSON from potential markdown code fences
+      const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/) ?? [null, text];
+      const jsonStr = jsonMatch[1]?.trim() ?? text.trim();
+      
+      const results = JSON.parse(jsonStr);
+
+      // Validate response shape
+      if (!Array.isArray(results) || results.length !== episodes.length) {
+        console.error("[categorize] Gemini returned malformed response:", results);
+        return NextResponse.json(
+          { error: "AI categorization failed", details: "Malformed Gemini response" },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({ results });
+    } catch (geminiErr) {
+      console.error("[categorize] Gemini fallback error:", geminiErr);
+      return NextResponse.json(
+        { error: "AI categorization failed", details: "Both Claude and Gemini failed" },
+        { status: 500 }
+      );
+    } "AI returned malformed response", details: "Invalid response format from Gemini" },
+          { status: 502 },
+        );
+      }
+
+      console.log("[categorize] Successfully used Gemini fallback");
+      return NextResponse.json(results);
+      
+    } catch (geminiErr) {
+      console.error("[categorize] Gemini fallback error:", geminiErr);
+      const geminiMessage = geminiErr instanceof Error ? geminiErr.message : String(geminiErr);
+      
+      if (geminiMessage.includes("fetch") || geminiMessage.includes("network")) {
+        return NextResponse.json(
+          { error: "Network error contacting AI providers", details: "Both Claude and Gemini APIs unreachable" },
+          { status: 503 }
+        );
+      }
+      
+      return NextResponse.json(
+        { error: "AI categorization failed", details: "Both Claude and Gemini APIs failed" },
+        { status: 500 }
+      );
+    }
   }
 }
