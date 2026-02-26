@@ -1,6 +1,7 @@
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /api/*
 Disallow: /scanner
 Disallow: /search
 
