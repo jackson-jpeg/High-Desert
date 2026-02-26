@@ -433,7 +433,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           // Mobile: fixed bottom tab bar with glass
           "fixed bottom-0 inset-x-0 z-30 glass-light glass-promote",
           "flex items-stretch justify-around",
-          "pb-[var(--safe-bottom)]",
+          "pb-[var(--safe-bottom)] pl-[var(--safe-left)] pr-[var(--safe-right)]",
           // Desktop: static top nav
           "md:static md:justify-start md:gap-0 md:border-t-0 md:border-b md:border-bevel-dark/15 md:px-2 md:bg-midnight/80 md:backdrop-blur-xs md:pb-0",
         )}
@@ -562,6 +562,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             value={adminPassword}
             onChange={(e) => { setAdminPassword(e.target.value); setAdminError(false); }}
             placeholder="Password"
+            autoComplete="off"
             autoFocus
             className="w-full"
           />

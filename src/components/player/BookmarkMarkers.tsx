@@ -105,6 +105,7 @@ function BookmarkButton({ variant, className }: { variant: "desktop" | "mobile";
           }}
           placeholder="Label..."
           autoFocus
+          aria-label="Bookmark label"
           className="bg-inset-well w98-inset-dark px-2 py-1.5 md:px-1.5 md:py-0.5 text-[16px] md:text-[10px] text-desktop-gray outline-none flex-1 md:w-[100px] md:flex-initial"
         />
         <button

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useSwipeDown } from "@/hooks/useSwipeDown";
+import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
 import { Oscilloscope } from "./Oscilloscope";
 import { PlaybackControls } from "./PlaybackControls";
 import { NowPlaying } from "./NowPlaying";
@@ -46,6 +47,13 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
     targetRef: mobileExpandedRef,
     threshold: 80,
   });
+
+  // Lock body scroll when mobile player is expanded
+  useEffect(() => {
+    if (!mobileExpanded) return;
+    lockScroll();
+    return () => unlockScroll();
+  }, [mobileExpanded]);
 
   // Listen for double-click on status bar now-playing to toggle ultra-mini
   useEffect(() => {
@@ -127,7 +135,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
 
         {showQueue ? (
           /* Queue panel takes full space */
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-auto overscroll-contain">
             <QueuePanel />
           </div>
         ) : (

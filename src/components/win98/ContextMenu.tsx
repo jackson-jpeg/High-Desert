@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useContextMenuStore } from "@/stores/context-menu-store";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils/cn";
+import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
 
 export function ContextMenu() {
   const { open, position, items, hide } = useContextMenuStore();
@@ -34,6 +35,11 @@ function MobileActionSheet({
   items: { label: string; onClick: () => void; disabled?: boolean; separator?: boolean; danger?: boolean }[];
   hide: () => void;
 }) {
+  useEffect(() => {
+    lockScroll();
+    return () => unlockScroll();
+  }, []);
+
   // Close on backdrop click
   return (
     <>
@@ -43,7 +49,7 @@ function MobileActionSheet({
         onClick={hide}
       />
       {/* Sheet */}
-      <div className="fixed bottom-0 inset-x-0 z-[101] glass-heavy rounded-t-2xl overflow-hidden pb-[var(--safe-bottom)] animate-glass-sheet">
+      <div className="fixed bottom-0 inset-x-0 z-[101] glass-heavy rounded-t-2xl overflow-hidden pb-[var(--safe-bottom)] pl-[var(--safe-left)] pr-[var(--safe-right)] animate-glass-sheet">
         {/* Grab handle */}
         <div className="flex justify-center pt-2.5 pb-1">
           <div className="w-8 h-[3px] rounded-full bg-white/15" />

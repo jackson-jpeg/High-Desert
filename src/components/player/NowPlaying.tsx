@@ -28,15 +28,15 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
     <div className={cn("flex items-start gap-2 min-w-0", className)} aria-live="polite">
       <CassetteTape className="hidden md:block flex-shrink-0 mt-0.5" />
       <div className="flex flex-col gap-0.5 min-w-0">
-      <div className="text-[14px] md:text-[11px] text-desktop-gray font-bold truncate">
+      <div className="text-[14px] md:text-[11px] text-desktop-gray font-bold truncate" title={displayTitle}>
         {displayTitle}
       </div>
       {episode.guestName && (
-        <div className="hidden md:block text-[10px] text-static-green/80 truncate">
+        <div className="hidden md:block text-[10px] text-static-green/80 truncate" title={episode.guestName}>
           {episode.guestName}
         </div>
       )}
-      <div className="text-[11px] md:text-[10px] text-bevel-dark/70 truncate">
+      <div className="text-[11px] md:text-[10px] text-bevel-dark/70 truncate" title={[showLabel, episode.airDate].filter(Boolean).join(" \u00B7 ")}>
         {[showLabel, episode.airDate].filter(Boolean).join(" \u00B7 ")}
       </div>
 

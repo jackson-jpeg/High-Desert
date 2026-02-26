@@ -191,6 +191,8 @@ export function SearchPanel() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Search by guest, topic, date, or keyword..."
+                inputMode="search"
+                enterKeyHint="search"
                 className="flex-1"
               />
               <Button size="sm" disabled={loading || !input.trim()}>

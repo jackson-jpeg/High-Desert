@@ -169,7 +169,7 @@ export function TimelineView({
         <div
           ref={containerRef}
           onScroll={onScroll}
-          className="flex-1 overflow-auto"
+          className="flex-1 overflow-auto overscroll-contain"
         >
           <div className="relative p-2" role="listbox" aria-label="Episodes" style={{ height: totalHeight }}>
             {virtualItems.map(({ item: ep, offsetTop }) => (

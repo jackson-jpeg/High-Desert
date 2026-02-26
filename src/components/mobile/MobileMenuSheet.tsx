@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
+import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
 
 interface MobileMenuSheetProps {
   open: boolean;
@@ -37,6 +38,13 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout
     }
   }, [open]);
 
+  // Lock body scroll while sheet is open
+  useEffect(() => {
+    if (!open) return;
+    lockScroll();
+    return () => unlockScroll();
+  }, [open]);
+
   // Escape key closes the sheet
   useEffect(() => {
     if (!open) return;
@@ -65,7 +73,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout
         aria-modal="true"
         aria-label="Menu"
         className={cn(
-          "fixed bottom-0 inset-x-0 z-[101] glass-heavy rounded-t-2xl overflow-hidden pb-[var(--safe-bottom)]",
+          "fixed bottom-0 inset-x-0 z-[101] glass-heavy rounded-t-2xl overflow-hidden pb-[var(--safe-bottom)] pl-[var(--safe-left)] pr-[var(--safe-right)]",
           closing ? "animate-glass-sheet-out" : "animate-glass-sheet",
         )}
       >
@@ -73,7 +81,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout
         <div className="flex justify-center pt-2.5 pb-1">
           <div className="w-8 h-[3px] rounded-full bg-white/15" />
         </div>
-        <div className="flex flex-col max-h-[60vh] overflow-y-auto">
+        <div className="flex flex-col max-h-[60vh] overflow-y-auto overscroll-contain">
           {/* Admin toggle */}
           <button
             onClick={() => {

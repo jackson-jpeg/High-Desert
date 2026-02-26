@@ -148,6 +148,8 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
               onFocus={() => setShowSuggestions(true)}
               onKeyDown={handleKeyDown}
               placeholder="Search episodes... (try guest: year: tag:)"
+              inputMode="search"
+              enterKeyHint="search"
               className="w-full"
               role="combobox"
               aria-expanded={showSuggestions && suggestions.length > 0}

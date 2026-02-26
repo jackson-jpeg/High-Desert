@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { usePlayerStore } from "@/stores/player-store";
 import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
+import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
 
 interface Result {
   id: string;
@@ -69,11 +70,12 @@ export function CommandPalette() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // Focus input when opened
+  // Focus input + lock scroll when opened
   useEffect(() => {
-    if (open) {
-      requestAnimationFrame(() => inputRef.current?.focus());
-    }
+    if (!open) return;
+    lockScroll();
+    requestAnimationFrame(() => inputRef.current?.focus());
+    return () => unlockScroll();
   }, [open]);
 
   const close = useCallback(() => {
@@ -239,12 +241,15 @@ export function CommandPalette() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search episodes, pages, actions..."
-            className="w-full w98-inset-dark bg-inset-well text-desktop-gray text-[14px] md:text-[12px] px-3 py-2 md:py-1.5 outline-none placeholder:text-bevel-dark w98-font"
+            inputMode="search"
+            enterKeyHint="go"
+            aria-label="Search episodes, pages, and actions"
+            className="w-full w98-inset-dark bg-inset-well text-desktop-gray text-[16px] md:text-[12px] px-3 py-2 md:py-1.5 outline-none placeholder:text-bevel-dark w98-font"
           />
         </div>
 
         {/* Results */}
-        <div className="max-h-[320px] overflow-auto py-1">
+        <div className="max-h-[320px] overflow-auto overscroll-contain py-1">
           {results.length === 0 && query.trim() && (
             <div className="px-3 py-4 text-center text-[10px] text-bevel-dark/60">
               No results found

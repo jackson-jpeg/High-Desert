@@ -52,7 +52,7 @@ export function HistoryPanel({ onPlayEpisode, className }: HistoryPanelProps) {
 
   return (
     <Window title="Listening History" variant="dark" className={className}>
-      <div className="p-3 flex flex-col gap-3 max-h-[400px] overflow-auto">
+      <div className="p-3 flex flex-col gap-3 max-h-[400px] overflow-auto overscroll-contain">
         {Array.from(groups.entries()).map(([day, dayEntries]) => (
           <div key={day}>
             <div className="text-[10px] md:text-[8px] text-desert-amber/60 uppercase tracking-wider mb-1.5 font-bold">

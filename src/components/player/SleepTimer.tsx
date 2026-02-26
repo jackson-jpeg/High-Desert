@@ -101,6 +101,7 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
       <input
         ref={customRef}
         type="number"
+        inputMode="numeric"
         min={1}
         max={480}
         value={customMin}
@@ -119,7 +120,7 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
         className={cn(
           "bg-inset-well w98-inset-dark text-desktop-gray text-center outline-none tabular-nums",
           isMobile
-            ? "w-[52px] h-[44px] text-[13px] px-1"
+            ? "w-[52px] h-[44px] text-[16px] px-1"
             : "w-[36px] h-[18px] text-[9px] px-0.5",
         )}
         aria-label="Custom sleep timer minutes"

@@ -198,7 +198,7 @@ export const EpisodeCard = memo(function EpisodeCard({
                 "text-[11px] md:text-[9px] min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors-fast",
                 episode.favoritedAt
                   ? "text-desert-amber"
-                  : "text-bevel-dark/30 md:opacity-0 md:group-hover:opacity-100",
+                  : "text-bevel-dark/50 md:opacity-0 md:group-hover:opacity-100",
               )}
               title={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
               role="button"

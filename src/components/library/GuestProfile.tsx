@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
 import type { Episode } from "@/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
+import { useSwipeDown } from "@/hooks/useSwipeDown";
 import { Button } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
 import { formatDuration } from "@/lib/utils/format";
@@ -17,6 +18,13 @@ interface GuestProfileProps {
 }
 
 export function GuestProfile({ guestName, onPlay, onClose, className }: GuestProfileProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const { swipeHandlers: dragHandlers } = useSwipeDown({
+    onDismiss: onClose,
+    targetRef: panelRef,
+    threshold: 80,
+  });
+
   const episodes = useLiveQuery(
     () => db.episodes.where("guestName").equals(guestName).sortBy("airDate"),
     [guestName],
@@ -62,13 +70,14 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
 
   return (
     <div
+      ref={panelRef}
       className={cn(
         "w98-raised-dark bg-raised-surface flex flex-col animate-slide-up glass-heavy",
         className,
       )}
     >
-      {/* Mobile drag handle */}
-      <div className="flex justify-center pt-2 pb-0.5 md:hidden">
+      {/* Mobile drag handle — swipe down to dismiss */}
+      <div className="flex justify-center pt-2 pb-0.5 md:hidden" {...dragHandlers}>
         <div className="w-8 h-[3px] rounded-full bg-white/15" />
       </div>
 

@@ -133,7 +133,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
           </Button>
         )}
 
-        <div className="flex flex-col gap-1 max-h-[300px] overflow-auto">
+        <div className="flex flex-col gap-1 max-h-[300px] overflow-auto overscroll-contain">
           {playlistEpisodes.map((ep, i) => (
             <div
               key={ep.id}
@@ -178,7 +178,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
                   e.stopPropagation();
                   handleRemoveFromPlaylist(selectedPlaylist.id!, ep.id!);
                 }}
-                className="text-[9px] text-bevel-dark/30 hover:text-red-400 cursor-pointer flex-shrink-0"
+                className="text-[9px] text-bevel-dark/50 hover:text-red-400 cursor-pointer flex-shrink-0"
                 title="Remove from playlist"
                 aria-label="Remove from playlist"
               >
@@ -227,6 +227,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
                 type="text"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
+                aria-label="Playlist name"
                 className="flex-1 bg-inset-well w98-inset-dark px-1 py-0.5 text-[10px] text-desktop-gray outline-none"
                 autoFocus
               />

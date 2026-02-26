@@ -427,7 +427,7 @@ export function EpisodeDetail({
                       "text-[20px] md:text-[11px] cursor-pointer transition-colors-fast min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center",
                       star <= (episode.rating ?? 0)
                         ? "text-desert-amber"
-                        : "text-bevel-dark/30 hover:text-desert-amber/60 active:text-desert-amber/60",
+                        : "text-bevel-dark/50 hover:text-desert-amber/60 active:text-desert-amber/60",
                     )}
                     title={`Rate ${star} star${star !== 1 ? "s" : ""}`}
                     aria-label={`Rate ${star} star${star !== 1 ? "s" : ""}`}

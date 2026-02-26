@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils/cn";
 import { ReactNode, useEffect, useRef, useCallback } from "react";
 import { Window, type WindowProps } from "./Window";
+import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
 
 export interface DialogProps extends Omit<WindowProps, "children"> {
   open: boolean;
@@ -28,6 +29,7 @@ export function Dialog({
   useEffect(() => {
     if (!open) return;
 
+    lockScroll();
     previousFocusRef.current = document.activeElement as HTMLElement;
 
     // Focus first focusable element inside the dialog
@@ -43,6 +45,7 @@ export function Dialog({
 
     // Restore focus on close
     return () => {
+      unlockScroll();
       previousFocusRef.current?.focus();
     };
   }, [open]);

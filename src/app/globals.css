@@ -62,6 +62,8 @@
 html {
   background: #0A0E1A;
   color: #C0C0C0;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -71,6 +73,7 @@ body {
   color: #C0C0C0;
   min-height: 100vh;
   overflow-x: hidden;
+  overscroll-behavior-x: none;
   -webkit-font-smoothing: none;
   -moz-osx-font-smoothing: unset;
 }

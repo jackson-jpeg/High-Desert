@@ -153,7 +153,8 @@ export function QueuePanel() {
             autoFocus
             autoComplete="off"
             spellCheck={false}
-            className="flex-1 bg-inset-well w98-inset-dark px-1.5 py-1.5 md:py-0.5 text-[14px] md:text-[9px] text-desktop-gray outline-none min-h-[44px] md:min-h-0"
+            aria-label="Playlist name"
+            className="flex-1 bg-inset-well w98-inset-dark px-1.5 py-1.5 md:py-0.5 text-[16px] md:text-[9px] text-desktop-gray outline-none min-h-[44px] md:min-h-0"
           />
           <button
             onClick={handleSaveAsPlaylist}
@@ -170,7 +171,7 @@ export function QueuePanel() {
           </button>
         </div>
       )}
-      <div className="max-h-[240px] overflow-auto">
+      <div className="max-h-[240px] overflow-auto overscroll-contain">
         {queue.map((ep, i) => {
           const isCurrent = i === queueIndex;
           const isPast = i < queueIndex;
@@ -235,11 +236,13 @@ export function QueuePanel() {
                 <div className={cn(
                   "text-[12px] md:text-[10px] truncate",
                   isCurrent ? "text-desktop-gray font-bold" : "text-desktop-gray/80",
-                )}>
+                )}
+                  title={ep.title || ep.fileName}
+                >
                   {ep.title || ep.fileName}
                 </div>
                 {(ep.guestName || ep.airDate) && (
-                  <div className="text-[11px] md:text-[9px] text-bevel-dark/60 truncate">
+                  <div className="text-[11px] md:text-[9px] text-bevel-dark/60 truncate" title={[ep.guestName, ep.airDate].filter(Boolean).join(" \u00B7 ")}>
                     {[ep.guestName, ep.airDate].filter(Boolean).join(" \u00B7 ")}
                   </div>
                 )}
@@ -250,7 +253,7 @@ export function QueuePanel() {
                   e.stopPropagation();
                   removeFromQueue(i);
                 }}
-                className="text-[11px] md:text-[9px] text-bevel-dark/30 hover:text-red-400 active:text-red-400 cursor-pointer flex-shrink-0 px-1 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                className="text-[11px] md:text-[9px] text-bevel-dark/50 hover:text-red-400 active:text-red-400 cursor-pointer flex-shrink-0 px-1 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                 title="Remove"
               >
                 {"\u2715"}

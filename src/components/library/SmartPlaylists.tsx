@@ -101,7 +101,7 @@ export function SmartPlaylists({ onPlay, className }: SmartPlaylistsProps) {
 
   return (
     <Window title="Smart Playlists" variant="dark" className={className}>
-      <div className="p-2 flex flex-col gap-0.5 max-h-[350px] overflow-auto">
+      <div className="p-2 flex flex-col gap-0.5 max-h-[350px] overflow-auto overscroll-contain">
         {lists.map((list) => (
           <div key={list.key}>
             <button
