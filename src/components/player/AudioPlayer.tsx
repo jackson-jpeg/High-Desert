@@ -57,6 +57,10 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
 
     // Check autoplay blocking
     const audio = document.createElement('audio');
+    if (!audio) {
+      setNeedsManualPlay(true);
+      return;
+    }
     const playPromise = audio.play();
     if (playPromise !== undefined) {
       playPromise.catch(() => {
@@ -104,6 +108,11 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   const handleRetry = () => {
     clearError(null);
     if (currentEpisode) {
+      const audio = document.querySelector('audio');
+      if (!audio) {
+        setError('Audio element not found');
+        return;
+      }
       window.dispatchEvent(
         new CustomEvent("hd:play-episode", { detail: currentEpisode }),
       );
