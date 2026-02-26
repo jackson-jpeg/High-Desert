@@ -197,6 +197,18 @@ export function CatalogScraper() {
           </div>
         )}
 
+        {phase === "done" && fetched === 0 && (
+          <div className="w98-inset-dark bg-inset-well p-2 text-[10px] text-bevel-dark/90 leading-relaxed">
+            No episodes found in the archive.org catalog. This may be due to:
+            <ul className="list-disc list-inside mt-1 ml-1 text-[9px]">
+              <li>Temporary archive.org API issues</li>
+              <li>Network connectivity problems</li>
+              <li>Search parameters being too restrictive</li>
+            </ul>
+            Please try again later.
+          </div>
+        )}
+
         {phase === "cancelled" && (
           <div className="w98-inset-dark bg-inset-well p-2 text-[10px] text-desert-amber/90 leading-relaxed">
             Import was cancelled. {imported > 0 ? `${imported.toLocaleString()} episodes were imported before cancellation.` : "No episodes were imported."} You can resume from where you left off.
