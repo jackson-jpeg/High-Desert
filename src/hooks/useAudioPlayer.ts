@@ -8,6 +8,7 @@ import {
   resumeContext,
   getMediaElement,
   notifySourceChanged,
+  audioContext,
 } from "@/audio/engine";
 import { db } from "@/db";
 import type { Episode } from "@/db/schema";
@@ -237,16 +238,15 @@ export function useAudioPlayer() {
       audio.removeEventListener("ended", onEnded);
       audio.removeEventListener("error", onError);
       audio.removeEventListener("loadedmetadata", onLoadedMetadata);
-      // Disconnect AudioContext and clean up audio element
-      if (audioRef.current) {
+      // Clean up audio element only if it was created by this hook
+      if (audioRef.current && audioRef.current.src) {
         audioRef.current.pause();
-        audioRef.current.src = "";
-        audioRef.current.load(); // force reset
-      }
-      // Close the AudioContext if it exists
-      const { audioContext } = require("@/audio/engine");
-      if (audioContext && audioContext.state !== "closed") {
-        audioContext.close().catch(() => {});
+        audioRef.current.removeAttribute("src");
+        try {
+          audioRef.current.load();
+        } catch (_) {
+          // ignore if element is already detached
+        }
       }
     };
   }, [getAudio, setError, setPlaying, setDuration]);
@@ -293,6 +293,17 @@ export function useAudioPlayer() {
       audio.removeEventListener("waiting", onWaiting);
       audio.removeEventListener("canplay", onCanPlay);
       audio.removeEventListener("playing", onPlaying);
+      // Disconnect AudioContext and clean up audio element
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current.load(); // force reset
+      }
+      // Close the AudioContext if it exists
+      const { audioContext } = require("@/audio/engine");
+      if (audioContext && audioContext.state !== "closed") {
+        audioContext.close().catch(() => {});
+      }
     };
   }, [getAudio, setPlaying, setDuration, setError]);
 
