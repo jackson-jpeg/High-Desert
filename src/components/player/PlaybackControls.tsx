@@ -115,7 +115,8 @@ export function PlaybackControls({
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setVolume(Number(e.target.value));
+    const clamped = Math.max(0, Math.min(100, Number(e.target.value)));
+    setVolume(clamped);
   };
 
   const cycleRate = () => {
