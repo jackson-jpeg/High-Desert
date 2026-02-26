@@ -8,6 +8,7 @@ import { useContextMenuStore } from "@/stores/context-menu-store";
 import { usePlayerStore } from "@/stores/player-store";
 import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
+import { parseSearch } from "@/lib/utils/search-parser";
 import type { ArchiveSearchResult } from "@/services/archive/types";
 
 const COLLECTIONS = [
@@ -97,9 +98,22 @@ export function SearchPanel() {
   const handleSubmit = useCallback(
     (e: FormEvent) => {
       e.preventDefault();
-      if (input.trim()) {
-        search(input.trim());
+      const trimmed = input.trim();
+      if (!trimmed) return;
+
+      // Validate search parameters
+      const parsed = parseSearch(trimmed);
+      const hasText = parsed.text.length > 0;
+      const hasOperators = Object.keys(parsed).some(
+        (k) => k !== 'text' && parsed[k as keyof typeof parsed] !== undefined && (k !== 'has' || (parsed.has && parsed.has.length > 0))
+      );
+
+      if (!hasText && !hasOperators) {
+        toast.error('Please enter a valid search query');
+        return;
       }
+
+      search(trimmed);
     },
     [input, search],
   );
