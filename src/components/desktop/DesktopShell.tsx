@@ -25,6 +25,22 @@ declare global {
   }
 }
 
+// Helper function for safe electron API access
+const safeOpenExternal = async (url: string) => {
+  if (typeof window !== 'undefined' && window.electronAPI?.openExternal) {
+    try {
+      await window.electronAPI.openExternal(url);
+    } catch (error) {
+      console.error('Failed to open external URL:', error);
+      // Fallback to regular window.open for web environments
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  } else {
+    // Fallback for non-electron environments
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+};
+
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
 import { toast } from "@/stores/toast-store";
@@ -93,7 +109,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
 
   const handleInstall = useCallback(async () => {
     if (!installPrompt) return;
-    await window.electronAPI?.openExternal?.("https://github.com/your-org/your-repo/releases");
+    await safeOpenExternal("https://github.com/your-org/your-repo/releases");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (installPrompt as any).prompt();
     setInstallPrompt(null);
