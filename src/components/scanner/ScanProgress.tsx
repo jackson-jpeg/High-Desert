@@ -23,6 +23,7 @@ export function ScanProgress({ onCancel }: ScanProgressProps) {
     totalFiles > 0 ? Math.round((processedFiles / totalFiles) * 100) : 0;
 
   const isScanning = status === "scanning";
+  const isInitializing = status === "loading";
 
   return (
     <Window
@@ -74,7 +75,7 @@ export function ScanProgress({ onCancel }: ScanProgressProps) {
         )}
 
         {/* Loading state */}
-        {status === "loading" && (
+        {isInitializing && (
           <div className="text-center text-[11px] text-desktop-gray">
             Preparing scan...
           </div>
