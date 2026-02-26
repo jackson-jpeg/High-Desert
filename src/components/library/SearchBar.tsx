@@ -198,6 +198,10 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
             >
               {"\u2715"}
             </button>
+            {searchLoading && (
+              <div className="absolute right-8 md:right-6 top-1/2 -translate-y-1/2">
+                <div className="w-3 h-3 border-2 border-bevel-dark/30 border-t-bevel-dark rounded-full animate-spin"></div>
+              </div>
             )}
 
             {/* Autocomplete dropdown */}
@@ -238,6 +242,11 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
             >
               {isRetrying ? "Retrying..." : "Retry"}
             </button>
+          )}
+          {searchLoading && !searchError && (
+            <span className="text-[11px] md:text-[10px] text-bevel-dark/60 animate-pulse">
+              Searching...
+            </span>
           )}
           <button
             onClick={() => setShowHelp(!showHelp)}
