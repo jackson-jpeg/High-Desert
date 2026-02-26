@@ -79,7 +79,9 @@ export function useAudioPlayer() {
 
       await resumeContext();
       try {
-        await audioRef.current.play();
+        if (audioRef.current) {
+          await audioRef.current.play();
+        }
         setPlaying(true);
 
         // Increment play count in DB
