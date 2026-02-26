@@ -26,7 +26,14 @@ export function initRadioStatic(): void {
       initialized = true;
       return;
     }
-    ctx = new AudioContext();
+    
+    try {
+      ctx = new AudioContext();
+    } catch (e) {
+      console.warn("[radio-static] AudioContext creation failed:", e);
+      initialized = true;
+      return;
+    }
 
     // Generate 2-second noise buffer
     if (!ctx) {
@@ -62,6 +69,10 @@ export function initRadioStatic(): void {
   } catch (error) {
     console.warn("[radio-static] Failed to initialize audio:", error);
     ctx = null;
+    noiseSource = null;
+    noiseBuffer = null;
+    gainNode = null;
+    filterNode = null;
     initialized = true; // Prevent repeated initialization attempts
   }
 }
