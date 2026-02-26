@@ -28,11 +28,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid identifier format. Use only letters, numbers, hyphens, underscores, and periods" }, { status: 400 });
   }
 
-  // Sanitize identifier
-  const sanitized = id.replace(/[^a-zA-Z0-9._-]/g, "");
-  if (!sanitized) {
-    return NextResponse.json({ error: "Invalid id parameter" }, { status: 400 });
-  }
+  const sanitized = id;
 
   // Check archive.org rate limit
   const { rateLimit: archiveRateLimit } = await import('@/lib/utils/rate-limit');
