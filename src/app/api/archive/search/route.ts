@@ -51,21 +51,29 @@ export async function GET(request: NextRequest) {
     );
   }
   
-  // Defense against injection attacks: sanitize input, validate length, and use URL encoding
-  // The sanitized query is URL-encoded and sent to archive.org, not executed locally
+  // Validate parameter types and ranges
   const page = parseInt(searchParams.get("page") ?? "1", 10);
   const rows = parseInt(searchParams.get("rows") ?? "30", 10);
   
-  if (isNaN(page) || page < 1) {
+  if (isNaN(page) || page < 1 || page > 1000) {
     return NextResponse.json(
-      { error: "Invalid page parameter" },
+      { error: "Invalid page parameter (must be 1-1000)" },
       { status: 400 }
     );
   }
   
   if (isNaN(rows) || rows < 1 || rows > 200) {
     return NextResponse.json(
-      { error: "Invalid rows parameter (max 200)" },
+      { error: "Invalid rows parameter (must be 1-200)" },
+      { status: 400 }
+    );
+  }
+  
+  // Validate sort parameter if provided
+  const sort = searchParams.get("sort");
+  if (sort && !/^[a-zA-Z0-9_\s]+\s+(asc|desc)$/i.test(sort)) {
+    return NextResponse.json(
+      { error: "Invalid sort parameter format" },
       { status: 400 }
     );
   }
