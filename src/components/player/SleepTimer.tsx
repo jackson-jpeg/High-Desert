@@ -123,6 +123,10 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
               start(mins);
               setOpen(false);
               setCustomMin("");
+            } else {
+              // Provide visual feedback for invalid input
+              customRef.current?.classList.add('border-red-400');
+              setTimeout(() => customRef.current?.classList.remove('border-red-400'), 1000);
             }
           }
         }}
