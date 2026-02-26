@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils/cn";
 import { Button } from "@/components/win98";
 import type { ArchiveSearchResult } from "@/services/archive/types";
 import { useLongPress } from "@/hooks/useLongPress";
+import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 
 interface ArchiveResultCardProps {
   result: ArchiveSearchResult;
@@ -15,7 +16,7 @@ interface ArchiveResultCardProps {
   style?: React.CSSProperties;
 }
 
-export function ArchiveResultCard({
+function ArchiveResultCardContent({
   result,
   isAdding,
   isAdded,
@@ -109,5 +110,13 @@ export function ArchiveResultCard({
         </div>
       </div>
     </div>
+  );
+}
+
+export function ArchiveResultCard(props: ArchiveResultCardProps) {
+  return (
+    <WidgetErrorBoundary name="ArchiveResultCard">
+      <ArchiveResultCardContent {...props} />
+    </WidgetErrorBoundary>
   );
 }
