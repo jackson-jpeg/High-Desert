@@ -85,6 +85,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Null check for archive metadata response
+    if (!data || data.metadata === null || data.files === null) {
+      return NextResponse.json(
+        { error: "Empty or null metadata response from archive.org" },
+        { status: 502 }
+      );
+    }
+
     // Ensure metadata and files are valid
     if (!metadata || typeof metadata !== 'object') {
       return NextResponse.json(
