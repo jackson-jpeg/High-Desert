@@ -71,7 +71,15 @@ function validateEpisode(ep: any): ep is Episode {
 }
 
 export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
-  const allEpisodes = (await db?.episodes?.toArray()) ?? [];
+  if (!db?.episodes) {
+    return {
+      totalBefore: 0,
+      duplicatesRemoved: 0,
+      groupsMerged: 0,
+    };
+  }
+  
+  const allEpisodes = (await db.episodes.toArray()) ?? [];
   const validEpisodes = allEpisodes.filter(validateEpisode);
   const groups = new Map<string, Episode[]>();
 
@@ -167,18 +175,24 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
 
     // Also update any history/bookmark/playlist references
     for (const dupeId of dupeIds) {
-      await db?.history?.where("episodeId").equals(dupeId).modify({ episodeId: keeper.id! });
-      await db?.bookmarks?.where("episodeId").equals(dupeId).modify({ episodeId: keeper.id! });
+      if (db?.history) {
+        await db.history.where("episodeId").equals(dupeId).modify({ episodeId: keeper.id! });
+      }
+      if (db?.bookmarks) {
+        await db.bookmarks.where("episodeId").equals(dupeId).modify({ episodeId: keeper.id! });
+      }
     }
 
     // Update playlists that reference deleted episodes
-    const playlists = (await db?.playlists?.toArray()) ?? [];
-    for (const playlist of playlists) {
-      if (dupeIds.some((id) => playlist.episodeIds.includes(id))) {
-        const newIds = playlist.episodeIds
-          .map((id) => (dupeIds.includes(id) ? keeper.id! : id))
-          .filter((id, i, arr) => arr.indexOf(id) === i); // remove duplicates
-        await db?.playlists?.update(playlist.id!, { episodeIds: newIds });
+    if (db?.playlists) {
+      const playlists = (await db.playlists.toArray()) ?? [];
+      for (const playlist of playlists) {
+        if (dupeIds.some((id) => playlist.episodeIds.includes(id))) {
+          const newIds = playlist.episodeIds
+            .map((id) => (dupeIds.includes(id) ? keeper.id! : id))
+            .filter((id, i, arr) => arr.indexOf(id) === i); // remove duplicates
+          await db.playlists.update(playlist.id!, { episodeIds: newIds });
+        }
       }
     }
 
@@ -199,22 +213,26 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
 export async function findDuplicateEpisode(
   ep: Partial<Episode>,
 ): Promise<Episode | null> {
+  if (!db?.episodes) {
+    return null;
+  }
+
   // Check by archiveIdentifier first (strongest signal)
   if (ep.archiveIdentifier) {
     const base = ep.archiveIdentifier.split("/")[0];
-    const existing = await db?.episodes
-      ?.where("archiveIdentifier")
-      ?.startsWith(base)
-      ?.first();
+    const existing = await db.episodes
+      .where("archiveIdentifier")
+      .startsWith(base)
+      .first();
     if (existing) return existing;
   }
 
   // Check by fileHash
   if (ep.fileHash) {
-    const existing = await db?.episodes
-      ?.where("fileHash")
-      ?.equals(ep.fileHash)
-      ?.first();
+    const existing = await db.episodes
+      .where("fileHash")
+      .equals(ep.fileHash)
+      .first();
     if (existing) return existing;
   }
 
