@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
 import { SleepTimer } from "./SleepTimer";
@@ -73,6 +73,21 @@ export function PlaybackControls({
   const repeat = usePlayerStore((s) => s.repeat);
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
   const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  const isStreaming = usePlayerStore((s) => !s.objectUrl);
 
   // Seek preview tooltip
   const [seekPreview, setSeekPreview] = useState<{ time: number; x: number } | null>(null);

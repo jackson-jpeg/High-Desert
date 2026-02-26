@@ -93,6 +93,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [callerIdx, setCallerIdx] = useState(0);
   const [callerFade, setCallerFade] = useState(true);
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
+  const [isOnline, setIsOnline] = useState(true);
   const navRef = useRef<HTMLElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const [bottomPadding, setBottomPadding] = useState(112); // fallback
@@ -105,6 +106,19 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     };
     window.addEventListener("beforeinstallprompt", handler);
     return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  // Online/offline state
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
   }, []);
 
   const handleInstall = useCallback(async () => {
@@ -444,7 +458,10 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       )}
     >
       {/* Offline/online banner */}
-      <OfflineIndicator />
+      <OfflineIndicator isOnline={isOnline} />
+      <div className="sr-only" aria-live="polite">
+        {isOnline ? "Online" : "Offline"}
+      </div>
 
       {/* Desert night sky */}
       <Starfield />
