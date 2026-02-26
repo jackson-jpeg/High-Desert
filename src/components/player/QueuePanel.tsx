@@ -200,6 +200,7 @@ export function QueuePanel() {
       )}
       <div className="max-h-[240px] overflow-auto">
         {queue?.map((ep, i) => {
+          if (!ep) return null;
           const isCurrent = i === queueIndex;
           const isPast = i < queueIndex;
           const isDragTarget = dragOver === i && dragFrom !== i;
@@ -264,11 +265,11 @@ export function QueuePanel() {
                   "text-[12px] md:text-[10px] truncate",
                   isCurrent ? "text-desktop-gray font-bold" : "text-desktop-gray/80",
                 )}>
-                  {ep.title || ep.fileName}
+                  {ep?.title || ep?.fileName || "Unknown Episode"}
                 </div>
-                {(ep.guestName || ep.airDate) && (
+                {(ep?.guestName || ep?.airDate) && (
                   <div className="text-[11px] md:text-[9px] text-bevel-dark/60 truncate">
-                    {[ep.guestName, ep.airDate].filter(Boolean).join(" \u00B7 ")}
+                    {[ep?.guestName, ep?.airDate].filter(Boolean).join(" \u00B7 ")}
                   </div>
                 )}
               </div>
