@@ -21,13 +21,25 @@ export async function searchArchive(
   return res.json();
 }
 
+function isValidArchiveIdentifier(identifier: string): boolean {
+  // Archive.org identifiers: alphanumeric, dash, underscore, dot
+  // Must start with alphanumeric, max 100 chars
+  return /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$/.test(identifier);
+}
+
 export async function getArchiveItem(identifier: string): Promise<ArchiveItem> {
+  if (!isValidArchiveIdentifier(identifier)) {
+    throw new Error(`Invalid archive identifier: ${identifier}`);
+  }
   const res = await fetchWithRetry(`/api/archive/metadata?id=${encodeURIComponent(identifier)}`);
   if (!res.ok) throw new Error("Metadata fetch failed");
   return res.json();
 }
 
 export function getStreamUrl(identifier: string, filename: string): string {
+  if (!isValidArchiveIdentifier(identifier)) {
+    throw new Error(`Invalid archive identifier: ${identifier}`);
+  }
   return `https://archive.org/download/${encodeURIComponent(identifier)}/${encodeURIComponent(filename)}`;
 }
 
