@@ -80,19 +80,14 @@ export async function GET(request: NextRequest) {
     }
   }
   
-  // Enhanced sanitization: remove dangerous characters and patterns
-  const q = rawQ
-    .replace(/['"\\<>]/g, "") // Remove quotes, backslashes, angle brackets
-    .replace(/[;|&$`]/g, "") // Remove shell metacharacters
-    .replace(/\b(drop|delete|insert|update|union|select|exec|script|javascript|vbscript)\b/gi, "") // Remove SQL/JS keywords
-    .replace(/\s+/g, " ") // Normalize whitespace
-    .trim();
-  
-  if (q.length < 2 || q.length > 500) {
-    return NextResponse.json({ numFound: 0, docs: [] });
+  // Use URLSearchParams to safely encode the user-supplied query
+  const encodedQ = encodeURIComponent(rawQ.trim());
+
+  if (encodedQ.length < 2 || encodedQ.length > 500) {
+    return NextResponse.json({ error: "Query parameter q is invalid" }, { status: 400 });
   }
 
-  const archiveQuery = `(${q}) AND mediatype:audio AND (creator:"Art Bell" OR title:"Coast to Coast")`;
+  const archiveQuery = `(${encodedQ}) AND mediatype:audio AND (creator:"Art Bell" OR title:"Coast to Coast")`;
   const params = new URLSearchParams({
     q: archiveQuery,
     fl: "identifier,title,date,description,creator,downloads",
