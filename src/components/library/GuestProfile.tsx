@@ -57,7 +57,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
     );
   }
 
-  if (!episodes || !Array.isArray(episodes)) {
+  if (!episodes || !Array.isArray(episodes) || episodes.length === 0) {
     return (
       <div
         className={cn(
