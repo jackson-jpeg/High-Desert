@@ -24,7 +24,10 @@ export function initRadioStatic(): void {
     ctx = new AudioContext();
 
     // Generate 2-second noise buffer
-    if (!ctx) return;
+    if (!ctx) {
+      console.warn("[radio-static] AudioContext creation failed");
+      return;
+    }
     const sampleRate = ctx.sampleRate;
     const length = sampleRate * 2;
     noiseBuffer = ctx.createBuffer(1, length, sampleRate);
@@ -51,9 +54,10 @@ export function initRadioStatic(): void {
     startNoise();
 
     initialized = true;
-  } catch {
-    // Web Audio not available
+  } catch (error) {
+    console.warn("[radio-static] Failed to initialize audio:", error);
     ctx = null;
+    initialized = true; // Prevent repeated initialization attempts
   }
 }
 
@@ -80,7 +84,10 @@ function startNoise(): void {
  * signalStrength=0 → full static, signalStrength=1 → silent
  */
 export function setStaticVolume(signalStrength: number): void {
-  if (!gainNode || !ctx) return;
+  if (!gainNode || !ctx) {
+    console.warn("[radio-static] Cannot set volume: audio not initialized");
+    return;
+  }
 
   // Resume context if suspended (browser autoplay policy)
   if (ctx.state === "suspended") {
@@ -103,27 +110,34 @@ export function muteStatic(): void {
  * Play a short lock tone (880Hz sine, 150ms decay).
  */
 export function playLockTone(): void {
-  if (!ctx) return;
+  if (!ctx) {
+    console.warn("[radio-static] Cannot play lock tone: audio not initialized");
+    return;
+  }
 
   // Resume context if needed
   if (ctx.state === "suspended") {
     ctx.resume().catch((err) => { console.warn("[radio-static] Failed to resume context:", err); });
   }
 
-  const osc = ctx.createOscillator();
-  const env = ctx.createGain();
+  try {
+    const osc = ctx.createOscillator();
+    const env = ctx.createGain();
 
-  osc.type = "sine";
-  osc.frequency.value = 880;
+    osc.type = "sine";
+    osc.frequency.value = 880;
 
-  env.gain.value = 0.12;
-  env.gain.setTargetAtTime(0, ctx.currentTime + 0.01, 0.04);
+    env.gain.value = 0.12;
+    env.gain.setTargetAtTime(0, ctx.currentTime + 0.01, 0.04);
 
-  osc.connect(env);
-  env.connect(ctx.destination);
+    osc.connect(env);
+    env.connect(ctx.destination);
 
-  osc.start(ctx.currentTime);
-  osc.stop(ctx.currentTime + 0.15);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.15);
+  } catch (error) {
+    console.warn("[radio-static] Failed to play lock tone:", error);
+  }
 }
 
 /**
