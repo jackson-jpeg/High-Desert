@@ -83,7 +83,7 @@ export function ScanProgress({ onCancel }: ScanProgressProps) {
         {/* Error messages */}
         {status === "error" && errorMessages.length > 0 && (
           <div className="w98-inset-dark bg-inset-well p-2 max-h-32 overflow-y-auto">
-            <div className="text-[10px] text-red-400 font-bold mb-1">Errors:</div>
+            <div className="text-[10px] text-red-400 font-bold mb-1">File Reading Errors:</div>
             {errorMessages.map((msg, idx) => (
               <div key={idx} className="text-[10px] text-red-400 break-words">
                 • {msg}
@@ -92,20 +92,26 @@ export function ScanProgress({ onCancel }: ScanProgressProps) {
           </div>
         )}
 
-        {/* Cancel / Close button */}
-        {isScanning ? (
-          <div className="flex justify-end">
+        {/* Action buttons */}
+        <div className="flex justify-end gap-2">
+          {status === "error" && (
+            <Button 
+              variant="dark" 
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </Button>
+          )}
+          {isScanning ? (
             <Button variant="dark" onClick={onCancel}>
               Cancel
             </Button>
-          </div>
-        ) : (
-          <div className="flex justify-end">
+          ) : (
             <Button variant="dark" onClick={onCancel}>
               Close
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </Window>
   );
