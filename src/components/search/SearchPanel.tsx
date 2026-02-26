@@ -279,7 +279,7 @@ export function SearchPanel() {
         ) : (
           <>
             <div className="flex flex-col gap-[3px] px-3 py-3">
-              {results && results.length > 0 && results.map((result, i) => (
+              {results && Array.isArray(results) && results.length > 0 && results.map((result, i) => (
                 <ArchiveResultCard
                   key={result.identifier}
                   result={result}
