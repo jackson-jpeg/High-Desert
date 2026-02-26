@@ -2,6 +2,8 @@
 
 import type { Episode } from "@/db/schema";
 import { cn } from "@/lib/utils/cn";
+import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
+import { RecentlyPlayedSkeleton } from "./RecentlyPlayedSkeleton";
 
 interface RecentlyPlayedProps {
   episodes: Episode[];
@@ -40,19 +42,20 @@ export function RecentlyPlayed({ episodes, onPlay, compact, className }: Recentl
   const displayEpisodes = compact ? validEpisodes.slice(0, 4) : validEpisodes;
 
   return (
-    <div className={cn("flex flex-col gap-1", className)}>
-      {!compact && (
-        <div className="px-1">
-          <span className="text-[11px] md:text-[9px] text-bevel-dark/60 uppercase tracking-wider">
-            Recently Played
-          </span>
-        </div>
-      )}
-      <div className={cn(
-        "flex gap-2 overflow-x-auto scrollbar-thin",
-        compact ? "pb-0.5" : "pb-1.5 snap-x snap-mandatory md:snap-none",
-      )}>
-        {displayEpisodes.map((ep) => {
+    <WidgetErrorBoundary name="RecentlyPlayed">
+      <div className={cn("flex flex-col gap-1", className)}>
+        {!compact && (
+          <div className="px-1">
+            <span className="text-[11px] md:text-[9px] text-bevel-dark/60 uppercase tracking-wider">
+              Recently Played
+            </span>
+          </div>
+        )}
+        <div className={cn(
+          "flex gap-2 overflow-x-auto scrollbar-thin",
+          compact ? "pb-0.5" : "pb-1.5 snap-x snap-mandatory md:snap-none",
+        )}>
+          {displayEpisodes.map((ep) => {
           if (!ep) return null;
           const hasProgress = typeof ep?.playbackPosition === 'number' && 
             typeof ep?.duration === 'number' && 
@@ -108,6 +111,8 @@ export function RecentlyPlayed({ episodes, onPlay, compact, className }: Recentl
           );
         })}
       </div>
-    </div>
+        </div>
+      </div>
+    </WidgetErrorBoundary>
   );
 }
