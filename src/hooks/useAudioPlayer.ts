@@ -111,12 +111,14 @@ export function useAudioPlayer() {
     await resumeContext();
 
     if (playing) {
-      audio.pause();
+      if (audio) {
+        audio.pause();
+      }
       setPlaying(false);
     } else {
       try {
-        if (audioRef.current) {
-          await audioRef.current.play();
+        if (audio) {
+          await audio.play();
           setPlaying(true);
         }
       } catch (err) {
