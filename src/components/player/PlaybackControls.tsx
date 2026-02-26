@@ -193,13 +193,13 @@ export function PlaybackControls({
             type="range"
             min={0}
             max={duration || 0}
-            value={position}
+            value={position || 0}
             onChange={handleScrub}
             role="slider"
             aria-label="Seek position"
             aria-valuemin={0}
             aria-valuemax={duration || 0}
-            aria-valuenow={position}
+            aria-valuenow={position || 0}
             aria-valuetext={formatTime(position)}
             className="w-full h-[20px] md:h-[6px] w98-range-dark cursor-pointer relative z-[1]"
           />

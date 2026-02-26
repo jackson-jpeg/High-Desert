@@ -148,7 +148,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
               type="range"
               min={0}
               max={duration || 0}
-              value={position}
+              value={position || 0}
               onChange={(e) => seek(Number(e.target.value))}
               disabled={!duration}
               className="flex-1 h-[8px] w98-range-dark cursor-pointer"
@@ -252,7 +252,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
             type="range"
             min={0}
             max={duration || 0}
-            value={position}
+            value={position || 0}
             onChange={(e) => seek(Number(e.target.value))}
             disabled={!duration}
             className="w-[80px] h-[2px] w98-range-dark cursor-pointer flex-shrink-0"
