@@ -31,7 +31,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
       setPlaylistEpisodes([]);
       return;
     }
-    const episodes = await db.episodes.where("id").anyOf(playlist.episodeIds).toArray();
+    const episodes = await db.episodes.where("id").anyOf(playlist.episodeIds ?? []).toArray();
     // Preserve order
     const byId = new Map(episodes.map((e) => [e.id, e]));
     const orderedEpisodes = playlist.episodeIds
@@ -122,7 +122,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
             {selectedPlaylist.name}
           </span>
           <span className="text-[11px] md:text-[9px] text-bevel-dark tabular-nums">
-            {playlistEpisodes.length} ep{playlistEpisodes.length !== 1 ? "s" : ""}
+            {(playlistEpisodes?.length ?? 0)} ep{(playlistEpisodes?.length ?? 0) !== 1 ? "s" : ""}
           </span>
         </div>
 
@@ -130,14 +130,14 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
           <div className="text-[9px] text-bevel-dark/70">{selectedPlaylist.description}</div>
         )}
 
-        {playlistEpisodes.length > 0 && (
+        {(playlistEpisodes?.length ?? 0) > 0 && (
           <Button variant="dark" size="sm" onClick={handlePlayAll}>
             Play All
           </Button>
         )}
 
         <div className="flex flex-col gap-1 max-h-[300px] overflow-auto">
-          {playlistEpisodes.map((ep, i) => (
+          {(playlistEpisodes ?? []).map((ep, i) => (
             <div
               key={ep.id}
               className="flex items-center gap-2 px-2.5 py-2 md:py-1.5 w98-raised-dark bg-card-surface min-h-[44px] md:min-h-0 cursor-pointer hover:bg-title-bar-blue/15 active:bg-title-bar-blue/20 transition-colors-fast group/ep"
@@ -159,7 +159,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
                 <span className="text-[8px] text-bevel-dark/50 tabular-nums w-[14px] text-center">{i + 1}</span>
                 <button
                 onClick={(e) => { e.stopPropagation(); handleMoveEpisode(selectedPlaylist!.id, i, i + 1); }}
-                disabled={i === playlistEpisodes.length - 1}
+                disabled={i === (playlistEpisodes?.length ?? 0) - 1}
                   className={cn(
                     "text-[10px] md:text-[8px] cursor-pointer leading-none min-w-[24px] min-h-[24px] md:min-w-0 md:min-h-0 flex items-center justify-center",
                     "md:opacity-0 md:group-hover/ep:opacity-100 transition-opacity",
@@ -191,7 +191,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
           ))}
         </div>
 
-        {playlistEpisodes.length === 0 && (
+        {(playlistEpisodes?.length ?? 0) === 0 && (
           <div className="text-[11px] md:text-[9px] text-bevel-dark/50 text-center py-4">
             {"Right-click episodes to add them to this playlist."}
           </div>
