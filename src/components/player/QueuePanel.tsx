@@ -47,9 +47,16 @@ export function QueuePanel() {
     const state = usePlayerStore.getState();
     if (!state || typeof state.playFromQueue !== 'function') return;
     
+    // Check if audio element is available
+    const audio = document.querySelector('audio');
+    if (!audio) {
+      toast.error('Audio player not available. Please refresh the page.');
+      return;
+    }
+    
     // Check if audio context is available before attempting to play
     if (typeof window !== 'undefined' && !window.AudioContext && !(window as any).webkitAudioContext) {
-      console.warn('Audio context not available');
+      toast.error('Audio playback not supported in this browser.');
       return;
     }
     
