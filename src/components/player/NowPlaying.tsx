@@ -13,6 +13,7 @@ interface NowPlayingProps {
 export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
   const episode = usePlayerStore((s) => s.currentEpisode);
   const buffering = usePlayerStore((s) => s.buffering);
+  const audio = typeof document !== 'undefined' ? document.querySelector('audio') : null;
 
   if (!episode) {
     return (
