@@ -213,8 +213,18 @@ export function RadioDial({ episodes }: RadioDialProps) {
     }
 
     return (
-      <div className="flex items-center justify-center h-full text-bevel-dark text-[11px]">
-        Loading station index...
+      <div className="flex flex-col items-center justify-center h-full gap-4 px-4">
+        <div className="w-full max-w-[280px] space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-3 bg-desert-amber/20 animate-pulse rounded-sm"></div>
+            <div className="h-3 flex-1 bg-desert-amber/10 animate-pulse rounded-sm"></div>
+          </div>
+          <div className="h-4 bg-desert-amber/10 animate-pulse rounded-sm"></div>
+          <div className="h-2 bg-desert-amber/5 animate-pulse rounded-sm w-3/4"></div>
+        </div>
+        <div className="text-[11px] text-bevel-dark/60 animate-pulse">
+          Calibrating radio dial...
+        </div>
       </div>
     );
   }
