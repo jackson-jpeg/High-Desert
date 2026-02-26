@@ -124,7 +124,7 @@ function ScanResultsContent({ className }: ScanResultsProps) {
           <tbody>
             {episodes?.map((ep) => (
               <tr
-                key={ep.id}
+                key={ep?.id}
                 className="border-b border-bevel-dark/10 hover:bg-title-bar-blue/20 transition-colors-fast"
               >
                 <td className="px-2 py-1 text-desert-amber whitespace-nowrap">
@@ -149,7 +149,7 @@ function ScanResultsContent({ className }: ScanResultsProps) {
 
         {/* Mobile: stacked cards */}
         <div className="flex flex-col gap-[2px] md:hidden">
-          {episodes?.map((ep) => (
+            {episodes?.map((ep) => (
             <div
               key={ep?.id}
               className="p-3 min-h-[56px] border-b border-bevel-dark/10 active:bg-title-bar-blue/10"
