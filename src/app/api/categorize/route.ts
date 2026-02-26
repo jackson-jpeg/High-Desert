@@ -49,9 +49,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Payload too large" }, { status: 413 });
   }
 
-  const { episodes } = (await request.json()) as { episodes: EpisodeInput[] };
+  let body: { episodes: EpisodeInput[] };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+  }
 
-  if (!episodes?.length) {
+  const { episodes } = body;
+
+  if (!Array.isArray(episodes)) {
+    return NextResponse.json({ error: "Episodes must be an array" }, { status: 400 });
+  }
+
+  if (!episodes.length) {
     return NextResponse.json({ error: "No episodes provided" }, { status: 400 });
   }
 
@@ -61,6 +72,31 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
+
+  // Sanitize episode inputs to prevent prompt injection
+  const sanitizeString = (str: unknown, maxLen: number): string | undefined => {
+    if (typeof str !== 'string') return undefined;
+    // Remove control characters and limit length
+    return str
+      .replace(/[\x00-\x1F\x7F]/g, '') // strip control chars
+      .replace(/\s+/g, ' ')             // collapse whitespace
+      .trim()
+      .slice(0, maxLen);
+  };
+
+  const sanitizedEpisodes = episodes.map(ep => ({
+    id: typeof ep.id === 'number' && Number.isInteger(ep.id) && ep.id > 0 ? ep.id : undefined,
+    title: sanitizeString(ep.title, 500),
+    fileName: sanitizeString(ep.fileName, 500),
+    airDate: sanitizeString(ep.airDate, 50),
+    guestName: sanitizeString(ep.guestName, 200),
+    description: sanitizeString(ep.description, 2000),
+    archiveIdentifier: sanitizeString(ep.archiveIdentifier, 100),
+    source: sanitizeString(ep.source, 50),
+    artist: sanitizeString(ep.artist, 200),
+    topic: sanitizeString(ep.topic, 200),
+    showType: sanitizeString(ep.showType, 50),
+  }));
 
   // Check cache for existing responses
   const episodeIds = episodes.map(ep => ep.id).filter(Boolean);
@@ -171,7 +207,7 @@ Respond ONLY with a valid JSON array.`;
       model: "claude-sonnet-4-5-20250929",
       max_tokens: 4096,
       system: systemPrompt,
-      messages: [{ role: "user", content: `Categorize these episodes:\n${JSON.stringify(episodes, null, 2)}` }],
+      messages: [{ role: "user", content: `Categorize these episodes:\n${JSON.stringify(sanitizedEpisodes, null, 2)}` }],
     });
 
     const textBlock = response.content.find((b) => b.type === "text");
@@ -255,7 +291,7 @@ Respond ONLY with a valid JSON array.`;
           body: JSON.stringify({
             contents: [{
               parts: [{ text: `Categorize these episodes:
-${JSON.stringify(episodes, null, 2)}` }]
+${JSON.stringify(sanitizedEpisodes, null, 2)}` }]
             }],
             systemInstruction: {
               parts: [{ text: systemPrompt }]
