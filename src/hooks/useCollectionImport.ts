@@ -133,6 +133,10 @@ export function useCollectionImport() {
 
         update({ currentFile: file.name });
 
+        // Optimistic increment
+        const optimisticKey = `archive:${info.identifier}:${file.name}`;
+        update({ imported: progress.imported + 1 });
+
         try {
           const fileHash = `archive:${info.identifier}:${file.name}`;
 
@@ -143,8 +147,8 @@ export function useCollectionImport() {
           });
 
           if (existing) {
-            duplicates++;
-            update({ duplicates });
+            // Rollback optimistic increment and add duplicate
+            update({ imported: progress.imported, duplicates: progress.duplicates + 1 });
             continue;
           }
 
@@ -179,8 +183,7 @@ export function useCollectionImport() {
           };
 
           await db.episodes.add(episode as Episode);
-          imported++;
-          update({ imported });
+          // Final count already reflected by optimistic update
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           addError(`${file.name}: ${msg}`);
