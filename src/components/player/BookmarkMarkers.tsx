@@ -46,7 +46,13 @@ export function BookmarkMarkers(props: Props) {
     return <BookmarkButton variant={props.variant ?? "desktop"} className={props.className} />;
   }
 
-  if (!bookmarks || bookmarks.length === 0 || !duration) return null;
+  if (!bookmarks || bookmarks.length === 0 || !duration) {
+    return (
+      <div className={cn("text-[11px] text-bevel-dark/70 px-2 py-1", props.className)}>
+        No bookmarks available
+      </div>
+    );
+  }
 
   return (
     <div className={cn("absolute inset-0 pointer-events-none", props.className)}>
@@ -60,7 +66,9 @@ export function BookmarkMarkers(props: Props) {
             onClick={(e) => {
               e.stopPropagation();
               const audio = document.querySelector("audio");
-              if (audio && audio.currentTime !== undefined) audio.currentTime = bm.position;
+              if (audio && typeof audio.currentTime === 'number') {
+                audio.currentTime = bm.position;
+              }
               usePlayerStore.getState().setPosition(bm.position);
             }}
             title={`${bm.label} (${formatTime(bm.position)})`}
