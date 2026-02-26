@@ -21,7 +21,7 @@ type SmartList = {
   episodes: Episode[];
 };
 
-export function SmartPlaylists({ onPlay, className }: SmartPlaylistsProps) {
+function SmartPlaylistsContent({ onPlay, className }: SmartPlaylistsProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const allEpisodes = useLiveQuery(
@@ -166,5 +166,19 @@ export function SmartPlaylists({ onPlay, className }: SmartPlaylistsProps) {
         ))}
       </div>
     </Window>
+  );
+}
+
+import { SmartPlaylistErrorBoundary } from "./SmartPlaylistErrorBoundary";
+
+export function SmartPlaylists({ onPlay, className }: SmartPlaylistsProps) {
+  return (
+    <SmartPlaylistErrorBoundary>
+      <SmartPlaylistsContent onPlay={onPlay} className={className} />
+    </SmartPlaylistErrorBoundary>
+  );
+}rrorBoundary>
+      <SmartPlaylistsContent onPlay={onPlay} className={className} />
+    </SmartPlaylistErrorBoundary>
   );
 }
