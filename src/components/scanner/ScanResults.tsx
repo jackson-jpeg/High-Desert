@@ -53,7 +53,7 @@ function ScanResultsContent({ className }: ScanResultsProps) {
     );
   }
 
-  if (!episodes) {
+  if (!episodes || !Array.isArray(episodes)) {
     return (
       <Window title="Library" variant="dark" className={className}>
         <div className="p-4 text-[11px] text-red-400">
