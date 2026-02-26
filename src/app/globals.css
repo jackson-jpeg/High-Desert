@@ -40,6 +40,40 @@
   --font-mono: "JetBrains Mono", "Fira Code", monospace;
 }
 
+/* Dark mode overrides */
+:root[data-theme="dark"] {
+  --color-midnight: #0A0E1A;
+  --color-desktop-gray: #C0C0C0;
+  --color-title-bar-blue: #000080;
+  --color-highlight-blue: #0A246A;
+  --color-desert-amber: #D4A843;
+  --color-static-green: #4ADE80;
+  --color-static-green-bright: #33FF33;
+  --color-phosphor-amber: #FFB000;
+  --color-card-surface: #111827;
+  --color-inset-well: #080C16;
+  --color-raised-surface: #1A1F33;
+  --color-bevel-light: #DFDFDF;
+  --color-bevel-dark: #808080;
+}
+
+/* Light mode overrides */
+:root[data-theme="light"] {
+  --color-midnight: #F5F5F5;
+  --color-desktop-gray: #404040;
+  --color-title-bar-blue: #0050C0;
+  --color-highlight-blue: #003D92;
+  --color-desert-amber: #B8860B;
+  --color-static-green: #228B22;
+  --color-static-green-bright: #00AA00;
+  --color-phosphor-amber: #CC7000;
+  --color-card-surface: #FFFFFF;
+  --color-inset-well: #E5E5E5;
+  --color-raised-surface: #FFFFFF;
+  --color-bevel-light: #FFFFFF;
+  --color-bevel-dark: #A0A0A0;
+}
+
 /* ============================================
    Safe Area CSS Variables
    ============================================ */
@@ -60,15 +94,16 @@
 }
 
 html {
-  background: #0A0E1A;
-  color: #C0C0C0;
+  background: var(--color-midnight);
+  color: var(--color-desktop-gray);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 body {
   font-family: var(--font-w95);
   font-size: 13px;
-  background: #0A0E1A;
-  color: #C0C0C0;
+  background: var(--color-midnight);
+  color: var(--color-desktop-gray);
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: none;

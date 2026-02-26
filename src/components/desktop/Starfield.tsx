@@ -100,7 +100,9 @@ export function Starfield() {
 
         ctx.beginPath();
         ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(170, 195, 235, ${a})`;
+        const isDark = document.documentElement.dataset.theme !== 'light';
+        const starColor = isDark ? '170, 195, 235' : '100, 100, 100';
+        ctx.fillStyle = `rgba(${starColor}, ${a})`;
         ctx.fill();
       }
 
@@ -134,7 +136,9 @@ export function Starfield() {
             ctx.beginPath();
             ctx.moveTo(x1, y1);
             ctx.lineTo(x2, y2);
-            ctx.strokeStyle = `rgba(210, 225, 255, ${sa})`;
+            const isDark = document.documentElement.dataset.theme !== 'light';
+            const trailColor = isDark ? '210, 225, 255' : '150, 150, 150';
+            ctx.strokeStyle = `rgba(${trailColor}, ${sa})`;
             ctx.lineWidth = 1.5 - t;
             ctx.stroke();
           }
@@ -142,7 +146,9 @@ export function Starfield() {
           // Bright head
           ctx.beginPath();
           ctx.arc(m.x, m.y, 1, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255, 255, 255, ${fade * 0.7})`;
+          const isDark = document.documentElement.dataset.theme !== 'light';
+          const headColor = isDark ? '255, 255, 255' : '0, 0, 0';
+          ctx.fillStyle = `rgba(${headColor}, ${fade * 0.7})`;
           ctx.fill();
 
           return m.life < m.maxLife;

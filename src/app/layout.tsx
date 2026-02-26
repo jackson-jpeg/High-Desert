@@ -98,7 +98,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className={`${w95fa.variable} bg-midnight antialiased`}>
+      <body className={`${w95fa.variable} bg-midnight antialiased`} data-theme="dark">
         {/* Inline loading screen — CRT boot sequence on first visit, quick splash on return */}
         <style
           dangerouslySetInnerHTML={{
@@ -169,6 +169,12 @@ export default function RootLayout({
                 var isFirstVisit = !localStorage.getItem('hd-booted');
                 var bootContainer = document.getElementById('boot-container');
                 var quickSplash = document.getElementById('quick-splash');
+
+                // Theme initialization
+                var savedTheme = localStorage.getItem('hd-theme');
+                var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var theme = savedTheme || (prefersDark ? 'dark' : 'light');
+                document.documentElement.dataset.theme = theme;
 
                 if (isFirstVisit && bootContainer) {
                   bootContainer.style.display = 'flex';
