@@ -81,6 +81,14 @@ export async function GET(request: NextRequest) {
     const metadata = data.metadata as Record<string, unknown> | undefined;
     const files = data.files as Record<string, unknown>[] | undefined;
 
+    // Null check for archive metadata response
+    if (!data.metadata && !data.files) {
+      return NextResponse.json(
+        { error: "Empty metadata response from archive.org" },
+        { status: 502 }
+      );
+    }
+
     // Ensure metadata and files are valid
     if (!metadata || typeof metadata !== 'object') {
       return NextResponse.json(
