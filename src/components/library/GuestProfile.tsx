@@ -182,7 +182,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
         </div>
         
         {/* Profile Image */}
-        {episodes[0]?.guestImage && isValidImageUrl(episodes[0].guestImage) && (
+        {episodes && episodes.length > 0 && episodes[0] && episodes[0].guestImage && isValidImageUrl(episodes[0].guestImage) && (
           <img 
             src={episodes[0].guestImage} 
             alt={`${guestName} profile`}
