@@ -22,26 +22,7 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
     );
   }
 
-  const hasMetadata = episode.title || episode.fileName;
-  if (!hasMetadata) {
-    return (
-      <div className={cn("flex items-start gap-2 min-w-0", className)} aria-live="polite">
-        <CassetteTape className="hidden md:block flex-shrink-0 mt-0.5 animate-pulse" />
-        <div className="flex flex-col gap-0.5 min-w-0">
-          <div className="text-[14px] md:text-[11px] text-desktop-gray/50 font-bold truncate">
-            Loading episode...
-          </div>
-          {buffering && (
-            <div className="text-[10px] text-desert-amber/70 animate-pulse">
-              Buffering...
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  const displayTitle = episode.title || episode.fileName;
+  const displayTitle = episode.title || episode.fileName || "Unknown Track";
   const showLabel = getShowLabel(episode.showType) ?? "";
 
   return (
