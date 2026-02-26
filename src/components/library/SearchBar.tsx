@@ -131,7 +131,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
             selectSuggestion(suggestions[activeIdx]);
           } else {
             e.preventDefault();
-            if (!value.trim()) {
+            if (!value?.trim()) {
               toast.error("Please enter a search query");
             } else {
               handleSearch();
@@ -147,7 +147,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
     const typeLabels: Record<string, string> = { guest: "Guest", category: "Category", year: "Year", recent: "Recent" };
 
     const handleSearch = useCallback(async () => {
-      const trimmed = value.trim();
+      const trimmed = value?.trim();
       if (!trimmed) {
         toast.error("Please enter a search query");
         return;
