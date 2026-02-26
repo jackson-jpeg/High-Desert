@@ -17,6 +17,13 @@ interface PlaylistPanelProps {
 
 export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) {
   const playlists = useLiveQuery(() => db.playlists.orderBy("createdAt").reverse().toArray(), []) ?? [];
+  const validPlaylists = playlists.filter((p): p is Playlist => 
+    p && 
+    typeof p.id === 'number' && 
+    typeof p.name === 'string' && 
+    Array.isArray(p.episodeIds) && 
+    typeof p.createdAt === 'number'
+  );
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [playlistEpisodes, setPlaylistEpisodes] = useState<Episode[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
@@ -229,7 +236,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
         </button>
       </div>
 
-      {playlists.length === 0 && (
+      {validPlaylists.length === 0 && (
         <div className="p-4 flex flex-col items-center justify-center text-center min-h-[120px]">
           <div className="text-[13px] text-desktop-gray font-bold mb-1">No Playlists</div>
           <div className="text-[11px] md:text-[9px] text-bevel-dark/60 mb-3">Create your first playlist to get started.</div>
@@ -242,7 +249,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
         </div>
       )}
 
-      {playlists.map((pl) => pl && (
+      {validPlaylists.map((pl) => pl && (
         <div key={pl.id} className="flex items-center gap-1 group">
           {editingId === pl.id ? (
             <form
