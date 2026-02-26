@@ -88,8 +88,13 @@ export function SearchPanel() {
         return;
       }
 
-      if (trimmed.length > 200) {
-        toast.error('Search query too long (max 200 characters)');
+      if (trimmed.length === 0) {
+        toast.error('Search query cannot be empty');
+        return;
+      }
+
+      if (trimmed.length > 100) {
+        toast.error('Search query too long (max 100 characters)');
         return;
       }
 
