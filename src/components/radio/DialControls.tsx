@@ -26,15 +26,43 @@ export function DialControls({
   const [manualFreq, setManualFreq] = useState("");
 
   const handleFrequencyInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/[^0-9]/g, "");
+    const raw = e.target.value.replace(/[^0-9.]/g, "");
     if (!raw) {
       setManualFreq("");
       return;
     }
-    const num = parseInt(raw, 10);
-    const clamped = Math.max(530, Math.min(1700, num));
+    
+    // Handle both AM (kHz) and FM (MHz) ranges
+    const num = parseFloat(raw);
+    let clamped: number;
+    let band: 'AM' | 'FM';
+    
+    // Determine band based on input value
+    if (num >= 530 && num <= 1700) {
+      // AM band (530-1700 kHz)
+      clamped = Math.max(530, Math.min(1700, num));
+      band = 'AM';
+    } else if (num >= 87.5 && num <= 108.0) {
+      // FM band (87.5-108.0 MHz)
+      clamped = Math.max(87.5, Math.min(108.0, num));
+      band = 'FM';
+    } else if (num < 530) {
+      // Default to AM for low values
+      clamped = 530;
+      band = 'AM';
+    } else {
+      // Default to FM for high values
+      clamped = 108.0;
+      band = 'FM';
+    }
+    
     setManualFreq(clamped.toString());
-    tune(clamped - 530);
+    
+    // Convert to internal frequency index
+    // For AM: 530-1700 kHz maps to 0-1170
+    // For FM: 87.5-108.0 MHz maps to 1171-1396 (offset by 1171)
+    const internalFreq = band === 'AM' ? clamped - 530 : Math.round((clamped - 87.5) * 10) + 1171;
+    tune(Math.max(0, internalFreq));
   }, [tune]);
 
   useEffect(() => {
@@ -83,10 +111,10 @@ export function DialControls({
         type="text"
         value={manualFreq}
         onChange={handleFrequencyInput}
-        placeholder="530-1700"
-        maxLength={4}
+        placeholder="530-1700 kHz / 87.5-108.0 MHz"
+        maxLength={5}
         className="w-16 px-1.5 py-0.5 text-[10px] text-center bg-black/30 border border-bevel-dark/50 rounded font-mono text-desert-amber/80 focus:outline-none focus:border-desert-amber/60"
-        aria-label="Manual frequency input (kHz)"
+        aria-label="Manual frequency input (kHz or MHz)"
       />
       <Button
         variant="dark"
