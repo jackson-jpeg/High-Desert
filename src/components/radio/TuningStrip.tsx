@@ -165,6 +165,11 @@ export function TuningStrip({ index, className }: TuningStripProps) {
 
       // --- Episode tick marks ---
       // Only render stations within viewport
+      if (!index.stations || index.stations.length === 0) {
+        animId = requestAnimationFrame(render);
+        return;
+      }
+
       const startIdx = binarySearchLower(index.stations, viewStart - 5);
       const endIdx = binarySearchUpper(index.stations, viewEnd + 5);
 
@@ -273,6 +278,7 @@ function binarySearchLower(
   stations: { dayIndex: number }[],
   targetDay: number,
 ): number {
+  if (!stations || stations.length === 0) return 0;
   let lo = 0;
   let hi = stations.length;
   while (lo < hi) {
@@ -287,6 +293,7 @@ function binarySearchUpper(
   stations: { dayIndex: number }[],
   targetDay: number,
 ): number {
+  if (!stations || stations.length === 0) return 0;
   let lo = 0;
   let hi = stations.length;
   while (lo < hi) {
