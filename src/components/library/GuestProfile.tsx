@@ -117,7 +117,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
 
     const categories = new Map<string, number>();
     for (const ep of episodes) {
-      if (ep?.aiCategory) {
+      if (ep && typeof ep === 'object' && ep.aiCategory && typeof ep.aiCategory === 'string') {
         categories.set(ep.aiCategory, (categories.get(ep.aiCategory) ?? 0) + 1);
       }
     }
@@ -131,20 +131,22 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
 
   const handlePlayAll = () => {
     if (!episodes || !Array.isArray(episodes) || episodes.length === 0) return;
+    const validEpisodes = episodes.filter(ep => ep && typeof ep === 'object' && ep.id);
+    if (validEpisodes.length === 0) return;
     const store = usePlayerStore.getState();
-    store.enqueueMany(episodes);
-    const firstEpisode = episodes[0];
-    if (!firstEpisode || !firstEpisode.id) return;
+    store.enqueueMany(validEpisodes);
+    const firstEpisode = validEpisodes[0];
     window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: firstEpisode }));
   };
 
   const handleShuffle = () => {
     if (!episodes || !Array.isArray(episodes) || episodes.length === 0) return;
-    const shuffled = [...episodes].sort(() => Math.random() - 0.5);
+    const validEpisodes = episodes.filter(ep => ep && typeof ep === 'object' && ep.id);
+    if (validEpisodes.length === 0) return;
+    const shuffled = [...validEpisodes].sort(() => Math.random() - 0.5);
     const store = usePlayerStore.getState();
     store.enqueueMany(shuffled);
     const firstEpisode = shuffled[0];
-    if (!firstEpisode || !firstEpisode.id) return;
     window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: firstEpisode }));
   };
 
@@ -226,10 +228,10 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
         {episodes && episodes.length > 0 && (
           <div className="flex flex-col gap-1 border-t border-bevel-dark/15 pt-2">
             {episodes.map((ep) => {
-              if (!ep || !ep.id) return null;
-              const hasProgress = (ep.playbackPosition ?? 0) > 0 && (ep.duration ?? 0) > 0;
+              if (!ep || typeof ep !== 'object' || !ep.id) return null;
+              const hasProgress = typeof ep.playbackPosition === 'number' && typeof ep.duration === 'number' && ep.playbackPosition > 0 && ep.duration > 0;
               const progressPct = hasProgress
-                ? Math.min(100, (ep.playbackPosition! / ep.duration!) * 100)
+                ? Math.min(100, (ep.playbackPosition / ep.duration) * 100)
                 : 0;
               return (
                 <button
@@ -239,16 +241,16 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[12px] md:text-[10px] text-desert-amber tabular-nums flex-shrink-0">
-                      {ep.airDate ?? "Unknown"}
+                      {typeof ep.airDate === 'string' ? ep.airDate : "Unknown"}
                     </span>
-                    {ep.duration != null && (
+                    {typeof ep.duration === 'number' && (
                       <span className="text-[11px] md:text-[9px] text-bevel-dark/70 tabular-nums flex-shrink-0">
                         {formatDuration(ep.duration)}
                       </span>
                     )}
                   </div>
                   <div className="text-[13px] md:text-[10px] text-desktop-gray truncate mt-0.5">
-                    {ep.title || ep.fileName || 'Unknown Episode'}
+                    {typeof ep.title === 'string' ? ep.title : typeof ep.fileName === 'string' ? ep.fileName : 'Unknown Episode'}
                   </div>
                   {hasProgress && (
                     <div className="h-[2px] mt-1 bg-inset-well w98-inset-dark overflow-hidden">
