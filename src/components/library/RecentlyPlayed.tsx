@@ -33,8 +33,8 @@ export function RecentlyPlayed({ episodes, onPlay, compact, className }: Recentl
   const validEpisodes = episodes.filter(ep => 
     ep != null && 
     typeof ep === 'object' &&
-    (ep.title || ep.fileName) && 
-    ep.id != null
+    (ep?.title || ep?.fileName) && 
+    ep?.id != null
   );
 
   const displayEpisodes = compact ? validEpisodes.slice(0, 4) : validEpisodes;
@@ -54,8 +54,8 @@ export function RecentlyPlayed({ episodes, onPlay, compact, className }: Recentl
       )}>
         {displayEpisodes.map((ep) => {
           if (!ep) return null;
-          const hasProgress = typeof ep.playbackPosition === 'number' && 
-            typeof ep.duration === 'number' && 
+          const hasProgress = typeof ep?.playbackPosition === 'number' && 
+            typeof ep?.duration === 'number' && 
             ep.playbackPosition > 0 && 
             ep.duration > 0;
           const progressPct = hasProgress
@@ -80,15 +80,15 @@ export function RecentlyPlayed({ episodes, onPlay, compact, className }: Recentl
                 "text-desert-amber/80 tabular-nums",
                 compact ? "text-[8px]" : "text-[11px] md:text-[9px]",
               )}>
-                {ep.airDate || "Unknown"}
+                {ep?.airDate || "Unknown"}
               </span>
               <span className={cn(
                 "text-desktop-gray font-bold truncate w-full text-left",
                 compact ? "text-[9px]" : "text-[12px] md:text-[10px]",
               )}>
-                {ep.title || ep.fileName || "Untitled Episode"}
+                {ep?.title || ep?.fileName || "Untitled Episode"}
               </span>
-              {ep.guestName && (
+              {ep?.guestName && (
                 <span className={cn(
                   "text-static-green/50 truncate w-full text-left",
                   compact ? "text-[8px]" : "text-[11px] md:text-[9px]",
