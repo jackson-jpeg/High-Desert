@@ -38,8 +38,16 @@ function ScanResultsContent({ className }: ScanResultsProps) {
   if (status === "scanning") {
     return (
       <Window title="Library" variant="dark" className={className}>
-        <div className="p-4 text-[11px] text-bevel-dark">
-          Scanning your folder...
+        <div className="p-4">
+          <div className="animate-pulse space-y-3">
+            <div className="h-4 bg-bevel-dark/20 rounded w-3/4"></div>
+            <div className="h-3 bg-bevel-dark/10 rounded w-1/2"></div>
+            <div className="space-y-2">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-8 bg-bevel-dark/10 rounded"></div>
+              ))}
+            </div>
+          </div>
         </div>
       </Window>
     );
@@ -58,8 +66,13 @@ function ScanResultsContent({ className }: ScanResultsProps) {
   if (episodes.length === 0) {
     return (
       <Window title="Library" variant="dark" className={className}>
-        <div className="p-4 text-[11px] text-bevel-dark">
-          No episodes found. Start scanning to add files.
+        <div className="p-4 text-center">
+          <div className="text-[11px] text-bevel-dark mb-2">
+            No episodes found.
+          </div>
+          <div className="text-[10px] text-desktop-gray">
+            Start scanning to add files from your archive.
+          </div>
         </div>
       </Window>
     );
