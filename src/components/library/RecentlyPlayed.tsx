@@ -21,8 +21,10 @@ export function RecentlyPlayed({ episodes, onPlay, compact, className }: Recentl
             </span>
           </div>
         )}
-        <div className="text-[11px] md:text-[9px] text-bevel-dark/50 px-2 py-4 text-center">
-          No recently played episodes
+        <div className="w98-raised-dark bg-raised-surface px-3 py-4">
+          <div className="text-[11px] md:text-[9px] text-bevel-dark/50 text-center">
+            No recently played episodes
+          </div>
         </div>
       </div>
     );
