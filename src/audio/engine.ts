@@ -63,8 +63,9 @@ export function initEngine(audio: HTMLAudioElement): void {
 }
 
 export function setEngineVolume(volume: number): void {
+  const clampedVolume = Math.max(0, Math.min(100, volume)) / 100;
   if (mediaElement) {
-    mediaElement.volume = volume;
+    mediaElement.volume = clampedVolume;
   }
 }
 
