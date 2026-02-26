@@ -25,11 +25,17 @@ export function QueuePanel() {
     if (!name) return;
     const episodeIds = queue.map((ep) => ep.id!).filter(Boolean);
     if (episodeIds.length === 0) return;
-    const now = Date.now();
-    await db.playlists.add({ name, episodeIds, createdAt: now, updatedAt: now });
-    toast.success(`Saved "${name}" with ${episodeIds.length} tracks`);
-    setSavingPlaylist(false);
-    setPlaylistName("");
+    
+    try {
+      const now = Date.now();
+      await db.playlists.add({ name, episodeIds, createdAt: now, updatedAt: now });
+      toast.success(`Saved "${name}" with ${episodeIds.length} tracks`);
+      setSavingPlaylist(false);
+      setPlaylistName("");
+    } catch (error) {
+      console.error('Failed to save playlist:', error);
+      toast.error('Failed to save playlist');
+    }
   };
 
   // Drag-to-reorder state (desktop)
@@ -38,7 +44,10 @@ export function QueuePanel() {
   const dragCountRef = useRef(0);
 
   const handlePlay = (index: number) => {
-    const episode = usePlayerStore.getState().playFromQueue(index);
+    const state = usePlayerStore.getState();
+    if (!state || typeof state.playFromQueue !== 'function') return;
+    
+    const episode = state.playFromQueue(index);
     if (episode) {
       window.dispatchEvent(
         new CustomEvent("hd:play-episode", { detail: episode }),
@@ -72,7 +81,7 @@ export function QueuePanel() {
 
   const handleDrop = (e: React.DragEvent, toIndex: number) => {
     e.preventDefault();
-    if (dragFrom !== null && dragFrom !== toIndex) {
+    if (dragFrom !== null && dragFrom !== toIndex && moveInQueue) {
       moveInQueue(dragFrom, toIndex);
     }
     setDragFrom(null);
