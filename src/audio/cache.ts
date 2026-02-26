@@ -79,6 +79,7 @@ export async function extractAudioMetadata(blob: Blob): Promise<{
   error?: string;
 }> {
   try {
+    const { parseBlob } = await import('music-metadata-browser');
     const metadata = await parseBlob(blob, {
       duration: true,
       skipCovers: true,
@@ -290,27 +291,67 @@ export async function extractAudioMetadata(blob: Blob): Promise<{
     console.warn('Failed to extract audio metadata:', error);
     return null;
   }
-}24; // 500MB
+}
+
+const MAX_CACHE_SIZE = 524_288_000; // 500MB
+
+async function getCacheSize(): Promise<number> {
+  const dir = await getCacheDir();
+  let total = 0;
+  for await (const [name, handle] of dir.entries()) {
+    if (handle.kind === 'file') {
+      const file = await handle.getFile();
+      total += file.size;
+    }
+  }
+  return total;
+}
+
+async function getCacheEntries(): Promise<Array<{ key: string; size: number; lastAccess: number }>> {
+  const metadataDir = await getMetadataDir();
+  const entries: Array<{ key: string; size: number; lastAccess: number }> = [];
+  for await (const [name, handle] of metadataDir.entries()) {
+    if (name.endsWith('.access') && handle.kind === 'file') {
+      const key = name.slice(0, -7);
+      const file = await handle.getFile();
+      const lastAccess = parseInt(await file.text(), 10) || 0;
+      const dir = await getCacheDir();
+      const fileHandle = await dir.getFileHandle(key).catch(() => null);
+      if (fileHandle) {
+        const audioFile = await fileHandle.getFile();
+        entries.push({ key, size: audioFile.size, lastAccess });
+      }
+    }
+  }
+  return entries;
+}
+
+async function getMetadataDir(): Promise<FileSystemDirectoryHandle> {
+  const root = await navigator.storage.getDirectory();
+  return root.getDirectoryHandle(`${CACHE_DIR}-metadata`, { create: true });
+}
+
+async function updateLastAccessTime(key: string): Promise<void> {
+  const metadataDir = await getMetadataDir();
+  const fileHandle = await metadataDir.getFileHandle(`${key}.access`, { create: true });
+  const writable = await fileHandle.createWritable();
+  await writable.write(Date.now().toString());
+  await writable.close();
+}
+
+async function cleanupIfNeeded(newSize: number): Promise<void> {
   const currentSize = await getCacheSize();
-  
   if (currentSize + newSize > MAX_CACHE_SIZE) {
     const entries = await getCacheEntries();
-    // Sort by last access time (oldest first)
     entries.sort((a, b) => a.lastAccess - b.lastAccess);
-    
     let sizeToFree = (currentSize + newSize) - MAX_CACHE_SIZE;
-    
     for (const entry of entries) {
       if (sizeToFree <= 0) break;
-      
       try {
         const dir = await getCacheDir();
         await dir.removeEntry(entry.key);
-        
-        // Also remove metadata
         const metadataDir = await getMetadataDir();
         await metadataDir.removeEntry(`${entry.key}.access`).catch(() => {});
-        
         sizeToFree -= entry.size;
       } catch {
         // Ignore errors during cleanup
