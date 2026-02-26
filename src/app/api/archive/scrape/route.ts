@@ -22,6 +22,13 @@ const FIELDS = "identifier,title,date,description,creator,downloads";
 const FETCH_TIMEOUT = 30000;
 
 export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get("authorization");
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const adminToken = process.env.ADMIN_API_TOKEN;
+  if (!adminToken || token !== adminToken) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const ip = getClientIp(request);
   const rl = rateLimit(`scrape:${ip}`, { maxRequests: 30, windowMs: 60_000 });
   if (!rl.allowed) {

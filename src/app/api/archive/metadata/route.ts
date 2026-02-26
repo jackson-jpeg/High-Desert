@@ -4,6 +4,13 @@ const AUDIO_FORMATS = new Set(["VBR MP3", "MP3", "128Kbps MP3", "64Kbps MP3", "O
 const FETCH_TIMEOUT = 25000; // 25s — allow for slow archive.org responses while staying under Vercel 30s limit
 
 export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get("authorization");
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const adminToken = process.env.ADMIN_API_TOKEN;
+  if (!adminToken || token !== adminToken) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const id = request.nextUrl.searchParams.get("id");
 
   if (!id || typeof id !== 'string') {
