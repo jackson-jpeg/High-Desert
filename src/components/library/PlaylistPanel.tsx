@@ -36,7 +36,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
     const byId = new Map(episodes.map((e) => [e.id, e]));
     const orderedEpisodes = playlist.episodeIds
       .map((id) => byId.get(id))
-      .filter((ep): ep is Episode => ep != null);
+      .filter((ep): ep is Episode => ep != null && ep.title != null && ep.fileName != null);
     setPlaylistEpisodes(orderedEpisodes);
   }, []);
 
@@ -137,7 +137,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
         )}
 
         <div className="flex flex-col gap-1 max-h-[300px] overflow-auto">
-          {(playlistEpisodes ?? []).map((ep, i) => (
+          {(playlistEpisodes ?? []).filter(ep => ep != null && ep.title != null && ep.fileName != null).map((ep, i) => (
             <div
               key={ep.id}
               className="flex items-center gap-2 px-2.5 py-2 md:py-1.5 w98-raised-dark bg-card-surface min-h-[44px] md:min-h-0 cursor-pointer hover:bg-title-bar-blue/15 active:bg-title-bar-blue/20 transition-colors-fast group/ep"
