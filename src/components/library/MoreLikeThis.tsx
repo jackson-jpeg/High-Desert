@@ -13,6 +13,14 @@ interface MoreLikeThisProps {
 }
 
 export function MoreLikeThis({ episode, onPlay, className }: MoreLikeThisProps) {
+  return (
+    <WidgetErrorBoundary name="More Like This">
+      <MoreLikeThisInner episode={episode} onPlay={onPlay} className={className} />
+    </WidgetErrorBoundary>
+  );
+}
+
+function MoreLikeThisInner({ episode, onPlay, className }: MoreLikeThisProps) {
   const allEpisodes = useLiveQuery(
     () => db.episodes.toArray(),
     [],
