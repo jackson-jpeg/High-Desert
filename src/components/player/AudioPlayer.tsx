@@ -110,11 +110,11 @@ function AudioPlayerContent({ className }: AudioPlayerProps) {
   const handleRetry = () => {
     clearError(null);
     if (currentEpisode) {
-      const audio = document.querySelector('audio');
-      if (!audio) {
-        setError('Audio element not found');
-        return;
-      }
+          const audio = document.querySelector('audio') as HTMLAudioElement | null;
+          if (!audio) {
+            setError('Audio element not found');
+            return;
+          }
       window.dispatchEvent(
         new CustomEvent("hd:play-episode", { detail: currentEpisode }),
       );
