@@ -50,6 +50,10 @@ export async function playStartupSound(): Promise<void> {
     }
 
     // Sweep oscillator: 200Hz → 1200Hz → 400Hz over 0.5s
+    if (!ctx) {
+      console.warn('[startup-sound] AudioContext is null, cannot create oscillator');
+      return;
+    }
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
