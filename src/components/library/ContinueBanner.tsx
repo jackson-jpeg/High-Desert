@@ -15,6 +15,7 @@ interface ContinueBannerProps {
 const DISMISS_MS = 15000;
 
 export function ContinueBanner({ episode, onResume, onDismiss, className }: ContinueBannerProps) {
+  if (!episode) return null;
   const [visible, setVisible] = useState(true);
   const [elapsed, setElapsed] = useState(0);
 
@@ -37,8 +38,8 @@ export function ContinueBanner({ episode, onResume, onDismiss, className }: Cont
     ? Math.round((episode.playbackPosition / episode.duration) * 100)
     : 0;
 
-  // Don't show for near-completed episodes
-  if (!visible || progressPct > 95) return null;
+  // Don't show for near-completed episodes or missing data
+  if (!visible || progressPct > 95 || !episode.id) return null;
 
   const title = episode.title || episode.fileName;
   const countdownPct = Math.min(100, (elapsed / DISMISS_MS) * 100);
