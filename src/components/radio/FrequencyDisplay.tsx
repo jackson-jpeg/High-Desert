@@ -27,7 +27,7 @@ export function FrequencyDisplay({
 }: FrequencyDisplayProps) {
   const staticEnabled = useRadioDialStore((s) => s.staticEnabled);
 
-  const freqStr = typeof frequency === 'number' && !isNaN(frequency) ? `AM ${Math.round(frequency)} kHz` : "AM --- kHz";
+  const freqStr = typeof frequency === 'number' && !isNaN(frequency) && frequency >= 530 && frequency <= 1700 ? `AM ${Math.round(frequency)} kHz` : "AM --- kHz";
   const dateStr = currentDate
     ? currentDate.toLocaleDateString("en-US", {
         weekday: "short",
