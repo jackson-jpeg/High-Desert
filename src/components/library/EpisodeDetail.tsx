@@ -50,6 +50,26 @@ function EpisodeDetailContent({
       </div>
     );
   }
+
+  // Validate required episode metadata
+  const hasValidMetadata = episode.title || episode.fileName;
+  const hasValidDate = episode.airDate;
+  const hasValidDuration = typeof episode.duration === 'number' && episode.duration > 0;
+  
+  if (!hasValidMetadata || !hasValidDate || !hasValidDuration) {
+    return (
+      <div className={cn("w98-raised-dark bg-raised-surface p-4", className)}>
+        <div className="text-desktop-gray text-sm mb-2">
+          {!hasValidMetadata && "Episode title or filename missing"}
+          {!hasValidMetadata && !hasValidDate && <br />}
+          {!hasValidDate && "Air date missing"}
+          {(!hasValidMetadata || !hasValidDate) && !hasValidDuration && <br />}
+          {!hasValidDuration && "Duration invalid or missing"}
+        </div>
+        <Button onClick={onClose} className="mt-2">Close</Button>
+      </div>
+    );
+  }
   const showLabel = getShowLabel(episode.showType);
   const isArchive = episode.source === "archive";
 
