@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
+import { useSwipeDown } from "@/hooks/useSwipeDown";
 import { Oscilloscope } from "./Oscilloscope";
 import { PlaybackControls } from "./PlaybackControls";
 import { NowPlaying } from "./NowPlaying";
+import { CassetteTape } from "./CassetteTape";
 import { QueuePanel } from "./QueuePanel";
 import { cn } from "@/lib/utils/cn";
 import { useIsMobile } from "@/hooks/useMediaQuery";
@@ -37,6 +39,13 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   const [mobileExpanded, setMobileExpanded] = useState(false);
   const [ultraMini, setUltraMini] = useState(false);
   const isMobile = useIsMobile();
+  const mobileExpandedRef = useRef<HTMLDivElement>(null);
+  const collapseMobilePlayer = useCallback(() => setMobileExpanded(false), []);
+  const { swipeHandlers: mobilePlayerSwipe } = useSwipeDown({
+    onDismiss: collapseMobilePlayer,
+    targetRef: mobileExpandedRef,
+    threshold: 80,
+  });
 
   // Listen for double-click on status bar now-playing to toggle ultra-mini
   useEffect(() => {
@@ -79,8 +88,16 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   // ─── Mobile expanded overlay ───
   if (isMobile && mobileExpanded) {
     return (
-      <div className="fixed inset-0 z-50 bg-midnight/85 backdrop-blur-sm flex flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)]">
+      <div ref={mobileExpandedRef} className="fixed inset-0 z-50 bg-midnight/85 backdrop-blur-sm flex flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)]">
         {errorBanner}
+
+        {/* Drag handle for swipe-down-to-dismiss */}
+        <div
+          className="flex justify-center pt-2 pb-0"
+          {...mobilePlayerSwipe}
+        >
+          <div className="w-8 h-[3px] rounded-full bg-white/15" />
+        </div>
 
         {/* Header: collapse + queue */}
         <div className="flex items-center justify-between px-3 py-1 glass-bevel border-b">
@@ -242,7 +259,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           </div>
         )}
         {/* Cassette icon + title */}
-        <span className="text-[9px] flex-shrink-0">📼</span>
+        <CassetteTape className="flex-shrink-0" />
         <span className="text-[9px] text-desktop-gray/80 truncate flex-1 min-w-0">
           {currentEpisode.title || currentEpisode.fileName}
         </span>
@@ -257,23 +274,33 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           aria-label="Seek"
         />
         {/* Play/pause */}
-        <button onClick={togglePlay} className="text-[10px] text-desktop-gray cursor-pointer flex-shrink-0" aria-label={buffering ? "Buffering" : playing ? "Pause" : "Play"}>
+        <Button variant="dark" size="sm" onClick={togglePlay} className="h-[22px] px-1.5 text-[9px]" aria-label={buffering ? "Buffering" : playing ? "Pause" : "Play"}>
           {buffering ? "\u29D7" : playing ? "\u275A\u275A" : "\u25B6"}
-        </button>
+        </Button>
         {/* Next */}
-        <button onClick={playNext} disabled={!hasNext} className="text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer disabled:opacity-30 flex-shrink-0" aria-label="Next">
-          »|
-        </button>
+        <Button variant="dark" size="sm" onClick={playNext} disabled={!hasNext} className="h-[22px] px-1.5 text-[9px]" aria-label="Next">
+          {"\u00BB|"}
+        </Button>
         {/* Expand */}
-        <button onClick={() => setUltraMini(false)} className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer flex-shrink-0" aria-label="Expand">▲</button>
+        <button onClick={() => setUltraMini(false)} className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer flex-shrink-0" aria-label="Expand">{"\u25B2"}</button>
       </div>
     );
   }
 
   // ─── Desktop mini player ───
   if (mini) {
+    const progressPctDesktop = duration > 0 ? (position / duration) * 100 : 0;
     return (
-      <div className={cn("w98-raised-dark bg-raised-surface", className)}>
+      <div className={cn("w98-raised-dark bg-raised-surface relative", className)}>
+        {/* Mini progress bar at top */}
+        {duration > 0 && (
+          <div className="absolute top-0 left-0 right-0 h-[2px]">
+            <div
+              className="h-full bg-desert-amber/40 transition-[width] duration-300"
+              style={{ width: `${progressPctDesktop}%` }}
+            />
+          </div>
+        )}
         {errorBanner}
         <div className="flex items-center gap-3 px-3 py-2">
           <Oscilloscope className="w-[72px] h-[32px] rounded-sm flex-shrink-0" />

@@ -3,20 +3,27 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
+import { Button } from "@/components/win98";
 
 export default function WelcomePage() {
   const router = useRouter();
   const [isReturning, setIsReturning] = useState(false);
+  const [fadeOut, setFadeOut] = useState(false);
   const [episodeCount, setEpisodeCount] = useState<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Check if returning visitor
+  // Check if returning visitor — fade out then redirect
   useEffect(() => {
     const visited = localStorage.getItem("hd-visited");
     if (visited) {
       setIsReturning(true);
-      const timer = setTimeout(() => router.push("/library"), 1000);
-      return () => clearTimeout(timer);
+      // Brief pause so they see the splash, then fade out
+      const fadeTimer = setTimeout(() => setFadeOut(true), 400);
+      const navTimer = setTimeout(() => router.push("/library"), 900);
+      return () => {
+        clearTimeout(fadeTimer);
+        clearTimeout(navTimer);
+      };
     }
   }, [router]);
 
@@ -77,12 +84,16 @@ export default function WelcomePage() {
 
   const handleEnter = () => {
     localStorage.setItem("hd-visited", "1");
-    router.push("/library");
+    setFadeOut(true);
+    setTimeout(() => router.push("/library"), 500);
   };
 
   return (
     <div
-      className="min-h-screen bg-midnight flex flex-col items-center justify-center relative overflow-hidden"
+      className={cn(
+        "min-h-screen bg-midnight flex flex-col items-center justify-center relative overflow-hidden transition-opacity duration-500",
+        fadeOut && "opacity-0",
+      )}
       data-hydrated=""
     >
       <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none" aria-hidden="true" />
@@ -99,23 +110,10 @@ export default function WelcomePage() {
       <div className="relative z-20 flex flex-col items-center gap-8 px-6 text-center max-w-lg">
         {/* Title */}
         <div>
-          <h1
-            className="text-[36px] md:text-[48px] font-bold tracking-[6px] leading-none"
-            style={{
-              color: "#D4A843",
-              fontFamily: "W95FA, monospace",
-              textShadow: "0 0 20px rgba(212,168,67,0.4), 0 0 40px rgba(212,168,67,0.15)",
-            }}
-          >
+          <h1 className="text-[36px] md:text-[48px] font-bold tracking-[6px] leading-none font-[family-name:var(--font-w95)] text-desert-amber [text-shadow:0_0_20px_rgba(212,168,67,0.4),0_0_40px_rgba(212,168,67,0.15)]">
             HIGH DESERT
           </h1>
-          <div
-            className="text-[13px] md:text-[15px] mt-3 tracking-[3px]"
-            style={{
-              color: "#808080",
-              fontFamily: "W95FA, monospace",
-            }}
-          >
+          <div className="text-[13px] md:text-[15px] mt-3 tracking-[3px] font-[family-name:var(--font-w95)] text-bevel-dark">
             ART BELL RADIO ARCHIVE
           </div>
         </div>
@@ -124,64 +122,36 @@ export default function WelcomePage() {
         <div className="w-48 h-[1px] bg-gradient-to-r from-transparent via-desert-amber/30 to-transparent" />
 
         {/* Description */}
-        <p
-          className="text-[11px] md:text-[12px] leading-relaxed max-w-sm"
-          style={{ color: "#808080", fontFamily: "W95FA, monospace" }}
-        >
+        <p className="text-[11px] md:text-[12px] leading-relaxed max-w-sm font-[family-name:var(--font-w95)] text-bevel-dark">
           Stream thousands of episodes from the golden age of late-night talk radio.
           Coast to Coast AM, Dreamland, and rare specials — all from Art Bell&apos;s
           legendary studio in Pahrump, Nevada.
         </p>
 
         {/* Quote */}
-        <div
-          className="text-[10px] md:text-[11px] italic max-w-xs"
-          style={{
-            color: "#4ADE80",
-            fontFamily: "W95FA, monospace",
-            textShadow: "0 0 6px rgba(74, 222, 128, 0.2)",
-            opacity: 0.7,
-          }}
-        >
+        <div className="text-[10px] md:text-[11px] italic max-w-xs font-[family-name:var(--font-w95)] text-static-green/70 [text-shadow:0_0_6px_rgba(74,222,128,0.2)]">
           &ldquo;I have seen things that I cannot explain...&rdquo;
         </div>
 
         {/* Stats */}
         {episodeCount && (
-          <div
-            className="text-[10px] tracking-wider"
-            style={{ color: "#808080", fontFamily: "W95FA, monospace" }}
-          >
+          <div className="text-[10px] tracking-wider font-[family-name:var(--font-w95)] text-bevel-dark animate-fade-in">
             {episodeCount.toLocaleString()} EPISODES IN ARCHIVE
           </div>
         )}
 
         {/* Enter button */}
-        <button
+        <Button
+          variant="dark"
           onClick={handleEnter}
           disabled={isReturning}
-          className={cn("cursor-pointer select-none transition-all", isReturning && "opacity-50 pointer-events-none")}
-          style={{
-            fontFamily: "W95FA, monospace",
-            fontSize: "12px",
-            color: "#C0C0C0",
-            background: "#1a1a2e",
-            border: "2px outset #808080",
-            padding: "12px 40px",
-            letterSpacing: "2px",
-          }}
-          onMouseDown={(e) => {
-            (e.target as HTMLElement).style.borderStyle = "inset";
-          }}
-          onMouseUp={(e) => {
-            (e.target as HTMLElement).style.borderStyle = "outset";
-          }}
+          className="px-10 py-3 tracking-[2px] text-[12px]"
         >
           {isReturning ? "REDIRECTING..." : "ENTER THE ARCHIVE"}
-        </button>
+        </Button>
 
         {/* Footer */}
-        <div className="text-[8px] mt-4" style={{ color: "#808080", fontFamily: "W95FA, monospace", opacity: 0.4 }}>
+        <div className="text-[8px] mt-4 font-[family-name:var(--font-w95)] text-bevel-dark/40">
           Art Bell &middot; 1945–2018 &middot; From the Kingdom of Nye
         </div>
       </div>

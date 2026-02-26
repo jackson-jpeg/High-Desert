@@ -73,6 +73,12 @@
     inset -1px -1px 0 #060810;
 }
 
+/* Pressed state for dark buttons */
+button.w98-raised-dark:active:not(:disabled) {
+  border-color: #0A0E1A #2A3050 #2A3050 #0A0E1A;
+  box-shadow: inset 1px 1px 0 #060810;
+}
+
 .w98-inset-dark {
   border: 2px solid;
   border-color: #0A0E1A #2A3050 #2A3050 #0A0E1A;

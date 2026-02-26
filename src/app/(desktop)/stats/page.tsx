@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
 import { useAdminStore } from "@/stores/admin-store";
@@ -22,6 +23,7 @@ function formatBytes(bytes: number): string {
 }
 
 export default function StatsPage() {
+  const router = useRouter();
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const episodes = useLiveQuery(() => db.episodes.toArray(), []);
   const history = useLiveQuery(() => db.history.orderBy("timestamp").reverse().toArray(), []);
@@ -104,10 +106,10 @@ export default function StatsPage() {
       .slice(0, 50);
     const maxTagCount = topTags[0]?.[1] ?? 1;
 
-    // Most-listened episodes
+    // Most-listened episodes (by play count)
     const mostListened = [...episodes]
-      .filter((e) => (e.playbackPosition ?? 0) > 0)
-      .sort((a, b) => (b.playbackPosition ?? 0) - (a.playbackPosition ?? 0))
+      .filter((e) => (e.playCount ?? 0) > 0)
+      .sort((a, b) => (b.playCount ?? 0) - (a.playCount ?? 0))
       .slice(0, 5);
 
     // Decade breakdown
@@ -643,17 +645,23 @@ export default function StatsPage() {
                 const size = 10 + ratio * 10; // 10px to 20px
                 const opacity = 0.3 + ratio * 0.7; // 0.3 to 1.0
                 return (
-                  <span
+                  <button
                     key={tag}
-                    className="tag-cloud-item cursor-default select-none"
+                    className="tag-cloud-item cursor-pointer select-none hover:underline"
                     style={{
                       fontSize: `${size}px`,
                       color: `rgba(212, 168, 67, ${opacity})`,
                     }}
-                    title={`${tag} (${count})`}
+                    title={`Filter library by "${tag}" (${count})`}
+                    onClick={() => {
+                      router.push("/library");
+                      setTimeout(() => {
+                        window.dispatchEvent(new CustomEvent("hd:filter-tag", { detail: tag }));
+                      }, 100);
+                    }}
                   >
                     {tag}
-                  </span>
+                  </button>
                 );
               })}
             </div>

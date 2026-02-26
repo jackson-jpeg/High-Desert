@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 
@@ -16,17 +16,25 @@ interface MobileMenuSheetProps {
 
 export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout, startupSoundOn, onToggleStartupSound }: MobileMenuSheetProps) {
   const router = useRouter();
+  const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
 
   const hide = useCallback(() => {
     if (closingRef.current) return;
     closingRef.current = true;
-    onClose();
+    setClosing(true);
+    setTimeout(() => {
+      setClosing(false);
+      onClose();
+    }, 250);
   }, [onClose]);
 
   // Reset closing guard when sheet opens
   useEffect(() => {
-    if (open) closingRef.current = false;
+    if (open) {
+      closingRef.current = false;
+      setClosing(false); // eslint-disable-line react-hooks/set-state-in-effect -- reset derived state on prop change
+    }
   }, [open]);
 
   // Escape key closes the sheet
@@ -45,11 +53,22 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[100] glass-backdrop animate-glass-backdrop"
+        className={cn(
+          "fixed inset-0 z-[100] glass-backdrop",
+          closing ? "animate-glass-backdrop-out" : "animate-glass-backdrop",
+        )}
         onClick={hide}
       />
       {/* Sheet */}
-      <div role="dialog" aria-modal="true" aria-label="Menu" className="fixed bottom-0 inset-x-0 z-[101] glass-heavy rounded-t-2xl overflow-hidden pb-[var(--safe-bottom)] animate-glass-sheet">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu"
+        className={cn(
+          "fixed bottom-0 inset-x-0 z-[101] glass-heavy rounded-t-2xl overflow-hidden pb-[var(--safe-bottom)]",
+          closing ? "animate-glass-sheet-out" : "animate-glass-sheet",
+        )}
+      >
         {/* Grab handle */}
         <div className="flex justify-center pt-2.5 pb-1">
           <div className="w-8 h-[3px] rounded-full bg-white/15" />
@@ -112,6 +131,36 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout
               Statistics
             </button>
           </div>
+
+          {/* Admin-only pages */}
+          {isAdmin && (
+            <>
+              <div className="border-t glass-divider">
+                <button
+                  onClick={() => {
+                    router.push("/scanner");
+                    hide();
+                  }}
+                  className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-2"
+                >
+                  <span className="text-desert-amber/60 text-[12px]">{"\u2699"}</span>
+                  <span>Scanner</span>
+                </button>
+              </div>
+              <div className="border-t glass-divider">
+                <button
+                  onClick={() => {
+                    router.push("/search");
+                    hide();
+                  }}
+                  className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-2"
+                >
+                  <span className="text-desert-amber/60 text-[12px]">{"\u2699"}</span>
+                  <span>Archive Search</span>
+                </button>
+              </div>
+            </>
+          )}
 
           {/* Startup Sound */}
           {onToggleStartupSound && (

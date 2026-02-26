@@ -249,11 +249,15 @@
   .animate-window-open,
   .animate-dialog,
   .animate-slide-up,
+  .animate-slide-down-out,
+  .animate-toast-exit,
   .animate-fade-in,
   .animate-stagger,
   .animate-bar-grow,
   .animate-glass-sheet,
+  .animate-glass-sheet-out,
   .animate-glass-backdrop,
+  .animate-glass-backdrop-out,
   .animate-glass-toast {
     animation-duration: 0.01ms !important;
   }
@@ -281,6 +285,38 @@
   }
 }
 
+/* Slide down exit (for detail panels, sheets on desktop) */
+@keyframes slide-down-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+.animate-slide-down-out {
+  animation: slide-down-out 0.2s ease-in forwards;
+}
+
+/* Toast exit */
+@keyframes toast-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+}
+
+.animate-toast-exit {
+  animation: toast-exit 0.2s ease-in forwards;
+}
+
 /* ============================================
    Glass Animations (Mobile Only)
    ============================================ */
@@ -306,6 +342,22 @@
     animation: glass-sheet 350ms var(--spring-snappy) forwards;
   }
 
+  /* Sheet slide-out: reverse of float-up */
+  @keyframes glass-sheet-out {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+  }
+
+  .animate-glass-sheet-out {
+    animation: glass-sheet-out 250ms ease-in forwards;
+  }
+
   /* Backdrop fade: opacity + blur ramp */
   @keyframes glass-backdrop-in {
     from {
@@ -322,6 +374,24 @@
 
   .animate-glass-backdrop {
     animation: glass-backdrop-in 250ms ease-out forwards;
+  }
+
+  /* Backdrop fade-out */
+  @keyframes glass-backdrop-out {
+    from {
+      opacity: 1;
+      -webkit-backdrop-filter: blur(4px);
+      backdrop-filter: blur(4px);
+    }
+    to {
+      opacity: 0;
+      -webkit-backdrop-filter: blur(0px);
+      backdrop-filter: blur(0px);
+    }
+  }
+
+  .animate-glass-backdrop-out {
+    animation: glass-backdrop-out 200ms ease-in forwards;
   }
 
   /* Toast entrance: micro-spring + blur ramp */

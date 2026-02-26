@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { Episode } from "@/db/schema";
 import { Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
@@ -8,6 +8,7 @@ import { toast } from "@/stores/toast-store";
 import { rateEpisode } from "@/services/episodes/management";
 import { BookmarkList } from "@/components/player/BookmarkMarkers";
 import { MoreLikeThis } from "@/components/library/MoreLikeThis";
+import { useSwipeDown } from "@/hooks/useSwipeDown";
 import { cn } from "@/lib/utils/cn";
 import { formatDuration, formatTime, getShowLabel } from "@/lib/utils/format";
 
@@ -43,6 +44,33 @@ export function EpisodeDetail({
 }: EpisodeDetailProps) {
   const showLabel = getShowLabel(episode.showType);
   const isArchive = episode.source === "archive";
+
+  const [closing, setClosing] = useState(false);
+  const closingRef = useRef(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const handleClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    setClosing(true);
+    setTimeout(() => {
+      setClosing(false);
+      closingRef.current = false;
+      onClose();
+    }, 200);
+  }, [onClose]);
+
+  const { swipeHandlers: dragHandlers } = useSwipeDown({
+    onDismiss: handleClose,
+    targetRef: panelRef,
+    threshold: 80,
+  });
+
+  // Reset closing state when episode changes
+  useEffect(() => {
+    closingRef.current = false;
+    setClosing(false); // eslint-disable-line react-hooks/set-state-in-effect -- reset derived state on prop change
+  }, [episode.id]);
 
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -95,13 +123,15 @@ export function EpisodeDetail({
 
   return (
     <div
+      ref={panelRef}
       className={cn(
-        "w98-raised-dark bg-raised-surface flex flex-col animate-slide-up glass-heavy",
+        "w98-raised-dark bg-raised-surface flex flex-col glass-heavy",
+        closing ? "animate-slide-down-out" : "animate-slide-up",
         className,
       )}
     >
-      {/* Mobile drag handle */}
-      <div className="flex justify-center pt-2 pb-0.5 md:hidden">
+      {/* Mobile drag handle — swipe down to dismiss */}
+      <div className="flex justify-center pt-2 pb-0.5 md:hidden" {...dragHandlers}>
         <div className="w-8 h-[3px] rounded-full bg-white/15" />
       </div>
 
@@ -129,7 +159,7 @@ export function EpisodeDetail({
           )}
         </div>
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="text-[14px] md:text-[10px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
           aria-label="Close detail"
         >

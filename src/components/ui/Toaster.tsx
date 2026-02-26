@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useToastStore, type Toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
 
@@ -23,11 +23,17 @@ export function Toaster() {
 
 function ToastItem({ toast }: { toast: Toast }) {
   const removeToast = useToastStore((s) => s.removeToast);
+  const [leaving, setLeaving] = useState(false);
+
+  const dismiss = useCallback(() => {
+    setLeaving(true);
+    setTimeout(() => removeToast(toast.id), 200);
+  }, [toast.id, removeToast]);
 
   useEffect(() => {
-    const timer = setTimeout(() => removeToast(toast.id), toast.duration);
+    const timer = setTimeout(dismiss, toast.duration);
     return () => clearTimeout(timer);
-  }, [toast.id, toast.duration, removeToast]);
+  }, [toast.id, toast.duration, dismiss]);
 
   const accentColor =
     toast.type === "success"
@@ -42,7 +48,10 @@ function ToastItem({ toast }: { toast: Toast }) {
     <div
       className={cn(
         "w98-raised-dark bg-raised-surface min-w-[200px] max-w-[320px] overflow-hidden",
-        "pointer-events-auto animate-slide-up glass-medium animate-glass-toast",
+        "pointer-events-auto glass-medium",
+        leaving
+          ? "animate-toast-exit"
+          : "animate-slide-up animate-glass-toast",
       )}
     >
       <div className="flex">
@@ -63,7 +72,7 @@ function ToastItem({ toast }: { toast: Toast }) {
             {toast.type === "caller" ? `INCOMING CALL — ${toast.message}` : toast.message}
           </span>
           <button
-            onClick={() => removeToast(toast.id)}
+            onClick={dismiss}
             className="text-[12px] md:text-[9px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 ml-auto min-w-[32px] min-h-[32px] md:min-w-0 md:min-h-0 flex items-center justify-center"
           >
             {"\u2715"}

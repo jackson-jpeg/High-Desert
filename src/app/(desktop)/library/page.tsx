@@ -1109,11 +1109,8 @@ export default function LibraryPage() {
               // Desktop: sticky sidebar with fade-in — stays in view as you scroll
               "md:sticky md:top-0 md:w-[280px] md:flex-shrink-0 md:max-h-screen md:overflow-auto md:pb-0 md:z-auto md:border-l md:border-bevel-dark/20 md:animate-fade-in md:rounded-none",
             )}>
-              {/* Mobile drag handle */}
-              <div className="flex justify-center pt-2 pb-1 md:hidden">
-                <div className="w-8 h-[3px] rounded-full bg-white/15" />
-              </div>
               <EpisodeDetail
+                key={selectedEpisode.id}
                 episode={selectedEpisode}
                 isPlaying={selectedEpisode.id === currentEpisodeId}
                 onPlay={handlePlay}
