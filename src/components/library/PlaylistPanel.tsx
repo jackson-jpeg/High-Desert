@@ -46,6 +46,10 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
       toast.error("Playlist name cannot be empty");
       return;
     }
+    if (trimmed.length > 100) {
+      toast.error("Playlist name must be 100 characters or less");
+      return;
+    }
     await db.playlists.add({
       name: trimmed,
       description: newDesc.trim() || undefined,
@@ -69,11 +73,19 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
   }, [selectedPlaylist]);
 
   const handleRename = useCallback(async (id: number) => {
-    if (!editName.trim()) return;
-    await db.playlists.update(id, { name: editName.trim(), updatedAt: Date.now() });
+    const trimmed = editName.trim();
+    if (!trimmed) {
+      toast.error("Playlist name cannot be empty");
+      return;
+    }
+    if (trimmed.length > 100) {
+      toast.error("Playlist name must be 100 characters or less");
+      return;
+    }
+    await db.playlists.update(id, { name: trimmed, updatedAt: Date.now() });
     setEditingId(null);
     if (selectedPlaylist?.id === id) {
-      setSelectedPlaylist((prev) => prev ? { ...prev, name: editName.trim() } : null);
+      setSelectedPlaylist((prev) => prev ? { ...prev, name: trimmed } : null);
     }
   }, [editName, selectedPlaylist]);
 
