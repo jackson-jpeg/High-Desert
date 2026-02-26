@@ -67,6 +67,7 @@ export function Starfield() {
     const resize = () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
+        if (typeof window === 'undefined') return;
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         generateStars(canvas.width, canvas.height);
