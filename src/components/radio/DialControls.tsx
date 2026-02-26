@@ -47,11 +47,11 @@ export function DialControls({
       clamped = Math.max(87.5, Math.min(108.0, num));
       band = 'FM';
     } else if (num < 530) {
-      // Default to AM for low values
+      // Values below AM range default to AM minimum
       clamped = 530;
       band = 'AM';
     } else {
-      // Default to FM for high values
+      // Default to FM max for high values
       clamped = 108.0;
       band = 'FM';
     }
