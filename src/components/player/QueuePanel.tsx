@@ -120,13 +120,13 @@ export function QueuePanel() {
     .reduce((sum, ep) => sum + (ep?.duration ?? 0), 0) ?? 0;
   const remainingMinutes = Math.round(remainingSeconds / 60);
 
-  if (queue.length === 0) {
+  if (!queue || queue.length === 0) {
     return (
       <div className="w98-inset-dark bg-inset-well p-4 animate-slide-up">
         <div className="flex flex-col items-center gap-2 py-2">
           <span className="text-[14px] text-bevel-dark/30 select-none">{"\u266B"}</span>
           <div className="text-[12px] md:text-[10px] text-bevel-dark text-center">
-            Queue is empty
+            No episodes in queue
           </div>
           <div className="text-[12px] md:text-[8px] text-bevel-dark/50 text-center leading-relaxed">
             Tap an episode and use Play Next, or long-press to add to queue
