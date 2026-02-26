@@ -18,8 +18,16 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
 
   if (!episode || !objectUrl) {
     return (
-      <div className={cn("text-[11px] text-bevel-dark", className)}>
-        No episode loaded
+      <div className={cn("flex items-center gap-2 min-w-0", className)} aria-live="polite">
+        <CassetteTape className="hidden md:block flex-shrink-0 mt-0.5 opacity-50" />
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <div className="text-[14px] md:text-[11px] text-desktop-gray/50 font-bold truncate">
+            No episode loaded
+          </div>
+          <div className="text-[11px] md:text-[10px] text-bevel-dark/50 truncate">
+            Select an episode to begin
+          </div>
+        </div>
       </div>
     );
   }
