@@ -43,6 +43,16 @@ export const EpisodeCard = memo(function EpisodeCard({
   }
   const showLabel = getShowLabel(episode?.showType ?? "unknown");
 
+  const isValidArchiveUrl = (url: string | null | undefined): boolean => {
+    if (!url) return false;
+    try {
+      const parsed = new URL(url);
+      return parsed.hostname === 'archive.org' || parsed.hostname.endsWith('.archive.org');
+    } catch {
+      return false;
+    }
+  };
+
   const showAccent =
     episode.showType === "coast"
       ? "border-l-2 border-l-title-bar-blue/60"
