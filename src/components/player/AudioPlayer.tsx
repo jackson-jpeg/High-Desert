@@ -12,12 +12,13 @@ import { cn } from "@/lib/utils/cn";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { Button } from "@/components/win98";
 import { formatTime } from "@/lib/utils/format";
+import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 
 interface AudioPlayerProps {
   className?: string;
 }
 
-export function AudioPlayer({ className }: AudioPlayerProps) {
+function AudioPlayerContent({ className }: AudioPlayerProps) {
   const { togglePlay, seek, stopPlayback, playNext, playPrevious } = useAudioPlayer();
   const currentEpisode = usePlayerStore((s) => s.currentEpisode);
   const playing = usePlayerStore((s) => s.playing);
@@ -433,5 +434,13 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
       </div>
       {showQueue && <QueuePanel />}
     </div>
+  );
+}
+
+export function AudioPlayer({ className }: AudioPlayerProps) {
+  return (
+    <WidgetErrorBoundary name="Audio Player">
+      <AudioPlayerContent className={className} />
+    </WidgetErrorBoundary>
   );
 }
