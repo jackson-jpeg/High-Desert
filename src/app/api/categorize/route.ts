@@ -25,7 +25,10 @@ export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   const adminToken = process.env.ADMIN_API_TOKEN;
-  if (!adminToken || token !== adminToken) {
+  
+  // Validate token format: must be 32+ chars, alphanumeric with hyphens/underscores
+  const tokenPattern = /^[a-zA-Z0-9_-]{32,}$/;
+  if (!adminToken || !token || !tokenPattern.test(token) || token !== adminToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
