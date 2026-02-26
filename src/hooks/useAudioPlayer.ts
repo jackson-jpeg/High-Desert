@@ -220,9 +220,36 @@ export function useAudioPlayer() {
         setPlaying(false);
       }
     };
+
+    const onError = () => {
+      setError("Playback error. The audio source may be unavailable.");
+    };
+
     const onLoadedMetadata = () => {
       setDuration(audio.duration);
     };
+
+    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("error", onError);
+    audio.addEventListener("loadedmetadata", onLoadedMetadata);
+
+    return () => {
+      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("error", onError);
+      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+      // Disconnect AudioContext and clean up audio element
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current.load(); // force reset
+      }
+      // Close the AudioContext if it exists
+      const { audioContext } = require("@/audio/engine");
+      if (audioContext && audioContext.state !== "closed") {
+        audioContext.close().catch(() => {});
+      }
+    };
+  }, [getAudio, setError, setPlaying, setDuration]);
     const onError = () => {
       setPlaying(false);
       const code = audio.error?.code;
