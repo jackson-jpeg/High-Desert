@@ -25,7 +25,9 @@ export async function playStartupSound(): Promise<void> {
   sessionStorage.setItem("hd-startup-played", "1");
 
   try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
 
     // Sweep oscillator: 200Hz → 1200Hz → 400Hz over 0.5s
     const osc = ctx.createOscillator();
