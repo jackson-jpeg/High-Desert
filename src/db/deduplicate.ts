@@ -57,12 +57,26 @@ export interface DeduplicateResult {
  * Find and remove duplicate episodes, keeping the most metadata-rich version.
  * Merges playback data (play count, position, favorites) from duplicates into the keeper.
  */
+function validateEpisode(ep: any): ep is Episode {
+  return (
+    ep &&
+    typeof ep === 'object' &&
+    typeof ep.fileHash === 'string' &&
+    typeof ep.filePath === 'string' &&
+    typeof ep.fileName === 'string' &&
+    typeof ep.fileSize === 'number' &&
+    typeof ep.createdAt === 'number' &&
+    typeof ep.updatedAt === 'number'
+  );
+}
+
 export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
   const allEpisodes = (await db?.episodes?.toArray()) ?? [];
+  const validEpisodes = allEpisodes.filter(validateEpisode);
   const groups = new Map<string, Episode[]>();
 
   // Group by dedup key
-  for (const ep of allEpisodes) {
+  for (const ep of validEpisodes) {
     const key = dedupKey(ep);
     const group = groups.get(key) || [];
     group.push(ep);
@@ -172,7 +186,7 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
   }
 
   return {
-    totalBefore: allEpisodes.length,
+    totalBefore: validEpisodes.length,
     duplicatesRemoved,
     groupsMerged,
   };
