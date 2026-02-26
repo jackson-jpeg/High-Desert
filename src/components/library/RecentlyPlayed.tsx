@@ -11,7 +11,7 @@ interface RecentlyPlayedProps {
 }
 
 export function RecentlyPlayed({ episodes, onPlay, compact, className }: RecentlyPlayedProps) {
-  if (episodes.length === 0) {
+  if (!episodes || episodes.length === 0) {
     return (
       <div className={cn("flex flex-col gap-1", className)}>
         {!compact && (
