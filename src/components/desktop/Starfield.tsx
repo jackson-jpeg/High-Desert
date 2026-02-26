@@ -63,10 +63,14 @@ export function Starfield() {
     let lastMeteorAt = performance.now();
     let nextMeteorIn = 8000 + Math.random() * 12000;
 
+    let resizeTimeout: NodeJS.Timeout;
     const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      generateStars(canvas.width, canvas.height);
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        generateStars(canvas.width, canvas.height);
+      }, 150);
     };
 
     const spawnMeteor = () => {
@@ -176,6 +180,7 @@ export function Starfield() {
       cancelAnimationFrame(animId);
       window.removeEventListener("resize", resize);
       document.removeEventListener("visibilitychange", onVisibility);
+      clearTimeout(resizeTimeout);
     };
   }, [generateStars]);
 
