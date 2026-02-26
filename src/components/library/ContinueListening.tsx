@@ -52,7 +52,7 @@ function ContinueListeningContent({ onPlay, className }: ContinueListeningProps)
 
   if (dismissed) return null;
   if (!inProgress) return <ContinueListeningSkeleton className={className} />;
-  if (inProgress.length === 0) return null;
+  if (inProgress.length === 0) return <ContinueListeningSkeleton className={className} />;
 
   return (
     <div className={cn("w98-raised-dark bg-raised-surface animate-slide-up", className)}>
