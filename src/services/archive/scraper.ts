@@ -47,19 +47,10 @@ export async function* scrapeArchiveCatalog(
       rows: String(ROWS_PER_PAGE),
     });
 
-    // Rate limit: max 5 requests per 10 seconds to prevent archive.org bans
-    const rateLimitKey = "archive-scraper";
-    let rateLimitResult = rateLimit(rateLimitKey, { maxRequests: 5, windowMs: 10000 });
-    
-    while (!rateLimitResult.allowed) {
-      await new Promise(resolve => setTimeout(resolve, rateLimitResult.retryAfterMs));
-      rateLimitResult = rateLimit(rateLimitKey, { maxRequests: 5, windowMs: 10000 });
-    }
-
     const res = await fetchWithRetry(
       `/api/archive/scrape?${params.toString()}`,
       { signal },
-      { retries: 3, delay: 3000, backoff: 2 },
+      { retries: 5, delay: 5000, backoff: 2 },
     );
 
     if (!res.ok) {
