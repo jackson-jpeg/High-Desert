@@ -9,10 +9,24 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "default", size = "md", children, ...props }, ref) => {
+  ({ className, variant = "default", size = "md", children, "aria-label": ariaLabel, ...props }, ref) => {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        if (!props.disabled) {
+          (e.currentTarget as HTMLButtonElement).click();
+        }
+      }
+      props.onKeyDown?.(e);
+    };
+
     return (
       <button
         ref={ref}
+        role="button"
+        tabIndex={props.disabled ? -1 : 0}
+        aria-label={ariaLabel || (typeof children === "string" ? children : undefined)}
+        aria-disabled={props.disabled}
         className={cn(
           "w98-font cursor-pointer select-none outline-none",
           "md:active:pt-[5px] md:active:pb-[3px] md:active:pl-[17px] md:active:pr-[15px]",
@@ -32,6 +46,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           size === "lg" && "px-6 py-3 text-[14px] min-h-[44px] min-w-[90px] md:py-1.5 md:text-[12px] md:min-h-0",
           className,
         )}
+        onKeyDown={handleKeyDown}
         {...props}
       >
         {children}
