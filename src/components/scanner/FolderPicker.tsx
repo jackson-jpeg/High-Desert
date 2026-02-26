@@ -9,6 +9,7 @@ interface FolderPickerProps {
   onPickFallback: (fileList: FileList) => void;
   supportsNativePicker: boolean;
   disabled?: boolean;
+  onError?: (message: string) => void;
 }
 
 export function FolderPicker({
@@ -16,6 +17,7 @@ export function FolderPicker({
   onPickFallback,
   supportsNativePicker,
   disabled = false,
+  onError,
 }: FolderPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -31,13 +33,13 @@ export function FolderPicker({
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
-      if (files && files.length > 0) {
-        onPickFallback(files);
-      } else {
-        console.warn("FolderPicker: No files selected or files list is empty");
+      if (!files || files.length === 0) {
+        onError?.("Please select a folder containing audio files.");
+        return;
       }
+      onPickFallback(files);
     },
-    [onPickFallback],
+    [onPickFallback, onError],
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -53,18 +55,18 @@ export function FolderPicker({
   }, []);
 
   const handleDrop = useCallback(
-    (e: React.DragEvent) => {
+    (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
       setDragOver(false);
       const files = e.dataTransfer.files;
-      if (files && files.length > 0) {
-        onPickFallback(files);
-      } else {
-        console.warn("FolderPicker: No files dropped or files list is empty");
+      if (!files || files.length === 0) {
+        onError?.("Please drop a folder containing audio files.");
+        return;
       }
+      onPickFallback(files);
     },
-    [onPickFallback],
+    [onPickFallback, onError],
   );
 
   return (

@@ -28,6 +28,22 @@ export default function ScannerPage() {
   const hasResults =
     status === "completed" || status === "cancelled" || status === "error";
 
+  const [error, setError] = useState<string | null>(null);
+
+  const handlePickNative = () => {
+    setError(null);
+    startScan();
+  };
+
+  const handlePickFallback = (fileList: FileList) => {
+    setError(null);
+    if (!fileList || fileList.length === 0) {
+      setError("Please select a folder containing audio files.");
+      return;
+    }
+    startScanFallback(fileList);
+  };
+
   return (
     <div className="p-4 flex flex-col gap-5 max-w-2xl mx-auto">
       {/* Section header */}
@@ -58,11 +74,17 @@ export default function ScannerPage() {
 
       {/* Folder picker (disabled while scanning) */}
       <FolderPicker
-        onPickNative={startScan}
-        onPickFallback={startScanFallback}
+        onPickNative={handlePickNative}
+        onPickFallback={handlePickFallback}
         supportsNativePicker={supportsNativePicker}
         disabled={isScanning}
+        onError={setError}
       />
+      {error && (
+        <div className="text-[11px] text-red-400 text-center">
+          {error}
+        </div>
+      )}
 
       {/* Progress display */}
       {(isScanning || hasResults) && <ScanProgress onCancel={cancelScan} />}
