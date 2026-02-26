@@ -65,8 +65,8 @@ export function BookmarkMarkers(props: Props) {
             style={{ left: `${pct}%` }}
             onClick={(e) => {
               e.stopPropagation();
-              const audio = document.querySelector("audio");
-              if (audio && audio.currentTime !== null && typeof audio.currentTime === 'number') {
+              const audio = document.querySelector("audio") as HTMLAudioElement | null;
+              if (audio && !isNaN(audio.duration) && isFinite(audio.duration)) {
                 audio.currentTime = bm.position;
               }
               usePlayerStore.getState().setPosition(bm.position);
