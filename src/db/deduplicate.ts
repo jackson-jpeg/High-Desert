@@ -58,7 +58,7 @@ export interface DeduplicateResult {
  * Merges playback data (play count, position, favorites) from duplicates into the keeper.
  */
 export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
-  const allEpisodes = await db.episodes.toArray();
+  const allEpisodes = (await db.episodes.toArray()) ?? [];
   const groups = new Map<string, Episode[]>();
 
   // Group by dedup key
@@ -148,7 +148,7 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
     });
 
     // Delete duplicates
-    const dupeIds = dupes.map((d) => d.id!).filter(Boolean);
+    const dupeIds = dupes.map((d) => d?.id).filter((id): id is string => id != null);
     await db.episodes.bulkDelete(dupeIds);
 
     // Also update any history/bookmark/playlist references
@@ -158,7 +158,7 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
     }
 
     // Update playlists that reference deleted episodes
-    const playlists = await db.playlists.toArray();
+    const playlists = (await db.playlists.toArray()) ?? [];
     for (const playlist of playlists) {
       if (dupeIds.some((id) => playlist.episodeIds.includes(id))) {
         const newIds = playlist.episodeIds
