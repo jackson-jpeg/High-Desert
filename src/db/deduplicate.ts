@@ -79,7 +79,17 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
     };
   }
   
-  const allEpisodes = (await db.episodes.toArray()) ?? [];
+  let allEpisodes: Episode[] = [];
+  try {
+    allEpisodes = (await db.episodes.toArray()) ?? [];
+  } catch (error) {
+    console.error('[Deduplication] Failed to fetch episodes:', error);
+    return {
+      totalBefore: 0,
+      duplicatesRemoved: 0,
+      groupsMerged: 0,
+    };
+  }
   const validEpisodes = allEpisodes.filter(validateEpisode);
   const groups = new Map<string, Episode[]>();
 
@@ -147,51 +157,79 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
     }
 
     // Update keeper with merged data
-    await db?.episodes?.update(keeper.id!, {
-      playCount: totalPlayCount,
-      lastPlayedAt: latestPlayed || undefined,
-      playbackPosition: bestPosition,
-      duration: bestDuration || keeper.duration,
-      favoritedAt: keeper.favoritedAt,
-      rating: keeper.rating,
-      aiSummary: keeper.aiSummary,
-      aiCategory: keeper.aiCategory,
-      aiTags: keeper.aiTags,
-      aiSeries: keeper.aiSeries,
-      aiSeriesPart: keeper.aiSeriesPart,
-      aiNotable: keeper.aiNotable,
-      aiStatus: keeper.aiStatus,
-      title: keeper.title,
-      guestName: keeper.guestName,
-      topic: keeper.topic,
-      description: keeper.description,
-      sourceUrl: keeper.sourceUrl,
-      updatedAt: Date.now(),
-    });
+    try {
+      await db?.episodes?.update(keeper.id!, {
+        playCount: totalPlayCount,
+        lastPlayedAt: latestPlayed || undefined,
+        playbackPosition: bestPosition,
+        duration: bestDuration || keeper.duration,
+        favoritedAt: keeper.favoritedAt,
+        rating: keeper.rating,
+        aiSummary: keeper.aiSummary,
+        aiCategory: keeper.aiCategory,
+        aiTags: keeper.aiTags,
+        aiSeries: keeper.aiSeries,
+        aiSeriesPart: keeper.aiSeriesPart,
+        aiNotable: keeper.aiNotable,
+        aiStatus: keeper.aiStatus,
+        title: keeper.title,
+        guestName: keeper.guestName,
+        topic: keeper.topic,
+        description: keeper.description,
+        sourceUrl: keeper.sourceUrl,
+        updatedAt: Date.now(),
+      });
+    } catch (error) {
+      console.error('[Deduplication] Failed to update keeper episode:', error);
+      continue;
+    }
 
     // Delete duplicates
     const dupeIds = dupes.map((d) => d?.id).filter((id): id is string => id != null);
-    await db?.episodes?.bulkDelete(dupeIds);
+    try {
+      await db?.episodes?.bulkDelete(dupeIds);
+    } catch (error) {
+      console.error('[Deduplication] Failed to delete duplicate episodes:', error);
+    }
 
     // Also update any history/bookmark/playlist references
     for (const dupeId of dupeIds) {
       if (db?.history) {
-        await db.history.where("episodeId").equals(dupeId).modify({ episodeId: keeper.id! });
+        try {
+          await db.history.where("episodeId").equals(dupeId).modify({ episodeId: keeper.id! });
+        } catch (error) {
+          console.error(`[Deduplication] Failed to update history for episode ${dupeId}:`, error);
+        }
       }
       if (db?.bookmarks) {
-        await db.bookmarks.where("episodeId").equals(dupeId).modify({ episodeId: keeper.id! });
+        try {
+          await db.bookmarks.where("episodeId").equals(dupeId).modify({ episodeId: keeper.id! });
+        } catch (error) {
+          console.error(`[Deduplication] Failed to update bookmarks for episode ${dupeId}:`, error);
+        }
       }
     }
 
     // Update playlists that reference deleted episodes
     if (db?.playlists) {
-      const playlists = (await db.playlists.toArray()) ?? [];
+      let playlists: Playlist[] = [];
+      try {
+        playlists = (await db.playlists.toArray()) ?? [];
+      } catch (error) {
+        console.error('[Deduplication] Failed to fetch playlists:', error);
+        continue;
+      }
+      
       for (const playlist of playlists) {
         if (dupeIds.some((id) => playlist.episodeIds.includes(id))) {
           const newIds = playlist.episodeIds
             .map((id) => (dupeIds.includes(id) ? keeper.id! : id))
             .filter((id, i, arr) => arr.indexOf(id) === i); // remove duplicates
-          await db.playlists.update(playlist.id!, { episodeIds: newIds });
+          try {
+            await db.playlists.update(playlist.id!, { episodeIds: newIds });
+          } catch (error) {
+            console.error(`[Deduplication] Failed to update playlist ${playlist.id}:`, error);
+          }
         }
       }
     }
@@ -220,20 +258,28 @@ export async function findDuplicateEpisode(
   // Check by archiveIdentifier first (strongest signal)
   if (ep.archiveIdentifier) {
     const base = ep.archiveIdentifier.split("/")[0];
-    const existing = await db.episodes
-      .where("archiveIdentifier")
-      .startsWith(base)
-      .first();
-    if (existing) return existing;
+    try {
+      const existing = await db.episodes
+        .where("archiveIdentifier")
+        .startsWith(base)
+        .first();
+      if (existing) return existing;
+    } catch (error) {
+      console.error('[Deduplication] Failed to query by archiveIdentifier:', error);
+    }
   }
 
   // Check by fileHash
   if (ep.fileHash) {
-    const existing = await db.episodes
-      .where("fileHash")
-      .equals(ep.fileHash)
-      .first();
-    if (existing) return existing;
+    try {
+      const existing = await db.episodes
+        .where("fileHash")
+        .equals(ep.fileHash)
+        .first();
+      if (existing) return existing;
+    } catch (error) {
+      console.error('[Deduplication] Failed to query by fileHash:', error);
+    }
   }
 
   return null;
