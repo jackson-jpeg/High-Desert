@@ -15,7 +15,7 @@ export function drawOscilloscope(
   canvas: HTMLCanvasElement,
   analyser: AnalyserNode | null,
 ): void {
-  if (!analyser) return;
+  if (!analyser || !analyser.context || !analyser.context.currentTime) return;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
