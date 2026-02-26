@@ -4,4 +4,4 @@ Disallow: /api/
 Disallow: /scanner
 Disallow: /search
 
-Sitemap: https://highdesert.app/sitemap.xml
+Sitemap: https://highdesert.space/sitemap.xml

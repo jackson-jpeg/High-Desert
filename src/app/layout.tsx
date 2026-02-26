@@ -18,7 +18,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://highdesert.app"),
+  metadataBase: new URL("https://highdesert.space"),
   title: {
     default: "High Desert — Art Bell Radio Archive",
     template: "%s | High Desert",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   ],
   manifest: "/manifest.json",
   alternates: {
-    canonical: "https://highdesert.app",
+    canonical: "https://highdesert.space",
   },
   robots: {
     index: true,
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     siteName: "High Desert",
     locale: "en_US",
     type: "website",
-    url: "https://highdesert.app",
+    url: "https://highdesert.space",
   },
   twitter: {
     card: "summary_large_image",
@@ -64,7 +64,7 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "WebApplication",
   name: "High Desert",
-  url: "https://highdesert.app",
+  url: "https://highdesert.space",
   description: "Art Bell Radio Archive — Stream thousands of Coast to Coast AM, Dreamland, and special episodes.",
   applicationCategory: "MultimediaApplication",
   operatingSystem: "Any",

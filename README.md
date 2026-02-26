@@ -2,7 +2,7 @@
 
 A desktop-grade web player for the Art Bell radio archive — late-night talk radio about UFOs, the paranormal, and the unexplained, broadcasting from the high desert of Pahrump, Nevada.
 
-**Live at [highdesert.app](https://highdesert.app)**
+**Live at [highdesert.space](https://highdesert.space)**
 
 ## Features
 
