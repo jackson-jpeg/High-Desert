@@ -175,6 +175,9 @@ function tryInitAnalyser(): void {
     analyserNode = null;
     audioContext = null;
     elementConnected = false;
+    
+    // Re-throw to trigger AudioErrorBoundary
+    throw new Error("Web Audio API initialization failed");
   }
 }
 
