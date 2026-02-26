@@ -98,7 +98,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
   const stats = useMemo(() => {
     if (!episodes || !Array.isArray(episodes) || episodes.length === 0) return null;
     const years = episodes
-      .map((ep) => ep.airDate?.slice(0, 4))
+      .map((ep) => ep?.airDate?.slice(0, 4))
       .filter(Boolean) as string[];
     const uniqueYears = [...new Set(years)].sort();
     const firstYear = uniqueYears[0] ?? "?";
@@ -106,7 +106,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
 
     const categories = new Map<string, number>();
     for (const ep of episodes) {
-      if (ep.aiCategory) {
+      if (ep?.aiCategory) {
         categories.set(ep.aiCategory, (categories.get(ep.aiCategory) ?? 0) + 1);
       }
     }
@@ -122,7 +122,9 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
     if (!episodes || !Array.isArray(episodes) || episodes.length === 0) return;
     const store = usePlayerStore.getState();
     store.enqueueMany(episodes);
-    window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: episodes[0] }));
+    const firstEpisode = episodes[0];
+    if (!firstEpisode || !firstEpisode.id) return;
+    window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: firstEpisode }));
   };
 
   const handleShuffle = () => {
@@ -130,7 +132,9 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
     const shuffled = [...episodes].sort(() => Math.random() - 0.5);
     const store = usePlayerStore.getState();
     store.enqueueMany(shuffled);
-    window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: shuffled[0] }));
+    const firstEpisode = shuffled[0];
+    if (!firstEpisode || !firstEpisode.id) return;
+    window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: firstEpisode }));
   };
 
   return (
@@ -201,6 +205,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
         {episodes && episodes.length > 0 && (
           <div className="flex flex-col gap-1 border-t border-bevel-dark/15 pt-2">
             {episodes.map((ep) => {
+              if (!ep || !ep.id) return null;
               const hasProgress = (ep.playbackPosition ?? 0) > 0 && (ep.duration ?? 0) > 0;
               const progressPct = hasProgress
                 ? Math.min(100, (ep.playbackPosition! / ep.duration!) * 100)
@@ -222,7 +227,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
                     )}
                   </div>
                   <div className="text-[13px] md:text-[10px] text-desktop-gray truncate mt-0.5">
-                    {ep.title || ep.fileName}
+                    {ep.title || ep.fileName || 'Unknown Episode'}
                   </div>
                   {hasProgress && (
                     <div className="h-[2px] mt-1 bg-inset-well w98-inset-dark overflow-hidden">
