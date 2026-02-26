@@ -1,60 +1,75 @@
 /**
- * Simple in-memory sliding window rate limiter.
- * Not shared across serverless instances — good enough for single-process deployments.
+ * Token-bucket rate limiter for archive.org API calls.
+ * Enforces 15 requests per minute to prevent 429 errors during bulk scraping.
  */
 
-interface RateLimitEntry {
-  timestamps: number[];
+interface TokenBucket {
+  tokens: number;
+  lastRefill: number;
 }
 
-const store = new Map<string, RateLimitEntry>();
+const store = new Map<string, TokenBucket>();
+const RATE_LIMIT_TOKENS = 15;
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+
+// Cleanup stale buckets every 5 minutes
+const CLEANUP_INTERVAL = 5 * 60 * 1000;
+let lastCleanup = Date.now();
 
 // Cleanup stale entries every 5 minutes
 const CLEANUP_INTERVAL = 5 * 60 * 1000;
 let lastCleanup = Date.now();
 
-function cleanup(windowMs: number) {
+function cleanup() {
   const now = Date.now();
   if (now - lastCleanup < CLEANUP_INTERVAL) return;
   lastCleanup = now;
-  const cutoff = now - windowMs;
-  for (const [key, entry] of store) {
-    entry.timestamps = entry.timestamps.filter((t) => t > cutoff);
-    if (entry.timestamps.length === 0) store.delete(key);
+  // Remove buckets older than 5 minutes of inactivity
+  for (const [key, bucket] of store) {
+    if (now - bucket.lastRefill > 5 * 60_000) {
+      store.delete(key);
+    }
   }
 }
 
 export function rateLimit(
   key: string,
-  { maxRequests = 10, windowMs = 60_000 }: { maxRequests?: number; windowMs?: number } = {},
+  { maxRequests = RATE_LIMIT_TOKENS, windowMs = RATE_LIMIT_WINDOW_MS }: { maxRequests?: number; windowMs?: number } = {},
 ): { allowed: boolean; remaining: number; retryAfterMs: number } {
-  cleanup(windowMs);
+  cleanup();
   const now = Date.now();
-  const cutoff = now - windowMs;
-
-  let entry = store.get(key);
-  if (!entry) {
-    entry = { timestamps: [] };
-    store.set(key, entry);
+  
+  let bucket = store.get(key);
+  if (!bucket) {
+    bucket = { tokens: maxRequests, lastRefill: now };
+    store.set(key, bucket);
   }
 
-  // Remove expired timestamps
-  entry.timestamps = entry.timestamps.filter((t) => t > cutoff);
+  // Refill tokens based on elapsed time
+  const elapsed = now - bucket.lastRefill;
+  const tokensToAdd = Math.floor((elapsed / windowMs) * maxRequests);
+  bucket.tokens = Math.min(maxRequests, bucket.tokens + tokensToAdd);
+  bucket.lastRefill = now;
 
-  if (entry.timestamps.length >= maxRequests) {
-    const oldest = entry.timestamps[0];
+  if (bucket.tokens <= 0) {
     return {
       allowed: false,
       remaining: 0,
-      retryAfterMs: oldest + windowMs - now,
+      retryAfterMs: Math.ceil((1 / maxRequests) * windowMs),
     };
   }
 
-  entry.timestamps.push(now);
+  bucket.tokens--;
   return {
     allowed: true,
-    remaining: maxRequests - entry.timestamps.length,
+    remaining: Math.floor(bucket.tokens),
     retryAfterMs: 0,
+  };
+}
+
+export function createArchiveRateLimiter() {
+  return {
+    check: () => rateLimit('archive.org', { maxRequests: 15, windowMs: 60_000 }),
   };
 }
 

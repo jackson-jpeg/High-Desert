@@ -35,6 +35,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Rate limited" }, { status: 429 });
   }
 
+  // Check archive.org rate limit
+  const { rateLimit: archiveRateLimit } = await import('@/lib/utils/rate-limit');
+  const archiveRl = archiveRateLimit.createArchiveRateLimiter().check();
+  if (!archiveRl.allowed) {
+    return NextResponse.json(
+      { error: "Rate limited by archive.org" },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(archiveRl.retryAfterMs / 1000)) } }
+    );
+  }
+
   const { searchParams } = request.nextUrl;
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
   const rows = Math.min(parseInt(searchParams.get("rows") ?? "100", 10), 200);

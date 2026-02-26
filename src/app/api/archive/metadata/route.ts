@@ -29,6 +29,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid id parameter" }, { status: 400 });
   }
 
+  // Check archive.org rate limit
+  const { rateLimit: archiveRateLimit } = await import('@/lib/utils/rate-limit');
+  const rl = archiveRateLimit.createArchiveRateLimiter().check();
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Rate limited by archive.org" },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.retryAfterMs / 1000)) } }
+    );
+  }
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
