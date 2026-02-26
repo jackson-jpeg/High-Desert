@@ -7,6 +7,7 @@ import { db } from "@/db";
 import type { Episode } from "@/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
 import { cn } from "@/lib/utils/cn";
+import { ContinueListeningSkeleton } from "./ContinueListeningSkeleton";
 
 interface ContinueListeningProps {
   onPlay: (episode: Episode) => void;
@@ -49,7 +50,9 @@ function ContinueListeningContent({ onPlay, className }: ContinueListeningProps)
       .slice(0, 5); // fetch up to 5, display limited by CSS
   }, []);
 
-  if (dismissed || !inProgress || inProgress.length === 0) return null;
+  if (dismissed) return null;
+  if (!inProgress) return <ContinueListeningSkeleton className={className} />;
+  if (inProgress.length === 0) return null;
 
   return (
     <div className={cn("w98-raised-dark bg-raised-surface animate-slide-up", className)}>
