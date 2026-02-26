@@ -14,6 +14,7 @@ import { Starfield } from "./Starfield";
 import type { Menu } from "@/components/win98";
 import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import "@/types/electron";
 
 
 import { usePlayerStore } from "@/stores/player-store";
