@@ -26,8 +26,23 @@ export async function playStartupSound(): Promise<void> {
 
   try {
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
+    if (!AudioCtx) {
+      console.warn('[startup-sound] Web Audio API not supported');
+      return;
+    }
+    
+    let ctx: AudioContext;
+    try {
+      ctx = new AudioCtx();
+    } catch (error) {
+      console.warn('[startup-sound] Failed to create AudioContext:', error);
+      return;
+    }
+    
+    if (!ctx) {
+      console.warn('[startup-sound] AudioContext creation returned null');
+      return;
+    }
 
     // Sweep oscillator: 200Hz → 1200Hz → 400Hz over 0.5s
     const osc = ctx.createOscillator();
@@ -62,8 +77,14 @@ export async function playStartupSound(): Promise<void> {
     noise.stop(ctx.currentTime + 0.5);
 
     // Clean up
-    setTimeout(() => ctx.close(), 1000);
-  } catch {
-    // Web Audio not available
+    setTimeout(() => {
+      try {
+        ctx.close().catch(() => {});
+      } catch {
+        // Ignore close errors
+      }
+    }, 1000);
+  } catch (error) {
+    console.warn('[startup-sound] Web Audio not available:', error);
   }
 }
