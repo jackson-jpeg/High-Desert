@@ -43,6 +43,11 @@ export const EpisodeCard = memo(function EpisodeCard({
   }
   const showLabel = getShowLabel(episode?.showType ?? "unknown");
 
+  const isValidArchiveIdentifier = (id: string | null | undefined): boolean => {
+    if (!id) return false;
+    return /^[a-zA-Z0-9_-]+$/.test(id);
+  };
+
   const isValidArchiveUrl = (url: string | null | undefined): boolean => {
     if (!url) return false;
     try {
