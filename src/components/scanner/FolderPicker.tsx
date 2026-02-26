@@ -30,8 +30,11 @@ export function FolderPicker({
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files && e.target.files.length > 0) {
-        onPickFallback(e.target.files);
+      const files = e.target.files;
+      if (files && files.length > 0) {
+        onPickFallback(files);
+      } else {
+        console.warn("FolderPicker: No files selected or files list is empty");
       }
     },
     [onPickFallback],
@@ -54,8 +57,11 @@ export function FolderPicker({
       e.preventDefault();
       e.stopPropagation();
       setDragOver(false);
-      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        onPickFallback(e.dataTransfer.files);
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        onPickFallback(files);
+      } else {
+        console.warn("FolderPicker: No files dropped or files list is empty");
       }
     },
     [onPickFallback],
