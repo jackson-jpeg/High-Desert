@@ -27,6 +27,17 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
   const remaining = useSleepTimerStore((s) => s.remaining);
   const start = useSleepTimerStore((s) => s.start);
   const cancel = useSleepTimerStore((s) => s.cancel);
+
+  // Handle sleep timer completion
+  useEffect(() => {
+    if (active && remaining <= 0) {
+      const audio = document.querySelector("audio");
+      if (audio && audio.pause) {
+        audio.pause();
+      }
+      cancel();
+    }
+  }, [active, remaining, cancel]);
   const [open, setOpen] = useState(false);
   const [customMin, setCustomMin] = useState("");
   const customRef = useRef<HTMLInputElement>(null);
