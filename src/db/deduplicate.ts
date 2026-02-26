@@ -70,13 +70,9 @@ function validateEpisode(ep: any): ep is Episode {
   );
 }
 
-export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
+export async function deduplicateEpisodes(): Promise<Episode[]> {
   if (!db?.episodes) {
-    return {
-      totalBefore: 0,
-      duplicatesRemoved: 0,
-      groupsMerged: 0,
-    };
+    return [];
   }
   
   let allEpisodes: Episode[] = [];
@@ -89,11 +85,7 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
     } else {
       console.error('[Deduplication] Failed to fetch episodes:', error);
     }
-    return {
-      totalBefore: 0,
-      duplicatesRemoved: 0,
-      groupsMerged: 0,
-    };
+    return [];
   }
   const validEpisodes = allEpisodes.filter(validateEpisode);
   const groups = new Map<string, Episode[]>();
