@@ -129,11 +129,13 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
           if (activeIdx >= 0 && suggestions[activeIdx]) {
             e.preventDefault();
             selectSuggestion(suggestions[activeIdx]);
-          } else if (value.trim()) {
-            handleSearch();
           } else {
             e.preventDefault();
-            toast.error("Please enter a search query");
+            if (!value.trim()) {
+              toast.error("Please enter a search query");
+            } else {
+              handleSearch();
+            }
           }
           break;
         case "Escape":
