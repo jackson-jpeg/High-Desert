@@ -34,6 +34,13 @@ export const EpisodeCard = memo(function EpisodeCard({
   className,
   style,
 }: EpisodeCardProps) {
+  if (!episode) {
+    return (
+      <div className={cn("w-full text-left p-3 md:p-1.5 w98-raised-dark bg-card-surface", className)}>
+        <div className="text-desktop-gray text-sm">Episode data unavailable</div>
+      </div>
+    );
+  }
   const showLabel = getShowLabel(episode.showType);
 
   const showAccent =
