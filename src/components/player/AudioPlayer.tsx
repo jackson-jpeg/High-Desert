@@ -170,8 +170,8 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
         ) : (
           /* Player content */
           <div className="flex-1 flex flex-col justify-center px-4 gap-4">
-            {/* Oscilloscope */}
-            <Oscilloscope className="w-full h-[100px] rounded-sm" />
+          {/* Oscilloscope */}
+          {!webAudioUnsupported && <Oscilloscope className="w-full h-[100px] rounded-sm" />}
 
             {/* Now Playing */}
             <div className="text-center px-2">
@@ -332,7 +332,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
       <div className={cn("w98-raised-dark bg-raised-surface", className)}>
         {errorBanner}
         <div className="flex items-center gap-3 px-3 py-2">
-          <Oscilloscope className="w-[72px] h-[32px] rounded-sm flex-shrink-0" />
+          {!webAudioUnsupported && <Oscilloscope className="w-[72px] h-[32px] rounded-sm flex-shrink-0" />}
           <NowPlaying className="flex-1 min-w-0" />
           <PlaybackControls
             onTogglePlay={togglePlay}
@@ -413,7 +413,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
             </button>
           </div>
         </div>
-        <Oscilloscope className="w-full h-[80px] rounded-sm" />
+        {!webAudioUnsupported && <Oscilloscope className="w-full h-[80px] rounded-sm" />}
         <PlaybackControls
           onTogglePlay={togglePlay}
           onSeek={seek}
