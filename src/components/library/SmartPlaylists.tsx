@@ -103,7 +103,7 @@ function SmartPlaylistsContent({ onPlay, className }: SmartPlaylistsProps) {
   return (
     <Window title="Smart Playlists" variant="dark" className={className}>
       <div className="p-2 flex flex-col gap-0.5 max-h-[350px] overflow-auto">
-        {lists.map((list) => (
+        {lists?.map((list) => (
           <div key={list.key}>
             <button
               onClick={() => setExpanded(expanded === list.key ? null : list.key)}
@@ -138,7 +138,7 @@ function SmartPlaylistsContent({ onPlay, className }: SmartPlaylistsProps) {
                     {"\u21C6"} Shuffle
                   </button>
                 </div>
-                {list.episodes.slice(0, 15).map((ep) => (
+                {list.episodes?.slice(0, 15).map((ep) => (
                   <button
                     key={ep.id}
                     onClick={() => onPlay(ep)}
@@ -156,7 +156,7 @@ function SmartPlaylistsContent({ onPlay, className }: SmartPlaylistsProps) {
                     )}
                   </button>
                 ))}
-                {list.episodes.length > 15 && (
+                {list.episodes?.length > 15 && (
                   <div className="text-[8px] text-bevel-dark/40 px-2 py-0.5">
                     +{list.episodes.length - 15} more
                   </div>
