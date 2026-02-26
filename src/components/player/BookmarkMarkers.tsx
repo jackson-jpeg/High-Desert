@@ -66,7 +66,7 @@ export function BookmarkMarkers(props: Props) {
             onClick={(e) => {
               e.stopPropagation();
               const audio = document.querySelector("audio");
-              if (audio && typeof audio.currentTime === 'number') {
+              if (audio && audio.currentTime !== null && typeof audio.currentTime === 'number') {
                 audio.currentTime = bm.position;
               }
               usePlayerStore.getState().setPosition(bm.position);
