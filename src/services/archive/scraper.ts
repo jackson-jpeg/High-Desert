@@ -66,7 +66,20 @@ export async function* scrapeArchiveCatalog(
       throw new Error(`Catalog fetch failed: ${res.status}`);
     }
 
-    const data: ScrapeResponse = await res.json();
+    const data = (await res.json()) as ScrapeResponse;
+    
+    // Validate response structure
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid response structure from archive.org');
+    }
+    
+    if (!Array.isArray(data.items)) {
+      throw new Error('Missing or invalid items array in response');
+    }
+    
+    if (typeof data.page !== 'number' || typeof data.totalPages !== 'number' || typeof data.total !== 'number') {
+      throw new Error('Missing or invalid pagination data in response');
+    }
 
     // Update total on first response (or if it changed)
     if (data.total > 0 && total === 0) {

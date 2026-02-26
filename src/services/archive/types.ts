@@ -1,6 +1,6 @@
 export interface ArchiveSearchResult {
   identifier: string;
-  title: string;
+  title?: string;
   date?: string;
   description?: string;
   creator?: string;

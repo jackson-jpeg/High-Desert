@@ -18,7 +18,17 @@ export async function searchArchive(
   });
   const res = await fetchWithRetry(`/api/archive/search?${params.toString()}`);
   if (!res.ok) throw new Error("Search failed");
-  return res.json();
+  const data = await res.json();
+  
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid search response structure');
+  }
+  
+  if (!Array.isArray(data.docs) || typeof data.numFound !== 'number') {
+    throw new Error('Missing or invalid search response data');
+  }
+  
+  return data as SearchResponse;
 }
 
 function isValidArchiveIdentifier(identifier: string): boolean {
@@ -33,7 +43,17 @@ export async function getArchiveItem(identifier: string): Promise<ArchiveItem> {
   }
   const res = await fetchWithRetry(`/api/archive/metadata?id=${encodeURIComponent(identifier)}`);
   if (!res.ok) throw new Error("Metadata fetch failed");
-  return res.json();
+  const data = await res.json();
+  
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid metadata response structure');
+  }
+  
+  if (!data.identifier || !data.metadata || !Array.isArray(data.files)) {
+    throw new Error('Missing required metadata fields');
+  }
+  
+  return data as ArchiveItem;
 }
 
 export function getStreamUrl(identifier: string, filename: string): string {
