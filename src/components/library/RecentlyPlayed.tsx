@@ -60,7 +60,8 @@ export function RecentlyPlayed({ episodes, onPlay, compact, className }: Recentl
           const hasProgress = typeof ep?.playbackPosition === 'number' && 
             typeof ep?.duration === 'number' && 
             ep.playbackPosition > 0 && 
-            ep.duration > 0;
+            ep.duration > 0 &&
+            !isNaN(ep.duration);
           const progressPct = hasProgress
             ? Math.min(100, (ep.playbackPosition! / ep.duration!) * 100)
             : 0;
