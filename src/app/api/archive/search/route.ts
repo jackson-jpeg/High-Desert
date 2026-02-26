@@ -40,8 +40,8 @@ export async function GET(request: NextRequest) {
     );
   }
   
-  // SQL-injection defense: rely on parameterised queries & escaping in downstream fetch,
-  // not on brittle regexes.  The query is URL-encoded and sent to archive.org, not executed locally.
+  // Defense against injection attacks: sanitize input, validate length, and use URL encoding
+  // The sanitized query is URL-encoded and sent to archive.org, not executed locally
   const page = parseInt(searchParams.get("page") ?? "1", 10);
   const rows = parseInt(searchParams.get("rows") ?? "30", 10);
   
@@ -59,9 +59,15 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Sanitize: strip special chars, enforce min length
-  const q = rawQ.replace(/['"\\<>]/g, "").trim();
-  if (q.length < 2) {
+  // Enhanced sanitization: remove dangerous characters and patterns
+  const q = rawQ
+    .replace(/['"\\<>]/g, "") // Remove quotes, backslashes, angle brackets
+    .replace(/[;|&$`]/g, "") // Remove shell metacharacters
+    .replace(/\b(drop|delete|insert|update|union|select|exec|script|javascript|vbscript)\b/gi, "") // Remove SQL/JS keywords
+    .replace(/\s+/g, " ") // Normalize whitespace
+    .trim();
+  
+  if (q.length < 2 || q.length > 500) {
     return NextResponse.json({ numFound: 0, docs: [] });
   }
 
