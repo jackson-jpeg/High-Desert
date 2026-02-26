@@ -149,6 +149,10 @@ function tryInitAnalyser(): void {
       console.log("[engine] AudioContext suspended, waiting for user interaction");
     }
     
+    if (!audioContext) {
+      console.warn("[engine] Cannot create analyzer: AudioContext is null");
+      return;
+    }
     const source = audioContext.createMediaElementSource(mediaElement);
     analyserNode = audioContext.createAnalyser();
     analyserNode.fftSize = 2048;
