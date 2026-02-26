@@ -277,7 +277,7 @@ export const EpisodeCard = memo(function EpisodeCard({
             </span>
           )}
         </div>
-        {typeof episode?.duration === 'number' && episode.duration > 0 ? (
+        {typeof episode?.duration === 'number' && !isNaN(episode.duration) && episode.duration > 0 ? (
           <span className="text-[12px] md:text-[10px] text-bevel-dark/70 tabular-nums flex-shrink-0">
             {formatDuration(episode.duration)}
           </span>
