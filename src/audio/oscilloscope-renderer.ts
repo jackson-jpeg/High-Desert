@@ -13,8 +13,9 @@ const GLOW_WIDTH = 6;
 
 export function drawOscilloscope(
   canvas: HTMLCanvasElement,
-  analyser: AnalyserNode,
+  analyser: AnalyserNode | null,
 ): void {
+  if (!analyser) return;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
