@@ -240,13 +240,13 @@ export function SearchPanel() {
                   {query && <span className="text-bevel-dark/60"> for &ldquo;{query}&rdquo;</span>}
                 </span>
                 {newCount > 0 && (
-                  <Button
-                    size="sm"
-                    variant="dark"
-                    onClick={() => addAllToLibrary(results)}
-                  >
-                    Add All New ({newCount})
-                  </Button>
+                <Button
+                  size="sm"
+                  variant="dark"
+                  onClick={() => addAllToLibrary(results || [])}
+                >
+                  Add All New ({newCount})
+                </Button>
                 )}
               </div>
             )}
@@ -276,7 +276,7 @@ export function SearchPanel() {
         ) : (
           <>
             <div className="flex flex-col gap-[3px] px-3 py-3">
-              {results?.map((result, i) => (
+              {results && results.length > 0 && results.map((result, i) => (
                 <ArchiveResultCard
                   key={result.identifier}
                   result={result}
