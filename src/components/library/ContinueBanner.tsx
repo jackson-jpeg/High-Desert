@@ -60,9 +60,9 @@ export function ContinueBanner({ episode, onResume, onDismiss, className }: Cont
     : 0;
 
   // Don't show for near-completed episodes or missing data
-  if (!visible || progressPct > 95 || !episode.id) return null;
+  if (!visible || progressPct > 95 || !episode?.id || !episode?.fileName) return null;
 
-  const title = episode.title || episode.fileName;
+  const title = episode?.title || episode?.fileName || 'Unknown Episode';
   const countdownPct = Math.min(100, (elapsed / DISMISS_MS) * 100);
 
   return (
