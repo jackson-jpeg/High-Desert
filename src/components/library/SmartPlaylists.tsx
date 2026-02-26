@@ -79,7 +79,20 @@ function SmartPlaylistsContent({ onPlay, className }: SmartPlaylistsProps) {
     return result;
   }, [allEpisodes]);
 
-  if (lists.length === 0) return <SmartPlaylistsSkeleton />;
+  if (lists.length === 0) {
+    return (
+      <Window title="Smart Playlists" variant="dark" className={className}>
+        <div className="p-4 flex flex-col gap-3">
+          <div className="text-[13px] text-desktop-gray font-bold">
+            No Episodes Available
+          </div>
+          <div className="text-[11px] text-bevel-dark leading-relaxed">
+            Add some episodes to your library to see smart playlists here.
+          </div>
+        </div>
+      </Window>
+    );
+  }
 
   const handlePlayAll = (list: SmartList) => {
     const store = usePlayerStore.getState();
