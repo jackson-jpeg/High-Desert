@@ -4,12 +4,13 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
 import { Window } from "@/components/win98";
 import { formatTime } from "@/lib/utils/format";
+import { ScannerErrorBoundary } from "./ScannerErrorBoundary";
 
 interface ScanResultsProps {
   className?: string;
 }
 
-export function ScanResults({ className }: ScanResultsProps) {
+function ScanResultsContent({ className }: ScanResultsProps) {
   const episodes = useLiveQuery(
     () => db.episodes.orderBy("airDate").reverse().toArray(),
     [],
@@ -96,5 +97,18 @@ export function ScanResults({ className }: ScanResultsProps) {
         </div>
       </div>
     </Window>
+  );
+}
+
+export function ScanResults({ className }: ScanResultsProps) {
+  return (
+    <ScannerErrorBoundary>
+      <ScanResultsContent className={className} />
+    </ScannerErrorBoundary>
+  );
+} (
+    <ScannerErrorBoundary>
+      <ScanResultsContent className={className} />
+    </ScannerErrorBoundary>
   );
 }
