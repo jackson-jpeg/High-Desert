@@ -23,6 +23,11 @@ export function YearNavigator({ years, currentYear, onYearClick, className }: Ye
     );
   }
 
+  const validYears = years.filter(([year]) => {
+    const y = parseInt(year, 10);
+    return y >= 1990 && y <= 2020;
+  });
+
   return (
     <div
       className={cn(
@@ -30,7 +35,7 @@ export function YearNavigator({ years, currentYear, onYearClick, className }: Ye
         className,
       )}
     >
-      {years.map(([year, count]) => (
+      {validYears.map(([year, count]) => (
         <button
           key={year}
           onClick={() => onYearClick(year)}
