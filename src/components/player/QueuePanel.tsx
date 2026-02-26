@@ -60,6 +60,12 @@ export function QueuePanel() {
       return;
     }
     
+    // Check if audioContext exists in state
+    if (!state.audioContext) {
+      toast.error('Audio context not available. Please refresh the page.');
+      return;
+    }
+    
     const episode = state.playFromQueue(index);
     if (episode) {
       window.dispatchEvent(
