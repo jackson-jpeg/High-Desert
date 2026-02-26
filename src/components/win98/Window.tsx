@@ -39,6 +39,8 @@ export function Window({
         variant === "dark" && "w98-raised-dark bg-raised-surface glass-heavy",
         className,
       )}
+      role="window"
+      aria-labelledby="window-title"
     >
       <TitleBar
         title={title}

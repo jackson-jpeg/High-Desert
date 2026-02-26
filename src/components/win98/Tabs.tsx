@@ -28,6 +28,7 @@ export function Tabs({ tabs, defaultIndex = 0, className }: TabsProps) {
             className={cn(
               "w98-font text-[11px] px-3 py-1 relative cursor-pointer select-none",
               "border-t-2 border-l-2 border-r-2",
+              "focus:outline-dotted focus:outline-1 focus:outline-offset-[-2px] focus:outline-title-bar-blue",
               i === activeIndex
                 ? [
                     "bg-raised-surface text-desktop-gray z-10",
@@ -40,13 +41,24 @@ export function Tabs({ tabs, defaultIndex = 0, className }: TabsProps) {
                     "mt-[2px]",
                   ],
             )}
+            role="tab"
+            tabIndex={i === activeIndex ? 0 : -1}
+            aria-selected={i === activeIndex}
+            aria-controls={`tabpanel-${i}`}
+            id={`tab-${i}`}
           >
             {tab.label}
           </button>
         ))}
       </div>
       {/* Tab content */}
-      <div className="w98-raised-dark bg-raised-surface p-3">
+      <div 
+        className="w98-raised-dark bg-raised-surface p-3"
+        role="tabpanel"
+        id={`tabpanel-${activeIndex}`}
+        aria-labelledby={`tab-${activeIndex}`}
+        tabIndex={0}
+      >
         {tabs[activeIndex]?.content}
       </div>
     </div>

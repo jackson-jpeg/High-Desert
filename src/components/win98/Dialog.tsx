@@ -100,6 +100,7 @@ export function Dialog({
         aria-modal="true"
         tabIndex={-1}
         onKeyDown={handleKeyDown}
+        aria-labelledby="dialog-title"
       >
         <Window onClose={onClose} {...windowProps}>
           {children}

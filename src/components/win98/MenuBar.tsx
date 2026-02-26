@@ -76,6 +76,8 @@ function DropdownMenu({
       role="menu"
       tabIndex={-1}
       onKeyDown={handleKeyDown}
+      id={`menu-${i}`}
+      aria-orientation="vertical"
     >
       {items.map((item, j) =>
         item.separator ? (
@@ -90,6 +92,8 @@ function DropdownMenu({
             )}
             disabled={item.disabled}
             role="menuitem"
+            tabIndex={-1}
+            aria-disabled={item.disabled}
             onMouseEnter={() => setFocused(j)}
             onClick={() => {
               item.onClick?.();
@@ -162,7 +166,7 @@ export function MenuBar({ menus, variant = "classic", className }: MenuBarProps)
     >
       {menus.map((menu, i) => (
         <div key={menu.label} className="relative">
-          <button
+            <button
             className={cn(
               "w98-menubar-item w98-font",
               openIndex === i && "bg-[var(--w98-highlight)] text-white",
@@ -170,6 +174,11 @@ export function MenuBar({ menus, variant = "classic", className }: MenuBarProps)
             data-open={openIndex === i}
             onClick={() => setOpenIndex(openIndex === i ? null : i)}
             onMouseEnter={() => openIndex !== null && setOpenIndex(i)}
+            role="menuitem"
+            tabIndex={0}
+            aria-haspopup="true"
+            aria-expanded={openIndex === i}
+            aria-controls={`menu-${i}`}
           >
             {menu.label}
           </button>
