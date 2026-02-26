@@ -28,7 +28,9 @@ export function RecentlyPlayed({ episodes, onPlay, compact, className }: Recentl
     );
   }
 
-  const displayEpisodes = compact ? episodes.slice(0, 4) : episodes;
+  const validEpisodes = episodes.filter(ep => ep != null);
+
+  const displayEpisodes = compact ? validEpisodes.slice(0, 4) : validEpisodes;
 
   return (
     <div className={cn("flex flex-col gap-1", className)}>
@@ -44,6 +46,7 @@ export function RecentlyPlayed({ episodes, onPlay, compact, className }: Recentl
         compact ? "pb-0.5" : "pb-1.5 snap-x snap-mandatory md:snap-none",
       )}>
         {displayEpisodes.map((ep) => {
+          if (!ep) return null;
           const hasProgress = (ep.playbackPosition ?? 0) > 0 && (ep.duration ?? 0) > 0;
           const progressPct = hasProgress
             ? Math.min(100, (ep.playbackPosition! / ep.duration!) * 100)
