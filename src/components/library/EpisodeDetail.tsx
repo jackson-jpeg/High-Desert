@@ -55,12 +55,18 @@ function EpisodeDetailContent({
   const hasValidTitle = episode?.title && episode.title.trim().length > 0;
   const hasValidDuration = typeof episode?.duration === 'number' && episode.duration > 0;
   const hasValidDate = episode?.airDate && episode.airDate.trim().length > 0;
+  const hasValidAudioSource = !!(episode?.sourceUrl || episode?.filePath);
+  const hasValidFileName = episode?.fileName && episode.fileName.trim().length > 0;
   
-  if (!hasValidTitle || !hasValidDuration || !hasValidDate) {
+  // Allow fallback to fileName if title is missing
+  const canDisplay = (hasValidTitle || hasValidFileName) && hasValidAudioSource;
+  
+  if (!canDisplay) {
     const missingFields = [];
-    if (!hasValidTitle) missingFields.push("title");
+    if (!hasValidTitle && !hasValidFileName) missingFields.push("title or filename");
     if (!hasValidDuration) missingFields.push("duration");
     if (!hasValidDate) missingFields.push("date");
+    if (!hasValidAudioSource) missingFields.push("audio source");
     
     return (
       <div className={cn("w98-raised-dark bg-raised-surface p-4", className)}>
