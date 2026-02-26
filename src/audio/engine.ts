@@ -99,8 +99,20 @@ export function validateAudioFormat(src: string): boolean {
  * Not required for audio playback — the element plays natively.
  */
 export function resumeContext(): Promise<void> {
-  if (audioContext?.state === "suspended") {
-    return audioContext.resume();
+  if (!audioContext) {
+    console.warn("[engine] Cannot resume: AudioContext not initialized");
+    return Promise.resolve();
+  }
+  
+  if (audioContext.state === "suspended") {
+    return audioContext.resume().catch((err) => {
+      console.error("[engine] Failed to resume AudioContext:", err);
+      // Reset state on resume failure
+      analyserNode = null;
+      audioContext = null;
+      elementConnected = false;
+      throw err; // Re-throw for caller to handle
+    });
   }
   return Promise.resolve();
 }
@@ -116,9 +128,22 @@ function tryInitAnalyser(): void {
   if (isIOSDevice()) return;
 
   try {
-    if (typeof AudioContext === 'undefined') return;
+    if (typeof AudioContext === 'undefined') {
+      console.warn("[engine] Web Audio API not supported");
+      return;
+    }
+    
     audioContext = new AudioContext();
-    if (!audioContext) return;
+    if (!audioContext) {
+      console.warn("[engine] Failed to create AudioContext");
+      return;
+    }
+    
+    // Handle autoplay policy errors
+    if (audioContext.state === "suspended") {
+      console.log("[engine] AudioContext suspended, waiting for user interaction");
+    }
+    
     const source = audioContext.createMediaElementSource(mediaElement);
     analyserNode = audioContext.createAnalyser();
     analyserNode.fftSize = 2048;
@@ -130,12 +155,21 @@ function tryInitAnalyser(): void {
 
     // Resume in case created outside a user gesture
     if (audioContext.state === "suspended") {
-      audioContext.resume().catch((err) => { console.warn("[engine] Failed to resume AudioContext:", err); });
+      audioContext.resume().catch((err) => { 
+        console.warn("[engine] Failed to resume AudioContext (autoplay policy):", err);
+        // Clean up on autoplay failure
+        analyserNode = null;
+        audioContext = null;
+        elementConnected = false;
+      });
     }
-  } catch {
+  } catch (error) {
+    console.error("[engine] Web Audio API initialization failed:", error);
     // createMediaElementSource not supported or CORS issue — that's fine,
     // oscilloscope shows the idle breathing animation
     analyserNode = null;
+    audioContext = null;
+    elementConnected = false;
   }
 }
 
