@@ -14,7 +14,7 @@ interface MobileMenuSheetProps {
   onToggleStartupSound?: () => void;
 }
 
-export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout, startupSoundOn, onToggleStartupSound }: MobileMenuSheetProps) {
+export const MobileMenuSheet: React.FC<MobileMenuSheetProps> = ({ open, onClose, isAdmin, onToggleAdmin, onAbout, startupSoundOn, onToggleStartupSound }) => {
   const router = useRouter();
   const closingRef = useRef(false);
 
