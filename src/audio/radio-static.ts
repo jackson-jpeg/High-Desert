@@ -67,7 +67,7 @@ export function initRadioStatic(): void {
 }
 
 function startNoise(): void {
-  if (!ctx || !noiseBuffer || !filterNode) return;
+  if (!ctx || ctx.state === "closed" || !noiseBuffer || !filterNode) return;
 
   // Stop previous source if any
   try {
@@ -89,8 +89,8 @@ function startNoise(): void {
  * signalStrength=0 → full static, signalStrength=1 → silent
  */
 export function setStaticVolume(signalStrength: number): void {
-  if (!gainNode || !ctx) {
-    console.warn("[radio-static] Cannot set volume: audio not initialized");
+  if (!gainNode || !ctx || ctx.state === "closed") {
+    console.warn("[radio-static] Cannot set volume: audio not initialized or unavailable");
     return;
   }
 
@@ -115,8 +115,8 @@ export function muteStatic(): void {
  * Play a short lock tone (880Hz sine, 150ms decay).
  */
 export function playLockTone(): void {
-  if (!ctx) {
-    console.warn("[radio-static] Cannot play lock tone: audio not initialized");
+  if (!ctx || ctx.state === "closed") {
+    console.warn("[radio-static] Cannot play lock tone: audio not initialized or unavailable");
     return;
   }
 
