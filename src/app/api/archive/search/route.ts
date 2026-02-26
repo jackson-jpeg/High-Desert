@@ -117,5 +117,49 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.json((data.response as Record<string, unknown>) ?? { numFound: 0, docs: [] });
+  // Validate response structure
+  if (!data || typeof data !== 'object') {
+    return NextResponse.json(
+      { error: "Invalid response structure from archive.org" },
+      { status: 502 }
+    );
+  }
+
+  const response = data.response as Record<string, unknown> | undefined;
+  if (!response || typeof response !== 'object') {
+    return NextResponse.json(
+      { error: "Missing or invalid response field" },
+      { status: 502 }
+    );
+  }
+
+  const numFound = response.numFound as number | undefined;
+  const docs = response.docs as unknown[] | undefined;
+
+  if (typeof numFound !== 'number' || numFound < 0) {
+    return NextResponse.json(
+      { error: "Invalid or missing numFound field" },
+      { status: 502 }
+    );
+  }
+
+  if (!Array.isArray(docs)) {
+    return NextResponse.json(
+      { error: "Invalid or missing docs array" },
+      { status: 502 }
+    );
+  }
+
+  // Validate each document has required identifier
+  const validDocs = docs.filter((doc): doc is Record<string, unknown> => 
+    typeof doc === 'object' && 
+    doc !== null && 
+    typeof (doc as Record<string, unknown>).identifier === 'string' &&
+    (doc as Record<string, unknown>).identifier.length > 0
+  );
+
+  return NextResponse.json({
+    numFound: validDocs.length,
+    docs: validDocs
+  });
 }
