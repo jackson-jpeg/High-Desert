@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "@/stores/toast-store";
 
 export function ServiceWorkerRegistration() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -39,17 +40,20 @@ export function ServiceWorkerRegistration() {
     }
   };
 
-  return (
-    updateAvailable && (
-      <div className="fixed bottom-4 right-4 bg-gray-800 text-white p-4 rounded shadow-lg z-50">
-        <p className="mb-2">New content available!</p>
-        <button
-          onClick={handleReload}
-          className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm"
-        >
-          Reload
-        </button>
-      </div>
-    )
-  );
+  useEffect(() => {
+    if (updateAvailable) {
+      toast.info(
+        "New content available!",
+        {
+          duration: Infinity,
+          action: {
+            label: "Reload",
+            onClick: handleReload,
+          },
+        }
+      );
+    }
+  }, [updateAvailable]);
+
+  return null;
 }
