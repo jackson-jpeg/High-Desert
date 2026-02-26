@@ -69,6 +69,22 @@ export function setEngineVolume(volume: number): void {
 }
 
 /**
+ * Validate audio file format compatibility before playback.
+ * Currently supports MP3 format for archive.org sources.
+ */
+export function validateAudioFormat(src: string): boolean {
+  if (!src) return false;
+  
+  // Check file extension
+  const url = new URL(src);
+  const pathname = url.pathname.toLowerCase();
+  
+  // Support MP3 and common variants
+  const supportedExtensions = ['.mp3', '.mpga', '.mpeg'];
+  return supportedExtensions.some(ext => pathname.endsWith(ext));
+}
+
+/**
  * Resume the analyser AudioContext (for oscilloscope).
  * Not required for audio playback — the element plays natively.
  */
