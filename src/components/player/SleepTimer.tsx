@@ -32,7 +32,7 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
   useEffect(() => {
     if (active && remaining <= 0) {
       const audio = document.querySelector("audio");
-      if (audio && audio.pause) {
+      if (audio && audio.pause && typeof audio.pause === 'function') {
         audio.pause();
       }
       cancel();
