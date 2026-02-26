@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
 import type { Episode } from "@/db/schema";
@@ -13,6 +14,14 @@ interface ContinueListeningProps {
 }
 
 export function ContinueListening({ onPlay, className }: ContinueListeningProps) {
+  return (
+    <WidgetErrorBoundary name="Continue Listening">
+      <ContinueListeningContent onPlay={onPlay} className={className} />
+    </WidgetErrorBoundary>
+  );
+}
+
+function ContinueListeningContent({ onPlay, className }: ContinueListeningProps) {
   const [dismissed, setDismissed] = useState(false);
   const playing = usePlayerStore((s) => s.playing);
 
