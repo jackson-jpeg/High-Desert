@@ -47,6 +47,14 @@ export function HistoryPanel({ onPlayEpisode, className }: HistoryPanelProps) {
     const episode = await db.episodes.get(entry.episodeId);
     if (episode) {
       window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: episode }));
+      
+      // Update lastPlayedAt with error handling for localStorage
+      try {
+        const currentTime = Date.now();
+        await db.episodes.update(entry.episodeId, { lastPlayedAt: currentTime });
+      } catch (error) {
+        console.warn("Failed to update episode lastPlayedAt:", error);
+      }
     }
   };
 
