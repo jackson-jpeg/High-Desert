@@ -25,14 +25,14 @@ export function ArchiveResultCard({
   style,
 }: ArchiveResultCardProps) {
   // Validate required metadata
-  const hasValidTitle = result.title && result.title.trim().length > 0;
-  const hasValidDate = result.date && result.date.trim().length > 0;
-  const hasValidCreator = result.creator && result.creator.trim().length > 0;
+  const hasValidTitle = result?.title && result.title.trim().length > 0;
+  const hasValidDate = result?.date && result.date.trim().length > 0;
+  const hasValidCreator = result?.creator && result.creator.trim().length > 0;
 
   const date = hasValidDate ? result.date.substring(0, 10) : null;
 
   // Strip HTML tags from description
-  const description = result.description
+  const description = result?.description
     ? result.description.replace(/<[^>]*>/g, "").substring(0, 200)
     : null;
 
@@ -67,7 +67,7 @@ export function ArchiveResultCard({
         <span className="text-[12px] md:text-[10px] text-desert-amber tabular-nums">
           {date ?? "Unknown date"}
         </span>
-        {result.downloads != null && (
+        {result?.downloads != null && (
           <span className="text-[11px] md:text-[9px] text-bevel-dark tabular-nums">
             {result.downloads.toLocaleString()} dl
           </span>
