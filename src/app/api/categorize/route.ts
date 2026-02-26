@@ -28,7 +28,10 @@ export async function POST(request: NextRequest) {
   
   // Validate token format: must be 32+ chars, alphanumeric with hyphens/underscores
   const tokenPattern = /^[a-zA-Z0-9_-]{32,}$/;
-  if (!adminToken || !token || !tokenPattern.test(token) || token !== adminToken) {
+  if (!adminToken) {
+    return NextResponse.json({ error: "ADMIN_API_TOKEN not configured" }, { status: 500 });
+  }
+  if (!token || !tokenPattern.test(token) || token !== adminToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
