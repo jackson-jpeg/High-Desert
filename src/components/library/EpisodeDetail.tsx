@@ -52,9 +52,9 @@ function EpisodeDetailContent({
   }
 
   // Validate required episode metadata
-  const hasValidMetadata = episode.title || episode.fileName;
-  const hasValidDate = episode.airDate;
-  const hasValidDuration = typeof episode.duration === 'number' && episode.duration > 0;
+  const hasValidMetadata = episode?.title || episode?.fileName;
+  const hasValidDate = episode?.airDate;
+  const hasValidDuration = typeof episode?.duration === 'number' && episode.duration > 0;
   
   if (!hasValidMetadata || !hasValidDate || !hasValidDuration) {
     return (
@@ -70,8 +70,8 @@ function EpisodeDetailContent({
       </div>
     );
   }
-  const showLabel = getShowLabel(episode.showType);
-  const isArchive = episode.source === "archive";
+  const showLabel = getShowLabel(episode?.showType ?? "unknown");
+  const isArchive = episode?.source === "archive";
 
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -89,6 +89,7 @@ function EpisodeDetailContent({
   }, [episode?.id]);
 
   const startEditing = () => {
+    if (!episode) return;
     setEditTitle(episode.title ?? "");
     setEditGuest(episode.guestName ?? "");
     setEditAirDate(episode.airDate ?? "");
