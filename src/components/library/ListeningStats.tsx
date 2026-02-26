@@ -57,7 +57,28 @@ export function ListeningStats({ className }: ListeningStatsProps) {
     return { streak, hours, minutes, topGuest };
   }, [history, episodes]);
 
-  if (!stats || (stats.streak === 0 && stats.hours === 0 && !stats.topGuest)) return null;
+  if (!history || !episodes) {
+    return (
+      <div className={cn(
+        "w98-inset-dark bg-inset-well px-3 py-2 md:py-1.5 flex items-center justify-center text-[11px] md:text-[9px] text-bevel-dark/60",
+        className,
+      )}>
+        <div className="animate-spin w-3 h-3 border-1 border-static-green/60 border-t-transparent rounded-full mr-2" />
+        Loading listening stats…
+      </div>
+    );
+  }
+
+  if (stats.streak === 0 && stats.hours === 0 && !stats.topGuest) {
+    return (
+      <div className={cn(
+        "w98-inset-dark bg-inset-well px-3 py-2 md:py-1.5 flex items-center justify-center text-[11px] md:text-[9px] text-bevel-dark/60",
+        className,
+      )}>
+        No listening data yet — start an episode to see stats
+      </div>
+    );
+  }
 
   return (
     <div className={cn(
