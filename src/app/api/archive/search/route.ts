@@ -18,6 +18,12 @@ export async function GET(request: NextRequest) {
   }
   
   const rawQ = searchParams.get("q") ?? "";
+  if (!rawQ.trim()) {
+    return NextResponse.json(
+      { error: "Query parameter q cannot be empty" },
+      { status: 400 }
+    );
+  }
   const page = parseInt(searchParams.get("page") ?? "1", 10);
   const rows = parseInt(searchParams.get("rows") ?? "30", 10);
   
