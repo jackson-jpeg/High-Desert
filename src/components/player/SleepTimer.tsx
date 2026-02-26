@@ -96,7 +96,7 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
         <button
           key={minutes}
           onClick={() => {
-            if (Number.isInteger(minutes) && minutes > 0) {
+            if (Number.isInteger(minutes) && minutes >= 1 && minutes <= 480) {
               start(minutes);
               setOpen(false);
             }
@@ -118,20 +118,20 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
         max={480}
         value={customMin}
         onChange={(e) => setCustomMin(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            const mins = parseInt(customMin, 10);
-            if (Number.isInteger(mins) && mins >= 1 && mins <= 480) {
-              start(mins);
-              setOpen(false);
-              setCustomMin("");
-            } else {
-              // Provide visual feedback for invalid input
-              customRef.current?.classList.add('border-red-400');
-              setTimeout(() => customRef.current?.classList.remove('border-red-400'), 1000);
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const mins = parseInt(customMin, 10);
+              if (Number.isInteger(mins) && mins >= 1 && mins <= 480) {
+                start(mins);
+                setOpen(false);
+                setCustomMin("");
+              } else {
+                // Provide visual feedback for invalid input
+                customRef.current?.classList.add('border-red-400');
+                setTimeout(() => customRef.current?.classList.remove('border-red-400'), 1000);
+              }
             }
-          }
-        }}
+          }}
         placeholder="min"
         className={cn(
           "bg-inset-well w98-inset-dark text-desktop-gray text-center outline-none tabular-nums",
