@@ -10,7 +10,8 @@ interface SignalMeterProps {
  * Subtle pulse at full signal.
  */
 export function SignalMeter({ signalStrength, className }: SignalMeterProps) {
-  const filled = Math.round(signalStrength * 10);
+  const safeSignal = typeof signalStrength === 'number' && !isNaN(signalStrength) ? signalStrength : 0;
+  const filled = Math.round(safeSignal * 10);
   const isFull = filled === 10;
 
   return (
