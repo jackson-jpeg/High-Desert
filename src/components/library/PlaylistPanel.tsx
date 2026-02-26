@@ -211,12 +211,9 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
       </div>
 
       {(!playlists?.length) && (
-        <div className="p-4 text-center text-sm text-bevel-dark/60">
-          No playlists yet.
-        </div>
-      )}
-        <div className="text-[11px] md:text-[9px] text-bevel-dark/50 text-center py-3">
-          Create your first playlist.
+        <div className="p-4 text-center">
+          <div className="text-sm text-bevel-dark/60 mb-1">No playlists yet.</div>
+          <div className="text-[11px] md:text-[9px] text-bevel-dark/50">Create your first playlist.</div>
         </div>
       )}
 
