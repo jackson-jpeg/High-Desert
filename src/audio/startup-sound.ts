@@ -25,6 +25,11 @@ export async function playStartupSound(): Promise<void> {
   sessionStorage.setItem("hd-startup-played", "1");
 
   try {
+    if (typeof window === 'undefined') {
+      console.warn('[startup-sound] Window not available');
+      return;
+    }
+    
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioCtx) {
       console.warn('[startup-sound] Web Audio API not supported');
@@ -79,7 +84,9 @@ export async function playStartupSound(): Promise<void> {
     // Clean up
     setTimeout(() => {
       try {
-        ctx.close().catch(() => {});
+        if (ctx && ctx.state !== 'closed') {
+          ctx.close().catch(() => {});
+        }
       } catch {
         // Ignore close errors
       }
