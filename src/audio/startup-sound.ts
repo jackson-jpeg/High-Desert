@@ -39,8 +39,8 @@ export async function playStartupSound(): Promise<void> {
       return;
     }
     
-    if (!ctx) {
-      console.warn('[startup-sound] AudioContext creation returned null');
+    if (!ctx || ctx.state === 'closed') {
+      console.warn('[startup-sound] AudioContext creation failed or returned invalid state');
       return;
     }
 
