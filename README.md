@@ -19,7 +19,7 @@ A desktop-grade web player for the Art Bell radio archive — late-night talk ra
 
 ## Tech Stack
 
-- **Next.js 16** (App Router) + **React 19**
+- **Next.js 15** (App Router) + **React 19**
 - **Tailwind CSS 4** with custom Win98 design tokens
 - **Dexie** (IndexedDB) for client-side storage
 - **Zustand** for player/UI state
