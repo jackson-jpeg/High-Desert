@@ -17,6 +17,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing or invalid id parameter" }, { status: 400 });
   }
 
+  // Block path traversal attempts
+  if (id.includes('..') || id.includes('/') || id.includes('\\')) {
+    return NextResponse.json({ error: "Invalid id parameter" }, { status: 400 });
+  }
+
   // Validate identifier format (alphanumeric with hyphens/underscores)
   const identifierRegex = /^[a-zA-Z0-9._-]+$/;
   if (!identifierRegex.test(id)) {
