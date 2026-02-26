@@ -310,9 +310,13 @@ function EpisodeDetailContent({
             )}
 
             {/* Summary or Description */}
-            {(episode.aiSummary || episode.description) && (
+            {(episode.aiSummary || episode.description) ? (
               <div className="text-[12px] md:text-[10px] text-desktop-gray/60 leading-relaxed">
                 {episode.aiSummary || episode.description}
+              </div>
+            ) : (
+              <div className="text-[12px] md:text-[10px] text-desktop-gray/40 italic leading-relaxed">
+                No description available
               </div>
             )}
 
