@@ -69,15 +69,6 @@ export async function GET(request: NextRequest) {
     );
   }
   
-  // Validate sort parameter if provided
-  const sort = searchParams.get("sort");
-  if (sort && !/^[a-zA-Z0-9_\s]+\s+(asc|desc)$/i.test(sort)) {
-    return NextResponse.json(
-      { error: "Invalid sort parameter format" },
-      { status: 400 }
-    );
-  }
-
   // Enhanced sanitization: remove dangerous characters and patterns
   const q = rawQ
     .replace(/['"\\<>]/g, "") // Remove quotes, backslashes, angle brackets
