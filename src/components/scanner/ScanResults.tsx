@@ -104,25 +104,25 @@ function ScanResultsContent({ className }: ScanResultsProps) {
             </tr>
           </thead>
           <tbody>
-            {episodes.map((ep) => (
+            {episodes?.map((ep) => (
               <tr
                 key={ep.id}
                 className="border-b border-bevel-dark/10 hover:bg-title-bar-blue/20 transition-colors-fast"
               >
                 <td className="px-2 py-1 text-desert-amber whitespace-nowrap">
-                  {ep.airDate ?? "Unknown"}
+                  {ep?.airDate ?? "Unknown"}
                 </td>
                 <td className="px-2 py-1 text-desktop-gray truncate max-w-[200px]">
-                  {ep.title ?? ep.fileName ?? "Unknown File"}
+                  {ep?.title ?? ep?.fileName ?? "Unknown File"}
                 </td>
                 <td className="px-2 py-1 text-static-green truncate max-w-[150px]">
-                  {ep.guestName ?? "\u2014"}
+                  {ep?.guestName ?? "\u2014"}
                 </td>
                 <td className="px-2 py-1 text-bevel-dark capitalize">
-                  {ep.showType ?? "\u2014"}
+                  {ep?.showType ?? "\u2014"}
                 </td>
                 <td className="px-2 py-1 text-right text-bevel-dark whitespace-nowrap">
-                  {ep.duration ? formatTime(ep.duration) : "\u2014"}
+                  {ep?.duration ? formatTime(ep.duration) : "\u2014"}
                 </td>
               </tr>
             ))}
@@ -131,28 +131,28 @@ function ScanResultsContent({ className }: ScanResultsProps) {
 
         {/* Mobile: stacked cards */}
         <div className="flex flex-col gap-[2px] md:hidden">
-          {episodes.map((ep) => (
+          {episodes?.map((ep) => (
             <div
-              key={ep.id}
+              key={ep?.id}
               className="p-3 min-h-[56px] border-b border-bevel-dark/10 active:bg-title-bar-blue/10"
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[12px] text-desert-amber tabular-nums">
-                  {ep.airDate ?? "Unknown"}
+                  {ep?.airDate ?? "Unknown"}
                 </span>
                 <span className="text-[11px] text-bevel-dark capitalize">
-                  {ep.showType ?? "\u2014"}
+                  {ep?.showType ?? "\u2014"}
                 </span>
               </div>
               <div className="text-[13px] text-desktop-gray font-bold truncate mt-0.5">
-                {ep.title ?? ep.fileName ?? "Unknown File"}
+                {ep?.title ?? ep?.fileName ?? "Unknown File"}
               </div>
               <div className="flex items-center justify-between gap-2 mt-0.5">
                 <span className="text-[12px] text-static-green truncate">
-                  {ep.guestName ?? "\u2014"}
+                  {ep?.guestName ?? "\u2014"}
                 </span>
                 <span className="text-[11px] text-bevel-dark tabular-nums flex-shrink-0">
-                  {ep.duration ? formatTime(ep.duration) : "\u2014"}
+                  {ep?.duration ? formatTime(ep.duration) : "\u2014"}
                 </span>
               </div>
             </div>
