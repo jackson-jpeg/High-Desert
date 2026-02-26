@@ -75,13 +75,23 @@ export function setEngineVolume(volume: number): void {
 export function validateAudioFormat(src: string): boolean {
   if (!src) return false;
   
-  // Check file extension
-  const url = new URL(src);
-  const pathname = url.pathname.toLowerCase();
-  
-  // Support MP3 and common variants
-  const supportedExtensions = ['.mp3', '.mpga', '.mpeg'];
-  return supportedExtensions.some(ext => pathname.endsWith(ext));
+  try {
+    // Check URL validity
+    const url = new URL(src);
+    
+    // Ensure protocol is http/https
+    if (!['http:', 'https:'].includes(url.protocol)) return false;
+    
+    // Check file extension
+    const pathname = url.pathname.toLowerCase();
+    
+    // Support MP3 and common variants
+    const supportedExtensions = ['.mp3', '.mpga', '.mpeg'];
+    return supportedExtensions.some(ext => pathname.endsWith(ext));
+  } catch {
+    // Invalid URL format
+    return false;
+  }
 }
 
 /**
