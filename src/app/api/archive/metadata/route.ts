@@ -45,18 +45,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
-
     const res = await fetch(
       `https://archive.org/metadata/${encodeURIComponent(sanitized)}`,
       {
-        signal: controller.signal,
+        signal: AbortSignal.timeout(FETCH_TIMEOUT),
         next: { revalidate: 3600 },
       },
     );
-
-    clearTimeout(timeout);
 
     if (!res.ok) {
       return NextResponse.json(

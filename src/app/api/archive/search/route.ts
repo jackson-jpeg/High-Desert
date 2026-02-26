@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { getClientIp } from "@/lib/utils/rate-limit";
+import { rateLimit } from "@/lib/api";
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");

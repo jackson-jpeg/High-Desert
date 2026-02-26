@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { getClientIp } from "@/lib/utils/rate-limit";
+import { createArchiveRateLimiter } from "@/lib/utils/rate-limit";
 
 const SEARCH_URL = "https://archive.org/advancedsearch.php";
 
