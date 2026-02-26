@@ -21,6 +21,11 @@ export function initRadioStatic(): void {
   if (initialized) return;
 
   try {
+    if (typeof AudioContext === 'undefined') {
+      console.warn("[radio-static] Web Audio API not supported");
+      initialized = true;
+      return;
+    }
     ctx = new AudioContext();
 
     // Generate 2-second noise buffer
