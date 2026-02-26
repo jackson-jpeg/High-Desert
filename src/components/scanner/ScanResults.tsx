@@ -18,11 +18,59 @@ function ScanResultsContent({ className }: ScanResultsProps) {
   );
   const { status } = useScannerStore();
 
-  if (status === "scanning" || !episodes || episodes.length === 0) {
+  // Validate episode data structure
+  const validateEpisodes = (data: any): data is typeof episodes => {
+    if (!Array.isArray(data)) return false;
+    return data.every(ep => 
+      typeof ep === 'object' && 
+      ep !== null && 
+      'id' in ep &&
+      (ep.airDate === undefined || typeof ep.airDate === 'string') &&
+      (ep.title === undefined || typeof ep.title === 'string') &&
+      (ep.fileName === undefined || typeof ep.fileName === 'string') &&
+      (ep.guestName === undefined || typeof ep.guestName === 'string') &&
+      (ep.showType === undefined || typeof ep.showType === 'string') &&
+      (ep.duration === undefined || typeof ep.duration === 'number')
+    );
+  };
+
+  // Handle loading and empty states
+  if (status === "scanning") {
     return (
       <Window title="Library" variant="dark" className={className}>
         <div className="p-4 text-[11px] text-bevel-dark">
-          {status === "scanning" ? "Scanning your folder..." : "No episodes found. Start scanning to add files."}
+          Scanning your folder...
+        </div>
+      </Window>
+    );
+  }
+
+  if (!episodes) {
+    return (
+      <Window title="Library" variant="dark" className={className}>
+        <div className="p-4 text-[11px] text-red-400">
+          Error: Could not load episode data. Please refresh the page.
+        </div>
+      </Window>
+    );
+  }
+
+  if (episodes.length === 0) {
+    return (
+      <Window title="Library" variant="dark" className={className}>
+        <div className="p-4 text-[11px] text-bevel-dark">
+          No episodes found. Start scanning to add files.
+        </div>
+      </Window>
+    );
+  }
+
+  // Validate data integrity
+  if (!validateEpisodes(episodes)) {
+    return (
+      <Window title="Library" variant="dark" className={className}>
+        <div className="p-4 text-[11px] text-red-400">
+          Error: Episode data appears to be corrupted. Try refreshing or re-scanning your folder.
         </div>
       </Window>
     );
