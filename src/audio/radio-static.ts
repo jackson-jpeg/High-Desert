@@ -24,6 +24,7 @@ export function initRadioStatic(): void {
     ctx = new AudioContext();
 
     // Generate 2-second noise buffer
+    if (!ctx) return;
     const sampleRate = ctx.sampleRate;
     const length = sampleRate * 2;
     noiseBuffer = ctx.createBuffer(1, length, sampleRate);
