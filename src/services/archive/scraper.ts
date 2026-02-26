@@ -1,4 +1,5 @@
 import { fetchWithRetry } from "@/lib/utils/retry";
+import { rateLimit } from "@/lib/utils/rate-limit";
 import type { ArchiveSearchResult } from "./types";
 
 export interface ScrapeProgress {
@@ -46,10 +47,19 @@ export async function* scrapeArchiveCatalog(
       rows: String(ROWS_PER_PAGE),
     });
 
+    // Rate limit: max 5 requests per 10 seconds to prevent archive.org bans
+    const rateLimitKey = "archive-scraper";
+    let rateLimitResult = rateLimit(rateLimitKey, { maxRequests: 5, windowMs: 10000 });
+    
+    while (!rateLimitResult.allowed) {
+      await new Promise(resolve => setTimeout(resolve, rateLimitResult.retryAfterMs));
+      rateLimitResult = rateLimit(rateLimitKey, { maxRequests: 5, windowMs: 10000 });
+    }
+
     const res = await fetchWithRetry(
       `/api/archive/scrape?${params.toString()}`,
       { signal },
-      { retries: 2, delay: 2000 },
+      { retries: 3, delay: 3000, backoff: 2 },
     );
 
     if (!res.ok) {
@@ -75,9 +85,12 @@ export async function* scrapeArchiveCatalog(
     // Stop if we got an empty page (safety valve)
     if (data.items.length === 0) break;
 
-    // 1s delay between pages
+    // Exponential backoff delay between pages (1-4s based on consecutive errors)
     if (page <= totalPages) {
-      await new Promise((r) => setTimeout(r, 1000));
+      const baseDelay = 1000;
+      const maxDelay = 4000;
+      const delay = Math.min(baseDelay * Math.pow(1.5, Math.floor(fetched / ROWS_PER_PAGE) % 3), maxDelay);
+      await new Promise((r) => setTimeout(r, delay));
     }
   }
 }
