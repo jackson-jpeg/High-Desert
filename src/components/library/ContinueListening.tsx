@@ -70,7 +70,7 @@ function ContinueListeningContent({ onPlay, className }: ContinueListeningProps)
         </div>
 
         <div className="flex gap-2 overflow-x-auto">
-          {inProgress.slice(0, 3).map((ep, i) => {
+          {inProgress?.slice(0, 3).map((ep, i) => {
             if (!ep || !ep.id || !ep.fileName) return null;
             const pct = ep.duration && ep.playbackPosition
               ? Math.round((ep.playbackPosition / ep.duration) * 100)
