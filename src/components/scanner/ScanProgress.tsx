@@ -16,6 +16,7 @@ export function ScanProgress({ onCancel }: ScanProgressProps) {
     newEpisodes,
     duplicates,
     errors,
+    errorMessages,
   } = useScannerStore();
 
   const percent =
@@ -65,11 +66,43 @@ export function ScanProgress({ onCancel }: ScanProgressProps) {
           )}
         </div>
 
-        {/* Cancel button */}
-        {isScanning && (
+        {/* Empty results message */}
+        {status === "completed" && newEpisodes === 0 && duplicates === 0 && errors === 0 && (
+          <div className="text-center text-[11px] text-desktop-gray">
+            No new episodes or duplicates found.
+          </div>
+        )}
+
+        {/* Loading state */}
+        {status === "loading" && (
+          <div className="text-center text-[11px] text-desktop-gray">
+            Preparing scan...
+          </div>
+        )}
+
+        {/* Error messages */}
+        {status === "error" && errorMessages.length > 0 && (
+          <div className="w98-inset-dark bg-inset-well p-2 max-h-32 overflow-y-auto">
+            <div className="text-[10px] text-red-400 font-bold mb-1">Errors:</div>
+            {errorMessages.map((msg, idx) => (
+              <div key={idx} className="text-[10px] text-red-400 break-words">
+                • {msg}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Cancel / Close button */}
+        {isScanning ? (
           <div className="flex justify-end">
             <Button variant="dark" onClick={onCancel}>
               Cancel
+            </Button>
+          </div>
+        ) : (
+          <div className="flex justify-end">
+            <Button variant="dark" onClick={onCancel}>
+              Close
             </Button>
           </div>
         )}
