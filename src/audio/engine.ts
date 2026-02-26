@@ -106,6 +106,7 @@ function tryInitAnalyser(): void {
   if (isIOSDevice()) return;
 
   try {
+    if (typeof AudioContext === 'undefined') return;
     audioContext = new AudioContext();
     if (!audioContext) return;
     const source = audioContext.createMediaElementSource(mediaElement);
