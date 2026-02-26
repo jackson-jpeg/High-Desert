@@ -91,7 +91,7 @@ function MoreLikeThisInner({ episode, onPlay, className }: MoreLikeThisProps) {
     return Array.from(scores.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
-      .map(([id]) => allEpisodes.find((ep) => ep.id === id)!)
+      .map(([id]) => allEpisodes.find((ep) => ep.id === id))
       .filter(Boolean);
   }, [allEpisodes, episode]);
 
@@ -110,15 +110,15 @@ function MoreLikeThisInner({ episode, onPlay, className }: MoreLikeThisProps) {
         >
           <div className="flex-1 min-w-0">
             <div className="text-[13px] md:text-[9px] text-desktop-gray/80 truncate">
-              {ep.title || ep.fileName}
+              {ep?.title || ep?.fileName || "Unknown Episode"}
             </div>
-            {ep.guestName && (
+            {ep?.guestName && (
               <div className="text-[11px] md:text-[7px] text-static-green/50 truncate">
                 {ep.guestName}
               </div>
             )}
           </div>
-          {ep.airDate && (
+          {ep?.airDate && (
             <span className="text-[11px] md:text-[7px] text-bevel-dark/40 tabular-nums flex-shrink-0">
               {ep.airDate}
             </span>
