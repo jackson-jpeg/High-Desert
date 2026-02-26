@@ -12,10 +12,11 @@ interface NowPlayingProps {
 
 export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
   const episode = usePlayerStore((s) => s.currentEpisode);
+  const objectUrl = usePlayerStore((s) => s.objectUrl);
   const buffering = usePlayerStore((s) => s.buffering);
   const audio = typeof document !== 'undefined' ? document.querySelector('audio') : null;
 
-  if (!episode) {
+  if (!episode || !objectUrl) {
     return (
       <div className={cn("text-[11px] text-bevel-dark", className)}>
         No episode loaded
