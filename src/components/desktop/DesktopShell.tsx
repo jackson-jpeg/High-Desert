@@ -14,6 +14,14 @@ import { Starfield } from "./Starfield";
 import type { Menu } from "@/components/win98";
 import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+
+declare global {
+  interface Window {
+    electronAPI?: {
+      openExternal: (url: string) => Promise<void>;
+    };
+  }
+}
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
 import { toast } from "@/stores/toast-store";
