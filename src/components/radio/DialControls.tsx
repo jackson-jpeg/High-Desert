@@ -46,12 +46,20 @@ export function DialControls({
       // FM band (87.5-108.0 MHz)
       clamped = Math.max(87.5, Math.min(108.0, num));
       band = 'FM';
-    } else if (num < 530) {
-      // Values below AM range default to AM minimum
-      clamped = 530;
+    } else if (num < 87.5) {
+      // Values below FM range default to FM minimum
+      clamped = 87.5;
+      band = 'FM';
+    } else if (num > 108.0 && num < 530) {
+      // Values between FM max and AM min default to FM max
+      clamped = 108.0;
+      band = 'FM';
+    } else if (num >= 530 && num <= 1700) {
+      // AM band (530-1700 kHz)
+      clamped = Math.max(530, Math.min(1700, num));
       band = 'AM';
     } else {
-      // Default to FM max for high values
+      // Values above AM range default to FM max
       clamped = 108.0;
       band = 'FM';
     }
@@ -111,7 +119,7 @@ export function DialControls({
         type="text"
         value={manualFreq}
         onChange={handleFrequencyInput}
-        placeholder="530-1700 kHz / 87.5-108.0 MHz"
+        placeholder="87.5-108.0 MHz"
         maxLength={5}
         className="w-16 px-1.5 py-0.5 text-[10px] text-center bg-black/30 border border-bevel-dark/50 rounded font-mono text-desert-amber/80 focus:outline-none focus:border-desert-amber/60"
         aria-label="Manual frequency input (kHz or MHz)"
