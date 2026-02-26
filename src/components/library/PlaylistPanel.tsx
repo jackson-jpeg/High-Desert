@@ -211,9 +211,15 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
       </div>
 
       {(!playlists?.length) && (
-        <div className="p-4 text-center">
-          <div className="text-sm text-bevel-dark/60 mb-1">No playlists yet.</div>
-          <div className="text-[11px] md:text-[9px] text-bevel-dark/50">Create your first playlist.</div>
+        <div className="p-4 flex flex-col items-center justify-center text-center min-h-[120px]">
+          <div className="text-[13px] text-desktop-gray font-bold mb-1">No Playlists</div>
+          <div className="text-[11px] md:text-[9px] text-bevel-dark/60 mb-3">Create your first playlist to get started.</div>
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="w98-raised-dark bg-raised-surface text-desktop-gray px-3 py-1.5 text-[11px] md:text-[9px] cursor-pointer hover:bg-title-bar-blue/10 active:bg-title-bar-blue/15 transition-colors-fast"
+          >
+            + New Playlist
+          </button>
         </div>
       )}
 
