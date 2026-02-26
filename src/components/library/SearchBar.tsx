@@ -3,6 +3,8 @@
 import { forwardRef, useState, useEffect, useRef, useCallback } from "react";
 import { TextField } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
+import { toast } from "@/stores/toast-store";
+import { useArchiveSearch } from "@/hooks/useArchiveSearch";
 
 const RECENT_SEARCHES_KEY = "hd-recent-searches";
 const MAX_RECENT = 5;
@@ -42,8 +44,10 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
     const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [activeIdx, setActiveIdx] = useState(-1);
+    const [isRetrying, setIsRetrying] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const suppressRef = useRef(false);
+    const { search, error: searchError, loading: searchLoading } = useArchiveSearch();
 
     // Build suggestions when value changes
     useEffect(() => {
@@ -126,7 +130,10 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
             e.preventDefault();
             selectSuggestion(suggestions[activeIdx]);
           } else if (value.trim()) {
-            addRecentSearch(value.trim());
+            handleSearch();
+          } else {
+            e.preventDefault();
+            toast.error("Please enter a search query");
           }
           break;
         case "Escape":
@@ -136,6 +143,34 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
     }, [showSuggestions, suggestions, activeIdx, selectSuggestion, value]);
 
     const typeLabels: Record<string, string> = { guest: "Guest", category: "Category", year: "Year", recent: "Recent" };
+
+    const handleSearch = useCallback(async () => {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        toast.error("Please enter a search query");
+        return;
+      }
+      
+      try {
+        setIsRetrying(false);
+        await search(trimmed);
+        addRecentSearch(trimmed);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Search failed. Please try again.");
+      }
+    }, [value, search]);
+
+    const handleRetry = useCallback(async () => {
+      setIsRetrying(true);
+      try {
+        await search(value.trim());
+        toast.success("Search completed");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Search failed again");
+      } finally {
+        setIsRetrying(false);
+      }
+    }, [value, search]);
 
     return (
       <div className={cn("flex flex-col gap-1", className)} ref={containerRef}>
@@ -156,13 +191,13 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
               aria-autocomplete="list"
             />
             {value && (
-              <button
-                onClick={() => onChange("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-[14px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer min-w-[44px] min-h-[44px] md:min-w-[24px] md:min-h-[24px] flex items-center justify-center"
-                aria-label="Clear search"
-              >
-                {"\u2715"}
-              </button>
+            <button
+              onClick={() => onChange("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-[14px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer min-w-[44px] min-h-[44px] md:min-w-[24px] md:min-h-[24px] flex items-center justify-center"
+              aria-label="Clear search"
+            >
+              {"\u2715"}
+            </button>
             )}
 
             {/* Autocomplete dropdown */}
@@ -193,6 +228,16 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
             <span className="text-[11px] md:text-[10px] text-bevel-dark whitespace-nowrap tabular-nums">
               {resultCount}
             </span>
+          )}
+          {searchError && (
+            <button
+              onClick={handleRetry}
+              disabled={isRetrying || searchLoading}
+              className="text-[11px] md:text-[10px] text-red-400 hover:text-red-300 disabled:opacity-50 cursor-pointer transition-colors-fast"
+              title="Retry search"
+            >
+              {isRetrying ? "Retrying..." : "Retry"}
+            </button>
           )}
           <button
             onClick={() => setShowHelp(!showHelp)}
