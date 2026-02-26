@@ -174,3 +174,21 @@ function tryInitAnalyser(): void {
 }
 
 // cleanupAnalyser removed — createMediaElementSource graph is permanently bound
+
+/**
+ * Destroy the audio engine and clean up resources.
+ * Closes the AudioContext and resets all state variables.
+ * Safe to call multiple times.
+ */
+export function destroyEngine(): void {
+  try {
+    audioContext?.close().catch(() => {});
+  } catch {
+    // Ignore close errors
+  }
+  
+  audioContext = null;
+  analyserNode = null;
+  mediaElement = null;
+  elementConnected = false;
+}
