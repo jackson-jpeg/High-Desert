@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSleepTimerStore } from "@/stores/sleep-timer-store";
 import { cn } from "@/lib/utils/cn";
 
