@@ -50,7 +50,7 @@ function ScanResultsContent({ className }: ScanResultsProps) {
                   {ep.airDate ?? "Unknown"}
                 </td>
                 <td className="px-2 py-1 text-desktop-gray truncate max-w-[200px]">
-                  {ep.title || ep.fileName}
+                  {ep.title ?? ep.fileName ?? "Unknown File"}
                 </td>
                 <td className="px-2 py-1 text-static-green truncate max-w-[150px]">
                   {ep.guestName ?? "\u2014"}
@@ -82,7 +82,7 @@ function ScanResultsContent({ className }: ScanResultsProps) {
                 </span>
               </div>
               <div className="text-[13px] text-desktop-gray font-bold truncate mt-0.5">
-                {ep.title || ep.fileName}
+                {ep.title ?? ep.fileName ?? "Unknown File"}
               </div>
               <div className="flex items-center justify-between gap-2 mt-0.5">
                 <span className="text-[12px] text-static-green truncate">
