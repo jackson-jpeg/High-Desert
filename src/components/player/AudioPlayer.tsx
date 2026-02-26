@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
+import { getAnalyserNode } from "@/audio/engine";
 import { Oscilloscope } from "./Oscilloscope";
 import { PlaybackControls } from "./PlaybackControls";
 import { NowPlaying } from "./NowPlaying";
@@ -36,6 +37,8 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   const [showQueue, setShowQueue] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState(false);
   const [ultraMini, setUltraMini] = useState(false);
+  const [needsManualPlay, setNeedsManualPlay] = useState(false);
+  const [webAudioUnsupported, setWebAudioUnsupported] = useState(false);
   const isMobile = useIsMobile();
 
   // Listen for double-click on status bar now-playing to toggle ultra-mini
@@ -45,7 +48,58 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
     return () => window.removeEventListener("hd:toggle-ultra-mini", handler);
   }, []);
 
+  // Detect autoplay blocking and Web Audio support
+  useEffect(() => {
+    // Check Web Audio support
+    if (typeof window !== 'undefined' && !window.AudioContext && !(window as any).webkitAudioContext) {
+      setWebAudioUnsupported(true);
+    }
+
+    // Check autoplay blocking
+    const audio = document.createElement('audio');
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        setNeedsManualPlay(true);
+      });
+    }
+  }, []);
+
   if (!currentEpisode) return null;
+
+  // Fallback UI for autoplay blocking or Web Audio issues
+  if (needsManualPlay || webAudioUnsupported) {
+    return (
+      <div className={cn("w98-raised-dark bg-raised-surface p-4 text-center", className)}>
+        <div className="text-desktop-gray mb-2">
+          {webAudioUnsupported ? (
+            <>
+              <div className="text-red-400 mb-2">⚠️ Web Audio Not Supported</div>
+              <div className="text-[12px] text-bevel-dark/70 mb-3">
+                Your browser doesn't support Web Audio API. Audio playback may be limited.
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-desert-amber mb-2">🔇 Autoplay Blocked</div>
+              <div className="text-[12px] text-bevel-dark/70 mb-3">
+                Click below to start playback
+              </div>
+            </>
+          )}
+        </div>
+        <Button
+          variant="dark"
+          onClick={() => {
+            setNeedsManualPlay(false);
+            togglePlay();
+          }}
+        >
+          ▶ Play
+        </Button>
+      </div>
+    );
+  }
 
   const handleRetry = () => {
     clearError(null);
