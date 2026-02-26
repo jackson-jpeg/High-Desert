@@ -31,7 +31,7 @@ export async function playStartupSound(): Promise<void> {
       return;
     }
     
-    let ctx: AudioContext;
+    let ctx: AudioContext | null = null;
     try {
       ctx = new AudioCtx();
     } catch (error) {
