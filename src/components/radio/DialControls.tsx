@@ -21,7 +21,21 @@ export function DialControls({
   const scanning = useRadioDialStore((s) => s.scanning);
   const startScan = useRadioDialStore((s) => s.startScan);
   const stopScan = useRadioDialStore((s) => s.stopScan);
+  const tune = useRadioDialStore((s) => s.tune);
   const [isOnline, setIsOnline] = useState(true);
+  const [manualFreq, setManualFreq] = useState("");
+
+  const handleFrequencyInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/[^0-9]/g, "");
+    if (!raw) {
+      setManualFreq("");
+      return;
+    }
+    const num = parseInt(raw, 10);
+    const clamped = Math.max(530, Math.min(1700, num));
+    setManualFreq(clamped.toString());
+    tune(clamped - 530);
+  }, [tune]);
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -65,6 +79,15 @@ export function DialControls({
           OFFLINE
         </span>
       )}
+      <input
+        type="text"
+        value={manualFreq}
+        onChange={handleFrequencyInput}
+        placeholder="530-1700"
+        maxLength={4}
+        className="w-16 px-1.5 py-0.5 text-[10px] text-center bg-black/30 border border-bevel-dark/50 rounded font-mono text-desert-amber/80 focus:outline-none focus:border-desert-amber/60"
+        aria-label="Manual frequency input (kHz)"
+      />
       <Button
         variant="dark"
         size="sm"
