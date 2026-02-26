@@ -85,7 +85,7 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
     } else {
       console.error('[Deduplication] Failed to fetch episodes:', error);
     }
-    return [];
+    return { totalBefore: 0, duplicatesRemoved: 0, groupsMerged: 0 };
   }
   const validEpisodes = allEpisodes.filter(validateEpisode);
   const groups = new Map<string, Episode[]>();
@@ -230,7 +230,7 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
 
     // Update playlists that reference deleted episodes
     if (db?.playlists) {
-      let playlists: Playlist[] = [];
+      let playlists: any[] = [];
       try {
         playlists = (await db.playlists.toArray()) ?? [];
       } catch (error: any) {
