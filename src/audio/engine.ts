@@ -133,7 +133,12 @@ function tryInitAnalyser(): void {
       return;
     }
     
-    audioContext = new AudioContext();
+    try {
+      audioContext = new AudioContext();
+    } catch (error) {
+      console.warn("[engine] Failed to create AudioContext:", error);
+      return;
+    }
     if (!audioContext) {
       console.warn("[engine] Failed to create AudioContext");
       return;
