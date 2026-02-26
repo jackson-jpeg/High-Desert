@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { db } from "@/db";
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
@@ -59,6 +60,36 @@ export async function POST(request: NextRequest) {
       { error: `Batch size exceeds maximum of ${MAX_BATCH_SIZE}` },
       { status: 400 },
     );
+  }
+
+  // Check cache for existing responses
+  const episodeIds = episodes.map(ep => ep.id).filter(Boolean);
+  const cachedMap = new Map<number, any>();
+  const uncachedEpisodes: EpisodeInput[] = [];
+  
+  try {
+    for (const episode of episodes) {
+      if (episode.id) {
+        const cached = await db.aiCache.where('episodeId').equals(episode.id).first();
+        if (cached) {
+          cachedMap.set(episode.id, cached.response);
+        } else {
+          uncachedEpisodes.push(episode);
+        }
+      } else {
+        uncachedEpisodes.push(episode);
+      }
+    }
+  } catch (e) {
+    console.error("[categorize] IndexedDB cache read error:", e);
+    // Fallback: treat all as uncached
+    uncachedEpisodes.splice(0, uncachedEpisodes.length, ...episodes);
+  }
+
+  // Return cached results if all episodes are cached
+  if (uncachedEpisodes.length === 0) {
+    const orderedResults = episodes.map(ep => ep.id && cachedMap.get(ep.id)).filter(Boolean);
+    return NextResponse.json(orderedResults);
   }
 
   const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
@@ -153,14 +184,43 @@ Respond ONLY with a valid JSON array.`;
     const results = JSON.parse(jsonStr);
 
     // Validate response shape
-    if (!Array.isArray(results) || results.length !== episodes.length) {
+    if (!Array.isArray(results) || results.length !== uncachedEpisodes.length) {
       return NextResponse.json(
         { error: "AI returned malformed response" },
         { status: 502 },
       );
     }
 
-    return NextResponse.json(results);
+    // Cache the new responses
+    const now = Date.now();
+    const newResultsMap = new Map<number, any>();
+    for (let i = 0; i < uncachedEpisodes.length; i++) {
+      const episodeId = uncachedEpisodes[i].id;
+      if (episodeId) {
+        try {
+          await db.aiCache.put({
+            episodeId,
+            response: results[i],
+            provider: 'claude',
+            createdAt: now,
+            updatedAt: now,
+          });
+          newResultsMap.set(episodeId, results[i]);
+        } catch (e) {
+          console.error(`[categorize] IndexedDB cache write error for episode ${episodeId}:`, e);
+        }
+      }
+    }
+
+    // Combine cached and new results in original order
+    const finalResults = episodes.map(ep => {
+      if (ep.id && cachedMap.has(ep.id)) return cachedMap.get(ep.id);
+      if (ep.id && newResultsMap.has(ep.id)) return newResultsMap.get(ep.id);
+      // Fallback for episodes without id or uncached
+      return newResultsMap.get(uncachedEpisodes.find(ue => !ue.id)?.id) ?? results[0];
+    });
+
+    return NextResponse.json(finalResults);
   } catch (err) {
     console.error("[categorize] Claude error:", err);
     const message = err instanceof Error ? err.message : String(err);
@@ -259,7 +319,32 @@ ${JSON.stringify(episodes, null, 2)}` }]
       }
 
       console.log("[categorize] Successfully used Gemini fallback");
-      return NextResponse.json(results);
+      
+      // Cache Gemini responses too
+      const now = Date.now();
+      for (let i = 0; i < uncachedEpisodes.length; i++) {
+        const episodeId = uncachedEpisodes[i].id;
+        if (episodeId) {
+          await db.aiCache.put({
+            episodeId,
+            response: results[i],
+            provider: 'gemini',
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+      }
+      
+      // Combine cached and new results
+      const finalResults = [...cachedResponses];
+      let newResultIndex = 0;
+      for (const episode of episodes) {
+        if (episode.id && !cachedResponses.find((_, idx) => idx < cachedResponses.length && episodes[idx]?.id === episode.id)) {
+          finalResults.push(results[newResultIndex++]);
+        }
+      }
+      
+      return NextResponse.json(finalResults);
       
     } catch (geminiErr) {
       console.error("[categorize] Gemini fallback error:", geminiErr);

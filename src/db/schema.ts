@@ -97,3 +97,12 @@ export interface UserPrefs {
   key: string;
   value: string;
 }
+
+export interface AICache {
+  id?: number;
+  episodeId: number;
+  response: any; // JSON response from AI API
+  provider: 'claude' | 'gemini';
+  createdAt: number;
+  updatedAt: number;
+}

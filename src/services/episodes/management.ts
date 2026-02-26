@@ -101,6 +101,9 @@ export async function recategorizeEpisode(id: number): Promise<void> {
   const episode = await db.episodes.get(id);
   if (!episode) return;
 
+  // Clear existing cache for this episode
+  await db.aiCache.where('episodeId').equals(id).delete();
+
   await db.episodes.update(id, { aiStatus: "pending", updatedAt: Date.now() });
 
   try {
@@ -109,6 +112,7 @@ export async function recategorizeEpisode(id: number): Promise<void> {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? ""}` },
       body: JSON.stringify({
         episodes: [{
+          id: episode.id,
           title: episode.title ?? null,
           fileName: episode.fileName,
           airDate: episode.airDate ?? null,
