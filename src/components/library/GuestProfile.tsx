@@ -22,8 +22,12 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
     [guestName],
   );
 
+  if (!guestName || typeof guestName !== 'string' || guestName.trim() === '') {
+    return null;
+  }
+
   const stats = useMemo(() => {
-    if (!episodes || episodes.length === 0) return null;
+    if (!episodes || !Array.isArray(episodes) || episodes.length === 0) return null;
     const years = episodes
       .map((ep) => ep.airDate?.slice(0, 4))
       .filter(Boolean) as string[];
@@ -46,14 +50,14 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
   }, [episodes]);
 
   const handlePlayAll = () => {
-    if (!episodes || episodes.length === 0) return;
+    if (!episodes || !Array.isArray(episodes) || episodes.length === 0) return;
     const store = usePlayerStore.getState();
     store.enqueueMany(episodes);
     window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: episodes[0] }));
   };
 
   const handleShuffle = () => {
-    if (!episodes || episodes.length === 0) return;
+    if (!episodes || !Array.isArray(episodes) || episodes.length === 0) return;
     const shuffled = [...episodes].sort(() => Math.random() - 0.5);
     const store = usePlayerStore.getState();
     store.enqueueMany(shuffled);
