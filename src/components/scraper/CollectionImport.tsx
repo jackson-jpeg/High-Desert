@@ -35,14 +35,14 @@ export function CollectionImport() {
 
   const handleFeaturedImport = async () => {
     const loaded = await loadCollection(FEATURED_COLLECTION.identifier);
-    if (loaded) {
+    if (loaded && loaded.audioFiles?.length > 0) {
       startImport({ skipCategorize: true });
     }
   };
 
   const handleFeaturedImportWithAI = async () => {
     const loaded = await loadCollection(FEATURED_COLLECTION.identifier);
-    if (loaded) {
+    if (loaded && loaded.audioFiles?.length > 0) {
       startImport();
     }
   };
@@ -54,7 +54,7 @@ export function CollectionImport() {
     const match = id.match(/archive\.org\/details\/([^/?#]+)/);
     const identifier = match ? match[1] : id;
     const loaded = await loadCollection(identifier);
-    if (loaded) {
+    if (loaded && loaded.audioFiles?.length > 0) {
       startImport({ skipCategorize: true });
     }
   };
