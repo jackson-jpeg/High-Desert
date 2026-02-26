@@ -107,7 +107,7 @@ export function drawIdleLine(canvas: HTMLCanvasElement): void {
   ctx.clearRect(0, 0, width, height);
 
   const y = height / 2;
-  const t = Date.now() * 0.001; // time in seconds
+  const t = (typeof window !== "undefined" && window ? Date.now() : 0) * 0.001; // time in seconds
 
   // Breathing amplitude (subtle wobble when idle)
   const breathe = Math.sin(t * 0.8) * 2;
