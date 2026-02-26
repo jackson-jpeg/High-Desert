@@ -41,9 +41,13 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
   }, []);
 
   const handleCreate = useCallback(async () => {
-    if (!newName.trim()) return;
+    const trimmed = newName.trim();
+    if (!trimmed) {
+      toast.error("Playlist name cannot be empty");
+      return;
+    }
     await db.playlists.add({
-      name: newName.trim(),
+      name: trimmed,
       description: newDesc.trim() || undefined,
       episodeIds: [],
       createdAt: Date.now(),
@@ -52,7 +56,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
     setNewName("");
     setNewDesc("");
     setCreateOpen(false);
-    toast.success(`Playlist "${newName.trim()}" created`);
+    toast.success(`Playlist "${trimmed}" created`);
   }, [newName, newDesc]);
 
   const handleDelete = useCallback(async (id: number) => {
