@@ -11,7 +11,7 @@ interface RecentlyPlayedProps {
 }
 
 export function RecentlyPlayed({ episodes, onPlay, compact, className }: RecentlyPlayedProps) {
-  if (!episodes || episodes.length === 0) {
+  if (!episodes || episodes.length === 0 || !Array.isArray(episodes)) {
     return (
       <div className={cn("flex flex-col gap-1", className)}>
         {!compact && (
@@ -32,6 +32,7 @@ export function RecentlyPlayed({ episodes, onPlay, compact, className }: Recentl
 
   const validEpisodes = episodes.filter(ep => 
     ep != null && 
+    typeof ep === 'object' &&
     (ep.title || ep.fileName) && 
     ep.id != null
   );
