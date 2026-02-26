@@ -57,6 +57,44 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
     );
   }
 
+  if (!episodes || !Array.isArray(episodes)) {
+    return (
+      <div
+        className={cn(
+          "w98-raised-dark bg-raised-surface flex flex-col animate-slide-up glass-heavy",
+          className,
+        )}
+      >
+        {/* Mobile drag handle */}
+        <div className="flex justify-center pt-2 pb-0.5 md:hidden">
+          <div className="w-8 h-[3px] rounded-full bg-white/15" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-3 py-2 border-b border-bevel-dark/20 glass-divider">
+          <span className="text-[11px] md:text-[9px] text-bevel-dark/70">Guest Profile</span>
+          <button
+            onClick={onClose}
+            className="text-[14px] md:text-[10px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-3 pb-[calc(0.75rem+var(--safe-bottom))] md:pb-3 flex flex-col gap-3 max-h-[80vh] md:max-h-none overflow-auto overscroll-contain md:flex-1">
+          <div className="text-[16px] md:text-[14px] text-static-green font-bold">
+            {guestName}
+          </div>
+          <div className="text-[14px] md:text-[12px] text-desktop-gray text-center py-8">
+            No episodes found for this guest
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const stats = useMemo(() => {
     if (!episodes || !Array.isArray(episodes) || episodes.length === 0) return null;
     const years = episodes
