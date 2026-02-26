@@ -70,9 +70,9 @@ function validateEpisode(ep: any): ep is Episode {
   );
 }
 
-export async function deduplicateEpisodes(): Promise<Episode[]> {
+export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
   if (!db?.episodes) {
-    return [];
+    return { totalBefore: 0, duplicatesRemoved: 0, groupsMerged: 0 };
   }
   
   let allEpisodes: Episode[] = [];
