@@ -91,31 +91,14 @@ export async function GET(request: NextRequest) {
     page: String(page),
   });
 
-  let res: Response;
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-
-    res = await fetch(
-      `https://archive.org/advancedsearch.php?${params.toString()}`,
-      { signal: controller.signal, next: { revalidate: 300 } },
-    );
-
-    clearTimeout(timeout);
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") {
-      return NextResponse.json(
-        { error: "Archive.org request timed out" },
-        { status: 504 },
-      );
+  const { retryFetch } = await import('@/lib/utils/retry');
+  const res = await retryFetch(
+    `https://archive.org/advancedsearch.php?${params.toString()}`,
+    {
+      timeout: 30000,
+      next: { revalidate: 300 },
     }
-    console.error("[search] Error:", err);
-    return NextResponse.json(
-      { error: "Archive.org search failed" },
-      { status: 500 },
-    );
-  }
-
+  );
   if (!res.ok) {
     return NextResponse.json(
       { error: "Archive.org search failed" },

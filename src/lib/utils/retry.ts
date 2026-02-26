@@ -1,76 +1,74 @@
 /**
- * Fetch with retry for transient failures (5xx, network errors, rate limits).
+ * Exponential-backoff retry utility for HTTP requests.
+ * Retries on 429 (rate-limit) and 5xx (server) errors.
  */
 
-interface RetryOptions {
-  retries?: number;
-  delay?: number;
-  backoff?: number;
+export interface RetryOptions extends RequestInit {
   timeout?: number;
+  maxRetries?: number;
+  initialDelay?: number;
+  maxDelay?: number;
 }
 
-export async function fetchWithRetry(
+/**
+ * Fetch wrapper with exponential backoff on rate-limit or server errors.
+ * @param url  Request URL
+ * @param opts RetryOptions (extends RequestInit)
+ * @returns Response or throws after exhausting retries
+ */
+export async function retryFetch(
   url: string,
-  options?: RequestInit,
-  { retries = 3, delay = 1000, backoff = 2, timeout = 30000 }: RetryOptions = {},
+  opts: RetryOptions = {}
 ): Promise<Response> {
-  let lastError: Error | null = null;
+  const {
+    timeout = 10000,
+    maxRetries = 4,
+    initialDelay = 1000,
+    maxDelay = 16000,
+    ...init
+  } = opts;
 
-  for (let attempt = 0; attempt <= retries; attempt++) {
+  let attempt = 0;
+  let delay = initialDelay;
+
+  while (true) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+
     try {
-      // Timeout: abort if request takes too long
-      const controller = new AbortController();
-      const existingSignal = options?.signal;
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      const res = await fetch(url, { ...init, signal: controller.signal });
+      clearTimeout(timer);
 
-      // If caller passed their own signal, forward abort
-      if (existingSignal) {
-        if (existingSignal.aborted) {
-          clearTimeout(timeoutId);
-          throw new DOMException("Aborted", "AbortError");
-        }
-        existingSignal.addEventListener("abort", () => controller.abort(), { once: true });
-      }
-
-      const res = await fetch(url, { ...options, signal: controller.signal });
-      clearTimeout(timeoutId);
-
-      // Rate limited — respect Retry-After header, then retry
-      if (res.status === 429) {
-        const retryAfter = res.headers.get("Retry-After");
-        const waitMs = retryAfter
-          ? (parseInt(retryAfter, 10) || 10) * 1000
-          : delay * Math.pow(backoff, attempt);
-        lastError = new Error("Rate limited (429)");
-        if (attempt < retries) {
-          await new Promise((r) => setTimeout(r, Math.max(waitMs, 3000)));
-        }
-        continue;
-      }
-
-      // Don't retry other client errors (4xx)
-      if (res.ok || (res.status >= 400 && res.status < 500)) {
+      // Success or non-retryable client error
+      if (res.ok || (res.status >= 400 && res.status < 500 && res.status !== 429)) {
         return res;
       }
 
-      // Server error — retry
-      lastError = new Error(`HTTP ${res.status}`);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        // Check if it was our timeout or the caller's signal
-        if (options?.signal?.aborted) {
-          throw err; // Caller cancelled — don't retry
-        }
-        lastError = new Error("Request timed out");
-      } else {
-        lastError = err instanceof Error ? err : new Error(String(err));
+      // Retryable error
+      if (attempt >= maxRetries) {
+        return res; // return last response
       }
-    }
 
-    if (attempt < retries) {
-      await new Promise((r) => setTimeout(r, delay * Math.pow(backoff, attempt)));
+      const retryAfter = res.headers.get('Retry-After');
+      const serverDelay = retryAfter ? parseInt(retryAfter, 10) * 1000 : 0;
+      const nextDelay = Math.min(serverDelay || delay, maxDelay);
+
+      await sleep(nextDelay);
+      delay = Math.min(delay * 2, maxDelay);
+      attempt++;
+    } catch (err) {
+      clearTimeout(timer);
+      // AbortError or network failure
+      if (attempt >= maxRetries) {
+        throw err;
+      }
+      await sleep(delay);
+      delay = Math.min(delay * 2, maxDelay);
+      attempt++;
     }
   }
+}
 
-  throw lastError ?? new Error("Fetch failed after retries");
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
