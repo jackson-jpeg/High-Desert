@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
   // Validate parameter types and ranges
   const page = parseInt(searchParams.get("page") ?? "1", 10);
   const rows = parseInt(searchParams.get("rows") ?? "30", 10);
+  const frequency = searchParams.get("frequency");
   
   if (isNaN(page) || page < 1 || page > 1000) {
     return NextResponse.json(
@@ -67,6 +68,16 @@ export async function GET(request: NextRequest) {
       { error: "Invalid rows parameter (must be 1-200)" },
       { status: 400 }
     );
+  }
+  
+  if (frequency !== null) {
+    const freqNum = parseFloat(frequency);
+    if (isNaN(freqNum) || freqNum <= 0) {
+      return NextResponse.json(
+        { error: "Invalid frequency parameter (must be a positive number)" },
+        { status: 400 }
+      );
+    }
   }
   
   // Enhanced sanitization: remove dangerous characters and patterns
