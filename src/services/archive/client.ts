@@ -16,7 +16,10 @@ export async function searchArchive(
     page: String(page),
     rows: String(rows),
   });
-  const res = await fetchWithRetry(`/api/archive/search?${params.toString()}`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const res = await fetchWithRetry(`/api/archive/search?${params.toString()}`, { signal: controller.signal });
+  clearTimeout(timeoutId);
   if (!res.ok) throw new Error("Search failed");
   const data = await res.json();
   
@@ -41,7 +44,10 @@ export async function getArchiveItem(identifier: string): Promise<ArchiveItem> {
   if (!isValidArchiveIdentifier(identifier)) {
     throw new Error(`Invalid archive identifier: ${identifier}`);
   }
-  const res = await fetchWithRetry(`/api/archive/metadata?id=${encodeURIComponent(identifier)}`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const res = await fetchWithRetry(`/api/archive/metadata?id=${encodeURIComponent(identifier)}`, { signal: controller.signal });
+  clearTimeout(timeoutId);
   if (!res.ok) throw new Error("Metadata fetch failed");
   const data = await res.json();
   
