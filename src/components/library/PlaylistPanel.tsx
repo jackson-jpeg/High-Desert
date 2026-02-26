@@ -27,7 +27,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
 
   const loadPlaylist = useCallback(async (playlist: Playlist) => {
     setSelectedPlaylist(playlist);
-    if (playlist.episodeIds.length === 0) {
+    if (!playlist?.episodeIds?.length) {
       setPlaylistEpisodes([]);
       return;
     }
@@ -142,8 +142,8 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
             >
               <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
                 <button
-                  onClick={(e) => { e.stopPropagation(); handleMoveEpisode(selectedPlaylist.id!, i, i - 1); }}
-                  disabled={i === 0}
+                onClick={(e) => { e.stopPropagation(); handleMoveEpisode(selectedPlaylist!.id, i, i - 1); }}
+                disabled={i === 0}
                   className={cn(
                     "text-[10px] md:text-[8px] cursor-pointer leading-none min-w-[24px] min-h-[24px] md:min-w-0 md:min-h-0 flex items-center justify-center",
                     "md:opacity-0 md:group-hover/ep:opacity-100 transition-opacity",
@@ -155,8 +155,8 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
                 </button>
                 <span className="text-[8px] text-bevel-dark/50 tabular-nums w-[14px] text-center">{i + 1}</span>
                 <button
-                  onClick={(e) => { e.stopPropagation(); handleMoveEpisode(selectedPlaylist.id!, i, i + 1); }}
-                  disabled={i === playlistEpisodes.length - 1}
+                onClick={(e) => { e.stopPropagation(); handleMoveEpisode(selectedPlaylist!.id, i, i + 1); }}
+                disabled={i === playlistEpisodes.length - 1}
                   className={cn(
                     "text-[10px] md:text-[8px] cursor-pointer leading-none min-w-[24px] min-h-[24px] md:min-w-0 md:min-h-0 flex items-center justify-center",
                     "md:opacity-0 md:group-hover/ep:opacity-100 transition-opacity",
@@ -176,7 +176,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleRemoveFromPlaylist(selectedPlaylist.id!, ep.id!);
+                  handleRemoveFromPlaylist(selectedPlaylist!.id, ep!.id);
                 }}
                 className="text-[9px] text-bevel-dark/30 hover:text-red-400 cursor-pointer flex-shrink-0"
                 title="Remove from playlist"
@@ -210,7 +210,11 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
         </button>
       </div>
 
-      {(!playlists || playlists.length === 0) && (
+      {(!playlists?.length) && (
+        <div className="p-4 text-center text-sm text-bevel-dark/60">
+          No playlists yet.
+        </div>
+      )}
         <div className="text-[11px] md:text-[9px] text-bevel-dark/50 text-center py-3">
           Create your first playlist.
         </div>
