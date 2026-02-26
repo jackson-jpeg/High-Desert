@@ -48,7 +48,7 @@ function AudioPlayerContent({ className }: AudioPlayerProps) {
     const handler = () => setUltraMini((prev) => !prev);
     window.addEventListener("hd:toggle-ultra-mini", handler);
     return () => window.removeEventListener("hd:toggle-ultra-mini", handler);
-  }, []);
+  }, [setUltraMini]);
 
   // Detect autoplay blocking and Web Audio support
   useEffect(() => {
@@ -69,7 +69,7 @@ function AudioPlayerContent({ className }: AudioPlayerProps) {
         setNeedsManualPlay(true);
       });
     }
-  }, []);
+  }, [setNeedsManualPlay, setWebAudioUnsupported]);
 
   if (!currentEpisode) return null;
 
