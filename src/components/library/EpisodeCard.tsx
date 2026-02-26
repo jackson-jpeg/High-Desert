@@ -34,14 +34,14 @@ export const EpisodeCard = memo(function EpisodeCard({
   className,
   style,
 }: EpisodeCardProps) {
-  if (!episode) {
+  if (!episode || typeof episode !== 'object') {
     return (
       <div className={cn("w-full text-left p-3 md:p-1.5 w98-raised-dark bg-card-surface", className)}>
         <div className="text-desktop-gray text-sm">Episode data unavailable</div>
       </div>
     );
   }
-  const showLabel = getShowLabel(episode.showType);
+  const showLabel = getShowLabel(episode?.showType ?? "unknown");
 
   const showAccent =
     episode.showType === "coast"
@@ -52,9 +52,9 @@ export const EpisodeCard = memo(function EpisodeCard({
           ? "border-l-2 border-l-desert-amber/50"
           : "";
 
-  const hasProgress = (episode.playbackPosition ?? 0) > 0 && (episode.duration ?? 0) > 0;
+  const hasProgress = (episode?.playbackPosition ?? 0) > 0 && (episode?.duration ?? 0) > 0;
   const progressPct = hasProgress
-    ? Math.min(100, ((episode.playbackPosition! / episode.duration!) * 100))
+    ? Math.min(100, ((episode?.playbackPosition! / episode?.duration!) * 100))
     : 0;
   const isCompleted = hasProgress && progressPct > 90;
 
@@ -121,7 +121,7 @@ export const EpisodeCard = memo(function EpisodeCard({
       ref={cardRef}
       onClick={(e) => {
         // Check if audio source exists before attempting to play
-        if (!episode.sourceUrl && !episode.filePath) {
+        if (!episode?.sourceUrl && !episode?.filePath) {
           window.dispatchEvent(new CustomEvent('hd:toast', {
             detail: { message: 'Audio file not found. Please re-import this episode.', type: 'error' }
           }));
@@ -139,7 +139,7 @@ export const EpisodeCard = memo(function EpisodeCard({
       role="option"
       aria-selected={isSelected || isPlaying}
       title={episode.aiSummary || undefined}
-      aria-label={`${episode.title || episode.fileName}${episode.airDate ? `, ${episode.airDate}` : ""}${isPlaying ? " (now playing)" : ""}`}
+          aria-label={`${episode?.title || episode?.fileName || "Untitled"}${episode?.airDate ? `, ${episode.airDate}` : ""}${isPlaying ? " (now playing)" : ""}`}
       className={cn(
         "w-full text-left p-3 md:p-1.5 w98-raised-dark bg-card-surface relative group glass-light",
         "transition-all duration-150 cursor-pointer",
@@ -163,7 +163,7 @@ export const EpisodeCard = memo(function EpisodeCard({
             </span>
           )}
           <span className="text-[12px] md:text-[10px] text-desert-amber tabular-nums flex-shrink-0">
-            {episode.airDate ?? "Unknown date"}
+            {episode?.airDate ?? "Unknown date"}
           </span>
           {isPlaying && (
             <span className="w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air flex-shrink-0" />
@@ -187,24 +187,24 @@ export const EpisodeCard = memo(function EpisodeCard({
             </span>
           )}
           {/* Title inline on desktop */}
-          <span className="hidden md:inline text-[11px] text-desktop-gray font-bold truncate">
-            {episode.title || episode.fileName}
-          </span>
+        <span className="hidden md:inline text-[11px] text-desktop-gray font-bold truncate">
+          {episode?.title || episode?.fileName || "Untitled"}
+        </span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {episode.rating && (
-            <span className="text-[8px] text-desert-amber/60 flex-shrink-0 tabular-nums hidden md:inline" title={`Rated ${episode.rating}/5`}>
-              {"★".repeat(episode.rating)}
-            </span>
-          )}
-          {episode.aiCategory && (
-            <span className="text-[7px] text-desert-amber/50 flex-shrink-0 hidden md:inline">
-              {episode.aiCategory}
-            </span>
-          )}
-          {episode.aiStatus === "failed" && (
-            <span className="w-[5px] h-[5px] rounded-full bg-red-400/60 flex-shrink-0" title="AI categorization failed" />
-          )}
+        {episode?.rating && (
+          <span className="text-[8px] text-desert-amber/60 flex-shrink-0 tabular-nums hidden md:inline" title={`Rated ${episode.rating}/5`}>
+            {"★".repeat(episode.rating)}
+          </span>
+        )}
+        {episode?.aiCategory && (
+          <span className="text-[7px] text-desert-amber/50 flex-shrink-0 hidden md:inline">
+            {episode.aiCategory}
+          </span>
+        )}
+        {episode?.aiStatus === "failed" && (
+          <span className="w-[5px] h-[5px] rounded-full bg-red-400/60 flex-shrink-0" title="AI categorization failed" />
+        )}
           {onToggleFavorite && (
             <span
               onClick={(e) => {
@@ -213,16 +213,16 @@ export const EpisodeCard = memo(function EpisodeCard({
               }}
               className={cn(
                 "text-[11px] md:text-[9px] min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors-fast",
-                episode.favoritedAt
+                episode?.favoritedAt
                   ? "text-desert-amber"
                   : "text-bevel-dark/30 md:opacity-0 md:group-hover:opacity-100",
               )}
-              title={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
+              title={episode?.favoritedAt ? "Remove from favorites" : "Add to favorites"}
               role="button"
-              aria-pressed={!!episode.favoritedAt}
-              aria-label={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
+              aria-pressed={!!episode?.favoritedAt}
+              aria-label={episode?.favoritedAt ? "Remove from favorites" : "Add to favorites"}
             >
-              {episode.favoritedAt ? "\u2605" : "\u2606"}
+              {episode?.favoritedAt ? "\u2605" : "\u2606"}
             </span>
           )}
           {showLabel && (
@@ -235,13 +235,13 @@ export const EpisodeCard = memo(function EpisodeCard({
 
       {/* Title — mobile only (shown inline on desktop above) */}
       <div className="text-[13px] text-desktop-gray font-bold truncate mt-1 md:hidden">
-        {episode.title || episode.fileName}
+        {episode?.title || episode?.fileName || "Untitled"}
       </div>
 
       {/* Guest + series + duration */}
       <div className="flex items-center justify-between gap-2 mt-0.5">
         <div className="flex items-center gap-1.5 min-w-0 truncate">
-          {episode.guestName ? (
+          {episode?.guestName ? (
             <span
               className="text-[13px] md:text-[10px] text-static-green/90 md:text-static-green/80 truncate hover:text-static-green hover:underline active:text-static-green cursor-pointer py-0.5 -my-0.5"
               onClick={(e) => {
@@ -253,7 +253,7 @@ export const EpisodeCard = memo(function EpisodeCard({
             </span>
           ) : (
             <span className="text-[12px] md:text-[10px] text-static-green/80 truncate">
-              {episode.topic || "\u00A0"}
+              {episode?.topic || "\u00A0"}
             </span>
           )}
           {episode.aiSeries && (
@@ -270,7 +270,7 @@ export const EpisodeCard = memo(function EpisodeCard({
       </div>
 
       {/* Fallback artwork placeholder */}
-      {!episode.coverImage && (
+      {!episode?.coverImage && (
         <div className="absolute top-3 right-3 md:top-1.5 md:right-1.5 w-8 h-8 md:w-6 md:h-6 flex items-center justify-center w98-inset-dark bg-inset-well rounded-sm">
           <svg className="w-4 h-4 md:w-3 md:h-3 text-bevel-dark/50" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
