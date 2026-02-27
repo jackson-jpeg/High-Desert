@@ -15,6 +15,9 @@ const COLOR_MONTH_TICK = "#808080";
 const COLOR_NEEDLE = "#FF2020";
 const COLOR_STRIP_BG = "#0F1520";
 
+// Throttle to ~30fps on mobile, 60fps on desktop
+const MOBILE_FRAME_INTERVAL = 1000 / 30;
+
 function getShowColor(showType: string): string {
   switch (showType) {
     case "coast":
@@ -38,7 +41,8 @@ export function TuningStrip({ index, className }: TuningStripProps) {
   const position = useRadioDialStore((s) => s.position);
   const zoom = useRadioDialStore((s) => s.zoom);
 
-  // Year label hit areas for click-to-jump
+  // Year label hit areas — use ref for per-frame updates, state for gesture hook
+  const hitAreasRef = useRef<{ x: number; width: number; year: number }[]>([]);
   const [yearHitAreas, setYearHitAreas] = useState<
     { x: number; width: number; year: number }[]
   >([]);
@@ -73,7 +77,11 @@ export function TuningStrip({ index, className }: TuningStripProps) {
     const noMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
+    const isMobileDevice = window.matchMedia("(max-width: 767px)").matches;
     let animId: number;
+    let lastFrameTime = 0;
+    // Sync hit areas to state at most every 200ms (not every frame)
+    let lastHitAreaSync = 0;
 
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
@@ -84,6 +92,16 @@ export function TuningStrip({ index, className }: TuningStripProps) {
     };
 
     const render = (time: number) => {
+      // Throttle frame rate on mobile
+      if (isMobileDevice) {
+        const elapsed = time - lastFrameTime;
+        if (elapsed < MOBILE_FRAME_INTERVAL) {
+          animId = requestAnimationFrame(render);
+          return;
+        }
+        lastFrameTime = time - (elapsed % MOBILE_FRAME_INTERVAL);
+      }
+
       const w = canvas.getBoundingClientRect().width;
       const h = canvas.getBoundingClientRect().height;
       if (w === 0 || h === 0) {
@@ -161,7 +179,12 @@ export function TuningStrip({ index, className }: TuningStripProps) {
         hitAreas.push({ x: x - textWidth / 2, width: textWidth, year });
       }
 
-      setYearHitAreas(hitAreas);
+      // Store hit areas in ref (no re-render) and throttle state sync
+      hitAreasRef.current = hitAreas;
+      if (time - lastHitAreaSync > 200) {
+        lastHitAreaSync = time;
+        setYearHitAreas(hitAreas);
+      }
 
       // --- Episode tick marks ---
       // Only render stations within viewport

@@ -31,17 +31,27 @@ export function useVirtualList<T>({
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(600);
 
-  // Read container height in an effect (not during render)
+  // Track container size with ResizeObserver
   useEffect(() => {
     const el = containerRef.current;
-    if (el) setContainerHeight(el.clientHeight);
+    if (!el) return;
+
+    setContainerHeight(el.clientHeight);
+
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const h = entry.contentRect.height;
+        if (h > 0) setContainerHeight(h);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [containerRef]);
 
   const onScroll = useCallback(() => {
     const el = containerRef.current;
     if (el) {
       setScrollTop(el.scrollTop);
-      setContainerHeight(el.clientHeight);
     }
   }, [containerRef]);
 

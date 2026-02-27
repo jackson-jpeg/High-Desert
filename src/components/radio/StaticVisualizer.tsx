@@ -43,27 +43,26 @@ export function StaticVisualizer({ opacity }: StaticVisualizerProps) {
     let lastFrame = 0;
     const FPS_INTERVAL = 1000 / 15; // 15fps cap
 
-    const resize = () => {
-      // Low res for performance — will be stretched via CSS
-      canvas.width = 80;
-      canvas.height = 60;
-    };
+    // Low res for performance — will be stretched via CSS
+    canvas.width = 80;
+    canvas.height = 60;
+
+    // Allocate ImageData ONCE and reuse every frame
+    const imageData = ctx.createImageData(canvas.width, canvas.height);
+    const alphaVal = Math.floor(opacity * 80);
 
     const render = (time: number) => {
       const elapsed = time - lastFrame;
       if (elapsed >= FPS_INTERVAL) {
         lastFrame = time - (elapsed % FPS_INTERVAL);
 
-        const w = canvas.width;
-        const h = canvas.height;
-        const imageData = ctx.createImageData(w, h);
-
-        for (let i = 0; i < imageData.data.length; i += 4) {
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
           const v = Math.random() * 255;
-          imageData.data[i] = v;
-          imageData.data[i + 1] = v * 0.95; // Slight green tint
-          imageData.data[i + 2] = v * 0.9;
-          imageData.data[i + 3] = Math.floor(opacity * 80);
+          data[i] = v;
+          data[i + 1] = v * 0.95; // Slight green tint
+          data[i + 2] = v * 0.9;
+          data[i + 3] = alphaVal;
         }
 
         ctx.putImageData(imageData, 0, 0);
@@ -72,7 +71,6 @@ export function StaticVisualizer({ opacity }: StaticVisualizerProps) {
       animId = requestAnimationFrame(render);
     };
 
-    resize();
     animId = requestAnimationFrame(render);
 
     return () => cancelAnimationFrame(animId);

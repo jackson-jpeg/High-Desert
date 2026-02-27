@@ -39,8 +39,9 @@ export function Starfield() {
   const meteorsRef = useRef<Meteor[]>([]);
 
   const generateStars = useCallback((w: number, h: number) => {
+    const isMobileScreen = w < 768;
     const density = Math.floor((w * h) / 7000);
-    const count = Math.min(density, 280);
+    const count = Math.min(density, isMobileScreen ? 120 : 280);
     starsRef.current = Array.from({ length: count }, () => ({
       x: Math.random() * w,
       y: Math.random() * h,

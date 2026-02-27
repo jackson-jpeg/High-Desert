@@ -1034,7 +1034,7 @@ export default function LibraryPage() {
 
         {/* Episode list */}
         {allEpisodes !== undefined && (
-        <div className="flex-1 overflow-auto min-w-0">
+        <div className="flex-1 overflow-hidden min-w-0">
           {/* Filtered-to-zero state (library has episodes but filter/search yields none) */}
           {filtered.length === 0 && allEpisodes.length > 0 && search.trim() ? (
             <div className="flex flex-col items-center justify-center py-16 text-center px-8">

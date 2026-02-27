@@ -73,7 +73,7 @@ body {
   color: #C0C0C0;
   min-height: 100vh;
   overflow-x: hidden;
-  overscroll-behavior-x: none;
+  overscroll-behavior: none;
   -webkit-font-smoothing: none;
   -moz-osx-font-smoothing: unset;
 }
