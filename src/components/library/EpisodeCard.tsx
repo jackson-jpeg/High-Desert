@@ -124,7 +124,7 @@ export const EpisodeCard = memo(function EpisodeCard({
       title={episode.aiSummary || undefined}
       aria-label={`${episode.title || episode.fileName}${episode.airDate ? `, ${episode.airDate}` : ""}${isPlaying ? " (now playing)" : ""}`}
       className={cn(
-        "w-full text-left p-3 md:p-1.5 w98-raised-dark bg-card-surface relative group glass-light",
+        "w-full text-left p-2.5 md:p-1.5 w98-raised-dark bg-card-surface relative group glass-light",
         "transition-all duration-150 cursor-pointer",
         "hover:bg-title-bar-blue/15 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]",
         "active:bg-title-bar-blue/20 active:translate-y-0 active:shadow-none",
@@ -145,7 +145,7 @@ export const EpisodeCard = memo(function EpisodeCard({
               {"\u2713"}
             </span>
           )}
-          <span className="text-[12px] md:text-[10px] text-desert-amber tabular-nums flex-shrink-0">
+          <span className="text-[11px] md:text-[10px] text-desert-amber tabular-nums flex-shrink-0 font-mono tracking-tight">
             {episode.airDate ?? "Unknown date"}
           </span>
           {isPlaying && (
@@ -217,7 +217,7 @@ export const EpisodeCard = memo(function EpisodeCard({
       </div>
 
       {/* Title — mobile only (shown inline on desktop above) */}
-      <div className="text-[13px] text-desktop-gray font-bold truncate mt-1 md:hidden">
+      <div className="text-[14px] text-desktop-gray font-bold truncate mt-0.5 md:hidden font-sans leading-tight">
         {episode.title || episode.fileName}
       </div>
 
@@ -246,7 +246,7 @@ export const EpisodeCard = memo(function EpisodeCard({
           )}
         </div>
         {episode.duration != null && (
-          <span className="text-[12px] md:text-[10px] text-bevel-dark/70 tabular-nums flex-shrink-0">
+          <span className="text-[11px] md:text-[10px] text-bevel-dark/60 tabular-nums flex-shrink-0 font-mono">
             {formatDuration(episode.duration)}
           </span>
         )}

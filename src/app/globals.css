@@ -114,8 +114,25 @@ input:not([type="range"]) {
   outline-offset: 2px;
 }
 
+@media (max-width: 767px) {
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(212, 168, 67, 0.4), 0 0 8px rgba(212, 168, 67, 0.15);
+  }
+}
+
 :focus:not(:focus-visible) {
   outline: none;
+}
+
+/* ============================================
+   Mobile Input Zoom Prevention & Scroll Contain
+   ============================================ */
+
+@media (max-width: 767px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
 
 /* ============================================

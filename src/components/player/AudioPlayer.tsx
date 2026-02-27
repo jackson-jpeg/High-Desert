@@ -96,19 +96,19 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   // ─── Mobile expanded overlay ───
   if (isMobile && mobileExpanded) {
     return (
-      <div ref={mobileExpandedRef} className="fixed inset-0 z-50 bg-midnight/85 backdrop-blur-sm flex flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)]">
+      <div ref={mobileExpandedRef} className="fixed inset-0 z-50 bg-midnight/90 backdrop-blur-md flex flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)]">
         {errorBanner}
 
         {/* Drag handle for swipe-down-to-dismiss */}
         <div
-          className="flex justify-center pt-2 pb-0"
+          className="flex justify-center pt-3 pb-1"
           {...mobilePlayerSwipe}
         >
-          <div className="w-8 h-[3px] rounded-full bg-white/15" />
+          <div className="w-10 h-[4px] rounded-full bg-white/12" />
         </div>
 
         {/* Header: collapse + queue */}
-        <div className="flex items-center justify-between px-3 py-1 glass-bevel border-b">
+        <div className="flex items-center justify-between px-4 py-1">
           <button
             onClick={() => setMobileExpanded(false)}
             className="text-[14px] text-bevel-dark active:text-desktop-gray cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
@@ -116,7 +116,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           >
             {"\u25BC"}
           </button>
-          <span className="text-[11px] text-bevel-dark/50">Now Playing</span>
+          <span className="text-[11px] text-bevel-dark/40 font-sans tracking-wide uppercase">Now Playing</span>
           <button
             onClick={() => setShowQueue(!showQueue)}
             className={cn(
@@ -139,63 +139,65 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
             <QueuePanel />
           </div>
         ) : (
-          /* Player content */
-          <div className="flex-1 flex flex-col justify-center px-4 gap-4">
-            {/* Oscilloscope */}
-            <Oscilloscope className="w-full h-[100px] rounded-sm" />
+          /* Player content — cinematic layout with generous whitespace */
+          <div className="flex-1 flex flex-col justify-center px-6 gap-6">
+            {/* Oscilloscope — larger for cinematic feel */}
+            <Oscilloscope className="w-full h-[140px] rounded" />
 
-            {/* Now Playing */}
-            <div className="text-center px-2">
-              <div className="text-[16px] text-desktop-gray font-bold truncate" title={currentEpisode.title || currentEpisode.fileName}>
+            {/* Now Playing metadata */}
+            <div className="text-center px-4">
+              <div className="text-[18px] text-desktop-gray font-bold leading-snug line-clamp-2 font-sans" title={currentEpisode.title || currentEpisode.fileName}>
                 {currentEpisode.title || currentEpisode.fileName}
               </div>
               {currentEpisode.guestName && (
-                <div className="text-[13px] text-static-green/80 truncate mt-1">
+                <div className="text-[14px] text-static-green/80 truncate mt-2">
                   {currentEpisode.guestName}
                 </div>
               )}
               {currentEpisode.airDate && (
-                <div className="text-[12px] text-bevel-dark/70 mt-1">
+                <div className="text-[12px] text-bevel-dark/60 mt-1 font-mono tabular-nums tracking-wide">
                   {currentEpisode.airDate}
                 </div>
               )}
               {buffering && (
-                <div className="text-[10px] text-desert-amber/70 mt-1 animate-pulse">
+                <div className="text-[11px] text-desert-amber/70 mt-2 animate-pulse">
                   Buffering...
                 </div>
               )}
             </div>
 
-            {/* Seek bar */}
-            <div className="flex items-center gap-2 text-[12px] text-bevel-dark">
-              <span className="w-[45px] text-right tabular-nums">{formatTime(position)}</span>
-              <input
-                type="range"
-                min={0}
-                max={duration || 0}
-                value={position}
-                onChange={(e) => seek(Number(e.target.value))}
-                className="flex-1 h-[8px] w98-range-dark cursor-pointer"
-                aria-label="Seek position"
-              />
-              <span className="w-[45px] tabular-nums">{formatTime(duration)}</span>
+            {/* Seek bar — custom styled */}
+            <div className="flex items-center gap-3 text-[12px] text-bevel-dark font-mono">
+              <span className="w-[48px] text-right tabular-nums text-bevel-dark/60">{formatTime(position)}</span>
+              <div className="flex-1 relative">
+                <input
+                  type="range"
+                  min={0}
+                  max={duration || 0}
+                  value={position}
+                  onChange={(e) => seek(Number(e.target.value))}
+                  className="w-full h-[12px] w98-range-dark cursor-pointer"
+                  aria-label="Seek position"
+                />
+              </div>
+              <span className="w-[48px] tabular-nums text-bevel-dark/60">{formatTime(duration)}</span>
             </div>
 
-            {/* Transport buttons — using Win98 Button for consistency */}
-            <div className="flex items-center justify-center gap-2">
-              <Button variant="dark" size="sm" onClick={playPrevious} disabled={!hasPrev} aria-label="Previous track">
+            {/* Transport buttons — larger hit areas */}
+            <div className="flex items-center justify-center gap-3">
+              <Button variant="dark" size="sm" onClick={playPrevious} disabled={!hasPrev} aria-label="Previous track" className="min-w-[48px] min-h-[48px]">
                 |&laquo;
               </Button>
-              <Button variant="dark" size="sm" onClick={() => seek(position - 15)} aria-label="Seek back 15 seconds">
+              <Button variant="dark" size="sm" onClick={() => seek(position - 15)} aria-label="Seek back 15 seconds" className="min-w-[48px] min-h-[48px]">
                 -15
               </Button>
-              <Button variant="dark" onClick={togglePlay} aria-label={buffering ? "Buffering" : playing ? "Pause" : "Play"}>
+              <Button variant="dark" onClick={togglePlay} aria-label={buffering ? "Buffering" : playing ? "Pause" : "Play"} className="min-w-[56px] min-h-[56px] text-[16px]">
                 {buffering ? "\u29D7" : playing ? "\u275A\u275A" : "\u25B6"}
               </Button>
-              <Button variant="dark" size="sm" onClick={() => seek(position + 30)} aria-label="Seek forward 30 seconds">
+              <Button variant="dark" size="sm" onClick={() => seek(position + 30)} aria-label="Seek forward 30 seconds" className="min-w-[48px] min-h-[48px]">
                 +30
               </Button>
-              <Button variant="dark" size="sm" onClick={playNext} disabled={!hasNext} aria-label="Next track">
+              <Button variant="dark" size="sm" onClick={playNext} disabled={!hasNext} aria-label="Next track" className="min-w-[48px] min-h-[48px]">
                 &raquo;|
               </Button>
             </div>
@@ -219,22 +221,29 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   if (isMobile && mini) {
     const progressPct = duration > 0 ? (position / duration) * 100 : 0;
     return (
-      <div className={cn("w98-raised-dark bg-raised-surface glass-medium glass-promote relative", playing && "glass-glow-amber", className)}>
-        {/* Mini progress bar at top */}
+      <div className={cn("glass-medium glass-promote relative", playing && "glass-glow-amber", className)}>
+        {/* Full-width progress bar at top — thin amber gradient */}
         {duration > 0 && (
-          <div className="absolute top-0 left-0 right-0 h-[2px]">
+          <div className="absolute top-0 left-0 right-0 h-[1.5px]">
             <div
-              className="h-full bg-desert-amber/60 transition-[width] duration-300"
-              style={{ width: `${progressPct}%` }}
+              className="h-full transition-[width] duration-300"
+              style={{
+                width: `${progressPct}%`,
+                background: "linear-gradient(90deg, rgba(212,168,67,0.5), rgba(212,168,67,0.8))",
+              }}
             />
           </div>
         )}
         {errorBanner}
-        <div className="flex items-center gap-1 px-2 py-1.5">
+        {/* Swipe-up affordance chevron */}
+        <div className="flex justify-center pt-1">
+          <span className="text-[8px] text-white/15 leading-none">{"\u25B2"}</span>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-1 pb-1.5">
           {/* Tap to expand */}
           <button
             onClick={() => setMobileExpanded(true)}
-            className="flex-1 min-w-0 text-left cursor-pointer active:bg-title-bar-blue/10 py-1 px-1"
+            className="flex-1 min-w-0 text-left cursor-pointer active:bg-title-bar-blue/10 py-0.5 px-0.5"
             aria-label="Expand player"
           >
             <NowPlaying className="pointer-events-none" />

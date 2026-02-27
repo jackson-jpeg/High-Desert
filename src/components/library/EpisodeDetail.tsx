@@ -262,17 +262,17 @@ export function EpisodeDetail({
           <>
             {/* Title + date + duration */}
             <div>
-              <div className="text-[14px] md:text-[12px] text-desktop-gray font-bold leading-snug break-words">
+              <div className="text-[16px] md:text-[12px] text-desktop-gray font-bold leading-snug break-words font-sans">
                 {episode.title || episode.fileName}
               </div>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-2 mt-1.5">
                 {episode.airDate && (
-                  <span className="text-[10px] text-desert-amber tabular-nums">
+                  <span className="text-[11px] md:text-[10px] text-desert-amber tabular-nums font-mono tracking-tight">
                     {episode.airDate}
                   </span>
                 )}
                 {episode.duration != null && (
-                  <span className="text-[10px] text-bevel-dark/70 tabular-nums">
+                  <span className="text-[11px] md:text-[10px] text-bevel-dark/60 tabular-nums font-mono">
                     {formatDuration(episode.duration)}
                   </span>
                 )}
@@ -311,21 +311,21 @@ export function EpisodeDetail({
 
             {/* Summary or Description */}
             {(episode.aiSummary || episode.description) && (
-              <div className="text-[12px] md:text-[10px] text-desktop-gray/60 leading-relaxed">
+              <div className="text-[13px] md:text-[10px] text-desktop-gray/55 leading-relaxed font-sans">
                 {episode.aiSummary || episode.description}
               </div>
             )}
 
             {/* Tags (clickable) */}
             {episode.aiTags && episode.aiTags.length > 0 && (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1.5">
                 {episode.aiTags.map((tag) => (
                   <button
                     key={tag}
                     onClick={() => {
                       window.dispatchEvent(new CustomEvent("hd:filter-tag", { detail: tag }));
                     }}
-                    className="text-[12px] md:text-[8px] text-desert-amber/70 bg-desert-amber/8 px-2.5 py-1.5 md:px-1.5 md:py-px cursor-pointer hover:bg-desert-amber/15 hover:text-desert-amber active:bg-desert-amber/15 active:text-desert-amber transition-colors-fast"
+                    className="text-[12px] md:text-[8px] text-desert-amber/70 bg-desert-amber/10 border border-desert-amber/15 px-2.5 py-1.5 md:px-1.5 md:py-px rounded-sm cursor-pointer hover:bg-desert-amber/20 hover:text-desert-amber active:bg-desert-amber/20 active:text-desert-amber transition-colors-fast"
                     title={`Filter by "${tag}"`}
                   >
                     {tag}

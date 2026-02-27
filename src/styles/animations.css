@@ -339,7 +339,7 @@
   }
 
   .animate-glass-sheet {
-    animation: glass-sheet 350ms var(--spring-snappy) forwards;
+    animation: glass-sheet 380ms var(--ease-out-expo) forwards;
   }
 
   /* Sheet slide-out: reverse of float-up */
@@ -355,7 +355,7 @@
   }
 
   .animate-glass-sheet-out {
-    animation: glass-sheet-out 250ms ease-in forwards;
+    animation: glass-sheet-out 220ms ease-in forwards;
   }
 
   /* Backdrop fade: opacity + blur ramp */

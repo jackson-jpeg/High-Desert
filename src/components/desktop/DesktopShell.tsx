@@ -448,16 +448,20 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               aria-current={isActive ? "page" : undefined}
               className={cn(
                 "w98-font cursor-pointer select-none transition-colors-fast relative",
-                "flex items-center justify-center min-h-[48px] flex-1 text-[12px]",
-                "md:flex-none md:min-h-0 md:px-3 md:py-1.5 md:text-[10px]",
+                "flex flex-col items-center justify-center min-h-[52px] flex-1 text-[12px] gap-1",
+                "md:flex-row md:flex-none md:min-h-0 md:px-3 md:py-1.5 md:text-[10px] md:gap-0",
                 isActive
-                  ? "text-desktop-gray border-t-2 border-t-desert-amber md:border-t-0 md:border-b-2 md:border-b-desert-amber"
-                  : "text-bevel-dark active:text-desktop-gray md:hover:text-desktop-gray border-t-2 border-t-transparent md:border-t-0 md:border-b-2 md:border-b-transparent",
+                  ? "text-desktop-gray md:border-b-2 md:border-b-desert-amber"
+                  : "text-bevel-dark active:text-desktop-gray md:hover:text-desktop-gray md:border-b-2 md:border-b-transparent",
               )}
             >
               {label}
+              {/* Mobile: amber dot indicator for active tab */}
+              {isActive && (
+                <span className="w-[4px] h-[4px] rounded-full bg-desert-amber md:hidden" />
+              )}
               {showNowPlaying && (
-                <span className="absolute top-1.5 right-[calc(50%-18px)] md:-top-0.5 md:right-auto md:left-1/2 w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air" />
+                <span className="absolute top-2 right-[calc(50%-18px)] md:-top-0.5 md:right-auto md:left-1/2 w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air" />
               )}
             </button>
           );
@@ -467,13 +471,13 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           onClick={() => setMobileMenuOpen(true)}
           className={cn(
             "w98-font cursor-pointer select-none transition-colors-fast",
-            "flex items-center justify-center min-h-[48px] flex-1 text-[12px]",
-            "text-bevel-dark active:text-desktop-gray border-t-2 border-t-transparent",
+            "flex flex-col items-center justify-center min-h-[52px] flex-1 text-[12px] gap-1",
+            "text-bevel-dark active:text-desktop-gray",
             "md:hidden",
           )}
           aria-label="More options"
         >
-          More ▾
+          More
         </button>
       </nav>
 

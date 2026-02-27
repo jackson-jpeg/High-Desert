@@ -7,6 +7,7 @@ import { useRadioDialStore } from "@/stores/radio-dial-store";
 import { useRadioDial } from "@/hooks/useRadioDial";
 import { useRadioStatic } from "@/hooks/useRadioStatic";
 import { useIsMobile } from "@/hooks/useMediaQuery";
+import { cn } from "@/lib/utils/cn";
 import { TuningStrip } from "./TuningStrip";
 import { FrequencyDisplay } from "./FrequencyDisplay";
 import { SignalMeter } from "./SignalMeter";
@@ -147,27 +148,50 @@ export function RadioDial({ episodes }: RadioDialProps) {
     ensureInitialized,
   ]);
 
+  // Current year for distance-fade on mobile
+  const currentYear = currentDate ? currentDate.getFullYear() : null;
+
   // Year quick-jump bar
   const yearBar = index ? (
     <div
-      className="flex items-center gap-0.5 overflow-x-auto pb-0.5"
+      className="flex items-center gap-0 md:gap-0.5 overflow-x-auto pb-0.5"
       role="tablist"
       aria-label="Jump to year"
     >
-      {index.years.map((year) => (
-        <button
-          key={year}
-          onClick={() => {
-            ensureInitialized();
-            jumpToYear(year);
-          }}
-          className="text-[10px] md:text-[8px] px-2 md:px-1.5 py-1.5 md:py-0.5 min-h-[44px] md:min-h-0 text-desert-amber/60 hover:text-desert-amber active:text-desert-amber cursor-pointer transition-colors-fast whitespace-nowrap flex-shrink-0"
-          role="tab"
-          aria-label={`Jump to ${year}`}
-        >
-          {year}
-        </button>
-      ))}
+      {index.years.map((year) => {
+        // Distance-based opacity fade on mobile
+        const dist = currentYear ? Math.abs(year - currentYear) : 0;
+        const mobileOpacity = currentYear
+          ? Math.max(0.15, 1 - dist * 0.15)
+          : 0.4;
+        const isCurrentYear = year === currentYear;
+
+        return (
+          <button
+            key={year}
+            onClick={() => {
+              ensureInitialized();
+              jumpToYear(year);
+            }}
+            className={cn(
+              "md:text-[8px] md:px-1.5 md:py-0.5 md:min-h-0 text-desert-amber hover:text-desert-amber active:text-desert-amber cursor-pointer transition-colors-fast whitespace-nowrap flex-shrink-0",
+              // Mobile: monospace abbreviated years
+              "text-[9px] px-[7px] py-2 min-h-[44px] font-mono tracking-wide",
+              isCurrentYear && "font-bold md:font-normal",
+            )}
+            style={isMobile ? {
+              opacity: mobileOpacity,
+              textShadow: isCurrentYear ? "0 0 8px rgba(212,168,67,0.3)" : "none",
+              fontSize: isCurrentYear ? "10px" : undefined,
+            } : undefined}
+            role="tab"
+            aria-label={`Jump to ${year}`}
+          >
+            <span className="md:hidden">&rsquo;{String(year).slice(2)}</span>
+            <span className="hidden md:inline">{year}</span>
+          </button>
+        );
+      })}
     </div>
   ) : null;
 
@@ -219,17 +243,17 @@ export function RadioDial({ episodes }: RadioDialProps) {
     );
   }
 
-  // Mobile layout: full-screen glass overlay
+  // Mobile layout: full-screen cinematic radio
   if (isMobile) {
     return (
       <div
-        className="flex flex-col h-full glass-heavy pt-[var(--safe-top)]"
+        className="flex flex-col h-full pt-[var(--safe-top)]"
         role="application"
         aria-label="AM Radio Dial"
         onClick={handleInteraction}
       >
-        {/* CRT Display */}
-        <div className="flex-shrink-0 mx-3 mt-2">
+        {/* CRT Display — phosphor glow */}
+        <div className="flex-shrink-0 mx-5 mt-3">
           <FrequencyDisplay
             frequency={frequency}
             currentDate={currentDate}
@@ -242,25 +266,21 @@ export function RadioDial({ episodes }: RadioDialProps) {
         </div>
 
         {/* Year quick-jump */}
-        <div className="flex-shrink-0 mx-3 mt-1">{yearBar}</div>
+        <div className="flex-shrink-0 mx-5 mt-3">{yearBar}</div>
 
         {/* Tuning Strip */}
-        <div className="flex-1 mx-3 my-2 min-h-[120px]">
-          <TuningStrip index={index} className="rounded" />
+        <div className="flex-1 mx-4 my-1 min-h-[140px]">
+          <TuningStrip index={index} className="rounded-lg" />
         </div>
 
-        {/* Controls + Signal */}
-        <div className="flex-shrink-0 px-3 pb-2 flex flex-col gap-2">
+        {/* Signal + Controls */}
+        <div className="flex-shrink-0 px-5 pb-[max(1.5rem,var(--safe-bottom))] flex flex-col gap-3">
           <SignalMeter signalStrength={signalStrength} />
-          <div className="flex items-center gap-2">
-            <DialControls
-              lockedEpisode={lockedEpisode}
-              isLocked={isLocked}
-              onLockNearest={lockToNearest}
-              className="justify-center flex-wrap flex-1"
-            />
-            <RadioShortcuts />
-          </div>
+          <DialControls
+            lockedEpisode={lockedEpisode}
+            isLocked={isLocked}
+            onLockNearest={lockToNearest}
+          />
         </div>
       </div>
     );
