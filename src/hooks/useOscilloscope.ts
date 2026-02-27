@@ -50,7 +50,18 @@ export function useOscilloscope() {
     const ro = new ResizeObserver(() => resize());
     ro.observe(canvas);
 
-    const draw = () => {
+    // Throttle to 30fps on mobile to reduce GC pressure
+    const isMobile = window.innerWidth < 768;
+    const FRAME_INTERVAL = isMobile ? 1000 / 30 : 0;
+    let lastFrameTime = 0;
+
+    const draw = (time: number) => {
+      if (FRAME_INTERVAL > 0 && time - lastFrameTime < FRAME_INTERVAL) {
+        rafRef.current = requestAnimationFrame(draw);
+        return;
+      }
+      lastFrameTime = time;
+
       const analyser = getAnalyserNode();
       const playing = usePlayerStore.getState().playing;
 

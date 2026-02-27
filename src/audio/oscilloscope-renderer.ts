@@ -4,12 +4,39 @@
  * Draws a phosphor-green waveform from AnalyserNode time-domain data
  * onto a canvas element. Uses getByteTimeDomainData() for the waveform
  * and draws a polyline with glow effect.
+ *
+ * All typed arrays and ImageData are cached to avoid per-frame allocation
+ * which causes GC pressure crashes on mobile.
  */
 
 const PHOSPHOR_GREEN = "#33FF33";
 const GLOW_COLOR = "rgba(51, 255, 51, 0.4)";
 const LINE_WIDTH = 2;
 const GLOW_WIDTH = 6;
+
+// Cached buffers — reused across frames to avoid GC pressure
+let cachedDataArray: Uint8Array<ArrayBuffer> | null = null;
+let cachedBufferLength = 0;
+let cachedImageData: ImageData | null = null;
+let cachedImageWidth = 0;
+let cachedImageHeight = 0;
+
+function getDataArray(length: number): Uint8Array<ArrayBuffer> {
+  if (!cachedDataArray || cachedBufferLength !== length) {
+    cachedDataArray = new Uint8Array(length);
+    cachedBufferLength = length;
+  }
+  return cachedDataArray;
+}
+
+function getImageData(ctx: CanvasRenderingContext2D, w: number, h: number): ImageData {
+  if (!cachedImageData || cachedImageWidth !== w || cachedImageHeight !== h) {
+    cachedImageData = ctx.createImageData(w, h);
+    cachedImageWidth = w;
+    cachedImageHeight = h;
+  }
+  return cachedImageData;
+}
 
 export function drawOscilloscope(
   canvas: HTMLCanvasElement,
@@ -20,7 +47,7 @@ export function drawOscilloscope(
 
   const { width, height } = canvas;
   const bufferLength = analyser.frequencyBinCount;
-  const dataArray = new Uint8Array(bufferLength);
+  const dataArray = getDataArray(bufferLength);
   analyser.getByteTimeDomainData(dataArray);
 
   // Clear
@@ -77,7 +104,7 @@ export function drawStatic(canvas: HTMLCanvasElement): void {
   const { width, height } = canvas;
   ctx.clearRect(0, 0, width, height);
 
-  const imageData = ctx.createImageData(width, height);
+  const imageData = getImageData(ctx, width, height);
   const data = imageData.data;
 
   for (let i = 0; i < data.length; i += 4) {

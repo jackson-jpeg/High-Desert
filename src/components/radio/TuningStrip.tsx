@@ -43,6 +43,7 @@ export function TuningStrip({ index, className }: TuningStripProps) {
 
   // Year label hit areas — use ref for per-frame updates, state for gesture hook
   const hitAreasRef = useRef<{ x: number; width: number; year: number }[]>([]);
+  const gradRef = useRef<{ grad: CanvasGradient; h: number } | null>(null);
   const [yearHitAreas, setYearHitAreas] = useState<
     { x: number; width: number; year: number }[]
   >([]);
@@ -115,12 +116,15 @@ export function TuningStrip({ index, className }: TuningStripProps) {
       ctx.fillStyle = COLOR_STRIP_BG;
       ctx.fillRect(0, 0, w, h);
 
-      // Subtle gradient overlay
-      const grad = ctx.createLinearGradient(0, 0, 0, h);
-      grad.addColorStop(0, "rgba(8, 12, 22, 0.5)");
-      grad.addColorStop(0.5, "rgba(8, 12, 22, 0)");
-      grad.addColorStop(1, "rgba(8, 12, 22, 0.5)");
-      ctx.fillStyle = grad;
+      // Subtle gradient overlay (cached to avoid per-frame allocation)
+      if (!gradRef.current || gradRef.current.h !== h) {
+        const grad = ctx.createLinearGradient(0, 0, 0, h);
+        grad.addColorStop(0, "rgba(8, 12, 22, 0.5)");
+        grad.addColorStop(0.5, "rgba(8, 12, 22, 0)");
+        grad.addColorStop(1, "rgba(8, 12, 22, 0.5)");
+        gradRef.current = { grad, h };
+      }
+      ctx.fillStyle = gradRef.current.grad;
       ctx.fillRect(0, 0, w, h);
 
       const centerX = w / 2;

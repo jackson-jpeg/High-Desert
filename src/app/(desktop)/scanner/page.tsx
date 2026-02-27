@@ -29,7 +29,7 @@ export default function ScannerPage() {
     status === "completed" || status === "cancelled" || status === "error";
 
   return (
-    <div className="p-4 flex flex-col gap-5 max-w-2xl mx-auto">
+    <div className="h-full overflow-auto overscroll-contain p-4 flex flex-col gap-5 max-w-2xl mx-auto">
       {/* Section header */}
       <div className="flex items-center gap-2 px-1">
         <span className="text-[10px] text-desert-amber font-bold uppercase tracking-wider">Import Sources</span>

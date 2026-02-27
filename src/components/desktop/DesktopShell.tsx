@@ -483,7 +483,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
 
       {/* Main content area — padded on mobile to clear fixed player + tab bar */}
       <main
-        className="flex-1 overflow-auto relative z-10 md:pb-0"
+        className="flex-1 overflow-hidden relative z-10 md:pb-0"
         style={{ paddingBottom: `calc(${bottomPadding}px + var(--safe-bottom))` }}
       >
         <PageTransition>{children}</PageTransition>
