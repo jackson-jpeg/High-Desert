@@ -22,7 +22,7 @@ function addRecentSearch(q: string) {
 }
 
 interface Suggestion {
-  type: "guest" | "category" | "year" | "recent";
+  type: "guest" | "category" | "year" | "series" | "recent";
   label: string;
   query: string;
 }
@@ -34,11 +34,12 @@ interface SearchBarProps {
   guests?: string[];
   categories?: string[];
   years?: string[];
+  series?: string[];
   className?: string;
 }
 
 export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
-  function SearchBar({ value, onChange, resultCount, guests, categories, years, className }, ref) {
+  function SearchBar({ value, onChange, resultCount, guests, categories, years, series, className }, ref) {
     const [showHelp, setShowHelp] = useState(false);
     const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -88,9 +89,18 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
         }
       }
 
+      if (series) {
+        for (const s of series) {
+          if (results.filter((r) => r.type === "series").length >= 2) break;
+          if (s.toLowerCase().includes(q)) {
+            results.push({ type: "series", label: s, query: `series:${s}` });
+          }
+        }
+      }
+
       setSuggestions(results);
       setActiveIdx(-1);
-    }, [value, guests, categories, years]);
+    }, [value, guests, categories, years, series]);
 
     // Click outside to dismiss
     useEffect(() => {
@@ -136,7 +146,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
       }
     }, [showSuggestions, suggestions, activeIdx, selectSuggestion, value]);
 
-    const typeLabels: Record<string, string> = { guest: "Guest", category: "Category", year: "Year", recent: "Recent" };
+    const typeLabels: Record<string, string> = { guest: "Guest", category: "Category", year: "Year", series: "Series", recent: "Recent" };
 
     return (
       <div className={cn("flex flex-col gap-1", className)} ref={containerRef}>

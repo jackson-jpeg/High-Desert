@@ -240,9 +240,15 @@ export const EpisodeCard = memo(function EpisodeCard({
             </span>
           )}
           {episode.aiSeries && (
-            <span className="text-[8px] text-title-bar-blue/50 flex-shrink-0 hidden md:inline">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                window.dispatchEvent(new CustomEvent("hd:filter-series", { detail: episode.aiSeries }));
+              }}
+              className="text-[8px] text-title-bar-blue/50 flex-shrink-0 hidden md:inline cursor-pointer hover:text-title-bar-blue hover:underline active:text-title-bar-blue transition-colors-fast"
+            >
               {episode.aiSeries}{episode.aiSeriesPart ? ` Pt.${episode.aiSeriesPart}` : ""}
-            </span>
+            </button>
           )}
         </div>
         {episode.duration != null && (
