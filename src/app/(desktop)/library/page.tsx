@@ -9,7 +9,7 @@ import { usePlayerStore } from "@/stores/player-store";
 import { useContextMenuStore } from "@/stores/context-menu-store";
 import { toast } from "@/stores/toast-store";
 import { useAdminStore } from "@/stores/admin-store";
-import { deleteEpisode, recategorizeEpisode, updateEpisode, toggleFavorite } from "@/services/episodes/management";
+import { deleteEpisode, recategorizeEpisode, updateEpisode, toggleFavorite, toggleFlag } from "@/services/episodes/management";
 import { SearchBar } from "@/components/library/SearchBar";
 import { TimelineView } from "@/components/library/TimelineView";
 import { EpisodeDetail } from "@/components/library/EpisodeDetail";
@@ -557,6 +557,13 @@ export default function LibraryPage() {
         label: episode.favoritedAt ? "Unfavorite" : "Favorite",
         onClick: () => handleToggleFavorite(episode),
       },
+      {
+        label: episode.flaggedAt ? "Remove Flag" : "Report Broken",
+        onClick: async () => {
+          const flagged = await toggleFlag(episode.id!);
+          toast[flagged ? "info" : "success"](flagged ? "Episode flagged as broken" : "Flag removed");
+        },
+      },
       ...((allPlaylists && allPlaylists.length > 0)
         ? [
             { label: "", onClick: () => {}, separator: true },
@@ -724,7 +731,7 @@ export default function LibraryPage() {
   const hasActiveFilters = showFilter !== "all" || guestFilter !== null || categoryFilter !== null || favoritesOnly;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-auto overscroll-contain">
       {/* Search + Show Type Pills — sticky on mobile so users can refine while scrolling */}
       <div className="flex flex-col gap-1.5 px-3 py-2 flex-shrink-0 md:flex-row md:items-center md:gap-2 sticky top-0 z-20 bg-midnight/95 backdrop-blur-sm md:static md:bg-transparent md:backdrop-blur-none">
         <SearchBar

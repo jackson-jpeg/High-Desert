@@ -11,6 +11,7 @@ import { SmartPlaylists } from "@/components/library/SmartPlaylists";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { ListeningStats } from "@/components/library/ListeningStats";
 import { cn } from "@/lib/utils/cn";
+import { formatAirDate } from "@/lib/utils/format";
 import { getCacheSize, clearAudioCache } from "@/audio/cache";
 import { toast } from "@/stores/toast-store";
 
@@ -167,6 +168,7 @@ export default function StatsPage() {
       }
     }
     const favoriteCount = episodes.filter((e) => !!e.favoritedAt).length;
+    const flaggedEpisodes = episodes.filter((e) => !!e.flaggedAt);
 
     return {
       total,
@@ -199,6 +201,7 @@ export default function StatsPage() {
       fiveStarCount,
       streak,
       favoriteCount,
+      flaggedEpisodes,
     };
   }, [episodes, history]);
 
@@ -557,6 +560,32 @@ export default function StatsPage() {
                   Clear Cache
                 </Button>
               )}
+            </div>
+          </Window>
+        )}
+
+        {/* ── Flagged Episodes ── Admin only */}
+        {isAdmin && stats.flaggedEpisodes.length > 0 && (
+          <Window title={`Flagged Episodes \u00B7 ${stats.flaggedEpisodes.length}`} variant="dark" headingLevel={2}>
+            <div className="p-3 flex flex-col gap-[3px] max-h-[200px] overflow-auto overscroll-contain">
+              {stats.flaggedEpisodes.map((ep) => (
+                <button
+                  key={ep.id}
+                  onClick={() => {
+                    router.push("/library");
+                    setTimeout(() => {
+                      window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: ep }));
+                    }, 200);
+                  }}
+                  className="flex items-center gap-2 text-left px-2 py-1.5 w98-raised-dark bg-card-surface cursor-pointer hover:bg-title-bar-blue/15 transition-colors-fast"
+                >
+                  <span className="text-[9px] text-red-400/70">⚑</span>
+                  <span className="text-[10px] text-desktop-gray truncate flex-1">{ep.title || ep.fileName}</span>
+                  <span className="text-[8px] text-bevel-dark/50 tabular-nums flex-shrink-0">
+                    {ep.airDate ? formatAirDate(ep.airDate) : ""}
+                  </span>
+                </button>
+              ))}
             </div>
           </Window>
         )}

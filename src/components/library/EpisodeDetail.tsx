@@ -5,7 +5,7 @@ import type { Episode } from "@/db/schema";
 import { Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
 import { toast } from "@/stores/toast-store";
-import { rateEpisode } from "@/services/episodes/management";
+import { rateEpisode, toggleFlag } from "@/services/episodes/management";
 import { BookmarkList } from "@/components/player/BookmarkMarkers";
 import { MoreLikeThis } from "@/components/library/MoreLikeThis";
 import { useSwipeDown } from "@/hooks/useSwipeDown";
@@ -454,6 +454,21 @@ export function EpisodeDetail({
                 </a>
               )}
               <ShareButton episode={episode} />
+              <button
+                onClick={async () => {
+                  const flagged = await toggleFlag(episode.id!);
+                  toast[flagged ? "info" : "success"](flagged ? "Episode flagged as broken" : "Flag removed");
+                }}
+                className={cn(
+                  "text-[12px] md:text-[9px] cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center",
+                  episode.flaggedAt
+                    ? "text-red-400/70 hover:text-red-400"
+                    : "text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray",
+                )}
+                title={episode.flaggedAt ? "Remove flag" : "Report broken/dead link"}
+              >
+                {episode.flaggedAt ? "Flagged" : "Flag"}
+              </button>
               {onEdit && (
                 <button
                   onClick={startEditing}

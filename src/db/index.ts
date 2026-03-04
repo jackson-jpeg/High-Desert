@@ -77,6 +77,16 @@ class HighDesertDB extends Dexie {
         if (ep.aiSeries === undefined) ep.aiSeries = null;
       });
     });
+
+    this.version(7).stores({
+      episodes:
+        "++id, fileHash, airDate, guestName, showType, fileName, scanSessionId, createdAt, archiveIdentifier, lastPlayedAt, aiStatus, favoritedAt, flaggedAt, aiCategory, aiSeries, *aiTags",
+      scanSessions: "++id, status, startedAt",
+      userPrefs: "++id, &key",
+      playlists: "++id, name, createdAt",
+      history: "++id, episodeId, timestamp",
+      bookmarks: "++id, episodeId, position, createdAt",
+    });
   }
 }
 

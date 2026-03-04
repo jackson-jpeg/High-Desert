@@ -97,6 +97,17 @@ export async function getBookmarks(episodeId: number) {
   return db.bookmarks.where("episodeId").equals(episodeId).sortBy("position");
 }
 
+export async function toggleFlag(id: number): Promise<boolean> {
+  const episode = await db.episodes.get(id);
+  if (!episode) return false;
+  const isFlagged = !episode.flaggedAt;
+  await db.episodes.update(id, {
+    flaggedAt: isFlagged ? Date.now() : undefined,
+    updatedAt: Date.now(),
+  });
+  return isFlagged;
+}
+
 export async function recategorizeEpisode(id: number): Promise<void> {
   const episode = await db.episodes.get(id);
   if (!episode) return;
