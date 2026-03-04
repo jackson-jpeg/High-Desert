@@ -28,6 +28,7 @@ export function PageTransition({ children }: PageTransitionProps) {
 
   return (
     <div
+      className="h-full"
       style={{
         opacity: visible ? 1 : 0,
         // Only apply transform during transition — translateY(0) creates a containing block
