@@ -1,7 +1,22 @@
 {
   "name": "high-desert",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.5.0",
+  "description": "A desktop-grade web player for the Art Bell radio archive",
+  "author": "Jackson Goode",
+  "license": "MIT",
+  "homepage": "https://highdesert.space",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jacksongoode/High-Desert"
+  },
+  "keywords": [
+    "art-bell",
+    "radio",
+    "archive",
+    "audio-player",
+    "windows-98",
+    "nextjs"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",

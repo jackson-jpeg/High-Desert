@@ -41,3 +41,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# debug logs
+firebase-debug.log
+
+# tool artifacts
+.serena/
