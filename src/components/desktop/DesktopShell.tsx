@@ -412,7 +412,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   return (
     <div
       className={cn(
-        "flex flex-col h-screen w-screen overflow-hidden relative",
+        "flex flex-col h-screen w-screen h-dvh w-dvw overflow-hidden relative",
         className,
       )}
     >

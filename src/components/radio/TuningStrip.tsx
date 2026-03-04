@@ -78,7 +78,6 @@ export function TuningStrip({ index, className }: TuningStripProps) {
     const noMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
-    const isMobileDevice = window.matchMedia("(max-width: 767px)").matches;
     let animId: number;
     let lastFrameTime = 0;
     // Sync hit areas to state at most every 200ms (not every frame)
@@ -93,8 +92,12 @@ export function TuningStrip({ index, className }: TuningStripProps) {
     };
 
     const render = (time: number) => {
-      // Throttle frame rate on mobile
-      if (isMobileDevice) {
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+
+      // Throttle frame rate on mobile (uses canvas width, reactive to resize)
+      if (w < 768) {
         const elapsed = time - lastFrameTime;
         if (elapsed < MOBILE_FRAME_INTERVAL) {
           animId = requestAnimationFrame(render);
@@ -102,9 +105,6 @@ export function TuningStrip({ index, className }: TuningStripProps) {
         }
         lastFrameTime = time - (elapsed % MOBILE_FRAME_INTERVAL);
       }
-
-      const w = canvas.getBoundingClientRect().width;
-      const h = canvas.getBoundingClientRect().height;
       if (w === 0 || h === 0) {
         animId = requestAnimationFrame(render);
         return;

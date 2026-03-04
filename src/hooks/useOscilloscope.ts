@@ -51,12 +51,13 @@ export function useOscilloscope() {
     ro.observe(canvas);
 
     // Throttle to 30fps on mobile to reduce GC pressure
-    const isMobile = window.innerWidth < 768;
-    const FRAME_INTERVAL = isMobile ? 1000 / 30 : 0;
+    // Uses canvas width (updated by ResizeObserver) instead of one-time window check
+    const MOBILE_FRAME_INTERVAL = 1000 / 30;
     let lastFrameTime = 0;
 
     const draw = (time: number) => {
-      if (FRAME_INTERVAL > 0 && time - lastFrameTime < FRAME_INTERVAL) {
+      const isMobileWidth = canvas.width < 768;
+      if (isMobileWidth && time - lastFrameTime < MOBILE_FRAME_INTERVAL) {
         rafRef.current = requestAnimationFrame(draw);
         return;
       }

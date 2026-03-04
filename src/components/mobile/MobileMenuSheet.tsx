@@ -80,7 +80,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
         <div className="flex justify-center pt-3 pb-2">
           <div className="w-10 h-[4px] rounded-full bg-white/12" />
         </div>
-        <div className="flex flex-col max-h-[60vh] overflow-y-auto overscroll-contain px-1">
+        <div className="flex flex-col max-h-[60dvh] overflow-y-auto overscroll-contain px-1">
           {/* Quick actions group */}
           <div className="px-3 pb-1">
             <span className="text-[10px] text-bevel-dark/40 uppercase tracking-wider font-sans">Quick Actions</span>

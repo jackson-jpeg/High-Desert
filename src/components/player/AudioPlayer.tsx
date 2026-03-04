@@ -365,7 +365,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   return (
     <div
       className={cn(
-        "w98-raised-dark bg-raised-surface flex flex-col max-h-[calc(100vh-40px)] overflow-auto",
+        "w98-raised-dark bg-raised-surface flex flex-col max-h-[calc(100dvh-40px)] overflow-auto",
         className,
       )}
     >

@@ -140,7 +140,7 @@ function ContextMenuInner({
     });
   }, [position]);
 
-  // Close on click outside
+  // Close on click outside or window resize
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -149,7 +149,11 @@ function ContextMenuInner({
     };
 
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    window.addEventListener("resize", hide);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("resize", hide);
+    };
   }, [hide]);
 
   // Keyboard navigation
