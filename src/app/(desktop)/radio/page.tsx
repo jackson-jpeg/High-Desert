@@ -3,6 +3,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
 import { RadioDial } from "@/components/radio/RadioDial";
+import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 
 export default function RadioPage() {
   const episodes = useLiveQuery(() =>
@@ -21,7 +22,9 @@ export default function RadioPage() {
 
   return (
     <div className="h-full flex flex-col p-2 md:p-3">
-      <RadioDial episodes={episodes} />
+      <WidgetErrorBoundary>
+        <RadioDial episodes={episodes} />
+      </WidgetErrorBoundary>
     </div>
   );
 }

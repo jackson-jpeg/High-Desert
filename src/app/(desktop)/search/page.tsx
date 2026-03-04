@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminStore } from "@/stores/admin-store";
 import { SearchPanel } from "@/components/search/SearchPanel";
+import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 
 export default function SearchPage() {
   const router = useRouter();
@@ -15,5 +16,9 @@ export default function SearchPage() {
 
   if (!isAdmin) return null;
 
-  return <SearchPanel />;
+  return (
+    <WidgetErrorBoundary name="SearchPanel">
+      <SearchPanel />
+    </WidgetErrorBoundary>
+  );
 }

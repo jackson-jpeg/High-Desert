@@ -82,8 +82,11 @@ export default function DesktopLayout({
             const resolvedUrl = `https://archive.org/download/${identifier}/${encodeURIComponent(fileName)}`;
             episode.sourceUrl = resolvedUrl;
           } else {
-            // Fetch metadata to find the best audio file
-            const res = await fetch(`/api/archive/metadata?id=${encodeURIComponent(identifier)}`);
+            // Fetch metadata to find the best audio file (10s timeout)
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 10000);
+            const res = await fetch(`/api/archive/metadata?id=${encodeURIComponent(identifier)}`, { signal: controller.signal });
+            clearTimeout(timeout);
             if (res.ok) {
               const data = await res.json();
               const files = data.files as { name: string; format: string }[];
@@ -260,6 +263,25 @@ export default function DesktopLayout({
   // On mount, seed library if empty, then restore state
   useEffect(() => {
     seedLibraryIfEmpty().catch((err) => { console.warn("[layout] Failed to seed library:", err); });
+  }, []);
+
+  // Offline/online detection
+  useEffect(() => {
+    const onOffline = () => toast.error("You're offline. Cached episodes still work.");
+    const onOnline = () => toast.success("Back online.");
+    const onSWMessage = (e: MessageEvent) => {
+      if (e.data?.type === "hd:offline-fallback") {
+        toast.info("Showing cached content — you may be offline.");
+      }
+    };
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("online", onOnline);
+    navigator.serviceWorker?.addEventListener("message", onSWMessage);
+    return () => {
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("online", onOnline);
+      navigator.serviceWorker?.removeEventListener("message", onSWMessage);
+    };
   }, []);
 
   // Startup sound on first interaction

@@ -79,7 +79,13 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           return response;
         })
-        .catch(() => caches.match(event.request).then(r => r || caches.match("/library").then(r => r || caches.match("/"))))
+        .catch(() => {
+          // Notify clients they're seeing cached content
+          self.clients.matchAll({ type: "window" }).then((clients) => {
+            clients.forEach((client) => client.postMessage({ type: "hd:offline-fallback" }));
+          });
+          return caches.match(event.request).then(r => r || caches.match("/library").then(r => r || caches.match("/")));
+        })
     );
     return;
   }

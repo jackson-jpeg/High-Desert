@@ -1042,8 +1042,16 @@ export default function LibraryPage() {
         {/* Episode list */}
         {allEpisodes !== undefined && (
         <div className="flex-1 overflow-hidden min-w-0">
-          {/* Filtered-to-zero state (library has episodes but filter/search yields none) */}
-          {filtered.length === 0 && allEpisodes.length > 0 && search.trim() ? (
+          {/* Empty library state */}
+          {allEpisodes.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center px-8">
+              <div className="text-[24px] text-desert-amber/30 select-none mb-3">📡</div>
+              <div className="text-[12px] text-desktop-gray mb-2">No episodes in the library yet.</div>
+              <div className="text-[10px] text-bevel-dark/60 leading-relaxed max-w-[260px]">
+                The library seeds automatically on first visit. If this persists, try refreshing the page.
+              </div>
+            </div>
+          ) : filtered.length === 0 && search.trim() ? (
             <div className="flex flex-col items-center justify-center py-16 text-center px-8">
               <div className="text-[12px] text-desktop-gray mb-2">
                 No episodes matching &ldquo;{search}&rdquo;

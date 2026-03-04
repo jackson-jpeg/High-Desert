@@ -306,7 +306,9 @@ export function useAudioPlayer() {
                 store.put(record);
               }
             };
+            getReq.onerror = () => {}; // best-effort
           };
+          req.onerror = () => {}; // best-effort — position was saved within 5s interval
         } catch {
           // Best-effort — if IDB fails during unload, position was saved within 5s
         }

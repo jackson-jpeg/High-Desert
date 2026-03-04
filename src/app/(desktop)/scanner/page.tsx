@@ -10,6 +10,7 @@ import { ScanProgress } from "@/components/scanner/ScanProgress";
 import { ScanResults } from "@/components/scanner/ScanResults";
 import { CatalogScraper } from "@/components/scraper/CatalogScraper";
 import { CollectionImport } from "@/components/scraper/CollectionImport";
+import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 
 export default function ScannerPage() {
   const router = useRouter();
@@ -37,7 +38,9 @@ export default function ScannerPage() {
       </div>
 
       {/* Featured collection import — one-click for the Ultimate Art Bell Collection */}
-      <CollectionImport />
+      <WidgetErrorBoundary name="CollectionImport">
+        <CollectionImport />
+      </WidgetErrorBoundary>
 
       {/* Divider */}
       <div className="flex items-center gap-3 px-1">
@@ -47,7 +50,9 @@ export default function ScannerPage() {
       </div>
 
       {/* Archive.org catalog search/import */}
-      <CatalogScraper />
+      <WidgetErrorBoundary name="CatalogScraper">
+        <CatalogScraper />
+      </WidgetErrorBoundary>
 
       {/* Divider */}
       <div className="flex items-center gap-3 px-1">
@@ -57,12 +62,14 @@ export default function ScannerPage() {
       </div>
 
       {/* Folder picker (disabled while scanning) */}
-      <FolderPicker
-        onPickNative={startScan}
-        onPickFallback={startScanFallback}
-        supportsNativePicker={supportsNativePicker}
-        disabled={isScanning}
-      />
+      <WidgetErrorBoundary name="FolderPicker">
+        <FolderPicker
+          onPickNative={startScan}
+          onPickFallback={startScanFallback}
+          supportsNativePicker={supportsNativePicker}
+          disabled={isScanning}
+        />
+      </WidgetErrorBoundary>
 
       {/* Progress display */}
       {(isScanning || hasResults) && <ScanProgress onCancel={cancelScan} />}
