@@ -22,6 +22,10 @@ export const useToastStore = create<ToastState>((set) => ({
     set((s) => ({
       toasts: [...s.toasts.slice(-4), { id, message, type, duration }],
     }));
+    // Mirror non-error toasts to the status bar
+    if (type !== "error" && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("hd:status-message", { detail: message }));
+    }
   },
   removeToast: (id) =>
     set((s) => ({

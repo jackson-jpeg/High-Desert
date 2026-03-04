@@ -6,6 +6,7 @@ import { useAdminStore } from "@/stores/admin-store";
 import { db } from "@/db";
 import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
+import { formatAirDate } from "@/lib/utils/format";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 
 export function QueuePanel() {
@@ -242,8 +243,8 @@ export function QueuePanel() {
                   {ep.title || ep.fileName}
                 </div>
                 {(ep.guestName || ep.airDate) && (
-                  <div className="text-[11px] md:text-[9px] text-bevel-dark/60 truncate" title={[ep.guestName, ep.airDate].filter(Boolean).join(" \u00B7 ")}>
-                    {[ep.guestName, ep.airDate].filter(Boolean).join(" \u00B7 ")}
+                  <div className="text-[11px] md:text-[9px] text-bevel-dark/60 truncate" title={[ep.guestName, formatAirDate(ep.airDate)].filter(Boolean).join(" \u00B7 ")}>
+                    {[ep.guestName, formatAirDate(ep.airDate)].filter(Boolean).join(" \u00B7 ")}
                   </div>
                 )}
               </div>

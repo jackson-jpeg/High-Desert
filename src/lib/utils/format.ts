@@ -20,6 +20,15 @@ export function formatTime(seconds: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+/** Format a YYYY-MM-DD air date as "Feb 11, 2007" */
+export function formatAirDate(date: string | null | undefined): string {
+  if (!date) return "";
+  const [y, m, d] = date.split("-").map(Number);
+  if (!y || !m || !d) return date;
+  const dt = new Date(y, m - 1, d);
+  return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 /** Get human-readable show label from showType field */
 export function getShowLabel(showType?: string | null): string | null {
   if (showType === "coast") return "Coast to Coast AM";

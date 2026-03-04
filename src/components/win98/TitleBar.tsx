@@ -11,6 +11,8 @@ export interface TitleBarProps {
   onMinimize?: () => void;
   onMaximize?: () => void;
   className?: string;
+  /** Render the title as a semantic heading element (h1–h6). Defaults to span. */
+  headingLevel?: 1 | 2 | 3 | 4 | 5 | 6;
 }
 
 function TitleBarButton({
@@ -45,7 +47,10 @@ export function TitleBar({
   onMinimize,
   onMaximize,
   className,
+  headingLevel,
 }: TitleBarProps) {
+  const HeadingTag = headingLevel ? (`h${headingLevel}` as const) : "span";
+
   return (
     <div
       className={cn(
@@ -55,14 +60,14 @@ export function TitleBar({
       )}
     >
       {icon && <span className="mr-1 flex-shrink-0">{icon}</span>}
-      <span
+      <HeadingTag
         className={cn(
           "w98-font text-[13px] md:text-[11px] font-bold truncate flex-1",
           active ? "text-white" : "text-[#D4D4D4]",
         )}
       >
         {title}
-      </span>
+      </HeadingTag>
       <div className="flex gap-[2px] flex-shrink-0">
         {onMinimize && (
           <TitleBarButton onClick={onMinimize} label="Minimize">

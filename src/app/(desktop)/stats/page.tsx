@@ -205,7 +205,7 @@ export default function StatsPage() {
   if (!stats) {
     return (
       <div className="p-4 flex flex-col gap-4 max-w-5xl mx-auto">
-        <Window title="Station Dashboard" variant="dark">
+        <Window title="Station Dashboard" variant="dark" headingLevel={1}>
           <div className="p-6 text-center min-h-[200px] flex items-center justify-center">
             <div className="animate-dot-1 inline-block text-bevel-dark text-[10px]">Loading station data</div>
           </div>
@@ -217,7 +217,7 @@ export default function StatsPage() {
   if (stats.total === 0) {
     return (
       <div className="p-4 flex flex-col gap-4 max-w-5xl mx-auto">
-        <Window title="Station Dashboard" variant="dark">
+        <Window title="Station Dashboard" variant="dark" headingLevel={1}>
           <div className="p-8 flex flex-col items-center gap-3 text-center">
             <div className="text-[24px] text-desert-amber/30 select-none">{"\u{1F4E1}"}</div>
             <div className="text-[11px] text-bevel-dark">No episodes in the library yet.</div>
@@ -245,7 +245,7 @@ export default function StatsPage() {
       <ListeningStats />
 
       {/* ── Signal Report ── Hero stats */}
-      <Window title="Signal Report" variant="dark">
+      <Window title="Signal Report" variant="dark" headingLevel={2}>
         <div className="p-3">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
             <HeroStat
@@ -285,7 +285,7 @@ export default function StatsPage() {
             <HeroStat
               label="Notable"
               value={stats.notableCount.toLocaleString()}
-              sub="iconic episodes"
+              sub={stats.notableCount === 0 ? "Mark standout episodes as Notable while listening." : "iconic episodes"}
               color="text-yellow-400"
             />
             <HeroStat
@@ -297,13 +297,13 @@ export default function StatsPage() {
             <HeroStat
               label="Favorites"
               value={stats.favoriteCount.toLocaleString()}
-              sub={`${stats.ratedCount} rated`}
+              sub={stats.favoriteCount === 0 ? "Star episodes you love to save them here." : `${stats.ratedCount} rated`}
               color="text-desert-amber"
             />
             <HeroStat
               label="Avg Rating"
               value={stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "\u2014"}
-              sub={stats.fiveStarCount > 0 ? `${stats.fiveStarCount} five-star` : "no ratings yet"}
+              sub={stats.avgRating === 0 ? "Rate episodes to start tracking your taste." : stats.fiveStarCount > 0 ? `${stats.fiveStarCount} five-star` : "no ratings yet"}
               color="text-desert-amber"
             />
             <HeroStat
@@ -330,6 +330,9 @@ export default function StatsPage() {
               {completionPct}%
             </span>
           </div>
+          {completionPct === 0 && (
+            <span className="text-[8px] text-bevel-dark/50 mt-0.5 ml-[68px]">Percentage of the archive you&apos;ve listened to.</span>
+          )}
         </div>
       </Window>
 
@@ -338,7 +341,7 @@ export default function StatsPage() {
 
         {/* ── Broadcast Log ── Year chart */}
         {stats.years.length > 0 && (
-          <Window title="Broadcast Log" variant="dark" className="lg:col-span-2">
+          <Window title="Broadcast Log" variant="dark" headingLevel={2} className="lg:col-span-2">
             <div className="p-3">
               {/* Decade summary */}
               {stats.decades.length > 1 && (
@@ -396,7 +399,7 @@ export default function StatsPage() {
         )}
 
         {/* ── Program Guide ── Show types */}
-        <Window title="Program Guide" variant="dark">
+        <Window title="Program Guide" variant="dark" headingLevel={2}>
           <div className="p-3 flex flex-col gap-3">
             {/* Stacked bar */}
             <div className="h-[20px] w98-inset-dark bg-inset-well overflow-hidden flex">
@@ -451,7 +454,7 @@ export default function StatsPage() {
 
         {/* ── Subject Breakdown ── Category chart */}
         {stats.topCategories.length > 0 && (
-          <Window title="Subject Breakdown" variant="dark">
+          <Window title="Subject Breakdown" variant="dark" headingLevel={2}>
             <div className="p-3">
               <div className="flex flex-col gap-[3px]">
                 {stats.topCategories.map(([cat, count], i) => {
@@ -482,7 +485,7 @@ export default function StatsPage() {
         )}
 
         {/* ── Station Status ── AI + Sources */}
-        <Window title="Station Status" variant="dark">
+        <Window title="Station Status" variant="dark" headingLevel={2}>
           <div className="p-3 flex flex-col gap-3">
             {/* AI categorization progress */}
             <div>
@@ -539,7 +542,7 @@ export default function StatsPage() {
 
         {/* ── Audio Cache ── OPFS storage */}
         {cacheSize !== null && (
-          <Window title="Audio Cache" variant="dark">
+          <Window title="Audio Cache" variant="dark" headingLevel={2}>
             <div className="p-3 flex items-center justify-between gap-3">
               <div>
                 <div className="text-[12px] md:text-[10px] text-desktop-gray">
@@ -560,7 +563,7 @@ export default function StatsPage() {
 
         {/* ── Frequent Callers ── Top guests */}
         {stats.topGuests.length > 0 && (
-          <Window title="Frequent Callers" variant="dark">
+          <Window title="Frequent Callers" variant="dark" headingLevel={2}>
             <div className="p-3">
               <div className="flex flex-col gap-[3px]">
                 {stats.topGuests.map(([guest, count], i) => (
@@ -592,7 +595,7 @@ export default function StatsPage() {
 
         {/* ── Most Listened ── Top played episodes */}
         {stats.mostListened.length > 0 && (
-          <Window title="Most Listened" variant="dark">
+          <Window title="Most Listened" variant="dark" headingLevel={2}>
             <div className="p-3">
               <div className="flex flex-col gap-2">
                 {stats.mostListened.map((ep, i) => {
@@ -637,13 +640,13 @@ export default function StatsPage() {
 
       {/* ── Topic Index ── Tag cloud (full width) */}
       {stats.topTags.length > 0 && (
-        <Window title={`Topic Index \u00B7 ${stats.uniqueTags.toLocaleString()} tags`} variant="dark">
+        <Window title={`Topic Index \u00B7 ${stats.uniqueTags.toLocaleString()} tags`} variant="dark" headingLevel={2}>
           <div className="p-4">
             <div className="flex flex-wrap gap-x-2 gap-y-1.5 justify-center">
               {stats.topTags.map(([tag, count]) => {
                 const ratio = count / stats.maxTagCount;
                 const size = 10 + ratio * 10; // 10px to 20px
-                const opacity = 0.3 + ratio * 0.7; // 0.3 to 1.0
+                const opacity = 0.5 + ratio * 0.5; // 0.5 to 1.0
                 return (
                   <button
                     key={tag}

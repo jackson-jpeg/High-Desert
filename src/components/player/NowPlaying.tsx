@@ -2,7 +2,7 @@
 
 import { usePlayerStore } from "@/stores/player-store";
 import { cn } from "@/lib/utils/cn";
-import { getShowLabel } from "@/lib/utils/format";
+import { getShowLabel, formatAirDate } from "@/lib/utils/format";
 import { CassetteTape } from "./CassetteTape";
 
 interface NowPlayingProps {
@@ -36,8 +36,8 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
           {episode.guestName}
         </div>
       )}
-      <div className="text-[11px] md:text-[10px] text-bevel-dark/70 truncate" title={[showLabel, episode.airDate].filter(Boolean).join(" \u00B7 ")}>
-        {[showLabel, episode.airDate].filter(Boolean).join(" \u00B7 ")}
+      <div className="text-[11px] md:text-[10px] text-bevel-dark/70 truncate" title={[showLabel, formatAirDate(episode.airDate)].filter(Boolean).join(" \u00B7 ")}>
+        {[showLabel, formatAirDate(episode.airDate)].filter(Boolean).join(" \u00B7 ")}
       </div>
 
       {/* Extended info in expanded mode */}

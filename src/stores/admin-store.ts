@@ -25,6 +25,8 @@ interface AdminState {
   isAdmin: boolean;
   /** Authenticate with password. Returns true on success. */
   login: (password: string) => Promise<boolean>;
+  /** Enable admin mode directly (for easter egg). */
+  enable: () => void;
   /** Log out of admin mode. */
   logout: () => void;
 }
@@ -40,6 +42,11 @@ export const useAdminStore = create<AdminState>((set) => ({
       return true;
     }
     return false;
+  },
+
+  enable: () => {
+    try { localStorage.setItem(STORAGE_KEY, "1"); } catch {}
+    set({ isAdmin: true });
   },
 
   logout: () => {

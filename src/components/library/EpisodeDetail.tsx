@@ -10,7 +10,7 @@ import { BookmarkList } from "@/components/player/BookmarkMarkers";
 import { MoreLikeThis } from "@/components/library/MoreLikeThis";
 import { useSwipeDown } from "@/hooks/useSwipeDown";
 import { cn } from "@/lib/utils/cn";
-import { formatDuration, formatTime, getShowLabel } from "@/lib/utils/format";
+import { formatDuration, formatTime, formatAirDate, getShowLabel } from "@/lib/utils/format";
 
 interface EpisodeDetailProps {
   episode: Episode;
@@ -268,7 +268,7 @@ export function EpisodeDetail({
               <div className="flex items-center gap-2 mt-1.5">
                 {episode.airDate && (
                   <span className="text-[11px] md:text-[10px] text-desert-amber tabular-nums font-mono tracking-tight">
-                    {episode.airDate}
+                    {formatAirDate(episode.airDate)}
                   </span>
                 )}
                 {episode.duration != null && (
@@ -450,7 +450,7 @@ export function EpisodeDetail({
                   rel="noopener noreferrer"
                   className="text-[12px] md:text-[9px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
                 >
-                  Archive
+                  Archive ↗
                 </a>
               )}
               <ShareButton episode={episode} />

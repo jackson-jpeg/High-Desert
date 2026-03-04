@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils/cn";
-import { MenuBar, StatusBar, Button, Dialog, TextField } from "@/components/win98";
+import { MenuBar, StatusBar } from "@/components/win98";
 import { AboutDialog } from "./AboutDialog";
 import { ShortcutsDialog } from "./ShortcutsDialog";
 import { ClearLibraryDialog } from "./ClearLibraryDialog";
@@ -65,6 +65,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [callerIdx, setCallerIdx] = useState(0);
   const [callerFade, setCallerFade] = useState(true);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const actionTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const navRef = useRef<HTMLElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
@@ -166,7 +168,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
 
   // Show counts for AboutDialog
   const showCounts = useLiveQuery(async () => {
-    const coastToCoast = await db.episodes.where("showType").equals("coast-to-coast").count();
+    const coastToCoast = await db.episodes.where("showType").equals("coast").count();
     const dreamland = await db.episodes.where("showType").equals("dreamland").count();
     const total = await db.episodes.count();
     return { coastToCoast, dreamland, specials: total - coastToCoast - dreamland };
@@ -176,46 +178,28 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const handleCloseAbout = useCallback(() => setAboutOpen(false), []);
   const handleShortcuts = useCallback(() => setShortcutsOpen(true), []);
   const handleCloseShortcuts = useCallback(() => setShortcutsOpen(false), []);
-  const [adminPromptOpen, setAdminPromptOpen] = useState(false);
-  const [adminPassword, setAdminPassword] = useState("");
-  const [adminError, setAdminError] = useState(false);
-
-  const handleToggleAdmin = useCallback(() => {
-    if (useAdminStore.getState().isAdmin) {
-      useAdminStore.getState().logout();
-      toast.info("Admin mode disabled");
-    } else {
-      setAdminPassword("");
-      setAdminError(false);
-      setAdminPromptOpen(true);
-    }
-  }, []);
-
-  const handleAdminLogin = async () => {
-    const pw = adminPassword;
-    // Hash and verify inline to avoid any closure/async issues with store
-    const encoder = new TextEncoder();
-    const data = encoder.encode(pw);
-    const buffer = await crypto.subtle.digest("SHA-256", data);
-    const hash = Array.from(new Uint8Array(buffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
-    const EXPECTED = "7740185e7b5e8ec29b31a918cd2b8d0d491c864072ed360e48999355974280d4";
-    if (hash === EXPECTED) {
-      try { localStorage.setItem("hd-admin", "1"); } catch {}
-      useAdminStore.setState({ isAdmin: true });
-      setAdminPromptOpen(false);
-      setAdminPassword("");
-      setAdminError(false);
-      toast.info("Admin mode enabled");
-    } else {
-      setAdminError(true);
-    }
-  };
 
   // Listen for ? key to toggle shortcuts
   useEffect(() => {
     const handler = () => setShortcutsOpen((prev) => !prev);
     window.addEventListener("hd:toggle-shortcuts", handler);
     return () => window.removeEventListener("hd:toggle-shortcuts", handler);
+  }, []);
+
+  // Status bar action messages — show briefly then fade back to flavor text
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const msg = (e as CustomEvent<string>).detail;
+      if (!msg) return;
+      clearTimeout(actionTimeoutRef.current);
+      setActionMessage(msg);
+      actionTimeoutRef.current = setTimeout(() => setActionMessage(null), 4000);
+    };
+    window.addEventListener("hd:status-message", handler);
+    return () => {
+      window.removeEventListener("hd:status-message", handler);
+      clearTimeout(actionTimeoutRef.current);
+    };
   }, []);
 
   const dispatchSort = useCallback((sort: string) => {
@@ -339,11 +323,6 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           onClick: handleToggleStartupSound,
         },
         { separator: true, label: "" },
-        {
-          label: isAdmin ? "Disable Admin Mode" : "Enable Admin Mode",
-          onClick: handleToggleAdmin,
-        },
-        { separator: true, label: "" },
         { label: "About High Desert", onClick: handleAbout },
       ],
     },
@@ -371,7 +350,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         className="transition-opacity duration-500"
         style={{ opacity: callerFade ? 1 : 0 }}
       >
-        {CALLER_MESSAGES[callerIdx]}
+        {actionMessage ?? CALLER_MESSAGES[callerIdx]}
       </span>
     );
     const icon = isPlaying ? "\u25B6" : "\u275A\u275A";
@@ -552,42 +531,12 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       {/* Command palette (Ctrl+K / Cmd+K) */}
       <CommandPalette />
 
-      {/* Admin password dialog */}
-      <Dialog open={adminPromptOpen} onClose={() => setAdminPromptOpen(false)} title="Admin Login" width="300px">
-        <form
-          onSubmit={async (e) => { e.preventDefault(); e.stopPropagation(); await handleAdminLogin(); }}
-          className="p-4 flex flex-col gap-3"
-        >
-          <div className="text-[10px] text-desktop-gray">
-            Enter the admin password to enable admin mode.
-          </div>
-          <TextField
-            type="password"
-            value={adminPassword}
-            onChange={(e) => { setAdminPassword(e.target.value); setAdminError(false); }}
-            placeholder="Password"
-            autoComplete="off"
-            autoFocus
-            className="w-full"
-          />
-          {adminError && (
-            <div className="text-[9px] text-red-400">
-              Incorrect password.
-            </div>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button type="button" onClick={() => setAdminPromptOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="dark">Login</Button>
-          </div>
-        </form>
-      </Dialog>
 
       {/* Mobile menu sheet */}
       <MobileMenuSheet
         open={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
         isAdmin={isAdmin}
-        onToggleAdmin={handleToggleAdmin}
         onAbout={handleAbout}
         startupSoundOn={startupSoundOn}
         onToggleStartupSound={handleToggleStartupSound}

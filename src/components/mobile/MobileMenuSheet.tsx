@@ -9,13 +9,12 @@ interface MobileMenuSheetProps {
   open: boolean;
   onClose: () => void;
   isAdmin: boolean;
-  onToggleAdmin: () => void;
   onAbout: () => void;
   startupSoundOn?: boolean;
   onToggleStartupSound?: () => void;
 }
 
-export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout, startupSoundOn, onToggleStartupSound }: MobileMenuSheetProps) {
+export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundOn, onToggleStartupSound }: MobileMenuSheetProps) {
   const router = useRouter();
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
@@ -154,26 +153,6 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onToggleAdmin, onAbout
           <div className="px-3 pb-1">
             <span className="text-[10px] text-bevel-dark/40 uppercase tracking-wider font-sans">Settings</span>
           </div>
-          <button
-            onClick={() => {
-              onToggleAdmin();
-              hide();
-            }}
-            aria-pressed={isAdmin}
-            className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center justify-between rounded-lg"
-          >
-            <div className="flex items-center gap-3">
-              <span className="w-[24px] text-center text-[14px] text-bevel-dark/60">{"\u{1F512}"}</span>
-              <span>Admin Mode</span>
-            </div>
-            <span className={cn(
-              "text-[12px]",
-              isAdmin ? "text-desert-amber" : "text-bevel-dark/50",
-            )}>
-              {isAdmin ? "On" : "Off"}
-            </span>
-          </button>
-
           {onToggleStartupSound && (
             <button
               onClick={() => {

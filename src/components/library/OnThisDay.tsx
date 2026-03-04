@@ -42,6 +42,7 @@ export function OnThisDay({ onPlay, compact, className }: OnThisDayProps) {
     return (
       <div className={cn("flex flex-col gap-0.5", className)}>
         <span className="text-[8px] text-bevel-dark/70 uppercase tracking-wider px-1">{monthName}</span>
+        <span className="text-[7px] text-bevel-dark/40 px-1 -mt-0.5">Episodes that aired on this date</span>
         {matches.map((ep) => {
           const year = ep.airDate?.slice(0, 4);
           return (
@@ -62,6 +63,7 @@ export function OnThisDay({ onPlay, compact, className }: OnThisDayProps) {
   return (
     <Window title={`On This Day \u00B7 ${monthName}`} variant="dark" className={className}>
       <div className="p-2 flex flex-col gap-1 max-h-[200px] md:max-h-[120px] overflow-auto overscroll-contain">
+        <span className="text-[8px] text-bevel-dark/40 mb-0.5">Episodes that originally aired on this date in Art Bell history</span>
         {matches.map((ep) => {
           const year = ep.airDate?.slice(0, 4);
           return (

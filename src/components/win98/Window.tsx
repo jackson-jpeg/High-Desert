@@ -16,6 +16,8 @@ export interface WindowProps {
   className?: string;
   variant?: "classic" | "dark";
   footer?: ReactNode;
+  /** Render title as a semantic heading (h1–h6). */
+  headingLevel?: 1 | 2 | 3 | 4 | 5 | 6;
 }
 
 export function Window({
@@ -30,6 +32,7 @@ export function Window({
   className,
   variant = "dark",
   footer,
+  headingLevel,
 }: WindowProps) {
   return (
     <div
@@ -47,6 +50,7 @@ export function Window({
         onClose={onClose}
         onMinimize={onMinimize}
         onMaximize={onMaximize}
+        headingLevel={headingLevel}
         {...titleBarProps}
       />
       <div className="flex-1 overflow-auto p-1">{children}</div>

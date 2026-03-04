@@ -6,7 +6,7 @@ import { usePlayerStore } from "@/stores/player-store";
 import { SleepTimer } from "./SleepTimer";
 import { BookmarkMarkers } from "./BookmarkMarkers";
 import { cn } from "@/lib/utils/cn";
-import { formatTime } from "@/lib/utils/format";
+import { formatTime, formatAirDate } from "@/lib/utils/format";
 import { toast } from "@/stores/toast-store";
 
 /** Tooltip showing the next episode info on hover */
@@ -326,7 +326,7 @@ function NextButtonWithTooltip({ onNext, hasNext }: { onNext: () => void; hasNex
             <div className="text-[9px] text-bevel-dark/50 mb-0.5">Up Next</div>
             <div className="text-[9px] text-desktop-gray truncate">{nextEp.title || nextEp.fileName}</div>
             {nextEp.guestName && <div className="text-[9px] text-static-green/70 truncate">{nextEp.guestName}</div>}
-            {nextEp.airDate && <div className="text-[9px] text-bevel-dark/60">{nextEp.airDate}</div>}
+            {nextEp.airDate && <div className="text-[9px] text-bevel-dark/60">{formatAirDate(nextEp.airDate)}</div>}
           </div>
         </div>
       )}

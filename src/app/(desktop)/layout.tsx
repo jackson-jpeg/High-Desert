@@ -14,6 +14,7 @@ import type { Episode } from "@/db/schema";
 import { getCachedAudio, cacheAudioBlob } from "@/audio/cache";
 import { seedLibraryIfEmpty } from "@/db/seed";
 import { DBErrorBoundary } from "@/components/DBErrorBoundary";
+import { MilestoneDialog } from "@/components/desktop/MilestoneDialog";
 import { playStartupSound } from "@/audio/startup-sound";
 import { toast } from "@/stores/toast-store";
 
@@ -408,6 +409,7 @@ export default function DesktopLayout({
       >
         {children}
       </DesktopShell>
+      <MilestoneDialog />
       </div>
     </DBErrorBoundary>
   );

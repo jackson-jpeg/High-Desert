@@ -2,7 +2,7 @@
 
 import type { Episode } from "@/db/schema";
 import { cn } from "@/lib/utils/cn";
-import { formatDuration, getShowLabel } from "@/lib/utils/format";
+import { formatDuration, formatAirDate, getShowLabel } from "@/lib/utils/format";
 import { useRef, useCallback, memo } from "react";
 import { useLongPress } from "@/hooks/useLongPress";
 import { MiniWaveform } from "./MiniWaveform";
@@ -146,7 +146,7 @@ export const EpisodeCard = memo(function EpisodeCard({
             </span>
           )}
           <span className="text-[11px] md:text-[10px] text-desert-amber tabular-nums flex-shrink-0 font-mono tracking-tight">
-            {episode.airDate ?? "Unknown date"}
+            {formatAirDate(episode.airDate) || "Unknown date"}
           </span>
           {isPlaying && (
             <span className="w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air flex-shrink-0" />

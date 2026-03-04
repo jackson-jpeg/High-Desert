@@ -140,6 +140,15 @@ export function AboutDialog({
             &ldquo;I have seen things that I cannot explain...&rdquo;
           </div>
 
+          {/* Attribution */}
+          <div className="text-[9px] text-desktop-gray/40">
+            A{" "}
+            <a href="https://sang3r.com" target="_blank" rel="noopener noreferrer" className="text-desert-amber/50 hover:text-desert-amber">
+              Sang3r.com
+            </a>
+            {" "}production
+          </div>
+
           {/* Links & button */}
           <div className="flex items-center justify-between mt-1">
             <a

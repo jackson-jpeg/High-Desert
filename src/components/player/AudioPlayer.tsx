@@ -13,7 +13,7 @@ import { QueuePanel } from "./QueuePanel";
 import { cn } from "@/lib/utils/cn";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { Button } from "@/components/win98";
-import { formatTime } from "@/lib/utils/format";
+import { formatTime, formatAirDate } from "@/lib/utils/format";
 
 interface AudioPlayerProps {
   className?: string;
@@ -156,7 +156,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
               )}
               {currentEpisode.airDate && (
                 <div className="text-[12px] text-bevel-dark/60 mt-1 font-mono tabular-nums tracking-wide">
-                  {currentEpisode.airDate}
+                  {formatAirDate(currentEpisode.airDate)}
                 </div>
               )}
               {buffering && (
@@ -365,12 +365,12 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   return (
     <div
       className={cn(
-        "w98-raised-dark bg-raised-surface flex flex-col",
+        "w98-raised-dark bg-raised-surface flex flex-col max-h-[calc(100vh-40px)] overflow-auto",
         className,
       )}
     >
       {errorBanner}
-      <div className="p-3 flex flex-col gap-3">
+      <div className="p-3 pb-4 flex flex-col gap-3">
         <div className="flex items-start justify-between">
           <NowPlaying expanded />
           <div className="flex items-center gap-2">

@@ -158,6 +158,7 @@ export function MenuBar({ menus, variant = "classic", className }: MenuBarProps)
         className,
       )}
       role="menubar"
+      aria-label="Application menu"
       onKeyDown={handleKeyDown}
     >
       {menus.map((menu, i) => (
