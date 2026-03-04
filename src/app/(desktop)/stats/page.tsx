@@ -242,7 +242,7 @@ export default function StatsPage() {
   const listenedDays = listenedHours / 24;
 
   return (
-    <div className="p-4 flex flex-col gap-4 max-w-5xl mx-auto h-full overflow-auto overscroll-contain">
+    <div className="p-4 pb-24 md:pb-4 flex flex-col gap-4 max-w-5xl mx-auto h-full overflow-auto overscroll-contain">
 
       {/* Listening Stats Banner */}
       <ListeningStats />

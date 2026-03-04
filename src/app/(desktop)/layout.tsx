@@ -227,9 +227,17 @@ export default function DesktopLayout({
       }
     };
 
+    // Stop preview when main player starts playing
+    const unsubscribe = usePlayerStore.subscribe((state, prev) => {
+      if (state.playing && !prev.playing) {
+        handlePreviewStop();
+      }
+    });
+
     window.addEventListener("hd:scan-preview", handlePreview);
     window.addEventListener("hd:scan-preview-stop", handlePreviewStop);
     return () => {
+      unsubscribe();
       window.removeEventListener("hd:scan-preview", handlePreview);
       window.removeEventListener("hd:scan-preview-stop", handlePreviewStop);
       handlePreviewStop();

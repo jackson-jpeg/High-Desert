@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils/cn";
-import { MenuBar, StatusBar } from "@/components/win98";
+import { MenuBar, StatusBar, Dialog, TextField, Button } from "@/components/win98";
 import { AboutDialog } from "./AboutDialog";
 import { ShortcutsDialog } from "./ShortcutsDialog";
 import { ClearLibraryDialog } from "./ClearLibraryDialog";
@@ -67,6 +67,9 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [callerFade, setCallerFade] = useState(true);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const actionTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [adminPromptOpen, setAdminPromptOpen] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminError, setAdminError] = useState("");
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const navRef = useRef<HTMLElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
@@ -116,6 +119,25 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     if (playerRef.current) ro.observe(playerRef.current);
     return () => ro.disconnect();
   }, []);
+
+  // Admin prompt triggered by easter egg
+  useEffect(() => {
+    const handler = () => setAdminPromptOpen(true);
+    window.addEventListener("hd:admin-prompt", handler);
+    return () => window.removeEventListener("hd:admin-prompt", handler);
+  }, []);
+
+  const handleAdminLogin = useCallback(async () => {
+    const ok = await useAdminStore.getState().login(adminPassword);
+    if (ok) {
+      setAdminPromptOpen(false);
+      setAdminPassword("");
+      setAdminError("");
+      toast.success("Admin mode enabled");
+    } else {
+      setAdminError("Wrong password");
+    }
+  }, [adminPassword]);
 
   // AI categorization (runs in-place, no navigation needed)
   const { categorizeOnly, phase: scraperPhase } = useCatalogScraper();
@@ -531,6 +553,28 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       {/* Command palette (Ctrl+K / Cmd+K) */}
       <CommandPalette />
 
+
+      {/* Admin password dialog */}
+      <Dialog open={adminPromptOpen} onClose={() => { setAdminPromptOpen(false); setAdminPassword(""); setAdminError(""); }} title="Admin Access">
+        <div className="p-3 flex flex-col gap-2">
+          <p className="text-[10px] text-bevel-dark">Enter the admin password:</p>
+          <form onSubmit={(e) => { e.preventDefault(); handleAdminLogin(); }}>
+            <TextField
+              type="password"
+              value={adminPassword}
+              onChange={(e) => { setAdminPassword(e.target.value); setAdminError(""); }}
+              placeholder="Password"
+              autoFocus
+              className="w-full"
+            />
+            {adminError && <p className="text-[9px] text-red-400 mt-1">{adminError}</p>}
+            <div className="flex justify-end gap-2 mt-3">
+              <Button size="sm" variant="dark" type="button" onClick={() => { setAdminPromptOpen(false); setAdminPassword(""); setAdminError(""); }}>Cancel</Button>
+              <Button size="sm" type="submit">OK</Button>
+            </div>
+          </form>
+        </div>
+      </Dialog>
 
       {/* Mobile menu sheet */}
       <MobileMenuSheet

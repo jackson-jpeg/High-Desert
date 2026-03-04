@@ -148,8 +148,8 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
               onChange={(e) => {
                 const val = e.target.value;
                 if (val.toLowerCase() === "ilovedelaney") {
-                  useAdminStore.getState().enable();
                   onChange("");
+                  window.dispatchEvent(new CustomEvent("hd:admin-prompt"));
                   return;
                 }
                 onChange(val);
