@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import { track } from "@vercel/analytics";
 import { usePlayerStore } from "@/stores/player-store";
 import {
   initEngine,
@@ -11,6 +12,36 @@ import {
 } from "@/audio/engine";
 import { db } from "@/db";
 import type { Episode } from "@/db/schema";
+
+// ── Listening analytics ──
+// Tracks cumulative seconds listened per session, flushes on pause/end/unload
+let _listenStart = 0; // timestamp when current play segment began
+let _listenAccum = 0; // seconds accumulated across play/pause cycles
+
+function startListenTimer() {
+  _listenStart = Date.now();
+}
+
+function pauseListenTimer() {
+  if (_listenStart > 0) {
+    _listenAccum += (Date.now() - _listenStart) / 1000;
+    _listenStart = 0;
+  }
+}
+
+function flushListenTime(reason: "pause" | "ended" | "unload" | "stop") {
+  pauseListenTimer();
+  const minutes = Math.round(_listenAccum / 60);
+  if (minutes >= 1) {
+    const { currentEpisode } = usePlayerStore.getState();
+    track("listening-time", {
+      minutes,
+      reason,
+      showType: currentEpisode?.showType ?? "unknown",
+    });
+  }
+  if (reason !== "pause") _listenAccum = 0; // reset on end/unload, keep on pause
+}
 
 export function useAudioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -81,6 +112,15 @@ export function useAudioPlayer() {
       try {
         await audio.play();
         setPlaying(true);
+        _listenAccum = 0; // new episode = reset accumulator
+        startListenTimer();
+
+        // Track play event
+        track("episode-play", {
+          showType: episode.showType ?? "unknown",
+          source: episode.source ?? "unknown",
+          hasGuest: !!episode.guestName,
+        });
 
         // Increment play count in DB
         if (episode.id) {
@@ -110,10 +150,12 @@ export function useAudioPlayer() {
     if (playing) {
       audio.pause();
       setPlaying(false);
+      flushListenTime("pause");
     } else {
       try {
         await audio.play();
         setPlaying(true);
+        startListenTimer();
       } catch (err) {
         console.error("[player] Play failed:", err);
       }
@@ -133,6 +175,7 @@ export function useAudioPlayer() {
 
   // Stop playback
   const stopPlayback = useCallback(() => {
+    flushListenTime("stop");
     const audio = getAudio();
     audio.pause();
     audio.src = "";
@@ -199,6 +242,7 @@ export function useAudioPlayer() {
     const audio = getAudio();
 
     const onEnded = () => {
+      flushListenTime("ended");
       const state = usePlayerStore.getState();
 
       // Repeat one: just replay current track
@@ -206,6 +250,7 @@ export function useAudioPlayer() {
         const audio = getAudio();
         audio.currentTime = 0;
         audio.play().catch(() => setPlaying(false));
+        startListenTimer();
         return;
       }
 
@@ -234,9 +279,11 @@ export function useAudioPlayer() {
     // Sync store when iOS/lock screen controls trigger play/pause directly
     const onPlay = () => {
       if (!usePlayerStore.getState().playing) setPlaying(true);
+      startListenTimer();
     };
     const onPause = () => {
       if (usePlayerStore.getState().playing) setPlaying(false);
+      pauseListenTimer();
     };
 
     const { setBuffering } = usePlayerStore.getState();
@@ -284,9 +331,10 @@ export function useAudioPlayer() {
     return () => window.clearInterval(interval);
   }, [currentEpisode?.id, playing]);
 
-  // Flush position on page unload
+  // Flush position + listen time on page unload
   useEffect(() => {
     const flush = () => {
+      flushListenTime("unload");
       const { position: pos, currentEpisode: ep } = usePlayerStore.getState();
       if (ep?.id && pos > 0) {
         // Dexie can't run in unload, so persist via a direct IDB transaction
