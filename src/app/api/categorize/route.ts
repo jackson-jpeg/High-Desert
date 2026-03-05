@@ -137,7 +137,7 @@ Respond ONLY with a valid JSON array.`;
 
   try {
     const response = await client.messages.create({
-      model: "claude-sonnet-4-5-20250929",
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       system: systemPrompt,
       messages: [{ role: "user", content: `Categorize these episodes:\n${JSON.stringify(episodes, null, 2)}` }],

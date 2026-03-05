@@ -4,6 +4,13 @@ A desktop-grade web player for the Art Bell radio archive — late-night talk ra
 
 **Live at [highdesert.space](https://highdesert.space)**
 
+<p align="center">
+  <img src="public/screenshots/desktop-library.png" alt="Desktop library view — Windows 98 dark theme" width="720" />
+</p>
+<p align="center">
+  <img src="public/screenshots/mobile-library.png" alt="Mobile library view — glassmorphism UI" width="280" />
+</p>
+
 ## Features
 
 - **Windows 98 dark UI** — raised/inset bevels, title bars, context menus, and a system tray

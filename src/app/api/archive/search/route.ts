@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const rawQ = searchParams.get("q") ?? "";
   const page = parseInt(searchParams.get("page") ?? "1", 10);
-  const rows = parseInt(searchParams.get("rows") ?? "30", 10);
+  const rows = Math.min(parseInt(searchParams.get("rows") ?? "30", 10), 100);
 
   // Sanitize: strip special chars, enforce min length
   const q = rawQ.replace(/['"\\<>]/g, "").trim();

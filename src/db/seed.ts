@@ -12,7 +12,10 @@ export async function seedLibraryIfEmpty(): Promise<boolean> {
 
   try {
     const res = await fetch("/seed/library.json");
-    if (!res.ok) return false;
+    if (!res.ok) {
+      toast.error("Failed to load catalog — try refreshing");
+      return false;
+    }
 
     const data = await res.json();
     const raw: Record<string, unknown>[] = Array.isArray(data) ? data : data.episodes;
@@ -89,6 +92,7 @@ export async function seedLibraryIfEmpty(): Promise<boolean> {
     return true;
   } catch (err) {
     console.warn("[seed] Failed to load seed catalog:", err);
+    toast.error("Failed to load catalog — try refreshing");
     return false;
   }
 }
