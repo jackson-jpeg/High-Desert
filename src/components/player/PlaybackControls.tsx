@@ -170,7 +170,7 @@ export function PlaybackControls({
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       {/* Seek bar */}
-      <div className="flex items-center gap-2 text-[12px] md:text-[10px] text-bevel-dark">
+      <div className="flex items-center gap-2 text-[13px] md:text-[11px] text-bevel-dark">
         <span className="w-[45px] text-right tabular-nums">
           {formatTime(position)}
         </span>
@@ -210,7 +210,7 @@ export function PlaybackControls({
               className="absolute bottom-full mb-1 -translate-x-1/2 pointer-events-none z-20"
               style={{ left: seekPreview.x }}
             >
-              <div className="bg-midnight/95 text-desert-amber text-[9px] px-1.5 py-0.5 tabular-nums border border-bevel-dark/30 whitespace-nowrap">
+              <div className="bg-midnight/95 text-desert-amber text-[10px] px-1.5 py-0.5 tabular-nums border border-bevel-dark/30 whitespace-nowrap">
                 {formatTime(seekPreview.time)}
               </div>
             </div>
@@ -252,7 +252,7 @@ export function PlaybackControls({
         <button
           onClick={toggleShuffle}
           className={cn(
-            "min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center text-[16px] md:text-[10px] cursor-pointer ml-1 px-1 active:scale-95 transition-transform",
+            "min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center text-[16px] md:text-[11px] cursor-pointer ml-1 px-1 active:scale-95 transition-transform",
             shuffle ? "text-desert-amber" : "text-bevel-dark hover:text-desktop-gray active:text-desktop-gray",
           )}
           title={shuffle ? "Shuffle on" : "Shuffle off"}
@@ -264,7 +264,7 @@ export function PlaybackControls({
         <button
           onClick={cycleRepeat}
           className={cn(
-            "min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center text-[16px] md:text-[10px] cursor-pointer px-1 active:scale-95 transition-transform",
+            "min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center text-[16px] md:text-[11px] cursor-pointer px-1 active:scale-95 transition-transform",
             repeat !== "off" ? "text-desert-amber" : "text-bevel-dark hover:text-desktop-gray active:text-desktop-gray",
           )}
           title={`Repeat: ${repeat}`}
@@ -276,10 +276,10 @@ export function PlaybackControls({
       </div>
 
       {/* Volume + Sleep timer */}
-      <div className="flex items-center gap-2 text-[12px] md:text-[10px] text-bevel-dark/70 px-2">
+      <div className="flex items-center gap-2 text-[13px] md:text-[11px] text-bevel-dark/70 px-2">
         <button
           onClick={toggleMute}
-          className="text-[11px] md:text-[9px] cursor-pointer hover:text-desert-amber transition-colors"
+          className="text-[12px] md:text-[10px] cursor-pointer hover:text-desert-amber transition-colors"
           title={volume === 0 ? "Unmute" : "Mute"}
           aria-label={volume === 0 ? "Unmute" : "Mute"}
         >
@@ -323,8 +323,8 @@ function NextButtonWithTooltip({ onNext, hasNext }: { onNext: () => void; hasNex
       {show && nextEp && (
         <div className="hidden md:block absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
           <div className="w98-raised-dark bg-raised-surface px-2 py-1.5 max-w-[200px] whitespace-nowrap">
-            <div className="text-[9px] text-bevel-dark/50 mb-0.5">Up Next</div>
-            <div className="text-[9px] text-desktop-gray truncate">{nextEp.title || nextEp.fileName}</div>
+            <div className="text-[10px] text-bevel-dark/50 mb-0.5">Up Next</div>
+            <div className="text-[10px] text-desktop-gray truncate">{nextEp.title || nextEp.fileName}</div>
             {nextEp.guestName && <div className="text-[9px] text-static-green/70 truncate">{nextEp.guestName}</div>}
             {nextEp.airDate && <div className="text-[9px] text-bevel-dark/60">{formatAirDate(nextEp.airDate)}</div>}
           </div>

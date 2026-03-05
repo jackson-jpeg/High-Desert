@@ -75,17 +75,17 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
 
   const errorBanner = error && (
     <div className="flex items-center justify-between px-3 py-1.5 bg-red-900/30 border-b border-red-400/20">
-      <span className="text-[12px] md:text-[10px] text-red-400 break-words min-w-0">{error}</span>
+      <span className="text-[13px] md:text-[11px] text-red-400 break-words min-w-0">{error}</span>
       <div className="flex items-center gap-2 ml-2">
         <button
           onClick={handleRetry}
-          className="text-[12px] md:text-[10px] text-desert-amber/80 hover:text-desert-amber active:text-desert-amber cursor-pointer min-h-[44px] md:min-h-0 px-2"
+          className="text-[13px] md:text-[11px] text-desert-amber/80 hover:text-desert-amber active:text-desert-amber cursor-pointer min-h-[44px] md:min-h-0 px-2"
         >
           Retry
         </button>
         <button
           onClick={() => clearError(null)}
-          className="text-[12px] md:text-[10px] text-red-400/60 hover:text-red-400 active:text-red-400 cursor-pointer min-h-[44px] md:min-h-0 px-2"
+          className="text-[13px] md:text-[11px] text-red-400/60 hover:text-red-400 active:text-red-400 cursor-pointer min-h-[44px] md:min-h-0 px-2"
         >
           Dismiss
         </button>
@@ -116,7 +116,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           >
             {"\u25BC"}
           </button>
-          <span className="text-[11px] text-bevel-dark/40 font-sans tracking-wide uppercase">Now Playing</span>
+          <span className="text-[12px] text-bevel-dark/40 font-sans tracking-wide uppercase">Now Playing</span>
           <button
             onClick={() => setShowQueue(!showQueue)}
             className={cn(
@@ -128,7 +128,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           >
             Queue
             {queueLength > 0 && (
-              <span className="text-[11px] tabular-nums">({queueLength})</span>
+              <span className="text-[12px] tabular-nums">({queueLength})</span>
             )}
           </button>
         </div>
@@ -155,19 +155,19 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
                 </div>
               )}
               {currentEpisode.airDate && (
-                <div className="text-[12px] text-bevel-dark/60 mt-1 font-mono tabular-nums tracking-wide">
+                <div className="text-[13px] text-bevel-dark/60 mt-1 font-mono tabular-nums tracking-wide">
                   {formatAirDate(currentEpisode.airDate)}
                 </div>
               )}
               {buffering && (
-                <div className="text-[11px] text-desert-amber/70 mt-2 animate-pulse">
+                <div className="text-[12px] text-desert-amber/70 mt-2 animate-pulse">
                   Buffering...
                 </div>
               )}
             </div>
 
             {/* Seek bar — custom styled */}
-            <div className="flex items-center gap-3 text-[12px] text-bevel-dark font-mono">
+            <div className="flex items-center gap-3 text-[13px] text-bevel-dark font-mono">
               <span className="w-[48px] text-right tabular-nums text-bevel-dark/60">{formatTime(position)}</span>
               <div className="flex-1 relative">
                 <input
@@ -237,7 +237,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
         {errorBanner}
         {/* Swipe-up affordance chevron */}
         <div className="flex justify-center pt-1">
-          <span className="text-[8px] text-white/15 leading-none">{"\u25B2"}</span>
+          <span className="text-[9px] text-white/15 leading-none">{"\u25B2"}</span>
         </div>
         <div className="flex items-center gap-2 px-3 py-1 pb-1.5">
           {/* Tap to expand */}
@@ -277,7 +277,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
         )}
         {/* Cassette icon + title */}
         <CassetteTape className="flex-shrink-0" />
-        <span className="text-[9px] text-desktop-gray/80 truncate flex-1 min-w-0">
+        <span className="text-[10px] text-desktop-gray/80 truncate flex-1 min-w-0">
           {currentEpisode.title || currentEpisode.fileName}
         </span>
         {/* Compact seek */}
@@ -291,15 +291,15 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           aria-label="Seek"
         />
         {/* Play/pause */}
-        <Button variant="dark" size="sm" onClick={togglePlay} className="h-[22px] px-1.5 text-[9px]" aria-label={buffering ? "Buffering" : playing ? "Pause" : "Play"}>
+        <Button variant="dark" size="sm" onClick={togglePlay} className="h-[22px] px-1.5 text-[10px]" aria-label={buffering ? "Buffering" : playing ? "Pause" : "Play"}>
           {buffering ? "\u29D7" : playing ? "\u275A\u275A" : "\u25B6"}
         </Button>
         {/* Next */}
-        <Button variant="dark" size="sm" onClick={playNext} disabled={!hasNext} className="h-[22px] px-1.5 text-[9px]" aria-label="Next">
+        <Button variant="dark" size="sm" onClick={playNext} disabled={!hasNext} className="h-[22px] px-1.5 text-[10px]" aria-label="Next">
           {"\u00BB|"}
         </Button>
         {/* Expand */}
-        <button onClick={() => setUltraMini(false)} className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer flex-shrink-0" aria-label="Expand">{"\u25B2"}</button>
+        <button onClick={() => setUltraMini(false)} className="text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer flex-shrink-0" aria-label="Expand">{"\u25B2"}</button>
       </div>
     );
   }
@@ -333,7 +333,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           <button
             onClick={() => setShowQueue(!showQueue)}
             className={cn(
-              "text-[10px] cursor-pointer ml-1 px-1.5 py-0.5 transition-colors-fast",
+              "text-[11px] cursor-pointer ml-1 px-1.5 py-0.5 transition-colors-fast",
               showQueue
                 ? "text-desert-amber bg-desert-amber/10 w98-inset-dark"
                 : "text-bevel-dark hover:text-desktop-gray",
@@ -344,12 +344,12 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           >
             {"\u2630"}
             {queueLength > 0 && (
-              <span className="text-[8px] ml-0.5 tabular-nums">{queueLength}</span>
+              <span className="text-[10px] ml-0.5 tabular-nums">{queueLength}</span>
             )}
           </button>
           <button
             onClick={toggleMini}
-            className="text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer ml-1"
+            className="text-[11px] text-bevel-dark hover:text-desktop-gray cursor-pointer ml-1"
             title="Expand player"
             aria-label="Expand player"
           >
@@ -377,7 +377,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
             <button
               onClick={() => setShowQueue(!showQueue)}
               className={cn(
-                "text-[10px] cursor-pointer px-1.5 py-0.5 transition-colors-fast",
+                "text-[11px] cursor-pointer px-1.5 py-0.5 transition-colors-fast",
                 showQueue
                   ? "text-desert-amber bg-desert-amber/10 w98-inset-dark"
                   : "text-bevel-dark hover:text-desktop-gray",
@@ -388,12 +388,12 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
             >
               {"\u2630"}
               {queueLength > 0 && (
-                <span className="text-[8px] ml-0.5 tabular-nums">{queueLength}</span>
+                <span className="text-[10px] ml-0.5 tabular-nums">{queueLength}</span>
               )}
             </button>
             <button
               onClick={toggleMini}
-              className="text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer"
+              className="text-[11px] text-bevel-dark hover:text-desktop-gray cursor-pointer"
               title="Minimize player"
               aria-label="Minimize player"
             >

@@ -98,10 +98,10 @@ export function QueuePanel() {
       <div className="w98-inset-dark bg-inset-well p-4 animate-slide-up">
         <div className="flex flex-col items-center gap-2 py-2">
           <span className="text-[14px] text-bevel-dark/30 select-none">{"\u266B"}</span>
-          <div className="text-[12px] md:text-[10px] text-bevel-dark text-center">
+          <div className="text-[13px] md:text-[11px] text-bevel-dark text-center">
             Queue is empty
           </div>
-          <div className="text-[12px] md:text-[8px] text-bevel-dark/50 text-center leading-relaxed">
+          <div className="text-[13px] md:text-[10px] text-bevel-dark/50 text-center leading-relaxed">
             Tap an episode and use Play Next, or long-press to add to queue
           </div>
         </div>
@@ -113,11 +113,11 @@ export function QueuePanel() {
     <div className="w98-inset-dark bg-inset-well animate-slide-up">
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-bevel-dark/15">
         <div className="flex items-center gap-2">
-          <span className="text-[12px] md:text-[10px] text-bevel-dark/70">
+          <span className="text-[13px] md:text-[11px] text-bevel-dark/70">
             {queue.length} track{queue.length !== 1 ? "s" : ""}
           </span>
           {remainingMinutes > 0 && (
-            <span className="text-[10px] md:text-[8px] text-bevel-dark/40 tabular-nums">
+            <span className="text-[11px] md:text-[10px] text-bevel-dark/40 tabular-nums">
               {remainingMinutes > 60 ? `${Math.floor(remainingMinutes / 60)}h ${remainingMinutes % 60}m` : `${remainingMinutes}m`} left
             </span>
           )}
@@ -126,7 +126,7 @@ export function QueuePanel() {
           {isAdmin && !savingPlaylist && (
             <button
               onClick={() => setSavingPlaylist(true)}
-              className="text-[11px] md:text-[9px] text-bevel-dark/50 hover:text-desert-amber active:text-desert-amber cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center px-2"
+              className="text-[12px] md:text-[10px] text-bevel-dark/50 hover:text-desert-amber active:text-desert-amber cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center px-2"
               title="Save queue as playlist"
             >
               Save
@@ -134,7 +134,7 @@ export function QueuePanel() {
           )}
           <button
             onClick={clearQueue}
-            className="text-[11px] md:text-[9px] text-bevel-dark/50 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center px-2"
+            className="text-[12px] md:text-[10px] text-bevel-dark/50 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center px-2"
           >
             Clear
           </button>
@@ -155,18 +155,18 @@ export function QueuePanel() {
             autoComplete="off"
             spellCheck={false}
             aria-label="Playlist name"
-            className="flex-1 bg-inset-well w98-inset-dark px-1.5 py-1.5 md:py-0.5 text-[16px] md:text-[9px] text-desktop-gray outline-none min-h-[44px] md:min-h-0"
+            className="flex-1 bg-inset-well w98-inset-dark px-1.5 py-1.5 md:py-0.5 text-[16px] md:text-[10px] text-desktop-gray outline-none min-h-[44px] md:min-h-0"
           />
           <button
             onClick={handleSaveAsPlaylist}
             disabled={!playlistName.trim()}
-            className="text-[11px] md:text-[9px] text-static-green disabled:text-bevel-dark/30 cursor-pointer"
+            className="text-[12px] md:text-[10px] text-static-green disabled:text-bevel-dark/30 cursor-pointer"
           >
             Save
           </button>
           <button
             onClick={() => setSavingPlaylist(false)}
-            className="text-[11px] md:text-[9px] text-bevel-dark/50 cursor-pointer"
+            className="text-[12px] md:text-[10px] text-bevel-dark/50 cursor-pointer"
           >
             Cancel
           </button>
@@ -198,7 +198,7 @@ export function QueuePanel() {
               onClick={() => handlePlay(i)}
             >
               {/* Drag handle — always visible on mobile */}
-              <span className="text-[10px] md:text-[8px] text-bevel-dark/20 cursor-grab active:cursor-grabbing flex-shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-60 transition-opacity">
+              <span className="text-[11px] md:text-[10px] text-bevel-dark/20 cursor-grab active:cursor-grabbing flex-shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-60 transition-opacity">
                 {"\u2261"}
               </span>
 
@@ -229,13 +229,13 @@ export function QueuePanel() {
               </div>
 
               {isCurrent && (
-                <span className="text-[11px] md:text-[9px] text-static-green/70 flex-shrink-0">
+                <span className="text-[12px] md:text-[10px] text-static-green/70 flex-shrink-0">
                   {"\u25B6"}
                 </span>
               )}
               <div className="flex-1 min-w-0">
                 <div className={cn(
-                  "text-[12px] md:text-[10px] truncate",
+                  "text-[13px] md:text-[11px] truncate",
                   isCurrent ? "text-desktop-gray font-bold" : "text-desktop-gray/80",
                 )}
                   title={ep.title || ep.fileName}
@@ -243,7 +243,7 @@ export function QueuePanel() {
                   {ep.title || ep.fileName}
                 </div>
                 {(ep.guestName || ep.airDate) && (
-                  <div className="text-[11px] md:text-[9px] text-bevel-dark/60 truncate" title={[ep.guestName, formatAirDate(ep.airDate)].filter(Boolean).join(" \u00B7 ")}>
+                  <div className="text-[12px] md:text-[10px] text-bevel-dark/60 truncate" title={[ep.guestName, formatAirDate(ep.airDate)].filter(Boolean).join(" \u00B7 ")}>
                     {[ep.guestName, formatAirDate(ep.airDate)].filter(Boolean).join(" \u00B7 ")}
                   </div>
                 )}
@@ -254,7 +254,7 @@ export function QueuePanel() {
                   e.stopPropagation();
                   removeFromQueue(i);
                 }}
-                className="text-[11px] md:text-[9px] text-bevel-dark/50 hover:text-red-400 active:text-red-400 cursor-pointer flex-shrink-0 px-1 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                className="text-[12px] md:text-[10px] text-bevel-dark/50 hover:text-red-400 active:text-red-400 cursor-pointer flex-shrink-0 px-1 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                 title="Remove"
               >
                 {"\u2715"}

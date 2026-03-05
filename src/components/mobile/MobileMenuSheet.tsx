@@ -83,7 +83,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
         <div className="flex flex-col max-h-[60dvh] overflow-y-auto overscroll-contain px-1">
           {/* Quick actions group */}
           <div className="px-3 pb-1">
-            <span className="text-[10px] text-bevel-dark/40 uppercase tracking-wider font-sans">Quick Actions</span>
+            <span className="text-[11px] text-bevel-dark/40 uppercase tracking-wider font-sans">Quick Actions</span>
           </div>
           <button
             onClick={() => {
@@ -99,7 +99,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
           {/* Navigation group */}
           <div className="h-[1px] bg-white/[0.06] mx-3 my-2" />
           <div className="px-3 pb-1">
-            <span className="text-[10px] text-bevel-dark/40 uppercase tracking-wider font-sans">Navigate</span>
+            <span className="text-[11px] text-bevel-dark/40 uppercase tracking-wider font-sans">Navigate</span>
           </div>
           <button
             onClick={() => {
@@ -151,7 +151,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
           {/* Settings group */}
           <div className="h-[1px] bg-white/[0.06] mx-3 my-2" />
           <div className="px-3 pb-1">
-            <span className="text-[10px] text-bevel-dark/40 uppercase tracking-wider font-sans">Settings</span>
+            <span className="text-[11px] text-bevel-dark/40 uppercase tracking-wider font-sans">Settings</span>
           </div>
           {onToggleStartupSound && (
             <button
@@ -167,7 +167,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
                 <span>Startup Sound</span>
               </div>
               <span className={cn(
-                "text-[12px]",
+                "text-[13px]",
                 startupSoundOn ? "text-desert-amber" : "text-bevel-dark/50",
               )}>
                 {startupSoundOn ? "On" : "Off"}

@@ -68,7 +68,7 @@ html {
 
 body {
   font-family: var(--font-w95);
-  font-size: 13px;
+  font-size: 14px;
   background: #0A0E1A;
   color: #C0C0C0;
   min-height: 100vh;
@@ -81,7 +81,7 @@ body {
 
 @media (min-width: 768px) {
   body {
-    font-size: 13px;
+    font-size: 13px; /* Desktop stays at 13px; mobile inherits 14px */
   }
 }
 

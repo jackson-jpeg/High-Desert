@@ -449,8 +449,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               aria-current={isActive ? "page" : undefined}
               className={cn(
                 "w98-font cursor-pointer select-none transition-colors-fast relative",
-                "flex flex-col items-center justify-center min-h-[52px] flex-1 text-[12px] gap-1",
-                "md:flex-row md:flex-none md:min-h-0 md:px-3 md:py-1.5 md:text-[10px] md:gap-0",
+                "flex flex-col items-center justify-center min-h-[52px] flex-1 text-[13px] gap-1",
+                "md:flex-row md:flex-none md:min-h-0 md:px-3 md:py-1.5 md:text-[11px] md:gap-0",
                 isActive
                   ? "text-desktop-gray md:border-b-2 md:border-b-desert-amber"
                   : "text-bevel-dark active:text-desktop-gray md:hover:text-desktop-gray md:border-b-2 md:border-b-transparent",
@@ -472,7 +472,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           onClick={() => setMobileMenuOpen(true)}
           className={cn(
             "w98-font cursor-pointer select-none transition-colors-fast",
-            "flex flex-col items-center justify-center min-h-[52px] flex-1 text-[12px] gap-1",
+            "flex flex-col items-center justify-center min-h-[52px] flex-1 text-[13px] gap-1",
             "text-bevel-dark active:text-desktop-gray",
             "md:hidden",
           )}
@@ -510,7 +510,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             content: (
               <button
                 onClick={handleGhostClick}
-                className="text-[9px] cursor-pointer hover:text-desert-amber transition-colors-fast"
+                className="text-[10px] cursor-pointer hover:text-desert-amber transition-colors-fast"
                 style={{ color: "#FF8C00" }}
                 title="Ghost to Ghost AM Collection"
               >
@@ -523,7 +523,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             content: (
               <button
                 onClick={handleInstall}
-                className="text-[9px] cursor-pointer hover:text-desert-amber transition-colors-fast text-static-green"
+                className="text-[10px] cursor-pointer hover:text-desert-amber transition-colors-fast text-static-green"
                 title="Install High Desert as an app"
               >
                 Install App
@@ -557,7 +557,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       {/* Admin password dialog */}
       <Dialog open={adminPromptOpen} onClose={() => { setAdminPromptOpen(false); setAdminPassword(""); setAdminError(""); }} title="Admin Access">
         <div className="p-3 flex flex-col gap-2">
-          <p className="text-[10px] text-bevel-dark">Enter the admin password:</p>
+          <p className="text-[11px] text-bevel-dark">Enter the admin password:</p>
           <form onSubmit={(e) => { e.preventDefault(); handleAdminLogin(); }}>
             <TextField
               type="password"
@@ -567,7 +567,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               autoFocus
               className="w-full"
             />
-            {adminError && <p className="text-[9px] text-red-400 mt-1">{adminError}</p>}
+            {adminError && <p className="text-[10px] text-red-400 mt-1">{adminError}</p>}
             <div className="flex justify-end gap-2 mt-3">
               <Button size="sm" variant="dark" type="button" onClick={() => { setAdminPromptOpen(false); setAdminPassword(""); setAdminError(""); }}>Cancel</Button>
               <Button size="sm" type="submit">OK</Button>

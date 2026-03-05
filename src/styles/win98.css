@@ -124,7 +124,7 @@ button.w98-raised-dark:active:not(:disabled) {
   padding: 4px 16px;
   min-width: 75px;
   font-family: "W95FA", "MS Sans Serif", Arial, sans-serif;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--w98-text);
   cursor: pointer;
   outline: none;
@@ -183,7 +183,7 @@ button.w98-raised-dark:active:not(:disabled) {
   border-bottom: 1px solid var(--w98-bevel-dark);
   padding: 2px 0;
   font-family: "W95FA", "MS Sans Serif", Arial, sans-serif;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .w98-menubar-dark {
@@ -191,7 +191,7 @@ button.w98-raised-dark:active:not(:disabled) {
   border-bottom: 1px solid #2A3050;
   padding: 2px 0;
   font-family: "W95FA", "MS Sans Serif", Arial, sans-serif;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--w98-dark-text);
 }
 
@@ -292,7 +292,7 @@ button.w98-raised-dark:active:not(:disabled) {
   border-top: 1px solid var(--w98-bevel-dark);
   padding: 2px 4px;
   font-family: "W95FA", "MS Sans Serif", Arial, sans-serif;
-  font-size: 11px;
+  font-size: 12px;
   display: flex;
   gap: 2px;
 }
@@ -302,7 +302,7 @@ button.w98-raised-dark:active:not(:disabled) {
   border-top: 1px solid #2A3050;
   padding: 2px 4px;
   font-family: "W95FA", "MS Sans Serif", Arial, sans-serif;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--w98-dark-text);
   display: flex;
   gap: 2px;
@@ -378,6 +378,14 @@ input[type="range"].w98-range-dark::-moz-range-thumb {
    ============================================ */
 
 @media (max-width: 767px) {
+  .w98-button,
+  .w98-menubar,
+  .w98-menubar-dark,
+  .w98-statusbar,
+  .w98-statusbar-dark {
+    font-size: 13px;
+  }
+
   .w98-menubar-item {
     padding: 8px 16px;
     min-height: 44px;
