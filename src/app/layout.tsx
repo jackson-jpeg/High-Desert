@@ -212,6 +212,7 @@ export default function RootLayout({
         />
         <Analytics />
         <SpeedInsights />
+        <script defer src="https://cloud.umami.is/script.js" data-website-id="8fe77b79-e571-42c9-9442-a72bb0ec819f" />
         <ServiceWorkerRegistration />
         {children}
       </body>

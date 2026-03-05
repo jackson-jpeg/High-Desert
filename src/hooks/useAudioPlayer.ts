@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { track } from "@vercel/analytics";
 import { usePlayerStore } from "@/stores/player-store";
 import {
   initEngine,
@@ -34,7 +33,7 @@ function flushListenTime(reason: "pause" | "ended" | "unload" | "stop") {
   const minutes = Math.round(_listenAccum / 60);
   if (minutes >= 1) {
     const { currentEpisode } = usePlayerStore.getState();
-    track("listening-time", {
+    window.umami?.track("listening-time", {
       minutes,
       reason,
       showType: currentEpisode?.showType ?? "unknown",
@@ -116,7 +115,7 @@ export function useAudioPlayer() {
         startListenTimer();
 
         // Track play event
-        track("episode-play", {
+        window.umami?.track("episode-play", {
           showType: episode.showType ?? "unknown",
           source: episode.source ?? "unknown",
           hasGuest: !!episode.guestName,
