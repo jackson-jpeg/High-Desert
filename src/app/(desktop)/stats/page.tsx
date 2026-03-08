@@ -10,6 +10,7 @@ import { HistoryPanel } from "@/components/library/HistoryPanel";
 import { SmartPlaylists } from "@/components/library/SmartPlaylists";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { ListeningStats } from "@/components/library/ListeningStats";
+import { CommunityLeaderboard } from "@/components/library/CommunityLeaderboard";
 import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
 import { getCacheSize, clearAudioCache } from "@/audio/cache";
@@ -665,6 +666,10 @@ export default function StatsPage() {
             </div>
           </Window>
         )}
+        {/* ── Community Top 20 ── Leaderboard */}
+        <WidgetErrorBoundary name="Community Leaderboard">
+          <CommunityLeaderboard />
+        </WidgetErrorBoundary>
       </div>
 
       {/* ── Topic Index ── Tag cloud (full width) */}
