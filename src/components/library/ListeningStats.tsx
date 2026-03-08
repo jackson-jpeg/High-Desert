@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
 import { cn } from "@/lib/utils/cn";
+import { fetchActiveCount } from "@/services/stats/client";
 
 interface ListeningStatsProps {
   className?: string;
@@ -12,6 +13,12 @@ interface ListeningStatsProps {
 export function ListeningStats({ className }: ListeningStatsProps) {
   const history = useLiveQuery(() => db.history.toArray(), []);
   const episodes = useLiveQuery(() => db.episodes.toArray(), []);
+
+  const [activeCount, setActiveCount] = useState(0);
+
+  useEffect(() => {
+    fetchActiveCount().then(setActiveCount);
+  }, []);
 
   const stats = useMemo(() => {
     if (!history || !episodes) return null;
@@ -77,6 +84,11 @@ export function ListeningStats({ className }: ListeningStatsProps) {
       {stats.topGuest && (
         <span className="text-desktop-gray/70 truncate">
           👤 Most played: <span className="text-static-green/80">{stats.topGuest}</span>
+        </span>
+      )}
+      {activeCount > 0 && (
+        <span className="text-desktop-gray/70">
+          👥 {activeCount} listening now
         </span>
       )}
     </div>

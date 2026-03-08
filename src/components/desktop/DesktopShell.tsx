@@ -24,6 +24,7 @@ import { exportLibrarySeed } from "@/db/seed";
 import { MobileMenuSheet } from "@/components/mobile/MobileMenuSheet";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { useLiveQuery } from "dexie-react-hooks";
+import { fetchActiveCount } from "@/services/stats/client";
 
 const CALLER_MESSAGES = [
   "East of the Rockies, you\u2019re on the air...",
@@ -72,6 +73,14 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [adminPassword, setAdminPassword] = useState("");
   const [adminError, setAdminError] = useState("");
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
+  const [activeListeners, setActiveListeners] = useState(0);
+
+  useEffect(() => {
+    const poll = () => fetchActiveCount().then(setActiveListeners);
+    poll();
+    const id = setInterval(poll, 60_000);
+    return () => clearInterval(id);
+  }, []);
   const navRef = useRef<HTMLElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const [bottomPadding, setBottomPadding] = useState(112); // fallback
@@ -562,6 +571,14 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               </button>
             ),
             width: "72px",
+          }] : []),
+          ...(activeListeners > 0 ? [{
+            content: (
+              <span className="text-hd-10 text-static-green/70">
+                {activeListeners} listening
+              </span>
+            ),
+            width: "90px",
           }] : []),
           { content: `${episodeCount.toLocaleString()} episode${episodeCount !== 1 ? "s" : ""}`, width: "120px" },
           { content: signalBars, width: "24px" },
