@@ -12,6 +12,7 @@ import {
 import { db } from "@/db";
 import type { Episode } from "@/db/schema";
 import { reportPlay, reportStop, reportStopBeacon } from "@/services/stats/client";
+import { checkArchiveHealth, clearHealthCache } from "@/services/archive/health";
 
 // ── Listening analytics ──
 // Tracks cumulative seconds listened per session, flushes on pause/end/unload
@@ -106,6 +107,7 @@ export function useAudioPlayer() {
       }
 
       setError(null);
+      clearHealthCache();
       loadEpisode(episode, isObjectUrl ? url : "");
       notifySourceChanged();
       audio.src = url;
@@ -283,6 +285,15 @@ export function useAudioPlayer() {
         4: "Audio source not supported or unavailable.",
       };
       setError(messages[code ?? 0] ?? "An unknown playback error occurred.");
+
+      // On network/source errors, check if archive.org itself is down
+      if (code === 2 || code === 4) {
+        checkArchiveHealth().then(({ up }) => {
+          if (!up) {
+            window.dispatchEvent(new CustomEvent("hd:archive-status", { detail: { up: false } }));
+          }
+        });
+      }
     };
 
     // Sync store when iOS/lock screen controls trigger play/pause directly
