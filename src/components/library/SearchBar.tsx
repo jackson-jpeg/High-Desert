@@ -3,7 +3,6 @@
 import { forwardRef, useState, useEffect, useRef, useCallback } from "react";
 import { TextField } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
-import { useAdminStore } from "@/stores/admin-store";
 
 const RECENT_SEARCHES_KEY = "hd-recent-searches";
 const MAX_RECENT = 5;

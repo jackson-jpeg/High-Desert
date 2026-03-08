@@ -67,7 +67,7 @@ export function useCommunityStats(archiveIds: string[]): Map<string, number> {
     // Filter out empty/falsy IDs
     const validIds = archiveIds.filter(Boolean);
     if (validIds.length === 0) {
-      setCounts(new Map());
+      setCounts(new Map()); // eslint-disable-line react-hooks/set-state-in-effect -- clear state on empty input
       return;
     }
 

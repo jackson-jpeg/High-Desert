@@ -22,7 +22,7 @@ export function CommunityLeaderboard() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    setLoading(true); // eslint-disable-line react-hooks/set-state-in-effect -- sync loading state before async fetch
     fetchLeaderboard(period).then((data) => {
       if (!cancelled) {
         setEntries(data);

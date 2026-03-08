@@ -53,6 +53,12 @@ const NAV_ITEMS = [
   { label: "Stats", path: "/stats" },
 ] as const;
 
+const TEXT_SCALE_OPTIONS = [
+  { label: "Normal", value: "1" as const },
+  { label: "Large", value: "1.15" as const },
+  { label: "Extra Large", value: "1.3" as const },
+];
+
 export function DesktopShell({ children, player, episodeCount = 0, className }: DesktopShellProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -126,12 +132,6 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       }
     });
   }, []);
-
-  const TEXT_SCALE_OPTIONS = [
-    { label: "Normal", value: "1" as const },
-    { label: "Large", value: "1.15" as const },
-    { label: "Extra Large", value: "1.3" as const },
-  ];
 
   const handleSetTextScale = useCallback(async (value: "1" | "1.15" | "1.3") => {
     setTextScale(value);
