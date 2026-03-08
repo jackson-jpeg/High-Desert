@@ -11,11 +11,13 @@ import {
 } from "@/audio/engine";
 import { db } from "@/db";
 import type { Episode } from "@/db/schema";
+import { reportPlay, reportStop, reportStopBeacon } from "@/services/stats/client";
 
 // ── Listening analytics ──
 // Tracks cumulative seconds listened per session, flushes on pause/end/unload
 let _listenStart = 0; // timestamp when current play segment began
 let _listenAccum = 0; // seconds accumulated across play/pause cycles
+const _sessionId = typeof crypto !== "undefined" ? crypto.randomUUID() : "ssr";
 
 function startListenTimer() {
   _listenStart = Date.now();
@@ -39,7 +41,10 @@ function flushListenTime(reason: "pause" | "ended" | "unload" | "stop") {
       showType: currentEpisode?.showType ?? "unknown",
     });
   }
-  if (reason !== "pause") _listenAccum = 0; // reset on end/unload, keep on pause
+  if (reason !== "pause") {
+    _listenAccum = 0; // reset on end/unload, keep on pause
+    reportStop(_sessionId);
+  }
 }
 
 export function useAudioPlayer() {
@@ -120,6 +125,11 @@ export function useAudioPlayer() {
           source: episode.source ?? "unknown",
           hasGuest: !!episode.guestName,
         });
+
+        // Report to community stats
+        if (episode.archiveIdentifier) {
+          reportPlay(episode.archiveIdentifier, _sessionId);
+        }
 
         // Increment play count in DB
         if (episode.id) {
@@ -334,6 +344,7 @@ export function useAudioPlayer() {
   useEffect(() => {
     const flush = () => {
       flushListenTime("unload");
+      reportStopBeacon(_sessionId);
       const { position: pos, currentEpisode: ep } = usePlayerStore.getState();
       if (ep?.id && pos > 0) {
         // Dexie can't run in unload, so persist via a direct IDB transaction
