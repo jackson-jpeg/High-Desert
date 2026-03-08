@@ -87,13 +87,13 @@ export function MilestoneDialog() {
     <Dialog open onClose={handleClose} title="Milestone Reached" width="380px">
       <div className="p-5 flex flex-col gap-4 bg-midnight/90">
         <div className="text-center">
-          <div className="text-[32px] leading-none mb-2 select-none">
+          <div className="text-hd-32 leading-none mb-2 select-none">
             {milestone >= 100 ? "🏜️" : milestone >= 10 ? "🌙" : "📻"}
           </div>
-          <div className="text-[13px] text-desktop-gray font-bold">
+          <div className="text-hd-13 text-desktop-gray font-bold">
             {msg.title}
           </div>
-          <div className="text-[10px] text-desktop-gray/60 mt-2 leading-relaxed">
+          <div className="text-hd-10 text-desktop-gray/60 mt-2 leading-relaxed">
             {msg.body}
           </div>
         </div>
@@ -101,14 +101,14 @@ export function MilestoneDialog() {
         <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-desert-amber/20 to-transparent" />
 
         <div className="text-center">
-          <div className="text-[9px] text-bevel-dark/50 mb-2">
+          <div className="text-hd-9 text-bevel-dark/50 mb-2">
             If you&apos;re enjoying High Desert, consider buying the developer a coffee.
           </div>
           <a
             href="https://venmo.com/sanger"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block text-[11px] text-desert-amber hover:text-desert-amber/80 underline underline-offset-2 transition-colors-fast"
+            className="inline-block text-hd-11 text-desert-amber hover:text-desert-amber/80 underline underline-offset-2 transition-colors-fast"
           >
             @sanger on Venmo
           </a>

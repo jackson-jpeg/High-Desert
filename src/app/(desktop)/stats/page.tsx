@@ -210,7 +210,7 @@ export default function StatsPage() {
       <div className="p-4 flex flex-col gap-4 max-w-5xl mx-auto">
         <Window title="Station Dashboard" variant="dark" headingLevel={1}>
           <div className="p-6 text-center min-h-[200px] flex items-center justify-center">
-            <div className="animate-dot-1 inline-block text-bevel-dark text-[10px]">Loading station data</div>
+            <div className="animate-dot-1 inline-block text-bevel-dark text-hd-10">Loading station data</div>
           </div>
         </Window>
       </div>
@@ -222,9 +222,9 @@ export default function StatsPage() {
       <div className="p-4 flex flex-col gap-4 max-w-5xl mx-auto">
         <Window title="Station Dashboard" variant="dark" headingLevel={1}>
           <div className="p-8 flex flex-col items-center gap-3 text-center">
-            <div className="text-[24px] text-desert-amber/30 select-none">{"\u{1F4E1}"}</div>
-            <div className="text-[11px] text-bevel-dark">No episodes in the library yet.</div>
-            <div className="text-[9px] text-bevel-dark/60">
+            <div className="text-hd-24 text-desert-amber/30 select-none">{"\u{1F4E1}"}</div>
+            <div className="text-hd-11 text-bevel-dark">No episodes in the library yet.</div>
+            <div className="text-hd-9 text-bevel-dark/60">
               {isAdmin
                 ? "Import episodes from the Scanner or Search page to see your station stats."
                 : "No episodes in the library yet. Check back soon!"}
@@ -319,7 +319,7 @@ export default function StatsPage() {
 
           {/* Completion gauge */}
           <div className="mt-3 flex items-center gap-2">
-            <span className="text-[8px] text-bevel-dark uppercase tracking-wider w-[60px]">Progress</span>
+            <span className="text-hd-8 text-bevel-dark uppercase tracking-wider w-[60px] truncate">Progress</span>
             <div className="flex-1 h-[6px] w98-inset-dark bg-inset-well overflow-hidden">
               <div
                 className="h-full transition-all duration-500"
@@ -329,12 +329,12 @@ export default function StatsPage() {
                 }}
               />
             </div>
-            <span className="text-[9px] text-desert-amber tabular-nums w-[30px] text-right">
+            <span className="text-hd-9 text-desert-amber tabular-nums w-[30px] text-right">
               {completionPct}%
             </span>
           </div>
           {completionPct === 0 && (
-            <span className="text-[8px] text-bevel-dark/50 mt-0.5 ml-[68px]">Percentage of the archive you&apos;ve listened to.</span>
+            <span className="text-hd-8 text-bevel-dark/50 mt-0.5 ml-[68px]">Percentage of the archive you&apos;ve listened to.</span>
           )}
         </div>
       </Window>
@@ -350,7 +350,7 @@ export default function StatsPage() {
               {stats.decades.length > 1 && (
                 <div className="flex items-center gap-3 mb-3 overflow-x-auto">
                   {stats.decades.map(([decade, count]) => (
-                    <span key={decade} className="text-[10px] md:text-[9px] text-bevel-dark whitespace-nowrap flex-shrink-0">
+                    <span key={decade} className="text-hd-10 md:text-hd-9 text-bevel-dark whitespace-nowrap flex-shrink-0">
                       <span className="text-desktop-gray">{decade}</span>
                       <span className="text-bevel-dark/60 ml-1">{count.toLocaleString()}</span>
                     </span>
@@ -365,7 +365,7 @@ export default function StatsPage() {
                   const yearHours = (stats.yearDurations.get(year) ?? 0) / 3600;
                   return (
                     <div key={year} className="flex items-center gap-2 group">
-                      <span className="text-[11px] md:text-[9px] text-desert-amber tabular-nums w-[36px] md:w-[32px] text-right">
+                      <span className="text-hd-11 md:text-hd-9 text-desert-amber tabular-nums w-[36px] md:w-[32px] text-right">
                         {year}
                       </span>
                       <div className="flex-1 h-[18px] md:h-[14px] w98-inset-dark bg-inset-well overflow-hidden">
@@ -379,17 +379,17 @@ export default function StatsPage() {
                         >
                           {/* Inner label */}
                           {pct > 20 && (
-                            <span className="absolute inset-0 flex items-center justify-end pr-1 text-[7px] text-white/60 tabular-nums">
+                            <span className="absolute inset-0 flex items-center justify-end pr-1 text-hd-7 text-white/60 tabular-nums">
                               {count}
                             </span>
                           )}
                         </div>
                       </div>
-                      <span className="text-[8px] text-bevel-dark/60 tabular-nums w-[36px] md:w-[48px] text-right opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                      <span className="text-hd-8 text-bevel-dark/60 tabular-nums w-[36px] md:w-[48px] text-right opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         {yearHours.toFixed(0)}h
                       </span>
                       {pct <= 20 && (
-                        <span className="text-[8px] text-bevel-dark tabular-nums w-[20px]">
+                        <span className="text-hd-8 text-bevel-dark tabular-nums w-[20px]">
                           {count}
                         </span>
                       )}
@@ -425,7 +425,7 @@ export default function StatsPage() {
                     title={`${key}: ${count}`}
                   >
                     {pct > 8 && (
-                      <span className="absolute inset-0 flex items-center justify-center text-[7px] text-white/70">
+                      <span className="absolute inset-0 flex items-center justify-center text-hd-7 text-white/70">
                         {Math.round(pct)}%
                       </span>
                     )}
@@ -446,8 +446,8 @@ export default function StatsPage() {
                 return (
                   <div key={key} className="flex items-center gap-2">
                     <span className={cn("w-[8px] h-[8px] flex-shrink-0", bg)} />
-                    <span className="text-[9px] text-desktop-gray flex-1 truncate">{label}</span>
-                    <span className="text-[9px] text-bevel-dark tabular-nums">{count.toLocaleString()}</span>
+                    <span className="text-hd-9 text-desktop-gray flex-1 truncate">{label}</span>
+                    <span className="text-hd-9 text-bevel-dark tabular-nums">{count.toLocaleString()}</span>
                   </div>
                 );
               })}
@@ -464,7 +464,7 @@ export default function StatsPage() {
                   const pct = (count / stats.maxCategoryCount) * 100;
                   return (
                     <div key={cat} className="flex items-center gap-2 group">
-                      <span className="text-[10px] md:text-[9px] text-desktop-gray truncate w-[80px] md:w-[120px] flex-shrink-0 text-right">
+                      <span className="text-hd-10 md:text-hd-9 text-desktop-gray truncate w-[80px] md:w-[120px] flex-shrink-0 text-right">
                         {cat}
                       </span>
                       <div className="flex-1 h-[12px] w98-inset-dark bg-inset-well overflow-hidden">
@@ -476,7 +476,7 @@ export default function StatsPage() {
                           } as React.CSSProperties}
                         />
                       </div>
-                      <span className="text-[8px] text-bevel-dark tabular-nums w-[28px] text-right">
+                      <span className="text-hd-8 text-bevel-dark tabular-nums w-[28px] text-right">
                         {count}
                       </span>
                     </div>
@@ -492,7 +492,7 @@ export default function StatsPage() {
           <div className="p-3 flex flex-col gap-3">
             {/* AI categorization progress */}
             <div>
-              <div className="text-[8px] text-bevel-dark uppercase tracking-wider mb-1.5">
+              <div className="text-hd-8 text-bevel-dark uppercase tracking-wider mb-1.5">
                 AI Categorization
               </div>
               <div className="h-[8px] w98-inset-dark bg-inset-well overflow-hidden flex mb-1.5">
@@ -509,7 +509,7 @@ export default function StatsPage() {
                   />
                 )}
               </div>
-              <div className="flex items-center gap-3 text-[9px]">
+              <div className="flex items-center gap-3 text-hd-9">
                 <span className="text-static-green">{stats.aiCompleted.toLocaleString()} done</span>
                 <span className="text-desert-amber">{stats.aiPending.toLocaleString()} pending</span>
                 {stats.aiFailed > 0 && <span className="text-red-400">{stats.aiFailed.toLocaleString()} failed</span>}
@@ -518,7 +518,7 @@ export default function StatsPage() {
 
             {/* Source breakdown */}
             <div>
-              <div className="text-[8px] text-bevel-dark uppercase tracking-wider mb-1.5">
+              <div className="text-hd-8 text-bevel-dark uppercase tracking-wider mb-1.5">
                 Sources
               </div>
               <div className="h-[8px] w98-inset-dark bg-inset-well overflow-hidden flex mb-1.5">
@@ -535,7 +535,7 @@ export default function StatsPage() {
                   />
                 )}
               </div>
-              <div className="flex items-center gap-3 text-[9px]">
+              <div className="flex items-center gap-3 text-hd-9">
                 <span className="text-title-bar-blue">{stats.archiveCount.toLocaleString()} archive</span>
                 <span className="text-bevel-dark">{stats.localCount.toLocaleString()} local</span>
               </div>
@@ -548,10 +548,10 @@ export default function StatsPage() {
           <Window title="Audio Cache" variant="dark" headingLevel={2}>
             <div className="p-3 flex items-center justify-between gap-3">
               <div>
-                <div className="text-[12px] md:text-[10px] text-desktop-gray">
+                <div className="text-hd-12 md:text-hd-10 text-desktop-gray">
                   {cacheSize > 0 ? formatBytes(cacheSize) : "Empty"}
                 </div>
-                <div className="text-[10px] md:text-[8px] text-bevel-dark/60">
+                <div className="text-hd-10 md:text-hd-8 text-bevel-dark/60">
                   Offline audio cached in OPFS
                 </div>
               </div>
@@ -579,9 +579,9 @@ export default function StatsPage() {
                   }}
                   className="flex items-center gap-2 text-left px-2 py-1.5 w98-raised-dark bg-card-surface cursor-pointer hover:bg-title-bar-blue/15 transition-colors-fast"
                 >
-                  <span className="text-[9px] text-red-400/70">⚑</span>
-                  <span className="text-[10px] text-desktop-gray truncate flex-1">{ep.title || ep.fileName}</span>
-                  <span className="text-[8px] text-bevel-dark/50 tabular-nums flex-shrink-0">
+                  <span className="text-hd-9 text-red-400/70">⚑</span>
+                  <span className="text-hd-10 text-desktop-gray truncate flex-1">{ep.title || ep.fileName}</span>
+                  <span className="text-hd-8 text-bevel-dark/50 tabular-nums flex-shrink-0">
                     {ep.airDate ? formatAirDate(ep.airDate) : ""}
                   </span>
                 </button>
@@ -597,10 +597,10 @@ export default function StatsPage() {
               <div className="flex flex-col gap-[3px]">
                 {stats.topGuests.map(([guest, count], i) => (
                   <div key={guest} className="flex items-center gap-2 group">
-                    <span className="text-[8px] text-bevel-dark/60 tabular-nums w-[14px] text-right">
+                    <span className="text-hd-8 text-bevel-dark/60 tabular-nums w-[14px] text-right">
                       {i + 1}
                     </span>
-                    <span className="text-[11px] md:text-[10px] text-desktop-gray truncate w-[100px] md:w-[140px] flex-shrink-0">
+                    <span className="text-hd-11 md:text-hd-10 text-desktop-gray truncate w-[100px] md:w-[140px] flex-shrink-0">
                       {guest}
                     </span>
                     <div className="flex-1 h-[10px] w98-inset-dark bg-inset-well overflow-hidden">
@@ -612,7 +612,7 @@ export default function StatsPage() {
                         } as React.CSSProperties}
                       />
                     </div>
-                    <span className="text-[8px] text-bevel-dark tabular-nums w-[24px] text-right">
+                    <span className="text-hd-8 text-bevel-dark tabular-nums w-[24px] text-right">
                       {count}
                     </span>
                   </div>
@@ -633,19 +633,19 @@ export default function StatsPage() {
                     : 0;
                   return (
                     <div key={ep.id} className="flex items-start gap-2">
-                      <span className="text-[8px] text-bevel-dark/60 tabular-nums w-[12px] text-right mt-0.5">
+                      <span className="text-hd-8 text-bevel-dark/60 tabular-nums w-[12px] text-right mt-0.5">
                         {i + 1}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <div className="text-[12px] md:text-[10px] text-desktop-gray truncate font-bold">
+                        <div className="text-hd-12 md:text-hd-10 text-desktop-gray truncate font-bold">
                           {ep.title || ep.fileName}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           {ep.airDate && (
-                            <span className="text-[9px] md:text-[8px] text-desert-amber tabular-nums">{ep.airDate}</span>
+                            <span className="text-hd-9 md:text-hd-8 text-desert-amber tabular-nums">{ep.airDate}</span>
                           )}
                           {ep.guestName && (
-                            <span className="text-[9px] md:text-[8px] text-static-green/70 truncate">{ep.guestName}</span>
+                            <span className="text-hd-9 md:text-hd-8 text-static-green/70 truncate">{ep.guestName}</span>
                           )}
                         </div>
                         <div className="h-[3px] w98-inset-dark bg-inset-well mt-1 overflow-hidden">
@@ -655,7 +655,7 @@ export default function StatsPage() {
                           />
                         </div>
                       </div>
-                      <span className="text-[8px] text-bevel-dark tabular-nums flex-shrink-0 mt-0.5">
+                      <span className="text-hd-8 text-bevel-dark tabular-nums flex-shrink-0 mt-0.5">
                         {progress}%
                       </span>
                     </div>
@@ -724,13 +724,13 @@ function HeroStat({ label, value, sub, color }: {
 }) {
   return (
     <div className="flex flex-col items-center p-2.5 md:p-2 w98-inset-dark bg-inset-well gap-0.5">
-      <div className={cn("text-[18px] md:text-[16px] font-bold tabular-nums", color)}>
+      <div className={cn("text-hd-18 md:text-hd-16 font-bold tabular-nums", color)}>
         {value}
       </div>
-      <div className="text-[9px] md:text-[8px] text-bevel-dark uppercase tracking-wider">
+      <div className="text-hd-9 md:text-hd-8 text-bevel-dark uppercase tracking-wider">
         {label}
       </div>
-      <div className="text-[8px] md:text-[7px] text-bevel-dark/50 truncate max-w-full text-center">
+      <div className="text-hd-8 md:text-hd-7 text-bevel-dark/50 truncate max-w-full text-center">
         {sub}
       </div>
     </div>

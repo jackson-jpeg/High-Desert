@@ -40,15 +40,15 @@ export class DBErrorBoundary extends Component<Props, State> {
         <Starfield />
         <div className="relative z-10 w98-raised-dark bg-raised-surface glass-heavy max-w-[420px] w-full animate-fade-in">
           <div className="w98-titlebar-gradient px-2 py-[2px] flex items-center">
-            <span className="w98-font text-[11px] font-bold text-white truncate flex-1">
+            <span className="w98-font text-hd-11 font-bold text-white truncate flex-1">
               High Desert — Storage Error
             </span>
           </div>
           <div className="p-5 flex flex-col gap-4">
-            <div className="text-[13px] text-desktop-gray font-bold">
+            <div className="text-hd-13 text-desktop-gray font-bold">
               {isIDB ? "Storage Unavailable" : "Something went wrong"}
             </div>
-            <div className="text-[11px] text-bevel-dark leading-relaxed">
+            <div className="text-hd-11 text-bevel-dark leading-relaxed">
               {isIDB ? (
                 <>
                   High Desert needs browser storage (IndexedDB) to work.
@@ -60,18 +60,18 @@ export class DBErrorBoundary extends Component<Props, State> {
               )}
             </div>
             {isIDB && (
-              <div className="text-[10px] text-desert-amber/80 leading-relaxed">
+              <div className="text-hd-10 text-desert-amber/80 leading-relaxed">
                 Try opening High Desert in a regular (non-private) browser window.
               </div>
             )}
             <div className="w98-inset-dark bg-inset-well p-2">
-              <div className="text-[9px] text-red-400/70 font-mono break-all">
+              <div className="text-hd-9 text-red-400/70 font-mono break-all">
                 {this.state.error?.message ?? "Unknown error"}
               </div>
             </div>
             <button
               onClick={() => window.location.reload()}
-              className="w98-raised-dark bg-raised-surface text-desktop-gray px-4 py-1.5 text-[11px] min-w-[75px] cursor-pointer self-end"
+              className="w98-raised-dark bg-raised-surface text-desktop-gray px-4 py-1.5 text-hd-11 min-w-[75px] cursor-pointer self-end"
             >
               Reload
             </button>

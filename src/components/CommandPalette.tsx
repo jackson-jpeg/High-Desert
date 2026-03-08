@@ -244,20 +244,20 @@ export function CommandPalette() {
             inputMode="search"
             enterKeyHint="go"
             aria-label="Search episodes, pages, and actions"
-            className="w-full w98-inset-dark bg-inset-well text-desktop-gray text-[16px] md:text-[12px] px-3 py-2 md:py-1.5 outline-none placeholder:text-bevel-dark w98-font"
+            className="w-full w98-inset-dark bg-inset-well text-desktop-gray text-hd-16 md:text-hd-12 px-3 py-2 md:py-1.5 outline-none placeholder:text-bevel-dark w98-font"
           />
         </div>
 
         {/* Results */}
         <div className="max-h-[320px] overflow-auto overscroll-contain py-1">
           {results.length === 0 && query.trim() && (
-            <div className="px-3 py-4 text-center text-[10px] text-bevel-dark/60">
+            <div className="px-3 py-4 text-center text-hd-10 text-bevel-dark/60">
               No results found
             </div>
           )}
           {Array.from(groups.entries()).map(([groupName, items]) => (
             <div key={groupName}>
-              <div className="px-3 py-1 text-[8px] uppercase tracking-wider text-bevel-dark/50">
+              <div className="px-3 py-1 text-hd-8 uppercase tracking-wider text-bevel-dark/50">
                 {groupName}
               </div>
               {items.map((item) => {
@@ -273,9 +273,9 @@ export function CommandPalette() {
                         : "text-desktop-gray/80 hover:bg-title-bar-blue/15",
                     )}
                   >
-                    <span className="text-[12px] md:text-[11px] truncate">{item.label}</span>
+                    <span className="text-hd-12 md:text-hd-11 truncate">{item.label}</span>
                     {item.subtitle && (
-                      <span className="text-[9px] text-bevel-dark/60 truncate">{item.subtitle}</span>
+                      <span className="text-hd-9 text-bevel-dark/60 truncate">{item.subtitle}</span>
                     )}
                   </button>
                 );
@@ -285,7 +285,7 @@ export function CommandPalette() {
         </div>
 
         {/* Footer hint */}
-        <div className="px-3 py-1.5 border-t border-bevel-dark/15 text-[8px] text-bevel-dark/40 flex items-center gap-3">
+        <div className="px-3 py-1.5 border-t border-bevel-dark/15 text-hd-8 text-bevel-dark/40 flex items-center gap-3">
           <span>↑↓ navigate</span>
           <span>↵ select</span>
           <span>esc close</span>

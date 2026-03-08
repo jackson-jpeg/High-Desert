@@ -59,10 +59,10 @@ function LoadingSkeleton() {
 function NoResults({ query }: { query: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center px-8">
-      <div className="text-[13px] text-desktop-gray mb-2">
+      <div className="text-hd-13 text-desktop-gray mb-2">
         No results for &ldquo;{query}&rdquo;
       </div>
-      <div className="text-[11px] text-bevel-dark leading-relaxed max-w-[280px] mb-3">
+      <div className="text-hd-11 text-bevel-dark leading-relaxed max-w-[280px] mb-3">
         Try a different search term, like a guest name, date, or topic.
       </div>
     </div>
@@ -207,7 +207,7 @@ export function SearchPanel() {
                   key={c.label}
                   onClick={() => handleCollectionClick(c.query)}
                   className={cn(
-                    "px-3 py-2.5 text-[13px] min-h-[44px] md:px-1.5 md:py-0.5 md:text-[9px] md:min-h-0 cursor-pointer transition-colors-fast",
+                    "px-3 py-2.5 text-hd-13 min-h-[44px] md:px-1.5 md:py-0.5 md:text-hd-9 md:min-h-0 cursor-pointer transition-colors-fast",
                     query === c.query
                       ? "bg-title-bar-blue/20 text-desktop-gray w98-inset-dark"
                       : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/10",
@@ -220,13 +220,13 @@ export function SearchPanel() {
 
             {/* Featured guests */}
             <div className="flex flex-wrap gap-1 items-center">
-              <span className="text-[10px] md:text-[8px] text-bevel-dark/40 uppercase tracking-wider mr-0.5">Guests</span>
+              <span className="text-hd-10 md:text-hd-8 text-bevel-dark/40 uppercase tracking-wider mr-0.5">Guests</span>
               {FEATURED_GUESTS.map((guest) => (
                 <button
                   key={guest}
                   onClick={() => handleGuestClick(guest)}
                   className={cn(
-                    "px-3 py-2.5 text-[13px] min-h-[44px] md:px-1.5 md:py-0.5 md:text-[9px] md:min-h-0 cursor-pointer transition-colors-fast",
+                    "px-3 py-2.5 text-hd-13 min-h-[44px] md:px-1.5 md:py-0.5 md:text-hd-9 md:min-h-0 cursor-pointer transition-colors-fast",
                     query === guest
                       ? "bg-static-green/15 text-static-green/90"
                       : "text-bevel-dark hover:text-static-green/80 hover:bg-static-green/5 active:bg-static-green/5",
@@ -239,7 +239,7 @@ export function SearchPanel() {
 
             {totalResults > 0 && !loading && (
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-bevel-dark">
+                <span className="text-hd-10 text-bevel-dark">
                   {totalResults.toLocaleString()} results
                   {query && <span className="text-bevel-dark/60"> for &ldquo;{query}&rdquo;</span>}
                 </span>
@@ -256,7 +256,7 @@ export function SearchPanel() {
             )}
 
             {error && (
-              <div className="text-[10px] text-red-400">
+              <div className="text-hd-10 text-red-400">
                 {error.toLowerCase().includes("rate") ? "Too many requests — wait a moment and try again." : error}
               </div>
             )}
@@ -293,17 +293,17 @@ export function SearchPanel() {
                 <button
                   onClick={handlePrevPage}
                   disabled={page <= 1 || loading}
-                  className="text-[10px] text-bevel-dark hover:text-desktop-gray disabled:opacity-30 disabled:cursor-default cursor-pointer transition-colors-fast px-2 py-1"
+                  className="text-hd-10 text-bevel-dark hover:text-desktop-gray disabled:opacity-30 disabled:cursor-default cursor-pointer transition-colors-fast px-2 py-1"
                 >
                   {"\u25C0"} Prev
                 </button>
-                <span className="text-[10px] text-bevel-dark tabular-nums">
+                <span className="text-hd-10 text-bevel-dark tabular-nums">
                   Page {page} of {totalResults > 0 ? Math.ceil(totalResults / 30) : 1}
                 </span>
                 <button
                   onClick={handleNextPage}
                   disabled={!hasMore || loading}
-                  className="text-[10px] text-bevel-dark hover:text-desktop-gray disabled:opacity-30 disabled:cursor-default cursor-pointer transition-colors-fast px-2 py-1"
+                  className="text-hd-10 text-bevel-dark hover:text-desktop-gray disabled:opacity-30 disabled:cursor-default cursor-pointer transition-colors-fast px-2 py-1"
                 >
                   Next {"\u25B6"}
                 </button>

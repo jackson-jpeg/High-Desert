@@ -44,12 +44,12 @@ export function ContinueListening({ onPlay, className }: ContinueListeningProps)
     <div className={cn("w98-raised-dark bg-raised-surface animate-slide-up", className)}>
       <div className="px-3 py-2">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[12px] md:text-[10px] text-bevel-dark/60 uppercase tracking-wider">
+          <span className="text-hd-12 md:text-hd-10 text-bevel-dark/60 uppercase tracking-wider">
             Continue Listening
           </span>
           <button
             onClick={() => setDismissed(true)}
-            className="text-[12px] md:text-[10px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer"
+            className="text-hd-12 md:text-hd-10 text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer"
           >
             ✕
           </button>
@@ -69,11 +69,11 @@ export function ContinueListening({ onPlay, className }: ContinueListeningProps)
                   i >= 2 && "hidden md:block",
                 )}
               >
-                <div className="text-[12px] md:text-[11px] text-desktop-gray font-bold truncate">
+                <div className="text-hd-12 md:text-hd-11 text-desktop-gray font-bold truncate">
                   {ep.title || ep.fileName}
                 </div>
                 {ep.guestName && (
-                  <div className="text-[10px] text-static-green/60 truncate mt-0.5">
+                  <div className="text-hd-10 text-static-green/60 truncate mt-0.5">
                     {ep.guestName}
                   </div>
                 )}
@@ -84,7 +84,7 @@ export function ContinueListening({ onPlay, className }: ContinueListeningProps)
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <span className="text-[10px] text-bevel-dark tabular-nums">{pct}%</span>
+                  <span className="text-hd-10 text-bevel-dark tabular-nums">{pct}%</span>
                 </div>
               </button>
             );

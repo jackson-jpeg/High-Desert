@@ -141,11 +141,11 @@ export const EpisodeCard = memo(function EpisodeCard({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           {isMultiSelected && (
-            <span className="w-[14px] h-[14px] md:w-[12px] md:h-[12px] flex items-center justify-center w98-inset-dark bg-inset-well text-[10px] md:text-[10px] text-static-green flex-shrink-0">
+            <span className="w-[14px] h-[14px] md:w-[12px] md:h-[12px] flex items-center justify-center w98-inset-dark bg-inset-well text-hd-10 md:text-hd-10 text-static-green flex-shrink-0">
               {"\u2713"}
             </span>
           )}
-          <span className="text-[12px] md:text-[11px] text-desert-amber tabular-nums flex-shrink-0 font-mono tracking-tight">
+          <span className="text-hd-12 md:text-hd-11 text-desert-amber tabular-nums flex-shrink-0 font-mono tracking-tight">
             {formatAirDate(episode.airDate) || "Unknown date"}
           </span>
           {isPlaying && (
@@ -153,35 +153,35 @@ export const EpisodeCard = memo(function EpisodeCard({
           )}
           {episode.aiNotable && !isPlaying && (
             <span
-              className="text-[11px] text-yellow-400 flex-shrink-0 drop-shadow-[0_0_3px_rgba(250,204,21,0.4)]"
+              className="text-hd-11 text-yellow-400 flex-shrink-0 drop-shadow-[0_0_3px_rgba(250,204,21,0.4)]"
               title="Notable episode — a classic Art Bell moment"
             >
               {"\u2605"}
             </span>
           )}
           {isCompleted && !isPlaying && (
-            <span className="text-[10px] text-static-green/70 flex-shrink-0" title="Completed">
+            <span className="text-hd-10 text-static-green/70 flex-shrink-0" title="Completed">
               {"\u2713"}
             </span>
           )}
           {hasProgress && !isCompleted && !isPlaying && (
-            <span className="text-[10px] text-bevel-dark flex-shrink-0 tabular-nums" title={`${Math.round(progressPct)}% played`}>
+            <span className="text-hd-10 text-bevel-dark flex-shrink-0 tabular-nums" title={`${Math.round(progressPct)}% played`}>
               {Math.round(progressPct)}%
             </span>
           )}
           {/* Title inline on desktop */}
-          <span className="hidden md:inline text-[12px] text-desktop-gray font-bold truncate">
+          <span className="hidden md:inline text-hd-12 text-desktop-gray font-bold truncate">
             {episode.title || episode.fileName}
           </span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {episode.rating && (
-            <span className="text-[10px] text-desert-amber/60 flex-shrink-0 tabular-nums hidden md:inline" title={`Rated ${episode.rating}/5`}>
+            <span className="text-hd-10 text-desert-amber/60 flex-shrink-0 tabular-nums hidden md:inline" title={`Rated ${episode.rating}/5`}>
               {"★".repeat(episode.rating)}
             </span>
           )}
           {episode.aiCategory && (
-            <span className="text-[9px] text-desert-amber/50 flex-shrink-0 hidden md:inline">
+            <span className="text-hd-9 text-desert-amber/50 flex-shrink-0 hidden md:inline">
               {episode.aiCategory}
             </span>
           )}
@@ -195,7 +195,7 @@ export const EpisodeCard = memo(function EpisodeCard({
                 onToggleFavorite(episode);
               }}
               className={cn(
-                "text-[12px] md:text-[10px] min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors-fast",
+                "text-hd-12 md:text-hd-10 min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors-fast",
                 episode.favoritedAt
                   ? "text-desert-amber"
                   : "text-bevel-dark/50 md:opacity-0 md:group-hover:opacity-100",
@@ -209,7 +209,7 @@ export const EpisodeCard = memo(function EpisodeCard({
             </span>
           )}
           {showLabel && (
-            <span className="text-[10px] text-bevel-dark/70 flex-shrink-0">
+            <span className="text-hd-10 text-bevel-dark/70 flex-shrink-0">
               {showLabel}
             </span>
           )}
@@ -217,7 +217,7 @@ export const EpisodeCard = memo(function EpisodeCard({
       </div>
 
       {/* Title — mobile only (shown inline on desktop above) */}
-      <div className="text-[15px] text-desktop-gray font-bold truncate mt-0.5 md:hidden font-sans leading-tight">
+      <div className="text-hd-15 text-desktop-gray font-bold truncate mt-0.5 md:hidden font-sans leading-tight">
         {episode.title || episode.fileName}
       </div>
 
@@ -226,7 +226,7 @@ export const EpisodeCard = memo(function EpisodeCard({
         <div className="flex items-center gap-1.5 min-w-0 truncate">
           {episode.guestName ? (
             <span
-              className="text-[14px] md:text-[11px] text-static-green/90 md:text-static-green/80 truncate hover:text-static-green hover:underline active:text-static-green cursor-pointer py-0.5 -my-0.5"
+              className="text-hd-14 md:text-hd-11 text-static-green/90 md:text-static-green/80 truncate hover:text-static-green hover:underline active:text-static-green cursor-pointer py-0.5 -my-0.5"
               onClick={(e) => {
                 e.stopPropagation();
                 window.dispatchEvent(new CustomEvent("hd:show-guest", { detail: episode.guestName }));
@@ -235,7 +235,7 @@ export const EpisodeCard = memo(function EpisodeCard({
               {episode.guestName}
             </span>
           ) : (
-            <span className="text-[13px] md:text-[11px] text-static-green/80 truncate">
+            <span className="text-hd-13 md:text-hd-11 text-static-green/80 truncate">
               {episode.topic || "\u00A0"}
             </span>
           )}
@@ -245,14 +245,14 @@ export const EpisodeCard = memo(function EpisodeCard({
                 e.stopPropagation();
                 window.dispatchEvent(new CustomEvent("hd:filter-series", { detail: episode.aiSeries }));
               }}
-              className="text-[10px] text-title-bar-blue/50 flex-shrink-0 hidden md:inline cursor-pointer hover:text-title-bar-blue hover:underline active:text-title-bar-blue transition-colors-fast"
+              className="text-hd-10 text-title-bar-blue/50 flex-shrink-0 hidden md:inline cursor-pointer hover:text-title-bar-blue hover:underline active:text-title-bar-blue transition-colors-fast"
             >
               {episode.aiSeries}{episode.aiSeriesPart ? ` Pt.${episode.aiSeriesPart}` : ""}
             </button>
           )}
         </div>
         {episode.duration != null && (
-          <span className="text-[12px] md:text-[11px] text-bevel-dark/60 tabular-nums flex-shrink-0 font-mono">
+          <span className="text-hd-12 md:text-hd-11 text-bevel-dark/60 tabular-nums flex-shrink-0 font-mono">
             {formatDuration(episode.duration)}
           </span>
         )}

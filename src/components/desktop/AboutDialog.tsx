@@ -61,7 +61,7 @@ export function AboutDialog({
         <div className="hidden md:block w-[80px] flex-shrink-0 relative overflow-hidden border-r border-bevel-dark/20">
           <canvas ref={canvasRef} className="absolute inset-0" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-[28px] leading-none" style={{ textShadow: "0 0 12px rgba(212,168,67,0.5)" }}>
+            <div className="text-hd-28 leading-none" style={{ textShadow: "0 0 12px rgba(212,168,67,0.5)" }}>
               📡
             </div>
           </div>
@@ -71,14 +71,14 @@ export function AboutDialog({
         <div className="flex-1 p-4 flex flex-col gap-3">
           {/* Header */}
           <div>
-            <pre className="text-[7px] text-desert-amber/60 leading-[1.1] font-mono select-none" aria-hidden="true">
+            <pre className="text-hd-7 text-desert-amber/60 leading-[1.1] font-mono select-none" aria-hidden="true">
 {`  ╦ ╦╦╔═╗╦ ╦  ╔╦╗╔═╗╔═╗╔═╗╦═╗╔╦╗
   ╠═╣║║ ╦╠═╣   ║║║╣ ╚═╗║╣ ╠╦╝ ║ 
   ╩ ╩╩╚═╝╩ ╩  ═╩╝╚═╝╚═╝╚═╝╩╚═ ╩ `}
             </pre>
           </div>
 
-          <div className="text-[10px] text-desktop-gray/60">
+          <div className="text-hd-10 text-desktop-gray/60">
             v0.5.0 <span className="text-desert-amber/50">&ldquo;Kingdom of Nye&rdquo;</span>
             {isAdmin && <span className="text-static-green/40 ml-1">(Admin)</span>}
           </div>
@@ -87,10 +87,10 @@ export function AboutDialog({
 
           {/* Dedication */}
           <div className="flex flex-col gap-1">
-            <div className="text-[10px] text-desktop-gray/80 font-bold">
+            <div className="text-hd-10 text-desktop-gray/80 font-bold">
               Dedicated to Art Bell (1945–2018)
             </div>
-            <div className="text-[9px] text-desktop-gray/50 italic leading-relaxed">
+            <div className="text-hd-9 text-desktop-gray/50 italic leading-relaxed">
               Pioneer of late-night talk radio. For over two decades, Art brought the strange,
               the unexplained, and the wonderful into millions of homes from his studio
               in the high desert of Pahrump, Nevada.
@@ -101,10 +101,10 @@ export function AboutDialog({
 
           {/* Fun facts */}
           <div className="flex flex-col gap-1.5">
-            <div className="text-[9px] text-desert-amber/70 font-bold uppercase tracking-wider">
+            <div className="text-hd-9 text-desert-amber/70 font-bold uppercase tracking-wider">
               Archive Statistics
             </div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[9px]">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-hd-9">
               <span className="text-bevel-dark">Total Episodes:</span>
               <span className="text-desktop-gray tabular-nums">{episodeCount.toLocaleString()}</span>
               {showCounts?.coastToCoast != null && (
@@ -134,14 +134,14 @@ export function AboutDialog({
 
           {/* Quote */}
           <div
-            className="text-[9px] text-static-green/50 italic"
+            className="text-hd-9 text-static-green/50 italic"
             style={{ textShadow: "0 0 4px rgba(74, 222, 128, 0.15)" }}
           >
             &ldquo;I have seen things that I cannot explain...&rdquo;
           </div>
 
           {/* Attribution */}
-          <div className="text-[9px] text-desktop-gray/40">
+          <div className="text-hd-9 text-desktop-gray/40">
             A{" "}
             <a href="https://sang3r.com" target="_blank" rel="noopener noreferrer" className="text-desert-amber/50 hover:text-desert-amber">
               Sang3r.com
@@ -155,7 +155,7 @@ export function AboutDialog({
               href="https://archive.org/details/artaborneradio"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[9px] text-desert-amber/50 hover:text-desert-amber underline underline-offset-2"
+              className="text-hd-9 text-desert-amber/50 hover:text-desert-amber underline underline-offset-2"
             >
               Source: archive.org
             </a>

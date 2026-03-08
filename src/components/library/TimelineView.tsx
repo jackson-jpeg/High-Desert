@@ -86,16 +86,16 @@ export function TimelineView({
       <div className={cn("flex flex-col items-center justify-center py-20 text-center px-8 animate-fade-in", className)}>
         {/* Radio tower icon */}
         <div className="relative mb-5">
-          <div className="text-[32px] text-desert-amber/20 select-none">{"\u{1F4E1}"}</div>
+          <div className="text-hd-32 text-desert-amber/20 select-none">{"\u{1F4E1}"}</div>
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-[3px] h-[3px] rounded-full bg-desert-amber/40 animate-on-air" />
           </div>
         </div>
 
-        <div className="text-[13px] text-desktop-gray mb-1.5 font-bold">
+        <div className="text-hd-13 text-desktop-gray mb-1.5 font-bold">
           No episodes yet
         </div>
-        <div className="text-[11px] text-bevel-dark leading-relaxed max-w-[300px] mb-5">
+        <div className="text-hd-11 text-bevel-dark leading-relaxed max-w-[300px] mb-5">
           Start building your late-night radio archive. Import the Ultimate Art Bell Collection, search archive.org, or scan local files.
         </div>
 
@@ -105,7 +105,7 @@ export function TimelineView({
               <button
                 onClick={() => onAction("scan")}
                 className={cn(
-                  "text-[11px] px-3 py-1.5 w98-raised-dark bg-raised-surface",
+                  "text-hd-11 px-3 py-1.5 w98-raised-dark bg-raised-surface",
                   "text-desert-amber hover:bg-title-bar-blue/15 cursor-pointer transition-colors-fast",
                 )}
               >
@@ -114,19 +114,19 @@ export function TimelineView({
               <button
                 onClick={() => onAction("search")}
                 className={cn(
-                  "text-[11px] px-3 py-1.5 w98-raised-dark bg-raised-surface",
+                  "text-hd-11 px-3 py-1.5 w98-raised-dark bg-raised-surface",
                   "text-title-bar-blue hover:bg-title-bar-blue/15 cursor-pointer transition-colors-fast",
                 )}
               >
                 Search Archive
               </button>
             </div>
-            <span className="text-[10px] text-bevel-dark/40 mt-1">
+            <span className="text-hd-10 text-bevel-dark/40 mt-1">
               Keyboard: / to search, Ctrl+Shift+S to scan
             </span>
           </div>
         ) : (
-          <div className="text-[10px] text-bevel-dark/50 italic">
+          <div className="text-hd-10 text-bevel-dark/50 italic">
             The library is being set up. Episodes will appear shortly.
           </div>
         )}
@@ -139,10 +139,10 @@ export function TimelineView({
       {/* Sticky year header */}
       {currentYear && (
         <div className="sticky top-0 z-10 bg-midnight/95 backdrop-blur-sm px-4 py-1.5 border-b border-bevel-dark/15 glass-light flex items-center gap-2">
-          <span className="text-[13px] text-desert-amber/90 font-bold tabular-nums">
+          <span className="text-hd-13 text-desert-amber/90 font-bold tabular-nums">
             {currentYear}
           </span>
-          <span className="text-[10px] text-bevel-dark/50">
+          <span className="text-hd-10 text-bevel-dark/50">
             {yearCounts.get(currentYear) ?? 0}
           </span>
           {/* Year nav dots — desktop only */}

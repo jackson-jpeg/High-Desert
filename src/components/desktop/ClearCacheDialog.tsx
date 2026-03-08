@@ -36,7 +36,7 @@ export function ClearCacheDialog({ open, onClose }: ClearCacheDialogProps) {
   return (
     <Dialog open={open} onClose={onClose} title="Clear Audio Cache" width="320px">
       <div className="p-4 flex flex-col gap-4">
-        <div className="text-[11px] text-desktop-gray">
+        <div className="text-hd-11 text-desktop-gray">
           Remove all cached audio files from local storage?
           {cacheSize != null && (
             <span className="block mt-1 text-bevel-dark">

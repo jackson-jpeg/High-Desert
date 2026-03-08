@@ -110,10 +110,10 @@ export default function WelcomePage() {
       <div className="relative z-20 flex flex-col items-center gap-8 px-6 text-center max-w-lg">
         {/* Title */}
         <div>
-          <h1 className="text-[36px] md:text-[48px] font-bold tracking-[6px] leading-none font-[family-name:var(--font-w95)] text-desert-amber [text-shadow:0_0_20px_rgba(212,168,67,0.4),0_0_40px_rgba(212,168,67,0.15)]">
+          <h1 className="text-hd-36 md:text-hd-48 font-bold tracking-[6px] leading-none font-[family-name:var(--font-w95)] text-desert-amber [text-shadow:0_0_20px_rgba(212,168,67,0.4),0_0_40px_rgba(212,168,67,0.15)]">
             HIGH DESERT
           </h1>
-          <div className="text-[13px] md:text-[15px] mt-3 tracking-[3px] font-[family-name:var(--font-w95)] text-bevel-dark">
+          <div className="text-hd-13 md:text-hd-15 mt-3 tracking-[3px] font-[family-name:var(--font-w95)] text-bevel-dark">
             ART BELL RADIO ARCHIVE
           </div>
         </div>
@@ -122,20 +122,20 @@ export default function WelcomePage() {
         <div className="w-48 h-[1px] bg-gradient-to-r from-transparent via-desert-amber/30 to-transparent" />
 
         {/* Description */}
-        <p className="text-[11px] md:text-[12px] leading-relaxed max-w-sm font-[family-name:var(--font-w95)] text-bevel-dark">
+        <p className="text-hd-11 md:text-hd-12 leading-relaxed max-w-sm font-[family-name:var(--font-w95)] text-bevel-dark">
           Stream thousands of episodes from the golden age of late-night talk radio.
           Coast to Coast AM, Dreamland, and rare specials — all from Art Bell&apos;s
           legendary studio in Pahrump, Nevada.
         </p>
 
         {/* Quote */}
-        <div className="text-[10px] md:text-[11px] italic max-w-xs font-[family-name:var(--font-w95)] text-static-green/70 [text-shadow:0_0_6px_rgba(74,222,128,0.2)]">
+        <div className="text-hd-10 md:text-hd-11 italic max-w-xs font-[family-name:var(--font-w95)] text-static-green/70 [text-shadow:0_0_6px_rgba(74,222,128,0.2)]">
           &ldquo;I have seen things that I cannot explain...&rdquo;
         </div>
 
         {/* Stats */}
         {episodeCount && (
-          <div className="text-[10px] tracking-wider font-[family-name:var(--font-w95)] text-bevel-dark animate-fade-in">
+          <div className="text-hd-10 tracking-wider font-[family-name:var(--font-w95)] text-bevel-dark animate-fade-in">
             {episodeCount.toLocaleString()} EPISODES IN ARCHIVE
           </div>
         )}
@@ -145,13 +145,13 @@ export default function WelcomePage() {
           variant="dark"
           onClick={handleEnter}
           disabled={isReturning}
-          className="px-10 py-3 tracking-[2px] text-[12px]"
+          className="px-10 py-3 tracking-[2px] text-hd-12"
         >
           {isReturning ? "REDIRECTING..." : "ENTER THE ARCHIVE"}
         </Button>
 
         {/* Footer */}
-        <div className="text-[8px] mt-4 font-[family-name:var(--font-w95)] text-bevel-dark/40">
+        <div className="text-hd-8 mt-4 font-[family-name:var(--font-w95)] text-bevel-dark/40">
           Art Bell &middot; 1945–2018 &middot; From the Kingdom of Nye
         </div>
       </div>

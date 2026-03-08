@@ -34,7 +34,7 @@ export function ScanProgress({ onCancel }: ScanProgressProps) {
 
         {/* Current file */}
         <div className="w98-inset-dark bg-inset-well px-2 py-1 min-h-[20px]">
-          <div className="text-[10px] text-desktop-gray truncate">
+          <div className="text-hd-10 text-desktop-gray truncate">
             {isScanning && currentFile
               ? currentFile
               : status === "completed"
@@ -48,7 +48,7 @@ export function ScanProgress({ onCancel }: ScanProgressProps) {
         </div>
 
         {/* Counts */}
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-hd-11">
           <div className="text-bevel-dark">Progress:</div>
           <div className="text-desktop-gray">
             {processedFiles} / {totalFiles} files ({percent}%)

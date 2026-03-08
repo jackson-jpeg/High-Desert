@@ -69,7 +69,7 @@ export function FrequencyDisplay({
           {/* Frequency row */}
           <div className="flex items-baseline gap-1.5">
             <span
-              className="text-[48px] font-bold tracking-tight leading-none font-sans"
+              className="text-hd-48 font-bold tracking-tight leading-none font-sans"
               style={{
                 fontFamily: "'Space Grotesk', sans-serif",
                 color: "#4ADE80",
@@ -79,14 +79,14 @@ export function FrequencyDisplay({
               {freqNum}
             </span>
             <div className="flex flex-col gap-0.5">
-              <span className="text-[11px] font-mono text-static-green/40 tracking-[0.1em]">kHz</span>
-              <span className="text-[9px] font-mono text-static-green/20 tracking-[0.05em]">AM</span>
+              <span className="text-hd-11 font-mono text-static-green/40 tracking-[0.1em]">kHz</span>
+              <span className="text-hd-9 font-mono text-static-green/20 tracking-[0.05em]">AM</span>
             </div>
           </div>
 
           {/* Date + Lock indicator */}
           <div className="flex items-center justify-between pt-2">
-            <span className="text-[12px] font-mono text-desert-amber/70 tracking-wide tabular-nums">
+            <span className="text-hd-12 font-mono text-desert-amber/70 tracking-wide tabular-nums">
               {isoDate}
             </span>
             {isLocked && (
@@ -95,13 +95,13 @@ export function FrequencyDisplay({
                   className="w-[7px] h-[7px] rounded-full bg-static-green"
                   style={{ boxShadow: "0 0 8px rgba(74,222,128,0.7), 0 0 20px rgba(74,222,128,0.3)" }}
                 />
-                <span className="text-[9px] font-mono text-static-green/50 tracking-[0.12em] uppercase">
+                <span className="text-hd-9 font-mono text-static-green/50 tracking-[0.12em] uppercase">
                   Locked
                 </span>
               </div>
             )}
             {!isLocked && signalStrength > 0.1 && (
-              <span className="text-[9px] font-mono text-desert-amber/50 animate-pulse tracking-wider uppercase">
+              <span className="text-hd-9 font-mono text-desert-amber/50 animate-pulse tracking-wider uppercase">
                 Tuning...
               </span>
             )}
@@ -111,7 +111,7 @@ export function FrequencyDisplay({
           {isLocked && currentStation ? (
             <div className="flex flex-col gap-1 pt-2">
               <span
-                className="text-[16px] font-semibold text-desktop-gray/90 truncate leading-tight"
+                className="text-hd-16 font-semibold text-desktop-gray/90 truncate leading-tight"
                 style={{ fontFamily: "'Space Grotesk', sans-serif", letterSpacing: "-0.01em" }}
               >
                 {currentStation.episode.title || currentStation.episode.fileName}
@@ -119,7 +119,7 @@ export function FrequencyDisplay({
               {/* Sub-station dots */}
               {sameDateCount > 1 && (
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-bevel-dark/40">
+                  <span className="text-hd-10 text-bevel-dark/40">
                     Station {subStationIndex + 1} of {sameDateCount}
                   </span>
                   <div className="flex gap-1">
@@ -140,7 +140,7 @@ export function FrequencyDisplay({
             </div>
           ) : (
             <div className="flex flex-col gap-1 pt-2">
-              <span className="crt-text text-[12px] opacity-50">SEARCHING...</span>
+              <span className="crt-text text-hd-12 opacity-50">SEARCHING...</span>
             </div>
           )}
         </div>
@@ -160,31 +160,31 @@ export function FrequencyDisplay({
       )}
       <div className="relative z-[3] p-3 flex flex-col gap-1.5 min-h-[100px]">
         <div className="flex items-center justify-between">
-          <span className="crt-amber text-[12px] tracking-wider font-mono tabular-nums">
+          <span className="crt-amber text-hd-12 tracking-wider font-mono tabular-nums">
             {freqStr}
           </span>
           {isLocked && (
-            <span className="text-[8px] text-static-green-bright animate-pulse-glow px-1.5 py-0.5 border border-static-green-bright/30">
+            <span className="text-hd-8 text-static-green-bright animate-pulse-glow px-1.5 py-0.5 border border-static-green-bright/30">
               LOCKED
             </span>
           )}
           {!isLocked && signalStrength > 0.1 && (
-            <span className="text-[8px] text-desert-amber/60 animate-pulse">
+            <span className="text-hd-8 text-desert-amber/60 animate-pulse">
               TUNING...
             </span>
           )}
         </div>
         {isLocked && currentStation ? (
           <div className="flex flex-col gap-0.5">
-            <div className="crt-text text-[11px] truncate leading-tight">
+            <div className="crt-text text-hd-11 truncate leading-tight">
               {currentStation.episode.title || currentStation.episode.fileName}
             </div>
             {currentStation.episode.guestName && (
-              <div className="crt-text text-[9px] opacity-70 truncate">
+              <div className="crt-text text-hd-9 opacity-70 truncate">
                 {currentStation.episode.guestName}
               </div>
             )}
-            <div className="text-[8px] text-bevel-dark/70 mt-0.5">
+            <div className="text-hd-8 text-bevel-dark/70 mt-0.5">
               {dateStr}
               {sameDateCount > 1 && (
                 <span className="ml-2 text-desert-amber/60">
@@ -194,7 +194,7 @@ export function FrequencyDisplay({
             </div>
             {currentStation.episode.showType &&
               currentStation.episode.showType !== "unknown" && (
-                <div className="text-[7px] mt-0.5">
+                <div className="text-hd-7 mt-0.5">
                   <span
                     className={
                       currentStation.showType === "coast"
@@ -215,8 +215,8 @@ export function FrequencyDisplay({
           </div>
         ) : (
           <div className="flex flex-col gap-1">
-            <div className="crt-text text-[9px] opacity-50">SEARCHING...</div>
-            <div className="text-[8px] text-bevel-dark/50">{dateStr}</div>
+            <div className="crt-text text-hd-9 opacity-50">SEARCHING...</div>
+            <div className="text-hd-8 text-bevel-dark/50">{dateStr}</div>
           </div>
         )}
       </div>

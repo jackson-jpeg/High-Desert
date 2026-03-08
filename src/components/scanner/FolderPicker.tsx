@@ -64,7 +64,7 @@ export function FolderPicker({
   return (
     <Window title="Select Folder" variant="dark">
       <div className="p-4 flex flex-col gap-4">
-        <div className="text-[11px] text-desktop-gray">
+        <div className="text-hd-11 text-desktop-gray">
           Choose a folder containing Art Bell radio archives (MP3, WMA, WAV,
           FLAC, OGG, M4A, AAC).
         </div>
@@ -83,10 +83,10 @@ export function FolderPicker({
             disabled && "opacity-50 pointer-events-none",
           )}
         >
-          <div className="text-[24px] text-bevel-dark">
+          <div className="text-hd-24 text-bevel-dark">
             {disabled ? "\u23F3" : dragOver ? "+" : "\u{1F4C1}"}
           </div>
-          <div className="text-[11px] text-bevel-dark text-center">
+          <div className="text-hd-11 text-bevel-dark text-center">
             {disabled ? (
               "Scanning in progress..."
             ) : (
@@ -116,7 +116,7 @@ export function FolderPicker({
         />
 
         {!supportsNativePicker && (
-          <div className="text-[10px] text-bevel-dark">
+          <div className="text-hd-10 text-bevel-dark">
             Your browser uses the legacy file picker. For best results, use
             Chrome or Edge.
           </div>

@@ -38,6 +38,25 @@
   --font-w95: "W95FA", "MS Sans Serif", "Microsoft Sans Serif", Arial, sans-serif;
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  --font-size-hd-7:  var(--hd-text-7);
+  --font-size-hd-8:  var(--hd-text-8);
+  --font-size-hd-9:  var(--hd-text-9);
+  --font-size-hd-10: var(--hd-text-10);
+  --font-size-hd-11: var(--hd-text-11);
+  --font-size-hd-12: var(--hd-text-12);
+  --font-size-hd-13: var(--hd-text-13);
+  --font-size-hd-14: var(--hd-text-14);
+  --font-size-hd-15: var(--hd-text-15);
+  --font-size-hd-16: var(--hd-text-16);
+  --font-size-hd-17: var(--hd-text-17);
+  --font-size-hd-18: var(--hd-text-18);
+  --font-size-hd-20: var(--hd-text-20);
+  --font-size-hd-24: var(--hd-text-24);
+  --font-size-hd-28: var(--hd-text-28);
+  --font-size-hd-32: var(--hd-text-32);
+  --font-size-hd-36: var(--hd-text-36);
+  --font-size-hd-48: var(--hd-text-48);
 }
 
 /* ============================================
@@ -49,6 +68,27 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
+
+  /* Text scale system — multiplier applied to all text sizes */
+  --hd-text-scale: 1;
+  --hd-text-7:  calc(7px  * var(--hd-text-scale));
+  --hd-text-8:  calc(8px  * var(--hd-text-scale));
+  --hd-text-9:  calc(9px  * var(--hd-text-scale));
+  --hd-text-10: calc(10px * var(--hd-text-scale));
+  --hd-text-11: calc(11px * var(--hd-text-scale));
+  --hd-text-12: calc(12px * var(--hd-text-scale));
+  --hd-text-13: calc(13px * var(--hd-text-scale));
+  --hd-text-14: calc(14px * var(--hd-text-scale));
+  --hd-text-15: calc(15px * var(--hd-text-scale));
+  --hd-text-16: calc(16px * var(--hd-text-scale));
+  --hd-text-17: calc(17px * var(--hd-text-scale));
+  --hd-text-18: calc(18px * var(--hd-text-scale));
+  --hd-text-20: calc(20px * var(--hd-text-scale));
+  --hd-text-24: calc(24px * var(--hd-text-scale));
+  --hd-text-28: calc(28px * var(--hd-text-scale));
+  --hd-text-32: calc(32px * var(--hd-text-scale));
+  --hd-text-36: calc(36px * var(--hd-text-scale));
+  --hd-text-48: calc(48px * var(--hd-text-scale));
 }
 
 /* ============================================
@@ -68,7 +108,7 @@ html {
 
 body {
   font-family: var(--font-w95);
-  font-size: 14px;
+  font-size: var(--hd-text-14);
   background: #0A0E1A;
   color: #C0C0C0;
   min-height: 100vh;
@@ -81,7 +121,7 @@ body {
 
 @media (min-width: 768px) {
   body {
-    font-size: 13px; /* Desktop stays at 13px; mobile inherits 14px */
+    font-size: var(--hd-text-13); /* Desktop stays at 13px; mobile inherits 14px */
   }
 }
 

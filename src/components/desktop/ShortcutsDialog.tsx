@@ -65,7 +65,7 @@ export function ShortcutsDialog({ open, onClose, isAdmin }: ShortcutsDialogProps
                 key={section.title}
                 className="border border-bevel-dark/30 rounded-sm px-2.5 pb-2 pt-0"
               >
-                <legend className="text-[9px] text-desert-amber/70 px-1 uppercase tracking-wider">
+                <legend className="text-hd-9 text-desert-amber/70 px-1 uppercase tracking-wider">
                   {section.title}
                 </legend>
                 <div className="flex flex-col gap-0.5">
@@ -74,10 +74,10 @@ export function ShortcutsDialog({ open, onClose, isAdmin }: ShortcutsDialogProps
                       key={keys}
                       className="flex items-center justify-between gap-3 py-0.5"
                     >
-                      <span className="text-[10px] text-desktop-gray/80">
+                      <span className="text-hd-10 text-desktop-gray/80">
                         {action}
                       </span>
-                      <kbd className="text-[9px] text-desert-amber bg-raised-surface w98-raised-dark px-1.5 py-0.5 tabular-nums flex-shrink-0 leading-tight">
+                      <kbd className="text-hd-9 text-desert-amber bg-raised-surface w98-raised-dark px-1.5 py-0.5 tabular-nums flex-shrink-0 leading-tight">
                         {keys}
                       </kbd>
                     </div>

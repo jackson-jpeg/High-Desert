@@ -174,9 +174,9 @@ export function RadioDial({ episodes }: RadioDialProps) {
               jumpToYear(year);
             }}
             className={cn(
-              "md:text-[8px] md:px-1.5 md:py-0.5 md:min-h-0 text-desert-amber hover:text-desert-amber active:text-desert-amber cursor-pointer transition-colors-fast whitespace-nowrap flex-shrink-0",
+              "md:text-hd-8 md:px-1.5 md:py-0.5 md:min-h-0 text-desert-amber hover:text-desert-amber active:text-desert-amber cursor-pointer transition-colors-fast whitespace-nowrap flex-shrink-0",
               // Mobile: monospace abbreviated years
-              "text-[9px] px-[7px] py-2 min-h-[44px] font-mono tracking-wide",
+              "text-hd-9 px-[7px] py-2 min-h-[44px] font-mono tracking-wide",
               isCurrentYear && "font-bold md:font-normal",
             )}
             style={isMobile ? {
@@ -203,20 +203,20 @@ export function RadioDial({ episodes }: RadioDialProps) {
     if (isEmpty) {
       return (
         <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-4">
-          <div className="text-[14px] text-desert-amber/60 w98-font">No Stations Found</div>
-          <div className="text-[11px] text-bevel-dark max-w-[280px]">
+          <div className="text-hd-14 text-desert-amber/60 w98-font">No Stations Found</div>
+          <div className="text-hd-11 text-bevel-dark max-w-[280px]">
             The radio dial needs episodes to tune into. Import some from the archive or scan local files.
           </div>
           <div className="flex gap-2 mt-2">
             <button
               onClick={() => router.push("/search")}
-              className="w98-raised-dark bg-raised-surface text-desktop-gray px-3 py-1 text-[10px] cursor-pointer hover:text-desert-amber transition-colors-fast"
+              className="w98-raised-dark bg-raised-surface text-desktop-gray px-3 py-1 text-hd-10 cursor-pointer hover:text-desert-amber transition-colors-fast"
             >
               Search Archive
             </button>
             <button
               onClick={() => router.push("/scanner")}
-              className="w98-raised-dark bg-raised-surface text-desktop-gray px-3 py-1 text-[10px] cursor-pointer hover:text-desert-amber transition-colors-fast"
+              className="w98-raised-dark bg-raised-surface text-desktop-gray px-3 py-1 text-hd-10 cursor-pointer hover:text-desert-amber transition-colors-fast"
             >
               Scan Files
             </button>
@@ -228,8 +228,8 @@ export function RadioDial({ episodes }: RadioDialProps) {
     if (noValidDates) {
       return (
         <div className="flex flex-col items-center justify-center h-full gap-2 text-center px-4">
-          <div className="text-[14px] text-desert-amber/60 w98-font">No Dated Episodes</div>
-          <div className="text-[11px] text-bevel-dark max-w-[280px]">
+          <div className="text-hd-14 text-desert-amber/60 w98-font">No Dated Episodes</div>
+          <div className="text-hd-11 text-bevel-dark max-w-[280px]">
             The radio dial maps episodes by air date. Try running AI categorization to detect original broadcast dates.
           </div>
         </div>
@@ -237,7 +237,7 @@ export function RadioDial({ episodes }: RadioDialProps) {
     }
 
     return (
-      <div className="flex items-center justify-center h-full text-bevel-dark text-[11px]">
+      <div className="flex items-center justify-center h-full text-bevel-dark text-hd-11">
         Loading station index...
       </div>
     );
@@ -323,13 +323,13 @@ export function RadioDial({ episodes }: RadioDialProps) {
           <div className="flex flex-col items-center justify-center gap-1 w-[20px]">
             <button
               onClick={() => setZoom(zoom + 0.5)}
-              className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer w-full text-center"
+              className="text-hd-9 text-bevel-dark hover:text-desktop-gray cursor-pointer w-full text-center"
               title="Zoom in (Ctrl+Scroll)"
             >+</button>
-            <span className="text-[7px] text-bevel-dark/40 tabular-nums">{zoom.toFixed(1)}x</span>
+            <span className="text-hd-7 text-bevel-dark/40 tabular-nums">{zoom.toFixed(1)}x</span>
             <button
               onClick={() => setZoom(zoom - 0.5)}
-              className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer w-full text-center"
+              className="text-hd-9 text-bevel-dark hover:text-desktop-gray cursor-pointer w-full text-center"
               title="Zoom out (Ctrl+Scroll)"
             >-</button>
           </div>

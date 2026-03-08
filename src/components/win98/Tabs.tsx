@@ -26,7 +26,7 @@ export function Tabs({ tabs, defaultIndex = 0, className }: TabsProps) {
             key={tab.label}
             onClick={() => setActiveIndex(i)}
             className={cn(
-              "w98-font text-[11px] px-3 py-1 relative cursor-pointer select-none",
+              "w98-font text-hd-11 px-3 py-1 relative cursor-pointer select-none",
               "border-t-2 border-l-2 border-r-2",
               i === activeIndex
                 ? [

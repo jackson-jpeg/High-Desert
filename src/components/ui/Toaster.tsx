@@ -58,14 +58,14 @@ function ToastItem({ toast }: { toast: Toast }) {
         {/* Accent bar — survives glass border override */}
         <div className={cn("w-[2px] flex-shrink-0", accentColor)} />
         <div className="flex items-start gap-2 px-3 py-2 flex-1 min-w-0">
-          <span className="text-[10px] flex-shrink-0 mt-px" aria-hidden="true">
+          <span className="text-hd-10 flex-shrink-0 mt-px" aria-hidden="true">
             {toast.type === "success" && <span className="text-static-green">{"\u2713"}</span>}
             {toast.type === "error" && <span className="text-red-400">{"\u2716"}</span>}
             {toast.type === "info" && <span className="text-desert-amber">{"\u25CF"}</span>}
             {toast.type === "caller" && <span style={{ color: "#33FF33" }}>{"☎"}</span>}
           </span>
           <span
-            className="text-[12px] md:text-[10px] leading-relaxed"
+            className="text-hd-12 md:text-hd-10 leading-relaxed"
             style={toast.type === "caller" ? { color: "#33FF33", textShadow: "0 0 6px rgba(51,255,51,0.3)" } : undefined}
             role="status"
           >
@@ -73,7 +73,7 @@ function ToastItem({ toast }: { toast: Toast }) {
           </span>
           <button
             onClick={dismiss}
-            className="text-[12px] md:text-[9px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 ml-auto min-w-[32px] min-h-[32px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+            className="text-hd-12 md:text-hd-9 text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 ml-auto min-w-[32px] min-h-[32px] md:min-w-0 md:min-h-0 flex items-center justify-center"
           >
             {"\u2715"}
           </button>

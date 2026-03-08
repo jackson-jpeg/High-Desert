@@ -168,6 +168,12 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
+                // Text scale — sync read before first paint
+                var scale = localStorage.getItem('hd-text-scale');
+                if (scale) {
+                  document.documentElement.style.setProperty('--hd-text-scale', scale);
+                }
+
                 var isFirstVisit = !localStorage.getItem('hd-booted');
                 var bootContainer = document.getElementById('boot-container');
                 var quickSplash = document.getElementById('quick-splash');

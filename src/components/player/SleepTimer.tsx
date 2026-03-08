@@ -41,13 +41,13 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
         className={cn(
           "flex items-center gap-1 cursor-pointer transition-colors-fast",
           isMobile
-            ? "min-w-[44px] min-h-[44px] justify-center text-[13px] text-desert-amber"
-            : "text-[9px] text-desert-amber hover:text-desert-amber/70 px-1.5 py-0.5 tabular-nums",
+            ? "min-w-[44px] min-h-[44px] justify-center text-hd-13 text-desert-amber"
+            : "text-hd-9 text-desert-amber hover:text-desert-amber/70 px-1.5 py-0.5 tabular-nums",
         )}
         title="Cancel sleep timer"
         aria-label={`Sleep timer: ${formatRemaining(remaining)} remaining. Click to cancel.`}
       >
-        <span className={isMobile ? "text-[10px]" : "text-[8px]"}>
+        <span className={isMobile ? "text-hd-10" : "text-hd-8"}>
           {"\u{1F319}"}
         </span>
         {formatRemaining(remaining)}
@@ -63,8 +63,8 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
         className={cn(
           "cursor-pointer transition-colors-fast",
           isMobile
-            ? "min-w-[44px] min-h-[44px] flex items-center justify-center text-[16px] text-bevel-dark active:text-desktop-gray"
-            : "text-[10px] text-bevel-dark hover:text-desktop-gray px-1",
+            ? "min-w-[44px] min-h-[44px] flex items-center justify-center text-hd-16 text-bevel-dark active:text-desktop-gray"
+            : "text-hd-10 text-bevel-dark hover:text-desktop-gray px-1",
         )}
         title="Sleep timer"
         aria-label="Set sleep timer"
@@ -91,8 +91,8 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
           className={cn(
             "cursor-pointer transition-colors-fast",
             isMobile
-              ? "min-w-[44px] min-h-[44px] flex items-center justify-center text-[13px] text-desktop-gray active:text-desert-amber"
-              : "text-[9px] text-bevel-dark hover:text-desktop-gray px-1 py-0.5",
+              ? "min-w-[44px] min-h-[44px] flex items-center justify-center text-hd-13 text-desktop-gray active:text-desert-amber"
+              : "text-hd-9 text-bevel-dark hover:text-desktop-gray px-1 py-0.5",
           )}
         >
           {label}
@@ -120,8 +120,8 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
         className={cn(
           "bg-inset-well w98-inset-dark text-desktop-gray text-center outline-none tabular-nums",
           isMobile
-            ? "w-[52px] h-[44px] text-[16px] px-1"
-            : "w-[36px] h-[18px] text-[9px] px-0.5",
+            ? "w-[52px] h-[44px] text-hd-16 px-1"
+            : "w-[36px] h-[18px] text-hd-9 px-0.5",
         )}
         aria-label="Custom sleep timer minutes"
       />
@@ -130,8 +130,8 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
         className={cn(
           "cursor-pointer transition-colors-fast",
           isMobile
-            ? "min-w-[44px] min-h-[44px] flex items-center justify-center text-[13px] text-bevel-dark/50"
-            : "text-[9px] text-bevel-dark/50 hover:text-desktop-gray px-1",
+            ? "min-w-[44px] min-h-[44px] flex items-center justify-center text-hd-13 text-bevel-dark/50"
+            : "text-hd-9 text-bevel-dark/50 hover:text-desktop-gray px-1",
         )}
       >
         {"\u2715"}

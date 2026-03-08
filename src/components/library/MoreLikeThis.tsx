@@ -91,7 +91,7 @@ export function MoreLikeThis({ episode, onPlay, className }: MoreLikeThisProps) 
 
   return (
     <div className={cn("flex flex-col gap-1", className)}>
-      <div className="text-[11px] md:text-[8px] text-desert-amber uppercase tracking-wider font-bold">
+      <div className="text-hd-11 md:text-hd-8 text-desert-amber uppercase tracking-wider font-bold">
         More Like This
       </div>
       {recommendations.map((ep) => (
@@ -101,17 +101,17 @@ export function MoreLikeThis({ episode, onPlay, className }: MoreLikeThisProps) 
           className="flex items-center gap-2 text-left px-2 py-2.5 md:px-1.5 md:py-1 min-h-[44px] md:min-h-0 cursor-pointer hover:bg-title-bar-blue/10 active:bg-title-bar-blue/15 transition-colors-fast"
         >
           <div className="flex-1 min-w-0">
-            <div className="text-[13px] md:text-[9px] text-desktop-gray/80 truncate">
+            <div className="text-hd-13 md:text-hd-9 text-desktop-gray/80 truncate">
               {ep.title || ep.fileName}
             </div>
             {ep.guestName && (
-              <div className="text-[11px] md:text-[7px] text-static-green/50 truncate">
+              <div className="text-hd-11 md:text-hd-7 text-static-green/50 truncate">
                 {ep.guestName}
               </div>
             )}
           </div>
           {ep.airDate && (
-            <span className="text-[11px] md:text-[7px] text-bevel-dark/40 tabular-nums flex-shrink-0">
+            <span className="text-hd-11 md:text-hd-7 text-bevel-dark/40 tabular-nums flex-shrink-0">
               {ep.airDate}
             </span>
           )}

@@ -73,7 +73,7 @@ function MobileActionSheet({
                 disabled={item.disabled}
                 role="menuitem"
                 className={cn(
-                  "w-full text-left px-4 py-3 text-[14px] min-h-[48px] cursor-pointer",
+                  "w-full text-left px-4 py-3 text-hd-14 min-h-[48px] cursor-pointer",
                   "active:bg-white/[0.06] transition-colors-fast",
                   item.disabled && "opacity-40 cursor-default",
                   item.danger ? "text-red-400" : "text-desktop-gray",
@@ -87,7 +87,7 @@ function MobileActionSheet({
           <div className="border-t glass-divider">
             <button
               onClick={hide}
-              className="w-full text-center px-4 py-3 text-[14px] min-h-[48px] text-bevel-dark cursor-pointer active:bg-white/[0.04]"
+              className="w-full text-center px-4 py-3 text-hd-14 min-h-[48px] text-bevel-dark cursor-pointer active:bg-white/[0.04]"
             >
               Cancel
             </button>
@@ -235,7 +235,7 @@ function ContextMenuInner({
             role="menuitem"
             tabIndex={isFocused ? 0 : -1}
             className={cn(
-              "w-full text-left px-3 py-1 text-[10px] cursor-pointer outline-none",
+              "w-full text-left px-3 py-1 text-hd-10 cursor-pointer outline-none",
               "transition-colors-fast",
               isFocused && !item.disabled && "bg-title-bar-blue/20",
               !isFocused && "hover:bg-title-bar-blue/10",

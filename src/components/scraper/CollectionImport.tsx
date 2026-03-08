@@ -69,17 +69,17 @@ export function CollectionImport() {
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[11px] text-desktop-gray font-bold">
+                  <span className="text-hd-11 text-desktop-gray font-bold">
                     {FEATURED_COLLECTION.title}
                   </span>
-                  <span className="text-[8px] text-static-green/70 bg-static-green/10 px-1.5 py-px uppercase tracking-wider">
+                  <span className="text-hd-8 text-static-green/70 bg-static-green/10 px-1.5 py-px uppercase tracking-wider">
                     Featured
                   </span>
                 </div>
-                <div className="text-[11px] md:text-[9px] text-bevel-dark leading-relaxed mb-2">
+                <div className="text-hd-11 md:text-hd-9 text-bevel-dark leading-relaxed mb-2">
                   {FEATURED_COLLECTION.description}
                 </div>
-                <div className="flex items-center gap-3 text-[11px] md:text-[9px]">
+                <div className="flex items-center gap-3 text-hd-11 md:text-hd-9">
                   <span className="text-desert-amber tabular-nums">{FEATURED_COLLECTION.episodeCount} episodes</span>
                   <span className="text-bevel-dark/60">{FEATURED_COLLECTION.dateRange}</span>
                 </div>
@@ -102,15 +102,15 @@ export function CollectionImport() {
             {/* Phase label */}
             <div className="flex items-center gap-2">
               {progress.phase === "loading" && (
-                <span className="text-[10px] text-desktop-gray">Loading collection metadata...</span>
+                <span className="text-hd-10 text-desktop-gray">Loading collection metadata...</span>
               )}
               {progress.phase === "importing" && (
-                <span className="text-[10px] text-desktop-gray">
+                <span className="text-hd-10 text-desktop-gray">
                   Importing episodes — {progress.imported + progress.duplicates} / {progress.total}
                 </span>
               )}
               {progress.phase === "categorizing" && (
-                <span className="text-[10px] text-desktop-gray">
+                <span className="text-hd-10 text-desktop-gray">
                   AI categorization — {progress.categorized} / {progress.imported}
                 </span>
               )}
@@ -128,7 +128,7 @@ export function CollectionImport() {
 
             {/* Current file */}
             <div className="w98-inset-dark bg-inset-well px-2 py-1 min-h-[20px]">
-              <div className="text-[11px] md:text-[9px] text-desktop-gray truncate">
+              <div className="text-hd-11 md:text-hd-9 text-desktop-gray truncate">
                 {progress.currentFile || "\u00A0"}
               </div>
             </div>
@@ -151,24 +151,24 @@ export function CollectionImport() {
         {isDone && (
           <>
             {progress.phase === "done" && progress.imported > 0 && (
-              <div className="w98-inset-dark bg-inset-well p-2 text-[10px] text-static-green/90 leading-relaxed">
+              <div className="w98-inset-dark bg-inset-well p-2 text-hd-10 text-static-green/90 leading-relaxed">
                 Imported {progress.imported.toLocaleString()} episode{progress.imported !== 1 ? "s" : ""}
                 {progress.categorized > 0 && ` and categorized ${progress.categorized.toLocaleString()}`}.
                 {progress.duplicates > 0 && ` ${progress.duplicates.toLocaleString()} duplicate${progress.duplicates !== 1 ? "s" : ""} skipped.`}
               </div>
             )}
             {progress.phase === "done" && progress.imported === 0 && progress.duplicates > 0 && (
-              <div className="w98-inset-dark bg-inset-well p-2 text-[10px] text-desert-amber/90 leading-relaxed">
+              <div className="w98-inset-dark bg-inset-well p-2 text-hd-10 text-desert-amber/90 leading-relaxed">
                 All {progress.duplicates.toLocaleString()} episodes already in your library.
               </div>
             )}
             {progress.phase === "cancelled" && (
-              <div className="w98-inset-dark bg-inset-well p-2 text-[10px] text-desert-amber/90 leading-relaxed">
+              <div className="w98-inset-dark bg-inset-well p-2 text-hd-10 text-desert-amber/90 leading-relaxed">
                 Import cancelled. {progress.imported > 0 ? `${progress.imported.toLocaleString()} episodes were imported.` : "No episodes imported."}
               </div>
             )}
             {progress.phase === "error" && (
-              <div className="w98-inset-dark bg-inset-well p-2 text-[10px] text-red-400/90 leading-relaxed">
+              <div className="w98-inset-dark bg-inset-well p-2 text-hd-10 text-red-400/90 leading-relaxed">
                 Import encountered an error.
                 {progress.imported > 0 && ` ${progress.imported.toLocaleString()} episodes were imported before the error.`}
               </div>
@@ -197,15 +197,15 @@ export function CollectionImport() {
           <div>
             <button
               onClick={() => setShowErrors(!showErrors)}
-              className="text-[11px] md:text-[9px] text-red-400/70 hover:text-red-400 cursor-pointer flex items-center gap-1 min-h-[44px] md:min-h-0"
+              className="text-hd-11 md:text-hd-9 text-red-400/70 hover:text-red-400 cursor-pointer flex items-center gap-1 min-h-[44px] md:min-h-0"
             >
-              <span className="text-[10px] md:text-[8px]">{showErrors ? "\u25BC" : "\u25B6"}</span>
+              <span className="text-hd-10 md:text-hd-8">{showErrors ? "\u25BC" : "\u25B6"}</span>
               {progress.errorMessages.length} error{progress.errorMessages.length !== 1 ? "s" : ""}
             </button>
             {showErrors && (
               <div className="w98-inset-dark bg-inset-well p-2 mt-1 max-h-[120px] overflow-auto">
                 {progress.errorMessages.map((msg, i) => (
-                  <div key={i} className="text-[8px] text-red-400/70 leading-relaxed font-mono">
+                  <div key={i} className="text-hd-8 text-red-400/70 leading-relaxed font-mono">
                     {msg}
                   </div>
                 ))}
@@ -219,7 +219,7 @@ export function CollectionImport() {
           <div className="border-t border-bevel-dark/20 pt-2">
             <button
               onClick={() => setShowCustom(!showCustom)}
-              className="text-[11px] md:text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer min-h-[44px] md:min-h-0"
+              className="text-hd-11 md:text-hd-9 text-bevel-dark hover:text-desktop-gray cursor-pointer min-h-[44px] md:min-h-0"
             >
               {showCustom ? "Hide custom import" : "Import from other collection..."}
             </button>
@@ -230,7 +230,7 @@ export function CollectionImport() {
                   onChange={(e) => setCustomId(e.target.value)}
                   placeholder="archive.org identifier or URL"
                   variant="dark"
-                  className="flex-1 text-[10px]"
+                  className="flex-1 text-hd-10"
                 />
                 <Button
                   variant="dark"
@@ -253,10 +253,10 @@ export function CollectionImport() {
 function MiniStat({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <div className={cn("flex flex-col items-center p-2 md:p-1.5 w98-inset-dark bg-inset-well")}>
-      <div className={cn("text-[14px] md:text-[12px] font-bold tabular-nums", color)}>
+      <div className={cn("text-hd-14 md:text-hd-12 font-bold tabular-nums", color)}>
         {value.toLocaleString()}
       </div>
-      <div className="text-[10px] md:text-[8px] text-bevel-dark uppercase tracking-wider">
+      <div className="text-hd-10 md:text-hd-8 text-bevel-dark uppercase tracking-wider">
         {label}
       </div>
     </div>

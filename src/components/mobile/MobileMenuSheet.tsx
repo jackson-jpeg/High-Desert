@@ -12,9 +12,13 @@ interface MobileMenuSheetProps {
   onAbout: () => void;
   startupSoundOn?: boolean;
   onToggleStartupSound?: () => void;
+  textScale?: "1" | "1.15" | "1.3";
+  onCycleTextScale?: () => void;
 }
 
-export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundOn, onToggleStartupSound }: MobileMenuSheetProps) {
+const TEXT_SCALE_LABELS: Record<string, string> = { "1": "Normal", "1.15": "Large", "1.3": "Extra Large" };
+
+export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundOn, onToggleStartupSound, textScale, onCycleTextScale }: MobileMenuSheetProps) {
   const router = useRouter();
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
@@ -83,32 +87,32 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
         <div className="flex flex-col max-h-[60dvh] overflow-y-auto overscroll-contain px-1">
           {/* Quick actions group */}
           <div className="px-3 pb-1">
-            <span className="text-[11px] text-bevel-dark/40 uppercase tracking-wider font-sans">Quick Actions</span>
+            <span className="text-hd-11 text-bevel-dark/40 uppercase tracking-wider font-sans">Quick Actions</span>
           </div>
           <button
             onClick={() => {
               window.dispatchEvent(new CustomEvent("hd:shuffle", { detail: "all" }));
               hide();
             }}
-            className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desert-amber cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
+            className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desert-amber cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
           >
-            <span className="w-[24px] text-center text-[16px]">{"\u21C6"}</span>
+            <span className="w-[24px] text-center text-hd-16">{"\u21C6"}</span>
             <span>Surprise Me — Shuffle All</span>
           </button>
 
           {/* Navigation group */}
           <div className="h-[1px] bg-white/[0.06] mx-3 my-2" />
           <div className="px-3 pb-1">
-            <span className="text-[11px] text-bevel-dark/40 uppercase tracking-wider font-sans">Navigate</span>
+            <span className="text-hd-11 text-bevel-dark/40 uppercase tracking-wider font-sans">Navigate</span>
           </div>
           <button
             onClick={() => {
               router.push("/radio");
               hide();
             }}
-            className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
+            className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
           >
-            <span className="w-[24px] text-center text-[14px] text-bevel-dark/60">{"\u{1F4FB}"}</span>
+            <span className="w-[24px] text-center text-hd-14 text-bevel-dark/60">{"\u{1F4FB}"}</span>
             <span>Radio Dial</span>
           </button>
           <button
@@ -116,9 +120,9 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
               router.push("/stats");
               hide();
             }}
-            className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
+            className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
           >
-            <span className="w-[24px] text-center text-[14px] text-bevel-dark/60">{"\u{1F4CA}"}</span>
+            <span className="w-[24px] text-center text-hd-14 text-bevel-dark/60">{"\u{1F4CA}"}</span>
             <span>Statistics</span>
           </button>
 
@@ -130,9 +134,9 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
                   router.push("/scanner");
                   hide();
                 }}
-                className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
+                className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
               >
-                <span className="w-[24px] text-center text-[14px] text-desert-amber/50">{"\u2699"}</span>
+                <span className="w-[24px] text-center text-hd-14 text-desert-amber/50">{"\u2699"}</span>
                 <span>Scanner</span>
               </button>
               <button
@@ -140,9 +144,9 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
                   router.push("/search");
                   hide();
                 }}
-                className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
+                className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
               >
-                <span className="w-[24px] text-center text-[14px] text-desert-amber/50">{"\u{1F50D}"}</span>
+                <span className="w-[24px] text-center text-hd-14 text-desert-amber/50">{"\u{1F50D}"}</span>
                 <span>Archive Search</span>
               </button>
             </>
@@ -151,7 +155,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
           {/* Settings group */}
           <div className="h-[1px] bg-white/[0.06] mx-3 my-2" />
           <div className="px-3 pb-1">
-            <span className="text-[11px] text-bevel-dark/40 uppercase tracking-wider font-sans">Settings</span>
+            <span className="text-hd-11 text-bevel-dark/40 uppercase tracking-wider font-sans">Settings</span>
           </div>
           {onToggleStartupSound && (
             <button
@@ -160,17 +164,35 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
                 hide();
               }}
               aria-pressed={startupSoundOn ?? false}
-              className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center justify-between rounded-lg"
+              className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center justify-between rounded-lg"
             >
               <div className="flex items-center gap-3">
-                <span className="w-[24px] text-center text-[14px] text-bevel-dark/60">{"\u{1F50A}"}</span>
+                <span className="w-[24px] text-center text-hd-14 text-bevel-dark/60">{"\u{1F50A}"}</span>
                 <span>Startup Sound</span>
               </div>
               <span className={cn(
-                "text-[13px]",
+                "text-hd-13",
                 startupSoundOn ? "text-desert-amber" : "text-bevel-dark/50",
               )}>
                 {startupSoundOn ? "On" : "Off"}
+              </span>
+            </button>
+          )}
+
+          {onCycleTextScale && (
+            <button
+              onClick={() => {
+                onCycleTextScale();
+                // Don't hide — let user see the change immediately
+              }}
+              className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center justify-between rounded-lg"
+            >
+              <div className="flex items-center gap-3">
+                <span className="w-[24px] text-center text-hd-14 text-bevel-dark/60">Aa</span>
+                <span>Text Size</span>
+              </div>
+              <span className="text-hd-13 text-desert-amber">
+                {TEXT_SCALE_LABELS[textScale ?? "1"]}
               </span>
             </button>
           )}
@@ -180,9 +202,9 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
               onAbout();
               hide();
             }}
-            className="w-full text-left px-4 py-3 text-[14px] min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
+            className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
           >
-            <span className="w-[24px] text-center text-[14px] text-bevel-dark/60">{"\u2139"}</span>
+            <span className="w-[24px] text-center text-hd-14 text-bevel-dark/60">{"\u2139"}</span>
             <span>About High Desert</span>
           </button>
 
@@ -190,7 +212,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
           <div className="h-[1px] bg-white/[0.06] mx-3 my-2" />
           <button
             onClick={hide}
-            className="w-full text-center px-4 py-3 text-[14px] min-h-[48px] text-bevel-dark/70 cursor-pointer active:bg-white/[0.04] rounded-lg mb-1"
+            className="w-full text-center px-4 py-3 text-hd-14 min-h-[48px] text-bevel-dark/70 cursor-pointer active:bg-white/[0.04] rounded-lg mb-1"
           >
             Cancel
           </button>

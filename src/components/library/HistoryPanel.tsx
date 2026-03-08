@@ -55,7 +55,7 @@ export function HistoryPanel({ onPlayEpisode, className }: HistoryPanelProps) {
       <div className="p-3 flex flex-col gap-3 max-h-[400px] overflow-auto overscroll-contain">
         {Array.from(groups.entries()).map(([day, dayEntries]) => (
           <div key={day}>
-            <div className="text-[10px] md:text-[8px] text-desert-amber/60 uppercase tracking-wider mb-1.5 font-bold">
+            <div className="text-hd-10 md:text-hd-8 text-desert-amber/60 uppercase tracking-wider mb-1.5 font-bold">
               {day === new Date().toLocaleDateString() ? "Today" : day}
             </div>
             <div className="flex flex-col gap-1">
@@ -69,16 +69,16 @@ export function HistoryPanel({ onPlayEpisode, className }: HistoryPanelProps) {
                   )}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="text-[12px] md:text-[10px] text-desktop-gray truncate">
+                    <div className="text-hd-12 md:text-hd-10 text-desktop-gray truncate">
                       {entry.episodeTitle}
                     </div>
                     {entry.guestName && (
-                      <div className="text-[10px] md:text-[8px] text-static-green/60 truncate">
+                      <div className="text-hd-10 md:text-hd-8 text-static-green/60 truncate">
                         {entry.guestName}
                       </div>
                     )}
                   </div>
-                  <span className="text-[9px] md:text-[8px] text-bevel-dark/50 tabular-nums flex-shrink-0">
+                  <span className="text-hd-9 md:text-hd-8 text-bevel-dark/50 tabular-nums flex-shrink-0">
                     {formatRelativeTime(entry.timestamp)}
                   </span>
                 </button>

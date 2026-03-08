@@ -28,21 +28,21 @@ export function RadioShortcuts({ className }: RadioShortcutsProps) {
     <div className={cn("relative", className)}>
       <button
         onClick={() => setOpen(!open)}
-        className="text-[9px] text-bevel-dark/60 hover:text-desert-amber/60 cursor-pointer transition-colors-fast px-1"
+        className="text-hd-9 text-bevel-dark/60 hover:text-desert-amber/60 cursor-pointer transition-colors-fast px-1"
         aria-label="Radio keyboard shortcuts"
       >
         ?
       </button>
       {open && (
         <div className="absolute bottom-full right-0 mb-1 w98-raised-dark bg-raised-surface p-3 z-50 w-[220px] shadow-lg">
-          <div className="text-[9px] text-desert-amber/70 font-bold mb-2 uppercase tracking-wider">
+          <div className="text-hd-9 text-desert-amber/70 font-bold mb-2 uppercase tracking-wider">
             Radio Shortcuts
           </div>
           <div className="flex flex-col gap-0.5">
             {RADIO_SHORTCUTS.map(({ keys, action }) => (
               <div key={keys} className="flex items-center justify-between gap-2">
-                <span className="text-[9px] text-desktop-gray/70">{action}</span>
-                <span className="text-[8px] text-desert-amber/50 tabular-nums flex-shrink-0">{keys}</span>
+                <span className="text-hd-9 text-desktop-gray/70">{action}</span>
+                <span className="text-hd-8 text-desert-amber/50 tabular-nums flex-shrink-0">{keys}</span>
               </div>
             ))}
           </div>

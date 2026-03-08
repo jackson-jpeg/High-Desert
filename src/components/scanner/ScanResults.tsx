@@ -23,7 +23,7 @@ export function ScanResults({ className }: ScanResultsProps) {
     <Window title={`Library (${episodes.length} episodes)`} variant="dark" className={className}>
       <div className="max-h-[60vh] md:max-h-[300px] overflow-auto overscroll-contain">
         {/* Desktop: table */}
-        <table className="w-full text-[11px] hidden md:table">
+        <table className="w-full text-hd-11 hidden md:table">
           <thead>
             <tr className="text-left text-bevel-dark border-b border-bevel-dark/30 sticky top-0 bg-raised-surface">
               <th className="px-2 py-1">Date</th>
@@ -67,21 +67,21 @@ export function ScanResults({ className }: ScanResultsProps) {
               className="p-3 min-h-[56px] border-b border-bevel-dark/10 active:bg-title-bar-blue/10"
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[12px] text-desert-amber tabular-nums">
+                <span className="text-hd-12 text-desert-amber tabular-nums">
                   {ep.airDate ?? "Unknown"}
                 </span>
-                <span className="text-[11px] text-bevel-dark capitalize">
+                <span className="text-hd-11 text-bevel-dark capitalize">
                   {ep.showType ?? "\u2014"}
                 </span>
               </div>
-              <div className="text-[13px] text-desktop-gray font-bold truncate mt-0.5">
+              <div className="text-hd-13 text-desktop-gray font-bold truncate mt-0.5">
                 {ep.title || ep.fileName}
               </div>
               <div className="flex items-center justify-between gap-2 mt-0.5">
-                <span className="text-[12px] text-static-green truncate">
+                <span className="text-hd-12 text-static-green truncate">
                   {ep.guestName ?? "\u2014"}
                 </span>
-                <span className="text-[11px] text-bevel-dark tabular-nums flex-shrink-0">
+                <span className="text-hd-11 text-bevel-dark tabular-nums flex-shrink-0">
                   {ep.duration ? formatTime(ep.duration) : "\u2014"}
                 </span>
               </div>

@@ -83,10 +83,10 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
 
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-bevel-dark/20 glass-divider">
-        <span className="text-[11px] md:text-[9px] text-bevel-dark/70">Guest Profile</span>
+        <span className="text-hd-11 md:text-hd-9 text-bevel-dark/70">Guest Profile</span>
         <button
           onClick={onClose}
-          className="text-[14px] md:text-[10px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+          className="text-hd-14 md:text-hd-10 text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
           aria-label="Close"
         >
           ✕
@@ -96,13 +96,13 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
       {/* Body */}
       <div className="p-3 pb-[calc(0.75rem+var(--safe-bottom))] md:pb-3 flex flex-col gap-3 max-h-[80vh] md:max-h-none overflow-auto overscroll-contain md:flex-1">
         {/* Name */}
-        <div className="text-[16px] md:text-[14px] text-static-green font-bold">
+        <div className="text-hd-16 md:text-hd-14 text-static-green font-bold">
           {guestName}
         </div>
 
         {/* Stats */}
         {stats && (
-          <div className="flex items-center gap-3 text-[10px] md:text-[9px]">
+          <div className="flex items-center gap-3 text-hd-10 md:text-hd-9">
             <span className="text-desktop-gray">{stats.count} episode{stats.count !== 1 ? "s" : ""}</span>
             <span className="text-desert-amber tabular-nums">{stats.yearRange}</span>
           </div>
@@ -114,7 +114,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
             {stats.categories.map(([cat, count]) => (
               <span
                 key={cat}
-                className="text-[11px] md:text-[8px] text-desert-amber/70 bg-desert-amber/8 px-2 py-1 md:px-1.5 md:py-px"
+                className="text-hd-11 md:text-hd-8 text-desert-amber/70 bg-desert-amber/8 px-2 py-1 md:px-1.5 md:py-px"
               >
                 {cat}
                 <span className="ml-0.5 opacity-50">{count}</span>
@@ -148,16 +148,16 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
                   className="text-left px-3 py-2.5 md:px-2 md:py-1.5 hover:bg-title-bar-blue/15 active:bg-title-bar-blue/15 cursor-pointer transition-colors-fast w98-raised-dark bg-card-surface"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[12px] md:text-[10px] text-desert-amber tabular-nums flex-shrink-0">
+                    <span className="text-hd-12 md:text-hd-10 text-desert-amber tabular-nums flex-shrink-0">
                       {ep.airDate ?? "Unknown"}
                     </span>
                     {ep.duration != null && (
-                      <span className="text-[11px] md:text-[9px] text-bevel-dark/70 tabular-nums flex-shrink-0">
+                      <span className="text-hd-11 md:text-hd-9 text-bevel-dark/70 tabular-nums flex-shrink-0">
                         {formatDuration(ep.duration)}
                       </span>
                     )}
                   </div>
-                  <div className="text-[13px] md:text-[10px] text-desktop-gray truncate mt-0.5">
+                  <div className="text-hd-13 md:text-hd-10 text-desktop-gray truncate mt-0.5">
                     {ep.title || ep.fileName}
                   </div>
                   {hasProgress && (

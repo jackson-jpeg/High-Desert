@@ -24,7 +24,7 @@ export function YearNavigator({ years, currentYear, onYearClick, className }: Ye
           key={year}
           onClick={() => onYearClick(year)}
           className={cn(
-            "text-[9px] tabular-nums leading-tight px-1 py-[1px] cursor-pointer transition-colors-fast w-full text-center",
+            "text-hd-9 tabular-nums leading-tight px-1 py-[1px] cursor-pointer transition-colors-fast w-full text-center",
             year === currentYear
               ? "text-desert-amber bg-desert-amber/10 font-bold"
               : "text-bevel-dark/50 hover:text-desktop-gray hover:bg-title-bar-blue/10",
@@ -32,7 +32,7 @@ export function YearNavigator({ years, currentYear, onYearClick, className }: Ye
           title={`${year} (${count} episodes)`}
         >
           <div>{year.slice(2)}</div>
-          <div className="text-[8px] opacity-60">{count}</div>
+          <div className="text-hd-8 opacity-60">{count}</div>
         </button>
       ))}
     </div>

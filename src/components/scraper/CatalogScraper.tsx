@@ -112,7 +112,7 @@ export function CatalogScraper() {
 
         {/* Idle description */}
         {phase === "idle" && (
-          <div className="text-[12px] md:text-[10px] text-bevel-dark/70 leading-relaxed">
+          <div className="text-hd-12 md:text-hd-10 text-bevel-dark/70 leading-relaxed">
             Import the complete Art Bell archive from archive.org. Discovers episodes, imports metadata, and uses AI to categorize.
           </div>
         )}
@@ -131,7 +131,7 @@ export function CatalogScraper() {
                   )}
                   <div
                     className={`
-                      w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold
+                      w-4 h-4 rounded-full flex items-center justify-center text-hd-8 font-bold
                       ${isActive ? "bg-title-bar-blue text-white ring-1 ring-title-bar-blue/50" : ""}
                       ${isComplete && !isActive ? "bg-static-green/20 text-static-green" : ""}
                       ${!isActive && !isComplete ? "bg-inset-well text-bevel-dark" : ""}
@@ -142,7 +142,7 @@ export function CatalogScraper() {
                 </div>
               );
             })}
-            <div className="ml-2 text-[11px] md:text-[9px] text-desktop-gray flex-1 truncate">
+            <div className="ml-2 text-hd-11 md:text-hd-9 text-desktop-gray flex-1 truncate">
               {PHASE_LABELS[phase] ?? phase}
             </div>
           </div>
@@ -150,7 +150,7 @@ export function CatalogScraper() {
 
         {/* Phase description */}
         {isRunning && PHASE_DESCRIPTIONS[phase] && (
-          <div className="text-[11px] md:text-[9px] text-bevel-dark/50 leading-relaxed">
+          <div className="text-hd-11 md:text-hd-9 text-bevel-dark/50 leading-relaxed">
             {PHASE_DESCRIPTIONS[phase]}
           </div>
         )}
@@ -163,11 +163,11 @@ export function CatalogScraper() {
         {/* Current item + rate */}
         {isRunning && (
           <div className="w98-inset-dark bg-inset-well px-2 py-1 min-h-[20px] flex items-center justify-between">
-            <div className="text-[11px] md:text-[9px] text-desktop-gray truncate flex-1 mr-2">
+            <div className="text-hd-11 md:text-hd-9 text-desktop-gray truncate flex-1 mr-2">
               {currentItem || "\u00A0"}
             </div>
             {rateLabel && (
-              <div className="text-[11px] md:text-[9px] text-bevel-dark tabular-nums flex-shrink-0">
+              <div className="text-hd-11 md:text-hd-9 text-bevel-dark tabular-nums flex-shrink-0">
                 {rateLabel}
               </div>
             )}
@@ -190,7 +190,7 @@ export function CatalogScraper() {
 
         {/* Completion summary */}
         {phase === "done" && imported > 0 && (
-          <div className="w98-inset-dark bg-inset-well p-2 text-[10px] text-static-green/90 leading-relaxed">
+          <div className="w98-inset-dark bg-inset-well p-2 text-hd-10 text-static-green/90 leading-relaxed">
             Successfully imported {imported.toLocaleString()} new episode{imported !== 1 ? "s" : ""}
             {categorized > 0 && ` and categorized ${categorized.toLocaleString()}`}.
             {duplicates > 0 && ` ${duplicates.toLocaleString()} duplicate${duplicates !== 1 ? "s" : ""} skipped.`}
@@ -198,13 +198,13 @@ export function CatalogScraper() {
         )}
 
         {phase === "cancelled" && (
-          <div className="w98-inset-dark bg-inset-well p-2 text-[10px] text-desert-amber/90 leading-relaxed">
+          <div className="w98-inset-dark bg-inset-well p-2 text-hd-10 text-desert-amber/90 leading-relaxed">
             Import was cancelled. {imported > 0 ? `${imported.toLocaleString()} episodes were imported before cancellation.` : "No episodes were imported."} You can resume from where you left off.
           </div>
         )}
 
         {phase === "error" && (
-          <div className="w98-inset-dark bg-inset-well p-2 text-[10px] text-red-400/90 leading-relaxed">
+          <div className="w98-inset-dark bg-inset-well p-2 text-hd-10 text-red-400/90 leading-relaxed">
             Import encountered an error. {imported > 0 ? `${imported.toLocaleString()} episodes were imported before the error.` : "No episodes were imported."} You can retry or resume.
           </div>
         )}
@@ -215,15 +215,15 @@ export function CatalogScraper() {
             <button
               onClick={() => setShowErrors(!showErrors)}
               aria-expanded={showErrors}
-              className="text-[11px] md:text-[9px] text-red-400/70 hover:text-red-400 cursor-pointer flex items-center gap-1 min-h-[44px] md:min-h-0"
+              className="text-hd-11 md:text-hd-9 text-red-400/70 hover:text-red-400 cursor-pointer flex items-center gap-1 min-h-[44px] md:min-h-0"
             >
-              <span className="text-[10px] md:text-[8px]">{showErrors ? "\u25BC" : "\u25B6"}</span>
+              <span className="text-hd-10 md:text-hd-8">{showErrors ? "\u25BC" : "\u25B6"}</span>
               {errorMessages.length} error{errorMessages.length !== 1 ? "s" : ""}
             </button>
             {showErrors && (
               <div className="w98-inset-dark bg-inset-well p-2 mt-1 max-h-[120px] overflow-auto">
                 {errorMessages.map((msg, i) => (
-                  <div key={i} className="text-[8px] text-red-400/70 leading-relaxed font-mono">
+                  <div key={i} className="text-hd-8 text-red-400/70 leading-relaxed font-mono">
                     {msg}
                   </div>
                 ))}
@@ -257,7 +257,7 @@ export function CatalogScraper() {
               <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 aria-expanded={showAdvanced}
-                className="text-[11px] md:text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer ml-auto min-h-[44px] md:min-h-0"
+                className="text-hd-11 md:text-hd-9 text-bevel-dark hover:text-desktop-gray cursor-pointer ml-auto min-h-[44px] md:min-h-0"
               >
                 {showAdvanced ? "Less options" : "More options"}
               </button>
@@ -297,7 +297,7 @@ export function CatalogScraper() {
             >
               Re-categorize All Episodes
             </Button>
-            <div className="text-[9px] text-bevel-dark/60 leading-relaxed">
+            <div className="text-hd-9 text-bevel-dark/60 leading-relaxed">
               <strong>Import Only</strong> skips AI categorization (faster).
               <br />
               <strong>Categorize Uncategorized</strong> processes only pending/failed episodes.
@@ -314,10 +314,10 @@ export function CatalogScraper() {
 function StatCard({ label, value, color }: { label: string; value: number | string; color: string }) {
   return (
     <div className="flex flex-col items-center p-2 md:p-1.5 w98-inset-dark bg-inset-well rounded-sm">
-      <div className={`text-[14px] md:text-[12px] font-bold tabular-nums ${color}`}>
+      <div className={`text-hd-14 md:text-hd-12 font-bold tabular-nums ${color}`}>
         {typeof value === "number" ? value.toLocaleString() : value}
       </div>
-      <div className="text-[10px] md:text-[8px] text-bevel-dark uppercase tracking-wider">
+      <div className="text-hd-10 md:text-hd-8 text-bevel-dark uppercase tracking-wider">
         {label}
       </div>
     </div>

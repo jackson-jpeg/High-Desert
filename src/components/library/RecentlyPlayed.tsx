@@ -19,7 +19,7 @@ export function RecentlyPlayed({ episodes, onPlay, compact, className }: Recentl
     <div className={cn("flex flex-col gap-1", className)}>
       {!compact && (
         <div className="px-1">
-          <span className="text-[11px] md:text-[9px] text-bevel-dark/60 uppercase tracking-wider">
+          <span className="text-hd-11 md:text-hd-9 text-bevel-dark/60 uppercase tracking-wider">
             Recently Played
           </span>
         </div>
@@ -50,20 +50,20 @@ export function RecentlyPlayed({ episodes, onPlay, compact, className }: Recentl
             >
               <span className={cn(
                 "text-desert-amber/80 tabular-nums",
-                compact ? "text-[8px]" : "text-[11px] md:text-[9px]",
+                compact ? "text-hd-8" : "text-hd-11 md:text-hd-9",
               )}>
                 {ep.airDate ?? "Unknown"}
               </span>
               <span className={cn(
                 "text-desktop-gray font-bold truncate w-full text-left",
-                compact ? "text-[9px]" : "text-[12px] md:text-[10px]",
+                compact ? "text-hd-9" : "text-hd-12 md:text-hd-10",
               )}>
                 {ep.title || ep.fileName}
               </span>
               {ep.guestName && (
                 <span className={cn(
                   "text-static-green/50 truncate w-full text-left",
-                  compact ? "text-[8px]" : "text-[11px] md:text-[9px]",
+                  compact ? "text-hd-8" : "text-hd-11 md:text-hd-9",
                 )}>
                   {ep.guestName}
                 </span>

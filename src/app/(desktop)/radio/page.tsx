@@ -13,7 +13,7 @@ export default function RadioPage() {
   if (episodes === undefined) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="text-[11px] text-bevel-dark" style={{ fontFamily: "W95FA, monospace" }}>
+        <div className="text-hd-11 text-bevel-dark" style={{ fontFamily: "W95FA, monospace" }}>
           Tuning radio dial...
         </div>
       </div>

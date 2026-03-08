@@ -71,11 +71,11 @@ export function SignalMeter({ signalStrength, className }: SignalMeterProps) {
         aria-valuenow={pct}
       >
         <div className="flex items-center justify-between">
-          <span className="text-[8px] text-bevel-dark/40 uppercase tracking-[0.12em] font-mono">
+          <span className="text-hd-8 text-bevel-dark/40 uppercase tracking-[0.12em] font-mono">
             Signal Strength
           </span>
           <span
-            className="text-[10px] font-mono tabular-nums"
+            className="text-hd-10 font-mono tabular-nums"
             style={{
               color: `rgba(74,222,128,${0.4 + signalStrength * 0.5})`,
               textShadow: signalStrength > 0.5 ? `0 0 6px rgba(74,222,128,${signalStrength * 0.3})` : "none",
@@ -137,7 +137,7 @@ export function SignalMeter({ signalStrength, className }: SignalMeterProps) {
       aria-valuemax={10}
       aria-valuenow={filled}
     >
-      <div className="text-[7px] text-bevel-dark/60 uppercase tracking-wider">
+      <div className="text-hd-7 text-bevel-dark/60 uppercase tracking-wider">
         Signal
       </div>
       <div className="flex items-center gap-[2px]">

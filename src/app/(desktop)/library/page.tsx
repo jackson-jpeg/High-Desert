@@ -788,7 +788,7 @@ export default function LibraryPage() {
                     setSeriesFilter(null);
                   }}
                   className={cn(
-                    "px-3 py-1.5 text-[13px] md:px-2 md:py-0.5 md:text-[10px] cursor-pointer transition-colors-fast whitespace-nowrap flex-shrink-0",
+                    "px-3 py-1.5 text-hd-13 md:px-2 md:py-0.5 md:text-hd-10 cursor-pointer transition-colors-fast whitespace-nowrap flex-shrink-0",
                     isActive
                       ? "bg-title-bar-blue/20 text-desktop-gray w98-inset-dark"
                       : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/20",
@@ -806,7 +806,7 @@ export default function LibraryPage() {
       {(hasActiveFilters || selectedIds.size > 0) && (
         <div className="px-3 pb-1 flex-shrink-0 flex flex-col gap-1">
           {hasActiveFilters && (
-            <div className="flex items-center gap-2 text-[13px] md:text-[10px]">
+            <div className="flex items-center gap-2 text-hd-13 md:text-hd-10">
               {guestFilter && (
                 <span className="bg-static-green/15 text-static-green px-2 py-1 md:px-1.5 md:py-0.5 flex items-center gap-1">
                   Guest: {guestFilter}
@@ -834,7 +834,7 @@ export default function LibraryPage() {
             </div>
           )}
           {selectedIds.size > 0 && (
-            <div className="flex items-center gap-2 text-[13px] md:text-[10px] bg-title-bar-blue/10 px-2 py-2 md:py-1 w98-inset-dark">
+            <div className="flex items-center gap-2 text-hd-13 md:text-hd-10 bg-title-bar-blue/10 px-2 py-2 md:py-1 w98-inset-dark">
               <span className="text-desktop-gray font-bold">{selectedIds.size} selected</span>
               <button
                 onClick={() => {
@@ -887,7 +887,7 @@ export default function LibraryPage() {
                   }
                 }}
                 className={cn(
-                  "px-3 py-1.5 md:px-2 md:py-0.5 text-[12px] md:text-[10px] whitespace-nowrap flex-shrink-0 cursor-pointer transition-colors-fast",
+                  "px-3 py-1.5 md:px-2 md:py-0.5 text-hd-12 md:text-hd-10 whitespace-nowrap flex-shrink-0 cursor-pointer transition-colors-fast",
                   isActive
                     ? "bg-desert-amber/15 text-desert-amber w98-inset-dark"
                     : "text-bevel-dark/60 hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/15",
@@ -903,12 +903,12 @@ export default function LibraryPage() {
       {/* Swipe gesture tip — shown once on mobile */}
       {swipeTip && (
         <div className="mx-3 mb-1 px-3 py-2 bg-desert-amber/10 border border-desert-amber/20 rounded flex items-center justify-between gap-2 flex-shrink-0 md:hidden animate-fade-in">
-          <span className="text-[12px] text-desert-amber/80">
+          <span className="text-hd-12 text-desert-amber/80">
             Swipe cards: {"\u2190"} favorite {"\u00B7"} queue {"\u2192"}
           </span>
           <button
             onClick={() => { setSwipeTip(false); localStorage.setItem("hd-swipe-tip-seen", "1"); }}
-            className="text-[12px] text-bevel-dark/50 active:text-desktop-gray cursor-pointer min-w-[28px] min-h-[28px] flex items-center justify-center"
+            className="text-hd-12 text-bevel-dark/50 active:text-desktop-gray cursor-pointer min-w-[28px] min-h-[28px] flex items-center justify-center"
           >
             OK
           </button>
@@ -920,7 +920,7 @@ export default function LibraryPage() {
         <div className="px-3 flex-shrink-0">
           <button
             onClick={toggleDiscovery}
-            className="text-[13px] md:text-[10px] text-bevel-dark uppercase tracking-wider px-2 py-2 md:px-1 md:py-0.5 cursor-pointer hover:text-desktop-gray active:text-desktop-gray transition-colors-fast"
+            className="text-hd-13 md:text-hd-10 text-bevel-dark uppercase tracking-wider px-2 py-2 md:px-1 md:py-0.5 cursor-pointer hover:text-desktop-gray active:text-desktop-gray transition-colors-fast"
           >
             {discoveryOpen ? "▾" : "▸"} Explore
           </button>
@@ -947,7 +947,7 @@ export default function LibraryPage() {
             {/* Top Guests */}
             {topGuests.length > 0 && (
               <div>
-                <div className="text-[10px] text-desert-amber uppercase tracking-wider mb-1.5 font-bold">
+                <div className="text-hd-10 text-desert-amber uppercase tracking-wider mb-1.5 font-bold">
                   Guests
                 </div>
                 <div className="flex flex-col gap-0.5">
@@ -956,7 +956,7 @@ export default function LibraryPage() {
                       key={guest}
                       onClick={() => setGuestFilter(guestFilter === guest ? null : guest)}
                       className={`
-                        text-left px-1.5 py-0.5 text-[10px] cursor-pointer transition-colors-fast truncate
+                        text-left px-1.5 py-0.5 text-hd-10 cursor-pointer transition-colors-fast truncate
                         ${guestFilter === guest
                           ? "bg-title-bar-blue/20 text-desktop-gray"
                           : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10"
@@ -974,7 +974,7 @@ export default function LibraryPage() {
             {/* Categories */}
             {categoryCounts.size > 0 && (
               <div>
-                <div className="text-[10px] text-desert-amber uppercase tracking-wider mb-1.5 font-bold">
+                <div className="text-hd-10 text-desert-amber uppercase tracking-wider mb-1.5 font-bold">
                   Categories
                 </div>
                 <div className="flex flex-col gap-0.5">
@@ -988,7 +988,7 @@ export default function LibraryPage() {
                           setShowFacets(false);
                         }}
                         className={cn(
-                          "text-left px-1.5 py-0.5 text-[10px] cursor-pointer transition-colors-fast truncate",
+                          "text-left px-1.5 py-0.5 text-hd-10 cursor-pointer transition-colors-fast truncate",
                           categoryFilter === cat
                             ? "bg-desert-amber/15 text-desert-amber"
                             : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10",
@@ -1005,7 +1005,7 @@ export default function LibraryPage() {
             {/* Series */}
             {seriesCounts.size > 0 && (
               <div>
-                <div className="text-[10px] text-desert-amber uppercase tracking-wider mb-1.5 font-bold">
+                <div className="text-hd-10 text-desert-amber uppercase tracking-wider mb-1.5 font-bold">
                   Series
                 </div>
                 <div className="flex flex-col gap-0.5">
@@ -1021,7 +1021,7 @@ export default function LibraryPage() {
                           setShowFacets(false);
                         }}
                         className={cn(
-                          "text-left px-1.5 py-0.5 text-[10px] cursor-pointer transition-colors-fast truncate",
+                          "text-left px-1.5 py-0.5 text-hd-10 cursor-pointer transition-colors-fast truncate",
                           seriesFilter === series
                             ? "bg-title-bar-blue/20 text-title-bar-blue"
                             : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10",
@@ -1038,7 +1038,7 @@ export default function LibraryPage() {
             {/* Top Topics */}
             {topTopics.length > 0 && (
               <div>
-                <div className="text-[10px] text-desert-amber uppercase tracking-wider mb-1.5 font-bold">
+                <div className="text-hd-10 text-desert-amber uppercase tracking-wider mb-1.5 font-bold">
                   Topics
                 </div>
                 <div className="flex flex-col gap-0.5">
@@ -1049,7 +1049,7 @@ export default function LibraryPage() {
                         setSearch(topic);
                         setShowFacets(false);
                       }}
-                      className="text-left px-1.5 py-0.5 text-[10px] text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10 cursor-pointer transition-colors-fast truncate"
+                      className="text-left px-1.5 py-0.5 text-hd-10 text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10 cursor-pointer transition-colors-fast truncate"
                     >
                       {topic}
                       <span className="ml-1 tabular-nums opacity-50">{count}</span>
@@ -1086,24 +1086,24 @@ export default function LibraryPage() {
           {/* Empty library state */}
           {allEpisodes.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center px-8">
-              <div className="text-[24px] text-desert-amber/30 select-none mb-3">📡</div>
-              <div className="text-[13px] text-desktop-gray mb-2">No episodes in the library yet.</div>
-              <div className="text-[11px] text-bevel-dark/60 leading-relaxed max-w-[260px]">
+              <div className="text-hd-24 text-desert-amber/30 select-none mb-3">📡</div>
+              <div className="text-hd-13 text-desktop-gray mb-2">No episodes in the library yet.</div>
+              <div className="text-hd-11 text-bevel-dark/60 leading-relaxed max-w-[260px]">
                 The library seeds automatically on first visit. If this persists, try refreshing the page.
               </div>
             </div>
           ) : filtered.length === 0 && search.trim() ? (
             <div className="flex flex-col items-center justify-center py-16 text-center px-8">
-              <div className="text-[13px] text-desktop-gray mb-2">
+              <div className="text-hd-13 text-desktop-gray mb-2">
                 No episodes matching &ldquo;{search}&rdquo;
               </div>
-              <div className="text-[11px] text-bevel-dark mb-4">
+              <div className="text-hd-11 text-bevel-dark mb-4">
                 Try a different search term{isAdmin ? ", or search the archive" : ""}.
               </div>
               {isAdmin && (
                 <button
                   onClick={() => router.push(`/search`)}
-                  className="text-[11px] text-title-bar-blue hover:text-title-bar-blue/80 cursor-pointer transition-colors-fast px-3 py-1.5 w98-raised-dark bg-raised-surface"
+                  className="text-hd-11 text-title-bar-blue hover:text-title-bar-blue/80 cursor-pointer transition-colors-fast px-3 py-1.5 w98-raised-dark bg-raised-surface"
                 >
                   Search Archive.org for &ldquo;{search}&rdquo;
                 </button>
@@ -1212,7 +1212,7 @@ export default function LibraryPage() {
         width="320px"
       >
         <div className="p-4 flex flex-col gap-4">
-          <div className="text-[12px] text-desktop-gray">
+          <div className="text-hd-12 text-desktop-gray">
             Delete {selectedIds.size > 0 ? selectedIds.size : 1} episode{selectedIds.size !== 1 ? "s" : ""}? This cannot be undone.
           </div>
           <div className="flex justify-end gap-2">

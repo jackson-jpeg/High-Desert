@@ -111,20 +111,20 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
         <div className="flex items-center gap-2">
           <button
             onClick={() => { setSelectedPlaylist(null); setPlaylistEpisodes([]); }}
-            className="text-[10px] text-bevel-dark hover:text-desktop-gray cursor-pointer"
+            className="text-hd-10 text-bevel-dark hover:text-desktop-gray cursor-pointer"
           >
             {"\u2190"} Back
           </button>
-          <span className="text-[11px] text-desktop-gray font-bold truncate flex-1">
+          <span className="text-hd-11 text-desktop-gray font-bold truncate flex-1">
             {selectedPlaylist.name}
           </span>
-          <span className="text-[11px] md:text-[9px] text-bevel-dark tabular-nums">
+          <span className="text-hd-11 md:text-hd-9 text-bevel-dark tabular-nums">
             {playlistEpisodes.length} ep{playlistEpisodes.length !== 1 ? "s" : ""}
           </span>
         </div>
 
         {selectedPlaylist.description && (
-          <div className="text-[9px] text-bevel-dark/70">{selectedPlaylist.description}</div>
+          <div className="text-hd-9 text-bevel-dark/70">{selectedPlaylist.description}</div>
         )}
 
         {playlistEpisodes.length > 0 && (
@@ -145,7 +145,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
                   onClick={(e) => { e.stopPropagation(); handleMoveEpisode(selectedPlaylist.id!, i, i - 1); }}
                   disabled={i === 0}
                   className={cn(
-                    "text-[10px] md:text-[8px] cursor-pointer leading-none min-w-[24px] min-h-[24px] md:min-w-0 md:min-h-0 flex items-center justify-center",
+                    "text-hd-10 md:text-hd-8 cursor-pointer leading-none min-w-[24px] min-h-[24px] md:min-w-0 md:min-h-0 flex items-center justify-center",
                     "md:opacity-0 md:group-hover/ep:opacity-100 transition-opacity",
                     i === 0 ? "text-bevel-dark/10 cursor-default" : "text-bevel-dark/40 hover:text-desktop-gray",
                   )}
@@ -153,12 +153,12 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
                 >
                   {"\u25B2"}
                 </button>
-                <span className="text-[8px] text-bevel-dark/50 tabular-nums w-[14px] text-center">{i + 1}</span>
+                <span className="text-hd-8 text-bevel-dark/50 tabular-nums w-[14px] text-center">{i + 1}</span>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleMoveEpisode(selectedPlaylist.id!, i, i + 1); }}
                   disabled={i === playlistEpisodes.length - 1}
                   className={cn(
-                    "text-[10px] md:text-[8px] cursor-pointer leading-none min-w-[24px] min-h-[24px] md:min-w-0 md:min-h-0 flex items-center justify-center",
+                    "text-hd-10 md:text-hd-8 cursor-pointer leading-none min-w-[24px] min-h-[24px] md:min-w-0 md:min-h-0 flex items-center justify-center",
                     "md:opacity-0 md:group-hover/ep:opacity-100 transition-opacity",
                     i === playlistEpisodes.length - 1 ? "text-bevel-dark/10 cursor-default" : "text-bevel-dark/40 hover:text-desktop-gray",
                   )}
@@ -168,8 +168,8 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
                 </button>
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-[11px] md:text-[10px] text-desktop-gray truncate">{ep.title || ep.fileName}</div>
-                <div className="text-[10px] md:text-[8px] text-bevel-dark truncate">
+                <div className="text-hd-11 md:text-hd-10 text-desktop-gray truncate">{ep.title || ep.fileName}</div>
+                <div className="text-hd-10 md:text-hd-8 text-bevel-dark truncate">
                   {[ep.airDate, ep.guestName].filter(Boolean).join(" \u2014 ")}
                 </div>
               </div>
@@ -178,7 +178,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
                   e.stopPropagation();
                   handleRemoveFromPlaylist(selectedPlaylist.id!, ep.id!);
                 }}
-                className="text-[9px] text-bevel-dark/50 hover:text-red-400 cursor-pointer flex-shrink-0"
+                className="text-hd-9 text-bevel-dark/50 hover:text-red-400 cursor-pointer flex-shrink-0"
                 title="Remove from playlist"
                 aria-label="Remove from playlist"
               >
@@ -189,7 +189,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
         </div>
 
         {playlistEpisodes.length === 0 && (
-          <div className="text-[11px] md:text-[9px] text-bevel-dark/50 text-center py-4">
+          <div className="text-hd-11 md:text-hd-9 text-bevel-dark/50 text-center py-4">
             {"Right-click episodes to add them to this playlist."}
           </div>
         )}
@@ -201,17 +201,17 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       <div className="flex items-center justify-between">
-        <span className="text-[11px] md:text-[9px] text-desert-amber uppercase tracking-wider font-bold">Playlists</span>
+        <span className="text-hd-11 md:text-hd-9 text-desert-amber uppercase tracking-wider font-bold">Playlists</span>
         <button
           onClick={() => setCreateOpen(true)}
-          className="text-[9px] text-bevel-dark hover:text-desktop-gray cursor-pointer"
+          className="text-hd-9 text-bevel-dark hover:text-desktop-gray cursor-pointer"
         >
           + New
         </button>
       </div>
 
       {(!playlists || playlists.length === 0) && (
-        <div className="text-[11px] md:text-[9px] text-bevel-dark/50 text-center py-3">
+        <div className="text-hd-11 md:text-hd-9 text-bevel-dark/50 text-center py-3">
           Create your first playlist.
         </div>
       )}
@@ -228,25 +228,25 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 aria-label="Playlist name"
-                className="flex-1 bg-inset-well w98-inset-dark px-1 py-0.5 text-[10px] text-desktop-gray outline-none"
+                className="flex-1 bg-inset-well w98-inset-dark px-1 py-0.5 text-hd-10 text-desktop-gray outline-none"
                 autoFocus
               />
-              <button type="submit" className="text-[9px] text-static-green cursor-pointer">{"\u2713"}</button>
-              <button type="button" onClick={() => setEditingId(null)} className="text-[9px] text-bevel-dark cursor-pointer">{"\u2715"}</button>
+              <button type="submit" className="text-hd-9 text-static-green cursor-pointer">{"\u2713"}</button>
+              <button type="button" onClick={() => setEditingId(null)} className="text-hd-9 text-bevel-dark cursor-pointer">{"\u2715"}</button>
             </form>
           ) : (
             <>
               <button
                 onClick={() => loadPlaylist(pl)}
-                className="flex-1 text-left text-[12px] md:text-[10px] text-desktop-gray hover:text-desert-amber cursor-pointer py-1 truncate transition-colors-fast"
+                className="flex-1 text-left text-hd-12 md:text-hd-10 text-desktop-gray hover:text-desert-amber cursor-pointer py-1 truncate transition-colors-fast"
               >
                 {pl.name}
-                <span className="text-[10px] md:text-[8px] text-bevel-dark/50 ml-1 tabular-nums">{pl.episodeIds.length}</span>
+                <span className="text-hd-10 md:text-hd-8 text-bevel-dark/50 ml-1 tabular-nums">{pl.episodeIds.length}</span>
               </button>
               <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={() => { setEditingId(pl.id!); setEditName(pl.name); }}
-                  className="text-[12px] md:text-[8px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+                  className="text-hd-12 md:text-hd-8 text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
                   title="Rename"
                   aria-label="Rename playlist"
                 >
@@ -254,7 +254,7 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
                 </button>
                 <button
                   onClick={() => handleDelete(pl.id!)}
-                  className="text-[12px] md:text-[8px] text-bevel-dark hover:text-red-400 active:text-red-400 cursor-pointer min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+                  className="text-hd-12 md:text-hd-8 text-bevel-dark hover:text-red-400 active:text-red-400 cursor-pointer min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
                   title="Delete playlist"
                   aria-label="Delete playlist"
                 >
@@ -273,22 +273,22 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
           className="p-4 flex flex-col gap-3"
         >
           <label className="flex flex-col gap-0.5">
-            <span className="text-[9px] text-bevel-dark uppercase tracking-wider">Name</span>
+            <span className="text-hd-9 text-bevel-dark uppercase tracking-wider">Name</span>
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              className="bg-inset-well w98-inset-dark px-2 py-1 text-[11px] text-desktop-gray outline-none"
+              className="bg-inset-well w98-inset-dark px-2 py-1 text-hd-11 text-desktop-gray outline-none"
               autoFocus
             />
           </label>
           <label className="flex flex-col gap-0.5">
-            <span className="text-[9px] text-bevel-dark uppercase tracking-wider">Description (optional)</span>
+            <span className="text-hd-9 text-bevel-dark uppercase tracking-wider">Description (optional)</span>
             <input
               type="text"
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
-              className="bg-inset-well w98-inset-dark px-2 py-1 text-[11px] text-desktop-gray outline-none"
+              className="bg-inset-well w98-inset-dark px-2 py-1 text-hd-11 text-desktop-gray outline-none"
             />
           </label>
           <div className="flex justify-end gap-2">

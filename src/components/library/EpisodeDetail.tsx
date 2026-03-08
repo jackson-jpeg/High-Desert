@@ -121,7 +121,7 @@ export function EpisodeDetail({
     setEditing(false);
   };
 
-  const inputClass = "w-full bg-inset-well w98-inset-dark px-2 py-2 md:px-1.5 md:py-1 text-[16px] md:text-[12px] text-desktop-gray outline-none min-h-[44px] md:min-h-0";
+  const inputClass = "w-full bg-inset-well w98-inset-dark px-2 py-2 md:px-1.5 md:py-1 text-hd-16 md:text-hd-12 text-desktop-gray outline-none min-h-[44px] md:min-h-0";
 
   return (
     <div
@@ -140,7 +140,7 @@ export function EpisodeDetail({
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-bevel-dark/20 glass-divider">
         <div className="flex items-center gap-1.5">
-          <span className="text-[12px] md:text-[10px] text-bevel-dark/70">
+          <span className="text-hd-12 md:text-hd-10 text-bevel-dark/70">
             {[showLabel, isArchive ? "Archive" : null].filter(Boolean).join(" \u00B7 ")}
           </span>
           {episode.aiCategory && (
@@ -148,21 +148,21 @@ export function EpisodeDetail({
               onClick={() => {
                 window.dispatchEvent(new CustomEvent("hd:filter-category", { detail: episode.aiCategory }));
               }}
-              className="text-[12px] md:text-[10px] text-desert-amber/60 bg-desert-amber/8 px-2 py-1 md:px-1 md:py-px cursor-pointer hover:text-desert-amber hover:bg-desert-amber/15 active:text-desert-amber active:bg-desert-amber/15 transition-colors-fast"
+              className="text-hd-12 md:text-hd-10 text-desert-amber/60 bg-desert-amber/8 px-2 py-1 md:px-1 md:py-px cursor-pointer hover:text-desert-amber hover:bg-desert-amber/15 active:text-desert-amber active:bg-desert-amber/15 transition-colors-fast"
               title={`Filter by ${episode.aiCategory}`}
             >
               {episode.aiCategory}
             </button>
           )}
           {episode.aiNotable && (
-            <span className="text-[12px] md:text-[10px] text-yellow-400/80" title="Notable episode">
+            <span className="text-hd-12 md:text-hd-10 text-yellow-400/80" title="Notable episode">
               {"\u272A"}
             </span>
           )}
         </div>
         <button
           onClick={handleClose}
-          className="text-[14px] md:text-[11px] text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+          className="text-hd-14 md:text-hd-11 text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
           aria-label="Close detail"
         >
           {"\u2715"}
@@ -175,7 +175,7 @@ export function EpisodeDetail({
           /* ── Edit Mode ── */
           <div className="flex flex-col gap-2">
             <label className="flex flex-col gap-0.5">
-              <span className="text-[12px] md:text-[10px] text-bevel-dark uppercase tracking-wider">Title</span>
+              <span className="text-hd-12 md:text-hd-10 text-bevel-dark uppercase tracking-wider">Title</span>
               <input
                 type="text"
                 value={editTitle}
@@ -185,7 +185,7 @@ export function EpisodeDetail({
               />
             </label>
             <label className="flex flex-col gap-0.5">
-              <span className="text-[12px] md:text-[10px] text-bevel-dark uppercase tracking-wider">Guest Name</span>
+              <span className="text-hd-12 md:text-hd-10 text-bevel-dark uppercase tracking-wider">Guest Name</span>
               <input
                 type="text"
                 value={editGuest}
@@ -195,7 +195,7 @@ export function EpisodeDetail({
               />
             </label>
             <label className="flex flex-col gap-0.5">
-              <span className="text-[12px] md:text-[10px] text-bevel-dark uppercase tracking-wider">Air Date</span>
+              <span className="text-hd-12 md:text-hd-10 text-bevel-dark uppercase tracking-wider">Air Date</span>
               <input
                 type="date"
                 value={editAirDate}
@@ -205,7 +205,7 @@ export function EpisodeDetail({
               />
             </label>
             <label className="flex flex-col gap-0.5">
-              <span className="text-[12px] md:text-[10px] text-bevel-dark uppercase tracking-wider">Topic</span>
+              <span className="text-hd-12 md:text-hd-10 text-bevel-dark uppercase tracking-wider">Topic</span>
               <input
                 type="text"
                 value={editTopic}
@@ -214,7 +214,7 @@ export function EpisodeDetail({
               />
             </label>
             <label className="flex flex-col gap-0.5">
-              <span className="text-[12px] md:text-[10px] text-bevel-dark uppercase tracking-wider">Show Type</span>
+              <span className="text-hd-12 md:text-hd-10 text-bevel-dark uppercase tracking-wider">Show Type</span>
               <select
                 value={editShowType}
                 onChange={(e) => setEditShowType(e.target.value as Episode["showType"])}
@@ -226,7 +226,7 @@ export function EpisodeDetail({
               </select>
             </label>
             <label className="flex flex-col gap-0.5">
-              <span className="text-[12px] md:text-[10px] text-bevel-dark uppercase tracking-wider">Category</span>
+              <span className="text-hd-12 md:text-hd-10 text-bevel-dark uppercase tracking-wider">Category</span>
               <input
                 type="text"
                 value={editCategory}
@@ -236,7 +236,7 @@ export function EpisodeDetail({
               />
             </label>
             <label className="flex flex-col gap-0.5">
-              <span className="text-[12px] md:text-[10px] text-bevel-dark uppercase tracking-wider">Series</span>
+              <span className="text-hd-12 md:text-hd-10 text-bevel-dark uppercase tracking-wider">Series</span>
               <input
                 type="text"
                 value={editSeries}
@@ -246,7 +246,7 @@ export function EpisodeDetail({
               />
             </label>
             <label className="flex flex-col gap-0.5">
-              <span className="text-[12px] md:text-[10px] text-bevel-dark uppercase tracking-wider">AI Summary</span>
+              <span className="text-hd-12 md:text-hd-10 text-bevel-dark uppercase tracking-wider">AI Summary</span>
               <textarea
                 value={editSummary}
                 onChange={(e) => setEditSummary(e.target.value)}
@@ -264,17 +264,17 @@ export function EpisodeDetail({
           <>
             {/* Title + date + duration */}
             <div>
-              <div className="text-[17px] md:text-[13px] text-desktop-gray font-bold leading-snug break-words font-sans">
+              <div className="text-hd-17 md:text-hd-13 text-desktop-gray font-bold leading-snug break-words font-sans">
                 {episode.title || episode.fileName}
               </div>
               <div className="flex items-center gap-2 mt-1.5">
                 {episode.airDate && (
-                  <span className="text-[12px] md:text-[11px] text-desert-amber tabular-nums font-mono tracking-tight">
+                  <span className="text-hd-12 md:text-hd-11 text-desert-amber tabular-nums font-mono tracking-tight">
                     {formatAirDate(episode.airDate)}
                   </span>
                 )}
                 {episode.duration != null && (
-                  <span className="text-[12px] md:text-[11px] text-bevel-dark/60 tabular-nums font-mono">
+                  <span className="text-hd-12 md:text-hd-11 text-bevel-dark/60 tabular-nums font-mono">
                     {formatDuration(episode.duration)}
                   </span>
                 )}
@@ -284,7 +284,7 @@ export function EpisodeDetail({
             {/* Guest */}
             {episode.guestName && (
               <div
-                className="text-[14px] md:text-[12px] text-static-green/80 hover:text-static-green hover:underline cursor-pointer w-fit"
+                className="text-hd-14 md:text-hd-12 text-static-green/80 hover:text-static-green hover:underline cursor-pointer w-fit"
                 onClick={() => {
                   window.dispatchEvent(new CustomEvent("hd:show-guest", { detail: episode.guestName }));
                 }}
@@ -295,7 +295,7 @@ export function EpisodeDetail({
 
             {/* Topic */}
             {episode.topic && !episode.guestName && (
-              <div className="text-[14px] md:text-[12px] text-desktop-gray/80">
+              <div className="text-hd-14 md:text-hd-12 text-desktop-gray/80">
                 {episode.topic}
               </div>
             )}
@@ -306,7 +306,7 @@ export function EpisodeDetail({
                 onClick={() => {
                   window.dispatchEvent(new CustomEvent("hd:filter-series", { detail: episode.aiSeries }));
                 }}
-                className="text-[12px] md:text-[10px] text-title-bar-blue/70 bg-title-bar-blue/8 px-2 py-1 md:px-1.5 md:py-px cursor-pointer hover:text-title-bar-blue hover:bg-title-bar-blue/15 active:text-title-bar-blue active:bg-title-bar-blue/15 transition-colors-fast flex items-center gap-1 w-fit"
+                className="text-hd-12 md:text-hd-10 text-title-bar-blue/70 bg-title-bar-blue/8 px-2 py-1 md:px-1.5 md:py-px cursor-pointer hover:text-title-bar-blue hover:bg-title-bar-blue/15 active:text-title-bar-blue active:bg-title-bar-blue/15 transition-colors-fast flex items-center gap-1 w-fit"
                 title={`Filter by ${episode.aiSeries}`}
               >
                 <span>{"\u{1F4DA}"}</span>
@@ -319,7 +319,7 @@ export function EpisodeDetail({
 
             {/* Summary or Description */}
             {(episode.aiSummary || episode.description) && (
-              <div className="text-[14px] md:text-[11px] text-desktop-gray/55 leading-relaxed font-sans">
+              <div className="text-hd-14 md:text-hd-11 text-desktop-gray/55 leading-relaxed font-sans">
                 {episode.aiSummary || episode.description}
               </div>
             )}
@@ -333,7 +333,7 @@ export function EpisodeDetail({
                     onClick={() => {
                       window.dispatchEvent(new CustomEvent("hd:filter-tag", { detail: tag }));
                     }}
-                    className="text-[13px] md:text-[10px] text-desert-amber/70 bg-desert-amber/10 border border-desert-amber/15 px-2.5 py-1.5 md:px-1.5 md:py-px rounded-sm cursor-pointer hover:bg-desert-amber/20 hover:text-desert-amber active:bg-desert-amber/20 active:text-desert-amber transition-colors-fast"
+                    className="text-hd-13 md:text-hd-10 text-desert-amber/70 bg-desert-amber/10 border border-desert-amber/15 px-2.5 py-1.5 md:px-1.5 md:py-px rounded-sm cursor-pointer hover:bg-desert-amber/20 hover:text-desert-amber active:bg-desert-amber/20 active:text-desert-amber transition-colors-fast"
                     title={`Filter by "${tag}"`}
                   >
                     {tag}
@@ -361,7 +361,7 @@ export function EpisodeDetail({
                     style={{ width: `${Math.min(100, (episode.playbackPosition / episode.duration) * 100)}%` }}
                   />
                 </div>
-                <span className="text-[12px] md:text-[10px] text-bevel-dark/70 tabular-nums flex-shrink-0">
+                <span className="text-hd-12 md:text-hd-10 text-bevel-dark/70 tabular-nums flex-shrink-0">
                   {formatTime(episode.playbackPosition)} / {formatDuration(episode.duration)}
                 </span>
               </div>
@@ -369,7 +369,7 @@ export function EpisodeDetail({
 
             {/* Play stats */}
             {(episode.playCount ?? 0) > 0 && (
-              <div className="text-[12px] md:text-[10px] text-bevel-dark/50 tabular-nums">
+              <div className="text-hd-12 md:text-hd-10 text-bevel-dark/50 tabular-nums">
                 {episode.playCount != null && episode.playCount > 0 && `Played ${episode.playCount}x`}
                 {episode.lastPlayedAt != null && episode.lastPlayedAt > 0 && (
                   <> &middot; {new Date(episode.lastPlayedAt).toLocaleDateString()}</>
@@ -411,7 +411,7 @@ export function EpisodeDetail({
                 <button
                   onClick={() => onToggleFavorite(episode)}
                   className={cn(
-                    "text-[17px] md:text-[13px] cursor-pointer transition-colors-fast ml-auto min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center",
+                    "text-hd-17 md:text-hd-13 cursor-pointer transition-colors-fast ml-auto min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center",
                     episode.favoritedAt ? "text-desert-amber" : "text-bevel-dark/40 hover:text-desert-amber",
                   )}
                   title={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
@@ -432,7 +432,7 @@ export function EpisodeDetail({
                       await rateEpisode(episode.id!, newRating);
                     }}
                     className={cn(
-                      "text-[20px] md:text-[12px] cursor-pointer transition-colors-fast min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center",
+                      "text-hd-20 md:text-hd-12 cursor-pointer transition-colors-fast min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center",
                       star <= (episode.rating ?? 0)
                         ? "text-desert-amber"
                         : "text-bevel-dark/50 hover:text-desert-amber/60 active:text-desert-amber/60",
@@ -444,7 +444,7 @@ export function EpisodeDetail({
                   </button>
                 ))}
                 {episode.rating && (
-                  <span className="text-[12px] md:text-[10px] text-bevel-dark/40 ml-1">{episode.rating}/5</span>
+                  <span className="text-hd-12 md:text-hd-10 text-bevel-dark/40 ml-1">{episode.rating}/5</span>
                 )}
               </div>
             )}
@@ -456,7 +456,7 @@ export function EpisodeDetail({
                   href={`https://archive.org/details/${episode.archiveIdentifier}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[13px] md:text-[10px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+                  className="text-hd-13 md:text-hd-10 text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
                 >
                   Archive ↗
                 </a>
@@ -468,7 +468,7 @@ export function EpisodeDetail({
                   toast[flagged ? "info" : "success"](flagged ? "Episode flagged as broken" : "Flag removed");
                 }}
                 className={cn(
-                  "text-[13px] md:text-[10px] cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center",
+                  "text-hd-13 md:text-hd-10 cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center",
                   episode.flaggedAt
                     ? "text-red-400/70 hover:text-red-400"
                     : "text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray",
@@ -480,7 +480,7 @@ export function EpisodeDetail({
               {onEdit && (
                 <button
                   onClick={startEditing}
-                  className="text-[13px] md:text-[10px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+                  className="text-hd-13 md:text-hd-10 text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
                 >
                   Edit
                 </button>
@@ -488,7 +488,7 @@ export function EpisodeDetail({
               {onRecategorize && (
                 <button
                   onClick={() => onRecategorize(episode)}
-                  className="text-[13px] md:text-[10px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+                  className="text-hd-13 md:text-hd-10 text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
                 >
                   Re-categorize
                 </button>
@@ -496,7 +496,7 @@ export function EpisodeDetail({
               {onDelete && (
                 <button
                   onClick={() => onDelete(episode)}
-                  className="text-[13px] md:text-[10px] text-red-400/40 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast ml-auto min-h-[44px] md:min-h-0 flex items-center"
+                  className="text-hd-13 md:text-hd-10 text-red-400/40 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast ml-auto min-h-[44px] md:min-h-0 flex items-center"
                 >
                   Delete
                 </button>
@@ -533,7 +533,7 @@ function SeriesPartsList({ seriesName, currentEpisodeId, onPlay }: { seriesName:
 
   return (
     <div className="border-t border-bevel-dark/15 glass-divider pt-2 mt-0.5">
-      <div className="text-[12px] md:text-[10px] text-title-bar-blue/60 uppercase tracking-wider mb-1.5 font-bold">
+      <div className="text-hd-12 md:text-hd-10 text-title-bar-blue/60 uppercase tracking-wider mb-1.5 font-bold">
         Series ({sorted.length} parts)
       </div>
       <div className="flex flex-col gap-0.5">
@@ -544,20 +544,20 @@ function SeriesPartsList({ seriesName, currentEpisodeId, onPlay }: { seriesName:
               key={ep.id}
               onClick={() => { if (!isCurrent) onPlay(ep); }}
               className={cn(
-                "text-left px-2 py-1.5 md:px-1.5 md:py-1 text-[13px] md:text-[11px] cursor-pointer transition-colors-fast flex items-center gap-2 min-h-[36px] md:min-h-0",
+                "text-left px-2 py-1.5 md:px-1.5 md:py-1 text-hd-13 md:text-hd-11 cursor-pointer transition-colors-fast flex items-center gap-2 min-h-[36px] md:min-h-0",
                 isCurrent
                   ? "bg-title-bar-blue/15 text-title-bar-blue"
                   : "text-desktop-gray/70 hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/15",
               )}
             >
               {ep.aiSeriesPart && (
-                <span className="text-[10px] md:text-[10px] text-title-bar-blue/50 w-[20px] flex-shrink-0 tabular-nums">
+                <span className="text-hd-10 md:text-hd-10 text-title-bar-blue/50 w-[20px] flex-shrink-0 tabular-nums">
                   Pt.{ep.aiSeriesPart}
                 </span>
               )}
               <span className="truncate flex-1">{ep.title || ep.fileName}</span>
               {ep.airDate && (
-                <span className="text-[10px] md:text-[10px] text-bevel-dark/40 flex-shrink-0 tabular-nums">
+                <span className="text-hd-10 md:text-hd-10 text-bevel-dark/40 flex-shrink-0 tabular-nums">
                   {formatAirDate(ep.airDate)}
                 </span>
               )}
@@ -606,7 +606,7 @@ function ShareButton({ episode }: { episode: Episode }) {
     return (
       <button
         onClick={copyLink}
-        className="text-[13px] md:text-[10px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+        className="text-hd-13 md:text-hd-10 text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
       >
         Share
       </button>
@@ -617,7 +617,7 @@ function ShareButton({ episode }: { episode: Episode }) {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setMenuOpen(!menuOpen)}
-        className="text-[13px] md:text-[10px] text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+        className="text-hd-13 md:text-hd-10 text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
       >
         Share
       </button>
@@ -625,13 +625,13 @@ function ShareButton({ episode }: { episode: Episode }) {
         <div className="absolute bottom-full mb-1 left-0 w98-raised-dark bg-raised-surface z-30 min-w-[120px] shadow-lg">
           <button
             onClick={copyLink}
-            className="w-full text-left px-3 py-3 md:px-2 md:py-1.5 text-[15px] md:text-[11px] text-desktop-gray/80 hover:bg-title-bar-blue/20 active:bg-title-bar-blue/20 cursor-pointer transition-colors-fast"
+            className="w-full text-left px-3 py-3 md:px-2 md:py-1.5 text-hd-15 md:text-hd-11 text-desktop-gray/80 hover:bg-title-bar-blue/20 active:bg-title-bar-blue/20 cursor-pointer transition-colors-fast"
           >
             Copy Link
           </button>
           <button
             onClick={webShare}
-            className="w-full text-left px-3 py-3 md:px-2 md:py-1.5 text-[15px] md:text-[11px] text-desktop-gray/80 hover:bg-title-bar-blue/20 active:bg-title-bar-blue/20 cursor-pointer transition-colors-fast"
+            className="w-full text-left px-3 py-3 md:px-2 md:py-1.5 text-hd-15 md:text-hd-11 text-desktop-gray/80 hover:bg-title-bar-blue/20 active:bg-title-bar-blue/20 cursor-pointer transition-colors-fast"
           >
             Share...
           </button>

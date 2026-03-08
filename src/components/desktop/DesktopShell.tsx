@@ -61,6 +61,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [clearOpen, setClearOpen] = useState(false);
   const [clearCacheOpen, setClearCacheOpen] = useState(false);
   const [startupSoundOn, setStartupSoundOn] = useState(true);
+  const [textScale, setTextScale] = useState<"1" | "1.15" | "1.3">("1");
   const [clock, setClock] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [callerIdx, setCallerIdx] = useState(0);
@@ -105,6 +106,32 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     await setPreference("startup-sound", next ? "on" : "off");
     toast.info(next ? "Startup sound enabled" : "Startup sound disabled");
   }, [startupSoundOn]);
+
+  // Load text scale preference
+  useEffect(() => {
+    getPreference("text-scale").then((v) => {
+      if (v === "1.15" || v === "1.3") {
+        setTextScale(v);
+        document.documentElement.style.setProperty("--hd-text-scale", v);
+        localStorage.setItem("hd-text-scale", v);
+      }
+    });
+  }, []);
+
+  const TEXT_SCALE_OPTIONS = [
+    { label: "Normal", value: "1" as const },
+    { label: "Large", value: "1.15" as const },
+    { label: "Extra Large", value: "1.3" as const },
+  ];
+
+  const handleSetTextScale = useCallback(async (value: "1" | "1.15" | "1.3") => {
+    setTextScale(value);
+    document.documentElement.style.setProperty("--hd-text-scale", value);
+    localStorage.setItem("hd-text-scale", value);
+    await setPreference("text-scale", value);
+    const label = TEXT_SCALE_OPTIONS.find((o) => o.value === value)?.label ?? value;
+    toast.info(`Text size: ${label}`);
+  }, []);
 
   // Measure actual nav + player height
   useEffect(() => {
@@ -345,6 +372,11 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           onClick: handleToggleStartupSound,
         },
         { separator: true, label: "" },
+        ...TEXT_SCALE_OPTIONS.map((opt) => ({
+          label: `Text Size: ${opt.label}${textScale === opt.value ? " ✓" : ""}`,
+          onClick: () => handleSetTextScale(opt.value),
+        })),
+        { separator: true, label: "" },
         { label: "About High Desert", onClick: handleAbout },
       ],
     },
@@ -449,8 +481,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               aria-current={isActive ? "page" : undefined}
               className={cn(
                 "w98-font cursor-pointer select-none transition-colors-fast relative",
-                "flex flex-col items-center justify-center min-h-[52px] flex-1 text-[13px] gap-1",
-                "md:flex-row md:flex-none md:min-h-0 md:px-3 md:py-1.5 md:text-[11px] md:gap-0",
+                "flex flex-col items-center justify-center min-h-[52px] flex-1 text-hd-13 gap-1",
+                "md:flex-row md:flex-none md:min-h-0 md:px-3 md:py-1.5 md:text-hd-11 md:gap-0",
                 isActive
                   ? "text-desktop-gray md:border-b-2 md:border-b-desert-amber"
                   : "text-bevel-dark active:text-desktop-gray md:hover:text-desktop-gray md:border-b-2 md:border-b-transparent",
@@ -472,7 +504,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           onClick={() => setMobileMenuOpen(true)}
           className={cn(
             "w98-font cursor-pointer select-none transition-colors-fast",
-            "flex flex-col items-center justify-center min-h-[52px] flex-1 text-[13px] gap-1",
+            "flex flex-col items-center justify-center min-h-[52px] flex-1 text-hd-13 gap-1",
             "text-bevel-dark active:text-desktop-gray",
             "md:hidden",
           )}
@@ -510,7 +542,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             content: (
               <button
                 onClick={handleGhostClick}
-                className="text-[10px] cursor-pointer hover:text-desert-amber transition-colors-fast"
+                className="text-hd-10 cursor-pointer hover:text-desert-amber transition-colors-fast"
                 style={{ color: "#FF8C00" }}
                 title="Ghost to Ghost AM Collection"
               >
@@ -523,7 +555,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             content: (
               <button
                 onClick={handleInstall}
-                className="text-[10px] cursor-pointer hover:text-desert-amber transition-colors-fast text-static-green"
+                className="text-hd-10 cursor-pointer hover:text-desert-amber transition-colors-fast text-static-green"
                 title="Install High Desert as an app"
               >
                 Install App
@@ -557,7 +589,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       {/* Admin password dialog */}
       <Dialog open={adminPromptOpen} onClose={() => { setAdminPromptOpen(false); setAdminPassword(""); setAdminError(""); }} title="Admin Access">
         <div className="p-3 flex flex-col gap-2">
-          <p className="text-[11px] text-bevel-dark">Enter the admin password:</p>
+          <p className="text-hd-11 text-bevel-dark">Enter the admin password:</p>
           <form onSubmit={(e) => { e.preventDefault(); handleAdminLogin(); }}>
             <TextField
               type="password"
@@ -567,7 +599,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               autoFocus
               className="w-full"
             />
-            {adminError && <p className="text-[10px] text-red-400 mt-1">{adminError}</p>}
+            {adminError && <p className="text-hd-10 text-red-400 mt-1">{adminError}</p>}
             <div className="flex justify-end gap-2 mt-3">
               <Button size="sm" variant="dark" type="button" onClick={() => { setAdminPromptOpen(false); setAdminPassword(""); setAdminError(""); }}>Cancel</Button>
               <Button size="sm" type="submit">OK</Button>
@@ -584,6 +616,11 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         onAbout={handleAbout}
         startupSoundOn={startupSoundOn}
         onToggleStartupSound={handleToggleStartupSound}
+        textScale={textScale}
+        onCycleTextScale={() => {
+          const next = textScale === "1" ? "1.15" : textScale === "1.15" ? "1.3" : "1";
+          handleSetTextScale(next);
+        }}
       />
     </div>
   );

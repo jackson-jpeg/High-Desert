@@ -69,7 +69,7 @@ export function DialControls({
               <rect x="3" y="7" width="10" height="7" rx="1.5" stroke="#D4A843" strokeWidth="1.3" />
               <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" stroke="#D4A843" strokeWidth="1.3" strokeLinecap="round" />
             </svg>
-            <span className="text-[13px] font-medium text-desert-amber">Lock</span>
+            <span className="text-hd-13 font-medium text-desert-amber">Lock</span>
           </button>
 
           {/* Play / Tune In */}
@@ -89,7 +89,7 @@ export function DialControls({
             <svg width="14" height="16" viewBox="0 0 14 16" fill="none">
               <polygon points="2,1 12,8 2,15" fill={isLocked ? "#4ADE80" : "#808080"} />
             </svg>
-            <span className={cn("text-[13px] font-medium", isLocked ? "text-static-green" : "text-bevel-dark")}>
+            <span className={cn("text-hd-13 font-medium", isLocked ? "text-static-green" : "text-bevel-dark")}>
               Play
             </span>
           </button>
@@ -116,7 +116,7 @@ export function DialControls({
                 strokeLinejoin="round"
               />
             </svg>
-            <span className={cn("text-[13px] font-medium", scanning ? "text-desert-amber" : "text-desktop-gray/50")}>
+            <span className={cn("text-hd-13 font-medium", scanning ? "text-desert-amber" : "text-desktop-gray/50")}>
               {scanning ? "Stop" : "Scan"}
             </span>
           </button>
@@ -127,12 +127,12 @@ export function DialControls({
           <div className="flex items-center gap-1">
             <KbdArrow direction="left" />
             <KbdArrow direction="right" />
-            <span className="text-[8px] text-bevel-dark/20 ml-0.5">Tune</span>
+            <span className="text-hd-8 text-bevel-dark/20 ml-0.5">Tune</span>
           </div>
           <div className="flex items-center gap-1">
             <KbdArrow direction="up" />
             <KbdArrow direction="down" />
-            <span className="text-[8px] text-bevel-dark/20 ml-0.5">Sub-station</span>
+            <span className="text-hd-8 text-bevel-dark/20 ml-0.5">Sub-station</span>
           </div>
         </div>
       </div>

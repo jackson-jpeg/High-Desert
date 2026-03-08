@@ -36,7 +36,7 @@ export function OfflineIndicator() {
       role="status"
       aria-live="polite"
       className={cn(
-        "fixed top-0 inset-x-0 z-50 text-center py-1.5 text-[11px] md:text-[10px] font-bold transition-colors duration-300",
+        "fixed top-0 inset-x-0 z-50 text-center py-1.5 text-hd-11 md:text-hd-10 font-bold transition-colors duration-300",
         online
           ? "bg-static-green/20 text-static-green"
           : "bg-red-900/30 text-red-400",

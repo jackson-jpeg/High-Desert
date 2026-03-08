@@ -15,7 +15,7 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
 
   if (!episode) {
     return (
-      <div className={cn("text-[12px] text-bevel-dark", className)}>
+      <div className={cn("text-hd-12 text-bevel-dark", className)}>
         No episode loaded
       </div>
     );
@@ -28,15 +28,15 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
     <div className={cn("flex items-start gap-2 min-w-0", className)} aria-live="polite">
       <CassetteTape className="hidden md:block flex-shrink-0 mt-0.5" />
       <div className="flex flex-col gap-0.5 min-w-0">
-      <div className="text-[15px] md:text-[12px] text-desktop-gray font-bold truncate" title={displayTitle}>
+      <div className="text-hd-15 md:text-hd-12 text-desktop-gray font-bold truncate" title={displayTitle}>
         {displayTitle}
       </div>
       {episode.guestName && (
-        <div className="hidden md:block text-[11px] text-static-green/80 truncate" title={episode.guestName}>
+        <div className="hidden md:block text-hd-11 text-static-green/80 truncate" title={episode.guestName}>
           {episode.guestName}
         </div>
       )}
-      <div className="text-[12px] md:text-[11px] text-bevel-dark/70 truncate" title={[showLabel, formatAirDate(episode.airDate)].filter(Boolean).join(" \u00B7 ")}>
+      <div className="text-hd-12 md:text-hd-11 text-bevel-dark/70 truncate" title={[showLabel, formatAirDate(episode.airDate)].filter(Boolean).join(" \u00B7 ")}>
         {[showLabel, formatAirDate(episode.airDate)].filter(Boolean).join(" \u00B7 ")}
       </div>
 
@@ -44,7 +44,7 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
       {expanded && (
         <>
           {episode.aiSummary && (
-            <div className="text-[11px] text-desktop-gray/50 leading-relaxed mt-1 line-clamp-2">
+            <div className="text-hd-11 text-desktop-gray/50 leading-relaxed mt-1 line-clamp-2">
               {episode.aiSummary}
             </div>
           )}
@@ -53,7 +53,7 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
               {episode.aiTags.map((tag) => (
                 <span
                   key={tag}
-                  className="text-[10px] text-desert-amber/50 px-1 py-px"
+                  className="text-hd-10 text-desert-amber/50 px-1 py-px"
                 >
                   {tag}
                 </span>
