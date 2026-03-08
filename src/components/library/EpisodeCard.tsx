@@ -17,6 +17,7 @@ interface EpisodeCardProps {
   onContextMenu?: (episode: Episode, x: number, y: number) => void;
   onToggleFavorite?: (episode: Episode) => void;
   onQueue?: (episode: Episode) => void;
+  communityPlays?: number;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -31,6 +32,7 @@ export const EpisodeCard = memo(function EpisodeCard({
   onContextMenu,
   onToggleFavorite,
   onQueue,
+  communityPlays,
   className,
   style,
 }: EpisodeCardProps) {
@@ -256,6 +258,11 @@ export const EpisodeCard = memo(function EpisodeCard({
             {formatDuration(episode.duration)}
           </span>
         )}
+        {communityPlays != null && communityPlays > 0 && (
+          <span className="text-hd-8 text-bevel-dark/40 tabular-nums flex-shrink-0" title={`Played ${communityPlays} times across all listeners`}>
+            ▶ {communityPlays.toLocaleString()}
+          </span>
+        )}
       </div>
 
       {/* Mini waveform progress indicator */}
@@ -277,6 +284,7 @@ export const EpisodeCard = memo(function EpisodeCard({
     prev.onContextMenu === next.onContextMenu &&
     prev.onToggleFavorite === next.onToggleFavorite &&
     prev.onQueue === next.onQueue &&
+    prev.communityPlays === next.communityPlays &&
     prev.className === next.className
   );
 });

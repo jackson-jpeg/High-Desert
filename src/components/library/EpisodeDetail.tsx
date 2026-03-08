@@ -23,6 +23,7 @@ interface EpisodeDetailProps {
   onRecategorize?: (episode: Episode) => void;
   onEdit?: (id: number, fields: Partial<Episode>) => void;
   onToggleFavorite?: (episode: Episode) => void;
+  communityPlays?: number;
   className?: string;
 }
 
@@ -42,6 +43,7 @@ export function EpisodeDetail({
   onRecategorize,
   onEdit,
   onToggleFavorite,
+  communityPlays,
   className,
 }: EpisodeDetailProps) {
   const showLabel = getShowLabel(episode.showType);
@@ -276,6 +278,11 @@ export function EpisodeDetail({
                 {episode.duration != null && (
                   <span className="text-hd-12 md:text-hd-11 text-bevel-dark/60 tabular-nums font-mono">
                     {formatDuration(episode.duration)}
+                  </span>
+                )}
+                {communityPlays != null && communityPlays > 0 && (
+                  <span className="text-hd-10 md:text-hd-9 text-bevel-dark/50">
+                    ▶ {communityPlays.toLocaleString()} community plays
                   </span>
                 )}
               </div>

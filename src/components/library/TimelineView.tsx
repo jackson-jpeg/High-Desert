@@ -19,6 +19,7 @@ interface TimelineViewProps {
   onAction?: (action: "scan" | "search") => void;
   onToggleFavorite?: (episode: Episode) => void;
   onQueue?: (episode: Episode) => void;
+  communityPlayCounts?: Map<string, number>;
   className?: string;
 }
 
@@ -37,6 +38,7 @@ export function TimelineView({
   onAction,
   onToggleFavorite,
   onQueue,
+  communityPlayCounts,
   className,
 }: TimelineViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -188,6 +190,7 @@ export function TimelineView({
                   onContextMenu={onEpisodeContextMenu}
                   onToggleFavorite={onToggleFavorite}
                   onQueue={onQueue}
+                  communityPlays={communityPlayCounts?.get(ep.archiveIdentifier ?? "")}
                 />
               </div>
             ))}
