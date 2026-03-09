@@ -11,6 +11,8 @@ import { Toaster } from "@/components/ui/Toaster";
 import { CommandPalette } from "@/components/CommandPalette";
 import { PageTransition } from "@/components/PageTransition";
 import { Starfield } from "./Starfield";
+import { EasterEggOverlays, type EasterEgg } from "./EasterEggOverlays";
+import { useKonamiCode } from "@/hooks/useKonamiCode";
 import type { Menu } from "@/components/win98";
 import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
@@ -87,6 +89,26 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     const id = setInterval(poll, 60_000);
     return () => clearInterval(id);
   }, []);
+
+  // Easter eggs — local React state (no store needed)
+  const [activeEgg, setActiveEgg] = useState<EasterEgg>(null);
+  const [ghostToGhostMode, setGhostToGhostMode] = useState(false);
+  const dismissEgg = useCallback(() => setActiveEgg(null), []);
+  useKonamiCode(useCallback(() => setActiveEgg("konamiCode"), []));
+
+  // Easter egg: triple-click title → Kingdom of Nye intro
+  const titleClickRef = useRef<{ count: number; timer: ReturnType<typeof setTimeout> | undefined }>({ count: 0, timer: undefined });
+  const handleTitleClick = useCallback(() => {
+    const r = titleClickRef.current;
+    r.count++;
+    clearTimeout(r.timer);
+    if (r.count >= 3) {
+      r.count = 0;
+      setActiveEgg("kingdomOfNye");
+    } else {
+      r.timer = setTimeout(() => { r.count = 0; }, 500);
+    }
+  }, []);
   const navRef = useRef<HTMLElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const [bottomPadding, setBottomPadding] = useState(112); // fallback
@@ -161,6 +183,16 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     const handler = () => setAdminPromptOpen(true);
     window.addEventListener("hd:admin-prompt", handler);
     return () => window.removeEventListener("hd:admin-prompt", handler);
+  }, []);
+
+  // Easter egg triggers from search bar + keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const egg = (e as CustomEvent<string>).detail as EasterEgg;
+      if (egg) setActiveEgg(egg);
+    };
+    window.addEventListener("hd:easter-egg", handler);
+    return () => window.removeEventListener("hd:easter-egg", handler);
   }, []);
 
   const handleAdminLogin = useCallback(async () => {
@@ -386,6 +418,13 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           onClick: () => handleSetTextScale(opt.value),
         })),
         { separator: true, label: "" },
+        ...(isAdmin
+          ? [{ label: "Log Out of Admin", onClick: () => {
+                useAdminStore.getState().logout();
+                toast.info("Admin mode disabled");
+              }},
+             { separator: true as const, label: "" }]
+          : []),
         { label: "About High Desert", onClick: handleAbout },
       ],
     },
@@ -465,7 +504,13 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
 
       {/* Top menu bar — desktop only */}
       <header>
-        <MenuBar menus={menus} variant="dark" className="flex-shrink-0 relative z-40 hidden md:flex" />
+        <MenuBar
+          menus={menus}
+          variant="dark"
+          className="flex-shrink-0 relative z-40 hidden md:flex"
+          title={ghostToGhostMode ? "Ghost to Ghost AM" : undefined}
+          onTitleClick={handleTitleClick}
+        />
       </header>
 
       {/* Navigation tabs — desktop: top horizontal, mobile: bottom tab bar */}
@@ -624,6 +669,9 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           </form>
         </div>
       </Dialog>
+
+      {/* Easter egg overlays */}
+      <EasterEggOverlays active={activeEgg} onDismiss={dismissEgg} onGhostToggle={() => setGhostToGhostMode((g) => !g)} />
 
       {/* Mobile menu sheet */}
       <MobileMenuSheet

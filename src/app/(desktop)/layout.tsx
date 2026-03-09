@@ -373,6 +373,13 @@ export default function DesktopLayout({
       // Radio dial page has its own keyboard handler
       if (pathname === "/radio") return;
 
+      // Easter egg: Ctrl+Shift+A → Area 51 signal drop
+      if (e.code === "KeyA" && e.ctrlKey && e.shiftKey) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("hd:easter-egg", { detail: "area51" }));
+        return;
+      }
+
       switch (e.code) {
         case "Space":
           e.preventDefault();

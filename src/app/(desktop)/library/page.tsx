@@ -469,6 +469,27 @@ export default function LibraryPage() {
     return () => window.removeEventListener("hd:scroll-to-current", handler);
   }, [currentEpisodeId, filtered]);
 
+  // Easter egg: Mel's Hole — scroll aggressively past the bottom
+  const bottomScrollRef = useRef(0);
+  useEffect(() => {
+    const container = document.querySelector('[class*="overflow-auto"][class*="overscroll-contain"]');
+    if (!container) return;
+    const handler = () => {
+      const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 2;
+      if (atBottom) {
+        bottomScrollRef.current++;
+        if (bottomScrollRef.current >= 12) {
+          bottomScrollRef.current = 0;
+          window.dispatchEvent(new CustomEvent("hd:easter-egg", { detail: "melsHole" }));
+        }
+      } else {
+        bottomScrollRef.current = 0;
+      }
+    };
+    container.addEventListener("scroll", handler, { passive: true });
+    return () => container.removeEventListener("scroll", handler);
+  }, [filtered]);
+
   const handleEpisodeClick = useCallback((episode: Episode, e: React.MouseEvent) => {
     if (e.shiftKey || e.metaKey || e.ctrlKey) {
       setSelectedIds((prev) => {

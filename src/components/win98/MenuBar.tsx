@@ -20,6 +20,9 @@ export interface MenuBarProps {
   menus: Menu[];
   variant?: "classic" | "dark";
   className?: string;
+  /** Optional title shown before menu items (clickable). */
+  title?: string;
+  onTitleClick?: () => void;
 }
 
 function DropdownMenu({
@@ -111,7 +114,7 @@ function DropdownMenu({
   );
 }
 
-export function MenuBar({ menus, variant = "classic", className }: MenuBarProps) {
+export function MenuBar({ menus, variant = "classic", className, title, onTitleClick }: MenuBarProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const isDark = variant === "dark";
@@ -161,6 +164,14 @@ export function MenuBar({ menus, variant = "classic", className }: MenuBarProps)
       aria-label="Application menu"
       onKeyDown={handleKeyDown}
     >
+      {title && (
+        <button
+          className="w98-menubar-item w98-font text-desert-amber/80 cursor-pointer select-none"
+          onClick={onTitleClick}
+        >
+          {title}
+        </button>
+      )}
       {menus.map((menu, i) => (
         <div key={menu.label} className="relative">
           <button

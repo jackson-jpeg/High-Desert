@@ -156,9 +156,23 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
               value={value}
               onChange={(e) => {
                 const val = e.target.value;
-                if (val.toLowerCase() === "ilovedelaney") {
+                const lower = val.toLowerCase();
+                if (lower === "ilovedelaney") {
                   onChange("");
                   window.dispatchEvent(new CustomEvent("hd:admin-prompt"));
+                  return;
+                }
+                // Easter egg triggers via custom event bus
+                const EASTER_EGGS: Record<string, string> = {
+                  "area51": "area51", "area 51": "area51",
+                  "ghosttoghost": "ghostToGhost", "ghost to ghost am": "ghostToGhost",
+                  "w6obb": "w6obb",
+                  "2036": "titor", "titor": "titor", "john titor": "titor",
+                };
+                const egg = EASTER_EGGS[lower];
+                if (egg) {
+                  onChange("");
+                  window.dispatchEvent(new CustomEvent("hd:easter-egg", { detail: egg }));
                   return;
                 }
                 onChange(val);
