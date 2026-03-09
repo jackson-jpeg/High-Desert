@@ -320,7 +320,7 @@ export default function StatsPage() {
 
           {/* Completion gauge */}
           <div className="mt-3 flex items-center gap-2">
-            <span className="text-hd-8 text-bevel-dark uppercase tracking-wider w-[60px] truncate">Progress</span>
+            <span className="text-hd-8 text-bevel-dark uppercase tracking-wider shrink-0">Progress</span>
             <div className="flex-1 h-[6px] w98-inset-dark bg-inset-well overflow-hidden">
               <div
                 className="h-full transition-all duration-500"
