@@ -5,8 +5,17 @@ import type { Episode } from "./schema";
 /**
  * On first visit (empty DB), fetch the pre-built seed catalog from /seed/library.json
  * and populate the local IndexedDB. Subsequent visits skip this entirely.
+ *
+ * Module-level guard prevents React Strict Mode double-invocation race condition.
  */
-export async function seedLibraryIfEmpty(): Promise<boolean> {
+let _seedPromise: Promise<boolean> | null = null;
+
+export function seedLibraryIfEmpty(): Promise<boolean> {
+  if (!_seedPromise) _seedPromise = _seedLibraryIfEmpty();
+  return _seedPromise;
+}
+
+async function _seedLibraryIfEmpty(): Promise<boolean> {
   const count = await db.episodes.count();
   if (count > 0) return false;
 

@@ -67,7 +67,8 @@ export async function fetchLeaderboard(
       RETRY_OPTS,
     );
     if (!res.ok) return [];
-    return await res.json();
+    const data = await res.json();
+    return data.entries ?? [];
   } catch {
     return [];
   }

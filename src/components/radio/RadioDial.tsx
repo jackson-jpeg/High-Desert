@@ -158,7 +158,7 @@ export function RadioDial({ episodes }: RadioDialProps) {
       role="tablist"
       aria-label="Jump to year"
     >
-      {index.years.map((year) => {
+      {index.years.filter((y) => Number.isFinite(y)).map((year) => {
         // Distance-based opacity fade on mobile
         const dist = currentYear ? Math.abs(year - currentYear) : 0;
         const mobileOpacity = currentYear

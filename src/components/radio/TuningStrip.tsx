@@ -149,6 +149,7 @@ export function TuningStrip({ index, className }: TuningStripProps) {
       const hitAreas: { x: number; width: number; year: number }[] = [];
 
       for (const year of index.years) {
+        if (!Number.isFinite(year)) continue;
         const jan1 = new Date(`${year}-01-01T00:00:00`);
         const yearDay =
           (jan1.getTime() - index.earliest.getTime()) / 86_400_000;

@@ -74,7 +74,11 @@ function findNearest(stations: DialStation[], targetDay: number): number {
 function buildStationIndex(episodes: Episode[]): StationIndex | null {
   // Filter episodes with valid air dates and sort
   const withDates = episodes
-    .filter((ep) => ep.airDate)
+    .filter((ep) => {
+      if (!ep.airDate) return false;
+      const d = new Date(ep.airDate + "T00:00:00");
+      return Number.isFinite(d.getTime());
+    })
     .sort((a, b) => a.airDate!.localeCompare(b.airDate!));
 
   if (withDates.length === 0) return null;
@@ -90,7 +94,7 @@ function buildStationIndex(episodes: Episode[]): StationIndex | null {
     const d = new Date(ep.airDate! + "T00:00:00");
     const dayIndex = dateToDayIndex(d, earliest);
     const year = d.getFullYear();
-    yearsSet.add(year);
+    if (Number.isFinite(year)) yearsSet.add(year);
 
     const station: DialStation = {
       dayIndex,
