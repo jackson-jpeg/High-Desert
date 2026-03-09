@@ -18,6 +18,10 @@ export function ListeningStats({ className }: ListeningStatsProps) {
 
   useEffect(() => {
     fetchActiveCount().then(setActiveCount);
+    const interval = setInterval(() => {
+      fetchActiveCount().then(setActiveCount);
+    }, 60_000);
+    return () => clearInterval(interval);
   }, []);
 
   const stats = useMemo(() => {

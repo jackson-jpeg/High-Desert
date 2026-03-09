@@ -9,6 +9,8 @@
  *   lb:alltime              — sorted set (episodeId → cumulative plays)
  *   lb:week:YYYY-WNN        — sorted set (episodeId → plays this ISO week)
  *   active                  — sorted set (sessionId → timestamp)
+ *   rt:{episodeId}          — hash { sum: number, count: number, avg: number }
+ *   rt:user:{ip}:{epId}     — string (previous rating by this IP, for idempotent updates)
  */
 
 import { kv } from "@vercel/kv";
@@ -125,4 +127,106 @@ export async function getActiveCount(): Promise<number> {
   const cutoff = Date.now() - ACTIVE_WINDOW_MS;
   await kv.zremrangebyscore("active", 0, cutoff);
   return kv.zcard("active");
+}
+
+// ---------------------------------------------------------------------------
+// Ratings
+// ---------------------------------------------------------------------------
+
+const RATING_USER_TTL = 365 * 24 * 60 * 60; // 1 year
+
+/**
+ * Record or update a user's rating for an episode.
+ * Idempotent per IP — re-rating adjusts the aggregate rather than double-counting.
+ */
+export async function recordRating(
+  episodeId: string,
+  rating: number,
+  userKey: string,
+): Promise<void> {
+  const ratingKey = `rt:${episodeId}`;
+  const userRatingKey = `rt:user:${userKey}:${episodeId}`;
+
+  // Check if user already rated this episode
+  const previousRating = await kv.get<number>(userRatingKey);
+
+  const pipe = kv.pipeline();
+
+  if (previousRating != null) {
+    // Update: subtract old rating, add new one
+    pipe.hincrbyfloat(ratingKey, "sum", rating - previousRating);
+  } else {
+    // New rating
+    pipe.hincrbyfloat(ratingKey, "sum", rating);
+    pipe.hincrby(ratingKey, "count", 1);
+  }
+
+  // Store user's rating for idempotency
+  pipe.set(userRatingKey, rating, { ex: RATING_USER_TTL });
+
+  await pipe.exec();
+
+  // Update cached average
+  const data = await kv.hmget<{ sum: string; count: string }>(ratingKey, "sum", "count");
+  const sum = Number(data?.sum ?? 0);
+  const count = Number(data?.count ?? 0);
+  if (count > 0) {
+    await kv.hset(ratingKey, { avg: (sum / count).toFixed(2) });
+  }
+}
+
+/**
+ * Remove a user's rating for an episode.
+ */
+export async function removeRating(
+  episodeId: string,
+  userKey: string,
+): Promise<void> {
+  const ratingKey = `rt:${episodeId}`;
+  const userRatingKey = `rt:user:${userKey}:${episodeId}`;
+
+  const previousRating = await kv.get<number>(userRatingKey);
+  if (previousRating == null) return;
+
+  const pipe = kv.pipeline();
+  pipe.hincrbyfloat(ratingKey, "sum", -previousRating);
+  pipe.hincrby(ratingKey, "count", -1);
+  pipe.del(userRatingKey);
+  await pipe.exec();
+
+  // Update cached average
+  const data = await kv.hmget<{ sum: string; count: string }>(ratingKey, "sum", "count");
+  const sum = Number(data?.sum ?? 0);
+  const count = Number(data?.count ?? 0);
+  if (count > 0) {
+    await kv.hset(ratingKey, { avg: (sum / count).toFixed(2) });
+  } else {
+    await kv.hset(ratingKey, { avg: "0" });
+  }
+}
+
+/**
+ * Bulk-fetch community ratings for a list of episode IDs.
+ * Returns { avg, count } for each episode that has ratings.
+ */
+export async function getRatings(
+  ids: string[],
+): Promise<Record<string, { avg: number; count: number }>> {
+  if (ids.length === 0) return {};
+
+  const result: Record<string, { avg: number; count: number }> = {};
+
+  // Fetch in parallel
+  const promises = ids.map(async (id) => {
+    const data = await kv.hmget<{ avg: string; count: string }>(`rt:${id}`, "avg", "count");
+    if (data?.count && Number(data.count) > 0) {
+      result[id] = {
+        avg: Number(data.avg ?? 0),
+        count: Number(data.count),
+      };
+    }
+  });
+
+  await Promise.all(promises);
+  return result;
 }

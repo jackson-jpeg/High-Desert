@@ -8,6 +8,7 @@ import { Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
 import { toast } from "@/stores/toast-store";
 import { rateEpisode, toggleFlag } from "@/services/episodes/management";
+import { reportRating, fetchRatings } from "@/services/stats/client";
 import { BookmarkList } from "@/components/player/BookmarkMarkers";
 import { MoreLikeThis } from "@/components/library/MoreLikeThis";
 import { useSwipeDown } from "@/hooks/useSwipeDown";
@@ -85,6 +86,17 @@ export function EpisodeDetail({
   const [editSummary, setEditSummary] = useState("");
   const [editCategory, setEditCategory] = useState("");
   const [editSeries, setEditSeries] = useState("");
+
+  // Community rating
+  const [communityRating, setCommunityRating] = useState<{ avg: number; count: number } | null>(null);
+
+  useEffect(() => {
+    if (!episode.archiveIdentifier) return;
+    fetchRatings([episode.archiveIdentifier]).then((data) => {
+      const r = data[episode.archiveIdentifier!];
+      setCommunityRating(r ?? null);
+    });
+  }, [episode.archiveIdentifier, episode.rating]); // re-fetch after local rating changes
 
   // Reset edit state when episode changes
   useEffect(() => {
@@ -437,6 +449,10 @@ export function EpisodeDetail({
                     onClick={async () => {
                       const newRating = episode.rating === star ? undefined : star;
                       await rateEpisode(episode.id!, newRating);
+                      // Sync to community rating system
+                      if (episode.archiveIdentifier) {
+                        reportRating(episode.archiveIdentifier, newRating ?? null);
+                      }
                     }}
                     className={cn(
                       "text-hd-20 md:text-hd-12 cursor-pointer transition-colors-fast min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center",
@@ -452,6 +468,11 @@ export function EpisodeDetail({
                 ))}
                 {episode.rating && (
                   <span className="text-hd-12 md:text-hd-10 text-bevel-dark/40 ml-1">{episode.rating}/5</span>
+                )}
+                {communityRating && communityRating.count > 0 && (
+                  <span className="text-hd-11 md:text-hd-9 text-bevel-dark/40 ml-2" title={`${communityRating.count} community rating${communityRating.count !== 1 ? "s" : ""}`}>
+                    {communityRating.avg.toFixed(1)} avg · {communityRating.count}
+                  </span>
                 )}
               </div>
             )}

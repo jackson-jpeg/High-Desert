@@ -44,6 +44,10 @@ function flushListenTime(reason: "pause" | "ended" | "unload" | "stop") {
   }
   if (reason !== "pause") {
     _listenAccum = 0; // reset on end/unload, keep on pause
+  }
+  // Only remove from active listeners on explicit stop or page unload
+  // Pausing briefly shouldn't drop the listener count
+  if (reason === "ended" || reason === "unload" || reason === "stop") {
     reportStop(_sessionId);
   }
 }

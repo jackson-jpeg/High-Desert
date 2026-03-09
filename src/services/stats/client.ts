@@ -74,6 +74,37 @@ export async function fetchLeaderboard(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Ratings
+// ---------------------------------------------------------------------------
+
+/** Fire-and-forget: submit a community rating (1-5) or null to remove. */
+export function reportRating(episodeId: string, rating: number | null): void {
+  fetch("/api/stats/rate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ episodeId, rating }),
+  }).catch(() => {});
+}
+
+/** Fetch community ratings for a batch of episode IDs. */
+export async function fetchRatings(
+  ids: string[],
+): Promise<Record<string, { avg: number; count: number }>> {
+  if (ids.length === 0) return {};
+  try {
+    const res = await fetchWithRetry(
+      `/api/stats/ratings?ids=${ids.join(",")}`,
+      undefined,
+      RETRY_OPTS,
+    );
+    if (!res.ok) return {};
+    return await res.json();
+  } catch {
+    return {};
+  }
+}
+
 export async function fetchActiveCount(): Promise<number> {
   try {
     const res = await fetchWithRetry(
