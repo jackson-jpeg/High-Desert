@@ -13,6 +13,7 @@ import { db, getPreference, setPreference } from "@/db";
 import type { Episode } from "@/db/schema";
 import { getCachedAudio, cacheAudioBlob } from "@/audio/cache";
 import { seedLibraryIfEmpty } from "@/db/seed";
+import { deduplicateEpisodes } from "@/db/deduplicate";
 import { DBErrorBoundary } from "@/components/DBErrorBoundary";
 import { MilestoneDialog } from "@/components/desktop/MilestoneDialog";
 import { playStartupSound } from "@/audio/startup-sound";
@@ -268,9 +269,22 @@ export default function DesktopLayout({
     });
   }, []);
 
-  // On mount, seed library if empty, then restore state
+  // On mount, seed library if empty, then auto-dedup (fixes doubled episodes from old race condition)
   useEffect(() => {
-    seedLibraryIfEmpty().catch((err) => { console.warn("[layout] Failed to seed library:", err); });
+    seedLibraryIfEmpty()
+      .then(async (seeded) => {
+        // Skip dedup if we just seeded — fresh data has no duplicates
+        if (seeded) return;
+        const count = await db.episodes.count();
+        // Seed catalog is ~1,313 episodes; >1,500 strongly suggests duplicates
+        if (count > 1500) {
+          const result = await deduplicateEpisodes();
+          if (result.duplicatesRemoved > 0) {
+            toast.info(`Cleaned up ${result.duplicatesRemoved.toLocaleString()} duplicate episodes`);
+          }
+        }
+      })
+      .catch((err) => { console.warn("[layout] Seed/dedup failed:", err); });
   }, []);
 
   // Offline/online detection
