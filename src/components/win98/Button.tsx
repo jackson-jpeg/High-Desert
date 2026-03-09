@@ -15,9 +15,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         className={cn(
           "w98-font cursor-pointer select-none outline-none",
+          "active:scale-[0.97] active:brightness-90 transition-transform duration-75",
+          "md:active:scale-100 md:active:brightness-100",
           "md:active:pt-[5px] md:active:pb-[3px] md:active:pl-[17px] md:active:pr-[15px]",
-          "focus-visible:outline-dotted focus-visible:outline-1 focus-visible:outline-offset-[-4px]",
-          "disabled:text-[var(--w98-text-disabled)] disabled:cursor-default",
+          "focus-visible:outline-dotted focus-visible:outline-1 focus-visible:outline-offset-[-4px] focus-visible:shadow-[inset_0_0_0_3px_rgba(0,120,215,0.3)]",
+          "disabled:text-[var(--w98-text-disabled)] disabled:cursor-default disabled:active:scale-100 disabled:active:brightness-100",
           variant === "default" && "w98-button",
           variant === "flat" && [
             "bg-transparent border border-transparent text-desktop-gray",

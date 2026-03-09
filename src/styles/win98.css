@@ -140,6 +140,7 @@ button.w98-raised-dark:active:not(:disabled) {
 .w98-button:focus-visible {
   outline: 1px dotted var(--w98-text);
   outline-offset: -4px;
+  box-shadow: inset 0 0 0 3px rgba(0, 120, 215, 0.3);
 }
 
 .w98-button:disabled {
@@ -527,4 +528,13 @@ input[type="range"].w98-range-dark::-moz-range-thumb {
       background: rgba(0, 0, 0, 0.7);
     }
   }
+}
+
+/* ============================================
+   Horizontal Scroll Edge Fades
+   ============================================ */
+
+.scroll-fade-x {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, black 8px, black calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, black 8px, black calc(100% - 24px), transparent 100%);
 }

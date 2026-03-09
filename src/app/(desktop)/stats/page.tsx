@@ -326,7 +326,7 @@ export default function StatsPage() {
                 className="h-full transition-all duration-500"
                 style={{
                   width: `${completionPct}%`,
-                  background: "linear-gradient(90deg, #000080 0%, #4ADE80 50%, #D4A843 100%)",
+                  background: "linear-gradient(90deg, #1E3A8A 0%, #4ADE80 50%, #D4A843 100%)",
                 }}
               />
             </div>
@@ -375,7 +375,7 @@ export default function StatsPage() {
                           style={{
                             width: `${pct}%`,
                             "--i": i,
-                            background: `linear-gradient(90deg, #000080 0%, ${pct > 60 ? "#0A246A" : "#000080"} 100%)`,
+                            background: `linear-gradient(90deg, #1E3A8A 0%, ${pct > 60 ? "#1D4ED8" : "#1E3A8A"} 100%)`,
                           } as React.CSSProperties}
                         >
                           {/* Inner label */}
@@ -409,7 +409,7 @@ export default function StatsPage() {
             <div className="h-[20px] w98-inset-dark bg-inset-well overflow-hidden flex">
               {(
                 [
-                  ["coast", "#000080"],
+                  ["coast", "#1E3A8A"],
                   ["dreamland", "#166534"],
                   ["special", "#92400e"],
                   ["unknown", "#333B58"],

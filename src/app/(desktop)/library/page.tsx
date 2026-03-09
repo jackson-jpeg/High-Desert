@@ -1097,13 +1097,16 @@ export default function LibraryPage() {
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
-                className="h-[82px] rounded w98-inset-dark bg-inset-well animate-skeleton"
+                className="w98-raised-dark bg-card-surface animate-skeleton p-2.5 md:p-1.5"
                 style={{ animationDelay: `${i * 100}ms` }}
               >
-                <div className="p-3 flex flex-col gap-2">
-                  <div className="h-[10px] bg-bevel-dark/10 rounded w-[80px]" />
-                  <div className="h-[12px] bg-bevel-dark/10 rounded w-[200px]" />
-                  <div className="h-[10px] bg-bevel-dark/10 rounded w-[120px]" />
+                <div className="flex items-center gap-2">
+                  <div className="h-[10px] bg-bevel-dark/15 w-[72px]" />
+                  <div className="h-[12px] bg-bevel-dark/10 flex-1 max-w-[45%]" />
+                </div>
+                <div className="flex items-center justify-between gap-2 mt-1.5">
+                  <div className="h-[10px] bg-bevel-dark/10 w-[110px]" />
+                  <div className="h-[10px] bg-bevel-dark/10 w-[44px]" />
                 </div>
               </div>
             ))}

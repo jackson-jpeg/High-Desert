@@ -55,7 +55,7 @@ export function ContinueListening({ onPlay, className }: ContinueListeningProps)
           </button>
         </div>
 
-        <div className="flex gap-2 overflow-x-auto">
+        <div className="flex gap-2 overflow-x-auto scroll-fade-x">
           {inProgress.slice(0, 3).map((ep, i) => {
             const pct = ep.duration && ep.playbackPosition
               ? Math.round((ep.playbackPosition / ep.duration) * 100)
