@@ -7,7 +7,6 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
           { key: "X-DNS-Prefetch-Control", value: "on" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
@@ -25,7 +24,7 @@ const nextConfig: NextConfig = {
               "connect-src 'self' https://archive.org https://*.archive.org https://api.anthropic.com https://cloud.umami.is https://va.vercel-scripts.com",
               "media-src 'self' blob: https://archive.org https://*.archive.org",
               "worker-src 'self' blob:",
-              "frame-ancestors 'none'",
+              "frame-ancestors 'self' https://sang3r.com https://www.sang3r.com",
             ].join("; "),
           },
         ],
