@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { getAnalyserNode } from "@/audio/engine";
-import {
-  drawOscilloscope,
-  drawIdleLine,
-  drawStatic,
-} from "@/audio/oscilloscope-renderer";
+import { drawStatic } from "@/audio/visualizations/static";
+import { getVisualization, nextVisualization } from "@/audio/visualizations";
+import { getPreference, setPreference } from "@/db";
 import { usePlayerStore } from "@/stores/player-store";
 
 export function useOscilloscope() {
@@ -14,10 +12,41 @@ export function useOscilloscope() {
   const rafRef = useRef<number>(0);
   const tuningRef = useRef(false);
   const tuningTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [vizId, setVizId] = useState("oscilloscope");
+  const vizIdRef = useRef(vizId);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    vizIdRef.current = vizId;
+  }, [vizId]);
+
+  // Load saved preference on mount
+  useEffect(() => {
+    getPreference("viz-mode").then((saved) => {
+      if (saved) {
+        setVizId(saved);
+      }
+    });
+  }, []);
+
+  const cycleViz = useCallback(() => {
+    const next = nextVisualization(vizIdRef.current);
+    vizIdRef.current = next.id;
+    setVizId(next.id);
+    setPreference("viz-mode", next.id);
+  }, []);
+
+  const setVizMode = useCallback((id: string) => {
+    vizIdRef.current = id;
+    setVizId(id);
+    setPreference("viz-mode", id);
+  }, []);
 
   useEffect(() => {
     // Detect reduced motion preference
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
 
     // Watch for episode changes to trigger tuning effect
     const unsub = usePlayerStore.subscribe((state, prev) => {
@@ -38,7 +67,7 @@ export function useOscilloscope() {
     const canvas = canvasRef.current;
     if (!canvas) return unsub;
 
-    // Size canvas to match display (logical pixels — renderer uses these directly)
+    // Size canvas to match display (logical pixels)
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
       canvas.width = rect.width;
@@ -51,7 +80,6 @@ export function useOscilloscope() {
     ro.observe(canvas);
 
     // Throttle to 30fps on mobile to reduce GC pressure
-    // Uses canvas width (updated by ResizeObserver) instead of one-time window check
     const MOBILE_FRAME_INTERVAL = 1000 / 30;
     let lastFrameTime = 0;
 
@@ -65,13 +93,20 @@ export function useOscilloscope() {
 
       const analyser = getAnalyserNode();
       const playing = usePlayerStore.getState().playing;
+      const { width, height } = canvas;
 
       if (tuningRef.current) {
         drawStatic(canvas);
-      } else if (analyser && playing) {
-        drawOscilloscope(canvas, analyser);
       } else {
-        drawIdleLine(canvas);
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          const currentViz = getVisualization(vizIdRef.current);
+          if (analyser && playing) {
+            currentViz.draw(ctx, analyser, width, height);
+          } else {
+            currentViz.drawIdle(ctx, width, height);
+          }
+        }
       }
 
       rafRef.current = requestAnimationFrame(draw);
@@ -87,5 +122,7 @@ export function useOscilloscope() {
     };
   }, []);
 
-  return canvasRef;
+  const viz = getVisualization(vizId);
+
+  return { canvasRef, vizId, vizName: viz.name, cycleViz, setVizMode };
 }

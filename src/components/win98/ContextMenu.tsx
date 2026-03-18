@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useContextMenuStore } from "@/stores/context-menu-store";
+import { useContextMenuStore, type ContextMenuItem } from "@/stores/context-menu-store";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils/cn";
 import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
@@ -32,7 +32,7 @@ function MobileActionSheet({
   items,
   hide,
 }: {
-  items: { label: string; onClick: () => void; disabled?: boolean; separator?: boolean; danger?: boolean }[];
+  items: ContextMenuItem[];
   hide: () => void;
 }) {
   useEffect(() => {
@@ -79,7 +79,7 @@ function MobileActionSheet({
                   item.danger ? "text-red-400" : "text-desktop-gray",
                 )}
               >
-                {item.label}
+                {item.checked ? "✓ " + item.label : item.label}
               </button>
             );
           })}
@@ -105,7 +105,7 @@ function ContextMenuInner({
   hide,
 }: {
   position: { x: number; y: number };
-  items: { label: string; onClick: () => void; disabled?: boolean; separator?: boolean; danger?: boolean }[];
+  items: ContextMenuItem[];
   hide: () => void;
 }) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -243,7 +243,7 @@ function ContextMenuInner({
               item.danger ? "text-red-400" : "text-desktop-gray",
             )}
           >
-            {item.label}
+            {item.checked ? "✓ " + item.label : item.label}
           </button>
         );
       })}

@@ -6,6 +6,7 @@ export interface ContextMenuItem {
   disabled?: boolean;
   separator?: boolean;
   danger?: boolean;
+  checked?: boolean;
 }
 
 interface ContextMenuState {
