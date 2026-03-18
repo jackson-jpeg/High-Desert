@@ -2,11 +2,12 @@
  * Spectrum Waterfall Visualization
  *
  * Frequency data scrolls vertically — newest at top, oldest fading below.
- * Uses an ImageData buffer shifted down each frame.
+ * Uses logarithmic frequency scaling to concentrate the interesting voice
+ * frequencies (80Hz-4kHz) where they're visible, instead of wasting 75%
+ * of the width on inaudible high frequencies.
  */
 
 import type { Visualization } from "./types";
-import { PHOSPHOR_GREEN, DESERT_AMBER } from "./types";
 
 let cachedDataArray: Uint8Array<ArrayBuffer> | null = null;
 let cachedBufferLength = 0;
@@ -31,25 +32,48 @@ function ensureBuffer(w: number, h: number): ImageData {
   return imageBuffer;
 }
 
-// Parse hex color to RGB
-function hexToRgb(hex: string): [number, number, number] {
-  const n = parseInt(hex.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+/**
+ * Map a pixel x-position to a frequency bin using log scale.
+ * This makes low frequencies (voice) take up more space.
+ */
+function logBinIndex(x: number, w: number, binCount: number): number {
+  // Map x to [0,1], apply log scale, map to bin
+  const minLog = Math.log(1);
+  const maxLog = Math.log(binCount);
+  const logVal = minLog + (x / w) * (maxLog - minLog);
+  return Math.min(binCount - 1, Math.floor(Math.exp(logVal)));
 }
 
-const greenRgb = hexToRgb(PHOSPHOR_GREEN);
-const amberRgb = hexToRgb(DESERT_AMBER);
+/**
+ * Color gradient: black → deep blue → phosphor green → amber → white
+ * More color variation makes the spectrogram readable and beautiful.
+ */
+function freqColor(val: number): [number, number, number] {
+  if (val < 20) return [0, 0, 0];
 
-function freqColor(
-  val: number,
-): [number, number, number] {
-  // Interpolate from dark green to bright amber
   const t = val / 255;
-  return [
-    Math.floor(greenRgb[0] * (1 - t) * 0.3 + amberRgb[0] * t),
-    Math.floor(greenRgb[1] * (1 - t) * 0.3 + amberRgb[1] * t),
-    Math.floor(greenRgb[2] * (1 - t) * 0.3 + amberRgb[2] * t),
-  ];
+
+  if (t < 0.25) {
+    // Black → deep blue/green
+    const s = t / 0.25;
+    return [0, Math.floor(s * 30), Math.floor(s * 50)];
+  } else if (t < 0.5) {
+    // Deep blue/green → phosphor green
+    const s = (t - 0.25) / 0.25;
+    return [0, Math.floor(30 + s * 225), Math.floor(50 - s * 20)];
+  } else if (t < 0.75) {
+    // Phosphor green → amber
+    const s = (t - 0.5) / 0.25;
+    return [Math.floor(s * 230), Math.floor(255 - s * 70), Math.floor(30 * (1 - s))];
+  } else {
+    // Amber → bright white
+    const s = (t - 0.75) / 0.25;
+    return [
+      Math.floor(230 + s * 25),
+      Math.floor(185 + s * 70),
+      Math.floor(s * 200),
+    ];
+  }
 }
 
 export const waterfall: Visualization = {
@@ -65,7 +89,6 @@ export const waterfall: Visualization = {
     const data = buf.data;
 
     // Shift buffer down by 1 pixel row
-    // Copy from bottom to top to avoid overwriting
     for (let y = h - 1; y > 0; y--) {
       const dstOffset = y * w * 4;
       const srcOffset = (y - 1) * w * 4;
@@ -74,11 +97,16 @@ export const waterfall: Visualization = {
       }
     }
 
-    // Draw new frequency line at top row
+    // Draw new frequency line at top row — log-scaled
     for (let x = 0; x < w; x++) {
-      const binIndex = Math.floor((x / w) * bufferLength);
-      const val = dataArray[binIndex];
-      const [r, g, b] = freqColor(val);
+      const binIndex = logBinIndex(x, w, bufferLength);
+      // Average a few neighboring bins for smoother look
+      const lo = Math.max(0, binIndex - 1);
+      const hi = Math.min(bufferLength - 1, binIndex + 1);
+      const val = (dataArray[lo] + dataArray[binIndex] + dataArray[hi]) / 3;
+      // Boost low values so quiet speech still shows
+      const boosted = Math.min(255, val * 1.4);
+      const [r, g, b] = freqColor(boosted);
       const offset = x * 4;
       data[offset] = r;
       data[offset + 1] = g;
@@ -98,7 +126,6 @@ export const waterfall: Visualization = {
       data[i] = Math.floor(data[i] * 0.98);
       data[i + 1] = Math.floor(data[i + 1] * 0.98);
       data[i + 2] = Math.floor(data[i + 2] * 0.98);
-      // Keep alpha at 255
     }
 
     ctx.putImageData(buf, 0, 0);
