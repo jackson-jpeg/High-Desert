@@ -37,6 +37,14 @@ const CALLER_MESSAGES = [
   "The desert is listening...",
   "Coast to Coast, you\u2019re on the air...",
   "From the high desert...",
+  "What\u2019s on your mind tonight?",
+  "Open lines, area code first...",
+  "The bumper music plays on...",
+  "You\u2019re in the first half...",
+  "We\u2019ll be right back after this...",
+  "From the Great American Southwest...",
+  "The phone lines are lit up...",
+  "You\u2019re on the wild card line...",
 ];
 
 
@@ -245,6 +253,31 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       }, 500);
     }, 30000);
     return () => clearInterval(id);
+  }, []);
+
+  // Listening streak (consecutive days with history entries)
+  const streak = useLiveQuery(async () => {
+    const entries = await db.history.orderBy("timestamp").reverse().limit(500).toArray();
+    if (entries.length === 0) return 0;
+    const daySet = new Set<string>();
+    for (const entry of entries) {
+      daySet.add(new Date(entry.timestamp).toISOString().slice(0, 10));
+    }
+    const today = new Date();
+    let count = 0;
+    for (let d = 0; d < 365; d++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - d);
+      const key = date.toISOString().slice(0, 10);
+      if (daySet.has(key)) {
+        count++;
+      } else if (d === 0) {
+        continue; // today hasn't been listened yet, check yesterday
+      } else {
+        break;
+      }
+    }
+    return count;
   }, []);
 
   // Ghost to Ghost easter egg: detect Halloween season (Oct 28 - Nov 2)
@@ -604,6 +637,14 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               </button>
             ),
             width: "110px",
+          }] : []),
+          ...((streak ?? 0) > 1 ? [{
+            content: (
+              <span className="text-hd-10 text-desert-amber/70" title={`${streak}-day listening streak`}>
+                🔥 {streak}d
+              </span>
+            ),
+            width: "48px",
           }] : []),
           ...(installPrompt ? [{
             content: (

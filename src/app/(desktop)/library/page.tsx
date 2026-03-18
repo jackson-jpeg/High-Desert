@@ -677,6 +677,20 @@ export default function LibraryPage() {
     }
   }, [selectedIds]);
 
+  // Scroll to focused item on keyboard navigation
+  useEffect(() => {
+    if (focusedIndex < 0) return;
+    const container = document.querySelector('[role="listbox"]')?.parentElement;
+    if (!container) return;
+    const itemH = window.innerWidth < 768 ? 92 : 76;
+    const targetTop = focusedIndex * itemH;
+    const viewTop = container.scrollTop;
+    const viewBottom = viewTop + container.clientHeight;
+    if (targetTop < viewTop || targetTop + itemH > viewBottom) {
+      container.scrollTop = targetTop - container.clientHeight / 2 + itemH / 2;
+    }
+  }, [focusedIndex]);
+
   // Keyboard navigation for the library list
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -793,17 +807,38 @@ export default function LibraryPage() {
     <div className="flex flex-col h-full overflow-auto overscroll-contain">
       {/* Search + Show Type Pills — sticky on mobile so users can refine while scrolling */}
       <div className="flex flex-col gap-1.5 px-3 py-2 flex-shrink-0 md:flex-row md:items-center md:gap-2 sticky top-0 z-20 bg-midnight/95 backdrop-blur-sm md:static md:bg-transparent md:backdrop-blur-none">
-        <SearchBar
-          ref={searchBarRef}
-          value={search}
-          onChange={setSearch}
-          resultCount={allEpisodes ? filtered.length : undefined}
-          guests={searchGuests}
-          categories={searchCategories}
-          years={searchYears}
-          series={searchSeries}
-          className="flex-1"
-        />
+        <div className="flex items-center gap-1.5 flex-1">
+          <SearchBar
+            ref={searchBarRef}
+            value={search}
+            onChange={setSearch}
+            resultCount={allEpisodes ? filtered.length : undefined}
+            guests={searchGuests}
+            categories={searchCategories}
+            years={searchYears}
+            series={searchSeries}
+            className="flex-1"
+          />
+          {filtered.length > 0 && (
+            <button
+              onClick={() => {
+                const pool = [...filtered].sort(() => Math.random() - 0.5);
+                const batch = pool.slice(0, 20);
+                const store = usePlayerStore.getState();
+                store.enqueueMany(batch);
+                if (batch[0]) {
+                  window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: batch[0] }));
+                }
+                toast.info(`Shuffling ${batch.length} from ${filtered.length} episodes`);
+              }}
+              className="hidden md:flex items-center justify-center w-[28px] h-[28px] text-hd-11 text-bevel-dark/50 hover:text-desert-amber cursor-pointer transition-colors-fast flex-shrink-0"
+              title="Shuffle filtered episodes"
+              aria-label="Shuffle filtered episodes"
+            >
+              ⇄
+            </button>
+          )}
+        </div>
         {allEpisodes && allEpisodes.length > 0 && (
           <div className="flex items-center gap-1 md:gap-0.5 flex-shrink-0 overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0">
             {SHOW_TABS.map((tab) => {

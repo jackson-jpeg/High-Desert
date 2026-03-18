@@ -307,7 +307,7 @@ export default function StatsPage() {
             <HeroStat
               label="Avg Rating"
               value={stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "\u2014"}
-              sub={stats.avgRating === 0 ? "Rate episodes to start tracking your taste." : stats.fiveStarCount > 0 ? `${stats.fiveStarCount} five-star` : "no ratings yet"}
+              sub={stats.avgRating === 0 ? "Rate episodes to start tracking your taste." : stats.ratedCount > 0 ? `${stats.ratedCount} rated` : "no ratings yet"}
               color="text-desert-amber"
             />
             <HeroStat

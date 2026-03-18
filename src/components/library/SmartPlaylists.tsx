@@ -64,8 +64,21 @@ export function SmartPlaylists({ onPlay, className }: SmartPlaylistsProps) {
         episodes: eps.sort((a, b) => (a.airDate ?? "").localeCompare(b.airDate ?? "")),
       }));
 
+    // "Start Here" — golden-era highlights for new listeners
+    const startHere = allEpisodes
+      .filter((ep) => {
+        const year = ep.airDate?.slice(0, 4);
+        if (!year) return false;
+        const y = parseInt(year, 10);
+        return y >= 1995 && y <= 1999 && (ep.aiNotable || (ep.rating && ep.rating >= 4));
+      })
+      .sort((a, b) => (a.airDate ?? "").localeCompare(b.airDate ?? ""));
+
     const result: SmartList[] = [];
 
+    if (startHere.length > 0) {
+      result.push({ key: "start-here", label: "Start Here — Classic Episodes", icon: "\u2B50", episodes: startHere });
+    }
     if (unlistened.length > 0) {
       result.push({ key: "unlistened", label: "Unlistened", icon: "\u{1F195}", episodes: unlistened });
     }

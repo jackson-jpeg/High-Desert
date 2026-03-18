@@ -95,7 +95,7 @@ export function CommunityLeaderboard() {
           </div>
         ) : (
           <div className="flex flex-col gap-[3px]">
-            {entries.map((entry, i) => {
+            {entries.filter((entry) => keyToEpisode?.get(entry.episodeId)).map((entry, i) => {
               const ep = keyToEpisode?.get(entry.episodeId);
               const pct = (entry.plays / maxPlays) * 100;
               return (

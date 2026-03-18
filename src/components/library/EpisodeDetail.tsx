@@ -484,7 +484,7 @@ export function EpisodeDetail({
             <div className="flex items-center gap-2 border-t border-bevel-dark/15 glass-divider pt-2 mt-0.5">
               {episode.archiveIdentifier && (
                 <a
-                  href={`https://archive.org/details/${episode.archiveIdentifier}`}
+                  href={`https://archive.org/details/${episode.archiveIdentifier}${episode.fileName ? `/${episode.fileName}` : ""}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-hd-13 md:text-hd-10 text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
