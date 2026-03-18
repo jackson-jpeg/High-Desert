@@ -12,7 +12,14 @@ export function useOscilloscope() {
   const rafRef = useRef<number>(0);
   const tuningRef = useRef(false);
   const tuningTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const [vizId, setVizId] = useState("oscilloscope");
+  // iOS can't use AnalyserNode (kills background playback), so default to
+  // milkdrop which has the best idle animation for non-reactive mode
+  const isIOS = typeof navigator !== "undefined" &&
+    (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+  const defaultViz = isIOS ? "milkdrop" : "oscilloscope";
+
+  const [vizId, setVizId] = useState(defaultViz);
   const vizIdRef = useRef(vizId);
 
   // Keep ref in sync with state
@@ -20,7 +27,7 @@ export function useOscilloscope() {
     vizIdRef.current = vizId;
   }, [vizId]);
 
-  // Load saved preference on mount
+  // Load saved preference on mount (overrides iOS default if user chose something)
   useEffect(() => {
     getPreference("viz-mode").then((saved) => {
       if (saved) {
