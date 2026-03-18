@@ -1,25 +1,22 @@
 import type { Visualization } from "./types";
 import { oscilloscope } from "./viz-oscilloscope";
-
-/** Create a placeholder visualization that draws nothing */
-function placeholder(id: string, name: string): Visualization {
-  return {
-    id,
-    name,
-    draw() {},
-    drawIdle() {},
-  };
-}
+import { bars } from "./viz-bars";
+import { waterfall } from "./viz-waterfall";
+import { vuMeters } from "./viz-vu";
+import { lissajous } from "./viz-lissajous";
+import { radar } from "./viz-radar";
+import { starfield } from "./viz-starfield";
+import { milkdrop } from "./viz-milkdrop";
 
 export const VISUALIZATIONS: Visualization[] = [
   oscilloscope,
-  placeholder("bars", "Frequency Bars"),
-  placeholder("waterfall", "Waterfall"),
-  placeholder("vu", "VU Meter"),
-  placeholder("lissajous", "Lissajous"),
-  placeholder("radar", "Radar"),
-  placeholder("starfield", "Starfield"),
-  placeholder("milkdrop", "Milkdrop"),
+  bars,
+  waterfall,
+  vuMeters,
+  lissajous,
+  radar,
+  starfield,
+  milkdrop,
 ];
 
 export function getVisualization(id: string): Visualization {
