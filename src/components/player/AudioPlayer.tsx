@@ -29,6 +29,10 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   const toggleMini = usePlayerStore((s) => s.toggleMini);
   const clearError = usePlayerStore((s) => s.setError);
   const queueLength = usePlayerStore((s) => s.queue.length);
+  const nextEpisode = usePlayerStore((s) => {
+    const nextIdx = s.queueIndex + 1;
+    return nextIdx < s.queue.length ? s.queue[nextIdx] : null;
+  });
   const position = usePlayerStore((s) => s.position);
   const duration = usePlayerStore((s) => s.duration);
   const hasPrev = usePlayerStore((s) => s.queueIndex > 0);
@@ -322,6 +326,12 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
         <div className="flex items-center gap-3 px-3 py-2">
           <Oscilloscope className="w-[72px] h-[32px] rounded-sm flex-shrink-0" />
           <NowPlaying className="flex-1 min-w-0" />
+          {nextEpisode && !showQueue && (
+            <div className="hidden lg:flex items-center gap-1 text-hd-10 text-bevel-dark/40 flex-shrink-0 max-w-[160px] truncate" title={`Up next: ${nextEpisode.title || nextEpisode.fileName}`}>
+              <span className="flex-shrink-0">Next:</span>
+              <span className="truncate">{nextEpisode.title || nextEpisode.fileName}</span>
+            </div>
+          )}
           <PlaybackControls
             onTogglePlay={togglePlay}
             onSeek={seek}

@@ -390,12 +390,7 @@ export function EpisodeDetail({
 
             {/* Play stats */}
             {(episode.playCount ?? 0) > 0 && (
-              <div className="text-hd-12 md:text-hd-10 text-bevel-dark/50 tabular-nums">
-                {episode.playCount != null && episode.playCount > 0 && `Played ${episode.playCount}x`}
-                {episode.lastPlayedAt != null && episode.lastPlayedAt > 0 && (
-                  <> &middot; {new Date(episode.lastPlayedAt).toLocaleDateString()}</>
-                )}
-              </div>
+              <PlayStats episode={episode} />
             )}
 
             {/* Play buttons */}
@@ -596,6 +591,35 @@ function SeriesPartsList({ seriesName, currentEpisodeId, onPlay }: { seriesName:
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function formatPlayStats(episode: Episode): string {
+  const parts: string[] = [];
+  if (episode.playCount != null && episode.playCount > 0) {
+    parts.push(`Played ${episode.playCount}x`);
+  }
+  if (episode.lastPlayedAt != null && episode.lastPlayedAt > 0) {
+    const ago = Date.now() - episode.lastPlayedAt;
+    const days = Math.floor(ago / 86400000);
+    const label = days === 0 ? "today" : days === 1 ? "yesterday" : days < 7 ? `${days}d ago` : new Date(episode.lastPlayedAt).toLocaleDateString();
+    parts.push(label);
+  }
+  if (episode.duration && episode.playbackPosition) {
+    const pct = Math.round((episode.playbackPosition / episode.duration) * 100);
+    if (pct > 0 && pct < 100) parts.push(`${pct}% heard`);
+    else if (pct >= 100) parts.push("completed");
+  }
+  return parts.join(" \u00B7 ");
+}
+
+function PlayStats({ episode }: { episode: Episode }) {
+  const text = formatPlayStats(episode);
+  if (!text) return null;
+  return (
+    <div className="text-hd-12 md:text-hd-10 text-bevel-dark/50 tabular-nums">
+      {text}
     </div>
   );
 }

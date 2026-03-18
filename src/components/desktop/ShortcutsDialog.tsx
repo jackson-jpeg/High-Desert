@@ -26,6 +26,7 @@ const SECTIONS: { title: string; shortcuts: ShortcutEntry[] }[] = [
       { keys: "P", action: "Previous track" },
       { keys: "⇧↑ / ⇧↓", action: "Navigate library" },
       { keys: "Enter", action: "Play selected" },
+      { keys: "Q", action: "Queue selected" },
       { keys: "Escape", action: "Clear selection" },
     ],
   },

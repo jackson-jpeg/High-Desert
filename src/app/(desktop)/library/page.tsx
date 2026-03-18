@@ -20,6 +20,7 @@ import { Dialog, Button } from "@/components/win98";
 import { parseSearch, type ComparisonOp } from "@/lib/utils/search-parser";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { GuestProfile } from "@/components/library/GuestProfile";
+import { ContinueListening } from "@/components/library/ContinueListening";
 import { cn } from "@/lib/utils/cn";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { useCommunityStats } from "@/hooks/useCommunityStats";
@@ -35,7 +36,7 @@ function matchComparison(actual: number, op: ComparisonOp["op"], target: number)
   }
 }
 
-type SortMode = "date" | "name" | "guest";
+type SortMode = "date" | "name" | "guest" | "recent" | "progress" | "rated" | "played";
 type ShowFilter = "all" | "coast" | "dreamland" | "special" | "unknown";
 
 const SHOW_TABS: { key: ShowFilter; label: string }[] = [
@@ -75,7 +76,7 @@ export default function LibraryPage() {
   useEffect(() => {
     const handler = (e: Event) => {
       const sort = (e as CustomEvent<string>).detail;
-      if (sort === "date" || sort === "name" || sort === "guest") setSortMode(sort as SortMode);
+      if (["date", "name", "guest", "recent", "progress", "rated", "played"].includes(sort)) setSortMode(sort as SortMode);
     };
     window.addEventListener("hd:sort", handler);
     return () => window.removeEventListener("hd:sort", handler);
@@ -437,6 +438,16 @@ export default function LibraryPage() {
         const gB = (b.guestName || "").toLowerCase();
         return gA.localeCompare(gB) || (a.airDate ?? "").localeCompare(b.airDate ?? "");
       });
+    } else if (sortMode === "recent") {
+      list = [...list].sort((a, b) => (b.lastPlayedAt ?? 0) - (a.lastPlayedAt ?? 0));
+    } else if (sortMode === "progress") {
+      list = [...list]
+        .filter((ep) => ep.duration && ep.playbackPosition && ep.playbackPosition / ep.duration > 0.05 && ep.playbackPosition / ep.duration < 0.95)
+        .sort((a, b) => (b.lastPlayedAt ?? 0) - (a.lastPlayedAt ?? 0));
+    } else if (sortMode === "rated") {
+      list = [...list].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || (b.airDate ?? "").localeCompare(a.airDate ?? ""));
+    } else if (sortMode === "played") {
+      list = [...list].sort((a, b) => (b.playCount ?? 0) - (a.playCount ?? 0));
     }
     // "date" is already the default order from Dexie (airDate desc)
 
@@ -738,6 +749,17 @@ export default function LibraryPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [filtered, focusedIndex, selectedEpisode, selectedIds, handlePlay]);
 
+  // Q shortcut: queue currently selected episode
+  useEffect(() => {
+    const handler = () => {
+      if (selectedEpisode) {
+        handleQueue(selectedEpisode);
+      }
+    };
+    window.addEventListener("hd:queue-selected", handler);
+    return () => window.removeEventListener("hd:queue-selected", handler);
+  }, [selectedEpisode, handleQueue]);
+
   // Detail panel swipe-down-to-close
   const detailSwipe = useRef({ startY: 0, currentY: 0, swiping: false });
   const detailRef = useRef<HTMLDivElement>(null);
@@ -978,6 +1000,36 @@ export default function LibraryPage() {
           >
             OK
           </button>
+        </div>
+      )}
+
+      {/* Continue Listening — shows in-progress episodes */}
+      {!search.trim() && !hasActiveFilters && (
+        <div className="px-3 flex-shrink-0">
+          <WidgetErrorBoundary name="Continue Listening">
+            <ContinueListening onPlay={handlePlay} />
+          </WidgetErrorBoundary>
+        </div>
+      )}
+
+      {/* Sort presets — visible when a non-default sort is active or on hover */}
+      {sortMode !== "date" && (
+        <div className="flex items-center gap-1 px-3 pb-1 flex-shrink-0">
+          <span className="text-hd-10 text-bevel-dark/40 mr-1">Sort:</span>
+          {(["date", "recent", "progress", "rated", "played"] as const).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setSortMode(mode)}
+              className={cn(
+                "px-2 py-0.5 text-hd-10 cursor-pointer transition-colors-fast",
+                sortMode === mode
+                  ? "text-desert-amber bg-desert-amber/10 w98-inset-dark"
+                  : "text-bevel-dark/50 hover:text-desktop-gray",
+              )}
+            >
+              {{ date: "Date", recent: "Recent", progress: "In Progress", rated: "Top Rated", played: "Most Played" }[mode]}
+            </button>
+          ))}
         </div>
       )}
 

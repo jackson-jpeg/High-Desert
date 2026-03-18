@@ -325,32 +325,45 @@ export default function DesktopLayout({
     };
   }, []);
 
-  // On mount, load last-played episode and restore queue
+  // On mount, restore queue and silently load last-played episode into player
   useEffect(() => {
-    // Continue listening is now handled by ContinueListening on the library page
-
-    // Restore queue from prefs
     Promise.all([
       getPreference("queue-ids"),
       getPreference("queue-index"),
-    ]).then(async ([idsJson, indexStr]) => {
-      if (!idsJson) return;
-      try {
-        const ids: number[] = JSON.parse(idsJson);
-        if (!Array.isArray(ids) || ids.length === 0) return;
-        const episodes = await db.episodes.where("id").anyOf(ids).toArray();
-        // Restore original order
-        const byId = new Map(episodes.map((e) => [e.id, e]));
-        const ordered = ids.map((id) => byId.get(id)).filter(Boolean) as Episode[];
-        if (ordered.length > 0) {
-          const idx = parseInt(indexStr ?? "-1", 10);
-          usePlayerStore.getState().restoreQueue(
-            ordered,
-            Math.min(Math.max(idx, -1), ordered.length - 1),
-          );
+      getPreference("last-episode-id"),
+    ]).then(async ([idsJson, indexStr, lastIdStr]) => {
+      // Restore queue
+      if (idsJson) {
+        try {
+          const ids: number[] = JSON.parse(idsJson);
+          if (Array.isArray(ids) && ids.length > 0) {
+            const episodes = await db.episodes.where("id").anyOf(ids).toArray();
+            const byId = new Map(episodes.map((e) => [e.id, e]));
+            const ordered = ids.map((id) => byId.get(id)).filter(Boolean) as Episode[];
+            if (ordered.length > 0) {
+              const idx = parseInt(indexStr ?? "-1", 10);
+              usePlayerStore.getState().restoreQueue(
+                ordered,
+                Math.min(Math.max(idx, -1), ordered.length - 1),
+              );
+            }
+          }
+        } catch {
+          // Ignore corrupt queue data
         }
-      } catch {
-        // Ignore corrupt queue data
+      }
+
+      // Silently load last episode into player (no auto-play)
+      if (lastIdStr && !usePlayerStore.getState().currentEpisode) {
+        const id = parseInt(lastIdStr, 10);
+        if (!isNaN(id)) {
+          const ep = await db.episodes.get(id);
+          if (ep) {
+            usePlayerStore.getState().loadEpisode(ep, "");
+            usePlayerStore.getState().setPosition(ep.playbackPosition ?? 0);
+            usePlayerStore.getState().setDuration(ep.duration ?? 0);
+          }
+        }
       }
     });
   }, []);
@@ -377,6 +390,13 @@ export default function DesktopLayout({
       if (e.code === "KeyA" && e.ctrlKey && e.shiftKey) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent("hd:easter-egg", { detail: "area51" }));
+        return;
+      }
+
+      // Q to queue selected episode (from library page)
+      if (e.code === "KeyQ" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("hd:queue-selected"));
         return;
       }
 
