@@ -146,7 +146,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           /* Player content — cinematic layout with generous whitespace */
           <div className="flex-1 flex flex-col justify-center px-6 gap-6">
             {/* Oscilloscope — larger for cinematic feel */}
-            <Oscilloscope className="w-full h-[140px] rounded" />
+            <Oscilloscope className="w-full h-[200px] rounded" />
 
             {/* Now Playing metadata */}
             <div className="text-center px-4">
@@ -411,7 +411,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
             </button>
           </div>
         </div>
-        <Oscilloscope className="w-full h-[80px] rounded-sm" />
+        <Oscilloscope className="w-full h-[200px] rounded-sm" />
         <PlaybackControls
           onTogglePlay={togglePlay}
           onSeek={seek}

@@ -9,8 +9,6 @@ import type { Visualization } from "./types";
 import { PHOSPHOR_GREEN, DESERT_AMBER } from "./types";
 
 const BAR_COUNT = 24;
-const SEGMENT_HEIGHT = 4;
-const SEGMENT_GAP = 1;
 
 let cachedDataArray: Uint8Array<ArrayBuffer> | null = null;
 let cachedBufferLength = 0;
@@ -65,8 +63,10 @@ export const bars: Visualization = {
 
     ctx.clearRect(0, 0, w, h);
 
+    const segH = Math.max(2, Math.floor(h / 40));
+    const segGap = Math.max(1, Math.floor(segH / 3));
     const barWidth = Math.floor(w / BAR_COUNT) - 2;
-    const totalSegs = Math.floor(h / (SEGMENT_HEIGHT + SEGMENT_GAP));
+    const totalSegs = Math.floor(h / (segH + segGap));
 
     for (let i = 0; i < BAR_COUNT; i++) {
       const val = getBarValue(dataArray, bufferLength, i);
@@ -78,9 +78,9 @@ export const bars: Visualization = {
 
       // Draw segments
       for (let s = 0; s < segs; s++) {
-        const y = h - s * (SEGMENT_HEIGHT + SEGMENT_GAP) - SEGMENT_HEIGHT;
+        const y = h - s * (segH + segGap) - segH;
         ctx.fillStyle = segmentColor(s, totalSegs);
-        ctx.fillRect(x, y, barWidth, SEGMENT_HEIGHT);
+        ctx.fillRect(x, y, barWidth, segH);
       }
 
       // Peak hold
@@ -107,8 +107,10 @@ export const bars: Visualization = {
       ghostAlphas = new Array(BAR_COUNT).fill(0);
     }
 
+    const segH = Math.max(2, Math.floor(h / 40));
+    const segGap = Math.max(1, Math.floor(segH / 3));
     const barWidth = Math.floor(w / BAR_COUNT) - 2;
-    const totalSegs = Math.floor(h / (SEGMENT_HEIGHT + SEGMENT_GAP));
+    const totalSegs = Math.floor(h / (segH + segGap));
 
     // Randomly trigger ghost pulses
     for (let i = 0; i < BAR_COUNT; i++) {
@@ -124,9 +126,9 @@ export const bars: Visualization = {
 
         ctx.globalAlpha = Math.max(0, ghostAlphas[i]);
         for (let s = 0; s < segs; s++) {
-          const y = h - s * (SEGMENT_HEIGHT + SEGMENT_GAP) - SEGMENT_HEIGHT;
+          const y = h - s * (segH + segGap) - segH;
           ctx.fillStyle = PHOSPHOR_GREEN;
-          ctx.fillRect(x, y, barWidth, SEGMENT_HEIGHT);
+          ctx.fillRect(x, y, barWidth, segH);
         }
         ctx.globalAlpha = 1;
       }

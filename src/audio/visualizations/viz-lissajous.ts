@@ -37,9 +37,10 @@ export const lissajous: Visualization = {
     const scale = Math.min(w, h) * 0.4;
     const phaseOffset = Math.floor(bufferLength / 4);
 
+    const dim = Math.min(w, h);
     // Glow
     ctx.strokeStyle = GLOW_COLOR;
-    ctx.lineWidth = 6;
+    ctx.lineWidth = Math.max(3, dim * 0.025);
     ctx.beginPath();
     for (let i = 0; i < bufferLength - phaseOffset; i++) {
       const x = cx + ((dataArray[i] - 128) / 128) * scale;
@@ -51,7 +52,7 @@ export const lissajous: Visualization = {
 
     // Main line
     ctx.strokeStyle = PHOSPHOR_GREEN;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = Math.max(1, dim * 0.008);
     ctx.shadowColor = PHOSPHOR_GREEN;
     ctx.shadowBlur = 8;
     ctx.beginPath();
@@ -82,9 +83,10 @@ export const lissajous: Visualization = {
 
     const points = 500;
 
+    const dim = Math.min(w, h);
     // Glow
     ctx.strokeStyle = GLOW_COLOR;
-    ctx.lineWidth = 4;
+    ctx.lineWidth = Math.max(2, dim * 0.02);
     ctx.beginPath();
     for (let i = 0; i < points; i++) {
       const p = (i / points) * Math.PI * 2;
@@ -97,7 +99,7 @@ export const lissajous: Visualization = {
 
     // Main line
     ctx.strokeStyle = PHOSPHOR_GREEN;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = Math.max(1, dim * 0.008);
     ctx.shadowColor = PHOSPHOR_GREEN;
     ctx.shadowBlur = 8;
     ctx.beginPath();
