@@ -12,6 +12,7 @@ import {
 import { db } from "@/db";
 import type { Episode } from "@/db/schema";
 import { reportPlay, reportStop, reportStopBeacon } from "@/services/stats/client";
+import { communityKey } from "@/lib/utils/community-key";
 import { checkArchiveHealth, clearHealthCache } from "@/services/archive/health";
 
 // ── Listening analytics ──
@@ -133,8 +134,9 @@ export function useAudioPlayer() {
         });
 
         // Report to community stats
-        if (episode.archiveIdentifier) {
-          reportPlay(episode.archiveIdentifier, _sessionId);
+        const key = communityKey(episode);
+        if (key) {
+          reportPlay(key, _sessionId);
         }
 
         // Increment play count in DB

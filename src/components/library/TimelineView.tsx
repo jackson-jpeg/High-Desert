@@ -7,6 +7,7 @@ import { YearNavigator } from "./YearNavigator";
 import { useVirtualList } from "@/hooks/useVirtualList";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils/cn";
+import { communityKey } from "@/lib/utils/community-key";
 
 interface TimelineViewProps {
   episodes: Episode[];
@@ -190,7 +191,7 @@ export function TimelineView({
                   onContextMenu={onEpisodeContextMenu}
                   onToggleFavorite={onToggleFavorite}
                   onQueue={onQueue}
-                  communityPlays={communityPlayCounts?.get(ep.archiveIdentifier ?? "")}
+                  communityPlays={communityPlayCounts?.get(communityKey(ep) ?? "")}
                 />
               </div>
             ))}

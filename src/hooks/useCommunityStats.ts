@@ -16,8 +16,8 @@ const cache = new Map<string, CacheEntry>();
 
 /**
  * Debounced batch-fetching of episode play counts with client-side caching.
- * Pass the archiveIdentifiers of currently-visible episodes; the hook coalesces
- * requests, skips cached entries, and returns a Map of id → play count.
+ * Pass community keys (from communityKey()) of currently-visible episodes;
+ * the hook coalesces requests, skips cached entries, and returns a Map of key → play count.
  */
 export function useCommunityStats(archiveIds: string[]): Map<string, number> {
   const [counts, setCounts] = useState<Map<string, number>>(() => new Map());

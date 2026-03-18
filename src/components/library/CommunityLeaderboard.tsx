@@ -7,6 +7,7 @@ import { Window } from "@/components/win98";
 import { fetchLeaderboard } from "@/services/stats/client";
 import { formatAirDate } from "@/lib/utils/format";
 import { cn } from "@/lib/utils/cn";
+import { communityKey } from "@/lib/utils/community-key";
 
 type Period = "alltime" | "week";
 
@@ -34,28 +35,33 @@ export function CommunityLeaderboard() {
     };
   }, [period]);
 
-  const episodeIds = entries.map((e) => e.episodeId);
+  const entryKeys = entries.map((e) => e.episodeId);
 
-  const localEpisodes = useLiveQuery(
-    async (): Promise<Episode[]> =>
-      episodeIds.length > 0
-        ? db.episodes.where("archiveIdentifier").anyOf(episodeIds).toArray()
-        : [],
-    [episodeIds.join(",")],
+  // Build a Map<communityKey, Episode> from all episodes — 1313 entries is trivial
+  const keyToEpisode = useLiveQuery(
+    async (): Promise<Map<string, Episode>> => {
+      if (entryKeys.length === 0) return new Map();
+      const all = await db.episodes.toArray();
+      const map = new Map<string, Episode>();
+      for (const ep of all) {
+        const key = communityKey(ep);
+        if (key) map.set(key, ep);
+      }
+      return map;
+    },
+    [entryKeys.join(",")],
   );
 
   const handlePlay = useCallback(
     (episodeId: string) => {
-      const ep = localEpisodes?.find(
-        (e) => e.archiveIdentifier === episodeId,
-      );
+      const ep = keyToEpisode?.get(episodeId);
       if (ep) {
         window.dispatchEvent(
           new CustomEvent("hd:play-episode", { detail: ep }),
         );
       }
     },
-    [localEpisodes],
+    [keyToEpisode],
   );
 
   if (!loading && entries.length === 0) return null;
@@ -90,9 +96,7 @@ export function CommunityLeaderboard() {
         ) : (
           <div className="flex flex-col gap-[3px]">
             {entries.map((entry, i) => {
-              const ep = localEpisodes?.find(
-                (e) => e.archiveIdentifier === entry.episodeId,
-              );
+              const ep = keyToEpisode?.get(entry.episodeId);
               const pct = (entry.plays / maxPlays) * 100;
               return (
                 <button

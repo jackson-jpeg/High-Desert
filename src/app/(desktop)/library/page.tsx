@@ -23,6 +23,7 @@ import { GuestProfile } from "@/components/library/GuestProfile";
 import { cn } from "@/lib/utils/cn";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { useCommunityStats } from "@/hooks/useCommunityStats";
+import { communityKey } from "@/lib/utils/community-key";
 
 function matchComparison(actual: number, op: ComparisonOp["op"], target: number): boolean {
   switch (op) {
@@ -443,12 +444,12 @@ export default function LibraryPage() {
   }, [allEpisodes, deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, bookmarkedIds]);
 
   // Community play counts for visible episodes
-  const archiveIds = useMemo(() => {
+  const communityKeys = useMemo(() => {
     return filtered
-      .map((ep) => ep.archiveIdentifier)
+      .map((ep) => communityKey(ep))
       .filter((id): id is string => !!id);
   }, [filtered]);
-  const communityCounts = useCommunityStats(archiveIds);
+  const communityCounts = useCommunityStats(communityKeys);
 
   // Scroll to currently playing episode
   useEffect(() => {
@@ -1206,7 +1207,7 @@ export default function LibraryPage() {
                 onPlay={handlePlay}
                 onClose={handleCloseDetail}
                 onToggleFavorite={handleToggleFavorite}
-                communityPlays={communityCounts.get(selectedEpisode.archiveIdentifier ?? "")}
+                communityPlays={communityCounts.get(communityKey(selectedEpisode) ?? "")}
                 {...(isAdmin
                   ? {
                       onDelete: async (ep: Episode) => {

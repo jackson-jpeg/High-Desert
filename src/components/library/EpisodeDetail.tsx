@@ -9,6 +9,7 @@ import { usePlayerStore } from "@/stores/player-store";
 import { toast } from "@/stores/toast-store";
 import { rateEpisode, toggleFlag } from "@/services/episodes/management";
 import { reportRating, fetchRatings } from "@/services/stats/client";
+import { communityKey } from "@/lib/utils/community-key";
 import { BookmarkList } from "@/components/player/BookmarkMarkers";
 import { MoreLikeThis } from "@/components/library/MoreLikeThis";
 import { useSwipeDown } from "@/hooks/useSwipeDown";
@@ -90,13 +91,14 @@ export function EpisodeDetail({
   // Community rating
   const [communityRating, setCommunityRating] = useState<{ avg: number; count: number } | null>(null);
 
+  const epCommunityKey = communityKey(episode);
   useEffect(() => {
-    if (!episode.archiveIdentifier) return;
-    fetchRatings([episode.archiveIdentifier]).then((data) => {
-      const r = data[episode.archiveIdentifier!];
+    if (!epCommunityKey) return;
+    fetchRatings([epCommunityKey]).then((data) => {
+      const r = data[epCommunityKey];
       setCommunityRating(r ?? null);
     });
-  }, [episode.archiveIdentifier, episode.rating]); // re-fetch after local rating changes
+  }, [epCommunityKey, episode.rating]); // re-fetch after local rating changes
 
   // Reset edit state when episode changes
   useEffect(() => {
@@ -450,8 +452,9 @@ export function EpisodeDetail({
                       const newRating = episode.rating === star ? undefined : star;
                       await rateEpisode(episode.id!, newRating);
                       // Sync to community rating system
-                      if (episode.archiveIdentifier) {
-                        reportRating(episode.archiveIdentifier, newRating ?? null);
+                      const ratingKey = communityKey(episode);
+                      if (ratingKey) {
+                        reportRating(ratingKey, newRating ?? null);
                       }
                     }}
                     className={cn(
