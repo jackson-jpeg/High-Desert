@@ -463,6 +463,10 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               }},
              { separator: true as const, label: "" }]
           : []),
+        ...(installPrompt ? [
+          { label: "Install App...", onClick: handleInstall },
+          { separator: true as const, label: "" },
+        ] : []),
         { label: "About High Desert", onClick: handleAbout },
       ],
     },
@@ -650,18 +654,6 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               </span>
             ),
             width: "48px",
-          }] : []),
-          ...(installPrompt ? [{
-            content: (
-              <button
-                onClick={handleInstall}
-                className="text-hd-10 cursor-pointer hover:text-desert-amber transition-colors-fast text-static-green"
-                title="Install High Desert as an app"
-              >
-                Install App
-              </button>
-            ),
-            width: "72px",
           }] : []),
           ...(activeListeners > 0 ? [{
             content: (

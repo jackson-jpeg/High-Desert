@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob:",
               "font-src 'self'",
-              "connect-src 'self' https://archive.org https://*.archive.org https://api.anthropic.com https://cloud.umami.is https://va.vercel-scripts.com",
+              "connect-src 'self' https://archive.org https://*.archive.org https://api.anthropic.com https://cloud.umami.is https://api-gateway.umami.dev https://va.vercel-scripts.com",
               "media-src 'self' blob: https://archive.org https://*.archive.org",
               "worker-src 'self' blob:",
               "frame-ancestors 'self' https://sang3r.com https://www.sang3r.com",

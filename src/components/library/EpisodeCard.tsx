@@ -222,6 +222,12 @@ export const EpisodeCard = memo(function EpisodeCard({
       <div className="text-hd-15 text-desktop-gray font-bold truncate mt-0.5 md:hidden font-sans leading-tight">
         {episode.title || episode.fileName}
       </div>
+      {/* Category — mobile only (shown in top-right area on desktop) */}
+      {episode.aiCategory && (
+        <span className="text-hd-11 text-desert-amber/50 truncate mt-0.5 block md:hidden">
+          {episode.aiCategory}
+        </span>
+      )}
 
       {/* Guest + series + duration */}
       <div className="flex items-center justify-between gap-2 mt-0.5">

@@ -228,12 +228,12 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
       <div className={cn("glass-medium glass-promote relative", playing && "glass-glow-amber", className)}>
         {/* Full-width progress bar at top — thin amber gradient */}
         {duration > 0 && (
-          <div className="absolute top-0 left-0 right-0 h-[1.5px]">
+          <div className="absolute top-0 left-0 right-0 h-[3px]">
             <div
               className="h-full transition-[width] duration-300"
               style={{
                 width: `${progressPct}%`,
-                background: "linear-gradient(90deg, rgba(212,168,67,0.5), rgba(212,168,67,0.8))",
+                background: "linear-gradient(90deg, rgba(212,168,67,0.7), rgba(100,200,100,0.9))",
               }}
             />
           </div>
@@ -375,7 +375,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   return (
     <div
       className={cn(
-        "w98-raised-dark bg-raised-surface flex flex-col max-h-[calc(100dvh-40px)] overflow-auto",
+        "w98-raised-dark bg-raised-surface flex flex-col max-h-[60vh] overflow-auto",
         className,
       )}
     >

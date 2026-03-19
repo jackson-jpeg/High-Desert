@@ -7,7 +7,7 @@
  */
 
 import type { Visualization } from "./types";
-import { PHOSPHOR_GREEN, GLOW_COLOR, DESERT_AMBER } from "./types";
+import { PHOSPHOR_GREEN, GLOW_COLOR } from "./types";
 
 let cachedDataArray: Uint8Array<ArrayBuffer> | null = null;
 let cachedBufferLength = 0;

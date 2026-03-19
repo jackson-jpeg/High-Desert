@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Window } from "@/components/win98";
 import { useRadioDialStore } from "@/stores/radio-dial-store";
 import { useRadioDial } from "@/hooks/useRadioDial";
 import { useRadioStatic } from "@/hooks/useRadioStatic";
 import { useIsMobile } from "@/hooks/useMediaQuery";
+import { getPreference, setPreference } from "@/db";
 import { cn } from "@/lib/utils/cn";
 import { TuningStrip } from "./TuningStrip";
 import { FrequencyDisplay } from "./FrequencyDisplay";
@@ -55,6 +56,23 @@ export function RadioDial({ episodes }: RadioDialProps) {
   const handleInteraction = useCallback(() => {
     ensureInitialized();
   }, [ensureInitialized]);
+
+  // First-visit radio hint (persisted in IndexedDB)
+  const [radioHint, setRadioHint] = useState(false);
+  useEffect(() => {
+    if (!index) return;
+    let cancelled = false;
+    getPreference("radio-hint-dismissed").then((val) => {
+      if (cancelled || val) return;
+      setTimeout(() => { if (!cancelled) setRadioHint(true); }, 800);
+    });
+    return () => { cancelled = true; };
+  }, [index]);
+
+  const dismissRadioHint = useCallback(() => {
+    setRadioHint(false);
+    setPreference("radio-hint-dismissed", "1");
+  }, []);
 
   // Keyboard handler
   useEffect(() => {
@@ -268,6 +286,21 @@ export function RadioDial({ episodes }: RadioDialProps) {
         {/* Year quick-jump */}
         <div className="flex-shrink-0 mx-5 mt-3">{yearBar}</div>
 
+        {/* First-visit hint */}
+        {radioHint && (
+          <div className="mx-5 mt-2 px-3 py-2 bg-desert-amber/10 border border-desert-amber/20 rounded flex items-center justify-between gap-2 flex-shrink-0 animate-fade-in">
+            <span className="text-hd-12 text-desert-amber/80">
+              Drag the dial to tune through the archive. Tap Seek to lock onto the nearest station.
+            </span>
+            <button
+              onClick={dismissRadioHint}
+              className="text-hd-12 text-bevel-dark/50 active:text-desktop-gray cursor-pointer min-w-[28px] min-h-[28px] flex items-center justify-center"
+            >
+              OK
+            </button>
+          </div>
+        )}
+
         {/* Tuning Strip */}
         <div className="flex-1 mx-4 my-1 min-h-[140px]">
           <TuningStrip index={index} className="rounded-lg" />
@@ -295,7 +328,7 @@ export function RadioDial({ episodes }: RadioDialProps) {
       className="flex flex-col h-full"
     >
       <div
-        className="flex flex-col gap-2 p-2 flex-1"
+        className="flex flex-col gap-1 p-2 flex-1"
         role="application"
         aria-label="AM Radio Dial"
         onClick={handleInteraction}
@@ -314,8 +347,23 @@ export function RadioDial({ episodes }: RadioDialProps) {
         {/* Year quick-jump */}
         {yearBar}
 
+        {/* First-visit hint */}
+        {radioHint && (
+          <div className="px-2 py-1.5 w98-inset-dark rounded flex items-center justify-between gap-2 animate-fade-in">
+            <span className="text-hd-10 text-desert-amber/80">
+              Drag the dial to tune through the archive chronologically. Press Enter or click Seek to lock onto the nearest station.
+            </span>
+            <button
+              onClick={dismissRadioHint}
+              className="text-hd-10 text-bevel-dark/50 hover:text-desktop-gray cursor-pointer min-w-[24px] flex items-center justify-center"
+            >
+              OK
+            </button>
+          </div>
+        )}
+
         {/* Tuning Strip */}
-        <div className="flex-1 min-h-[80px] flex gap-1">
+        <div className="flex-1 min-h-[60px] flex gap-1">
           <div className="flex-1 w98-inset-dark rounded">
             <TuningStrip index={index} className="rounded" />
           </div>
@@ -336,7 +384,7 @@ export function RadioDial({ episodes }: RadioDialProps) {
         </div>
 
         {/* Controls row */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <DialControls
             lockedEpisode={lockedEpisode}
             isLocked={isLocked}

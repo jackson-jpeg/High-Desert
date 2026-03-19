@@ -255,19 +255,19 @@ export default function StatsPage() {
             <HeroStat
               label="Episodes"
               value={stats.total.toLocaleString()}
-              sub={`${stats.uniqueGuests.toLocaleString()} guests`}
+              sub={`${stats.uniqueGuests.toLocaleString()} ${stats.uniqueGuests === 1 ? 'guest' : 'guests'}`}
               color="text-desktop-gray"
             />
             <HeroStat
               label="Library"
               value={`${libraryHours.toFixed(0)}h`}
-              sub={`${listenedDays > 1 ? Math.round(libraryHours / 24) + " days" : Math.round(libraryHours) + " hours"} of audio`}
+              sub={`${listenedDays > 1 ? Math.round(libraryHours / 24) + (Math.round(libraryHours / 24) === 1 ? " day" : " days") : Math.round(libraryHours) + (Math.round(libraryHours) === 1 ? " hour" : " hours")} of audio`}
               color="text-title-bar-blue"
             />
             <HeroStat
               label="Listened"
               value={`${listenedHours.toFixed(1)}h`}
-              sub={`${stats.played.toLocaleString()} episodes`}
+              sub={`${stats.played.toLocaleString()} ${stats.played === 1 ? 'episode' : 'episodes'}`}
               color="text-static-green"
             />
             <HeroStat
@@ -281,6 +281,7 @@ export default function StatsPage() {
               value={stats.archiveCount.toLocaleString()}
               sub={`archive \u00B7 ${stats.localCount.toLocaleString()} local`}
               color="text-bevel-dark"
+              className="col-span-2 sm:col-span-1"
             />
           </div>
 
@@ -289,32 +290,33 @@ export default function StatsPage() {
             <HeroStat
               label="Notable"
               value={stats.notableCount.toLocaleString()}
-              sub={stats.notableCount === 0 ? "Mark standout episodes as Notable while listening." : "iconic episodes"}
+              sub={stats.notableCount === 0 ? "Mark standout episodes as Notable while listening." : stats.notableCount === 1 ? "iconic episode" : "iconic episodes"}
               color="text-yellow-400"
             />
             <HeroStat
               label="Series"
               value={stats.seriesCount.toLocaleString()}
-              sub="multi-part sets"
+              sub={stats.seriesCount === 1 ? "multi-part set" : "multi-part sets"}
               color="text-title-bar-blue"
             />
             <HeroStat
               label="Favorites"
               value={stats.favoriteCount.toLocaleString()}
-              sub={stats.favoriteCount === 0 ? "Star episodes you love to save them here." : `${stats.ratedCount} rated`}
+              sub={stats.favoriteCount === 0 ? "Star episodes you love to save them here." : `${stats.ratedCount} ${stats.ratedCount === 1 ? 'episode' : 'episodes'} rated`}
               color="text-desert-amber"
             />
             <HeroStat
               label="Avg Rating"
               value={stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "\u2014"}
-              sub={stats.avgRating === 0 ? "Rate episodes to start tracking your taste." : stats.ratedCount > 0 ? `${stats.ratedCount} rated` : "no ratings yet"}
+              sub={stats.avgRating === 0 ? "Rate episodes to start tracking your taste." : stats.ratedCount > 0 ? `${stats.ratedCount} ${stats.ratedCount === 1 ? 'rating' : 'ratings'}` : "no ratings yet"}
               color="text-desert-amber"
             />
             <HeroStat
               label="Streak"
               value={stats.streak > 0 ? `${stats.streak}d` : "\u2014"}
-              sub={stats.streak > 0 ? "consecutive days" : "listen today!"}
+              sub={stats.streak > 0 ? (stats.streak === 1 ? "consecutive day" : "consecutive days") : "listen today!"}
               color="text-static-green"
+              className="col-span-2 sm:col-span-1"
             />
           </div>
 
@@ -721,14 +723,15 @@ export default function StatsPage() {
   );
 }
 
-function HeroStat({ label, value, sub, color }: {
+function HeroStat({ label, value, sub, color, className }: {
   label: string;
   value: string;
   sub: string;
   color: string;
+  className?: string;
 }) {
   return (
-    <div className="flex flex-col items-center p-2.5 md:p-2 w98-inset-dark bg-inset-well gap-0.5">
+    <div className={cn("flex flex-col items-center p-2.5 md:p-2 w98-inset-dark bg-inset-well gap-0.5", className)}>
       <div className={cn("text-hd-18 md:text-hd-16 font-bold tabular-nums", color)}>
         {value}
       </div>

@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef, useDeferredValue } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useRouter } from "next/navigation";
-import { db } from "@/db";
+import { db, getPreference, setPreference } from "@/db";
 import type { Episode } from "@/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
 import { useContextMenuStore } from "@/stores/context-menu-store";
@@ -801,24 +801,36 @@ export default function LibraryPage() {
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
   const [swipeTip, setSwipeTip] = useState(false);
 
-  // Sync discovery state from localStorage after hydration
+  // Sync discovery state from IndexedDB after hydration — default open on first visit
   useEffect(() => {
-    const saved = localStorage.getItem("hd-discovery-open");
-    if (saved === "true") setDiscoveryOpen(true);
+    let cancelled = false;
+    getPreference("explore-collapsed").then((val) => {
+      if (cancelled) return;
+      if (val === null || val === undefined) {
+        // First visit — default to open
+        setDiscoveryOpen(true);
+      } else {
+        setDiscoveryOpen(val !== "true");
+      }
+    });
+    return () => { cancelled = true; };
   }, []);
 
-  // Show swipe gesture tip once on mobile
+  // Show swipe gesture tip once on mobile (persisted in IndexedDB)
   useEffect(() => {
     if (!isMobile || !allEpisodes || allEpisodes.length === 0) return;
-    if (localStorage.getItem("hd-swipe-tip-seen")) return;
-    const timer = setTimeout(() => setSwipeTip(true), 1500);
-    return () => clearTimeout(timer);
+    let cancelled = false;
+    getPreference("swipe-hint-dismissed").then((val) => {
+      if (cancelled || val) return;
+      setTimeout(() => { if (!cancelled) setSwipeTip(true); }, 1500);
+    });
+    return () => { cancelled = true; };
   }, [isMobile, allEpisodes]);
 
   const toggleDiscovery = useCallback(() => {
     setDiscoveryOpen((prev) => {
       const next = !prev;
-      localStorage.setItem("hd-discovery-open", String(next));
+      setPreference("explore-collapsed", String(!next));
       return next;
     });
   }, []);
@@ -946,7 +958,8 @@ export default function LibraryPage() {
 
       {/* Mood quick filters — derived from actual episode data */}
       {(!search.trim() || search === "has:notable") && moodFilters.length > 0 && (
-        <div className="flex items-center gap-1.5 md:gap-1 px-3 pb-1 flex-shrink-0 overflow-x-auto -mx-3 px-3 md:mx-0">
+        <div className="relative flex-shrink-0">
+          <div className="flex items-center gap-1.5 md:gap-1 px-3 pb-1 overflow-x-auto -mx-3 px-3 md:mx-0 [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent)] hover:[mask-image:none] focus-within:[mask-image:none]">
           {moodFilters.map((mood) => {
             const isActive =
               (mood.kind === "category" && categoryFilter === mood.category) ||
@@ -985,6 +998,7 @@ export default function LibraryPage() {
               </button>
             );
           })}
+          </div>
         </div>
       )}
 
@@ -995,7 +1009,7 @@ export default function LibraryPage() {
             Swipe cards: {"\u2190"} favorite {"\u00B7"} queue {"\u2192"}
           </span>
           <button
-            onClick={() => { setSwipeTip(false); localStorage.setItem("hd-swipe-tip-seen", "1"); }}
+            onClick={() => { setSwipeTip(false); setPreference("swipe-hint-dismissed", "1"); }}
             className="text-hd-12 text-bevel-dark/50 active:text-desktop-gray cursor-pointer min-w-[28px] min-h-[28px] flex items-center justify-center"
           >
             OK
@@ -1181,20 +1195,30 @@ export default function LibraryPage() {
 
         {/* Loading skeleton */}
         {allEpisodes === undefined && (
-          <div className="flex-1 p-4 flex flex-col gap-2">
+          <div className="flex-1 p-2 flex flex-col gap-0">
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
-                className="w98-raised-dark bg-card-surface animate-skeleton p-2.5 md:p-1.5"
-                style={{ animationDelay: `${i * 100}ms` }}
+                className="w98-raised-dark bg-card-surface animate-skeleton p-2.5 md:p-1.5 h-[92px] md:h-[76px]"
+                style={{ animationDelay: `${i * 80}ms` }}
               >
+                {/* Row 1: date + title */}
                 <div className="flex items-center gap-2">
-                  <div className="h-[10px] bg-bevel-dark/15 w-[72px]" />
-                  <div className="h-[12px] bg-bevel-dark/10 flex-1 max-w-[45%]" />
+                  <div className="h-[10px] bg-bevel-dark/15 rounded-sm w-[72px]" />
+                  <div className="h-[12px] bg-bevel-dark/10 rounded-sm flex-1 max-w-[45%]" />
                 </div>
-                <div className="flex items-center justify-between gap-2 mt-1.5">
-                  <div className="h-[10px] bg-bevel-dark/10 w-[110px]" />
-                  <div className="h-[10px] bg-bevel-dark/10 w-[44px]" />
+                {/* Row 2: guest / show type */}
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="h-[10px] bg-bevel-dark/8 rounded-sm w-[130px]" />
+                  <div className="h-[10px] bg-bevel-dark/8 rounded-sm w-[60px]" />
+                </div>
+                {/* Row 3: duration + tags */}
+                <div className="flex items-center justify-between gap-2 mt-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-[8px] bg-bevel-dark/6 rounded-sm w-[44px]" />
+                    <div className="h-[8px] bg-bevel-dark/6 rounded-sm w-[36px]" />
+                  </div>
+                  <div className="h-[8px] bg-bevel-dark/6 rounded-sm w-[52px]" />
                 </div>
               </div>
             ))}
@@ -1257,7 +1281,7 @@ export default function LibraryPage() {
             />
             <div className={cn(
               "fixed bottom-0 inset-x-0 z-50 max-h-[80dvh] overflow-auto pb-[var(--safe-bottom)] animate-glass-sheet rounded-t-xl",
-              "md:sticky md:top-0 md:w-[280px] md:flex-shrink-0 md:max-h-screen md:overflow-auto md:pb-0 md:z-auto md:border-l md:border-bevel-dark/20 md:animate-fade-in md:rounded-none",
+              "md:relative md:bottom-auto md:inset-x-auto md:w-[280px] md:flex-shrink-0 md:h-full md:max-h-none md:overflow-auto md:pb-0 md:z-auto md:border-l md:border-bevel-dark/20 md:animate-fade-in md:rounded-none",
             )}>
               <GuestProfile
                 guestName={guestProfileName}
@@ -1284,8 +1308,8 @@ export default function LibraryPage() {
               className={cn(
               // Mobile: slide-up overlay from bottom
               "fixed bottom-0 inset-x-0 z-50 max-h-[80dvh] overflow-auto pb-[var(--safe-bottom)] animate-glass-sheet rounded-t-xl will-change-transform",
-              // Desktop: sticky sidebar with fade-in — stays in view as you scroll
-              "md:sticky md:top-0 md:w-[280px] md:flex-shrink-0 md:max-h-screen md:overflow-auto md:pb-0 md:z-auto md:border-l md:border-bevel-dark/20 md:animate-fade-in md:rounded-none",
+              // Desktop: static sidebar — no fixed/sticky, no transform animation
+              "md:relative md:bottom-auto md:inset-x-auto md:w-[280px] md:flex-shrink-0 md:h-full md:max-h-none md:overflow-auto md:pb-0 md:z-auto md:border-l md:border-bevel-dark/20 md:animate-fade-in md:rounded-none md:will-change-auto",
             )}>
               <EpisodeDetail
                 key={selectedEpisode.id}

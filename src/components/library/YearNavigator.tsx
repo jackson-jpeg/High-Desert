@@ -36,8 +36,8 @@ export function YearNavigator({ years, currentYear, onYearClick, className }: Ye
             )}
             title={`${year} (${count} episodes)`}
           >
-            <div>{year.slice(2)}</div>
-            <div className="text-hd-8 opacity-60">{count}</div>
+            <div>&rsquo;{year.slice(2)}</div>
+            <div className="text-[7px] opacity-50 leading-none">{count}</div>
           </button>
         );
       })}
