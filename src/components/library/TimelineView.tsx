@@ -24,8 +24,8 @@ interface TimelineViewProps {
   className?: string;
 }
 
-// Mobile cards need more height for larger text sizes
-const ITEM_HEIGHT_MOBILE = 92;
+// Mobile cards need more height for category label + larger text
+const ITEM_HEIGHT_MOBILE = 110;
 const ITEM_HEIGHT_DESKTOP = 76;
 
 export function TimelineView({

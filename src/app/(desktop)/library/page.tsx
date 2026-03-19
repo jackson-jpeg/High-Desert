@@ -807,8 +807,8 @@ export default function LibraryPage() {
     getPreference("explore-collapsed").then((val) => {
       if (cancelled) return;
       if (val === null || val === undefined) {
-        // First visit — default to open
-        setDiscoveryOpen(true);
+        // First visit — default open on desktop only, closed on mobile
+        setDiscoveryOpen(window.innerWidth >= 768);
       } else {
         setDiscoveryOpen(val !== "true");
       }
