@@ -88,7 +88,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [adminPromptOpen, setAdminPromptOpen] = useState(false);
   const [adminPassword, setAdminPassword] = useState("");
   const [adminError, setAdminError] = useState("");
-  const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [activeListeners, setActiveListeners] = useState(0);
 
   useEffect(() => {
@@ -123,7 +123,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
 
   // PWA install prompt
   useEffect(() => {
-    const handler = (e: Event) => {
+    const handler = (e: BeforeInstallPromptEvent) => {
       e.preventDefault();
       setInstallPrompt(e);
     };
@@ -133,8 +133,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
 
   const handleInstall = useCallback(async () => {
     if (!installPrompt) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (installPrompt as any).prompt();
+    installPrompt.prompt();
     setInstallPrompt(null);
   }, [installPrompt]);
 
