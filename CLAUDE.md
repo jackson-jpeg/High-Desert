@@ -16,7 +16,7 @@ npm run lint                  # ESLint (next/core-web-vitals + typescript)
 
 ## Tech Stack
 
-- **Next.js 16.1.6** (App Router) + **React 19** + **TypeScript 5**
+- **Next.js 16.2.2** (App Router) + **React 19** + **TypeScript 5**
 - **Tailwind CSS v4** with custom Win98/glass design tokens (`src/styles/`)
 - **Dexie 4** — IndexedDB ORM, reactive queries via `useLiveQuery`
 - **Zustand 5** — client state (player, radio dial, scanner, scraper, search, admin, context menu, sleep timer, toasts)
