@@ -14,21 +14,12 @@
  * guard with `elementConnected` and never tear down the graph.
  */
 
+import { isIOSDevice } from "@/lib/utils/platform";
+
 let mediaElement: HTMLAudioElement | null = null;
 let audioContext: AudioContext | null = null;
 let analyserNode: AnalyserNode | null = null;
 let elementConnected = false;
-
-/**
- * Detect iOS/iPadOS — createMediaElementSource routes audio through
- * AudioContext which iOS suspends on lock screen, killing playback.
- * We skip the analyser entirely on these devices.
- */
-function isIOSDevice(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-}
 
 export function getAnalyserNode(): AnalyserNode | null {
   // Lazy init: try when we don't have an analyser and audio is playing

@@ -5,6 +5,7 @@ import { getAnalyserNode } from "@/audio/engine";
 import { drawStatic } from "@/audio/visualizations/static";
 import { getVisualization, nextVisualization } from "@/audio/visualizations";
 import { getPreference, setPreference } from "@/db";
+import { isIOSDevice } from "@/lib/utils/platform";
 import { usePlayerStore } from "@/stores/player-store";
 
 export function useOscilloscope() {
@@ -12,12 +13,7 @@ export function useOscilloscope() {
   const rafRef = useRef<number>(0);
   const tuningRef = useRef(false);
   const tuningTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  // iOS can't use AnalyserNode (kills background playback), so default to
-  // milkdrop which has the best idle animation for non-reactive mode
-  const isIOS = typeof navigator !== "undefined" &&
-    (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
-  const defaultViz = isIOS ? "milkdrop" : "oscilloscope";
+  const defaultViz = isIOSDevice() ? "milkdrop" : "oscilloscope";
 
   const [vizId, setVizId] = useState(defaultViz);
   const vizIdRef = useRef(vizId);
