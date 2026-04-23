@@ -139,6 +139,15 @@ export function PlaylistPanel({ onPlayEpisode, className }: PlaylistPanelProps) 
               key={ep.id}
               className="flex items-center gap-2 px-2.5 py-2 md:py-1.5 w98-raised-dark bg-card-surface min-h-[44px] md:min-h-0 cursor-pointer hover:bg-title-bar-blue/15 active:bg-title-bar-blue/20 transition-colors-fast group/ep"
               onClick={() => onPlayEpisode(ep)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onPlayEpisode(ep);
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label={`Play ${ep.title || ep.fileName}`}
             >
               <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
                 <button

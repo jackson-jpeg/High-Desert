@@ -196,6 +196,13 @@ export const EpisodeCard = memo(function EpisodeCard({
                 e.stopPropagation();
                 onToggleFavorite(episode);
               }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onToggleFavorite(episode);
+                }
+              }}
               className={cn(
                 "text-hd-12 md:text-hd-10 min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors-fast",
                 episode.favoritedAt
@@ -204,6 +211,7 @@ export const EpisodeCard = memo(function EpisodeCard({
               )}
               title={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
               role="button"
+              tabIndex={0}
               aria-pressed={!!episode.favoritedAt}
               aria-label={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
             >
@@ -239,6 +247,16 @@ export const EpisodeCard = memo(function EpisodeCard({
                 e.stopPropagation();
                 window.dispatchEvent(new CustomEvent("hd:show-guest", { detail: episode.guestName }));
               }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.dispatchEvent(new CustomEvent("hd:show-guest", { detail: episode.guestName }));
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label={`View guest profile: ${episode.guestName}`}
             >
               {episode.guestName}
             </span>

@@ -309,6 +309,15 @@ export function EpisodeDetail({
                 onClick={() => {
                   window.dispatchEvent(new CustomEvent("hd:show-guest", { detail: episode.guestName }));
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    window.dispatchEvent(new CustomEvent("hd:show-guest", { detail: episode.guestName }));
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={`View guest profile: ${episode.guestName}`}
               >
                 {episode.guestName}
               </div>
