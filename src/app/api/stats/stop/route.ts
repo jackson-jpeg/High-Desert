@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
-import { removeActiveSession } from "@/services/stats/store";
+import { removeActiveSession, clearListening } from "@/services/stats/store";
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { sessionId } = body as Record<string, unknown>;
+  const { sessionId, keepPresence } = body as Record<string, unknown>;
 
   if (typeof sessionId !== "string" || !sessionId) {
     return NextResponse.json(
@@ -35,7 +35,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await removeActiveSession(sessionId);
+    // keepPresence: playback ended but the tab is still open, so drop only the
+    // listening mark. The unload beacon omits it and removes the row outright.
+    if (keepPresence === true) {
+      await clearListening(sessionId);
+    } else {
+      await removeActiveSession(sessionId);
+    }
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[stats/stop] store error:", err);

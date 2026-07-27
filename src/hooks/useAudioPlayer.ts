@@ -12,6 +12,7 @@ import {
 import { db } from "@/db";
 import type { Episode } from "@/db/schema";
 import { reportPlay, reportStop, reportStopBeacon } from "@/services/stats/client";
+import { SESSION_ID } from "@/lib/utils/session-id";
 import { communityKey } from "@/lib/utils/community-key";
 import { checkArchiveHealth, clearHealthCache } from "@/services/archive/health";
 
@@ -25,12 +26,8 @@ import { checkArchiveHealth, clearHealthCache } from "@/services/archive/health"
 // playback path; wire it to a self-hosted metric or delete it deliberately.
 let _listenStart = 0; // timestamp when current play segment began
 let _listenAccum = 0; // seconds accumulated across play/pause cycles
-// Must satisfy the /api/stats/play sessionId format (8-64 of [A-Za-z0-9_-]).
-// The fallback only exists for SSR, which never reports a play.
-const _sessionId =
-  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-    ? crypto.randomUUID()
-    : `ssr-${Math.random().toString(36).slice(2, 12)}`;
+// Shared with the presence heartbeat so both describe the same session.
+const _sessionId = SESSION_ID;
 
 function startListenTimer() {
   _listenStart = Date.now();

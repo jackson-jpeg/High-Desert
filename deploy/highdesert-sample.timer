@@ -1,0 +1,14 @@
+[Unit]
+Description=High Desert — sample traffic every 2 minutes
+
+[Timer]
+# A timer rather than sampling lazily on read: sampling on read would record
+# nothing during quiet periods, making an empty stretch indistinguishable from
+# a gap in collection. This records the zeroes.
+OnBootSec=2min
+OnUnitActiveSec=2min
+AccuracySec=15s
+Unit=highdesert-sample.service
+
+[Install]
+WantedBy=timers.target

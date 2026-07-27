@@ -51,6 +51,8 @@ export function weekKey(now = new Date()): string {
 
 const ACTIVE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 const WEEKLY_RETENTION_WEEKS = 3;
+/** How long traffic samples are kept. */
+const SAMPLE_RETENTION_DAYS = 90;
 
 // ---------------------------------------------------------------------------
 // Writes
@@ -73,14 +75,43 @@ export async function recordPlay(
       INSERT INTO weekly_plays (week, episode_id, plays) VALUES ($2, $1, 1)
       ON CONFLICT (week, episode_id) DO UPDATE SET plays = weekly_plays.plays + 1
     )
-    INSERT INTO active_sessions (session_id, seen_at) VALUES ($3, now())
-    ON CONFLICT (session_id) DO UPDATE SET seen_at = now()
+    INSERT INTO active_sessions (session_id, seen_at, listening_at)
+    VALUES ($3, now(), now())
+    ON CONFLICT (session_id)
+    DO UPDATE SET seen_at = now(), listening_at = now()
     `,
     [episodeId, weekKey(), sessionId],
   );
 }
 
-/** Remove a session from the active-listeners set. */
+/**
+ * Mark a session present. Sent by every open tab on an interval, whether or not
+ * anything is playing — this is what makes "online" a real number rather than a
+ * synonym for "started playback recently".
+ */
+export async function recordHeartbeat(sessionId: string): Promise<void> {
+  await pool().query(
+    `
+    INSERT INTO active_sessions (session_id, seen_at) VALUES ($1, now())
+    ON CONFLICT (session_id) DO UPDATE SET seen_at = now()
+    `,
+    [sessionId],
+  );
+}
+
+/**
+ * Playback stopped, but the visitor is still here. Clears the listening mark
+ * and leaves presence intact — deleting the row would have dropped them out of
+ * the online count while they were still reading the page.
+ */
+export async function clearListening(sessionId: string): Promise<void> {
+  await pool().query(
+    `UPDATE active_sessions SET listening_at = NULL WHERE session_id = $1`,
+    [sessionId],
+  );
+}
+
+/** Remove a session outright. Used on page unload. */
 export async function removeActiveSession(sessionId: string): Promise<void> {
   await pool().query(`DELETE FROM active_sessions WHERE session_id = $1`, [
     sessionId,
@@ -129,19 +160,159 @@ export async function getLeaderboard(
   return rows.map((r) => ({ episodeId: r.episode_id, plays: Number(r.plays) }));
 }
 
-/** Active listeners in the last 5 minutes. Prunes stale sessions as it counts. */
-export async function getActiveCount(): Promise<number> {
+export interface Presence {
+  /** Sessions that have sent a heartbeat inside the active window. */
+  online: number;
+  /** Of those, sessions with a play event inside the window. */
+  listening: number;
+}
+
+/** Who is here right now. Prunes stale sessions as it counts. */
+export async function getPresence(): Promise<Presence> {
   const cutoff = new Date(Date.now() - ACTIVE_WINDOW_MS);
-  const { rows } = await pool().query<{ count: number }>(
+  const { rows } = await pool().query<{ online: number; listening: number }>(
     `
     WITH pruned AS (
       DELETE FROM active_sessions WHERE seen_at < $1
     )
-    SELECT count(*)::int AS count FROM active_sessions WHERE seen_at >= $1
+    SELECT
+      count(*)::int                                        AS online,
+      count(*) FILTER (WHERE listening_at >= $1)::int      AS listening
+    FROM active_sessions
+    WHERE seen_at >= $1
     `,
     [cutoff],
   );
-  return rows[0]?.count ?? 0;
+  return { online: rows[0]?.online ?? 0, listening: rows[0]?.listening ?? 0 };
+}
+
+/** Back-compat: the number the UI has always called "listening now". */
+export async function getActiveCount(): Promise<number> {
+  return (await getPresence()).listening;
+}
+
+// ---------------------------------------------------------------------------
+// Traffic history
+// ---------------------------------------------------------------------------
+
+/**
+ * Snapshot current presence and the running play total, and prune old samples.
+ *
+ * Driven by a systemd timer rather than sampled lazily on read: sampling on
+ * read would record nothing during quiet periods, so an empty stretch would be
+ * indistinguishable from a gap in collection. A timer records the zeroes.
+ */
+export async function recordSample(): Promise<Presence & { totalPlays: number }> {
+  const presence = await getPresence();
+  const cutoff = new Date(Date.now() - SAMPLE_RETENTION_DAYS * 86_400_000);
+
+  const { rows } = await pool().query<{ total_plays: string }>(
+    `
+    WITH pruned AS (
+      DELETE FROM listener_samples WHERE sampled_at < $3
+    ), total AS (
+      SELECT COALESCE(sum(plays), 0) AS total_plays FROM episode_plays
+    )
+    INSERT INTO listener_samples (sampled_at, online, listening, total_plays)
+    SELECT date_trunc('minute', now()), $1, $2, total.total_plays FROM total
+    ON CONFLICT (sampled_at) DO UPDATE SET
+      online      = EXCLUDED.online,
+      listening   = EXCLUDED.listening,
+      total_plays = EXCLUDED.total_plays
+    RETURNING total_plays
+    `,
+    [presence.online, presence.listening, cutoff],
+  );
+
+  return { ...presence, totalPlays: Number(rows[0]?.total_plays ?? 0) };
+}
+
+export type TrafficRange = "24h" | "7d" | "30d";
+
+export interface TrafficPoint {
+  /** Bucket start, ISO 8601. */
+  t: string;
+  online: number;
+  listening: number;
+  /** Plays that happened during this bucket. */
+  plays: number;
+}
+
+export interface Traffic {
+  range: TrafficRange;
+  points: TrafficPoint[];
+  peakOnline: number;
+  peakListening: number;
+  playsInRange: number;
+  totalPlays: number;
+}
+
+const RANGE_CONFIG: Record<TrafficRange, { hours: number; bucketMinutes: number }> = {
+  "24h": { hours: 24, bucketMinutes: 15 },
+  "7d": { hours: 24 * 7, bucketMinutes: 120 },
+  "30d": { hours: 24 * 30, bucketMinutes: 360 },
+};
+
+/**
+ * Bucketed traffic over the requested window.
+ *
+ * Presence is averaged within a bucket (it is a gauge — a level, not a count),
+ * while plays are a counter, so they are derived from the difference between
+ * the first and last cumulative total in each bucket.
+ */
+export async function getTraffic(range: TrafficRange): Promise<Traffic> {
+  const { hours, bucketMinutes } = RANGE_CONFIG[range];
+  const since = new Date(Date.now() - hours * 3_600_000);
+
+  const { rows } = await pool().query<{
+    bucket: Date;
+    online: string;
+    listening: string;
+    first_total: string;
+    last_total: string;
+  }>(
+    `
+    SELECT
+      to_timestamp(
+        floor(extract(epoch FROM sampled_at) / ($2 * 60)) * ($2 * 60)
+      ) AS bucket,
+      round(avg(online))::int    AS online,
+      round(avg(listening))::int AS listening,
+      min(total_plays)           AS first_total,
+      max(total_plays)           AS last_total
+    FROM listener_samples
+    WHERE sampled_at >= $1
+    GROUP BY bucket
+    ORDER BY bucket
+    `,
+    [since, bucketMinutes],
+  );
+
+  const points: TrafficPoint[] = rows.map((r, i) => ({
+    t: new Date(r.bucket).toISOString(),
+    online: Number(r.online),
+    listening: Number(r.listening),
+    // Plays are cumulative, so a bucket's own plays are its rise. Compare
+    // against the previous bucket's close, not its own open, or every play
+    // that lands between two buckets is dropped.
+    plays: Math.max(
+      0,
+      Number(r.last_total) - Number(i > 0 ? rows[i - 1].last_total : r.first_total),
+    ),
+  }));
+
+  const { rows: totalRows } = await pool().query<{ total: string }>(
+    `SELECT COALESCE(sum(plays), 0) AS total FROM episode_plays`,
+  );
+
+  return {
+    range,
+    points,
+    peakOnline: points.reduce((m, p) => Math.max(m, p.online), 0),
+    peakListening: points.reduce((m, p) => Math.max(m, p.listening), 0),
+    playsInRange: points.reduce((s, p) => s + p.plays, 0),
+    totalPlays: Number(totalRows[0]?.total ?? 0),
+  };
 }
 
 /** Drop weekly leaderboard rows older than the retention window. */

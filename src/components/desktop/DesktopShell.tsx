@@ -24,7 +24,7 @@ import { exportLibrarySeed } from "@/db/seed";
 import { MobileMenuSheet } from "@/components/mobile/MobileMenuSheet";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { useLiveQuery } from "dexie-react-hooks";
-import { fetchActiveCount } from "@/services/stats/client";
+import { usePresence } from "@/hooks/usePresence";
 import { computeStreak } from "@/lib/utils/streak";
 
 const CALLER_MESSAGES = [
@@ -88,14 +88,9 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [adminPassword, setAdminPassword] = useState("");
   const [adminError, setAdminError] = useState("");
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [activeListeners, setActiveListeners] = useState(0);
-
-  useEffect(() => {
-    const poll = () => fetchActiveCount().then(setActiveListeners);
-    poll();
-    const id = setInterval(poll, 60_000);
-    return () => clearInterval(id);
-  }, []);
+  // Announces this tab and reports who else is here. The shell is mounted on
+  // every route, so this is the one place the heartbeat needs to live.
+  const presence = usePresence();
 
   // Easter eggs — local React state (no store needed)
   const [activeEgg, setActiveEgg] = useState<EasterEgg>(null);
@@ -681,13 +676,33 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             ),
             width: "48px",
           }] : []),
-          ...(activeListeners > 0 ? [{
+          // Live presence. Always rendered when anyone is here — including this
+          // visitor — and clickable through to the traffic history. It used to
+          // be buried in ListeningStats behind a guard that returned null
+          // unless *you* already had a streak or listening hours, so the one
+          // genuinely social signal on the site was invisible to exactly the
+          // first-time visitors it would impress.
+          ...(presence.online > 0 ? [{
             content: (
-              <span className="text-hd-10 text-static-green/85">
-                {activeListeners} listening
-              </span>
+              <button
+                onClick={() => router.push("/stats#traffic")}
+                className="flex items-center gap-1.5 cursor-pointer text-hd-10 text-static-green/85 hover:text-static-green transition-colors-fast w-full"
+                title={
+                  `${presence.online} ${presence.online === 1 ? "person" : "people"} on the site` +
+                  (presence.listening > 0 ? `, ${presence.listening} listening` : "") +
+                  " — click for traffic history"
+                }
+              >
+                <span className="w-[6px] h-[6px] rounded-full bg-static-green animate-on-air flex-shrink-0" />
+                <span className="tabular-nums">{presence.online} online</span>
+                {presence.listening > 0 && (
+                  <span className="text-desert-amber/85 tabular-nums">
+                    · {presence.listening} ▶
+                  </span>
+                )}
+              </button>
             ),
-            width: "90px",
+            width: "150px",
           }] : []),
           { content: `${episodeCount.toLocaleString()} episode${episodeCount !== 1 ? "s" : ""}`, width: "120px" },
           { content: signalBars, width: "24px" },
@@ -745,6 +760,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         onAbout={handleAbout}
         startupSoundOn={startupSoundOn}
         onToggleStartupSound={handleToggleStartupSound}
+        presence={presence}
         textScale={textScale}
         onCycleTextScale={() => {
           const next = textScale === "1" ? "1.15" : textScale === "1.15" ? "1.3" : "1";

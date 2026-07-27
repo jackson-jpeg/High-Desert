@@ -10,6 +10,7 @@ import { HistoryPanel } from "@/components/library/HistoryPanel";
 import { SmartPlaylists } from "@/components/library/SmartPlaylists";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { CommunityLeaderboard } from "@/components/library/CommunityLeaderboard";
+import { SignalTraffic } from "@/components/library/SignalTraffic";
 import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
 import { getCacheSize, clearAudioCache } from "@/audio/cache";
@@ -225,6 +226,14 @@ export default function StatsPage() {
       {/* The ListeningStats banner used to sit here, rendering the streak 40px
           above the Streak tile below it. computeStreak ran three times across
           the app; the status bar keeps its copy, this page keeps the tile. */}
+
+      {/* ── Signal Traffic ── the click-through target for the live count in
+          the status bar. First on the page: it is the only genuinely
+          multi-visitor data here, and the only part that changes minute to
+          minute. Renders nothing when the stats service is unavailable. */}
+      <WidgetErrorBoundary name="Signal Traffic">
+        <SignalTraffic />
+      </WidgetErrorBoundary>
 
       {/* ── Your Listening ──
           Only figures that describe *this visitor*. Previously these were mixed

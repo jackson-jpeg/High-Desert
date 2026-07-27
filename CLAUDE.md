@@ -49,12 +49,15 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/archive/metadata` | GET | Proxy for item metadata (cached 1hr) |
 | `/api/archive/health` | GET | archive.org reachability probe (cached) |
 | `/api/stats/play` | POST | Record a play. Body `{episodeId, sessionId}`. Returns `{ok}`. `episodeId` must be in the community-key allowlist |
-| `/api/stats/stop` | POST | End a listening session. Body `{sessionId}`. Returns `{ok}` |
+| `/api/stats/stop` | POST | End playback. Body `{sessionId, keepPresence?}`. `keepPresence: true` clears only the listening mark (the tab is still open); omitting it deletes the session, which is what the unload beacon does. Returns `{ok}` |
 | `/api/stats/rate` | POST | Submit a rating 1–5 or null. Body `{episodeId, rating}`. Returns `{ok}` |
 | `/api/stats/episodes` | GET | Play counts for up to **100** ids. Returns **`{counts: {id: n}}`** |
 | `/api/stats/ratings` | GET | Ratings for up to **50** ids. Returns a **bare map** `{id: {avg, count}}` |
 | `/api/stats/leaderboard` | GET | Top episodes. Returns **`{entries: [{episodeId, plays}]}`** |
-| `/api/stats/active` | GET | Active listener count. Returns **`{count: n}`** |
+| `/api/stats/active` | GET | Presence. Returns **`{count, online, listening}`** — `count` is a synonym for `listening`, kept for older clients |
+| `/api/stats/heartbeat` | POST | Mark a session present. Body `{sessionId}`. Returns `{ok}`. Every open tab posts on a 60s interval |
+| `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, plays}], peakOnline, peakListening, playsInRange, totalPlays}`** |
+| `/api/stats/sample` | POST | Writes one traffic sample. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Returns `{ok, online, listening, totalPlays}` |
 
 > Response shapes are inconsistent by history, not design. `src/services/stats/client.ts`
 > tolerates both wrapped and bare forms — a mismatch here silently made every community
@@ -226,7 +229,14 @@ No third-party hosting. Same shape as `sanger-next`.
 
 - **App:** `next start -p 3003` under systemd (`highdesert.service`), nginx vhost with a certbot cert
 - **Stats:** Postgres database `highdesert` on the same host; `DATABASE_URL` comes from a
-  chmod-600 `EnvironmentFile=`, never inlined into the unit and never committed
+  chmod-600 `EnvironmentFile=` (`/root/.high-desert.env`), never inlined into the unit and
+  never committed. Apply schema changes with
+  `psql "$DATABASE_URL" -f scripts/schema.sql` — it is idempotent
+- **Traffic sampler:** `highdesert-sample.timer` POSTs `/api/stats/sample` every 2 minutes,
+  authenticated with `STATS_SAMPLE_SECRET` from the same env file. This is the only writer to
+  `listener_samples`, and the only reason any *history* exists — `active_sessions` is a live
+  set that is pruned as it is counted, and `episode_plays` has no timestamps. A timer rather
+  than sampling on read, so quiet periods record real zeroes instead of leaving gaps
 - **Rate limiting:** `src/lib/utils/rate-limit.ts` is an in-memory Map. That was useless on
   serverless but is **correct here** — one long-lived process. It depends on nginx setting
   `X-Forwarded-For` to `$remote_addr` (overwrite, not append) so clients can't spoof it

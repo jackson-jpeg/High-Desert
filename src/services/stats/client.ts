@@ -14,11 +14,16 @@ export function reportPlay(episodeId: string, sessionId: string): void {
   }).catch(() => {});
 }
 
-export function reportStop(sessionId: string): void {
+/**
+ * Playback stopped. `keepPresence` leaves the session in the online count —
+ * stopping a track is not leaving the site, and dropping the row here would
+ * have removed the visitor from "online" while they carried on browsing.
+ */
+export function reportStop(sessionId: string, keepPresence = true): void {
   fetch("/api/stats/stop", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionId }),
+    body: JSON.stringify({ sessionId, keepPresence }),
   }).catch(() => {});
 }
 
@@ -130,5 +135,67 @@ export async function fetchActiveCount(): Promise<number> {
     return data.count ?? 0;
   } catch {
     return 0;
+  }
+}
+
+export interface Presence {
+  online: number;
+  listening: number;
+}
+
+/** Who is on the site right now. Falls back to zeroes if stats are down. */
+export async function fetchPresence(): Promise<Presence> {
+  try {
+    const res = await fetchWithRetry("/api/stats/active", undefined, RETRY_OPTS);
+    if (!res.ok) return { online: 0, listening: 0 };
+    const data = await res.json();
+    return {
+      online: data.online ?? data.count ?? 0,
+      listening: data.listening ?? data.count ?? 0,
+    };
+  } catch {
+    return { online: 0, listening: 0 };
+  }
+}
+
+/** Mark this session present. Fire-and-forget, never throws. */
+export function reportHeartbeat(sessionId: string): void {
+  fetch("/api/stats/heartbeat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId }),
+  }).catch(() => {});
+}
+
+export interface TrafficPoint {
+  t: string;
+  online: number;
+  listening: number;
+  plays: number;
+}
+
+export interface Traffic {
+  range: string;
+  points: TrafficPoint[];
+  peakOnline: number;
+  peakListening: number;
+  playsInRange: number;
+  totalPlays: number;
+}
+
+/** Bucketed traffic history. Returns null when stats are unavailable. */
+export async function fetchTraffic(
+  range: "24h" | "7d" | "30d",
+): Promise<Traffic | null> {
+  try {
+    const res = await fetchWithRetry(
+      `/api/stats/traffic?range=${range}`,
+      undefined,
+      RETRY_OPTS,
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as Traffic;
+  } catch {
+    return null;
   }
 }

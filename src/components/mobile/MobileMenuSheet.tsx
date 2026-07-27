@@ -14,11 +14,13 @@ interface MobileMenuSheetProps {
   onToggleStartupSound?: () => void;
   textScale?: "1" | "1.15" | "1.3";
   onCycleTextScale?: () => void;
+  /** Live presence. The desktop status bar carries this; mobile has none. */
+  presence?: { online: number; listening: number };
 }
 
 const TEXT_SCALE_LABELS: Record<string, string> = { "1": "Normal", "1.15": "Large", "1.3": "Extra Large" };
 
-export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundOn, onToggleStartupSound, textScale, onCycleTextScale }: MobileMenuSheetProps) {
+export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundOn, onToggleStartupSound, textScale, onCycleTextScale, presence }: MobileMenuSheetProps) {
   const router = useRouter();
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
@@ -122,6 +124,32 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
           <div className="w-10 h-[4px] rounded-full bg-white/12" />
         </div>
         <div className="flex flex-col max-h-[60dvh] overflow-y-auto overscroll-contain px-1">
+          {/* Live presence. The desktop status bar shows this permanently;
+              mobile has no status bar, so it surfaces here and taps through to
+              the same traffic history. */}
+          {presence && presence.online > 0 && (
+            <>
+              <button
+                onClick={() => {
+                  router.push("/stats#traffic");
+                  hide();
+                }}
+                className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
+              >
+                <span className="w-[24px] flex items-center justify-center">
+                  <span className="w-[8px] h-[8px] rounded-full bg-static-green animate-on-air" />
+                </span>
+                <span className="text-static-green">
+                  {presence.online} online
+                  {presence.listening > 0 && (
+                    <span className="text-desert-amber/85"> · {presence.listening} listening</span>
+                  )}
+                </span>
+              </button>
+              <div className="h-[1px] bg-white/[0.06] mx-3 my-2" />
+            </>
+          )}
+
           {/* Quick actions group */}
           <div className="px-3 pb-1">
             <span className="text-hd-11 text-bevel-dark/85 uppercase tracking-wider font-sans">Quick Actions</span>

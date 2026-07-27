@@ -1,0 +1,15 @@
+[Unit]
+Description=High Desert — record a listener/traffic sample
+Documentation=https://github.com/jacksongoode/High-Desert
+After=highdesert.service
+Requires=highdesert.service
+
+[Service]
+Type=oneshot
+# Shares the app's chmod-600 env file for STATS_SAMPLE_SECRET; the token is
+# never inlined into this unit.
+EnvironmentFile=/root/.high-desert.env
+ExecStart=/usr/bin/curl --fail --silent --show-error --max-time 20 \
+  -X POST http://127.0.0.1:3003/api/stats/sample \
+  -H "x-sample-token: ${STATS_SAMPLE_SECRET}" \
+  -o /dev/null
