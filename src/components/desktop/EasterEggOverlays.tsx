@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { cn } from "@/lib/utils/cn";
 import { Dialog, Button } from "@/components/win98";
 
@@ -102,9 +102,15 @@ function KingdomOfNyeOverlay({ onDismiss }: OverlayProps) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    requestAnimationFrame(() => setVisible(true));
+    // Both handles are cancelled: the rAF used to be fired and forgotten, so
+    // dismissing within a frame left it to call setVisible on an unmounted
+    // component.
+    const raf = requestAnimationFrame(() => setVisible(true));
     const t = setTimeout(() => onDismiss(), 5000);
-    return () => clearTimeout(t);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t);
+    };
   }, [onDismiss]);
 
   return (
@@ -213,6 +219,22 @@ function KonamiOverlay({ onDismiss }: OverlayProps) {
   const [typing, setTyping] = useState("");
   const [crashed, setCrashed] = useState(false);
 
+  // Timers started by the click handler below, cleared on unmount.
+  //
+  // This used to `return () => clearInterval(id)` from the handler itself.
+  // React discards the return value of an event handler, so nothing ever
+  // cleared it: dismissing the overlay mid-type left the 30ms interval running
+  // to completion, calling setTyping on an unmounted component and then firing
+  // onDismiss() ~3s after it had already gone.
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(
+    () => () => {
+      timersRef.current.forEach(clearTimeout);
+      timersRef.current = [];
+    },
+    [],
+  );
+
   const handleLine = useCallback((line: typeof LINES[0]) => {
     if (line.name === "Wild Card Line" && Math.random() < 0.2) {
       setSelected("frantic");
@@ -222,11 +244,12 @@ function KonamiOverlay({ onDismiss }: OverlayProps) {
         setTyping(FRANTIC_CALLER.slice(0, i));
         if (i >= FRANTIC_CALLER.length) {
           clearInterval(id);
-          setTimeout(() => setCrashed(true), 500);
-          setTimeout(() => onDismiss(), 3000);
+          timersRef.current.push(setTimeout(() => setCrashed(true), 500));
+          timersRef.current.push(setTimeout(() => onDismiss(), 3000));
         }
       }, 30);
-      return () => clearInterval(id);
+      timersRef.current.push(id);
+      return;
     }
     setSelected(line.greeting);
   }, [onDismiss]);
@@ -337,9 +360,15 @@ function GhostToGhostOverlay({ onDismiss, onGhostToggle }: GhostOverlayProps) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    requestAnimationFrame(() => setVisible(true));
+    // Both handles are cancelled: the rAF used to be fired and forgotten, so
+    // dismissing within a frame left it to call setVisible on an unmounted
+    // component.
+    const raf = requestAnimationFrame(() => setVisible(true));
     const t = setTimeout(() => onDismiss(), 5000);
-    return () => clearTimeout(t);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t);
+    };
   }, [onDismiss]);
 
   // Activate persistent ghost mode on mount

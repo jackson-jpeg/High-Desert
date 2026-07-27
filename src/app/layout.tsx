@@ -29,8 +29,10 @@ export const metadata: Metadata = {
     "UFO", "late night radio", "Kingdom of Nye", "talk radio", "streaming",
   ],
   manifest: "/manifest.json",
+  // Root canonical only. Child layouts override it per route — Next inherits
+  // this value otherwise, which had every page pointing at "/".
   alternates: {
-    canonical: "https://highdesert.space",
+    canonical: "/",
   },
   robots: {
     index: true,

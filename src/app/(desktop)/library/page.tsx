@@ -130,11 +130,22 @@ export default function LibraryPage() {
       setSeriesFilter(series);
       setSelectedEpisode(null);
     };
+    // The Halloween "Ghost to Ghost" badge in the status bar has always
+    // dispatched this, and nothing has ever listened for it — clicking the
+    // badge did nothing at all.
+    const handleSearch = (e: Event) => {
+      const q = (e as CustomEvent<string>).detail;
+      if (typeof q !== "string") return;
+      setSearch(q);
+      setSelectedEpisode(null);
+    };
+    window.addEventListener("hd:search", handleSearch);
     window.addEventListener("hd:filter-tag", handleTag);
     window.addEventListener("hd:filter-category", handleCategory);
     window.addEventListener("hd:show-guest", handleGuest);
     window.addEventListener("hd:filter-series", handleSeries);
     return () => {
+      window.removeEventListener("hd:search", handleSearch);
       window.removeEventListener("hd:filter-tag", handleTag);
       window.removeEventListener("hd:filter-category", handleCategory);
       window.removeEventListener("hd:show-guest", handleGuest);

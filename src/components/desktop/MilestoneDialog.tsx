@@ -45,9 +45,17 @@ export function MilestoneDialog() {
     let cancelled = false;
 
     const check = async () => {
+      // `playbackPosition` is not an index — see the stores() declarations in
+      // src/db/index.ts. This was `.where("playbackPosition").above(0)`, which
+      // Dexie rejects with `SchemaError`, so the promise rejected unhandled
+      // three seconds after every single page load and no milestone was ever
+      // shown. The feature has never once fired.
+      //
+      // filter() is a full scan rather than an index range, which is fine here:
+      // it runs once, on a timer, over ~1,300 rows. Adding the index instead
+      // would mean a schema version bump, and src/db/ changes carry real risk.
       const episodes = await db.episodes
-        .where("playbackPosition")
-        .above(0)
+        .filter((e) => (e.playbackPosition ?? 0) > 0)
         .toArray();
       const totalSeconds = episodes.reduce(
         (sum, e) => sum + (e.playbackPosition ?? 0),
@@ -66,8 +74,14 @@ export function MilestoneDialog() {
       }
     };
 
-    // Check after a short delay to avoid blocking initial render
-    const timer = setTimeout(check, 3000);
+    // Check after a short delay to avoid blocking initial render.
+    // The catch matters: an unhandled rejection here is exactly what hid the
+    // bug above — it surfaced only as a bare `SchemaError` in the console.
+    const timer = setTimeout(() => {
+      check().catch((err) => {
+        console.warn("[milestone] check failed:", err);
+      });
+    }, 3000);
     return () => {
       cancelled = true;
       clearTimeout(timer);

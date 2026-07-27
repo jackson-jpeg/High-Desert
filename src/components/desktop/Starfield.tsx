@@ -64,11 +64,37 @@ export function Starfield() {
     let lastMeteorAt = performance.now();
     let nextMeteorIn = 8000 + Math.random() * 12000;
 
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      generateStars(canvas.width, canvas.height);
+    // Regenerating up to 280 stars is not free, and mobile fires `resize` every
+    // time the URL bar shows or hides — which is constantly, while scrolling.
+    // Debounced, and skipped entirely when only the height changed (which is
+    // all the URL bar does), so scrolling no longer reshuffles the sky.
+    let lastW = 0;
+    let lastH = 0;
+    let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const applyResize = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      canvas.width = w;
+      canvas.height = h;
+      // Only reseed when the width changes; a height-only change keeps the
+      // existing field, which is both cheaper and visually steadier.
+      if (w !== lastW || starsRef.current.length === 0) {
+        generateStars(w, h);
+      }
+      lastW = w;
+      lastH = h;
     };
+
+    const resize = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      if (w === lastW && h === lastH) return;
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(applyResize, 150);
+    };
+
+    applyResize();
 
     const spawnMeteor = () => {
       const goRight = Math.random() > 0.5;
@@ -153,7 +179,6 @@ export function Starfield() {
       animId = requestAnimationFrame(render);
     };
 
-    resize();
     animId = requestAnimationFrame(render);
     window.addEventListener("resize", resize);
 
@@ -169,6 +194,7 @@ export function Starfield() {
 
     return () => {
       cancelAnimationFrame(animId);
+      clearTimeout(resizeTimer);
       window.removeEventListener("resize", resize);
       document.removeEventListener("visibilitychange", onVisibility);
     };
@@ -186,7 +212,11 @@ export function Starfield() {
       />
       <div
         className="fixed inset-0 pointer-events-none transition-[background-color] duration-1000"
-        style={{ zIndex: 0, backgroundColor: tintColor, willChange: "opacity" }}
+        /* No will-change: it named `opacity`, which this element never
+           animates (it transitions background-color), so it pinned a
+           full-screen compositor layer for the whole session and bought
+           nothing. */
+        style={{ zIndex: 0, backgroundColor: tintColor }}
         aria-hidden="true"
       />
     </>

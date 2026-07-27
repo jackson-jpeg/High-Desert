@@ -1,8 +1,17 @@
 "use client";
 
-import { Starfield } from "@/components/desktop/Starfield";
-
-export default function GlobalError({
+/**
+ * Route-segment error boundary.
+ *
+ * Named `GlobalError` for a long time, which was misleading: a file at
+ * `app/error.tsx` is a *segment* boundary and cannot catch an error thrown in
+ * the root layout. `app/global-error.tsx` handles that case.
+ *
+ * This deliberately does not render <Starfield />. Starfield subscribes to
+ * usePlayerStore and spins up a 280-star rAF loop, so if the original error
+ * came from store or DB initialisation, the error screen itself would throw.
+ */
+export default function SegmentError({
   error,
   reset,
 }: {
@@ -11,7 +20,6 @@ export default function GlobalError({
 }) {
   return (
     <div className="relative min-h-screen bg-midnight flex items-center justify-center p-8">
-      <Starfield />
       <div className="relative z-10 w98-raised-dark bg-raised-surface glass-heavy max-w-[400px] w-full animate-fade-in">
         <div className="w98-titlebar-gradient px-2 py-[2px] flex items-center">
           <span className="w98-font text-hd-11 font-bold text-white truncate flex-1">

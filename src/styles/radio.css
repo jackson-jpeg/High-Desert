@@ -2,7 +2,13 @@
    Radio Dial Animations
    ============================================ */
 
-/* Signal meter pulse at full strength */
+/* Signal meter pulse at full strength.
+   Applied inline by SignalMeter.tsx (`animation: "signal-pulse 2s ..."`), so
+   nothing references a `.signal-pulse` class — don't delete this on that basis.
+
+   The four empty section headers that used to follow ("Needle pulse", "Static
+   flicker overlay", "Signal lock glow", "Scanning indicator") were removed;
+   they had no rules under them. */
 @keyframes signal-pulse {
   0%, 100% {
     opacity: 0.85;
@@ -13,12 +19,3 @@
     box-shadow: 0 0 8px rgba(51, 255, 51, 0.6);
   }
 }
-
-/* Needle pulse (subtle red glow) */
-
-/* Static flicker overlay */
-
-/* Signal lock glow */
-
-/* Scanning indicator */
-

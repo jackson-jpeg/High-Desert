@@ -42,33 +42,23 @@ function fuzzyMatch(text: string, query: string): boolean {
   return qi === q.length;
 }
 
-export function CommandPalette() {
-  const [open, setOpen] = useState(false);
+export interface CommandPaletteProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+/**
+ * Controlled by the shell rather than owning its own Ctrl+K listener, so the
+ * shell can keep the shortcut while mounting this component — and downloading
+ * its chunk — only once it is actually opened.
+ */
+export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Result[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  // Open/close with Ctrl+K / Cmd+K
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setOpen((prev) => {
-          if (!prev) {
-            setQuery("");
-            setResults([]);
-            setActiveIndex(0);
-          }
-          return !prev;
-        });
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
 
   // Focus input + lock scroll when opened
   useEffect(() => {
@@ -79,10 +69,11 @@ export function CommandPalette() {
   }, [open]);
 
   const close = useCallback(() => {
-    setOpen(false);
     setQuery("");
     setResults([]);
-  }, []);
+    setActiveIndex(0);
+    onClose();
+  }, [onClose]);
 
   // Build actions list (stable refs via router)
   const actions: Result[] = useMemo(() => [

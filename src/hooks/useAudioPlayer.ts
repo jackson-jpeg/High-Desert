@@ -17,36 +17,24 @@ import { communityKey } from "@/lib/utils/community-key";
 import { checkArchiveHealth, clearHealthCache } from "@/services/archive/health";
 
 // ── Listening session tracking ──
-// flushListenTime() still drives reportStop(), which keeps the community
-// "active listeners" count accurate.
 //
-// NOTE: _listenAccum is currently accumulated but never read — its only reader
-// was the umami analytics call, removed when the site stopped loading any
-// third-party scripts. Kept as-is because unpicking it means editing the
-// playback path; wire it to a self-hosted metric or delete it deliberately.
-let _listenStart = 0; // timestamp when current play segment began
-let _listenAccum = 0; // seconds accumulated across play/pause cycles
-// Shared with the presence heartbeat so both describe the same session.
+// This used to carry a `_listenAccum` seconds counter alongside these calls.
+// Its only reader was the umami analytics call, removed when the site dropped
+// third-party scripts, so it had been accumulated and reset on every play,
+// pause, seek and unload while nothing ever read it. Deleted deliberately, as
+// the note left here asked: per-episode listened time is already derived from
+// `playbackPosition` in IndexedDB, and community totals now come from the
+// self-hosted stats service.
+//
+// What remains is the session lifecycle, which is load-bearing: it drives
+// reportStop(), and therefore the community listening count.
 const _sessionId = SESSION_ID;
 
-function startListenTimer() {
-  _listenStart = Date.now();
-}
-
-function pauseListenTimer() {
-  if (_listenStart > 0) {
-    _listenAccum += (Date.now() - _listenStart) / 1000;
-    _listenStart = 0;
-  }
-}
-
+/**
+ * @param reason `pause` keeps the session marked as listening — a brief pause
+ * is not leaving. `ended`/`stop`/`unload` clear it.
+ */
 function flushListenTime(reason: "pause" | "ended" | "unload" | "stop") {
-  pauseListenTimer();
-  if (reason !== "pause") {
-    _listenAccum = 0; // reset on end/unload, keep on pause
-  }
-  // Only remove from active listeners on explicit stop or page unload
-  // Pausing briefly shouldn't drop the listener count
   if (reason === "ended" || reason === "unload" || reason === "stop") {
     reportStop(_sessionId);
   }
@@ -125,8 +113,6 @@ export function useAudioPlayer() {
       try {
         await audio.play();
         setPlaying(true);
-        _listenAccum = 0; // new episode = reset accumulator
-        startListenTimer();
 
         // Report to community stats
         const key = communityKey(episode);
@@ -167,7 +153,6 @@ export function useAudioPlayer() {
       try {
         await audio.play();
         setPlaying(true);
-        startListenTimer();
       } catch (err) {
         console.error("[player] Play failed:", err);
       }
@@ -262,7 +247,6 @@ export function useAudioPlayer() {
         const audio = getAudio();
         audio.currentTime = 0;
         audio.play().catch(() => setPlaying(false));
-        startListenTimer();
         return;
       }
 
@@ -300,11 +284,9 @@ export function useAudioPlayer() {
     // Sync store when iOS/lock screen controls trigger play/pause directly
     const onPlay = () => {
       if (!usePlayerStore.getState().playing) setPlaying(true);
-      startListenTimer();
     };
     const onPause = () => {
       if (usePlayerStore.getState().playing) setPlaying(false);
-      pauseListenTimer();
     };
 
     const { setBuffering } = usePlayerStore.getState();

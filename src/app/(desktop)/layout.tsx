@@ -314,21 +314,21 @@ export default function DesktopLayout({
     };
   }, []);
 
-  // Offline/online detection
+  // Service-worker fallback notice.
+  //
+  // The `offline` and `online` window events are deliberately NOT handled here.
+  // <OfflineIndicator> already renders a persistent, aria-live banner for
+  // exactly those two events, so firing a toast as well meant going offline
+  // produced a banner and a toast saying the same thing at the same moment. A
+  // persistent state deserves a persistent indicator, not a transient toast.
   useEffect(() => {
-    const onOffline = () => toast.error("You're offline. Cached episodes still work.");
-    const onOnline = () => toast.success("Back online.");
     const onSWMessage = (e: MessageEvent) => {
       if (e.data?.type === "hd:offline-fallback") {
         toast.info("Showing cached content — you may be offline.");
       }
     };
-    window.addEventListener("offline", onOffline);
-    window.addEventListener("online", onOnline);
     navigator.serviceWorker?.addEventListener("message", onSWMessage);
     return () => {
-      window.removeEventListener("offline", onOffline);
-      window.removeEventListener("online", onOnline);
       navigator.serviceWorker?.removeEventListener("message", onSWMessage);
     };
   }, []);

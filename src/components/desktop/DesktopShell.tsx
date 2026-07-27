@@ -1,17 +1,48 @@
 "use client";
 
 import { cn } from "@/lib/utils/cn";
+import dynamic from "next/dynamic";
 import { MenuBar, StatusBar, Dialog, TextField, Button } from "@/components/win98";
-import { AboutDialog } from "./AboutDialog";
-import { ShortcutsDialog } from "./ShortcutsDialog";
-import { ClearLibraryDialog } from "./ClearLibraryDialog";
-import { ClearCacheDialog } from "./ClearCacheDialog";
 import { ContextMenu } from "@/components/win98/ContextMenu";
 import { Toaster } from "@/components/ui/Toaster";
-import { CommandPalette } from "@/components/CommandPalette";
 import { PageTransition } from "@/components/PageTransition";
 import { Starfield } from "./Starfield";
-import { EasterEggOverlays, type EasterEgg } from "./EasterEggOverlays";
+import type { EasterEgg } from "./EasterEggOverlays";
+
+/*
+ * Modals, the command palette and the easter eggs are pulled out of the shell
+ * chunk. They were all statically imported, so ~1,200 lines a visitor may never
+ * open — including 401 lines of easter-egg content reachable only by secret
+ * input — had to download and parse before the library could render.
+ *
+ * ssr:false throughout: every one is gated on client state, so there is nothing
+ * to server-render, and no loading fallback because each is invisible until
+ * some interaction opens it.
+ */
+const AboutDialog = dynamic(
+  () => import("./AboutDialog").then((m) => m.AboutDialog),
+  { ssr: false },
+);
+const ShortcutsDialog = dynamic(
+  () => import("./ShortcutsDialog").then((m) => m.ShortcutsDialog),
+  { ssr: false },
+);
+const ClearLibraryDialog = dynamic(
+  () => import("./ClearLibraryDialog").then((m) => m.ClearLibraryDialog),
+  { ssr: false },
+);
+const ClearCacheDialog = dynamic(
+  () => import("./ClearCacheDialog").then((m) => m.ClearCacheDialog),
+  { ssr: false },
+);
+const CommandPalette = dynamic(
+  () => import("@/components/CommandPalette").then((m) => m.CommandPalette),
+  { ssr: false },
+);
+const EasterEggOverlays = dynamic(
+  () => import("./EasterEggOverlays").then((m) => m.EasterEggOverlays),
+  { ssr: false },
+);
 import { useKonamiCode } from "@/hooks/useKonamiCode";
 import type { Menu } from "@/components/win98";
 import { useRouter, usePathname } from "next/navigation";
@@ -88,6 +119,20 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [adminPassword, setAdminPassword] = useState("");
   const [adminError, setAdminError] = useState("");
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // Ctrl/Cmd+K lives here rather than inside CommandPalette, so the palette's
+  // chunk is only fetched the first time someone actually opens it.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
   // Announces this tab and reports who else is here. The shell is mounted on
   // every route, so this is the one place the heartbeat needs to live.
   const presence = usePresence();
@@ -478,10 +523,20 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     window.dispatchEvent(new CustomEvent("hd:scroll-to-current"));
   }, [hasEpisode, pathname, router]);
 
-  // Ghost to Ghost badge click handler
+  // Ghost to Ghost badge click handler. The listener lives on the library
+  // page, so route there first when the badge is clicked from elsewhere —
+  // otherwise the event is dispatched into a page that isn't mounted.
   const handleGhostClick = useCallback(() => {
-    window.dispatchEvent(new CustomEvent("hd:search", { detail: "ghost to ghost" }));
-  }, []);
+    const fire = () =>
+      window.dispatchEvent(new CustomEvent("hd:search", { detail: "ghost to ghost" }));
+    if (pathname === "/library") {
+      fire();
+    } else {
+      router.push("/library");
+      // Let the route mount and attach its listener before firing.
+      setTimeout(fire, 150);
+    }
+  }, [pathname, router]);
 
   // Status bar now-playing content
   const statusContent = (() => {
@@ -718,13 +773,20 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       {/* Toast notifications */}
       <Toaster />
 
-      <AboutDialog open={aboutOpen} onClose={handleCloseAbout} isAdmin={isAdmin} episodeCount={episodeCount} showCounts={showCounts} />
-      <ShortcutsDialog open={shortcutsOpen} onClose={handleCloseShortcuts} isAdmin={isAdmin} />
-      <ClearLibraryDialog open={clearOpen} onClose={() => setClearOpen(false)} />
-      <ClearCacheDialog open={clearCacheOpen} onClose={() => setClearCacheOpen(false)} />
+      {/* Each is gated on its own open state, not merely lazily imported: these
+          components render null when closed, so mounting them unconditionally
+          would fetch every chunk on load and defeat the split entirely. */}
+      {aboutOpen && (
+        <AboutDialog open onClose={handleCloseAbout} isAdmin={isAdmin} episodeCount={episodeCount} showCounts={showCounts} />
+      )}
+      {shortcutsOpen && (
+        <ShortcutsDialog open onClose={handleCloseShortcuts} isAdmin={isAdmin} />
+      )}
+      {clearOpen && <ClearLibraryDialog open onClose={() => setClearOpen(false)} />}
+      {clearCacheOpen && <ClearCacheDialog open onClose={() => setClearCacheOpen(false)} />}
 
       {/* Command palette (Ctrl+K / Cmd+K) */}
-      <CommandPalette />
+      {paletteOpen && <CommandPalette open onClose={() => setPaletteOpen(false)} />}
 
 
       {/* Admin password dialog */}
@@ -749,8 +811,11 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         </div>
       </Dialog>
 
-      {/* Easter egg overlays */}
-      <EasterEggOverlays active={activeEgg} onDismiss={dismissEgg} onGhostToggle={() => setGhostToGhostMode((g) => !g)} />
+      {/* Easter egg overlays — 401 lines reachable only by secret input, so
+          the chunk is fetched at the moment one actually triggers. */}
+      {activeEgg && (
+        <EasterEggOverlays active={activeEgg} onDismiss={dismissEgg} onGhostToggle={() => setGhostToGhostMode((g) => !g)} />
+      )}
 
       {/* Mobile menu sheet */}
       <MobileMenuSheet

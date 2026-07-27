@@ -34,7 +34,6 @@
 
   /* Dark mode overrides for our app */
   --w98-dark-surface: #1A1F33;
-  --w98-dark-inset: #080C16;
   --w98-dark-text: #C0C0C0;
 }
 
@@ -261,9 +260,8 @@ button.w98-raised-dark:active:not(:disabled) {
   border-bottom: 1px solid #2A3050;
 }
 
-/* ============================================
-   Win98 Scrollbar (webkit)
-   ============================================ */
+/* Scrollbar styling lives in src/app/globals.css (::-webkit-scrollbar and
+   the Firefox scrollbar-color fallback), not here. */
 
 /* ============================================
    Status Bar
@@ -430,12 +428,6 @@ input[type="range"].w98-range-dark::-moz-range-thumb {
   }
 
   /* Glass bevel — border + inset shadows only, no blur */
-  .glass-bevel {
-    border: 1px solid rgba(42, 48, 80, 0.3);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.05),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.15);
-  }
 
   /* Glass backdrop — dialog/sheet overlay */
   .glass-backdrop {
@@ -481,9 +473,21 @@ input[type="range"].w98-range-dark::-moz-range-thumb {
     border-color: rgba(255, 255, 255, 0.06);
   }
 
-  /* Promote to GPU — always-visible surfaces */
+  /*
+   * Intentionally empty.
+   *
+   * This was `will-change: backdrop-filter`, applied to the bottom nav and the
+   * mini player — two surfaces that are mounted for the entire session. A
+   * permanent will-change on a backdrop-filtered element pins a compositor
+   * layer for as long as the element exists, which is the classic way to spend
+   * the memory and lose the performance you were trying to buy. will-change is
+   * for hinting an *imminent* change, not a standing one.
+   *
+   * The class is kept as a no-op so the call sites still read as "this is a
+   * hot surface"; give it a real value only around a specific transition.
+   */
   .glass-promote {
-    will-change: backdrop-filter;
+    /* no-op — see comment above */
   }
 
   /* Reduced transparency fallback */

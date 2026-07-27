@@ -86,18 +86,24 @@ export function TuningStrip({ index, className }: TuningStripProps) {
     // Sync hit areas to state at most every 200ms (not every frame)
     let lastHitAreaSync = 0;
 
+    // Cached by resize(); reading getBoundingClientRect() inside the render
+    // loop forced a synchronous layout on every single frame.
+    let cssW = 0;
+    let cssH = 0;
+
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
+      cssW = rect.width;
+      cssH = rect.height;
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
 
     const render = (time: number) => {
-      const rect = canvas.getBoundingClientRect();
-      const w = rect.width;
-      const h = rect.height;
+      const w = cssW;
+      const h = cssH;
 
       // Throttle frame rate on mobile (uses canvas width, reactive to resize)
       if (w < 768) {
@@ -277,10 +283,26 @@ export function TuningStrip({ index, className }: TuningStripProps) {
     resize();
     animId = requestAnimationFrame(render);
     window.addEventListener("resize", resize);
+    // The canvas is a flex child, so it can change size without the window
+    // doing so. That was harmless while every frame re-measured; now that the
+    // dimensions are cached, they have to be invalidated properly.
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+
+    // Stop drawing while the tab is hidden — this is a 60fps loop.
+    const onVisibility = () => {
+      cancelAnimationFrame(animId);
+      if (document.visibilityState === "visible") {
+        animId = requestAnimationFrame(render);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", onVisibility);
+      ro.disconnect();
     };
   }, [index, zoom]);
 
