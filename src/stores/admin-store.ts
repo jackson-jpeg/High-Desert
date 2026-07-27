@@ -29,10 +29,15 @@ interface AdminState {
   enable: () => void;
   /** Log out of admin mode. */
   logout: () => void;
+  /** Read persisted admin state. Call once after mount, never during render. */
+  hydrate: () => void;
 }
 
 export const useAdminStore = create<AdminState>((set) => ({
-  isAdmin: readAdmin(),
+  // Always false initially so server and client render identically. Reading
+  // localStorage at module scope caused a hydration mismatch for admins, which
+  // makes React throw away the server HTML for that subtree.
+  isAdmin: false,
 
   login: async (password: string) => {
     const hash = await hashPassword(password);
@@ -42,6 +47,10 @@ export const useAdminStore = create<AdminState>((set) => ({
       return true;
     }
     return false;
+  },
+
+  hydrate: () => {
+    if (readAdmin()) set({ isAdmin: true });
   },
 
   enable: () => {

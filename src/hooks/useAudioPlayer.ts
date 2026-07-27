@@ -57,21 +57,24 @@ export function useAudioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const positionTimerRef = useRef<number>(0);
 
-  const {
-    currentEpisode,
-    objectUrl,
-    playing,
-    position,
-    volume,
-    playbackRate,
-    error,
-    loadEpisode,
-    setPlaying,
-    setPosition,
-    setDuration,
-    setError,
-    stop,
-  } = usePlayerStore();
+  // Individual selectors, NOT `usePlayerStore()`. Subscribing to the whole store
+  // meant the 250ms position tick re-rendered this hook's consumers — including
+  // the desktop layout and the entire app shell — four times a second for the
+  // whole duration of playback. `position` is deliberately not subscribed here;
+  // components that display it (AudioPlayer) select it themselves.
+  const currentEpisode = usePlayerStore((s) => s.currentEpisode);
+  const objectUrl = usePlayerStore((s) => s.objectUrl);
+  const playing = usePlayerStore((s) => s.playing);
+  const volume = usePlayerStore((s) => s.volume);
+  const playbackRate = usePlayerStore((s) => s.playbackRate);
+  const error = usePlayerStore((s) => s.error);
+  // Actions have stable identities, so selecting them never triggers a render.
+  const loadEpisode = usePlayerStore((s) => s.loadEpisode);
+  const setPlaying = usePlayerStore((s) => s.setPlaying);
+  const setPosition = usePlayerStore((s) => s.setPosition);
+  const setDuration = usePlayerStore((s) => s.setDuration);
+  const setError = usePlayerStore((s) => s.setError);
+  const stop = usePlayerStore((s) => s.stop);
 
   // Get or create the shared audio element
   const getAudio = useCallback((): HTMLAudioElement => {
@@ -480,29 +483,31 @@ export function useAudioPlayer() {
     };
   }, [togglePlay, playNext, playPrevious, seek]);
 
-  // Update MediaSession position state (throttled to avoid excessive updates)
-  const lastPositionUpdateRef = useRef(0);
+  // Update MediaSession position state on a timer rather than on every position
+  // change — reading from getState() keeps this off the render path entirely.
   useEffect(() => {
     if (!("mediaSession" in navigator)) return;
     if (!currentEpisode || !playing) return;
 
-    const now = Date.now();
-    if (now - lastPositionUpdateRef.current < 5000) return;
-    lastPositionUpdateRef.current = now;
-
-    const state = usePlayerStore.getState();
-    if (state.duration > 0 && isFinite(state.duration)) {
-      try {
-        navigator.mediaSession.setPositionState({
-          duration: state.duration,
-          playbackRate: state.playbackRate,
-          position: Math.min(Math.max(0, state.position), state.duration),
-        });
-      } catch {
-        // ignore
+    const push = () => {
+      const state = usePlayerStore.getState();
+      if (state.duration > 0 && isFinite(state.duration)) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: state.duration,
+            playbackRate: state.playbackRate,
+            position: Math.min(Math.max(0, state.position), state.duration),
+          });
+        } catch {
+          // ignore
+        }
       }
-    }
-  }, [currentEpisode, playing, position]);
+    };
+
+    push();
+    const id = window.setInterval(push, 5000);
+    return () => window.clearInterval(id);
+  }, [currentEpisode, playing]);
 
   return {
     playEpisode,
@@ -515,7 +520,6 @@ export function useAudioPlayer() {
     currentEpisode,
     objectUrl,
     playing,
-    position,
     volume,
     playbackRate,
     error,

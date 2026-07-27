@@ -13,13 +13,42 @@ interface MoreLikeThisProps {
 }
 
 export function MoreLikeThis({ episode, onPlay, className }: MoreLikeThisProps) {
-  const allEpisodes = useLiveQuery(
-    () => db.episodes.toArray(),
-    [],
+  // Only pull plausible candidates via indexes rather than the whole table.
+  // This renders inside every EpisodeDetail, so a full toArray() meant opening
+  // any episode deserialized all ~1,300 rows (including every aiSummary).
+  const candidates = useLiveQuery(
+    async () => {
+      const buckets = await Promise.all([
+        episode.guestName
+          ? db.episodes.where("guestName").equals(episode.guestName).toArray()
+          : [],
+        episode.aiSeries
+          ? db.episodes.where("aiSeries").equals(episode.aiSeries).toArray()
+          : [],
+        episode.aiCategory && episode.aiCategory !== "Other"
+          ? db.episodes.where("aiCategory").equals(episode.aiCategory).limit(200).toArray()
+          : [],
+        episode.aiTags?.length
+          ? db.episodes.where("aiTags").anyOf(episode.aiTags).limit(200).toArray()
+          : [],
+      ]);
+
+      // Union by id — buckets overlap heavily
+      const byId = new Map<number, Episode>();
+      for (const bucket of buckets) {
+        for (const ep of bucket) {
+          if (ep.id != null && ep.id !== episode.id) byId.set(ep.id, ep);
+        }
+      }
+      return [...byId.values()];
+    },
+    [episode.id, episode.guestName, episode.aiSeries, episode.aiCategory, episode.aiTags],
+    undefined,
   );
 
   const recommendations = useMemo(() => {
-    if (!allEpisodes || allEpisodes.length < 2) return [];
+    const allEpisodes = candidates;
+    if (!allEpisodes || allEpisodes.length < 1) return [];
 
     const tags = new Set(episode.aiTags ?? []);
     const scores = new Map<number, number>();
@@ -85,7 +114,7 @@ export function MoreLikeThis({ episode, onPlay, className }: MoreLikeThisProps) 
       .slice(0, 5)
       .map(([id]) => allEpisodes.find((ep) => ep.id === id)!)
       .filter(Boolean);
-  }, [allEpisodes, episode]);
+  }, [candidates, episode]);
 
   if (recommendations.length === 0) return null;
 
