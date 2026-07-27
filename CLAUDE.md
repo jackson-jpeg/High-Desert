@@ -8,7 +8,7 @@
 
 ```bash
 npm install
-cp .env.example .env.local   # ANTHROPIC_API_KEY, ADMIN_API_TOKEN (both optional)
+cp .env.example .env.local   # DATABASE_URL (optional — stats degrade gracefully without it)
 npm run dev                   # http://localhost:3000
 npm run build                 # production build
 npm run lint                  # ESLint (next/core-web-vitals + typescript)
@@ -21,7 +21,8 @@ npm run lint                  # ESLint (next/core-web-vitals + typescript)
 - **Dexie 4** — IndexedDB ORM, reactive queries via `useLiveQuery`
 - **Zustand 5** — client state (player, radio dial, scanner, scraper, search, admin, context menu, sleep timer, toasts)
 - **Web Audio API** — oscilloscope visualizer, radio static generator, startup sound
-- **Anthropic Claude SDK** — AI episode categorization (server-side, `/api/categorize`)
+- **Postgres** — community stats only (play counts, ratings, leaderboard, active listeners)
+- **No third-party services** — self-hosted on the VPS; no analytics scripts, no hosted KV, no runtime AI
 - **OPFS** — Origin Private File System for offline audio caching
 
 ## Architecture Overview
@@ -46,14 +47,25 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/archive/search` | GET | Proxy to archive.org advanced search (rate-limited 30/min) |
 | `/api/archive/scrape` | GET | Proxy for catalog scrape (rate-limited 30/min) |
 | `/api/archive/metadata` | GET | Proxy for item metadata (cached 1hr) |
-| `/api/categorize` | POST | Claude Sonnet batch categorization (max 10 episodes, requires `x-hd-admin: true`, rate-limited 10/min) |
+| `/api/archive/health` | GET | archive.org reachability probe (cached) |
+| `/api/stats/play` | POST | Record a play. Body `{episodeId, sessionId}`. Returns `{ok}`. `episodeId` must be in the community-key allowlist |
+| `/api/stats/stop` | POST | End a listening session. Body `{sessionId}`. Returns `{ok}` |
+| `/api/stats/rate` | POST | Submit a rating 1–5 or null. Body `{episodeId, rating}`. Returns `{ok}` |
+| `/api/stats/episodes` | GET | Play counts for up to **100** ids. Returns **`{counts: {id: n}}`** |
+| `/api/stats/ratings` | GET | Ratings for up to **50** ids. Returns a **bare map** `{id: {avg, count}}` |
+| `/api/stats/leaderboard` | GET | Top episodes. Returns **`{entries: [{episodeId, plays}]}`** |
+| `/api/stats/active` | GET | Active listener count. Returns **`{count: n}`** |
+
+> Response shapes are inconsistent by history, not design. `src/services/stats/client.ts`
+> tolerates both wrapped and bare forms — a mismatch here silently made every community
+> play count read as 0 for months. Document the shape when adding a route.
 
 ### Data Flow
 
 1. **No server-side persistence** — all episode data lives in IndexedDB (Dexie)
 2. **Audio streaming** — archive episodes stream via `archive.org/download/...` URLs
 3. **Local files** — scanned, hashed (MD5), metadata extracted (ID3/Vorbis), cached in OPFS
-4. **AI categorization** — client sends episode metadata to `/api/categorize` → Claude returns structured JSON (summary, tags, category, series info, notable flag)
+4. **AI categorization is offline only** — `scripts/categorize-library.py` runs against the catalog and its output ships in `public/seed/library.json`. There is no runtime AI endpoint and no API key in the app
 5. **First visit** — library auto-seeded from `/public/seed/library.json`
 
 ## Key Directories
@@ -62,12 +74,12 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 src/
 ├── app/                  # Next.js App Router pages + API routes
 │   ├── (desktop)/        # Main route group (shared layout with player)
-│   └── api/              # Server-side API proxies + AI endpoint
+│   └── api/              # archive.org proxies + community stats
 ├── audio/                # Audio engine modules (singleton pattern)
 │   ├── engine.ts         # HTMLAudioElement + AudioContext singleton
 │   ├── cache.ts          # OPFS audio blob cache
 │   ├── radio-static.ts   # White noise generator for radio page
-│   ├── oscilloscope-renderer.ts  # Canvas waveform/static/idle drawing
+│   ├── visualizations/   # Oscilloscope/bars/radar/VU/waterfall/milkdrop renderers + registry
 │   └── startup-sound.ts  # Synthesized boot chime
 ├── components/
 │   ├── desktop/          # Shell, starfield, dialogs (about, shortcuts, clear)
@@ -84,15 +96,17 @@ src/
 │   └── PageTransition.tsx
 ├── db/
 │   ├── schema.ts         # Episode, Playlist, HistoryEntry, Bookmark, ScanSession, UserPrefs
-│   ├── index.ts          # Dexie instance, indexes, migrations (v6), pref helpers
+│   ├── index.ts          # Dexie instance, indexes, migrations (v7), pref helpers
 │   ├── deduplicate.ts    # Duplicate detection and merging
-│   └── seed.ts           # First-visit library seeding + admin export
+│   └── seed.ts           # Seeding, reconcile (restores missing episodes), export
 ├── hooks/                # Custom React hooks
-├── lib/utils/            # cn, format, rate-limit, retry, search-parser
+├── lib/utils/            # cn, format, rate-limit, retry, search-parser, streak,
+│                         #   community-key, scroll-lock, platform
 ├── services/
 │   ├── archive/          # Archive.org client, scraper, filename parser
 │   ├── scanner/          # File scanner, hasher, metadata extractor, filename parser
-│   └── episodes/         # Episode CRUD, favorites, ratings, bookmarks, recategorize
+│   ├── episodes/         # Episode CRUD, favorites, ratings, bookmarks, playlists
+│   └── stats/            # Community stats client + Postgres queries
 ├── stores/               # Zustand stores
 └── styles/               # win98.css, animations.css, crt.css, radio.css
 ```
@@ -119,10 +133,12 @@ Cross-component communication via `window.dispatchEvent(new CustomEvent(...))`:
 |---|---|
 | `hd:play-episode` | Trigger playback |
 | `hd:sort`, `hd:shuffle` | Library sorting/shuffling |
-| `hd:focus-search`, `hd:search` | Search focus/query |
+| `hd:focus-search` | Focus the search box |
 | `hd:scroll-to-current` | Scroll library to now-playing |
 | `hd:show-guest` | Open guest profile modal |
-| `hd:tag-filter`, `hd:category-filter` | Apply library filters |
+| `hd:filter-tag`, `hd:filter-category`, `hd:filter-series` | Apply library filters |
+| `hd:easter-egg`, `hd:admin-prompt`, `hd:status-message` | Shell/easter-egg signals |
+| `hd:archive-status`, `hd:queue-selected`, `hd:toggle-shortcuts` | Misc |
 | `hd:toggle-ultra-mini` | Toggle ultra-mini player |
 | `hd:scan-preview` / `hd:scan-preview-stop` | Radio scan audio snippets |
 
@@ -141,7 +157,7 @@ Cross-component communication via `window.dispatchEvent(new CustomEvent(...))`:
 - **Error boundaries:** `DBErrorBoundary` around Dexie-dependent UI, `WidgetErrorBoundary` around individual widgets
 - **Virtual scrolling:** `useVirtualList` hook with fixed `itemHeight` and `containerRef`
 
-## Database (Dexie v6)
+## Database (Dexie v7)
 
 **Primary entity:** `Episode` — identity (id, fileHash), metadata (title, airDate, guestName, showType), audio (duration, bitrate), playback (lastPlayedAt, playbackPosition, playCount), archive source, AI fields (aiSummary, aiTags[], aiCategory, aiSeries, aiNotable, aiStatus), user fields (favoritedAt, rating).
 
@@ -151,7 +167,13 @@ Cross-component communication via `window.dispatchEvent(new CustomEvent(...))`:
 
 ## Admin Mode
 
-Gated by `useAdminStore` — SHA-256 password check. Enables Scanner tab, Search tab, Library menu (import, categorize, export, deduplicate, clear). Persisted in `localStorage['hd-admin']`. Force viewer mode via `?viewer` URL param.
+Gated by `useAdminStore` — SHA-256 password check. Enables Scanner tab, Search tab, Library menu
+(import, export, deduplicate, clear). Persisted in `localStorage['hd-admin']`, hydrated **after**
+mount (reading it during render caused a hydration mismatch). Force viewer mode via `?viewer`.
+
+**This is UI gating, not a security boundary.** The hash is a client-side constant and anyone can
+set the localStorage key. Never put anything behind it that must actually be protected — all
+admin features are local-only and touch nothing server-side.
 
 ## Design System
 
@@ -162,16 +184,46 @@ Gated by `useAdminStore` — SHA-256 password check. Enables Scanner tab, Search
 
 ## Security Headers
 
-CSP configured in `next.config.ts` — connects to `archive.org`, `api.anthropic.com`. Frame ancestors denied. No inline eval in production ideal (currently `unsafe-inline unsafe-eval` for Next.js).
+CSP configured in `next.config.ts` — `connect-src` allows only `archive.org` (and self).
+`frame-ancestors` permits `'self'` plus `sang3r.com`/`www.sang3r.com` (deliberate embedding),
+so it is *not* fully denied. Still carries `unsafe-inline`/`unsafe-eval` for Next.js.
 
-## Deployment
+## Deployment — self-hosted on the VPS
 
-- **Target:** Vercel (serverless)
-- **Required env vars:** `ANTHROPIC_API_KEY`, `ADMIN_API_TOKEN`, `NEXT_PUBLIC_ADMIN_TOKEN` — set in Vercel project settings
-- `ADMIN_API_TOKEN` and `NEXT_PUBLIC_ADMIN_TOKEN` must match — the client sends the token as a Bearer header and the `/api/categorize` route validates it server-side
-- The in-memory rate limiter (`src/lib/utils/rate-limit.ts`) does not persist across serverless function instances — each cold start gets a fresh counter. This is acceptable because the token auth is the primary security gate
+No third-party hosting. Same shape as `sanger-next`.
+
+- **App:** `next start -p 3003` under systemd (`highdesert.service`), nginx vhost with a certbot cert
+- **Stats:** Postgres database `highdesert` on the same host; `DATABASE_URL` comes from a
+  chmod-600 `EnvironmentFile=`, never inlined into the unit and never committed
+- **Rate limiting:** `src/lib/utils/rate-limit.ts` is an in-memory Map. That was useless on
+  serverless but is **correct here** — one long-lived process. It depends on nginx setting
+  `X-Forwarded-For` to `$remote_addr` (overwrite, not append) so clients can't spoof it
+- **Build id:** `next.config.ts` derives `NEXT_PUBLIC_BUILD_ID` from the git SHA and the service
+  worker registers as `/sw.js?v=<id>`, so each deploy installs a fresh worker and purges the
+  previous build's cache. Do not hardcode the cache name again
+- **No env vars are required** for the app to boot; without `DATABASE_URL` the `/api/stats/*`
+  routes return 503 and the UI degrades to empty stats
 
 ## Scripts (`/scripts/`)
 
-- `categorize-library.py` — Python script for batch AI categorization
+- `categorize-library.py` — offline batch AI categorization; output is committed into `public/seed/library.json`. This is the ONLY place AI runs
 - `clean-library.py` — Python script for library cleanup
+
+## Data safety — read before touching `src/db/`
+
+All user data (favorites, ratings, playback positions, history, bookmarks) lives **only** in the
+visitor's IndexedDB. There is no server backup. A bad write here is unrecoverable.
+
+- **Identity key is `fileHash`** (`archive:{identifier}:{fileName}`) — unique across the catalog,
+  indexed, and built identically by the seeder and both import paths. `archiveIdentifier` is the
+  *collection* id and is the SAME for every episode; never use it alone as an identity.
+- **`reconcileLibrary()` is `bulkAdd`-only.** It restores catalog rows missing locally and by
+  construction cannot touch an existing row. Keep it that way — never `bulkPut`, never `update`.
+- **No unattended destructive operations against `db.episodes`, ever.** Deduplication is
+  user-initiated and confirmed. An automatic dedup once deleted 1,312 of 1,313 episodes for
+  users who had grown their library past a threshold.
+- **`deduplicateEpisodes()` has safety rails** (`MAX_GROUP_SIZE` 20, `MAX_DELETE_RATIO` 25%) and
+  aborts rather than throwing. They are not optional — they would have prevented that incident
+  independently of the key bug.
+- Regression tests live in `src/db/__tests__/`; `dedupKey` must yield 1,313 distinct keys for the
+  real seed catalog.

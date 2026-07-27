@@ -2,10 +2,6 @@
    CRT / Phosphor Glow Effects
    ============================================ */
 
-.crt-glow {
-  filter: drop-shadow(0 0 2px #33FF33) drop-shadow(0 0 6px #33FF3366);
-}
-
 .crt-text {
   color: #33FF33;
   text-shadow:
@@ -70,6 +66,3 @@
   50% { opacity: 0.98; }
 }
 
-.crt-flicker {
-  animation: crt-flicker 0.1s infinite;
-}

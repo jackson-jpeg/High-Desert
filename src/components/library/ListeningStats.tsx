@@ -5,6 +5,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
 import { cn } from "@/lib/utils/cn";
 import { fetchActiveCount } from "@/services/stats/client";
+import { computeStreak } from "@/lib/utils/streak";
 
 interface ListeningStatsProps {
   className?: string;
@@ -27,25 +28,7 @@ export function ListeningStats({ className }: ListeningStatsProps) {
   const stats = useMemo(() => {
     if (!history || !episodes) return null;
 
-    // Listening streak
-    let streak = 0;
-    const daySet = new Set<string>();
-    for (const entry of history) {
-      daySet.add(new Date(entry.timestamp).toISOString().slice(0, 10));
-    }
-    const today = new Date();
-    for (let d = 0; d < 365; d++) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - d);
-      const key = date.toISOString().slice(0, 10);
-      if (daySet.has(key)) {
-        streak++;
-      } else if (d === 0) {
-        continue;
-      } else {
-        break;
-      }
-    }
+    const streak = computeStreak(history);
 
     // Total listening time from history durations
     const totalSeconds = history.reduce((sum, h) => sum + (h.duration ?? 0), 0);

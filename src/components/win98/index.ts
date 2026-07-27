@@ -22,7 +22,5 @@ export type { DialogProps } from "./Dialog";
 export { StatusBar } from "./StatusBar";
 export type { StatusBarProps, StatusBarPanel } from "./StatusBar";
 
-export { Tabs } from "./Tabs";
-export type { TabsProps, Tab } from "./Tabs";
 
 export { ContextMenu } from "./ContextMenu";

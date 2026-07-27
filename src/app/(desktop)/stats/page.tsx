@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
 import { getCacheSize, clearAudioCache } from "@/audio/cache";
 import { toast } from "@/stores/toast-store";
+import { computeStreak } from "@/lib/utils/streak";
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -146,28 +147,7 @@ export default function StatsPage() {
       : 0;
     const fiveStarCount = episodes.filter((e) => e.rating === 5).length;
 
-    // Listening streak (consecutive days with history entries)
-    let streak = 0;
-    if (history && history.length > 0) {
-      const daySet = new Set<string>();
-      for (const entry of history) {
-        daySet.add(new Date(entry.timestamp).toISOString().slice(0, 10));
-      }
-      const today = new Date();
-      for (let d = 0; d < 365; d++) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - d);
-        const key = date.toISOString().slice(0, 10);
-        if (daySet.has(key)) {
-          streak++;
-        } else if (d === 0) {
-          // Today hasn't been listened yet, still check yesterday
-          continue;
-        } else {
-          break;
-        }
-      }
-    }
+    const streak = computeStreak(history);
     const favoriteCount = episodes.filter((e) => !!e.favoritedAt).length;
     const flaggedEpisodes = episodes.filter((e) => !!e.flaggedAt);
 

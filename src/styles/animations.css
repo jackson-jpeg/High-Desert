@@ -38,10 +38,6 @@
   }
 }
 
-.animate-window-close {
-  animation: window-close 0.15s ease-in forwards;
-}
-
 /* Dialog appear */
 @keyframes dialog-appear {
   from {
@@ -103,18 +99,7 @@
   from { width: 0%; }
 }
 
-.animate-progress {
-  animation: progress-fill 0.5s var(--spring-smooth) forwards;
-}
-
 /* Button press feedback */
-.transition-press {
-  transition: transform 0.1s ease-out;
-}
-
-.transition-press:active {
-  transform: translateY(1px);
-}
 
 /* Smooth color/background transitions */
 .transition-colors-fast {
@@ -134,14 +119,6 @@
 }
 
 /* Subtle scale on hover for interactive cards */
-.hover-lift {
-  transition: transform 0.15s var(--spring-snappy), box-shadow 0.15s ease;
-}
-
-.hover-lift:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
 
 /* Skeleton loading pulse */
 @keyframes skeleton-pulse {
@@ -160,8 +137,6 @@
 }
 
 .animate-dot-1 { animation: dot-bounce 1.2s ease-in-out infinite; }
-.animate-dot-2 { animation: dot-bounce 1.2s ease-in-out 0.15s infinite; }
-.animate-dot-3 { animation: dot-bounce 1.2s ease-in-out 0.3s infinite; }
 
 /* On-air indicator (pulsing red dot) */
 @keyframes on-air-pulse {
@@ -191,28 +166,8 @@
 .animate-signal-4 { animation: signal-bar 2.5s ease-in-out 0.9s infinite; }
 
 /* Status bar now-playing scroll */
-@keyframes status-scroll {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
-.animate-status-scroll {
-  animation: status-scroll 20s linear infinite;
-}
 
 /* Subtle glow pulse for stat emphasis */
-@keyframes stat-glow {
-  0%, 100% {
-    text-shadow: 0 0 2px currentColor;
-  }
-  50% {
-    text-shadow: 0 0 8px currentColor, 0 0 16px currentColor;
-  }
-}
-
-.animate-stat-glow {
-  animation: stat-glow 3s ease-in-out infinite;
-}
 
 /* Chart bar grow-in */
 @keyframes bar-grow {
@@ -272,10 +227,6 @@
   .animate-signal-4,
   .glass-glow-amber {
     animation: none !important;
-  }
-
-  .hover-lift:hover {
-    transform: none;
   }
 
   .transition-colors-fast,
