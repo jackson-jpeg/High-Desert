@@ -19,7 +19,12 @@ import { checkArchiveHealth, clearHealthCache } from "@/services/archive/health"
 // Tracks cumulative seconds listened per session, flushes on pause/end/unload
 let _listenStart = 0; // timestamp when current play segment began
 let _listenAccum = 0; // seconds accumulated across play/pause cycles
-const _sessionId = typeof crypto !== "undefined" ? crypto.randomUUID() : "ssr";
+// Must satisfy the /api/stats/play sessionId format (8-64 of [A-Za-z0-9_-]).
+// The fallback only exists for SSR, which never reports a play.
+const _sessionId =
+  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `ssr-${Math.random().toString(36).slice(2, 12)}`;
 
 function startListenTimer() {
   _listenStart = Date.now();

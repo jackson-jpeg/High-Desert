@@ -36,11 +36,11 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cloud.umami.is https://va.vercel-scripts.com",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob:",
               "font-src 'self'",
-              "connect-src 'self' https://archive.org https://*.archive.org https://cloud.umami.is https://api-gateway.umami.dev https://va.vercel-scripts.com",
+              "connect-src 'self' https://archive.org https://*.archive.org",
               "media-src 'self' blob: https://archive.org https://*.archive.org",
               "worker-src 'self' blob:",
               "frame-ancestors 'self' https://sang3r.com https://www.sang3r.com",

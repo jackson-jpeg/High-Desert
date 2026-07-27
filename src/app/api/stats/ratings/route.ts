@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
-import { getRatings } from "@/services/stats/kv";
+import { getRatings } from "@/services/stats/store";
 
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const ratings = await getRatings(ids);
     return NextResponse.json(ratings);
   } catch (err) {
-    console.error("[stats/ratings] KV error:", err);
+    console.error("[stats/ratings] store error:", err);
     return NextResponse.json({ error: "Stats unavailable" }, { status: 503 });
   }
 }
