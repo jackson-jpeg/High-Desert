@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
-import { recordRating, removeRating } from "@/services/stats/kv";
+import { recordRating, removeRating } from "@/services/stats/store";
+import { isKnownEpisodeId } from "@/services/stats/allowlist";
 
 const EPISODE_ID_RE = /^[a-zA-Z0-9._-]+$/;
 
@@ -36,9 +37,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (episodeId.length > 200) {
+  if (!isKnownEpisodeId(episodeId)) {
     return NextResponse.json(
-      { error: "episodeId too long" },
+      { error: "Unknown episodeId" },
       { status: 400 },
     );
   }
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
       await removeRating(episodeId, ip);
       return NextResponse.json({ ok: true });
     } catch (err) {
-      console.error("[stats/rate] KV error:", err);
+      console.error("[stats/rate] store error:", err);
       return NextResponse.json({ error: "Stats unavailable" }, { status: 503 });
     }
   }
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
     await recordRating(episodeId, rating, ip);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[stats/rate] KV error:", err);
+    console.error("[stats/rate] store error:", err);
     return NextResponse.json({ error: "Stats unavailable" }, { status: 503 });
   }
 }
