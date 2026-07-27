@@ -9,7 +9,12 @@ const VALID_RANGES = new Set<TrafficRange>(["24h", "7d", "30d"]);
  *
  * Response shape:
  *   { range, points: [{ t, online, listening, plays }],
- *     peakOnline, peakListening, playsInRange, totalPlays }
+ *     peakOnline, peakListening, playsInRange, totalPlays, peakAt,
+ *     hourly: [{ hour, online, listening, plays }] }
+ *
+ * `hourly` is always a 24-entry, zero-filled, UTC-hour profile over the last
+ * 30 days — it does not vary with `range`, and the client rotates it into
+ * local time.
  *
  * `points` is bucketed server-side (15m / 2h / 6h by range) so the client never
  * has to thin it. Cached briefly at the edge — the sampler only writes every

@@ -74,11 +74,15 @@ export async function recordPlay(
     ), w AS (
       INSERT INTO weekly_plays (week, episode_id, plays) VALUES ($2, $1, 1)
       ON CONFLICT (week, episode_id) DO UPDATE SET plays = weekly_plays.plays + 1
+    ), r AS (
+      INSERT INTO recent_plays (episode_id) VALUES ($1)
+    ), pruned AS (
+      DELETE FROM recent_plays WHERE played_at < now() - interval '24 hours'
     )
-    INSERT INTO active_sessions (session_id, seen_at, listening_at)
-    VALUES ($3, now(), now())
+    INSERT INTO active_sessions (session_id, seen_at, listening_at, episode_id)
+    VALUES ($3, now(), now(), $1)
     ON CONFLICT (session_id)
-    DO UPDATE SET seen_at = now(), listening_at = now()
+    DO UPDATE SET seen_at = now(), listening_at = now(), episode_id = $1
     `,
     [episodeId, weekKey(), sessionId],
   );
@@ -106,7 +110,7 @@ export async function recordHeartbeat(sessionId: string): Promise<void> {
  */
 export async function clearListening(sessionId: string): Promise<void> {
   await pool().query(
-    `UPDATE active_sessions SET listening_at = NULL WHERE session_id = $1`,
+    `UPDATE active_sessions SET listening_at = NULL, episode_id = NULL WHERE session_id = $1`,
     [sessionId],
   );
 }
@@ -192,6 +196,163 @@ export async function getActiveCount(): Promise<number> {
 }
 
 // ---------------------------------------------------------------------------
+// On air
+// ---------------------------------------------------------------------------
+
+export interface OnAirEntry {
+  episodeId: string;
+  /** Sessions currently playing this episode. */
+  listeners: number;
+}
+
+export interface RecentPlay {
+  episodeId: string;
+  /** When it was most recently started, ISO 8601. */
+  at: string;
+}
+
+export interface NowPlaying extends Presence {
+  /** What the community has playing right now, most listeners first. */
+  onAir: OnAirEntry[];
+  /** What was started recently, newest first. Excludes anything still on air. */
+  recent: RecentPlay[];
+}
+
+/** How many recently-played episodes to surface. */
+const RECENT_LIMIT = 8;
+
+/**
+ * Presence plus what is actually playing.
+ *
+ * Aggregate by construction: the returned rows are episode ids and counts, and
+ * no query here reads session_id alongside episode_id. Nothing identifies a
+ * visitor, and there is nothing to identify them with — sessions are random
+ * ids held in memory for the life of a tab.
+ */
+export async function getNowPlaying(): Promise<NowPlaying> {
+  // Prunes stale sessions, so the two queries below see a clean table.
+  const presence = await getPresence();
+  const cutoff = new Date(Date.now() - ACTIVE_WINDOW_MS);
+
+  const [onAirRes, recentRes] = await Promise.all([
+    pool().query<{ episode_id: string; listeners: number }>(
+      `
+      SELECT episode_id, count(*)::int AS listeners
+      FROM active_sessions
+      WHERE listening_at >= $1 AND episode_id IS NOT NULL
+      GROUP BY episode_id
+      ORDER BY listeners DESC, episode_id
+      LIMIT 12
+      `,
+      [cutoff],
+    ),
+    // DISTINCT ON collapses repeats: restarting or seeking the same episode
+    // fires a fresh play event, and without this one visitor replaying one show
+    // fills the whole ticker.
+    pool().query<{ episode_id: string; at: Date }>(
+      `
+      SELECT DISTINCT ON (episode_id) episode_id, played_at AS at
+      FROM recent_plays
+      ORDER BY episode_id, played_at DESC
+      `,
+    ),
+  ]);
+
+  const onAir = onAirRes.rows.map((r) => ({
+    episodeId: r.episode_id,
+    listeners: Number(r.listeners),
+  }));
+  const live = new Set(onAir.map((e) => e.episodeId));
+
+  const recent = recentRes.rows
+    .filter((r) => !live.has(r.episode_id))
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+    .slice(0, RECENT_LIMIT)
+    .map((r) => ({ episodeId: r.episode_id, at: new Date(r.at).toISOString() }));
+
+  return { ...presence, onAir, recent };
+}
+
+// ---------------------------------------------------------------------------
+// Hour-of-day profile
+// ---------------------------------------------------------------------------
+
+export interface HourBucket {
+  /** Hour of day in UTC, 0-23. Clients rotate this into local time. */
+  hour: number;
+  /** Mean concurrent visitors during that hour, across the window. */
+  online: number;
+  listening: number;
+  /** Total plays that started during that hour, across the window. */
+  plays: number;
+  /**
+   * How many samples this hour was built from. Zero means never observed,
+   * which is a different statement from "observed, nobody here" — without it
+   * a freshly-deployed sampler draws a profile that looks like a dead site.
+   */
+  samples: number;
+}
+
+/** How far back the hour-of-day profile looks. */
+const HOURLY_WINDOW_DAYS = 30;
+
+/**
+ * Average activity by hour of day — "when is this place awake".
+ *
+ * Returns all 24 hours, zero-filled, so the client can render a fixed 24-bar
+ * axis without inventing gaps. Hours are UTC; the client shifts them, because
+ * the answer a visitor wants is about *their* night, and Art Bell's audience
+ * was never in one timezone anyway.
+ */
+export async function getHourlyActivity(): Promise<HourBucket[]> {
+  const since = new Date(Date.now() - HOURLY_WINDOW_DAYS * 86_400_000);
+
+  const { rows } = await pool().query<{
+    hour: number;
+    online: string;
+    listening: string;
+    plays: string;
+    samples: string;
+  }>(
+    `
+    WITH deltas AS (
+      SELECT
+        sampled_at,
+        online,
+        listening,
+        GREATEST(
+          0,
+          total_plays - lag(total_plays) OVER (ORDER BY sampled_at)
+        ) AS plays
+      FROM listener_samples
+      WHERE sampled_at >= $1
+    )
+    SELECT
+      extract(hour FROM sampled_at)::int AS hour,
+      avg(online)                        AS online,
+      avg(listening)                     AS listening,
+      COALESCE(sum(plays), 0)            AS plays,
+      count(*)                           AS samples
+    FROM deltas
+    GROUP BY hour
+    `,
+    [since],
+  );
+
+  const byHour = new Map(rows.map((r) => [Number(r.hour), r]));
+  return Array.from({ length: 24 }, (_, hour) => {
+    const r = byHour.get(hour);
+    return {
+      hour,
+      online: r ? Number(Number(r.online).toFixed(2)) : 0,
+      listening: r ? Number(Number(r.listening).toFixed(2)) : 0,
+      plays: r ? Number(r.plays) : 0,
+      samples: r ? Number(r.samples) : 0,
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Traffic history
 // ---------------------------------------------------------------------------
 
@@ -245,6 +406,10 @@ export interface Traffic {
   peakListening: number;
   playsInRange: number;
   totalPlays: number;
+  /** Bucket start of the busiest point, ISO 8601. Null when there is no data. */
+  peakAt: string | null;
+  /** 24-hour activity profile, always over the last 30 days regardless of range. */
+  hourly: HourBucket[];
 }
 
 const RANGE_CONFIG: Record<TrafficRange, { hours: number; bucketMinutes: number }> = {
@@ -301,17 +466,26 @@ export async function getTraffic(range: TrafficRange): Promise<Traffic> {
     ),
   }));
 
-  const { rows: totalRows } = await pool().query<{ total: string }>(
-    `SELECT COALESCE(sum(plays), 0) AS total FROM episode_plays`,
-  );
+  const [{ rows: totalRows }, hourly] = await Promise.all([
+    pool().query<{ total: string }>(
+      `SELECT COALESCE(sum(plays), 0) AS total FROM episode_plays`,
+    ),
+    getHourlyActivity(),
+  ]);
+
+  const peakOnline = points.reduce((m, p) => Math.max(m, p.online), 0);
 
   return {
     range,
     points,
-    peakOnline: points.reduce((m, p) => Math.max(m, p.online), 0),
+    peakOnline,
     peakListening: points.reduce((m, p) => Math.max(m, p.listening), 0),
     playsInRange: points.reduce((s, p) => s + p.plays, 0),
     totalPlays: Number(totalRows[0]?.total ?? 0),
+    // The first bucket that hit the peak, so "busiest at 3:15 AM" names a real
+    // moment rather than the last time the level happened to be matched.
+    peakAt: peakOnline > 0 ? (points.find((p) => p.online === peakOnline)?.t ?? null) : null,
+    hourly,
   };
 }
 

@@ -167,11 +167,62 @@ export function reportHeartbeat(sessionId: string): void {
   }).catch(() => {});
 }
 
+export interface OnAirEntry {
+  episodeId: string;
+  listeners: number;
+}
+
+export interface RecentPlay {
+  episodeId: string;
+  at: string;
+}
+
+export interface NowPlaying extends Presence {
+  onAir: OnAirEntry[];
+  recent: RecentPlay[];
+}
+
+const EMPTY_NOW: NowPlaying = { online: 0, listening: 0, onAir: [], recent: [] };
+
+/**
+ * Presence plus what is playing. Falls back to empty — with DATABASE_URL unset
+ * this route 503s by design and the panel hides itself.
+ *
+ * The arrays are defaulted individually rather than by spreading the response:
+ * an older deploy answers this shape without them, and `.map` on undefined
+ * would take the panel down inside its error boundary.
+ */
+export async function fetchNowPlaying(): Promise<NowPlaying> {
+  try {
+    const res = await fetchWithRetry("/api/stats/now", undefined, RETRY_OPTS);
+    if (!res.ok) return EMPTY_NOW;
+    const data = await res.json();
+    return {
+      online: data?.online ?? 0,
+      listening: data?.listening ?? 0,
+      onAir: Array.isArray(data?.onAir) ? data.onAir : [],
+      recent: Array.isArray(data?.recent) ? data.recent : [],
+    };
+  } catch {
+    return EMPTY_NOW;
+  }
+}
+
 export interface TrafficPoint {
   t: string;
   online: number;
   listening: number;
   plays: number;
+}
+
+export interface HourBucket {
+  /** UTC hour, 0-23. */
+  hour: number;
+  online: number;
+  listening: number;
+  plays: number;
+  /** Samples behind this hour. 0 = never observed, not "nobody was here". */
+  samples: number;
 }
 
 export interface Traffic {
@@ -181,6 +232,8 @@ export interface Traffic {
   peakListening: number;
   playsInRange: number;
   totalPlays: number;
+  peakAt: string | null;
+  hourly: HourBucket[];
 }
 
 /** Bucketed traffic history. Returns null when stats are unavailable. */
@@ -194,7 +247,16 @@ export async function fetchTraffic(
       RETRY_OPTS,
     );
     if (!res.ok) return null;
-    return (await res.json()) as Traffic;
+    const data = await res.json();
+    // Same reasoning as fetchNowPlaying: `hourly` and `peakAt` post-date the
+    // original route, and a client cached from an earlier deploy must not
+    // crash on their absence.
+    return {
+      ...data,
+      points: Array.isArray(data?.points) ? data.points : [],
+      hourly: Array.isArray(data?.hourly) ? data.hourly : [],
+      peakAt: data?.peakAt ?? null,
+    } as Traffic;
   } catch {
     return null;
   }

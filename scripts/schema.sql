@@ -37,10 +37,30 @@ CREATE TABLE IF NOT EXISTS active_sessions (
 );
 ALTER TABLE active_sessions
   ADD COLUMN IF NOT EXISTS listening_at timestamptz;
+-- What that session is playing, so the site can show *what* the community is
+-- listening to and not merely how many people are here. Cleared alongside
+-- listening_at when playback stops. Never joined to session_id on read: the
+-- API only ever returns per-episode counts.
+ALTER TABLE active_sessions
+  ADD COLUMN IF NOT EXISTS episode_id text;
 CREATE INDEX IF NOT EXISTS active_sessions_seen_at_idx
   ON active_sessions (seen_at);
 CREATE INDEX IF NOT EXISTS active_sessions_listening_at_idx
   ON active_sessions (listening_at);
+
+-- Rolling log of individual play events, 24h retention.
+--
+-- episode_plays is a counter and listener_samples only stores a cumulative
+-- total, so neither can answer "what did someone just put on" — the single
+-- most alive thing this site can show. Deliberately holds no session id: it
+-- records that an episode was played, not who played it.
+CREATE TABLE IF NOT EXISTS recent_plays (
+  id         bigserial PRIMARY KEY,
+  episode_id text        NOT NULL,
+  played_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS recent_plays_played_at_idx
+  ON recent_plays (played_at DESC);
 
 -- Traffic history. active_sessions is a live set that getPresence() prunes as
 -- it counts, and episode_plays is a running total with no timestamps, so before

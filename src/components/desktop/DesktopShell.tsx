@@ -635,6 +635,13 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         {NAV_ITEMS.filter(({ path }) => isAdmin || (path !== "/scanner" && path !== "/search")).map(({ label, path }) => {
           const isActive = pathname === path;
           const showNowPlaying = path === "/library" && isPlaying && !isActive;
+          // A live count on the tab is the whole discovery mechanism for the
+          // community pages — the status bar indicator is desktop-only and
+          // easy to miss, and nobody opens a statistics page speculatively.
+          // Only shown when someone *else* is here: a badge that reads "1"
+          // because you are looking at it is noise.
+          const others = presence.online - 1;
+          const showPresence = path === "/stats" && others > 0 && !isActive;
           return (
             <button
               key={path}
@@ -656,6 +663,15 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               )}
               {showNowPlaying && (
                 <span className="absolute top-2 right-[calc(50%-18px)] md:-top-0.5 md:right-auto md:left-1/2 w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air" />
+              )}
+              {showPresence && (
+                <span
+                  className="absolute top-1.5 right-[calc(50%-26px)] md:top-0.5 md:right-1 flex items-center gap-[3px] text-hd-micro text-static-green tabular-nums pointer-events-none"
+                  title={`${others} other ${others === 1 ? "person is" : "people are"} here right now`}
+                >
+                  <span className="w-[5px] h-[5px] rounded-full bg-static-green animate-on-air" />
+                  {others}
+                </span>
               )}
             </button>
           );
@@ -740,12 +756,12 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           ...(presence.online > 0 ? [{
             content: (
               <button
-                onClick={() => router.push("/stats#traffic")}
+                onClick={() => router.push("/stats#on-air")}
                 className="flex items-center gap-1.5 cursor-pointer text-hd-10 text-static-green/85 hover:text-static-green transition-colors-fast w-full"
                 title={
                   `${presence.online} ${presence.online === 1 ? "person" : "people"} on the site` +
                   (presence.listening > 0 ? `, ${presence.listening} listening` : "") +
-                  " — click for traffic history"
+                  " — click to see what they have on"
                 }
               >
                 <span className="w-[6px] h-[6px] rounded-full bg-static-green animate-on-air flex-shrink-0" />

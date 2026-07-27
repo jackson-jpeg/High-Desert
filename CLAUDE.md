@@ -56,7 +56,8 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/leaderboard` | GET | Top episodes. Returns **`{entries: [{episodeId, plays}]}`** |
 | `/api/stats/active` | GET | Presence. Returns **`{count, online, listening}`** — `count` is a synonym for `listening`, kept for older clients |
 | `/api/stats/heartbeat` | POST | Mark a session present. Body `{sessionId}`. Returns `{ok}`. Every open tab posts on a 60s interval |
-| `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, plays}], peakOnline, peakListening, playsInRange, totalPlays}`** |
+| `/api/stats/now` | GET | Presence **plus what is playing**. Returns **`{online, listening, onAir: [{episodeId, listeners}], recent: [{episodeId, at}]}`**. `no-store` — a stale on-air list is worse than none. Aggregate only: no query joins `session_id` to `episode_id`, and `recent_plays` stores no session at all |
+| `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, plays}], peakOnline, peakListening, playsInRange, totalPlays, peakAt, hourly: [{hour, online, listening, plays, samples}]}`**. `hourly` is always a 24-entry, zero-filled, **UTC**-hour profile over the last 30 days and does *not* vary with `range`; the client rotates it into local time. `samples: 0` means *never observed*, which is not the same as "observed, nobody here" — the UI hides the profile until 8 hours have been sampled, or a day-old deployment draws 23 empty columns and looks like a dead site |
 | `/api/stats/sample` | POST | Writes one traffic sample. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Returns `{ok, online, listening, totalPlays}` |
 
 > Response shapes are inconsistent by history, not design. `src/services/stats/client.ts`
@@ -261,6 +262,10 @@ No third-party hosting. Same shape as `sanger-next`.
   `listener_samples`, and the only reason any *history* exists — `active_sessions` is a live
   set that is pruned as it is counted, and `episode_plays` has no timestamps. A timer rather
   than sampling on read, so quiet periods record real zeroes instead of leaving gaps
+- **Recent plays:** `recent_plays` is a rolling 24h log written by `recordPlay`, pruned in the
+  same statement that inserts. It exists because neither `episode_plays` (a counter) nor
+  `listener_samples` (a cumulative total) can answer *what* was just put on — the one thing
+  that makes the site feel inhabited. It deliberately holds no session id
 - **Rate limiting:** `src/lib/utils/rate-limit.ts` is an in-memory Map. That was useless on
   serverless but is **correct here** — one long-lived process. It depends on nginx setting
   `X-Forwarded-For` to `$remote_addr` (overwrite, not append) so clients can't spoof it

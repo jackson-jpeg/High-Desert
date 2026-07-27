@@ -131,7 +131,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
             <>
               <button
                 onClick={() => {
-                  router.push("/stats#traffic");
+                  router.push("/stats#on-air");
                   hide();
                 }}
                 className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"

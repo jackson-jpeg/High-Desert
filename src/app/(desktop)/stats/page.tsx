@@ -11,6 +11,7 @@ import { SmartPlaylists } from "@/components/library/SmartPlaylists";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { CommunityLeaderboard } from "@/components/library/CommunityLeaderboard";
 import { SignalTraffic } from "@/components/library/SignalTraffic";
+import { OnAir } from "@/components/library/OnAir";
 import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
 import { getCacheSize, clearAudioCache } from "@/audio/cache";
@@ -227,10 +228,20 @@ export default function StatsPage() {
           above the Streak tile below it. computeStreak ran three times across
           the app; the status bar keeps its copy, this page keeps the tile. */}
 
+      {/* ── On Air ── what other people have playing right now, joinable in a
+          click. First on the page because it is the only thing here that is
+          about anyone other than the visitor, and the only reason to come back
+          to this page twice. Renders nothing when nobody is around or the
+          stats service is unavailable. */}
+      <WidgetErrorBoundary name="On Air">
+        <OnAir />
+      </WidgetErrorBoundary>
+
       {/* ── Signal Traffic ── the click-through target for the live count in
-          the status bar. First on the page: it is the only genuinely
-          multi-visitor data here, and the only part that changes minute to
-          minute. Renders nothing when the stats service is unavailable. */}
+          the status bar. Ahead of the personal figures: it is the only
+          genuinely multi-visitor data here, and the only part that changes
+          minute to minute. Renders nothing when the stats service is
+          unavailable. */}
       <WidgetErrorBoundary name="Signal Traffic">
         <SignalTraffic />
       </WidgetErrorBoundary>

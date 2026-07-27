@@ -29,6 +29,26 @@ export function formatAirDate(date: string | null | undefined): string {
   return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+/**
+ * Elapsed time as "just now" / "4m ago" / "3h ago" / "2d ago".
+ *
+ * Deliberately coarse: these labels sit beside a live count that refreshes on a
+ * timer, and a second-by-second readout would make the whole panel look like it
+ * was twitching. Clamps negatives to "just now" — a client clock a few seconds
+ * ahead of the server should not produce "in 8 seconds".
+ */
+export function formatRelativeTime(iso: string, now = Date.now()): string {
+  const then = new Date(iso).getTime();
+  if (!isFinite(then)) return "";
+  const secs = Math.max(0, Math.round((now - then) / 1000));
+  if (secs < 60) return "just now";
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
 /** Get human-readable show label from showType field */
 export function getShowLabel(showType?: string | null): string | null {
   if (showType === "coast") return "Coast to Coast AM";
