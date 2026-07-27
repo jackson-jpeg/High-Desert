@@ -106,7 +106,7 @@ export function useCollectionImport() {
   /**
    * Import all audio files from a loaded collection as individual episodes.
    */
-  const startImport = useCallback(async (options?: { skipCategorize?: boolean }) => {
+  const startImport = useCallback(async () => {
     if (!info) return;
     if (progress.phase !== "idle" && progress.phase !== "done" && progress.phase !== "error" && progress.phase !== "cancelled") {
       return;
@@ -193,100 +193,10 @@ export function useCollectionImport() {
         return;
       }
 
-      // Phase 2: AI Categorization (optional)
-      if (options?.skipCategorize || imported === 0) {
-        update({ phase: "done", currentFile: null });
-        toast.success(`Imported ${imported} episodes (${duplicates} duplicates skipped)`);
-        return;
-      }
-
-      update({ phase: "categorizing", currentFile: null });
-
-      const uncategorized = await db.episodes
-        .where("aiStatus")
-        .equals("pending")
-        .and((ep) => ep.archiveIdentifier === info.identifier)
-        .toArray();
-
-      const chunkSize = 10;
-      let categorized = 0;
-
-      for (let i = 0; i < uncategorized.length; i += chunkSize) {
-        if (controller.signal.aborted) {
-          update({ phase: "cancelled" });
-          return;
-        }
-
-        const chunk = uncategorized.slice(i, i + chunkSize);
-        update({ currentFile: `Batch ${Math.floor(i / chunkSize) + 1} of ${Math.ceil(uncategorized.length / chunkSize)}` });
-
-        try {
-          const res = await fetchWithRetry("/api/categorize", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? ""}` },
-            body: JSON.stringify({
-              episodes: chunk.map((ep) => ({
-                title: ep.title,
-                fileName: ep.fileName,
-                airDate: ep.airDate,
-                guestName: ep.guestName,
-                description: ep.description,
-                archiveIdentifier: ep.archiveIdentifier,
-                source: ep.source,
-                artist: ep.artist,
-                topic: ep.topic,
-                showType: ep.showType,
-              })),
-            }),
-            signal: controller.signal,
-          }, { retries: 2, delay: 1000 });
-
-          if (res.ok) {
-            const results = await res.json();
-            if (Array.isArray(results)) {
-              for (let j = 0; j < results.length && j < chunk.length; j++) {
-                const { title, summary, tags, topic, guestName, airDate, showType } = results[j];
-                await db.episodes.update(chunk[j].id!, {
-                  title: title ?? chunk[j].title,
-                  aiSummary: summary ?? undefined,
-                  aiTags: tags ?? undefined,
-                  topic: topic ?? chunk[j].topic,
-                  guestName: guestName ?? chunk[j].guestName,
-                  airDate: airDate ?? chunk[j].airDate,
-                  showType: showType ?? chunk[j].showType,
-                  aiStatus: "completed",
-                  updatedAt: Date.now(),
-                });
-                categorized++;
-              }
-              update({ categorized });
-            }
-          } else {
-            for (const ep of chunk) {
-              await db.episodes.update(ep.id!, { aiStatus: "failed", updatedAt: Date.now() });
-            }
-            addError(`Categorization failed for batch at index ${i}`);
-          }
-        } catch (err) {
-          if (controller.signal.aborted) {
-            update({ phase: "cancelled" });
-            return;
-          }
-          const msg = err instanceof Error ? err.message : String(err);
-          addError(`Categorize batch: ${msg}`);
-          for (const ep of chunk) {
-            await db.episodes.update(ep.id!, { aiStatus: "failed", updatedAt: Date.now() });
-          }
-        }
-
-        // 1s delay between batches
-        if (i + chunkSize < uncategorized.length) {
-          await new Promise((r) => setTimeout(r, 1000));
-        }
-      }
-
+      // Episodes import uncategorised — AI categorisation runs offline via
+      // scripts/categorize-library.py and ships in the seed catalog.
       update({ phase: "done", currentFile: null });
-      toast.success(`Import complete — ${imported} episodes, ${categorized} categorized`);
+      toast.success(`Imported ${imported} episodes (${duplicates} duplicates skipped)`);
     } catch (err) {
       if (controller.signal.aborted) {
         update({ phase: "cancelled" });

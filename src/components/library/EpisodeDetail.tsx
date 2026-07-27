@@ -22,7 +22,6 @@ interface EpisodeDetailProps {
   onPlay: (episode: Episode) => void;
   onClose: () => void;
   onDelete?: (episode: Episode) => void;
-  onRecategorize?: (episode: Episode) => void;
   onEdit?: (id: number, fields: Partial<Episode>) => void;
   onToggleFavorite?: (episode: Episode) => void;
   communityPlays?: number;
@@ -42,7 +41,6 @@ export function EpisodeDetail({
   onPlay,
   onClose,
   onDelete,
-  onRecategorize,
   onEdit,
   onToggleFavorite,
   communityPlays,
@@ -518,14 +516,6 @@ export function EpisodeDetail({
                   className="text-hd-13 md:text-hd-10 text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
                 >
                   Edit
-                </button>
-              )}
-              {onRecategorize && (
-                <button
-                  onClick={() => onRecategorize(episode)}
-                  className="text-hd-13 md:text-hd-10 text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
-                >
-                  Re-categorize
                 </button>
               )}
               {onDelete && (

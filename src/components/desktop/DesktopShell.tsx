@@ -20,13 +20,12 @@ import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
 import { toast } from "@/stores/toast-store";
 import { db, getPreference, setPreference } from "@/db";
-import { deduplicateEpisodes } from "@/db/deduplicate";
-import { useCatalogScraper } from "@/hooks/useCatalogScraper";
 import { exportLibrarySeed } from "@/db/seed";
 import { MobileMenuSheet } from "@/components/mobile/MobileMenuSheet";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { useLiveQuery } from "dexie-react-hooks";
 import { fetchActiveCount } from "@/services/stats/client";
+import { computeStreak } from "@/lib/utils/streak";
 
 const CALLER_MESSAGES = [
   "East of the Rockies, you\u2019re on the air...",
@@ -214,9 +213,6 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     }
   }, [adminPassword]);
 
-  // AI categorization (runs in-place, no navigation needed)
-  const { categorizeOnly, phase: scraperPhase } = useCatalogScraper();
-
   // Now-playing info from store
   const nowPlayingTitle = usePlayerStore((s) => s.currentEpisode?.title ?? s.currentEpisode?.fileName);
   const nowPlayingGuest = usePlayerStore((s) => s.currentEpisode?.guestName);
@@ -239,7 +235,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
 
   // Randomize initial caller message on client only (avoids hydration mismatch)
   useEffect(() => {
-    setCallerIdx(Math.floor(Math.random() * CALLER_MESSAGES.length)); // eslint-disable-line react-hooks/set-state-in-effect -- hydration-safe: 0 on SSR, randomized on client
+    setCallerIdx(Math.floor(Math.random() * CALLER_MESSAGES.length));
   }, []);
 
   // Rotating caller line messages (every 30s)
@@ -254,29 +250,13 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     return () => clearInterval(id);
   }, []);
 
-  // Listening streak (consecutive days with history entries)
+  // Listening streak. Only the last year of history can affect it, so bound the
+  // read by time rather than by row count (the old .limit(500) could disagree
+  // with the same figure shown on the stats page).
   const streak = useLiveQuery(async () => {
-    const entries = await db.history.orderBy("timestamp").reverse().limit(500).toArray();
-    if (entries.length === 0) return 0;
-    const daySet = new Set<string>();
-    for (const entry of entries) {
-      daySet.add(new Date(entry.timestamp).toISOString().slice(0, 10));
-    }
-    const today = new Date();
-    let count = 0;
-    for (let d = 0; d < 365; d++) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - d);
-      const key = date.toISOString().slice(0, 10);
-      if (daySet.has(key)) {
-        count++;
-      } else if (d === 0) {
-        continue; // today hasn't been listened yet, check yesterday
-      } else {
-        break;
-      }
-    }
-    return count;
+    const cutoff = Date.now() - 366 * 86_400_000;
+    const entries = await db.history.where("timestamp").above(cutoff).toArray();
+    return computeStreak(entries);
   }, []);
 
   // Ghost to Ghost easter egg: detect Halloween season (Oct 28 - Nov 2)
@@ -285,7 +265,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     const now = new Date();
     const m = now.getMonth(); // 0-indexed
     const d = now.getDate();
-    setIsHalloweenSeason((m === 9 && d >= 28) || (m === 10 && d <= 2)); // eslint-disable-line react-hooks/set-state-in-effect -- hydration-safe: false on SSR, computed on client
+    setIsHalloweenSeason((m === 9 && d >= 28) || (m === 10 && d <= 2));
   }, []);
 
   // Show counts for AboutDialog
@@ -414,20 +394,40 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               onClick: () => router.push("/scanner"),
             },
             { separator: true as const, label: "" },
-            {
-              label: scraperPhase === "categorizing" ? "Categorizing..." : "AI Categorize All...",
-              onClick: categorizeOnly,
-              disabled: scraperPhase === "categorizing" || scraperPhase === "scraping" || scraperPhase === "importing",
-            },
-            { separator: true as const, label: "" },
             { label: "Export Library...", onClick: handleExport },
             { label: "Export Library Seed...", onClick: exportLibrarySeed },
             { separator: true as const, label: "" },
             {
               label: "Deduplicate Library...",
               onClick: async () => {
+                // Two-step: preview, confirm, then execute. This deletes episodes
+                // irreversibly and there is no server backup.
+                // Admin-only: load the dedup module on demand so it stays out
+                // of the bundle every visitor downloads.
+                const { previewDeduplication, validatePlan, deduplicateEpisodes } =
+                  await import("@/db/deduplicate");
+                const plan = await previewDeduplication();
+                if (plan.duplicatesToRemove === 0) {
+                  toast.info("No duplicates found");
+                  return;
+                }
+                const check = validatePlan(plan);
+                if (!check.ok) {
+                  toast.error(check.reason);
+                  return;
+                }
+                const ok = window.confirm(
+                  `Delete ${plan.duplicatesToRemove} duplicate episode${plan.duplicatesToRemove !== 1 ? "s" : ""} ` +
+                  `from ${plan.groups.length} group${plan.groups.length !== 1 ? "s" : ""}?\n\n` +
+                  `${plan.totalBefore} episodes before, ${plan.totalBefore - plan.duplicatesToRemove} after.\n` +
+                  `This cannot be undone.`,
+                );
+                if (!ok) return;
+
                 const result = await deduplicateEpisodes();
-                if (result.duplicatesRemoved > 0) {
+                if (result.aborted) {
+                  toast.error(result.reason ?? "Deduplication aborted");
+                } else if (result.duplicatesRemoved > 0) {
                   toast.success(`Removed ${result.duplicatesRemoved} duplicate${result.duplicatesRemoved !== 1 ? "s" : ""} from ${result.groupsMerged} group${result.groupsMerged !== 1 ? "s" : ""}`);
                 } else {
                   toast.info("No duplicates found");

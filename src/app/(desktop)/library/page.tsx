@@ -9,12 +9,11 @@ import { usePlayerStore } from "@/stores/player-store";
 import { useContextMenuStore } from "@/stores/context-menu-store";
 import { toast } from "@/stores/toast-store";
 import { useAdminStore } from "@/stores/admin-store";
-import { deleteEpisode, recategorizeEpisode, updateEpisode, toggleFavorite, toggleFlag } from "@/services/episodes/management";
+import { deleteEpisode, updateEpisode, toggleFavorite, toggleFlag, addToPlaylist } from "@/services/episodes/management";
 import { SearchBar } from "@/components/library/SearchBar";
 import { TimelineView } from "@/components/library/TimelineView";
 import { EpisodeDetail } from "@/components/library/EpisodeDetail";
 import { RecentlyPlayed } from "@/components/library/RecentlyPlayed";
-import { addToPlaylist } from "@/components/library/PlaylistPanel";
 import { OnThisDay } from "@/components/library/OnThisDay";
 import { Dialog, Button } from "@/components/win98";
 import { parseSearch, type ComparisonOp } from "@/lib/utils/search-parser";
@@ -454,13 +453,13 @@ export default function LibraryPage() {
     return list;
   }, [allEpisodes, deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, bookmarkedIds]);
 
-  // Community play counts for visible episodes
-  const communityKeys = useMemo(() => {
-    return filtered
-      .map((ep) => communityKey(ep))
-      .filter((id): id is string => !!id);
-  }, [filtered]);
-  const communityCounts = useCommunityStats(communityKeys);
+  // TimelineView fetches counts for its own visible window. Here we only need the
+  // one episode open in the detail panel.
+  const detailKeys = useMemo(() => {
+    const key = selectedEpisode ? communityKey(selectedEpisode) : null;
+    return key ? [key] : [];
+  }, [selectedEpisode]);
+  const communityCounts = useCommunityStats(detailKeys);
 
   // Scroll to currently playing episode
   useEffect(() => {
@@ -647,11 +646,6 @@ export default function LibraryPage() {
         : []),
       ...(admin
         ? [
-            { label: "", onClick: () => {}, separator: true },
-            {
-              label: "Re-categorize",
-              onClick: () => recategorizeEpisode(episode.id!),
-            },
             { label: "", onClick: () => {}, separator: true },
             {
               label: "Delete",
@@ -1266,7 +1260,6 @@ export default function LibraryPage() {
               onQueue={handleQueue}
               selectedEpisodeId={selectedEpisode?.id}
               selectedIds={selectedIds}
-              communityPlayCounts={communityCounts}
             />
           )}
         </div>
@@ -1325,7 +1318,6 @@ export default function LibraryPage() {
                         await deleteEpisode(ep.id!);
                         setSelectedEpisode(null);
                       },
-                      onRecategorize: (ep: Episode) => recategorizeEpisode(ep.id!),
                       onEdit: async (id: number, fields: Partial<Episode>) => {
                         await updateEpisode(id, fields);
                         const updated = await db.episodes.get(id);

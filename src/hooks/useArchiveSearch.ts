@@ -3,7 +3,6 @@
 import { useCallback } from "react";
 import { useSearchStore } from "@/stores/search-store";
 import { searchArchive, getArchiveItem, getStreamUrl, pickBestAudioFile } from "@/services/archive/client";
-import { fetchWithRetry } from "@/lib/utils/retry";
 import { toast } from "@/stores/toast-store";
 import { db } from "@/db";
 import type { Episode } from "@/db/schema";
@@ -88,8 +87,9 @@ export function useArchiveSearch() {
 
       const id = await db.episodes.add(episode as Episode);
 
-      // Trigger AI categorization in the background
-      categorizeEpisode({ ...episode, id } as Episode);
+      // Episodes import uncategorised; batch categorisation runs offline via
+      // scripts/categorize-library.py and ships in the seed catalog.
+      void id;
 
       store.finishAdding(result.identifier);
       toast.success(`Added "${result.title}"`);
@@ -122,60 +122,4 @@ export function useArchiveSearch() {
     addToLibrary,
     addAllToLibrary,
   };
-}
-
-async function categorizeEpisode(episode: Episode) {
-  try {
-    // Set pending status
-    if (episode.id) {
-      await db.episodes.update(episode.id, { aiStatus: "pending", updatedAt: Date.now() });
-    }
-
-    const res = await fetchWithRetry("/api/categorize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? ""}` },
-      body: JSON.stringify({
-        episodes: [{
-          title: episode.title,
-          fileName: episode.fileName,
-          airDate: episode.airDate,
-          guestName: episode.guestName,
-          description: episode.description,
-          archiveIdentifier: episode.archiveIdentifier,
-          source: episode.source,
-          artist: episode.artist,
-          topic: episode.topic,
-          showType: episode.showType,
-        }],
-      }),
-    }, { retries: 2, delay: 1000 });
-
-    if (!res.ok) {
-      if (episode.id) {
-        await db.episodes.update(episode.id, { aiStatus: "failed", updatedAt: Date.now() });
-      }
-      return;
-    }
-
-    const results = await res.json();
-    if (Array.isArray(results) && results[0] && episode.id) {
-      const { title, summary, tags, topic, guestName, airDate, showType } = results[0];
-      await db.episodes.update(episode.id, {
-        title: title ?? episode.title,
-        aiSummary: summary ?? undefined,
-        aiTags: tags ?? undefined,
-        topic: topic ?? episode.topic,
-        guestName: guestName ?? episode.guestName,
-        airDate: airDate ?? episode.airDate,
-        showType: showType ?? episode.showType,
-        aiStatus: "completed",
-        updatedAt: Date.now(),
-      });
-    }
-  } catch (err) {
-    console.error("[categorize] Failed:", err);
-    if (episode.id) {
-      await db.episodes.update(episode.id, { aiStatus: "failed", updatedAt: Date.now() });
-    }
-  }
 }

@@ -55,8 +55,6 @@ export function CatalogScraper() {
     currentItem,
     startScrape,
     cancelScrape,
-    categorizeOnly,
-    recategorizeAll,
   } = useCatalogScraper();
 
   const [showErrors, setShowErrors] = useState(false);
@@ -276,33 +274,10 @@ export function CatalogScraper() {
         {/* Advanced options */}
         {showAdvanced && !isRunning && (
           <div className="flex flex-col gap-2 pt-1 border-t border-bevel-dark/20">
-            <Button
-              variant="dark"
-              size="sm"
-              onClick={() => startScrape({ skipCategorize: true })}
-            >
-              Import Only (Skip AI)
-            </Button>
-            <Button
-              variant="dark"
-              size="sm"
-              onClick={categorizeOnly}
-            >
-              Categorize Uncategorized
-            </Button>
-            <Button
-              variant="dark"
-              size="sm"
-              onClick={recategorizeAll}
-            >
-              Re-categorize All Episodes
-            </Button>
             <div className="text-hd-9 text-bevel-dark/60 leading-relaxed">
-              <strong>Import Only</strong> skips AI categorization (faster).
-              <br />
-              <strong>Categorize Uncategorized</strong> processes only pending/failed episodes.
-              <br />
-              <strong>Re-categorize All</strong> re-processes every episode to normalize titles, dates, guests, and tags for uniform sorting and filtering.
+              Episodes import with metadata parsed from filenames. AI categorization
+              runs offline via <code>scripts/categorize-library.py</code> and ships in
+              the seed catalog — nothing is sent to a third party at runtime.
             </div>
           </div>
         )}

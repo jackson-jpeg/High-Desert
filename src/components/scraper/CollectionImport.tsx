@@ -36,13 +36,6 @@ export function CollectionImport() {
   const handleFeaturedImport = async () => {
     const loaded = await loadCollection(FEATURED_COLLECTION.identifier);
     if (loaded) {
-      startImport({ skipCategorize: true });
-    }
-  };
-
-  const handleFeaturedImportWithAI = async () => {
-    const loaded = await loadCollection(FEATURED_COLLECTION.identifier);
-    if (loaded) {
       startImport();
     }
   };
@@ -55,7 +48,7 @@ export function CollectionImport() {
     const identifier = match ? match[1] : id;
     const loaded = await loadCollection(identifier);
     if (loaded) {
-      startImport({ skipCategorize: true });
+      startImport();
     }
   };
 
@@ -88,9 +81,6 @@ export function CollectionImport() {
             <div className="flex items-center gap-2 mt-3">
               <Button variant="dark" size="sm" onClick={handleFeaturedImport}>
                 Import Collection
-              </Button>
-              <Button variant="dark" size="sm" onClick={handleFeaturedImportWithAI}>
-                Import + AI Categorize
               </Button>
             </div>
           </div>
