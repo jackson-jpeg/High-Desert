@@ -207,7 +207,7 @@ export function SearchPanel() {
                   key={c.label}
                   onClick={() => handleCollectionClick(c.query)}
                   className={cn(
-                    "px-3 py-2.5 text-hd-13 min-h-[44px] md:px-1.5 md:py-0.5 md:text-hd-9 md:min-h-0 cursor-pointer transition-colors-fast",
+                    "px-3 py-2.5 text-hd-13 min-h-touch md:px-1.5 md:py-0.5 md:text-hd-9 md:min-h-0 cursor-pointer transition-colors-fast",
                     query === c.query
                       ? "bg-title-bar-blue/20 text-desktop-gray w98-inset-dark"
                       : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/10",
@@ -226,7 +226,7 @@ export function SearchPanel() {
                   key={guest}
                   onClick={() => handleGuestClick(guest)}
                   className={cn(
-                    "px-3 py-2.5 text-hd-13 min-h-[44px] md:px-1.5 md:py-0.5 md:text-hd-9 md:min-h-0 cursor-pointer transition-colors-fast",
+                    "px-3 py-2.5 text-hd-13 min-h-touch md:px-1.5 md:py-0.5 md:text-hd-9 md:min-h-0 cursor-pointer transition-colors-fast",
                     query === guest
                       ? "bg-static-green/15 text-static-green/90"
                       : "text-bevel-dark hover:text-static-green/85 hover:bg-static-green/5 active:bg-static-green/5",

@@ -83,13 +83,13 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
       <div className="flex items-center gap-2 ml-2">
         <button
           onClick={handleRetry}
-          className="text-hd-13 md:text-hd-11 text-desert-amber/85 hover:text-desert-amber active:text-desert-amber cursor-pointer min-h-[44px] md:min-h-0 px-2"
+          className="text-hd-13 md:text-hd-11 text-desert-amber/85 hover:text-desert-amber active:text-desert-amber cursor-pointer min-h-touch md:min-h-0 px-2"
         >
           Retry
         </button>
         <button
           onClick={() => clearError(null)}
-          className="text-hd-13 md:text-hd-11 text-red-400/60 hover:text-red-400 active:text-red-400 cursor-pointer min-h-[44px] md:min-h-0 px-2"
+          className="text-hd-13 md:text-hd-11 text-red-400/60 hover:text-red-400 active:text-red-400 cursor-pointer min-h-touch md:min-h-0 px-2"
         >
           Dismiss
         </button>
@@ -115,7 +115,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
         <div className="flex items-center justify-between px-4 py-1">
           <button
             onClick={() => setMobileExpanded(false)}
-            className="text-hd-14 text-bevel-dark active:text-desktop-gray cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="text-hd-14 text-bevel-dark active:text-desktop-gray cursor-pointer min-h-touch min-w-touch flex items-center justify-center"
             aria-label="Minimize player"
           >
             {"\u25BC"}
@@ -124,7 +124,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           <button
             onClick={() => setShowQueue(!showQueue)}
             className={cn(
-              "text-hd-12 cursor-pointer min-h-[44px] px-3 flex items-center gap-1 transition-colors-fast",
+              "text-hd-12 cursor-pointer min-h-touch px-3 flex items-center gap-1 transition-colors-fast",
               showQueue ? "text-desert-amber" : "text-bevel-dark active:text-desktop-gray",
             )}
             aria-expanded={showQueue}

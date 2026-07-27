@@ -192,6 +192,30 @@ Below that it fails AA. Use color, not opacity, for hierarchy:
 — title bars and selection. As text on the dark surfaces they measure ~1.1:1, i.e.
 invisible. For blue *text* use `--color-signal-blue` (`#6BA3F0`, 7.0:1).
 
+**One colour, one definition.** `src/app/globals.css` holds the canonical palette as
+`--hd-*` custom properties. The Tailwind `@theme` tokens (`--color-*`) and the Win98
+chrome tokens (`--w98-*`, in `src/styles/win98.css`) are both *aliases* over it — never
+write a hex in either. Seven values were previously declared independently in both
+namespaces, and four dark-bevel hexes appeared as raw literals a dozen times each
+inside `win98.css`.
+
+Use `min-h-touch` / `min-w-touch` (44px, `--spacing-touch`) for tap targets rather than
+a literal. Note the common pairing `min-h-touch md:min-h-0` — the floor is a mobile
+concern, so measure it at a mobile viewport or you will read `0px` and think it broke.
+
+## Dexie: clearing a field
+
+**`Table.update()` ignores keys whose value is `undefined`.** `update(id, { rating:
+undefined })` is a silent no-op, not a delete. Every "toggle off" path in
+`src/services/episodes/management.ts` was written that way, so un-rating, un-favouriting
+and un-flagging all returned the new state and fired a toast while the stored row never
+changed. Use `applyEpisodeFields()` in that file, which goes through `.modify()` and
+`delete`s the key. Regression test: `src/services/episodes/__tests__/clear-field.test.ts`.
+
+Related: the library's detail panel renders `selectedEpisodeLive`, re-read from the
+live query, not the `useState` snapshot taken when the row was clicked. Writes made from
+inside the panel are otherwise invisible until it is closed and reopened.
+
 ## Database (Dexie v7)
 
 **Primary entity:** `Episode` — identity (id, fileHash), metadata (title, airDate, guestName, showType), audio (duration, bitrate), playback (lastPlayedAt, playbackPosition, playCount), archive source, AI fields (aiSummary, aiTags[], aiCategory, aiSeries, aiNotable, aiStatus), user fields (favoritedAt, rating).

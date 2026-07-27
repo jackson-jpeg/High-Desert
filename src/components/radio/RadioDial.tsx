@@ -194,7 +194,7 @@ export function RadioDial({ episodes }: RadioDialProps) {
             className={cn(
               "md:text-hd-8 md:px-1.5 md:py-0.5 md:min-h-0 text-desert-amber hover:text-desert-amber active:text-desert-amber cursor-pointer transition-colors-fast whitespace-nowrap flex-shrink-0",
               // Mobile: monospace abbreviated years
-              "text-hd-9 px-[7px] py-2 min-h-[44px] font-mono tracking-wide",
+              "text-hd-9 px-[7px] py-2 min-h-touch font-mono tracking-wide",
               isCurrentYear && "font-bold md:font-normal",
             )}
             style={isMobile ? {

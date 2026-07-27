@@ -187,7 +187,7 @@ export function CollectionImport() {
           <div>
             <button
               onClick={() => setShowErrors(!showErrors)}
-              className="text-hd-11 md:text-hd-9 text-red-400/70 hover:text-red-400 cursor-pointer flex items-center gap-1 min-h-[44px] md:min-h-0"
+              className="text-hd-11 md:text-hd-9 text-red-400/70 hover:text-red-400 cursor-pointer flex items-center gap-1 min-h-touch md:min-h-0"
             >
               <span className="text-hd-10 md:text-hd-8">{showErrors ? "\u25BC" : "\u25B6"}</span>
               {progress.errorMessages.length} error{progress.errorMessages.length !== 1 ? "s" : ""}
@@ -209,7 +209,7 @@ export function CollectionImport() {
           <div className="border-t border-bevel-dark/20 pt-2">
             <button
               onClick={() => setShowCustom(!showCustom)}
-              className="text-hd-11 md:text-hd-9 text-bevel-dark hover:text-desktop-gray cursor-pointer min-h-[44px] md:min-h-0"
+              className="text-hd-11 md:text-hd-9 text-bevel-dark hover:text-desktop-gray cursor-pointer min-h-touch md:min-h-0"
             >
               {showCustom ? "Hide custom import" : "Import from other collection..."}
             </button>

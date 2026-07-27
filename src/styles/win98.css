@@ -2,39 +2,54 @@
    Win98 Design System — CSS Custom Properties
    ============================================ */
 
+/*
+ * Semantic aliases over the canonical palette in globals.css. These name a
+ * *role* in the Win98 chrome; the palette names the colour. Never inline a hex
+ * here — that is how seven values ended up defined twice, once in this file
+ * and once in the Tailwind theme.
+ */
 :root {
   /* Chrome colors */
-  --w98-surface: #C0C0C0;
-  --w98-surface-dark: #808080;
-  --w98-surface-darker: #404040;
-  --w98-surface-light: #DFDFDF;
-  --w98-surface-lighter: #FFFFFF;
+  --w98-surface: var(--hd-chrome);
+  --w98-surface-dark: var(--hd-chrome-dark);
+  --w98-surface-darker: var(--hd-chrome-darker);
+  --w98-surface-light: var(--hd-chrome-light);
+  --w98-surface-lighter: var(--hd-chrome-lighter);
 
-  /* Bevel system */
-  --w98-bevel-light: #DFDFDF;
-  --w98-bevel-dark: #808080;
-  --w98-bevel-darker: #404040;
+  /* Bevel system — light chrome */
+  --w98-bevel-light: var(--hd-chrome-light);
+  --w98-bevel-dark: var(--hd-chrome-dark);
+  --w98-bevel-darker: var(--hd-chrome-darker);
+
+  /* Bevel system — dark chrome.
+     These four were raw literals repeated ~12 times each across the rules
+     below, which is why the dark bevels were the least changeable part of the
+     design system. */
+  --w98-dark-bevel-light: var(--hd-edge);
+  --w98-dark-bevel-highlight: var(--hd-edge-lit);
+  --w98-dark-bevel-dark: var(--hd-midnight);
+  --w98-dark-bevel-darker: var(--hd-void);
 
   /* Title bar */
-  --w98-titlebar: #000080;
-  --w98-titlebar-inactive: #808080;
-  --w98-titlebar-text: #FFFFFF;
+  --w98-titlebar: var(--hd-navy);
+  --w98-titlebar-inactive: var(--hd-chrome-dark);
+  --w98-titlebar-text: var(--hd-chrome-lighter);
 
   /* Selection */
-  --w98-highlight: #0A246A;
-  --w98-highlight-text: #FFFFFF;
+  --w98-highlight: var(--hd-select);
+  --w98-highlight-text: var(--hd-chrome-lighter);
 
   /* Text */
-  --w98-text: #000000;
-  --w98-text-disabled: #808080;
+  --w98-text: var(--hd-ink);
+  --w98-text-disabled: var(--hd-chrome-dark);
 
   /* Window */
-  --w98-window-bg: #C0C0C0;
-  --w98-window-frame: #0A0A0A;
+  --w98-window-bg: var(--hd-chrome);
+  --w98-window-frame: var(--hd-chrome-frame);
 
   /* Dark mode overrides for our app */
-  --w98-dark-surface: #1A1F33;
-  --w98-dark-text: #C0C0C0;
+  --w98-dark-surface: var(--hd-raised);
+  --w98-dark-text: var(--hd-chrome);
 }
 
 /* ============================================
@@ -60,24 +75,24 @@
 /* Dark variant bevels for our midnight theme */
 .w98-raised-dark {
   border: 2px solid;
-  border-color: #2A3050 #0A0E1A #0A0E1A #2A3050;
+  border-color: var(--w98-dark-bevel-light) var(--w98-dark-bevel-dark) var(--w98-dark-bevel-dark) var(--w98-dark-bevel-light);
   box-shadow:
-    inset 1px 1px 0 #333B58,
-    inset -1px -1px 0 #060810;
+    inset 1px 1px 0 var(--w98-dark-bevel-highlight),
+    inset -1px -1px 0 var(--w98-dark-bevel-darker);
 }
 
 /* Pressed state for dark buttons */
 button.w98-raised-dark:active:not(:disabled) {
-  border-color: #0A0E1A #2A3050 #2A3050 #0A0E1A;
-  box-shadow: inset 1px 1px 0 #060810;
+  border-color: var(--w98-dark-bevel-dark) var(--w98-dark-bevel-light) var(--w98-dark-bevel-light) var(--w98-dark-bevel-dark);
+  box-shadow: inset 1px 1px 0 var(--w98-dark-bevel-darker);
 }
 
 .w98-inset-dark {
   border: 2px solid;
-  border-color: #0A0E1A #2A3050 #2A3050 #0A0E1A;
+  border-color: var(--w98-dark-bevel-dark) var(--w98-dark-bevel-light) var(--w98-dark-bevel-light) var(--w98-dark-bevel-dark);
   box-shadow:
-    inset 1px 1px 0 #060810,
-    inset -1px -1px 0 #333B58;
+    inset 1px 1px 0 var(--w98-dark-bevel-darker),
+    inset -1px -1px 0 var(--w98-dark-bevel-highlight);
 }
 
 /* ============================================
@@ -189,7 +204,7 @@ button.w98-raised-dark:active:not(:disabled) {
 
 .w98-menubar-dark {
   background: var(--w98-dark-surface);
-  border-bottom: 1px solid #2A3050;
+  border-bottom: 1px solid var(--w98-dark-bevel-light);
   padding: 2px 0;
   font-family: var(--font-w95);
   font-size: var(--hd-text-12);
@@ -225,9 +240,9 @@ button.w98-raised-dark:active:not(:disabled) {
   position: absolute;
   background: var(--w98-dark-surface);
   border: 2px solid;
-  border-color: #2A3050 #0A0E1A #0A0E1A #2A3050;
+  border-color: var(--w98-dark-bevel-light) var(--w98-dark-bevel-dark) var(--w98-dark-bevel-dark) var(--w98-dark-bevel-light);
   box-shadow:
-    inset 1px 1px 0 #333B58,
+    inset 1px 1px 0 var(--w98-dark-bevel-highlight),
     2px 2px 8px rgba(0, 0, 0, 0.5);
   padding: 2px;
   z-index: 1000;
@@ -255,9 +270,9 @@ button.w98-raised-dark:active:not(:disabled) {
 
 .w98-dropdown-separator-dark {
   height: 1px;
-  background: #0A0E1A;
+  background: var(--w98-dark-bevel-dark);
   margin: 2px 4px;
-  border-bottom: 1px solid #2A3050;
+  border-bottom: 1px solid var(--w98-dark-bevel-light);
 }
 
 /* Scrollbar styling lives in src/app/globals.css (::-webkit-scrollbar and
@@ -279,7 +294,7 @@ button.w98-raised-dark:active:not(:disabled) {
 
 .w98-statusbar-dark {
   background: var(--w98-dark-surface);
-  border-top: 1px solid #2A3050;
+  border-top: 1px solid var(--w98-dark-bevel-light);
   padding: 2px 4px;
   font-family: var(--font-w95);
   font-size: var(--hd-text-12);
@@ -299,7 +314,7 @@ button.w98-raised-dark:active:not(:disabled) {
 
 .w98-statusbar-panel-dark {
   border: 1px solid;
-  border-color: #0A0E1A #2A3050 #2A3050 #0A0E1A;
+  border-color: var(--w98-dark-bevel-dark) var(--w98-dark-bevel-light) var(--w98-dark-bevel-light) var(--w98-dark-bevel-dark);
   padding: 1px 4px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -319,9 +334,9 @@ input[type="range"].w98-range-dark {
 
 input[type="range"].w98-range-dark::-webkit-slider-runnable-track {
   height: 4px;
-  background: #0A0E1A;
+  background: var(--w98-dark-bevel-dark);
   border: 1px solid;
-  border-color: #0A0E1A #2A3050 #2A3050 #0A0E1A;
+  border-color: var(--w98-dark-bevel-dark) var(--w98-dark-bevel-light) var(--w98-dark-bevel-light) var(--w98-dark-bevel-dark);
 }
 
 input[type="range"].w98-range-dark::-webkit-slider-thumb {
@@ -332,15 +347,15 @@ input[type="range"].w98-range-dark::-webkit-slider-thumb {
   margin-top: -7px;
   background: var(--w98-dark-surface);
   border: 2px solid;
-  border-color: #2A3050 #0A0E1A #0A0E1A #2A3050;
-  box-shadow: inset 1px 1px 0 #333B58;
+  border-color: var(--w98-dark-bevel-light) var(--w98-dark-bevel-dark) var(--w98-dark-bevel-dark) var(--w98-dark-bevel-light);
+  box-shadow: inset 1px 1px 0 var(--w98-dark-bevel-highlight);
 }
 
 input[type="range"].w98-range-dark::-moz-range-track {
   height: 4px;
-  background: #0A0E1A;
+  background: var(--w98-dark-bevel-dark);
   border: 1px solid;
-  border-color: #0A0E1A #2A3050 #2A3050 #0A0E1A;
+  border-color: var(--w98-dark-bevel-dark) var(--w98-dark-bevel-light) var(--w98-dark-bevel-light) var(--w98-dark-bevel-dark);
 }
 
 input[type="range"].w98-range-dark::-moz-range-thumb {
@@ -348,8 +363,8 @@ input[type="range"].w98-range-dark::-moz-range-thumb {
   height: 16px;
   background: var(--w98-dark-surface);
   border: 2px solid;
-  border-color: #2A3050 #0A0E1A #0A0E1A #2A3050;
-  box-shadow: inset 1px 1px 0 #333B58;
+  border-color: var(--w98-dark-bevel-light) var(--w98-dark-bevel-dark) var(--w98-dark-bevel-dark) var(--w98-dark-bevel-light);
+  box-shadow: inset 1px 1px 0 var(--w98-dark-bevel-highlight);
   border-radius: 0;
 }
 

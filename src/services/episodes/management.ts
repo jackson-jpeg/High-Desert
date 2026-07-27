@@ -54,11 +54,44 @@ export async function deleteEpisodes(ids: number[]): Promise<void> {
   }
 }
 
+/**
+ * Applies field changes to one episode, treating `undefined` as "remove this
+ * field" rather than "leave it alone".
+ *
+ * Dexie's `Table.update()` silently ignores any key whose value is `undefined`,
+ * so `update(id, { rating: undefined })` is a no-op. Every "toggle off" path in
+ * this file was written that way, which meant un-rating, un-favouriting and
+ * un-flagging all appeared to work — the function returned the new state and
+ * the toast fired — while the stored row never changed. Re-opening the episode
+ * showed the old value back again.
+ *
+ * Scoped to a single row by primary key, and only ever called from a user
+ * action. See the data-safety notes in CLAUDE.md before widening this.
+ */
+async function applyEpisodeFields(
+  id: number,
+  changes: Record<string, unknown>,
+): Promise<void> {
+  await db.episodes
+    .where(":id")
+    .equals(id)
+    .modify((ep) => {
+      const row = ep as unknown as Record<string, unknown>;
+      for (const [key, value] of Object.entries(changes)) {
+        if (value === undefined) {
+          delete row[key];
+        } else {
+          row[key] = value;
+        }
+      }
+    });
+}
+
 export async function toggleFavorite(id: number): Promise<boolean> {
   const episode = await db.episodes.get(id);
   if (!episode) return false;
   const isFav = !episode.favoritedAt;
-  await db.episodes.update(id, {
+  await applyEpisodeFields(id, {
     favoritedAt: isFav ? Date.now() : undefined,
     updatedAt: Date.now(),
   });
@@ -73,7 +106,7 @@ export async function updateEpisode(
 }
 
 export async function rateEpisode(id: number, rating: number | undefined): Promise<void> {
-  await db.episodes.update(id, {
+  await applyEpisodeFields(id, {
     rating: rating && rating >= 1 && rating <= 5 ? rating : undefined,
     updatedAt: Date.now(),
   });
@@ -104,7 +137,7 @@ export async function toggleFlag(id: number): Promise<boolean> {
   const episode = await db.episodes.get(id);
   if (!episode) return false;
   const isFlagged = !episode.flaggedAt;
-  await db.episodes.update(id, {
+  await applyEpisodeFields(id, {
     flaggedAt: isFlagged ? Date.now() : undefined,
     updatedAt: Date.now(),
   });

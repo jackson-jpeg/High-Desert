@@ -905,6 +905,23 @@ export default function LibraryPage() {
     });
   }, []);
 
+  /**
+   * The selected episode, re-read from the live query on every change.
+   *
+   * `selectedEpisode` is a snapshot taken when the row was clicked, and nothing
+   * refreshed it. Rating an episode wrote to IndexedDB correctly and the list
+   * row updated, but the open detail panel kept rendering the stale object — so
+   * the stars never filled in and the rating looked like it hadn't saved. It
+   * had; closing and reopening the panel showed it.
+   *
+   * Falls back to the snapshot so the panel doesn't blank out if the row is
+   * momentarily missing from the live result (e.g. mid-filter-change).
+   */
+  const selectedEpisodeLive = useMemo(() => {
+    if (!selectedEpisode) return null;
+    return allEpisodes?.find((e) => e.id === selectedEpisode.id) ?? selectedEpisode;
+  }, [allEpisodes, selectedEpisode]);
+
   const clearAllFilters = useCallback(() => {
     setShowFilter("all");
     setGuestFilter(null);
@@ -1030,7 +1047,7 @@ export default function LibraryPage() {
               )}
               <button
                 onClick={clearAllFilters}
-                className="text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer ml-auto min-h-[44px] md:min-h-0 flex items-center"
+                className="text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer ml-auto min-h-touch md:min-h-0 flex items-center"
               >
                 Clear filters
               </button>
@@ -1452,7 +1469,9 @@ export default function LibraryPage() {
             )}>
               <EpisodeDetail
                 key={selectedEpisode.id}
-                episode={selectedEpisode}
+                /* The live row, not the click-time snapshot — see
+                   selectedEpisodeLive above. */
+                episode={selectedEpisodeLive ?? selectedEpisode}
                 isPlaying={selectedEpisode.id === currentEpisodeId}
                 onPlay={handlePlay}
                 onClose={handleCloseDetail}

@@ -213,7 +213,7 @@ export function CatalogScraper() {
             <button
               onClick={() => setShowErrors(!showErrors)}
               aria-expanded={showErrors}
-              className="text-hd-11 md:text-hd-9 text-red-400/70 hover:text-red-400 cursor-pointer flex items-center gap-1 min-h-[44px] md:min-h-0"
+              className="text-hd-11 md:text-hd-9 text-red-400/70 hover:text-red-400 cursor-pointer flex items-center gap-1 min-h-touch md:min-h-0"
             >
               <span className="text-hd-10 md:text-hd-8">{showErrors ? "\u25BC" : "\u25B6"}</span>
               {errorMessages.length} error{errorMessages.length !== 1 ? "s" : ""}
@@ -255,7 +255,7 @@ export function CatalogScraper() {
               <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 aria-expanded={showAdvanced}
-                className="text-hd-11 md:text-hd-9 text-bevel-dark hover:text-desktop-gray cursor-pointer ml-auto min-h-[44px] md:min-h-0"
+                className="text-hd-11 md:text-hd-9 text-bevel-dark hover:text-desktop-gray cursor-pointer ml-auto min-h-touch md:min-h-0"
               >
                 {showAdvanced ? "Less options" : "More options"}
               </button>

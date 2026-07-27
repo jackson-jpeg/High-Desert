@@ -87,7 +87,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
         <span className="text-hd-11 md:text-hd-9 text-bevel-dark/85">Guest Profile</span>
         <button
           onClick={onClose}
-          className="text-hd-14 md:text-hd-10 text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+          className="text-hd-14 md:text-hd-10 text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-touch min-h-touch md:min-w-0 md:min-h-0 flex items-center justify-center"
           aria-label="Close"
         >
           ✕

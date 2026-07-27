@@ -111,7 +111,7 @@ export function PlaybackControls({
           <button
             onClick={toggleShuffle}
             className={cn(
-              "min-w-[44px] min-h-[44px] flex items-center justify-center text-hd-18 cursor-pointer active:scale-95 transition-transform",
+              "min-w-touch min-h-touch flex items-center justify-center text-hd-18 cursor-pointer active:scale-95 transition-transform",
               shuffle ? "text-desert-amber" : "text-bevel-dark active:text-desktop-gray",
             )}
             aria-label={shuffle ? "Disable shuffle" : "Enable shuffle"}
@@ -122,7 +122,7 @@ export function PlaybackControls({
           <button
             onClick={cycleRepeat}
             className={cn(
-              "min-w-[44px] min-h-[44px] flex items-center justify-center text-hd-18 cursor-pointer active:scale-95 transition-transform",
+              "min-w-touch min-h-touch flex items-center justify-center text-hd-18 cursor-pointer active:scale-95 transition-transform",
               repeat !== "off" ? "text-desert-amber" : "text-bevel-dark active:text-desktop-gray",
             )}
             aria-label={`Repeat mode: ${repeat}`}
@@ -132,7 +132,7 @@ export function PlaybackControls({
           </button>
           <button
             onClick={cycleRate}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-hd-16 text-desktop-gray cursor-pointer active:scale-95 transition-transform"
+            className="min-w-touch min-h-touch flex items-center justify-center text-hd-16 text-desktop-gray cursor-pointer active:scale-95 transition-transform"
             aria-label={`Playback speed ${playbackRate}x`}
           >
             {playbackRate}x
@@ -228,7 +228,7 @@ export function PlaybackControls({
         <button
           onClick={toggleShuffle}
           className={cn(
-            "min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center text-hd-16 md:text-hd-11 cursor-pointer ml-1 px-1 active:scale-95 transition-transform",
+            "min-w-touch min-h-touch md:min-w-0 md:min-h-0 flex items-center justify-center text-hd-16 md:text-hd-11 cursor-pointer ml-1 px-1 active:scale-95 transition-transform",
             shuffle ? "text-desert-amber" : "text-bevel-dark hover:text-desktop-gray active:text-desktop-gray",
           )}
           title={shuffle ? "Shuffle on" : "Shuffle off"}
@@ -240,7 +240,7 @@ export function PlaybackControls({
         <button
           onClick={cycleRepeat}
           className={cn(
-            "min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center text-hd-16 md:text-hd-11 cursor-pointer px-1 active:scale-95 transition-transform",
+            "min-w-touch min-h-touch md:min-w-0 md:min-h-0 flex items-center justify-center text-hd-16 md:text-hd-11 cursor-pointer px-1 active:scale-95 transition-transform",
             repeat !== "off" ? "text-desert-amber" : "text-bevel-dark hover:text-desktop-gray active:text-desktop-gray",
           )}
           title={`Repeat: ${repeat}`}

@@ -136,7 +136,7 @@ export function EpisodeDetail({
     setEditing(false);
   };
 
-  const inputClass = "w-full bg-inset-well w98-inset-dark px-2 py-2 md:px-1.5 md:py-1 text-hd-16 md:text-hd-12 text-desktop-gray outline-none min-h-[44px] md:min-h-0";
+  const inputClass = "w-full bg-inset-well w98-inset-dark px-2 py-2 md:px-1.5 md:py-1 text-hd-16 md:text-hd-12 text-desktop-gray outline-none min-h-touch md:min-h-0";
 
   return (
     <div
@@ -177,7 +177,7 @@ export function EpisodeDetail({
         </div>
         <button
           onClick={handleClose}
-          className="text-hd-14 md:text-hd-11 text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+          className="text-hd-14 md:text-hd-11 text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-touch min-h-touch md:min-w-0 md:min-h-0 flex items-center justify-center"
           aria-label="Close detail"
         >
           {"\u2715"}
@@ -435,7 +435,7 @@ export function EpisodeDetail({
                 <button
                   onClick={() => onToggleFavorite(episode)}
                   className={cn(
-                    "text-hd-17 md:text-hd-13 cursor-pointer transition-colors-fast ml-auto min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center",
+                    "text-hd-17 md:text-hd-13 cursor-pointer transition-colors-fast ml-auto min-w-touch min-h-touch md:min-w-0 md:min-h-0 flex items-center justify-center",
                     episode.favoritedAt ? "text-desert-amber" : "text-bevel-dark/85 hover:text-desert-amber",
                   )}
                   title={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
@@ -461,7 +461,7 @@ export function EpisodeDetail({
                       }
                     }}
                     className={cn(
-                      "text-hd-20 md:text-hd-12 cursor-pointer transition-colors-fast min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center",
+                      "text-hd-20 md:text-hd-12 cursor-pointer transition-colors-fast min-w-touch min-h-touch md:min-w-0 md:min-h-0 flex items-center justify-center",
                       star <= (episode.rating ?? 0)
                         ? "text-desert-amber"
                         : "text-bevel-dark/85 hover:text-desert-amber/85 active:text-desert-amber/85",
@@ -490,7 +490,7 @@ export function EpisodeDetail({
                   href={`https://archive.org/details/${episode.archiveIdentifier}${episode.fileName ? `/${episode.fileName}` : ""}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-hd-13 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+                  className="text-hd-13 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-touch md:min-h-0 flex items-center"
                 >
                   Archive ↗
                 </a>
@@ -502,7 +502,7 @@ export function EpisodeDetail({
                   toast[flagged ? "info" : "success"](flagged ? "Episode flagged as broken" : "Flag removed");
                 }}
                 className={cn(
-                  "text-hd-13 md:text-hd-10 cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center",
+                  "text-hd-13 md:text-hd-10 cursor-pointer transition-colors-fast min-h-touch md:min-h-0 flex items-center",
                   episode.flaggedAt
                     ? "text-red-400/70 hover:text-red-400"
                     : "text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray",
@@ -514,7 +514,7 @@ export function EpisodeDetail({
               {onEdit && (
                 <button
                   onClick={startEditing}
-                  className="text-hd-13 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+                  className="text-hd-13 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-touch md:min-h-0 flex items-center"
                 >
                   Edit
                 </button>
@@ -522,7 +522,7 @@ export function EpisodeDetail({
               {onDelete && (
                 <button
                   onClick={() => onDelete(episode)}
-                  className="text-hd-13 md:text-hd-10 text-red-400/40 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast ml-auto min-h-[44px] md:min-h-0 flex items-center"
+                  className="text-hd-13 md:text-hd-10 text-red-400/40 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast ml-auto min-h-touch md:min-h-0 flex items-center"
                 >
                   Delete
                 </button>
@@ -668,7 +668,7 @@ function ShareButton({ episode }: { episode: Episode }) {
     return (
       <button
         onClick={copyLink}
-        className="text-hd-13 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+        className="text-hd-13 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-touch md:min-h-0 flex items-center"
       >
         Share
       </button>
@@ -679,7 +679,7 @@ function ShareButton({ episode }: { episode: Episode }) {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setMenuOpen(!menuOpen)}
-        className="text-hd-13 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+        className="text-hd-13 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-touch md:min-h-0 flex items-center"
       >
         Share
       </button>

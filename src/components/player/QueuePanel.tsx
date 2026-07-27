@@ -126,7 +126,7 @@ export function QueuePanel() {
           {isAdmin && !savingPlaylist && (
             <button
               onClick={() => setSavingPlaylist(true)}
-              className="text-hd-12 md:text-hd-10 text-bevel-dark/85 hover:text-desert-amber active:text-desert-amber cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center px-2"
+              className="text-hd-12 md:text-hd-10 text-bevel-dark/85 hover:text-desert-amber active:text-desert-amber cursor-pointer transition-colors-fast min-h-touch md:min-h-0 flex items-center px-2"
               title="Save queue as playlist"
             >
               Save
@@ -134,7 +134,7 @@ export function QueuePanel() {
           )}
           <button
             onClick={clearQueue}
-            className="text-hd-12 md:text-hd-10 text-bevel-dark/85 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center px-2"
+            className="text-hd-12 md:text-hd-10 text-bevel-dark/85 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast min-h-touch md:min-h-0 flex items-center px-2"
           >
             Clear
           </button>
@@ -155,7 +155,7 @@ export function QueuePanel() {
             autoComplete="off"
             spellCheck={false}
             aria-label="Playlist name"
-            className="flex-1 bg-inset-well w98-inset-dark px-1.5 py-1.5 md:py-0.5 text-hd-16 md:text-hd-10 text-desktop-gray outline-none min-h-[44px] md:min-h-0"
+            className="flex-1 bg-inset-well w98-inset-dark px-1.5 py-1.5 md:py-0.5 text-hd-16 md:text-hd-10 text-desktop-gray outline-none min-h-touch md:min-h-0"
           />
           <button
             onClick={handleSaveAsPlaylist}
@@ -188,7 +188,7 @@ export function QueuePanel() {
               onDrop={isMobile ? undefined : (e) => handleDrop(e, i)}
               onDragEnd={isMobile ? undefined : handleDragEnd}
               className={cn(
-                "group flex items-center gap-2 px-3 py-1.5 min-h-[44px] md:min-h-0 cursor-pointer select-none",
+                "group flex items-center gap-2 px-3 py-1.5 min-h-touch md:min-h-0 cursor-pointer select-none",
                 "hover:bg-title-bar-blue/10 active:bg-title-bar-blue/10 transition-colors-fast",
                 isCurrent && "ring-1 ring-static-green/40 bg-title-bar-blue/10",
                 isPast && "opacity-50",
@@ -254,7 +254,7 @@ export function QueuePanel() {
                   e.stopPropagation();
                   removeFromQueue(i);
                 }}
-                className="text-hd-12 md:text-hd-10 text-bevel-dark/85 hover:text-red-400 active:text-red-400 cursor-pointer flex-shrink-0 px-1 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                className="text-hd-12 md:text-hd-10 text-bevel-dark/85 hover:text-red-400 active:text-red-400 cursor-pointer flex-shrink-0 px-1 min-w-touch min-h-touch md:min-w-0 md:min-h-0 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                 title="Remove"
               >
                 {"\u2715"}

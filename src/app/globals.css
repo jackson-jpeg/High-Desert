@@ -14,30 +14,38 @@
    the cascade anyway — don't add one back. */
 
 @theme inline {
-  --color-midnight: #0A0E1A;
-  --color-desktop-gray: #C0C0C0;
-  --color-title-bar-blue: #000080;
-  --color-highlight-blue: #0A246A;
+  /* All values come from the canonical palette below — do not inline a hex
+     here, or the same colour ends up defined in two places again. */
+  --color-midnight: var(--hd-midnight);
+  --color-desktop-gray: var(--hd-chrome);
+  --color-title-bar-blue: var(--hd-navy);
+  --color-highlight-blue: var(--hd-select);
   /* Legible blue for *text* on the dark surfaces. The two above are chrome
      fills (title bars, selection) and sit at ~1.1:1 as text on card-surface —
      they were being used for stat values, which read as blank tiles. 7.0:1. */
-  --color-signal-blue: #6BA3F0;
-  --color-desert-amber: #D4A843;
-  --color-static-green: #4ADE80;
-  --color-static-green-bright: #33FF33;
-  --color-phosphor-amber: #FFB000;
-  --color-card-surface: #111827;
-  --color-inset-well: #080C16;
-  --color-raised-surface: #1A1F33;
-  --color-bevel-light: #DFDFDF;
+  --color-signal-blue: var(--hd-blue);
+  --color-desert-amber: var(--hd-amber);
+  --color-static-green: var(--hd-green);
+  --color-static-green-bright: var(--hd-green-bright);
+  --color-phosphor-amber: var(--hd-amber-phosphor);
+  --color-card-surface: var(--hd-card);
+  --color-inset-well: var(--hd-well);
+  --color-raised-surface: var(--hd-raised);
+  --color-bevel-light: var(--hd-chrome-light);
+
+  /* Smallest comfortable touch target (Apple HIG). Declared here rather than
+     in :root so Tailwind emits `min-h-touch` / `min-w-touch` utilities: it was
+     written as the literal `min-h-[44px]` 71 times, competing with stray 48px
+     and 52px values elsewhere. */
+  --spacing-touch: 44px;
   /* Secondary text. Was #808080, which cleared 4.5:1 only on --color-midnight
      (4.88) and failed on card-surface (4.49) and raised-surface (4.13).
      #9AA0AE clears 6.2:1 on the darkest of the three, leaving headroom for
      the /85 dim tier (4.89:1). Do not take text below /85 — see the note on
      the three-tier text ramp in the Conventions section of CLAUDE.md.
-     The chiselled Win98 bevels are unaffected: they read --w98-bevel-dark
-     from win98.css, which is a separate token and stays #808080. */
-  --color-bevel-dark: #9AA0AE;
+     The chiselled Win98 bevels are unaffected: they read --w98-bevel-dark,
+     which maps to --hd-chrome-dark and stays #808080. */
+  --color-bevel-dark: var(--hd-muted);
 
   /* next/font/local overrides --font-w95 on <body> with its preloaded,
      metric-adjusted face. This value is only the fallback chain. */
@@ -97,7 +105,51 @@
    Safe Area CSS Variables
    ============================================ */
 
+/* ============================================
+   Canonical palette
+
+   One definition per colour. Everything else — the Tailwind @theme tokens
+   above and the --w98-* chrome tokens in win98.css — references these.
+
+   There were previously two independent namespaces that happened to declare
+   the same seven values (#C0C0C0, #000080, #0A246A, #DFDFDF, #808080,
+   #1A1F33, #080C16), plus four dark-bevel hexes typed as raw literals a dozen
+   times each inside win98.css. Changing a colour meant finding every copy, and
+   nothing failed loudly when one was missed.
+
+   Named by role, not by appearance: `--hd-edge` rather than `--hd-blue-grey`,
+   so a retheme doesn't make every name a lie.
+   ============================================ */
+
 :root {
+  /* Dark app surfaces, darkest to lightest */
+  --hd-void: #060810;      /* deepest bevel shadow */
+  --hd-well: #080C16;      /* inset wells */
+  --hd-midnight: #0A0E1A;  /* page background, inset bevel edge */
+  --hd-card: #111827;      /* cards */
+  --hd-raised: #1A1F33;    /* raised panels, menus, status bar */
+  --hd-edge: #2A3050;      /* raised bevel light edge */
+  --hd-edge-lit: #333B58;  /* raised bevel highlight */
+
+  /* Win98 chrome (the classic light palette) */
+  --hd-chrome: #C0C0C0;
+  --hd-chrome-light: #DFDFDF;
+  --hd-chrome-lighter: #FFFFFF;
+  --hd-chrome-dark: #808080;
+  --hd-chrome-darker: #404040;
+  --hd-chrome-frame: #0A0A0A;
+  --hd-ink: #000000;
+  --hd-navy: #000080;      /* title bars */
+  --hd-select: #0A246A;    /* selection highlight */
+
+  /* Accents */
+  --hd-amber: #D4A843;
+  --hd-amber-phosphor: #FFB000;
+  --hd-green: #4ADE80;
+  --hd-green-bright: #33FF33;
+  --hd-blue: #6BA3F0;      /* legible blue for *text*; --hd-navy is a fill */
+  --hd-muted: #9AA0AE;     /* secondary text — see the ramp note in CLAUDE.md */
+
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);

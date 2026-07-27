@@ -71,7 +71,7 @@ export function OnThisDay({ onPlay, compact, className }: OnThisDayProps) {
               key={ep.id}
               onClick={() => onPlay(ep)}
               className={cn(
-                "flex items-center gap-2 text-left px-2.5 py-2 md:py-1.5 w98-raised-dark bg-card-surface min-h-[44px] md:min-h-0",
+                "flex items-center gap-2 text-left px-2.5 py-2 md:py-1.5 w98-raised-dark bg-card-surface min-h-touch md:min-h-0",
                 "cursor-pointer hover:bg-title-bar-blue/15 active:bg-title-bar-blue/20 transition-colors-fast",
               )}
             >

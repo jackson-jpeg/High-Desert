@@ -192,7 +192,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
             {value && (
               <button
                 onClick={() => onChange("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-hd-14 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer min-w-[44px] min-h-[44px] md:min-w-[24px] md:min-h-[24px] flex items-center justify-center"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-hd-14 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer min-w-touch min-h-touch md:min-w-[24px] md:min-h-[24px] flex items-center justify-center"
                 aria-label="Clear search"
               >
                 {"\u2715"}
@@ -210,7 +210,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
                     aria-selected={i === activeIdx}
                     onClick={() => selectSuggestion(s)}
                     className={cn(
-                      "w-full text-left px-3 md:px-2 py-2.5 md:py-1 min-h-[44px] md:min-h-0 text-hd-14 md:text-hd-11 cursor-pointer flex items-center gap-2 transition-colors-fast",
+                      "w-full text-left px-3 md:px-2 py-2.5 md:py-1 min-h-touch md:min-h-0 text-hd-14 md:text-hd-11 cursor-pointer flex items-center gap-2 transition-colors-fast",
                       i === activeIdx
                         ? "bg-title-bar-blue/30 text-desktop-gray"
                         : "text-desktop-gray/85 hover:bg-title-bar-blue/15 active:bg-title-bar-blue/20",
