@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
-import { getEpisodeCounts } from "@/services/stats/store";
+import { getEpisodeCounts } from "@/services/stats/kv";
 
 const ID_PATTERN = /^[a-zA-Z0-9._-]+$/;
 const MAX_IDS = 100;
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       },
     );
   } catch (err) {
-    console.error("[stats/episodes] store error:", err);
+    console.error("[stats/episodes] KV error:", err);
     return NextResponse.json(
       { error: "Stats service unavailable" },
       { status: 503 },

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
-import { getLeaderboard } from "@/services/stats/store";
+import { getLeaderboard } from "@/services/stats/kv";
 
 const VALID_PERIODS = new Set(["alltime", "week"]);
 
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const entries = await getLeaderboard(period as "alltime" | "week");
     return NextResponse.json({ entries });
   } catch (err) {
-    console.error("[stats/leaderboard] store error:", err);
+    console.error("[stats/leaderboard] KV error:", err);
     return NextResponse.json(
       { error: "Stats service unavailable" },
       { status: 503 },

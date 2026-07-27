@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
-import { recordPlay } from "@/services/stats/store";
-import { isKnownEpisodeId } from "@/services/stats/allowlist";
+import { recordPlay } from "@/services/stats/kv";
 
-const SESSION_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
+const EPISODE_ID_RE = /^[a-zA-Z0-9._-]+$/;
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
@@ -42,18 +41,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!SESSION_ID_RE.test(sessionId)) {
+  if (episodeId.length > 200 || !EPISODE_ID_RE.test(episodeId)) {
     return NextResponse.json(
-      { error: "Invalid sessionId format" },
-      { status: 400 },
-    );
-  }
-
-  // Only real catalog episodes may be written. This is what stops arbitrary
-  // strings from creating rows and inflating the leaderboard.
-  if (!isKnownEpisodeId(episodeId)) {
-    return NextResponse.json(
-      { error: "Unknown episodeId" },
+      { error: "Invalid episodeId format" },
       { status: 400 },
     );
   }
@@ -62,7 +52,7 @@ export async function POST(request: NextRequest) {
     await recordPlay(episodeId, sessionId);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[stats/play] store error:", err);
+    console.error("[stats/play] KV error:", err);
     return NextResponse.json(
       { error: "Stats unavailable" },
       { status: 503 },

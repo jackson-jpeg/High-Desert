@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
-import { removeActiveSession } from "@/services/stats/store";
+import { removeActiveSession } from "@/services/stats/kv";
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     await removeActiveSession(sessionId);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[stats/stop] store error:", err);
+    console.error("[stats/stop] KV error:", err);
     return NextResponse.json(
       { error: "Stats unavailable" },
       { status: 503 },

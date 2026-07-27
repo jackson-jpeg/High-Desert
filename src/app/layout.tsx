@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import "./globals.css";
 
@@ -214,6 +216,9 @@ export default function RootLayout({
             `,
           }}
         />
+        <Analytics />
+        <SpeedInsights />
+        <script defer src="https://cloud.umami.is/script.js" data-website-id="8fe77b79-e571-42c9-9442-a72bb0ec819f" />
         <ServiceWorkerRegistration />
         {children}
       </body>

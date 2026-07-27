@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
-import { getActiveCount } from "@/services/stats/store";
+import { getActiveCount } from "@/services/stats/kv";
 
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const count = await getActiveCount();
     return NextResponse.json({ count });
   } catch (err) {
-    console.error("[stats/active] store error:", err);
+    console.error("[stats/active] KV error:", err);
     return NextResponse.json(
       { error: "Stats service unavailable" },
       { status: 503 },
