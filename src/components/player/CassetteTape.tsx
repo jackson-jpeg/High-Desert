@@ -12,10 +12,23 @@ interface CassetteTapeProps {
  */
 export function CassetteTape({ className }: CassetteTapeProps) {
   const playing = usePlayerStore((s) => s.playing);
-  const position = usePlayerStore((s) => s.position);
-  const duration = usePlayerStore((s) => s.duration);
 
-  const progress = duration > 0 ? position / duration : 0;
+  /*
+   * Progress is quantised to 5% steps, and `position` is deliberately not
+   * subscribed to directly.
+   *
+   * The store writes `position` every 250ms during playback. Selecting it here
+   * re-rendered this component four times a second and produced two slightly
+   * different animation-duration strings each time — and changing an
+   * animation-duration restarts the animation, so the reels were being
+   * continuously reset rather than spinning smoothly. Quantising means at most
+   * 20 changes across an entire four-hour episode.
+   */
+  const progress = usePlayerStore((s) => {
+    if (!(s.duration > 0)) return 0;
+    return Math.round((s.position / s.duration) * 20) / 20;
+  });
+
   // Left reel: fast at start, slow at end. Right reel: opposite.
   const leftSpeed = 1.5 + (1 - progress) * 2; // 3.5s → 1.5s
   const rightSpeed = 1.5 + progress * 2;       // 1.5s → 3.5s

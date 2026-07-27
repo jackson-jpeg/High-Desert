@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useOscilloscope } from "@/hooks/useOscilloscope";
 import { useContextMenuStore } from "@/stores/context-menu-store";
-import { VISUALIZATIONS } from "@/audio/visualizations";
+import { VISUALIZATION_META } from "@/audio/visualizations";
 import { cn } from "@/lib/utils/cn";
 
 interface OscilloscopeProps {
@@ -44,7 +44,7 @@ export function Oscilloscope({ className }: OscilloscopeProps) {
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      const items = VISUALIZATIONS.map((v) => ({
+      const items = VISUALIZATION_META.map((v) => ({
         label: v.name,
         checked: v.id === vizId,
         onClick: () => {

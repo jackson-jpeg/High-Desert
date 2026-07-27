@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { getAnalyserNode } from "@/audio/engine";
 import { drawStatic } from "@/audio/visualizations/static";
-import { getVisualization, nextVisualization } from "@/audio/visualizations";
+import { getVisualization, nextVisualization, ensureVisualization, getVizName } from "@/audio/visualizations";
 import { getPreference, setPreference } from "@/db";
 import { isIOSDevice } from "@/lib/utils/platform";
 import { usePlayerStore } from "@/stores/player-store";
@@ -25,10 +25,19 @@ export function useOscilloscope() {
    */
   const wakeRef = useRef<() => void>(() => {});
 
-  // Keep ref in sync with state
+  // Keep ref in sync with state, and make sure the renderer is actually
+  // loaded. getVisualization falls back to the default until it is, so
+  // repaint again once the real one lands.
   useEffect(() => {
     vizIdRef.current = vizId;
     wakeRef.current();
+    let cancelled = false;
+    ensureVisualization(vizId).then(() => {
+      if (!cancelled) wakeRef.current();
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [vizId]);
 
   // Load saved preference on mount (overrides iOS default if user chose something)
@@ -210,7 +219,7 @@ export function useOscilloscope() {
     };
   }, []);
 
-  const viz = getVisualization(vizId);
-
-  return { canvasRef, vizId, vizName: viz.name, cycleViz, setVizMode };
+  // Name comes from the eager metadata, so displaying it never forces the
+  // renderer's chunk to load.
+  return { canvasRef, vizId, vizName: getVizName(vizId), cycleViz, setVizMode };
 }

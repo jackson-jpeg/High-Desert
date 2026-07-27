@@ -33,13 +33,42 @@ const ROUTE_PATHS: Record<string, string> = {
 };
 
 function fuzzyMatch(text: string, query: string): boolean {
+  return scoreMatch(text, query) > 0;
+}
+
+/**
+ * Relevance score, 0 meaning no match. Higher is better.
+ *
+ * The old predicate was pure subsequence matching with no ranking, and callers
+ * took the first five hits in *table order* — so typing "bell" surfaced
+ * whichever rows happened to sit earliest in IndexedDB rather than the best
+ * matches, and results bore little resemblance to the main search bar's.
+ *
+ * Subsequence matching is kept as the weakest tier so short abbreviations
+ * still work ("cchg" → "Coast to Coast — Hoagland"), but exact and
+ * word-boundary hits now outrank it decisively.
+ */
+function scoreMatch(text: string, query: string): number {
   const lower = text.toLowerCase();
   const q = query.toLowerCase();
+  if (!q) return 0;
+
+  if (lower.startsWith(q)) return 1000 - lower.length;
+
+  const idx = lower.indexOf(q);
+  if (idx === 0) return 900;
+  if (idx > 0) {
+    // Word-boundary hits beat mid-word ones.
+    const boundary = idx === 0 || /[\s\-–—:,.(]/.test(lower[idx - 1]);
+    return (boundary ? 700 : 500) - idx;
+  }
+
+  // Subsequence fallback: every query char in order, anywhere.
   let qi = 0;
   for (let i = 0; i < lower.length && qi < q.length; i++) {
     if (lower[i] === q[qi]) qi++;
   }
-  return qi === q.length;
+  return qi === q.length ? 100 : 0;
 }
 
 export interface CommandPaletteProps {
@@ -59,6 +88,49 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  /**
+   * Lightweight episode index, built once when the palette opens.
+   *
+   * Every debounced keystroke used to call `db.episodes.toArray()`, which
+   * deserialises all ~1,300 rows *including* each aiSummary — hundreds of
+   * kilobytes of text, rebuilt from IndexedDB on every character typed, just
+   * to read four short fields off each row. Now it is read once per open and
+   * reduced to the fields actually searched.
+   *
+   * Only the id is retained for the action; the full row is fetched on
+   * activation, so the index stays small however large the catalog grows.
+   */
+  const indexRef = useRef<{ id: number; hay: string; label: string; sub: string }[]>([]);
+  const [indexReady, setIndexReady] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    db.episodes
+      .toArray()
+      .then((eps) => {
+        if (cancelled) return;
+        indexRef.current = eps
+          .filter((e) => e.id != null)
+          .map((e) => ({
+            id: e.id!,
+            hay: [e.title, e.guestName, e.airDate, e.topic]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase(),
+            label: e.title || e.fileName,
+            sub: [e.guestName, e.airDate].filter(Boolean).join(" — "),
+          }));
+        setIndexReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) setIndexReady(true); // degrade to routes + actions
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   // Focus input + lock scroll when opened
   useEffect(() => {
@@ -126,27 +198,35 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       const q = query.trim();
       const matched: Result[] = [];
 
-      // Search episodes in Dexie
-      try {
-        const allEps = await db.episodes.toArray();
-        const episodeResults: Result[] = [];
-        for (const ep of allEps) {
-          if (episodeResults.length >= 5) break;
-          const searchable = [ep.title, ep.guestName, ep.airDate, ep.topic].filter(Boolean).join(" ");
-          if (fuzzyMatch(searchable, q)) {
-            episodeResults.push({
-              id: `ep-${ep.id}`,
-              group: "Episodes",
-              label: ep.title || ep.fileName,
-              subtitle: [ep.guestName, ep.airDate].filter(Boolean).join(" — "),
-              action: () => {
-                window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: ep }));
-              },
-            });
-          }
-        }
-        matched.push(...episodeResults);
-      } catch { /* ignore */ }
+      // Score the whole index, then take the best five — the previous version
+      // stopped at the first five matches in table order, so relevance played
+      // no part at all.
+      const scored: { score: number; id: number; label: string; sub: string }[] = [];
+      for (const entry of indexRef.current) {
+        const score = scoreMatch(entry.hay, q);
+        if (score > 0) scored.push({ score, ...entry });
+      }
+      scored.sort((a, b) => b.score - a.score);
+
+      for (const hit of scored.slice(0, 5)) {
+        matched.push({
+          id: `ep-${hit.id}`,
+          group: "Episodes",
+          label: hit.label,
+          subtitle: hit.sub,
+          action: () => {
+            // The index holds ids only; fetch the row the player needs.
+            db.episodes
+              .get(hit.id)
+              .then((ep) => {
+                if (ep) {
+                  window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: ep }));
+                }
+              })
+              .catch(() => {});
+          },
+        });
+      }
 
       // Filter routes
       for (const r of ROUTES) {
@@ -169,7 +249,9 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, open, router, actions]);
+    // indexReady is a dependency so a query typed while the index is still
+    // loading re-runs once it lands, instead of showing no episodes.
+  }, [query, open, router, actions, indexReady]);
 
   // Wire route actions with router
   const executeResult = useCallback((result: Result) => {

@@ -290,10 +290,19 @@ export function useRadioDial(episodes: Episode[] | undefined) {
       setPosition(newPos);
     };
 
-    const interval = setInterval(tick, 1000 / 60);
+    // rAF rather than setInterval(1000/60). A 60Hz interval doesn't yield to
+    // the compositor, drifts against the real frame cadence, and keeps firing
+    // at full rate in a background tab — where the dial isn't even visible.
+    // rAF is throttled by the browser when hidden, for free.
+    let raf = 0;
+    const loop = () => {
+      tick();
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
 
     return () => {
-      clearInterval(interval);
+      cancelAnimationFrame(raf);
       if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
       scanPauseRef.current = false;
     };

@@ -13,6 +13,25 @@ interface StaticVisualizerProps {
 export function StaticVisualizer({ opacity }: StaticVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  /*
+   * opacity is read through a ref, and the effect below deliberately does NOT
+   * depend on it.
+   *
+   * opacity is derived from signalStrength, which changes continuously while
+   * the dial is being dragged. With `[opacity]` as the dependency, every
+   * intermediate value tore down the whole effect and rebuilt it — resizing
+   * the canvas, reallocating ImageData and starting a fresh rAF loop, dozens
+   * of times per second, for the entire duration of a tune. The alpha was
+   * captured in a closure, which is what forced the teardown in the first
+   * place; reading it from a ref lets one long-lived loop pick up new values.
+   */
+  const opacityRef = useRef(opacity);
+  // Synced in an effect, not during render: writing a ref while rendering is
+  // unsafe under concurrent rendering, where a render may be discarded.
+  useEffect(() => {
+    opacityRef.current = opacity;
+  }, [opacity]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -49,13 +68,15 @@ export function StaticVisualizer({ opacity }: StaticVisualizerProps) {
 
     // Allocate ImageData ONCE and reuse every frame
     const imageData = ctx.createImageData(canvas.width, canvas.height);
-    const alphaVal = Math.floor(opacity * 80);
 
     const render = (time: number) => {
       const elapsed = time - lastFrame;
       if (elapsed >= FPS_INTERVAL) {
         lastFrame = time - (elapsed % FPS_INTERVAL);
 
+        // Read per frame, so a changing signal strength no longer requires
+        // restarting the effect.
+        const alphaVal = Math.floor(opacityRef.current * 80);
         const data = imageData.data;
         for (let i = 0; i < data.length; i += 4) {
           const v = Math.random() * 255;
@@ -74,7 +95,8 @@ export function StaticVisualizer({ opacity }: StaticVisualizerProps) {
     animId = requestAnimationFrame(render);
 
     return () => cancelAnimationFrame(animId);
-  }, [opacity]);
+    // Intentionally empty: see the note on opacityRef above.
+  }, []);
 
   return (
     <canvas
