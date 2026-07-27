@@ -1,6 +1,17 @@
 /// <reference lib="webworker" />
 
-const CACHE_NAME = "hd-shell-v2";
+/**
+ * Cache name is derived from the ?v= build id the page registers us with
+ * (see src/components/ServiceWorkerRegistration.tsx). Every deploy therefore
+ * gets a fresh cache and the activate handler below purges the previous one.
+ *
+ * Without this, a single hardcoded name meant the purge never ran and stale
+ * HTML — referencing _next/static chunks deleted by the next deploy — could be
+ * served forever.
+ */
+const BUILD_ID = new URL(self.location).searchParams.get("v") || "dev";
+const CACHE_NAME = `hd-shell-${BUILD_ID}`;
+
 const STATIC_ASSETS = [
   "/",
   "/library",
@@ -14,84 +25,114 @@ const STATIC_ASSETS = [
   "/icons/icon-512.png",
 ];
 
-// Install: pre-cache app shell
+const OFFLINE_RESPONSE = () =>
+  new Response("", { status: 504, statusText: "Offline" });
+
+// Install: pre-cache app shell. Individual failures must not fail the install.
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.allSettled(STATIC_ASSETS.map((url) => cache.add(url)))
+    )
   );
   self.skipWaiting();
 });
 
-// Activate: clean old caches
+// Activate: drop every cache that isn't this build's
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      )
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Fetch strategy
+// Kill switch: lets the app remotely disable a misbehaving worker.
+self.addEventListener("message", (event) => {
+  if (event.data?.type !== "hd:unregister") return;
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+      .then(() => self.registration.unregister())
+  );
+});
+
+function cacheFirst(request) {
+  return caches.match(request).then((cached) => {
+    if (cached) return cached;
+    return fetch(request)
+      .then((response) => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        }
+        return response;
+      })
+      .catch(() => OFFLINE_RESPONSE());
+  });
+}
+
+function networkFirst(request) {
+  return fetch(request)
+    .catch(() => caches.match(request))
+    .then((r) => r || OFFLINE_RESPONSE());
+}
+
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // API routes: network-first
+  // API routes: always network-first, fall back to cache only if offline
   if (url.pathname.startsWith("/api/")) {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
-    );
+    event.respondWith(networkFirst(event.request));
     return;
   }
 
-  // Static assets (fonts, icons, images, JS/CSS chunks): cache-first
+  // Static assets are content-hashed, so cache-first is safe
   if (
     url.pathname.startsWith("/fonts/") ||
     url.pathname.startsWith("/icons/") ||
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.match(/\.(woff2?|png|jpg|svg|ico|js|css)$/)
   ) {
+    event.respondWith(cacheFirst(event.request));
+    return;
+  }
+
+  // Navigations: network-first with NO timeout.
+  //
+  // A timeout here was actively harmful: a slow-but-working connection lost the
+  // race and got served stale HTML pointing at chunks that no longer exist,
+  // producing a chunk-load error for a user who was actually online. A genuinely
+  // offline fetch rejects immediately, so the cache fallback still works.
+  if (event.request.mode === "navigate") {
     event.respondWith(
-      caches.match(event.request).then((cached) => {
-        if (cached) return cached;
-        return fetch(event.request).then((response) => {
+      fetch(event.request)
+        .then((response) => {
+          // Never cache errors — a transient 500 would otherwise be served
+          // from cache indefinitely.
           if (response.ok) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           }
           return response;
-        });
-      })
-    );
-    return;
-  }
-
-  // Navigation requests: network-first with 5s timeout, then cache fallback
-  if (event.request.mode === "navigate") {
-    event.respondWith(
-      Promise.race([
-        fetch(event.request),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000)),
-      ])
-        .then((response) => {
-          // Cache the fresh navigation response for offline use
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          return response;
         })
         .catch(() => {
-          // Notify clients they're seeing cached content
           self.clients.matchAll({ type: "window" }).then((clients) => {
             clients.forEach((client) => client.postMessage({ type: "hd:offline-fallback" }));
           });
-          return caches.match(event.request).then(r => r || caches.match("/library").then(r => r || caches.match("/")));
+          return caches
+            .match(event.request)
+            .then((r) => r || caches.match("/library"))
+            .then((r) => r || caches.match("/"))
+            .then((r) => r || OFFLINE_RESPONSE());
         })
     );
     return;
   }
 
-  // Everything else: network-first
-  event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
-  );
+  event.respondWith(networkFirst(event.request));
 });
