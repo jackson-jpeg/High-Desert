@@ -209,6 +209,43 @@ No third-party hosting. Same shape as `sanger-next`.
 - `categorize-library.py` — offline batch AI categorization; output is committed into `public/seed/library.json`. This is the ONLY place AI runs
 - `clean-library.py` — Python script for library cleanup
 
+## Deploying to the VPS — do not break the live service
+
+`/root/High-Desert` **is** the production directory. `next start` reads chunks
+from `.next` lazily, at request time, so the running server holds a manifest
+pointing at files on disk.
+
+**Never `rm -rf .next` or `node_modules` here while the service is running.**
+Doing so leaves the process serving pages that reference JS chunks that no
+longer exist: every route still returns **200**, but browsers cannot load the
+app — buttons do nothing and audio never starts. This has happened once, during
+a "clean install" verification, and took real users down. HTTP status checks
+will not catch it.
+
+Safe deploy:
+
+```bash
+cd /root/High-Desert
+git pull                     # or checkout the intended ref
+npm ci                       # only if package-lock.json changed
+npm run build                # writes a new .next
+systemctl restart highdesert # load the new build
+```
+
+Then verify the **client**, not just the status code — fetch the page and
+confirm every `/_next/static/chunks/*.js` it references returns 200:
+
+```bash
+R="--resolve highdesert.space:443:187.77.218.14"
+for c in $(curl -s $R https://highdesert.space/library \
+    | grep -oE '/_next/static/chunks/[a-zA-Z0-9._-]+\.js' | sort -u); do
+  echo "$(curl -s $R -o /dev/null -w '%{http_code}' https://highdesert.space$c) $c"
+done
+```
+
+For destructive verification (clean installs, dependency bisects), copy the repo
+elsewhere and test there. Restart the live service only onto a finished build.
+
 ## Data safety — read before touching `src/db/`
 
 All user data (favorites, ratings, playback positions, history, bookmarks) lives **only** in the
