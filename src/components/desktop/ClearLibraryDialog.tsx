@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { Dialog, Button } from "@/components/win98";
 import { db } from "@/db";
+import { clearTombstones } from "@/db/seed";
 import { toast } from "@/stores/toast-store";
 
 interface ClearLibraryDialogProps {
@@ -18,6 +19,9 @@ export function ClearLibraryDialog({ open, onClose }: ClearLibraryDialogProps) {
     try {
       await db.episodes.clear();
       await db.scanSessions.clear();
+      // Reset tombstones + the reconcile marker so the catalog re-seeds cleanly
+      // on the next load, preserving the existing clear-and-reload behaviour.
+      await clearTombstones();
       toast.success("Library cleared");
     } finally {
       setClearing(false);

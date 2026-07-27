@@ -20,6 +20,8 @@ let mediaElement: HTMLAudioElement | null = null;
 let audioContext: AudioContext | null = null;
 let analyserNode: AnalyserNode | null = null;
 let elementConnected = false;
+/** Set once analyser setup has failed, so the frame loop stops retrying forever. */
+let analyserInitFailed = false;
 
 export function getAnalyserNode(): AnalyserNode | null {
   // Lazy init: try when we don't have an analyser and audio is playing
@@ -76,7 +78,7 @@ export function resumeContext(): Promise<void> {
  * Can only be called once per media element.
  */
 function tryInitAnalyser(): void {
-  if (analyserNode || !mediaElement || elementConnected) return;
+  if (analyserNode || !mediaElement || elementConnected || analyserInitFailed) return;
   // Never route through AudioContext on iOS — it kills background playback
   if (isIOSDevice()) return;
 
@@ -97,8 +99,16 @@ function tryInitAnalyser(): void {
     }
   } catch {
     // createMediaElementSource not supported or CORS issue — that's fine,
-    // oscilloscope shows the idle breathing animation
+    // oscilloscope shows the idle breathing animation.
+    // Latch the failure: this is called from the animation frame loop, so without
+    // it we would construct a new AudioContext ~60x/sec until the browser's
+    // per-document limit is hit and the tab degrades.
     analyserNode = null;
+    analyserInitFailed = true;
+    if (audioContext) {
+      audioContext.close().catch(() => {});
+      audioContext = null;
+    }
   }
 }
 

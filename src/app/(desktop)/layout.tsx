@@ -5,15 +5,13 @@ import { usePathname } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { DesktopShell } from "@/components/desktop/DesktopShell";
 import { AudioPlayer } from "@/components/player/AudioPlayer";
-// ContinueBanner replaced by ContinueListening on library page
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
 import { db, getPreference, setPreference } from "@/db";
 import type { Episode } from "@/db/schema";
 import { getCachedAudio, cacheAudioBlob } from "@/audio/cache";
-import { seedLibraryIfEmpty } from "@/db/seed";
-import { deduplicateEpisodes } from "@/db/deduplicate";
+import { seedLibraryIfEmpty, reconcileLibrary } from "@/db/seed";
 import { DBErrorBoundary } from "@/components/DBErrorBoundary";
 import { MilestoneDialog } from "@/components/desktop/MilestoneDialog";
 import { playStartupSound } from "@/audio/startup-sound";
@@ -26,19 +24,23 @@ export default function DesktopLayout({
 }) {
   const pathname = usePathname();
   const { playEpisode, togglePlay, seek, playNext, playPrevious } = useAudioPlayer();
-  const position = usePlayerStore((s) => s.position);
+  // NOT subscribed: reading position here would re-render the entire desktop
+  // shell 4x/second during playback. The keyboard handler reads it on demand.
   const volume = usePlayerStore((s) => s.volume);
   const setVolume = usePlayerStore((s) => s.setVolume);
   const enqueue = usePlayerStore((s) => s.enqueue);
   // Continue listening is now handled by ContinueListening on the library page
 
-  // Handle ?viewer URL param on mount (logout only — login requires password)
+  // Restore persisted admin state after mount (not during render — see admin-store),
+  // then handle ?viewer URL param (logout only — login requires password)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.has("viewer")) {
       useAdminStore.getState().logout();
       window.history.replaceState({}, "", window.location.pathname);
+      return;
     }
+    useAdminStore.getState().hydrate();
   }, []);
 
   // Restore volume from prefs on mount
@@ -269,22 +271,40 @@ export default function DesktopLayout({
     });
   }, []);
 
-  // On mount, seed library if empty, then auto-dedup (fixes doubled episodes from old race condition)
+  // On mount, seed the library if empty. Otherwise restore any catalog episodes that
+  // are missing — a previous dedup bug deleted up to 1,312 of 1,313 for some users.
+  // Reconcile only ever ADDS rows that don't exist locally, so user data is untouched.
+  // Deferred to idle so a large bulkAdd doesn't compete with first paint.
   useEffect(() => {
-    seedLibraryIfEmpty()
-      .then(async (seeded) => {
-        // Skip dedup if we just seeded — fresh data has no duplicates
-        if (seeded) return;
-        const count = await db.episodes.count();
-        // Seed catalog is ~1,313 episodes; >1,500 strongly suggests duplicates
-        if (count > 1500) {
-          const result = await deduplicateEpisodes();
-          if (result.duplicatesRemoved > 0) {
-            toast.info(`Cleaned up ${result.duplicatesRemoved.toLocaleString()} duplicate episodes`);
+    let cancelled = false;
+
+    const run = () => {
+      if (cancelled) return;
+      seedLibraryIfEmpty()
+        .then(async (seeded) => {
+          if (seeded || cancelled) return;
+          const restored = await reconcileLibrary();
+          if (restored > 0 && !cancelled) {
+            toast.success(`Restored ${restored.toLocaleString()} missing episodes to your library`);
           }
-        }
-      })
-      .catch((err) => { console.warn("[layout] Seed/dedup failed:", err); });
+        })
+        .catch((err) => { console.warn("[layout] Seed/reconcile failed:", err); });
+    };
+
+    // requestIdleCallback is missing on older Safari — fall back to a timeout.
+    const idle = typeof window.requestIdleCallback === "function";
+    const handle = idle
+      ? window.requestIdleCallback(run)
+      : window.setTimeout(run, 1000);
+
+    return () => {
+      cancelled = true;
+      if (idle && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(handle);
+      } else {
+        window.clearTimeout(handle);
+      }
+    };
   }, []);
 
   // Offline/online detection
@@ -407,11 +427,11 @@ export default function DesktopLayout({
           break;
         case "ArrowLeft":
           e.preventDefault();
-          seek(position - 15);
+          seek(usePlayerStore.getState().position - 15);
           break;
         case "ArrowRight":
           e.preventDefault();
-          seek(position + 30);
+          seek(usePlayerStore.getState().position + 30);
           break;
         case "ArrowUp":
           if (!e.metaKey && !e.ctrlKey) {
@@ -464,7 +484,7 @@ export default function DesktopLayout({
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [togglePlay, seek, position, volume, setVolume, playNext, playPrevious, pathname]);
+  }, [togglePlay, seek, volume, setVolume, playNext, playPrevious, pathname]);
 
   // Episode count for status bar — handled via DesktopShell's episodeCount prop
   const episodeCount = useLiveQuery(() => db.episodes.count(), []);

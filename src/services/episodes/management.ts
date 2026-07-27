@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { usePlayerStore } from "@/stores/player-store";
 import { removeCachedAudio } from "@/audio/cache";
-import { fetchWithRetry } from "@/lib/utils/retry";
+import { addTombstone } from "@/db/seed";
 
 export async function deleteEpisode(id: number): Promise<void> {
   const episode = await db.episodes.get(id);
@@ -25,6 +25,9 @@ export async function deleteEpisode(id: number): Promise<void> {
   } catch {
     // Ignore cache removal errors
   }
+
+  // Remember the deletion so reconcileLibrary() won't restore it later
+  await addTombstone(episode.fileHash);
 
   // Delete from Dexie
   await db.episodes.delete(id);
@@ -108,57 +111,11 @@ export async function toggleFlag(id: number): Promise<boolean> {
   return isFlagged;
 }
 
-export async function recategorizeEpisode(id: number): Promise<void> {
-  const episode = await db.episodes.get(id);
-  if (!episode) return;
-
-  await db.episodes.update(id, { aiStatus: "pending", updatedAt: Date.now() });
-
-  try {
-    const res = await fetchWithRetry("/api/categorize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? ""}` },
-      body: JSON.stringify({
-        episodes: [{
-          title: episode.title,
-          fileName: episode.fileName,
-          airDate: episode.airDate,
-          guestName: episode.guestName,
-          description: episode.description,
-          archiveIdentifier: episode.archiveIdentifier,
-          source: episode.source,
-          artist: episode.artist,
-          topic: episode.topic,
-          showType: episode.showType,
-        }],
-      }),
-    }, { retries: 1 });
-
-    if (!res.ok) {
-      await db.episodes.update(id, { aiStatus: "failed", updatedAt: Date.now() });
-      return;
-    }
-
-    const results = await res.json();
-    if (Array.isArray(results) && results[0]) {
-      const { title, summary, tags, topic, guestName, airDate, showType, category, series, seriesPart, notable } = results[0];
-      await db.episodes.update(id, {
-        title: title ?? episode.title,
-        aiSummary: summary ?? undefined,
-        aiTags: tags ?? undefined,
-        aiCategory: category ?? undefined,
-        aiSeries: series ?? undefined,
-        aiSeriesPart: seriesPart ?? undefined,
-        aiNotable: notable ?? false,
-        topic: topic ?? episode.topic,
-        guestName: guestName ?? episode.guestName,
-        airDate: airDate ?? episode.airDate,
-        showType: showType ?? episode.showType,
-        aiStatus: "completed",
-        updatedAt: Date.now(),
-      });
-    }
-  } catch {
-    await db.episodes.update(id, { aiStatus: "failed", updatedAt: Date.now() });
-  }
+/** Add episodes to a playlist, skipping ones already present. */
+export async function addToPlaylist(playlistId: number, episodeIds: number[]): Promise<void> {
+  const playlist = await db.playlists.get(playlistId);
+  if (!playlist) return;
+  const existing = new Set(playlist.episodeIds);
+  const newIds = [...playlist.episodeIds, ...episodeIds.filter((id) => !existing.has(id))];
+  await db.playlists.update(playlistId, { episodeIds: newIds, updatedAt: Date.now() });
 }
