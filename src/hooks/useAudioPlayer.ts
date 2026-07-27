@@ -15,8 +15,14 @@ import { reportPlay, reportStop, reportStopBeacon } from "@/services/stats/clien
 import { communityKey } from "@/lib/utils/community-key";
 import { checkArchiveHealth, clearHealthCache } from "@/services/archive/health";
 
-// ── Listening analytics ──
-// Tracks cumulative seconds listened per session, flushes on pause/end/unload
+// ── Listening session tracking ──
+// flushListenTime() still drives reportStop(), which keeps the community
+// "active listeners" count accurate.
+//
+// NOTE: _listenAccum is currently accumulated but never read — its only reader
+// was the umami analytics call, removed when the site stopped loading any
+// third-party scripts. Kept as-is because unpicking it means editing the
+// playback path; wire it to a self-hosted metric or delete it deliberately.
 let _listenStart = 0; // timestamp when current play segment began
 let _listenAccum = 0; // seconds accumulated across play/pause cycles
 // Must satisfy the /api/stats/play sessionId format (8-64 of [A-Za-z0-9_-]).
@@ -39,15 +45,6 @@ function pauseListenTimer() {
 
 function flushListenTime(reason: "pause" | "ended" | "unload" | "stop") {
   pauseListenTimer();
-  const minutes = Math.round(_listenAccum / 60);
-  if (minutes >= 1) {
-    const { currentEpisode } = usePlayerStore.getState();
-    window.umami?.track("listening-time", {
-      minutes,
-      reason,
-      showType: currentEpisode?.showType ?? "unknown",
-    });
-  }
   if (reason !== "pause") {
     _listenAccum = 0; // reset on end/unload, keep on pause
   }
@@ -133,13 +130,6 @@ export function useAudioPlayer() {
         setPlaying(true);
         _listenAccum = 0; // new episode = reset accumulator
         startListenTimer();
-
-        // Track play event
-        window.umami?.track("episode-play", {
-          showType: episode.showType ?? "unknown",
-          source: episode.source ?? "unknown",
-          hasGuest: !!episode.guestName,
-        });
 
         // Report to community stats
         const key = communityKey(episode);
