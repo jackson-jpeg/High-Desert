@@ -8,6 +8,7 @@ import { useVirtualList } from "@/hooks/useVirtualList";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils/cn";
 import { communityKey } from "@/lib/utils/community-key";
+import { useCommunityStats } from "@/hooks/useCommunityStats";
 
 interface TimelineViewProps {
   episodes: Episode[];
@@ -20,7 +21,6 @@ interface TimelineViewProps {
   onAction?: (action: "scan" | "search") => void;
   onToggleFavorite?: (episode: Episode) => void;
   onQueue?: (episode: Episode) => void;
-  communityPlayCounts?: Map<string, number>;
   className?: string;
 }
 
@@ -39,7 +39,6 @@ export function TimelineView({
   onAction,
   onToggleFavorite,
   onQueue,
-  communityPlayCounts,
   className,
 }: TimelineViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -53,6 +52,18 @@ export function TimelineView({
     containerRef,
     overscan: 5,
   });
+
+  // Community play counts for the visible window only. Requesting the whole
+  // filtered list (~1,300 ids) blew past the route's 100-id cap and 400'd every
+  // time. The hook debounces and caches, so scrolling doesn't spam the server.
+  const visibleKeys = useMemo(
+    () =>
+      virtualItems
+        .map((v) => communityKey(v.item))
+        .filter((k): k is string => !!k),
+    [virtualItems],
+  );
+  const communityPlayCounts = useCommunityStats(visibleKeys);
 
   // Derive current year header from first visible episode
   const currentYear = useMemo(() => {
@@ -191,7 +202,7 @@ export function TimelineView({
                   onContextMenu={onEpisodeContextMenu}
                   onToggleFavorite={onToggleFavorite}
                   onQueue={onQueue}
-                  communityPlays={communityPlayCounts?.get(communityKey(ep) ?? "")}
+                  communityPlays={communityPlayCounts.get(communityKey(ep) ?? "")}
                 />
               </div>
             ))}

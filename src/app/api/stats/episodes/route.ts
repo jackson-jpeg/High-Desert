@@ -43,7 +43,15 @@ export async function GET(request: NextRequest) {
 
   try {
     const counts = await getEpisodeCounts(ids);
-    return NextResponse.json({ counts });
+    // Scrolling re-requests overlapping windows constantly; let the proxy absorb them.
+    return NextResponse.json(
+      { counts },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        },
+      },
+    );
   } catch (err) {
     console.error("[stats/episodes] KV error:", err);
     return NextResponse.json(

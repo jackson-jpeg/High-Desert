@@ -41,17 +41,27 @@ export function reportStopBeacon(sessionId: string): void {
 // Reads — graceful failure with fallback values
 // ---------------------------------------------------------------------------
 
+/** The /api/stats/episodes route rejects more than this many ids per request. */
+const MAX_COUNT_IDS = 100;
+
 export async function fetchEpisodeCounts(
   ids: string[],
 ): Promise<Record<string, number>> {
+  if (ids.length === 0) return {};
   try {
+    // Hard cap: the route 400s above its limit, and an over-long query string is
+    // rejected by proxies before it ever gets there.
+    const capped = ids.slice(0, MAX_COUNT_IDS);
     const res = await fetchWithRetry(
-      `/api/stats/episodes?ids=${ids.join(",")}`,
+      `/api/stats/episodes?ids=${capped.map(encodeURIComponent).join(",")}`,
       undefined,
       RETRY_OPTS,
     );
     if (!res.ok) return {};
-    return await res.json();
+    // Tolerate both `{counts:{...}}` and a bare map — deploys are not atomic, so a
+    // cached client may talk to a newer route or vice versa.
+    const data = await res.json();
+    return data?.counts ?? data ?? {};
   } catch {
     return {};
   }
@@ -93,13 +103,16 @@ export async function fetchRatings(
 ): Promise<Record<string, { avg: number; count: number }>> {
   if (ids.length === 0) return {};
   try {
+    // The route caps at 50 ids per request.
+    const capped = ids.slice(0, 50);
     const res = await fetchWithRetry(
-      `/api/stats/ratings?ids=${ids.join(",")}`,
+      `/api/stats/ratings?ids=${capped.map(encodeURIComponent).join(",")}`,
       undefined,
       RETRY_OPTS,
     );
     if (!res.ok) return {};
-    return await res.json();
+    const data = await res.json();
+    return data?.ratings ?? data ?? {};
   } catch {
     return {};
   }
