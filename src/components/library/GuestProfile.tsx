@@ -8,6 +8,7 @@ import { usePlayerStore } from "@/stores/player-store";
 import { useSwipeDown } from "@/hooks/useSwipeDown";
 import { Button } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
+import { shuffle } from "@/lib/utils/shuffle";
 import { formatDuration } from "@/lib/utils/format";
 
 interface GuestProfileProps {
@@ -62,7 +63,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
 
   const handleShuffle = () => {
     if (!episodes || episodes.length === 0) return;
-    const shuffled = [...episodes].sort(() => Math.random() - 0.5);
+    const shuffled = shuffle(episodes);
     const store = usePlayerStore.getState();
     store.enqueueMany(shuffled);
     window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: shuffled[0] }));

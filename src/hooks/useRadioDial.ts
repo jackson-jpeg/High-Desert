@@ -9,7 +9,8 @@ import { useRadioDialStore } from "@/stores/radio-dial-store";
 export interface DialStation {
   dayIndex: number;
   dateStr: string;
-  frequency: number; // 530-1700 kHz (decorative)
+  /** Stable AM-band address for this air date. See dateToFrequency. */
+  frequency: number;
   episode: Episode;
   showType: string;
   isNotable: boolean;
@@ -38,10 +39,25 @@ function dayIndexToDate(dayIndex: number, earliest: Date): Date {
   return new Date(earliest.getTime() + dayIndex * MS_PER_DAY);
 }
 
-function dayIndexToFrequency(dayIndex: number, totalDays: number): number {
-  // Map 0..totalDays → 530..1700 kHz
-  if (!totalDays || !Number.isFinite(dayIndex)) return 530;
-  return 530 + (dayIndex / totalDays) * (1700 - 530);
+/**
+ * The AM band runs 530–1700 kHz. Art Bell's broadcast era is pinned to a fixed
+ * window so a given air date always lands on the same frequency.
+ *
+ * This used to divide dayIndex by the *catalog's* span, which made the readout
+ * an unstable label: importing one episode beyond either end renumbered every
+ * station on the dial. The dial is presented as an address you can return to —
+ * "AM 1115" should mean one broadcast forever, not "wherever this happens to
+ * fall in whatever we currently hold".
+ */
+const BAND_START_MS = Date.UTC(1988, 0, 1);
+const BAND_END_MS = Date.UTC(2020, 0, 1);
+const BAND_SPAN_MS = BAND_END_MS - BAND_START_MS;
+
+function dateToFrequency(date: Date): number {
+  const t = date.getTime();
+  if (!Number.isFinite(t)) return 530;
+  const ratio = Math.min(1, Math.max(0, (t - BAND_START_MS) / BAND_SPAN_MS));
+  return 530 + ratio * (1700 - 530);
 }
 
 /** Binary search: find index of station nearest to target dayIndex */
@@ -99,7 +115,7 @@ function buildStationIndex(episodes: Episode[]): StationIndex | null {
     const station: DialStation = {
       dayIndex,
       dateStr: ep.airDate!,
-      frequency: dayIndexToFrequency(dayIndex, totalDays),
+      frequency: dateToFrequency(d),
       episode: ep,
       showType: ep.showType || "unknown",
       isNotable: !!ep.aiNotable,
@@ -185,7 +201,7 @@ export function useRadioDial(episodes: Episode[] | undefined) {
   // Current frequency display
   const frequency = useMemo(() => {
     if (!index) return 530;
-    return dayIndexToFrequency(position, index.totalDays);
+    return dateToFrequency(dayIndexToDate(position, index.earliest));
   }, [index, position]);
 
   // Current date display

@@ -21,7 +21,7 @@ export default function RadioPage() {
   }
 
   return (
-    <div className="h-full flex flex-col p-2 md:p-3">
+    <div className="h-full flex flex-col p-2 md:p-3 overflow-auto">
       <WidgetErrorBoundary>
         <RadioDial episodes={episodes} />
       </WidgetErrorBoundary>

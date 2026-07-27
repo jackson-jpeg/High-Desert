@@ -8,6 +8,7 @@ import { usePlayerStore } from "@/stores/player-store";
 import { Window } from "@/components/win98";
 import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
+import { shuffle } from "@/lib/utils/shuffle";
 
 interface SmartPlaylistsProps {
   onPlay: (episode: Episode) => void;
@@ -104,7 +105,7 @@ export function SmartPlaylists({ onPlay, className }: SmartPlaylistsProps) {
 
   const handleShuffle = (list: SmartList) => {
     const store = usePlayerStore.getState();
-    const shuffled = [...list.episodes].sort(() => Math.random() - 0.5);
+    const shuffled = shuffle(list.episodes);
     store.enqueueMany(shuffled);
     if (shuffled[0]) {
       onPlay(shuffled[0]);

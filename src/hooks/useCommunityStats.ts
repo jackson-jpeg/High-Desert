@@ -49,7 +49,15 @@ export function useCommunityStats(archiveIds: string[]): Map<string, number> {
       return;
     }
 
-    const freshCounts = await fetchEpisodeCounts(needed);
+    // fetchEpisodeCounts swallows its own errors today, but this is the only
+    // await in the callback — if it ever throws, it rejects the whole hook
+    // silently and counts stop updating for the session.
+    let freshCounts: Record<string, number> = {};
+    try {
+      freshCounts = await fetchEpisodeCounts(needed);
+    } catch {
+      freshCounts = {};
+    }
     const fetchedAt = Date.now();
 
     // Cache all fetched results (including zeros for IDs not in response)

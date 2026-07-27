@@ -5,13 +5,16 @@ import { useRadioDialStore } from "@/stores/radio-dial-store";
 import { useTuningGesture } from "@/hooks/useTuningGesture";
 import type { StationIndex } from "@/hooks/useRadioDial";
 
-// Colors matching the theme
-const COLOR_COAST = "#000080"; // title-bar-blue
+// Canvas can't read Tailwind classes, so these mirror the theme tokens.
+// Coast was --color-title-bar-blue (#000080) — a chrome fill, which as a 1.5px
+// line on the #0F1520 strip was all but invisible. It now uses the same legible
+// blue as --color-signal-blue, and unknown matches the lightened --color-bevel-dark.
+const COLOR_COAST = "#6BA3F0"; // signal-blue
 const COLOR_DREAMLAND = "#4ADE80"; // static-green
 const COLOR_SPECIAL = "#D4A843"; // desert-amber
-const COLOR_UNKNOWN = "#808080"; // bevel-dark
+const COLOR_UNKNOWN = "#9AA0AE"; // bevel-dark
 const COLOR_YEAR_LABEL = "#D4A843";
-const COLOR_MONTH_TICK = "#808080";
+const COLOR_MONTH_TICK = "#9AA0AE";
 const COLOR_NEEDLE = "#FF2020";
 const COLOR_STRIP_BG = "#0F1520";
 

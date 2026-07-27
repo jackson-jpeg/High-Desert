@@ -9,7 +9,6 @@ import { Window, Button } from "@/components/win98";
 import { HistoryPanel } from "@/components/library/HistoryPanel";
 import { SmartPlaylists } from "@/components/library/SmartPlaylists";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
-import { ListeningStats } from "@/components/library/ListeningStats";
 import { CommunityLeaderboard } from "@/components/library/CommunityLeaderboard";
 import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
@@ -217,33 +216,24 @@ export default function StatsPage() {
   }
 
   const maxYearCount = Math.max(...stats.years.map(([, c]) => c), 1);
-  const completionPct = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
   const listenedHours = stats.totalListenedSeconds / 3600;
   const libraryHours = stats.librarySeconds / 3600;
-  const listenedDays = listenedHours / 24;
 
   return (
-    <div className="p-4 pb-24 md:pb-4 flex flex-col gap-4 max-w-5xl mx-auto h-full overflow-auto overscroll-contain">
+    <div className="p-4 pb-24 md:pb-4 flex flex-col gap-4 max-w-7xl mx-auto h-full overflow-auto overscroll-contain">
 
-      {/* Listening Stats Banner */}
-      <ListeningStats />
+      {/* The ListeningStats banner used to sit here, rendering the streak 40px
+          above the Streak tile below it. computeStreak ran three times across
+          the app; the status bar keeps its copy, this page keeps the tile. */}
 
-      {/* ── Signal Report ── Hero stats */}
-      <Window title="Signal Report" variant="dark" headingLevel={2}>
+      {/* ── Your Listening ──
+          Only figures that describe *this visitor*. Previously these were mixed
+          in with catalog counts under one "Signal Report" heading, so a first
+          visit showed a dashboard of zeros and it was not obvious which numbers
+          were even capable of changing. */}
+      <Window title="Your Listening" variant="dark" headingLevel={2}>
         <div className="p-3">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-            <HeroStat
-              label="Episodes"
-              value={stats.total.toLocaleString()}
-              sub={`${stats.uniqueGuests.toLocaleString()} ${stats.uniqueGuests === 1 ? 'guest' : 'guests'}`}
-              color="text-desktop-gray"
-            />
-            <HeroStat
-              label="Library"
-              value={`${libraryHours.toFixed(0)}h`}
-              sub={`${listenedDays > 1 ? Math.round(libraryHours / 24) + (Math.round(libraryHours / 24) === 1 ? " day" : " days") : Math.round(libraryHours) + (Math.round(libraryHours) === 1 ? " hour" : " hours")} of audio`}
-              color="text-signal-blue"
-            />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <HeroStat
               label="Listened"
               value={`${listenedHours.toFixed(1)}h`}
@@ -251,26 +241,55 @@ export default function StatsPage() {
               color="text-static-green"
             />
             <HeroStat
-              label="Completed"
-              value={stats.completed.toLocaleString()}
-              sub={`${completionPct}% of library`}
+              label="Favorites"
+              value={stats.favoriteCount.toLocaleString()}
+              sub={stats.favoriteCount === 0 ? "Star episodes to save them here." : `${stats.ratedCount} ${stats.ratedCount === 1 ? 'episode' : 'episodes'} rated`}
               color="text-desert-amber"
             />
             <HeroStat
-              label="Sources"
-              value={stats.archiveCount.toLocaleString()}
-              sub={`archive \u00B7 ${stats.localCount.toLocaleString()} local`}
-              color="text-bevel-dark"
-              className="col-span-2 sm:col-span-1"
+              label="Avg Rating"
+              value={stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "\u2014"}
+              sub={stats.avgRating === 0 ? "Rate episodes to track your taste." : `${stats.ratedCount} ${stats.ratedCount === 1 ? 'rating' : 'ratings'}`}
+              color="text-desert-amber"
+            />
+            <HeroStat
+              label="Streak"
+              value={stats.streak > 0 ? `${stats.streak}d` : "\u2014"}
+              sub={stats.streak > 0 ? (stats.streak === 1 ? "consecutive day" : "consecutive days") : "listen today!"}
+              color="text-static-green"
             />
           </div>
+          {/* The "Completed" tile and its Progress gauge lived here. Across
+              ~1,300 four-hour episodes both read 0 for essentially everyone,
+              forever \u2014 the code even special-cased 0% to add an apology. A
+              metric whose only realistic value is 0 is not a metric. */}
 
-          {/* Second row: enrichment stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mt-2">
+        </div>
+      </Window>
+
+      {/* \u2500\u2500 The Archive \u2500\u2500
+          Composition of the shipped catalog. Identical for every visitor, and
+          labelled as such: several of these were previously framed as personal
+          statistics, which they never were. */}
+      <Window title="The Archive" variant="dark" headingLevel={2}>
+        <div className="p-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <HeroStat
+              label="Episodes"
+              value={stats.total.toLocaleString()}
+              sub={`${stats.uniqueGuests.toLocaleString()} ${stats.uniqueGuests === 1 ? 'guest' : 'guests'}`}
+              color="text-desktop-gray"
+            />
+            <HeroStat
+              label="Runtime"
+              value={`${libraryHours.toFixed(0)}h`}
+              sub={`${Math.round(libraryHours / 24).toLocaleString()} days of audio`}
+              color="text-signal-blue"
+            />
             <HeroStat
               label="Notable"
               value={stats.notableCount.toLocaleString()}
-              sub={stats.notableCount === 0 ? "Mark standout episodes as Notable while listening." : stats.notableCount === 1 ? "iconic episode" : "iconic episodes"}
+              sub={stats.notableCount === 1 ? "iconic episode" : "iconic episodes"}
               color="text-yellow-400"
             />
             <HeroStat
@@ -279,46 +298,7 @@ export default function StatsPage() {
               sub={stats.seriesCount === 1 ? "multi-part set" : "multi-part sets"}
               color="text-signal-blue"
             />
-            <HeroStat
-              label="Favorites"
-              value={stats.favoriteCount.toLocaleString()}
-              sub={stats.favoriteCount === 0 ? "Star episodes you love to save them here." : `${stats.ratedCount} ${stats.ratedCount === 1 ? 'episode' : 'episodes'} rated`}
-              color="text-desert-amber"
-            />
-            <HeroStat
-              label="Avg Rating"
-              value={stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "\u2014"}
-              sub={stats.avgRating === 0 ? "Rate episodes to start tracking your taste." : stats.ratedCount > 0 ? `${stats.ratedCount} ${stats.ratedCount === 1 ? 'rating' : 'ratings'}` : "no ratings yet"}
-              color="text-desert-amber"
-            />
-            <HeroStat
-              label="Streak"
-              value={stats.streak > 0 ? `${stats.streak}d` : "\u2014"}
-              sub={stats.streak > 0 ? (stats.streak === 1 ? "consecutive day" : "consecutive days") : "listen today!"}
-              color="text-static-green"
-              className="col-span-2 sm:col-span-1"
-            />
           </div>
-
-          {/* Completion gauge */}
-          <div className="mt-3 flex items-center gap-2">
-            <span className="text-hd-8 text-bevel-dark uppercase tracking-wider shrink-0">Progress</span>
-            <div className="flex-1 h-[6px] w98-inset-dark bg-inset-well overflow-hidden">
-              <div
-                className="h-full transition-all duration-500"
-                style={{
-                  width: `${completionPct}%`,
-                  background: "linear-gradient(90deg, #1E3A8A 0%, #4ADE80 50%, #D4A843 100%)",
-                }}
-              />
-            </div>
-            <span className="text-hd-9 text-desert-amber tabular-nums w-[30px] text-right">
-              {completionPct}%
-            </span>
-          </div>
-          {completionPct === 0 && (
-            <span className="text-hd-8 text-bevel-dark/85 mt-0.5 ml-[68px]">Percentage of the archive you&apos;ve listened to.</span>
-          )}
         </div>
       </Window>
 
@@ -347,35 +327,32 @@ export default function StatsPage() {
                   const pct = (count / maxYearCount) * 100;
                   const yearHours = (stats.yearDurations.get(year) ?? 0) / 3600;
                   return (
+                    /* The count used to render *inside* the bar when it was
+                       wide enough (white/60 on mid-blue, ~2.3:1) and, when it
+                       wasn't, in an extra span appended after the hours column
+                       — so short years printed their number far to the right,
+                       detached from their bar. One fixed column, always in the
+                       same place, outside the fill. */
                     <div key={year} className="flex items-center gap-2 group">
                       <span className="text-hd-11 md:text-hd-9 text-desert-amber tabular-nums w-[36px] md:w-[32px] text-right">
                         {year}
                       </span>
                       <div className="flex-1 h-[18px] md:h-[14px] w98-inset-dark bg-inset-well overflow-hidden">
                         <div
-                          className="h-full animate-bar-grow relative"
+                          className="h-full animate-bar-grow"
                           style={{
                             width: `${pct}%`,
                             "--i": i,
                             background: `linear-gradient(90deg, #1E3A8A 0%, ${pct > 60 ? "#1D4ED8" : "#1E3A8A"} 100%)`,
                           } as React.CSSProperties}
-                        >
-                          {/* Inner label */}
-                          {pct > 20 && (
-                            <span className="absolute inset-0 flex items-center justify-end pr-1 text-hd-7 text-white/60 tabular-nums">
-                              {count}
-                            </span>
-                          )}
-                        </div>
+                        />
                       </div>
-                      <span className="text-hd-8 text-bevel-dark/85 tabular-nums w-[36px] md:w-[48px] text-right opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                      <span className="text-hd-9 text-desktop-gray tabular-nums w-[36px] text-right">
+                        {count}
+                      </span>
+                      <span className="text-hd-9 text-bevel-dark/85 tabular-nums w-[40px] text-right">
                         {yearHours.toFixed(0)}h
                       </span>
-                      {pct <= 20 && (
-                        <span className="text-hd-8 text-bevel-dark tabular-nums w-[20px]">
-                          {count}
-                        </span>
-                      )}
                     </div>
                   );
                 })}
@@ -470,61 +447,16 @@ export default function StatsPage() {
           </Window>
         )}
 
-        {/* ── Station Status ── AI + Sources */}
-        <Window title="Station Status" variant="dark" headingLevel={2}>
-          <div className="p-3 flex flex-col gap-3">
-            {/* AI categorization progress */}
-            <div>
-              <div className="text-hd-8 text-bevel-dark uppercase tracking-wider mb-1.5">
-                AI Categorization
-              </div>
-              <div className="h-[8px] w98-inset-dark bg-inset-well overflow-hidden flex mb-1.5">
-                {stats.aiCompleted > 0 && (
-                  <div
-                    className="h-full bg-static-green/60"
-                    style={{ width: `${(stats.aiCompleted / stats.total) * 100}%` }}
-                  />
-                )}
-                {stats.aiFailed > 0 && (
-                  <div
-                    className="h-full bg-red-500/60"
-                    style={{ width: `${(stats.aiFailed / stats.total) * 100}%` }}
-                  />
-                )}
-              </div>
-              <div className="flex items-center gap-3 text-hd-9">
-                <span className="text-static-green">{stats.aiCompleted.toLocaleString()} done</span>
-                <span className="text-desert-amber">{stats.aiPending.toLocaleString()} pending</span>
-                {stats.aiFailed > 0 && <span className="text-red-400">{stats.aiFailed.toLocaleString()} failed</span>}
-              </div>
-            </div>
+        {/* The "Station Status" window stood here with two panels, both
+            removed as they could only ever display one value:
 
-            {/* Source breakdown */}
-            <div>
-              <div className="text-hd-8 text-bevel-dark uppercase tracking-wider mb-1.5">
-                Sources
-              </div>
-              <div className="h-[8px] w98-inset-dark bg-inset-well overflow-hidden flex mb-1.5">
-                {stats.archiveCount > 0 && (
-                  <div
-                    className="h-full bg-title-bar-blue/70"
-                    style={{ width: `${(stats.archiveCount / stats.total) * 100}%` }}
-                  />
-                )}
-                {stats.localCount > 0 && (
-                  <div
-                    className="h-full bg-bevel-dark/50"
-                    style={{ width: `${(stats.localCount / stats.total) * 100}%` }}
-                  />
-                )}
-              </div>
-              <div className="flex items-center gap-3 text-hd-9">
-                <span className="text-signal-blue">{stats.archiveCount.toLocaleString()} archive</span>
-                <span className="text-bevel-dark">{stats.localCount.toLocaleString()} local</span>
-              </div>
-            </div>
-          </div>
-        </Window>
+            - AI Categorization: db/seed.ts sets aiStatus to "completed" for
+              every seeded row, so for anyone on the shipped catalog the bar was
+              permanently 100% green with "0 pending, 0 failed".
+            - Sources: `local` only becomes non-zero via the Scanner, which is
+              admin-gated, so every ordinary visitor saw a fixed
+              "1313 archive · 0 local" — the same constant the Sources hero tile
+              was already rendering a few hundred pixels above. */}
 
         {/* ── Audio Cache ── OPFS storage */}
         {cacheSize !== null && (
@@ -573,9 +505,12 @@ export default function StatsPage() {
           </Window>
         )}
 
-        {/* ── Frequent Callers ── Top guests */}
+        {/* ── Most-Featured Guests ──
+            Catalog composition: who appears most across the archive. It was
+            titled "Frequent Callers", which reads as a record of who *you* have
+            listened to; it never was. */}
         {stats.topGuests.length > 0 && (
-          <Window title="Frequent Callers" variant="dark" headingLevel={2}>
+          <Window title="Most-Featured Guests" variant="dark" headingLevel={2}>
             <div className="p-3">
               <div className="flex flex-col gap-[3px]">
                 {stats.topGuests.map(([guest, count], i) => (

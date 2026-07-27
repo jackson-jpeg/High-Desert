@@ -92,10 +92,11 @@ export function EpisodeDetail({
   const epCommunityKey = communityKey(episode);
   useEffect(() => {
     if (!epCommunityKey) return;
-    fetchRatings([epCommunityKey]).then((data) => {
-      const r = data[epCommunityKey];
-      setCommunityRating(r ?? null);
-    });
+    // Without the catch this was an unhandled rejection on every open while
+    // the stats service was unreachable.
+    fetchRatings([epCommunityKey])
+      .then((data) => setCommunityRating(data[epCommunityKey] ?? null))
+      .catch(() => setCommunityRating(null));
   }, [epCommunityKey, episode.rating]); // re-fetch after local rating changes
 
   // Reset edit state when episode changes
@@ -636,8 +637,15 @@ function ShareButton({ episode }: { episode: Episode }) {
     return () => document.removeEventListener("mousedown", handler);
   }, [menuOpen]);
 
+  // Share by community key, not episode.id. `id` is a per-browser IndexedDB
+  // auto-increment, so a shared link opened by anyone else resolved to a
+  // different episode, or to none at all. The community key is derived from the
+  // archive identifier and file name, so it is the same everywhere.
+  const shareKey = communityKey(episode);
   const url = typeof window !== "undefined"
-    ? `${window.location.origin}/library?episode=${episode.id}`
+    ? shareKey
+      ? `${window.location.origin}/library?ep=${encodeURIComponent(shareKey)}`
+      : `${window.location.origin}/library`
     : "";
   const shareText = `🎙️ ${episode.title || episode.fileName}${episode.guestName ? ` — Art Bell with ${episode.guestName}` : ""}${episode.airDate ? ` (${episode.airDate})` : ""} — Listen on High Desert`;
 

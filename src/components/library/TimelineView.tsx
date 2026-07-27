@@ -2,7 +2,7 @@
 
 import { useRef, useMemo } from "react";
 import type { Episode } from "@/db/schema";
-import { EpisodeCard } from "./EpisodeCard";
+import { EpisodeCard, EPISODE_GRID_COLS } from "./EpisodeCard";
 import { YearNavigator } from "./YearNavigator";
 import { useVirtualList } from "@/hooks/useVirtualList";
 import { useIsMobile } from "@/hooks/useMediaQuery";
@@ -187,7 +187,32 @@ export function TimelineView({
           onScroll={onScroll}
           className="flex-1 overflow-auto overscroll-contain"
         >
-          <div className="relative p-2" role="listbox" aria-label="Episodes" style={{ height: totalHeight }}>
+          {/* Column header — desktop only. It lives *inside* the scroller, and
+              carries the same mx-2 inset as the rows, so it is measured against
+              exactly the same width they are. Placed outside, it was wider by
+              the year rail plus the scrollbar, and the flexible title column
+              absorbed the difference — so every label from Guest rightward sat
+              ~60px off its own column. */}
+          <div
+            className={cn(
+              "hidden md:grid sticky top-0 z-10 items-center gap-x-3 mx-2 px-2 py-1",
+              "bg-midnight/95 backdrop-blur-sm border-b border-bevel-dark/20",
+              "text-hd-10 text-bevel-dark/85 uppercase tracking-wider select-none",
+              EPISODE_GRID_COLS,
+            )}
+            aria-hidden="true"
+          >
+            <span>Date</span>
+            <span>Title</span>
+            <span>Guest</span>
+            <span className="hidden lg:block">Category</span>
+            <span>Show</span>
+            <span className="text-right">Length</span>
+            <span className="hidden lg:block text-right">Plays</span>
+            <span />
+          </div>
+
+          <div className="relative px-2 pb-2" role="listbox" aria-label="Episodes" style={{ height: totalHeight }}>
             {virtualItems.map(({ item: ep, offsetTop }) => (
               <div
                 key={ep.id}

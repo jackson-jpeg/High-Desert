@@ -18,10 +18,15 @@ export function ListeningStats({ className }: ListeningStatsProps) {
   const [activeCount, setActiveCount] = useState(0);
 
   useEffect(() => {
-    fetchActiveCount().then(setActiveCount);
-    const interval = setInterval(() => {
-      fetchActiveCount().then(setActiveCount);
-    }, 60_000);
+    // Unhandled rejections here surfaced as console noise on every poll when
+    // the stats service was down; an unreachable service just means 0.
+    const poll = () => {
+      fetchActiveCount()
+        .then(setActiveCount)
+        .catch(() => setActiveCount(0));
+    };
+    poll();
+    const interval = setInterval(poll, 60_000);
     return () => clearInterval(interval);
   }, []);
 

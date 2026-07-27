@@ -24,12 +24,18 @@ export function CommunityLeaderboard() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true); // eslint-disable-line react-hooks/set-state-in-effect -- sync loading state before async fetch
-    fetchLeaderboard(period).then((data) => {
-      if (!cancelled) {
-        setEntries(data);
-        setLoading(false);
-      }
-    });
+    // A rejection here used to leave `loading` true forever, so the panel sat
+    // on "Loading…" indefinitely whenever the stats service was unreachable.
+    fetchLeaderboard(period)
+      .then((data) => {
+        if (!cancelled) setEntries(data);
+      })
+      .catch(() => {
+        if (!cancelled) setEntries([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => {
       cancelled = true;
     };

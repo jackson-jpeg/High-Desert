@@ -39,7 +39,7 @@ export function useTextScale(): number {
  * scroll-to-current 22px per row out on mobile — ~11,000px adrift by index 500.
  */
 export const ITEM_HEIGHT_MOBILE = 116; // mobile stacks date/title/category/guest
-export const ITEM_HEIGHT_DESKTOP = 76;
+export const ITEM_HEIGHT_DESKTOP = 34; // desktop is a single aligned table row
 
 /** Row height for the current breakpoint and text scale. */
 export function itemHeightFor(isMobile: boolean, scale: number): number {

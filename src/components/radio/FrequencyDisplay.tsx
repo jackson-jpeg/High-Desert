@@ -28,6 +28,7 @@ export function FrequencyDisplay({
   className,
 }: FrequencyDisplayProps) {
   const staticEnabled = useRadioDialStore((s) => s.staticEnabled);
+  const toggleStatic = useRadioDialStore((s) => s.toggleStatic);
   const isMobile = useIsMobile();
 
   const freqNum = Math.round(frequency);
@@ -163,16 +164,30 @@ export function FrequencyDisplay({
           <span className="crt-amber text-hd-12 tracking-wider font-mono tabular-nums">
             {freqStr}
           </span>
-          {isLocked && (
-            <span className="text-hd-8 text-static-green-bright animate-pulse-glow px-1.5 py-0.5 border border-static-green-bright/30">
-              LOCKED
-            </span>
-          )}
-          {!isLocked && signalStrength > 0.1 && (
-            <span className="text-hd-8 text-desert-amber/85 animate-pulse">
-              TUNING...
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Mute for the tuning static. staticEnabled defaulted to true and
+                the store's toggleStatic action had zero callers, so the white
+                noise could not be turned off short of leaving the page. */}
+            <button
+              onClick={toggleStatic}
+              className="text-hd-9 text-desert-amber/70 hover:text-desert-amber cursor-pointer px-1.5 py-0.5 min-w-[28px] min-h-[28px] md:min-h-0 flex items-center justify-center transition-colors-fast"
+              title={staticEnabled ? "Mute tuning static" : "Unmute tuning static"}
+              aria-label={staticEnabled ? "Mute tuning static" : "Unmute tuning static"}
+              aria-pressed={!staticEnabled}
+            >
+              {staticEnabled ? "🔊" : "🔇"}
+            </button>
+            {isLocked && (
+              <span className="text-hd-8 text-static-green-bright animate-pulse-glow px-1.5 py-0.5 border border-static-green-bright/30">
+                LOCKED
+              </span>
+            )}
+            {!isLocked && signalStrength > 0.1 && (
+              <span className="text-hd-8 text-desert-amber/85 animate-pulse">
+                TUNING...
+              </span>
+            )}
+          </div>
         </div>
         {isLocked && currentStation ? (
           <div className="flex flex-col gap-0.5">

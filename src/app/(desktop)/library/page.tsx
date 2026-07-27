@@ -21,6 +21,7 @@ import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { GuestProfile } from "@/components/library/GuestProfile";
 import { ContinueListening } from "@/components/library/ContinueListening";
 import { cn } from "@/lib/utils/cn";
+import { shuffle } from "@/lib/utils/shuffle";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { useCommunityStats } from "@/hooks/useCommunityStats";
 import { currentItemHeight } from "@/hooks/useTextScale";
@@ -141,19 +142,40 @@ export default function LibraryPage() {
     };
   }, []);
 
-  // Handle ?episode=ID deep link
+  // Deep links. `?ep=<communityKey>` is the shareable form — stable across
+  // browsers. `?episode=<id>` is the old form and only ever worked in the
+  // browser that generated it, since id is a local auto-increment; still
+  // honoured so previously-shared links keep working for their author.
+  //
+  // The param is deliberately NOT stripped on arrival any more. It used to be
+  // cleared immediately, which meant a refresh or a back-navigation dropped the
+  // episode — for a link whose whole purpose is to survive being shared and
+  // reopened. It is cleared when the panel is closed instead.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const epId = params.get("episode");
-    if (!epId) return;
-    const id = parseInt(epId, 10);
-    if (isNaN(id)) return;
-    // Strip param from URL
-    window.history.replaceState({}, "", window.location.pathname);
-    // Load the episode
-    db.episodes.get(id).then((ep) => {
-      if (ep) setSelectedEpisode(ep);
-    });
+    const key = params.get("ep");
+    const legacyId = params.get("episode");
+    if (!key && !legacyId) return;
+
+    let cancelled = false;
+    (async () => {
+      let ep: Episode | undefined;
+      if (key) {
+        const all = await db.episodes.toArray();
+        ep = all.find((e) => communityKey(e) === key);
+      } else if (legacyId) {
+        const id = parseInt(legacyId, 10);
+        if (!isNaN(id)) ep = await db.episodes.get(id);
+      }
+      if (cancelled) return;
+      if (ep) {
+        setSelectedEpisode(ep);
+      } else {
+        toast.error("That episode link could not be found in this library.");
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const allEpisodes = useLiveQuery(
@@ -584,7 +606,7 @@ export default function LibraryPage() {
       toast.info("No episodes to shuffle");
       return;
     }
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    const shuffled = shuffle(pool);
     const batch = shuffled.slice(0, 20);
     const store = usePlayerStore.getState();
     store.enqueueMany(batch);
@@ -609,6 +631,17 @@ export default function LibraryPage() {
 
   const handleCloseDetail = useCallback(() => {
     setSelectedEpisode(null);
+    // Drop any deep-link param now the panel it opened is closed, so a later
+    // refresh doesn't spring it back open.
+    if (window.location.search) {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has("ep") || params.has("episode")) {
+        params.delete("ep");
+        params.delete("episode");
+        const qs = params.toString();
+        window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
+      }
+    }
   }, []);
 
   const handleContextMenu = useCallback((episode: Episode, x: number, y: number) => {
@@ -747,12 +780,18 @@ export default function LibraryPage() {
           deleteEpisode(selectedEpisode.id!).then(() => setSelectedEpisode(null));
         }
       } else if (e.code === "Escape") {
-        setSelectedIds(new Set());
-        setSelectedEpisode(null);
-        setFocusedIndex(-1);
-        setGuestFilter(null);
-        setCategoryFilter(null);
-        setSeriesFilter(null);
+        // Dismiss one layer at a time. This used to clear the panel, the
+        // multi-selection, the focus ring *and* all three filters in a single
+        // keystroke, with no undo — so one stray Escape destroyed a carefully
+        // built filter state. Filters are cleared from the chips or the
+        // over-constrained empty state, both of which are explicit.
+        if (selectedEpisode) {
+          setSelectedEpisode(null);
+        } else if (selectedIds.size > 0) {
+          setSelectedIds(new Set());
+        } else {
+          setFocusedIndex(-1);
+        }
       }
     };
 
@@ -812,6 +851,15 @@ export default function LibraryPage() {
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
   const [swipeTip, setSwipeTip] = useState(false);
 
+  // Restore the browse panel's last state.
+  useEffect(() => {
+    let cancelled = false;
+    getPreference("facets-open").then((val) => {
+      if (!cancelled && val === "true") setShowFacets(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   // Sync discovery state from IndexedDB after hydration — default open on first visit
   useEffect(() => {
     let cancelled = false;
@@ -846,6 +894,22 @@ export default function LibraryPage() {
     });
   }, []);
 
+  const clearAllFilters = useCallback(() => {
+    setShowFilter("all");
+    setGuestFilter(null);
+    setCategoryFilter(null);
+    setSeriesFilter(null);
+    setFavoritesOnly(false);
+  }, []);
+
+  const toggleFacets = useCallback(() => {
+    setShowFacets((prev) => {
+      const next = !prev;
+      setPreference("facets-open", String(next));
+      return next;
+    });
+  }, []);
+
   const hasActiveFilters = showFilter !== "all" || guestFilter !== null || categoryFilter !== null || seriesFilter !== null || favoritesOnly;
 
   return (
@@ -867,7 +931,7 @@ export default function LibraryPage() {
           {filtered.length > 0 && (
             <button
               onClick={() => {
-                const pool = [...filtered].sort(() => Math.random() - 0.5);
+                const pool = shuffle(filtered);
                 const batch = pool.slice(0, 20);
                 const store = usePlayerStore.getState();
                 store.enqueueMany(batch);
@@ -883,6 +947,23 @@ export default function LibraryPage() {
               ⇄
             </button>
           )}
+          {/* Browse-by-facet toggle. The sidebar itself already existed but was
+              unreachable: showFacets was initialised false and all three
+              setShowFacets calls passed false, so there was no way to open it. */}
+          <button
+            onClick={toggleFacets}
+            className={cn(
+              "hidden md:flex items-center justify-center w-[28px] h-[28px] text-hd-11 cursor-pointer transition-colors-fast flex-shrink-0",
+              showFacets
+                ? "text-desert-amber bg-desert-amber/15 w98-inset-dark"
+                : "text-bevel-dark/85 hover:text-desert-amber",
+            )}
+            title={showFacets ? "Hide browse panel" : "Browse by guest, category or series"}
+            aria-label="Toggle browse panel"
+            aria-pressed={showFacets}
+          >
+            ☰
+          </button>
         </div>
         {allEpisodes && allEpisodes.length > 0 && (
           <div className="flex items-center gap-1 md:gap-0.5 flex-shrink-0 overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0">
@@ -937,7 +1018,7 @@ export default function LibraryPage() {
                 </span>
               )}
               <button
-                onClick={() => { setShowFilter("all"); setGuestFilter(null); setCategoryFilter(null); setSeriesFilter(null); setFavoritesOnly(false); }}
+                onClick={clearAllFilters}
                 className="text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer ml-auto min-h-[44px] md:min-h-0 flex items-center"
               >
                 Clear filters
@@ -968,7 +1049,11 @@ export default function LibraryPage() {
       )}
 
       {/* Mood quick filters — derived from actual episode data */}
-      {(!search.trim() || search === "has:notable") && moodFilters.length > 0 && (
+      {/* Gated on the *deferred* search value, like the results are. Gating on
+          the raw value collapsed the chrome a frame before the list changed,
+          so typing one character jumped the list ~150px and deleting it
+          jumped back. */}
+      {(!deferredSearch.trim() || deferredSearch === "has:notable") && moodFilters.length > 0 && (
         <div className="relative flex-shrink-0">
           <div className="flex items-center gap-1.5 md:gap-1 px-3 pb-1 overflow-x-auto -mx-3 px-3 md:mx-0 [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent)] hover:[mask-image:none] focus-within:[mask-image:none]">
           {moodFilters.map((mood) => {
@@ -1028,14 +1113,9 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Continue Listening — shows in-progress episodes */}
-      {!search.trim() && !hasActiveFilters && (
-        <div className="px-3 flex-shrink-0">
-          <WidgetErrorBoundary name="Continue Listening">
-            <ContinueListening onPlay={handlePlay} />
-          </WidgetErrorBoundary>
-        </div>
-      )}
+      {/* Continue Listening now lives inside the Explore band below — it is
+          discovery content, and as its own always-on band it was one more
+          strip of chrome between the search box and the first episode. */}
 
       {/* Sort presets — visible when a non-default sort is active or on hover */}
       {sortMode !== "date" && (
@@ -1059,7 +1139,7 @@ export default function LibraryPage() {
       )}
 
       {/* Discovery section — collapsed by default, compact when open */}
-      {!search.trim() && !hasActiveFilters && (
+      {!deferredSearch.trim() && !hasActiveFilters && (
         <div className="px-3 flex-shrink-0">
           <button
             onClick={toggleDiscovery}
@@ -1069,15 +1149,20 @@ export default function LibraryPage() {
           </button>
 
           {discoveryOpen && (
-            <div className="flex flex-col md:flex-row gap-2 mt-1 mb-1 overflow-hidden max-h-[200px] md:max-h-[100px]">
-              {recentlyPlayed && recentlyPlayed.length > 0 && (
-                <WidgetErrorBoundary name="Recently Played">
-                  <RecentlyPlayed episodes={recentlyPlayed.slice(0, 4)} onPlay={handlePlay} compact />
-                </WidgetErrorBoundary>
-              )}
-              <WidgetErrorBoundary name="On This Day">
-                <OnThisDay onPlay={handlePlay} compact className="md:w-[220px] md:flex-shrink-0" />
+            <div className="flex flex-col gap-1 mt-1 mb-1">
+              <WidgetErrorBoundary name="Continue Listening">
+                <ContinueListening onPlay={handlePlay} />
               </WidgetErrorBoundary>
+              <div className="flex flex-col md:flex-row gap-2 overflow-hidden max-h-[200px] md:max-h-[100px]">
+                {recentlyPlayed && recentlyPlayed.length > 0 && (
+                  <WidgetErrorBoundary name="Recently Played">
+                    <RecentlyPlayed episodes={recentlyPlayed.slice(0, 4)} onPlay={handlePlay} compact />
+                  </WidgetErrorBoundary>
+                )}
+                <WidgetErrorBoundary name="On This Day">
+                  <OnThisDay onPlay={handlePlay} compact className="md:w-[220px] md:flex-shrink-0" />
+                </WidgetErrorBoundary>
+              </div>
             </div>
           )}
         </div>
@@ -1128,7 +1213,6 @@ export default function LibraryPage() {
                         key={cat}
                         onClick={() => {
                           setCategoryFilter(categoryFilter === cat ? null : cat);
-                          setShowFacets(false);
                         }}
                         className={cn(
                           "text-left px-1.5 py-0.5 text-hd-10 cursor-pointer transition-colors-fast truncate",
@@ -1161,7 +1245,6 @@ export default function LibraryPage() {
                         key={series}
                         onClick={() => {
                           setSeriesFilter(seriesFilter === series ? null : series);
-                          setShowFacets(false);
                         }}
                         className={cn(
                           "text-left px-1.5 py-0.5 text-hd-10 cursor-pointer transition-colors-fast truncate",
@@ -1190,7 +1273,6 @@ export default function LibraryPage() {
                       key={topic}
                       onClick={() => {
                         setSearch(topic);
-                        setShowFacets(false);
                       }}
                       className="text-left px-1.5 py-0.5 text-hd-10 text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10 cursor-pointer transition-colors-fast truncate"
                     >
@@ -1249,6 +1331,33 @@ export default function LibraryPage() {
                 The library seeds automatically on first visit. If this persists, try refreshing the page.
               </div>
             </div>
+          ) : filtered.length === 0 && !search.trim() && hasActiveFilters ? (
+            /* Over-constrained filters. This used to fall through to
+               TimelineView's own empty state, which reads "No episodes yet —
+               start building your late-night radio archive" — factually wrong
+               for someone who has 1,313 episodes and simply picked two filters
+               that do not intersect, and it offered no way back. */
+            <div className="flex flex-col items-center justify-center py-16 text-center px-8">
+              <div className="text-hd-24 text-desert-amber/30 select-none mb-3">🔍</div>
+              <div className="text-hd-13 text-desktop-gray mb-2">
+                No episodes match these filters.
+              </div>
+              <div className="text-hd-11 text-bevel-dark/85 mb-4 max-w-[280px] leading-relaxed">
+                {[
+                  showFilter !== "all" && SHOW_TABS.find((t) => t.key === showFilter)?.label,
+                  categoryFilter,
+                  seriesFilter,
+                  guestFilter,
+                  favoritesOnly && "Favorites",
+                ].filter(Boolean).join(" · ")}
+              </div>
+              <button
+                onClick={clearAllFilters}
+                className="text-hd-11 text-signal-blue cursor-pointer transition-colors-fast px-3 py-1.5 w98-raised-dark bg-raised-surface"
+              >
+                Clear filters
+              </button>
+            </div>
           ) : filtered.length === 0 && search.trim() ? (
             <div className="flex flex-col items-center justify-center py-16 text-center px-8">
               <div className="text-hd-13 text-desktop-gray mb-2">
@@ -1257,6 +1366,14 @@ export default function LibraryPage() {
               <div className="text-hd-11 text-bevel-dark mb-4">
                 Try a different search term{isAdmin ? ", or search the archive" : ""}.
               </div>
+              {!isAdmin && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="text-hd-11 text-signal-blue cursor-pointer transition-colors-fast px-3 py-1.5 w98-raised-dark bg-raised-surface"
+                >
+                  Clear search
+                </button>
+              )}
               {isAdmin && (
                 <button
                   onClick={() => router.push(`/search`)}

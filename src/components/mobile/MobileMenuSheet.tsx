@@ -22,6 +22,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
   const router = useRouter();
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
 
   const hide = useCallback(() => {
     if (closingRef.current) return;
@@ -58,6 +59,39 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
     return () => window.removeEventListener("keydown", handler);
   }, [open, hide]);
 
+  // Move focus into the sheet and restore it on close. It declared
+  // aria-modal="true" but never moved focus, so a screen-reader user was left
+  // on the "More" tab behind it with no indication anything had opened.
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const raf = requestAnimationFrame(() => {
+      sheetRef.current?.querySelector<HTMLElement>("button:not([disabled])")?.focus();
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      previous?.focus();
+    };
+  }, [open]);
+
+  // Trap Tab within the sheet while it is open.
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== "Tab" || !sheetRef.current) return;
+    const focusable = Array.from(
+      sheetRef.current.querySelectorAll<HTMLElement>("button:not([disabled]), a[href]"),
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }, []);
+
   if (!open) return null;
 
   return (
@@ -72,9 +106,12 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
       />
       {/* Sheet */}
       <div
+        ref={sheetRef}
         role="dialog"
         aria-modal="true"
         aria-label="Menu"
+        tabIndex={-1}
+        onKeyDown={handleKeyDown}
         className={cn(
           "fixed bottom-0 inset-x-0 z-[101] glass-heavy rounded-t-2xl overflow-hidden pb-[var(--safe-bottom)] pl-[var(--safe-left)] pr-[var(--safe-right)]",
           closing ? "animate-glass-sheet-out" : "animate-glass-sheet",
@@ -99,6 +136,36 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
             <span className="w-[24px] text-center text-hd-16">{"\u21C6"}</span>
             <span>Surprise Me — Shuffle All</span>
           </button>
+
+          {/* Sort group.
+              Mobile had no way to sort at all: the sort pills in the library
+              only render once sortMode !== "date" — a control that appears only
+              after you have already used it — and the menu bar carrying
+              View > Sort by is `hidden md:flex`. Once a sort is picked here
+              those pills appear and take over as the quick switcher. */}
+          <div className="h-[1px] bg-white/[0.06] mx-3 my-2" />
+          <div className="px-3 pb-1">
+            <span className="text-hd-11 text-bevel-dark/85 uppercase tracking-wider font-sans">Sort Episodes</span>
+          </div>
+          {([
+            ["date", "Date — newest first", "\u{1F4C5}"],
+            ["recent", "Recently played", "\u{1F553}"],
+            ["progress", "In progress", "◑"],
+            ["rated", "Top rated", "★"],
+            ["played", "Most played", "▶"],
+          ] as const).map(([mode, label, icon]) => (
+            <button
+              key={mode}
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("hd:sort", { detail: mode }));
+                hide();
+              }}
+              className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
+            >
+              <span className="w-[24px] text-center text-hd-14 text-bevel-dark/85">{icon}</span>
+              <span>{label}</span>
+            </button>
+          ))}
 
           {/* Navigation group */}
           <div className="h-[1px] bg-white/[0.06] mx-3 my-2" />

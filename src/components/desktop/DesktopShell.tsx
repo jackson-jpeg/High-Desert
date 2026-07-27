@@ -626,10 +626,19 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       </nav>
 
       {/* Main content area — padded on mobile to clear fixed player + tab bar */}
+      {/* `relative` without a z-index on purpose. `z-10` here made <main> a
+          stacking context, which capped everything inside it below the player
+          (z-20) and the tab bar (z-30) — so the library's z-50 bottom sheets
+          painted *underneath* them and the bottom ~120px of every episode
+          detail (Delete/Edit/Flag, More Like This) was unreachable on mobile.
+          With z-auto, main still paints above the Starfield (which precedes it
+          in DOM order and is also z-auto), the player and nav still sit above
+          the page content via their explicit z-indices, and the sheets can
+          finally rise above both. */}
       <main
         id="hd-main"
         tabIndex={-1}
-        className="flex-1 overflow-hidden relative z-10 md:pb-0"
+        className="flex-1 overflow-hidden relative md:pb-0"
         style={{ paddingBottom: `calc(${bottomPadding}px + var(--safe-bottom))` }}
       >
         <PageTransition>{children}</PageTransition>

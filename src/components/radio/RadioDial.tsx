@@ -325,10 +325,13 @@ export function RadioDial({ episodes }: RadioDialProps) {
       title="AM Radio Dial"
       variant="dark"
       onClose={() => router.push("/library")}
-      className="flex flex-col h-full"
+      /* Sized to its contents rather than h-full. Stretching the window only
+         stretched the empty space under the controls, since the tuning strip
+         is now a fixed height. */
+      className="flex flex-col max-h-full"
     >
       <div
-        className="flex flex-col gap-1 p-2 flex-1"
+        className="flex flex-col gap-1 p-2"
         role="application"
         aria-label="AM Radio Dial"
         onClick={handleInteraction}
@@ -362,8 +365,11 @@ export function RadioDial({ episodes }: RadioDialProps) {
           </div>
         )}
 
-        {/* Tuning Strip */}
-        <div className="flex-1 min-h-[60px] flex gap-1">
+        {/* Tuning Strip.
+            Fixed height rather than flex-1: stretched to fill, the canvas ran
+            to ~500px at 1440x900 and the episode ticks — which are sized as a
+            fraction of it — floated in a large empty field of strip background. */}
+        <div className="h-[200px] flex-shrink-0 flex gap-1">
           <div className="flex-1 w98-inset-dark rounded">
             <TuningStrip index={index} className="rounded" />
           </div>

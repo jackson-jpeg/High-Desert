@@ -22,6 +22,20 @@ interface EpisodeCardProps {
   style?: React.CSSProperties;
 }
 
+/**
+ * Column tracks for the desktop row. Kept next to the header definition in
+ * TimelineView so the header and the rows can never drift apart.
+ */
+/*
+ * The first track is a fixed width, not `auto`. With `auto` it sized to its
+ * content, so the header ("Date") and the rows ("Nov 12, 2013" plus status
+ * glyphs) resolved to different widths and every following column drifted out
+ * of alignment with its header.
+ */
+export const EPISODE_GRID_COLS =
+  "grid-cols-[132px_minmax(0,1fr)_minmax(0,150px)_60px_56px_20px] " +
+  "lg:grid-cols-[132px_minmax(0,1fr)_minmax(0,180px)_minmax(0,140px)_60px_56px_44px_20px]";
+
 export const EpisodeCard = memo(function EpisodeCard({
   episode,
   isPlaying = false,
@@ -68,7 +82,7 @@ export const EpisodeCard = memo(function EpisodeCard({
   });
 
   // Swipe actions (mobile)
-  const cardRef = useRef<HTMLButtonElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const swipeState = useRef({ startX: 0, startY: 0, lastX: 0, swiping: false, blocked: false });
 
   const onTouchStartSwipe = useCallback((e: React.TouchEvent) => {
@@ -111,8 +125,83 @@ export const EpisodeCard = memo(function EpisodeCard({
     s.swiping = false;
   }, [episode, onQueue, onToggleFavorite]);
 
-  return (
+  const title = episode.title || episode.fileName;
+
+  const showGuest = (e: React.SyntheticEvent) => {
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent("hd:show-guest", { detail: episode.guestName }));
+  };
+  const filterSeries = (e: React.SyntheticEvent) => {
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent("hd:filter-series", { detail: episode.aiSeries }));
+  };
+
+  /* Status glyphs, shared by both layouts. */
+  const indicators = (
+    <>
+      {isPlaying && (
+        <span className="w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air flex-shrink-0" />
+      )}
+      {episode.aiNotable && !isPlaying && (
+        <span
+          className="text-hd-11 text-yellow-400 flex-shrink-0 drop-shadow-[0_0_3px_rgba(250,204,21,0.4)]"
+          title="Notable episode — a classic Art Bell moment"
+        >
+          {"★"}
+        </span>
+      )}
+      {isCompleted && !isPlaying && (
+        <span className="text-hd-10 text-static-green/85 flex-shrink-0" title="Completed">
+          {"✓"}
+        </span>
+      )}
+      {hasProgress && !isCompleted && !isPlaying && (
+        <span
+          className="text-hd-10 text-bevel-dark flex-shrink-0 tabular-nums"
+          title={`${Math.round(progressPct)}% played`}
+        >
+          {Math.round(progressPct)}%
+        </span>
+      )}
+      {episode.aiStatus === "failed" && (
+        <span
+          className="w-[5px] h-[5px] rounded-full bg-red-400/60 flex-shrink-0"
+          title="AI categorization failed"
+        />
+      )}
+    </>
+  );
+
+  /* Action controls are real <button>s. The row used to be a <button>
+     containing another <button> (series) plus two role="button" spans
+     (favourite, guest) — invalid HTML, and three tab stops on each of 1,313
+     rows. tabIndex -1 keeps them clickable while the listbox owns keyboard
+     navigation. */
+  const favButton = onToggleFavorite && (
     <button
+      type="button"
+      tabIndex={-1}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggleFavorite(episode);
+      }}
+      className={cn(
+        "flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors-fast",
+        "text-hd-12 md:text-hd-10 min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0",
+        episode.favoritedAt
+          ? "text-desert-amber"
+          : "text-bevel-dark/85 md:opacity-0 md:group-hover:opacity-100",
+      )}
+      title={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
+      aria-pressed={!!episode.favoritedAt}
+      aria-label={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
+    >
+      {episode.favoritedAt ? "★" : "☆"}
+    </button>
+  );
+
+  return (
+    <div
       ref={cardRef}
       onClick={(e) => onClick(episode, e)}
       onDoubleClick={onDoubleClick ? () => onDoubleClick(episode) : undefined}
@@ -122,14 +211,16 @@ export const EpisodeCard = memo(function EpisodeCard({
       onTouchEnd={(e) => { longPress.onTouchEnd(e); onTouchEndSwipe(); }}
       style={style}
       role="option"
+      tabIndex={-1}
       aria-selected={isSelected || isPlaying}
       title={episode.aiSummary || undefined}
-      aria-label={`${episode.title || episode.fileName}${episode.airDate ? `, ${episode.airDate}` : ""}${isPlaying ? " (now playing)" : ""}`}
+      aria-label={`${title}${episode.airDate ? `, ${episode.airDate}` : ""}${isPlaying ? " (now playing)" : ""}`}
       className={cn(
-        "w-full text-left p-2.5 md:p-1.5 w98-raised-dark bg-card-surface relative group glass-light",
-        "transition-all duration-150 cursor-pointer",
-        "hover:bg-title-bar-blue/15 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]",
-        "active:bg-title-bar-blue/20 active:translate-y-0 active:shadow-none",
+        "w-full h-full text-left w98-raised-dark bg-card-surface relative group glass-light",
+        "p-2.5 md:px-2 md:py-0 md:flex md:items-center",
+        "transition-all duration-150 cursor-pointer overflow-hidden",
+        "hover:bg-title-bar-blue/15 hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]",
+        "active:bg-title-bar-blue/20 active:shadow-none",
         showAccent,
         episode.aiNotable && !isPlaying && "border-l-desert-amber/70 bg-desert-amber/[0.03]",
         episode.favoritedAt && !isPlaying && !episode.aiNotable && "bg-desert-amber/[0.02]",
@@ -139,163 +230,172 @@ export const EpisodeCard = memo(function EpisodeCard({
         className,
       )}
     >
-      {/* Top row: date + indicators + title (title inline on desktop) */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
+      {/* ---------------------------------------------------------------
+          Desktop: one aligned table row.
+
+          This was two stacked rows using justify-between, which pinned the
+          content to the far edges and left ~700px of empty gutter down the
+          middle of every row at 1440px. Fixed column tracks line the
+          metadata up down the whole list and let the title absorb the slack.
+          --------------------------------------------------------------- */}
+      <div className={cn("hidden md:grid w-full items-center gap-x-3 min-w-0", EPISODE_GRID_COLS)}>
+        {/* Date + status */}
+        <div className="flex items-center gap-1.5 min-w-0">
           {isMultiSelected && (
-            <span className="w-[14px] h-[14px] md:w-[12px] md:h-[12px] flex items-center justify-center w98-inset-dark bg-inset-well text-hd-10 md:text-hd-10 text-static-green flex-shrink-0">
-              {"\u2713"}
+            <span className="w-[12px] h-[12px] flex items-center justify-center w98-inset-dark bg-inset-well text-hd-10 text-static-green flex-shrink-0">
+              {"✓"}
             </span>
           )}
-          <span className="text-hd-12 md:text-hd-11 text-desert-amber tabular-nums flex-shrink-0 font-mono tracking-tight">
+          <span className="text-hd-11 text-desert-amber tabular-nums flex-shrink-0 font-mono tracking-tight">
             {formatAirDate(episode.airDate) || "Unknown date"}
           </span>
-          {isPlaying && (
-            <span className="w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air flex-shrink-0" />
-          )}
-          {episode.aiNotable && !isPlaying && (
-            <span
-              className="text-hd-11 text-yellow-400 flex-shrink-0 drop-shadow-[0_0_3px_rgba(250,204,21,0.4)]"
-              title="Notable episode — a classic Art Bell moment"
-            >
-              {"\u2605"}
-            </span>
-          )}
-          {isCompleted && !isPlaying && (
-            <span className="text-hd-10 text-static-green/85 flex-shrink-0" title="Completed">
-              {"\u2713"}
-            </span>
-          )}
-          {hasProgress && !isCompleted && !isPlaying && (
-            <span className="text-hd-10 text-bevel-dark flex-shrink-0 tabular-nums" title={`${Math.round(progressPct)}% played`}>
-              {Math.round(progressPct)}%
-            </span>
-          )}
-          {/* Title inline on desktop */}
-          <span className="hidden md:inline text-hd-12 text-desktop-gray font-bold truncate">
-            {episode.title || episode.fileName}
-          </span>
+          {indicators}
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {episode.rating && (
-            <span className="text-hd-10 text-desert-amber/85 flex-shrink-0 tabular-nums hidden md:inline" title={`Rated ${episode.rating}/5`}>
-              {"★".repeat(episode.rating)}
-            </span>
-          )}
-          {episode.aiCategory && (
-            <span className="text-hd-9 text-desert-amber/85 flex-shrink-0 hidden md:inline">
-              {episode.aiCategory}
-            </span>
-          )}
-          {episode.aiStatus === "failed" && (
-            <span className="w-[5px] h-[5px] rounded-full bg-red-400/60 flex-shrink-0" title="AI categorization failed" />
-          )}
-          {onToggleFavorite && (
-            <span
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleFavorite(episode);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onToggleFavorite(episode);
-                }
-              }}
-              className={cn(
-                "text-hd-12 md:text-hd-10 min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors-fast",
-                episode.favoritedAt
-                  ? "text-desert-amber"
-                  : "text-bevel-dark/85 md:opacity-0 md:group-hover:opacity-100",
-              )}
-              title={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
-              role="button"
-              tabIndex={0}
-              aria-pressed={!!episode.favoritedAt}
-              aria-label={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
-            >
-              {episode.favoritedAt ? "\u2605" : "\u2606"}
-            </span>
-          )}
-          {showLabel && (
-            <span className="text-hd-10 text-bevel-dark/85 flex-shrink-0">
-              {showLabel}
-            </span>
-          )}
-        </div>
-      </div>
 
-      {/* Title — mobile only (shown inline on desktop above) */}
-      <div className="text-hd-15 text-desktop-gray font-bold truncate mt-0.5 md:hidden font-sans leading-tight">
-        {episode.title || episode.fileName}
-      </div>
-      {/* Category — mobile only (shown in top-right area on desktop) */}
-      {episode.aiCategory && (
-        <span className="text-hd-11 text-desert-amber/85 truncate mt-0.5 block md:hidden">
-          {episode.aiCategory}
-        </span>
-      )}
-
-      {/* Guest + series + duration */}
-      <div className="flex items-center justify-between gap-2 mt-0.5">
-        <div className="flex items-center gap-1.5 min-w-0 truncate">
-          {episode.guestName ? (
-            <span
-              className="text-hd-14 md:text-hd-11 text-static-green/90 md:text-static-green/85 truncate hover:text-static-green hover:underline active:text-static-green cursor-pointer py-0.5 -my-0.5"
-              onClick={(e) => {
-                e.stopPropagation();
-                window.dispatchEvent(new CustomEvent("hd:show-guest", { detail: episode.guestName }));
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  window.dispatchEvent(new CustomEvent("hd:show-guest", { detail: episode.guestName }));
-                }
-              }}
-              role="button"
-              tabIndex={0}
-              aria-label={`View guest profile: ${episode.guestName}`}
-            >
-              {episode.guestName}
-            </span>
-          ) : (
-            <span className="text-hd-13 md:text-hd-11 text-static-green/85 truncate">
-              {episode.topic || "\u00A0"}
-            </span>
-          )}
+        {/* Title */}
+        <div className="flex items-baseline gap-2 min-w-0">
+          <span className="text-hd-12 text-desktop-gray font-bold truncate">{title}</span>
           {episode.aiSeries && (
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                window.dispatchEvent(new CustomEvent("hd:filter-series", { detail: episode.aiSeries }));
-              }}
-              className="text-hd-10 text-signal-blue flex-shrink-0 hidden md:inline cursor-pointer hover:text-signal-blue hover:underline active:text-signal-blue transition-colors-fast"
+              type="button"
+              tabIndex={-1}
+              onClick={filterSeries}
+              className="text-hd-10 text-signal-blue flex-shrink-0 hidden xl:inline cursor-pointer hover:underline transition-colors-fast"
             >
               {episode.aiSeries}{episode.aiSeriesPart ? ` Pt.${episode.aiSeriesPart}` : ""}
             </button>
           )}
         </div>
-        {episode.duration != null && (
-          <span className="text-hd-12 md:text-hd-11 text-bevel-dark/85 tabular-nums flex-shrink-0 font-mono">
-            {formatDuration(episode.duration)}
+
+        {/* Guest */}
+        <div className="min-w-0">
+          {episode.guestName ? (
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={showGuest}
+              aria-label={`View guest profile: ${episode.guestName}`}
+              className="text-hd-11 text-static-green/85 truncate max-w-full block text-left hover:text-static-green hover:underline cursor-pointer transition-colors-fast"
+            >
+              {episode.guestName}
+            </button>
+          ) : (
+            <span className="text-hd-11 text-static-green/85 truncate block">
+              {episode.topic || ""}
+            </span>
+          )}
+        </div>
+
+        {/* Category — needs the room, so it only appears at lg and up */}
+        <div className="hidden lg:block min-w-0">
+          <span className="text-hd-10 text-desert-amber/85 truncate block">
+            {episode.aiCategory || ""}
           </span>
-        )}
-        {communityPlays != null && communityPlays > 0 && (
-          <span className="text-hd-8 text-bevel-dark/85 tabular-nums flex-shrink-0" title={`Played ${communityPlays} times across all listeners`}>
-            ▶ {communityPlays.toLocaleString()}
-          </span>
-        )}
+        </div>
+
+        {/* Show type */}
+        <span className="text-hd-10 text-bevel-dark/85 truncate">{showLabel || ""}</span>
+
+        {/* Duration */}
+        <span className="text-hd-11 text-bevel-dark/85 tabular-nums font-mono text-right">
+          {episode.duration != null ? formatDuration(episode.duration) : ""}
+        </span>
+
+        {/* Community plays */}
+        <span
+          className="hidden lg:block text-hd-10 text-bevel-dark/85 tabular-nums text-right"
+          title={communityPlays ? `Played ${communityPlays} times across all listeners` : undefined}
+        >
+          {communityPlays ? `▶ ${communityPlays.toLocaleString()}` : ""}
+        </span>
+
+        {/* Favourite */}
+        <div className="flex justify-end">{favButton}</div>
       </div>
 
-      {/* Mini waveform progress indicator */}
-      {hasProgress && (
-        <div className="absolute bottom-1 right-2">
-          <MiniWaveform progress={progressPct} completed={isCompleted} />
+      {/* ---------------------------------------------------------------
+          Mobile: stacked, unchanged in shape.
+          --------------------------------------------------------------- */}
+      <div className="md:hidden">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            {isMultiSelected && (
+              <span className="w-[14px] h-[14px] flex items-center justify-center w98-inset-dark bg-inset-well text-hd-10 text-static-green flex-shrink-0">
+                {"✓"}
+              </span>
+            )}
+            <span className="text-hd-12 text-desert-amber tabular-nums flex-shrink-0 font-mono tracking-tight">
+              {formatAirDate(episode.airDate) || "Unknown date"}
+            </span>
+            {indicators}
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {favButton}
+            {showLabel && (
+              <span className="text-hd-10 text-bevel-dark/85 flex-shrink-0">{showLabel}</span>
+            )}
+          </div>
         </div>
+
+        <div className="text-hd-15 text-desktop-gray font-bold truncate mt-0.5 font-sans leading-tight">
+          {title}
+        </div>
+        {episode.aiCategory && (
+          <span className="text-hd-11 text-desert-amber/85 truncate mt-0.5 block">
+            {episode.aiCategory}
+          </span>
+        )}
+
+        <div className="flex items-center justify-between gap-2 mt-0.5">
+          {episode.guestName ? (
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={showGuest}
+              aria-label={`View guest profile: ${episode.guestName}`}
+              className="text-hd-14 text-static-green/90 truncate min-w-0 text-left py-0.5 -my-0.5 cursor-pointer"
+            >
+              {episode.guestName}
+            </button>
+          ) : (
+            <span className="text-hd-13 text-static-green/85 truncate min-w-0">
+              {episode.topic || " "}
+            </span>
+          )}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {episode.duration != null && (
+              <span className="text-hd-12 text-bevel-dark/85 tabular-nums font-mono">
+                {formatDuration(episode.duration)}
+              </span>
+            )}
+            {communityPlays != null && communityPlays > 0 && (
+              <span
+                className="text-hd-8 text-bevel-dark/85 tabular-nums"
+                title={`Played ${communityPlays} times across all listeners`}
+              >
+                {"▶"} {communityPlays.toLocaleString()}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Progress. A hairline along the row's bottom edge on desktop, where
+          the absolutely-positioned waveform would collide with the single-row
+          grid; the waveform stays on the roomier mobile card. */}
+      {hasProgress && (
+        <>
+          <div
+            className="hidden md:block absolute bottom-0 left-0 h-[2px] bg-static-green/40"
+            style={{ width: `${progressPct}%` }}
+            aria-hidden="true"
+          />
+          <div className="md:hidden absolute bottom-1 right-2">
+            <MiniWaveform progress={progressPct} completed={isCompleted} />
+          </div>
+        </>
       )}
-    </button>
+    </div>
   );
 }, (prev, next) => {
   return (
