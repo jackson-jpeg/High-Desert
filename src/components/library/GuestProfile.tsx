@@ -83,7 +83,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
 
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-bevel-dark/20 glass-divider">
-        <span className="text-hd-11 md:text-hd-9 text-bevel-dark/70">Guest Profile</span>
+        <span className="text-hd-11 md:text-hd-9 text-bevel-dark/85">Guest Profile</span>
         <button
           onClick={onClose}
           className="text-hd-14 md:text-hd-10 text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
@@ -114,7 +114,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
             {stats.categories.map(([cat, count]) => (
               <span
                 key={cat}
-                className="text-hd-11 md:text-hd-8 text-desert-amber/70 bg-desert-amber/8 px-2 py-1 md:px-1.5 md:py-px"
+                className="text-hd-11 md:text-hd-8 text-desert-amber/85 bg-desert-amber/8 px-2 py-1 md:px-1.5 md:py-px"
               >
                 {cat}
                 <span className="ml-0.5 opacity-50">{count}</span>
@@ -152,7 +152,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
                       {ep.airDate ?? "Unknown"}
                     </span>
                     {ep.duration != null && (
-                      <span className="text-hd-11 md:text-hd-9 text-bevel-dark/70 tabular-nums flex-shrink-0">
+                      <span className="text-hd-11 md:text-hd-9 text-bevel-dark/85 tabular-nums flex-shrink-0">
                         {formatDuration(ep.duration)}
                       </span>
                     )}

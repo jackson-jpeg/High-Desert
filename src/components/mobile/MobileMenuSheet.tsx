@@ -87,7 +87,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
         <div className="flex flex-col max-h-[60dvh] overflow-y-auto overscroll-contain px-1">
           {/* Quick actions group */}
           <div className="px-3 pb-1">
-            <span className="text-hd-11 text-bevel-dark/40 uppercase tracking-wider font-sans">Quick Actions</span>
+            <span className="text-hd-11 text-bevel-dark/85 uppercase tracking-wider font-sans">Quick Actions</span>
           </div>
           <button
             onClick={() => {
@@ -103,7 +103,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
           {/* Navigation group */}
           <div className="h-[1px] bg-white/[0.06] mx-3 my-2" />
           <div className="px-3 pb-1">
-            <span className="text-hd-11 text-bevel-dark/40 uppercase tracking-wider font-sans">Navigate</span>
+            <span className="text-hd-11 text-bevel-dark/85 uppercase tracking-wider font-sans">Navigate</span>
           </div>
           <button
             onClick={() => {
@@ -112,7 +112,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
             }}
             className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
           >
-            <span className="w-[24px] text-center text-hd-14 text-bevel-dark/60">{"\u{1F4FB}"}</span>
+            <span className="w-[24px] text-center text-hd-14 text-bevel-dark/85">{"\u{1F4FB}"}</span>
             <span>Radio Dial</span>
           </button>
           <button
@@ -122,7 +122,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
             }}
             className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
           >
-            <span className="w-[24px] text-center text-hd-14 text-bevel-dark/60">{"\u{1F4CA}"}</span>
+            <span className="w-[24px] text-center text-hd-14 text-bevel-dark/85">{"\u{1F4CA}"}</span>
             <span>Statistics</span>
           </button>
 
@@ -136,7 +136,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
                 }}
                 className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
               >
-                <span className="w-[24px] text-center text-hd-14 text-desert-amber/50">{"\u2699"}</span>
+                <span className="w-[24px] text-center text-hd-14 text-desert-amber/85">{"\u2699"}</span>
                 <span>Scanner</span>
               </button>
               <button
@@ -146,7 +146,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
                 }}
                 className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
               >
-                <span className="w-[24px] text-center text-hd-14 text-desert-amber/50">{"\u{1F50D}"}</span>
+                <span className="w-[24px] text-center text-hd-14 text-desert-amber/85">{"\u{1F50D}"}</span>
                 <span>Archive Search</span>
               </button>
             </>
@@ -155,7 +155,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
           {/* Settings group */}
           <div className="h-[1px] bg-white/[0.06] mx-3 my-2" />
           <div className="px-3 pb-1">
-            <span className="text-hd-11 text-bevel-dark/40 uppercase tracking-wider font-sans">Settings</span>
+            <span className="text-hd-11 text-bevel-dark/85 uppercase tracking-wider font-sans">Settings</span>
           </div>
           {onToggleStartupSound && (
             <button
@@ -167,12 +167,12 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
               className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center justify-between rounded-lg"
             >
               <div className="flex items-center gap-3">
-                <span className="w-[24px] text-center text-hd-14 text-bevel-dark/60">{"\u{1F50A}"}</span>
+                <span className="w-[24px] text-center text-hd-14 text-bevel-dark/85">{"\u{1F50A}"}</span>
                 <span>Startup Sound</span>
               </div>
               <span className={cn(
                 "text-hd-13",
-                startupSoundOn ? "text-desert-amber" : "text-bevel-dark/50",
+                startupSoundOn ? "text-desert-amber" : "text-bevel-dark/85",
               )}>
                 {startupSoundOn ? "On" : "Off"}
               </span>
@@ -188,7 +188,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
               className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center justify-between rounded-lg"
             >
               <div className="flex items-center gap-3">
-                <span className="w-[24px] text-center text-hd-14 text-bevel-dark/60">Aa</span>
+                <span className="w-[24px] text-center text-hd-14 text-bevel-dark/85">Aa</span>
                 <span>Text Size</span>
               </div>
               <span className="text-hd-13 text-desert-amber">
@@ -204,7 +204,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
             }}
             className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
           >
-            <span className="w-[24px] text-center text-hd-14 text-bevel-dark/60">{"\u2139"}</span>
+            <span className="w-[24px] text-center text-hd-14 text-bevel-dark/85">{"\u2139"}</span>
             <span>About High Desert</span>
           </button>
 
@@ -212,7 +212,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
           <div className="h-[1px] bg-white/[0.06] mx-3 my-2" />
           <button
             onClick={hide}
-            className="w-full text-center px-4 py-3 text-hd-14 min-h-[48px] text-bevel-dark/70 cursor-pointer active:bg-white/[0.04] rounded-lg mb-1"
+            className="w-full text-center px-4 py-3 text-hd-14 min-h-[48px] text-bevel-dark/85 cursor-pointer active:bg-white/[0.04] rounded-lg mb-1"
           >
             Cancel
           </button>

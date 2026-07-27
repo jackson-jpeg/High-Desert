@@ -30,7 +30,7 @@ export function ClearLibraryDialog({ open, onClose }: ClearLibraryDialogProps) {
   }, [onClose]);
 
   return (
-    <Dialog open={open} onClose={onClose} title="Clear Library" width="320px">
+    <Dialog open={open} onClose={onClose} title="Clear Library" urgent width="320px">
       <div className="p-4 flex flex-col gap-4">
         <div className="text-hd-11 text-desktop-gray">
           Remove all episodes and scan sessions from the library? This cannot be undone.

@@ -35,10 +35,52 @@ function MobileActionSheet({
   items: ContextMenuItem[];
   hide: () => void;
 }) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     lockScroll();
-    return () => unlockScroll();
+    previousFocusRef.current = document.activeElement as HTMLElement;
+
+    // Move focus into the sheet. Without this a screen-reader user's focus
+    // stayed on the element behind it, with no indication the sheet had opened.
+    requestAnimationFrame(() => {
+      sheetRef.current?.querySelector<HTMLElement>("button:not([disabled])")?.focus();
+    });
+
+    return () => {
+      unlockScroll();
+      previousFocusRef.current?.focus();
+    };
   }, []);
+
+  // Escape to close + Tab trap, matching the desktop menu below.
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        hide();
+        return;
+      }
+      if (e.key !== "Tab" || !sheetRef.current) return;
+
+      const focusable = Array.from(
+        sheetRef.current.querySelectorAll<HTMLElement>("button:not([disabled])"),
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    },
+    [hide],
+  );
 
   // Close on backdrop click
   return (
@@ -46,15 +88,27 @@ function MobileActionSheet({
       {/* Backdrop */}
       <div
         className="fixed inset-0 z-[100] glass-backdrop animate-glass-backdrop"
+        aria-hidden="true"
         onClick={hide}
       />
       {/* Sheet */}
-      <div className="fixed bottom-0 inset-x-0 z-[101] glass-heavy rounded-t-2xl overflow-hidden pb-[var(--safe-bottom)] pl-[var(--safe-left)] pr-[var(--safe-right)] animate-glass-sheet">
+      <div
+        ref={sheetRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Episode actions"
+        tabIndex={-1}
+        onKeyDown={handleKeyDown}
+        className="fixed bottom-0 inset-x-0 z-[101] glass-heavy rounded-t-2xl overflow-hidden pb-[var(--safe-bottom)] pl-[var(--safe-left)] pr-[var(--safe-right)] animate-glass-sheet"
+      >
         {/* Grab handle */}
-        <div className="flex justify-center pt-2.5 pb-1">
+        <div className="flex justify-center pt-2.5 pb-1" aria-hidden="true">
           <div className="w-8 h-[3px] rounded-full bg-white/15" />
         </div>
-        <div className="flex flex-col">
+        {/* The sheet itself is the modal; the item list is the menu. Nesting
+            them this way keeps aria-modal on a role that supports it while
+            still giving the menuitems a menu parent. */}
+        <div className="flex flex-col" role="menu">
           {items.map((item, i) => {
             if (item.separator) {
               return (
@@ -84,9 +138,10 @@ function MobileActionSheet({
             );
           })}
           {/* Cancel row */}
-          <div className="border-t glass-divider">
+          <div className="border-t glass-divider" role="none">
             <button
               onClick={hide}
+              role="menuitem"
               className="w-full text-center px-4 py-3 text-hd-14 min-h-[48px] text-bevel-dark cursor-pointer active:bg-white/[0.04]"
             >
               Cancel

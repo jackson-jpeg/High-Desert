@@ -83,7 +83,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
       <div className="flex items-center gap-2 ml-2">
         <button
           onClick={handleRetry}
-          className="text-hd-13 md:text-hd-11 text-desert-amber/80 hover:text-desert-amber active:text-desert-amber cursor-pointer min-h-[44px] md:min-h-0 px-2"
+          className="text-hd-13 md:text-hd-11 text-desert-amber/85 hover:text-desert-amber active:text-desert-amber cursor-pointer min-h-[44px] md:min-h-0 px-2"
         >
           Retry
         </button>
@@ -120,7 +120,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           >
             {"\u25BC"}
           </button>
-          <span className="text-hd-12 text-bevel-dark/40 font-sans tracking-wide uppercase">Now Playing</span>
+          <span className="text-hd-12 text-bevel-dark/85 font-sans tracking-wide uppercase">Now Playing</span>
           <button
             onClick={() => setShowQueue(!showQueue)}
             className={cn(
@@ -154,17 +154,17 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
                 {currentEpisode.title || currentEpisode.fileName}
               </div>
               {currentEpisode.guestName && (
-                <div className="text-hd-14 text-static-green/80 truncate mt-2">
+                <div className="text-hd-14 text-static-green/85 truncate mt-2">
                   {currentEpisode.guestName}
                 </div>
               )}
               {currentEpisode.airDate && (
-                <div className="text-hd-13 text-bevel-dark/60 mt-1 font-mono tabular-nums tracking-wide">
+                <div className="text-hd-13 text-bevel-dark/85 mt-1 font-mono tabular-nums tracking-wide">
                   {formatAirDate(currentEpisode.airDate)}
                 </div>
               )}
               {buffering && (
-                <div className="text-hd-12 text-desert-amber/70 mt-2 animate-pulse">
+                <div className="text-hd-12 text-desert-amber/85 mt-2 animate-pulse">
                   Buffering...
                 </div>
               )}
@@ -172,7 +172,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
 
             {/* Seek bar — custom styled */}
             <div className="flex items-center gap-3 text-hd-13 text-bevel-dark font-mono">
-              <span className="w-[48px] text-right tabular-nums text-bevel-dark/60">{formatTime(position)}</span>
+              <span className="w-[48px] text-right tabular-nums text-bevel-dark/85">{formatTime(position)}</span>
               <div className="flex-1 relative">
                 <input
                   type="range"
@@ -184,7 +184,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
                   aria-label="Seek position"
                 />
               </div>
-              <span className="w-[48px] tabular-nums text-bevel-dark/60">{formatTime(duration)}</span>
+              <span className="w-[48px] tabular-nums text-bevel-dark/85">{formatTime(duration)}</span>
             </div>
 
             {/* Transport buttons — larger hit areas */}
@@ -281,7 +281,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
         )}
         {/* Cassette icon + title */}
         <CassetteTape className="flex-shrink-0" />
-        <span className="text-hd-10 text-desktop-gray/80 truncate flex-1 min-w-0">
+        <span className="text-hd-10 text-desktop-gray/85 truncate flex-1 min-w-0">
           {currentEpisode.title || currentEpisode.fileName}
         </span>
         {/* Compact seek */}
@@ -327,7 +327,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           <Oscilloscope className="w-[72px] h-[32px] rounded-sm flex-shrink-0" />
           <NowPlaying className="flex-1 min-w-0" />
           {nextEpisode && !showQueue && (
-            <div className="hidden lg:flex items-center gap-1 text-hd-10 text-bevel-dark/40 flex-shrink-0 max-w-[160px] truncate" title={`Up next: ${nextEpisode.title || nextEpisode.fileName}`}>
+            <div className="hidden lg:flex items-center gap-1 text-hd-10 text-bevel-dark/85 flex-shrink-0 max-w-[160px] truncate" title={`Up next: ${nextEpisode.title || nextEpisode.fileName}`}>
               <span className="flex-shrink-0">Next:</span>
               <span className="truncate">{nextEpisode.title || nextEpisode.fileName}</span>
             </div>

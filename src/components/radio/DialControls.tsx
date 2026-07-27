@@ -116,7 +116,7 @@ export function DialControls({
                 strokeLinejoin="round"
               />
             </svg>
-            <span className={cn("text-hd-13 font-medium", scanning ? "text-desert-amber" : "text-desktop-gray/50")}>
+            <span className={cn("text-hd-13 font-medium", scanning ? "text-desert-amber" : "text-desktop-gray/85")}>
               {scanning ? "Stop" : "Scan"}
             </span>
           </button>
@@ -127,12 +127,12 @@ export function DialControls({
           <div className="flex items-center gap-1">
             <KbdArrow direction="left" />
             <KbdArrow direction="right" />
-            <span className="text-hd-8 text-bevel-dark/20 ml-0.5">Tune</span>
+            <span className="text-hd-8 text-bevel-dark/85 ml-0.5">Tune</span>
           </div>
           <div className="flex items-center gap-1">
             <KbdArrow direction="up" />
             <KbdArrow direction="down" />
-            <span className="text-hd-8 text-bevel-dark/20 ml-0.5">Sub-station</span>
+            <span className="text-hd-8 text-bevel-dark/85 ml-0.5">Sub-station</span>
           </div>
         </div>
       </div>

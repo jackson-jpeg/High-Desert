@@ -109,13 +109,13 @@ export default function RootLayout({
                 z-index: 9999; transition: opacity 0.4s ease;
               }
               #app-loading .boot-line {
-                font-family: W95FA, monospace; font-size: 11px; color: #33FF33;
+                font-family: var(--font-w95, monospace); font-size: 11px; color: #33FF33;
                 text-shadow: 0 0 6px rgba(51,255,51,0.3);
                 opacity: 0; white-space: nowrap;
               }
               #app-loading .boot-line.visible { opacity: 1; }
               #app-loading .boot-title {
-                font-family: W95FA, monospace; font-size: 20px; font-weight: bold;
+                font-family: var(--font-w95, monospace); font-size: 20px; font-weight: bold;
                 color: #D4A843; letter-spacing: 3px; opacity: 0;
                 text-shadow: 0 0 12px rgba(212,168,67,0.4);
               }
@@ -131,13 +131,13 @@ export default function RootLayout({
                 text-align: center;
               }
               #app-loading .quick-splash .title {
-                color: #D4A843; font-family: W95FA, monospace;
+                color: #D4A843; font-family: var(--font-w95, monospace);
                 font-size: 16px; font-weight: bold; letter-spacing: 2px;
                 text-shadow: 0 0 8px rgba(212,168,67,0.3);
               }
               #app-loading .quick-splash .sub {
-                color: #808080; font-family: W95FA, monospace;
-                font-size: 10px; margin-top: 8px;
+                color: #9AA0AE; font-family: var(--font-w95, monospace);
+                font-size: 11px; margin-top: 8px;
               }
             `,
           }}
@@ -172,7 +172,11 @@ export default function RootLayout({
                   document.documentElement.style.setProperty('--hd-text-scale', scale);
                 }
 
-                var isFirstVisit = !localStorage.getItem('hd-booted');
+                // Anyone who has asked for less motion gets no boot theatre.
+                var reduceMotion = window.matchMedia
+                  && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+                var isFirstVisit = !localStorage.getItem('hd-booted') && !reduceMotion;
                 var bootContainer = document.getElementById('boot-container');
                 var quickSplash = document.getElementById('quick-splash');
 
@@ -186,30 +190,38 @@ export default function RootLayout({
                     })(lines[i], delay);
                     delay += (i === lines.length - 1) ? 400 : 220;
                   }
-                  localStorage.setItem('hd-booted', '1');
                 } else if (quickSplash) {
                   quickSplash.style.display = 'block';
                 }
+                localStorage.setItem('hd-booted', '1');
+
+                var dismissed = false;
+                function dismiss() {
+                  if (dismissed) return;
+                  dismissed = true;
+                  var el = document.getElementById('app-loading');
+                  if (!el) return;
+                  el.style.opacity = '0';
+                  setTimeout(function() { if (el) el.style.display = 'none'; }, 400);
+                }
+
+                // Any deliberate input skips the boot sequence. It is a 2.8s
+                // hard floor otherwise, and nobody should have to sit through
+                // it twice.
+                ['pointerdown', 'keydown', 'touchstart'].forEach(function(evt) {
+                  window.addEventListener(evt, dismiss, { once: true, passive: true });
+                });
 
                 // Hide loading screen once React hydrates
                 var observer = new MutationObserver(function() {
-                  var el = document.getElementById('app-loading');
-                  if (el && document.querySelector('[data-hydrated]')) {
-                    var minDelay = isFirstVisit ? 2800 : 0;
-                    var elapsed = performance.now();
-                    var remaining = Math.max(0, minDelay - elapsed);
-                    setTimeout(function() {
-                      el.style.opacity = '0';
-                      setTimeout(function() { if (el) el.style.display = 'none'; }, 400);
-                    }, remaining);
-                    observer.disconnect();
-                  }
+                  if (!document.querySelector('[data-hydrated]')) return;
+                  observer.disconnect();
+                  var minDelay = isFirstVisit ? 2800 : 0;
+                  var remaining = Math.max(0, minDelay - performance.now());
+                  setTimeout(dismiss, remaining);
                 });
                 observer.observe(document.body, { childList: true, subtree: true });
-                setTimeout(function() {
-                  var el = document.getElementById('app-loading');
-                  if (el) { el.style.opacity = '0'; setTimeout(function() { if (el) el.style.display = 'none'; }, 400); }
-                }, 6000);
+                setTimeout(dismiss, 6000);
               })();
             `,
           }}

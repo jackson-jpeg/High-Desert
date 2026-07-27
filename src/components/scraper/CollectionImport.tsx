@@ -65,7 +65,7 @@ export function CollectionImport() {
                   <span className="text-hd-11 text-desktop-gray font-bold">
                     {FEATURED_COLLECTION.title}
                   </span>
-                  <span className="text-hd-8 text-static-green/70 bg-static-green/10 px-1.5 py-px uppercase tracking-wider">
+                  <span className="text-hd-8 text-static-green/85 bg-static-green/10 px-1.5 py-px uppercase tracking-wider">
                     Featured
                   </span>
                 </div>
@@ -74,7 +74,7 @@ export function CollectionImport() {
                 </div>
                 <div className="flex items-center gap-3 text-hd-11 md:text-hd-9">
                   <span className="text-desert-amber tabular-nums">{FEATURED_COLLECTION.episodeCount} episodes</span>
-                  <span className="text-bevel-dark/60">{FEATURED_COLLECTION.dateRange}</span>
+                  <span className="text-bevel-dark/85">{FEATURED_COLLECTION.dateRange}</span>
                 </div>
               </div>
             </div>

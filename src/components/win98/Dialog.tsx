@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils/cn";
-import { ReactNode, useEffect, useRef, useCallback } from "react";
+import { ReactNode, useEffect, useId, useRef, useCallback } from "react";
 import { Window, type WindowProps } from "./Window";
 import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
 
@@ -10,6 +10,11 @@ export interface DialogProps extends Omit<WindowProps, "children"> {
   onClose: () => void;
   children: ReactNode;
   width?: string;
+  /**
+   * `alertdialog` is for urgent interruptions that need an immediate answer.
+   * Everything else — About, Shortcuts, settings — is a plain `dialog`.
+   */
+  urgent?: boolean;
 }
 
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -20,10 +25,12 @@ export function Dialog({
   children,
   width = "400px",
   className,
+  urgent = false,
   ...windowProps
 }: DialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
 
   // Store the previously focused element and focus the dialog on open
   useEffect(() => {
@@ -99,12 +106,13 @@ export function Dialog({
         ref={dialogRef}
         className={cn("relative animate-dialog", className)}
         style={{ width, maxWidth: "calc(90vw - var(--safe-left, 0px) - var(--safe-right, 0px))" }}
-        role="alertdialog"
+        role={urgent ? "alertdialog" : "dialog"}
         aria-modal="true"
+        aria-labelledby={titleId}
         tabIndex={-1}
         onKeyDown={handleKeyDown}
       >
-        <Window onClose={onClose} {...windowProps}>
+        <Window onClose={onClose} titleId={titleId} {...windowProps}>
           {children}
         </Window>
       </div>

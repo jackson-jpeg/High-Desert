@@ -5,26 +5,23 @@
 @import "../styles/radio.css";
 
 /* ============================================
-   W95FA Font Face
-   ============================================ */
-
-@font-face {
-  font-family: "W95FA";
-  src: url("/fonts/W95FA.woff2") format("woff2");
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* ============================================
    Tailwind v4 Theme
    ============================================ */
+
+/* W95FA is loaded by next/font/local in src/app/layout.tsx, which emits its own
+   @font-face against a hashed, preloaded URL and sets --font-w95 on <body>.
+   A hand-rolled @font-face here fetched the same file from a second URL and lost
+   the cascade anyway — don't add one back. */
 
 @theme inline {
   --color-midnight: #0A0E1A;
   --color-desktop-gray: #C0C0C0;
   --color-title-bar-blue: #000080;
   --color-highlight-blue: #0A246A;
+  /* Legible blue for *text* on the dark surfaces. The two above are chrome
+     fills (title bars, selection) and sit at ~1.1:1 as text on card-surface —
+     they were being used for stat values, which read as blank tiles. 7.0:1. */
+  --color-signal-blue: #6BA3F0;
   --color-desert-amber: #D4A843;
   --color-static-green: #4ADE80;
   --color-static-green-bright: #33FF33;
@@ -33,30 +30,67 @@
   --color-inset-well: #080C16;
   --color-raised-surface: #1A1F33;
   --color-bevel-light: #DFDFDF;
-  --color-bevel-dark: #808080;
+  /* Secondary text. Was #808080, which cleared 4.5:1 only on --color-midnight
+     (4.88) and failed on card-surface (4.49) and raised-surface (4.13).
+     #9AA0AE clears 6.2:1 on the darkest of the three, leaving headroom for
+     the /85 dim tier (4.89:1). Do not take text below /85 — see the note on
+     the three-tier text ramp in the Conventions section of CLAUDE.md.
+     The chiselled Win98 bevels are unaffected: they read --w98-bevel-dark
+     from win98.css, which is a separate token and stays #808080. */
+  --color-bevel-dark: #9AA0AE;
 
-  --font-w95: "W95FA", "MS Sans Serif", "Microsoft Sans Serif", Arial, sans-serif;
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  /* next/font/local overrides --font-w95 on <body> with its preloaded,
+     metric-adjusted face. This value is only the fallback chain. */
+  --font-w95: "MS Sans Serif", "Microsoft Sans Serif", Arial, sans-serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
 
-  --font-size-hd-7:  var(--hd-text-7);
-  --font-size-hd-8:  var(--hd-text-8);
-  --font-size-hd-9:  var(--hd-text-9);
-  --font-size-hd-10: var(--hd-text-10);
-  --font-size-hd-11: var(--hd-text-11);
-  --font-size-hd-12: var(--hd-text-12);
-  --font-size-hd-13: var(--hd-text-13);
-  --font-size-hd-14: var(--hd-text-14);
-  --font-size-hd-15: var(--hd-text-15);
-  --font-size-hd-16: var(--hd-text-16);
-  --font-size-hd-17: var(--hd-text-17);
-  --font-size-hd-18: var(--hd-text-18);
-  --font-size-hd-20: var(--hd-text-20);
-  --font-size-hd-24: var(--hd-text-24);
-  --font-size-hd-28: var(--hd-text-28);
-  --font-size-hd-32: var(--hd-text-32);
-  --font-size-hd-36: var(--hd-text-36);
-  --font-size-hd-48: var(--hd-text-48);
+  /* ------------------------------------------------------------------
+     Type scale
+
+     Tailwind v4's font-size namespace is --text-*. This block previously
+     used --font-size-* (the v3 JS-config key), which v4 does not recognise,
+     so it emitted no CSS at all and all 694 text-hd-* usages were inert —
+     every character on the site rendered at the inherited body size.
+
+     Eight steps, each with a line-height (there were none before, hence the
+     49 ad-hoc leading-* overrides in components). The legacy numeric names
+     are kept as aliases onto the nearest step so markup needs no sweep;
+     prefer the semantic names in new code.
+
+     Buckets are chosen so that every responsive `text-hd-A md:text-hd-B`
+     pair with a >=2px gap still straddles two steps. Only 1px pairs
+     flatten — they were never a perceptible hierarchy step.
+     ------------------------------------------------------------------ */
+
+  --text-hd-micro:   var(--hd-text-11);  --text-hd-micro--line-height:   1.35;
+  --text-hd-caption: var(--hd-text-12);  --text-hd-caption--line-height: 1.4;
+  --text-hd-body:    var(--hd-text-14);  --text-hd-body--line-height:    1.5;
+  --text-hd-title:   var(--hd-text-16);  --text-hd-title--line-height:   1.4;
+  --text-hd-h3:      var(--hd-text-20);  --text-hd-h3--line-height:      1.3;
+  --text-hd-h2:      var(--hd-text-28);  --text-hd-h2--line-height:      1.2;
+  --text-hd-display: var(--hd-text-36);  --text-hd-display--line-height: 1.1;
+  --text-hd-hero:    var(--hd-text-48);  --text-hd-hero--line-height:    1.05;
+
+  /* Legacy aliases — the number is the size it *used* to claim, not its size. */
+  --text-hd-7:  var(--hd-text-11);  --text-hd-7--line-height:  1.35;
+  --text-hd-8:  var(--hd-text-11);  --text-hd-8--line-height:  1.35;
+  --text-hd-9:  var(--hd-text-11);  --text-hd-9--line-height:  1.35;
+  --text-hd-10: var(--hd-text-12);  --text-hd-10--line-height: 1.4;
+  --text-hd-11: var(--hd-text-12);  --text-hd-11--line-height: 1.4;
+  --text-hd-12: var(--hd-text-14);  --text-hd-12--line-height: 1.5;
+  --text-hd-13: var(--hd-text-14);  --text-hd-13--line-height: 1.5;
+  --text-hd-14: var(--hd-text-16);  --text-hd-14--line-height: 1.4;
+  --text-hd-15: var(--hd-text-16);  --text-hd-15--line-height: 1.4;
+  --text-hd-16: var(--hd-text-16);  --text-hd-16--line-height: 1.4;
+  --text-hd-17: var(--hd-text-20);  --text-hd-17--line-height: 1.3;
+  --text-hd-18: var(--hd-text-20);  --text-hd-18--line-height: 1.3;
+  --text-hd-20: var(--hd-text-20);  --text-hd-20--line-height: 1.3;
+  --text-hd-24: var(--hd-text-28);  --text-hd-24--line-height: 1.2;
+  --text-hd-28: var(--hd-text-28);  --text-hd-28--line-height: 1.2;
+  --text-hd-32: var(--hd-text-36);  --text-hd-32--line-height: 1.1;
+  --text-hd-36: var(--hd-text-36);  --text-hd-36--line-height: 1.1;
+  --text-hd-48: var(--hd-text-48);  --text-hd-48--line-height: 1.05;
 }
 
 /* ============================================
@@ -69,24 +103,18 @@
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
 
-  /* Text scale system — multiplier applied to all text sizes */
+  /* Raw px ladder the type scale is built from. Every value carries the
+     user's text-size multiplier, so scaling reaches all text — it did not
+     before, because the scale above never compiled. Only the steps the
+     scale actually uses are declared; add one here before referencing it. */
   --hd-text-scale: 1;
-  --hd-text-7:  calc(7px  * var(--hd-text-scale));
-  --hd-text-8:  calc(8px  * var(--hd-text-scale));
-  --hd-text-9:  calc(9px  * var(--hd-text-scale));
-  --hd-text-10: calc(10px * var(--hd-text-scale));
   --hd-text-11: calc(11px * var(--hd-text-scale));
   --hd-text-12: calc(12px * var(--hd-text-scale));
   --hd-text-13: calc(13px * var(--hd-text-scale));
   --hd-text-14: calc(14px * var(--hd-text-scale));
-  --hd-text-15: calc(15px * var(--hd-text-scale));
   --hd-text-16: calc(16px * var(--hd-text-scale));
-  --hd-text-17: calc(17px * var(--hd-text-scale));
-  --hd-text-18: calc(18px * var(--hd-text-scale));
   --hd-text-20: calc(20px * var(--hd-text-scale));
-  --hd-text-24: calc(24px * var(--hd-text-scale));
   --hd-text-28: calc(28px * var(--hd-text-scale));
-  --hd-text-32: calc(32px * var(--hd-text-scale));
   --hd-text-36: calc(36px * var(--hd-text-scale));
   --hd-text-48: calc(48px * var(--hd-text-scale));
 }
@@ -170,9 +198,13 @@ input:not([type="range"]) {
    Mobile Input Zoom Prevention & Scroll Contain
    ============================================ */
 
+/* iOS zooms the viewport when focusing a field below 16px. Use max() rather
+   than a flat 16px !important, which pinned form fields at 16px and silently
+   exempted them from the text-size setting — the one control low-vision users
+   most need to reach. */
 @media (max-width: 767px) {
   input, select, textarea {
-    font-size: 16px !important;
+    font-size: max(16px, var(--hd-text-16));
   }
 }
 

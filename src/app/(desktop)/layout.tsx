@@ -288,7 +288,14 @@ export default function DesktopLayout({
             toast.success(`Restored ${restored.toLocaleString()} missing episodes to your library`);
           }
         })
-        .catch((err) => { console.warn("[layout] Seed/reconcile failed:", err); });
+        .catch((err) => { console.warn("[layout] Seed/reconcile failed:", err); })
+        .finally(() => {
+          // Tell the library it may now trust an empty table. Seeding is
+          // deferred to idle but Dexie's live query resolves immediately, so
+          // without this every first-time visitor was shown "No episodes in
+          // the library yet… try refreshing" — a failure message, on success.
+          window.dispatchEvent(new CustomEvent("hd:seed-settled"));
+        });
     };
 
     // requestIdleCallback is missing on older Safari — fall back to a timeout.
@@ -393,12 +400,20 @@ export default function DesktopLayout({
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Don't intercept when typing in inputs
+      // Don't intercept when typing in inputs, or when focus is on a control
+      // that owns the key itself. Buttons were missing here, so tabbing to any
+      // button and pressing Space toggled playback instead of activating it —
+      // which broke every button in the app for keyboard users.
       const target = e.target as HTMLElement;
       if (
         target.tagName === "INPUT" ||
         target.tagName === "TEXTAREA" ||
-        target.isContentEditable
+        target.tagName === "SELECT" ||
+        target.tagName === "BUTTON" ||
+        target.tagName === "A" ||
+        target.isContentEditable ||
+        target.getAttribute("role") === "button" ||
+        target.closest("[role='menu'], [role='dialog'], [role='alertdialog']")
       ) {
         return;
       }

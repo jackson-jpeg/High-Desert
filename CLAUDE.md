@@ -157,6 +157,38 @@ Cross-component communication via `window.dispatchEvent(new CustomEvent(...))`:
 - **Error boundaries:** `DBErrorBoundary` around Dexie-dependent UI, `WidgetErrorBoundary` around individual widgets
 - **Virtual scrolling:** `useVirtualList` hook with fixed `itemHeight` and `containerRef`
 
+## Type scale and the text ramp — read before styling text
+
+**Tailwind v4's font-size namespace is `--text-*`, not `--font-size-*`.** The theme
+block in `src/app/globals.css` originally registered the scale under `--font-size-hd-*`,
+which v4 silently drops — it emitted no CSS at all, so all 694 `text-hd-*` usages across
+57 files were inert and every character on the site rendered at the inherited body size.
+Colors from the same `@theme` block compiled fine, which is what made it invisible for
+so long. If you add a size, add it as `--text-hd-*` **and verify it in the built CSS**:
+
+```bash
+C=$(ls -t .next/static/chunks/*.css | head -1)
+grep -o '\.text-hd-[a-z0-9]*' "$C" | sort -u    # must list your new token
+```
+
+- **Eight steps:** `micro` 11 · `caption` 12 · `body` 14 · `title` 16 · `h3` 20 ·
+  `h2` 28 · `display` 36 · `hero` 48. Each ships a line-height. Prefer the semantic
+  names; the legacy numeric names (`text-hd-10`, …) are aliases onto the nearest step
+  and the number no longer reflects the rendered size.
+- **Every step carries `--hd-text-scale`**, the user's text-size setting. Anything that
+  hard-codes a pixel height for text content must scale with it — use
+  `itemHeightFor()` / `currentItemHeight()` from `@/hooks/useTextScale` rather than a
+  literal. Fixed row heights are why "Extra Large" made virtual-list rows overlap.
+
+**Three-tier text ramp — never take text below `/85` opacity.** `--color-bevel-dark`
+is `#9AA0AE`; at `/85` it is 4.89:1 on `raised-surface`, the darkest surface it sits on.
+Below that it fails AA. Use color, not opacity, for hierarchy:
+`text-desktop-gray` (primary) → `text-bevel-dark` (secondary) → `text-bevel-dark/85` (dim).
+
+`--color-title-bar-blue` (`#000080`) and `--color-highlight-blue` are **chrome fills**
+— title bars and selection. As text on the dark surfaces they measure ~1.1:1, i.e.
+invisible. For blue *text* use `--color-signal-blue` (`#6BA3F0`, 7.0:1).
+
 ## Database (Dexie v7)
 
 **Primary entity:** `Episode` — identity (id, fileHash), metadata (title, airDate, guestName, showType), audio (duration, bitrate), playback (lastPlayedAt, playbackPosition, playCount), archive source, AI fields (aiSummary, aiTags[], aiCategory, aiSeries, aiNotable, aiStatus), user fields (favoritedAt, rating).

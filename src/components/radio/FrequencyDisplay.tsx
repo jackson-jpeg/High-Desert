@@ -79,14 +79,14 @@ export function FrequencyDisplay({
               {freqNum}
             </span>
             <div className="flex flex-col gap-0.5">
-              <span className="text-hd-11 font-mono text-static-green/40 tracking-[0.1em]">kHz</span>
-              <span className="text-hd-9 font-mono text-static-green/20 tracking-[0.05em]">AM</span>
+              <span className="text-hd-11 font-mono text-static-green/85 tracking-[0.1em]">kHz</span>
+              <span className="text-hd-9 font-mono text-static-green/85 tracking-[0.05em]">AM</span>
             </div>
           </div>
 
           {/* Date + Lock indicator */}
           <div className="flex items-center justify-between pt-2">
-            <span className="text-hd-12 font-mono text-desert-amber/70 tracking-wide tabular-nums">
+            <span className="text-hd-12 font-mono text-desert-amber/85 tracking-wide tabular-nums">
               {isoDate}
             </span>
             {isLocked && (
@@ -95,13 +95,13 @@ export function FrequencyDisplay({
                   className="w-[7px] h-[7px] rounded-full bg-static-green"
                   style={{ boxShadow: "0 0 8px rgba(74,222,128,0.7), 0 0 20px rgba(74,222,128,0.3)" }}
                 />
-                <span className="text-hd-9 font-mono text-static-green/50 tracking-[0.12em] uppercase">
+                <span className="text-hd-9 font-mono text-static-green/85 tracking-[0.12em] uppercase">
                   Locked
                 </span>
               </div>
             )}
             {!isLocked && signalStrength > 0.1 && (
-              <span className="text-hd-9 font-mono text-desert-amber/50 animate-pulse tracking-wider uppercase">
+              <span className="text-hd-9 font-mono text-desert-amber/85 animate-pulse tracking-wider uppercase">
                 Tuning...
               </span>
             )}
@@ -119,7 +119,7 @@ export function FrequencyDisplay({
               {/* Sub-station dots */}
               {sameDateCount > 1 && (
                 <div className="flex items-center gap-2">
-                  <span className="text-hd-10 text-bevel-dark/40">
+                  <span className="text-hd-10 text-bevel-dark/85">
                     Station {subStationIndex + 1} of {sameDateCount}
                   </span>
                   <div className="flex gap-1">
@@ -169,7 +169,7 @@ export function FrequencyDisplay({
             </span>
           )}
           {!isLocked && signalStrength > 0.1 && (
-            <span className="text-hd-8 text-desert-amber/60 animate-pulse">
+            <span className="text-hd-8 text-desert-amber/85 animate-pulse">
               TUNING...
             </span>
           )}
@@ -184,10 +184,10 @@ export function FrequencyDisplay({
                 {currentStation.episode.guestName}
               </div>
             )}
-            <div className="text-hd-8 text-bevel-dark/70 mt-0.5">
+            <div className="text-hd-8 text-bevel-dark/85 mt-0.5">
               {dateStr}
               {sameDateCount > 1 && (
-                <span className="ml-2 text-desert-amber/60">
+                <span className="ml-2 text-desert-amber/85">
                   [{subStationIndex + 1}/{sameDateCount}]
                 </span>
               )}
@@ -198,7 +198,7 @@ export function FrequencyDisplay({
                   <span
                     className={
                       currentStation.showType === "coast"
-                        ? "text-title-bar-blue"
+                        ? "text-signal-blue"
                         : currentStation.showType === "dreamland"
                           ? "text-static-green"
                           : "text-desert-amber"
@@ -216,7 +216,7 @@ export function FrequencyDisplay({
         ) : (
           <div className="flex flex-col gap-1">
             <div className="crt-text text-hd-9 opacity-50">SEARCHING...</div>
-            <div className="text-hd-8 text-bevel-dark/50">{dateStr}</div>
+            <div className="text-hd-8 text-bevel-dark/85">{dateStr}</div>
           </div>
         )}
       </div>

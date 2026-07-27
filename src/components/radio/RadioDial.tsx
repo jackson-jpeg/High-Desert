@@ -221,7 +221,7 @@ export function RadioDial({ episodes }: RadioDialProps) {
     if (isEmpty) {
       return (
         <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-4">
-          <div className="text-hd-14 text-desert-amber/60 w98-font">No Stations Found</div>
+          <div className="text-hd-14 text-desert-amber/85 w98-font">No Stations Found</div>
           <div className="text-hd-11 text-bevel-dark max-w-[280px]">
             The radio dial needs episodes to tune into. Import some from the archive or scan local files.
           </div>
@@ -246,7 +246,7 @@ export function RadioDial({ episodes }: RadioDialProps) {
     if (noValidDates) {
       return (
         <div className="flex flex-col items-center justify-center h-full gap-2 text-center px-4">
-          <div className="text-hd-14 text-desert-amber/60 w98-font">No Dated Episodes</div>
+          <div className="text-hd-14 text-desert-amber/85 w98-font">No Dated Episodes</div>
           <div className="text-hd-11 text-bevel-dark max-w-[280px]">
             The radio dial maps episodes by air date. Try running AI categorization to detect original broadcast dates.
           </div>
@@ -289,12 +289,12 @@ export function RadioDial({ episodes }: RadioDialProps) {
         {/* First-visit hint */}
         {radioHint && (
           <div className="mx-5 mt-2 px-3 py-2 bg-desert-amber/10 border border-desert-amber/20 rounded flex items-center justify-between gap-2 flex-shrink-0 animate-fade-in">
-            <span className="text-hd-12 text-desert-amber/80">
+            <span className="text-hd-12 text-desert-amber/85">
               Drag the dial to tune through the archive. Tap Seek to lock onto the nearest station.
             </span>
             <button
               onClick={dismissRadioHint}
-              className="text-hd-12 text-bevel-dark/50 active:text-desktop-gray cursor-pointer min-w-[28px] min-h-[28px] flex items-center justify-center"
+              className="text-hd-12 text-bevel-dark/85 active:text-desktop-gray cursor-pointer min-w-[28px] min-h-[28px] flex items-center justify-center"
             >
               OK
             </button>
@@ -350,12 +350,12 @@ export function RadioDial({ episodes }: RadioDialProps) {
         {/* First-visit hint */}
         {radioHint && (
           <div className="px-2 py-1.5 w98-inset-dark rounded flex items-center justify-between gap-2 animate-fade-in">
-            <span className="text-hd-10 text-desert-amber/80">
+            <span className="text-hd-10 text-desert-amber/85">
               Drag the dial to tune through the archive chronologically. Press Enter or click Seek to lock onto the nearest station.
             </span>
             <button
               onClick={dismissRadioHint}
-              className="text-hd-10 text-bevel-dark/50 hover:text-desktop-gray cursor-pointer min-w-[24px] flex items-center justify-center"
+              className="text-hd-10 text-bevel-dark/85 hover:text-desktop-gray cursor-pointer min-w-[24px] flex items-center justify-center"
             >
               OK
             </button>
@@ -374,7 +374,7 @@ export function RadioDial({ episodes }: RadioDialProps) {
               className="text-hd-9 text-bevel-dark hover:text-desktop-gray cursor-pointer w-full text-center"
               title="Zoom in (Ctrl+Scroll)"
             >+</button>
-            <span className="text-hd-7 text-bevel-dark/40 tabular-nums">{zoom.toFixed(1)}x</span>
+            <span className="text-hd-7 text-bevel-dark/85 tabular-nums">{zoom.toFixed(1)}x</span>
             <button
               onClick={() => setZoom(zoom - 0.5)}
               className="text-hd-9 text-bevel-dark hover:text-desktop-gray cursor-pointer w-full text-center"

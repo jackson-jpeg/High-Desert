@@ -76,19 +76,19 @@ export function ArchiveResultCard({
 
       {/* Description */}
       {description && (
-        <div className="text-hd-12 md:text-hd-10 text-bevel-dark/70 line-clamp-2 leading-relaxed">
+        <div className="text-hd-12 md:text-hd-10 text-bevel-dark/85 line-clamp-2 leading-relaxed">
           {description}
         </div>
       )}
 
       {/* Action row */}
       <div className="flex items-center justify-between mt-0.5">
-        <span className="text-hd-11 md:text-hd-9 text-bevel-dark/60 truncate">
+        <span className="text-hd-11 md:text-hd-9 text-bevel-dark/85 truncate">
           {result.creator ?? "Art Bell"}
         </span>
         <div className="transition-state">
           {isAdded ? (
-            <span className="text-hd-12 md:text-hd-10 text-static-green/80 flex items-center gap-1">
+            <span className="text-hd-12 md:text-hd-10 text-static-green/85 flex items-center gap-1">
               <span>{"\u2713"}</span> Added
             </span>
           ) : (

@@ -9,6 +9,7 @@ import { useIsMobile } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils/cn";
 import { communityKey } from "@/lib/utils/community-key";
 import { useCommunityStats } from "@/hooks/useCommunityStats";
+import { useTextScale, itemHeightFor } from "@/hooks/useTextScale";
 
 interface TimelineViewProps {
   episodes: Episode[];
@@ -24,9 +25,9 @@ interface TimelineViewProps {
   className?: string;
 }
 
-// Mobile cards need more height for category label + larger text
-const ITEM_HEIGHT_MOBILE = 110;
-const ITEM_HEIGHT_DESKTOP = 76;
+// Row heights live in @/hooks/useTextScale — they are shared with the
+// scroll-to-index call sites in the library page, which used to carry their own
+// diverging copies.
 
 export function TimelineView({
   episodes,
@@ -44,7 +45,8 @@ export function TimelineView({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const isMobile = useIsMobile();
-  const ITEM_HEIGHT = isMobile ? ITEM_HEIGHT_MOBILE : ITEM_HEIGHT_DESKTOP;
+  const textScale = useTextScale();
+  const ITEM_HEIGHT = itemHeightFor(isMobile, textScale);
 
   const { virtualItems, totalHeight, onScroll, scrollToIndex } = useVirtualList({
     items: episodes,
@@ -129,18 +131,18 @@ export function TimelineView({
                 onClick={() => onAction("search")}
                 className={cn(
                   "text-hd-11 px-3 py-1.5 w98-raised-dark bg-raised-surface",
-                  "text-title-bar-blue hover:bg-title-bar-blue/15 cursor-pointer transition-colors-fast",
+                  "text-signal-blue hover:bg-title-bar-blue/15 cursor-pointer transition-colors-fast",
                 )}
               >
                 Search Archive
               </button>
             </div>
-            <span className="text-hd-10 text-bevel-dark/40 mt-1">
+            <span className="text-hd-10 text-bevel-dark/85 mt-1">
               Keyboard: / to search, Ctrl+Shift+S to scan
             </span>
           </div>
         ) : (
-          <div className="text-hd-10 text-bevel-dark/50 italic">
+          <div className="text-hd-10 text-bevel-dark/85 italic">
             The library is being set up. Episodes will appear shortly.
           </div>
         )}
@@ -156,7 +158,7 @@ export function TimelineView({
           <span className="text-hd-13 text-desert-amber/90 font-bold tabular-nums">
             {currentYear}
           </span>
-          <span className="text-hd-10 text-bevel-dark/50">
+          <span className="text-hd-10 text-bevel-dark/85">
             {yearCounts.get(currentYear) ?? 0}
           </span>
           {/* Year nav dots — desktop only */}

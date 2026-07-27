@@ -128,7 +128,7 @@ export function SmartPlaylists({ onPlay, className }: SmartPlaylistsProps) {
             >
               <span className="text-hd-12 md:text-hd-10">{list.icon}</span>
               <span className="text-hd-12 md:text-hd-10 flex-1">{list.label}</span>
-              <span className="text-hd-10 md:text-hd-8 text-bevel-dark/50 tabular-nums">
+              <span className="text-hd-10 md:text-hd-8 text-bevel-dark/85 tabular-nums">
                 {list.episodes.length}
               </span>
             </button>
@@ -139,13 +139,13 @@ export function SmartPlaylists({ onPlay, className }: SmartPlaylistsProps) {
                 <div className="flex items-center gap-2 px-2 pb-1">
                   <button
                     onClick={() => handlePlayAll(list)}
-                    className="text-hd-11 md:text-hd-8 text-title-bar-blue hover:text-title-bar-blue/80 active:text-title-bar-blue cursor-pointer min-h-[32px] md:min-h-0 px-1"
+                    className="text-hd-11 md:text-hd-8 text-signal-blue hover:text-signal-blue active:text-signal-blue cursor-pointer min-h-[32px] md:min-h-0 px-1"
                   >
                     {"\u25B6"} Play All
                   </button>
                   <button
                     onClick={() => handleShuffle(list)}
-                    className="text-hd-11 md:text-hd-8 text-desert-amber hover:text-desert-amber/80 active:text-desert-amber cursor-pointer min-h-[32px] md:min-h-0 px-1"
+                    className="text-hd-11 md:text-hd-8 text-desert-amber hover:text-desert-amber/85 active:text-desert-amber cursor-pointer min-h-[32px] md:min-h-0 px-1"
                   >
                     {"\u21C6"} Shuffle
                   </button>
@@ -157,19 +157,19 @@ export function SmartPlaylists({ onPlay, className }: SmartPlaylistsProps) {
                     className="flex items-center gap-2 text-left px-2 py-2 md:py-1 min-h-[36px] md:min-h-0 cursor-pointer hover:bg-title-bar-blue/10 active:bg-title-bar-blue/15 transition-colors-fast"
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="text-hd-11 md:text-hd-9 text-desktop-gray/80 truncate">
+                      <div className="text-hd-11 md:text-hd-9 text-desktop-gray/85 truncate">
                         {ep.title || ep.fileName}
                       </div>
                     </div>
                     {ep.airDate && (
-                      <span className="text-hd-9 md:text-hd-7 text-bevel-dark/40 tabular-nums flex-shrink-0">
+                      <span className="text-hd-9 md:text-hd-7 text-bevel-dark/85 tabular-nums flex-shrink-0">
                         {ep.airDate}
                       </span>
                     )}
                   </button>
                 ))}
                 {list.episodes.length > 15 && (
-                  <div className="text-hd-8 text-bevel-dark/40 px-2 py-0.5">
+                  <div className="text-hd-8 text-bevel-dark/85 px-2 py-0.5">
                     +{list.episodes.length - 15} more
                   </div>
                 )}

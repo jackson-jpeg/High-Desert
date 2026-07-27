@@ -192,7 +192,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
             {value && (
               <button
                 onClick={() => onChange("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-hd-14 md:text-hd-10 text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer min-w-[44px] min-h-[44px] md:min-w-[24px] md:min-h-[24px] flex items-center justify-center"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-hd-14 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer min-w-[44px] min-h-[44px] md:min-w-[24px] md:min-h-[24px] flex items-center justify-center"
                 aria-label="Clear search"
               >
                 {"\u2715"}
@@ -213,10 +213,10 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
                       "w-full text-left px-3 md:px-2 py-2.5 md:py-1 min-h-[44px] md:min-h-0 text-hd-14 md:text-hd-11 cursor-pointer flex items-center gap-2 transition-colors-fast",
                       i === activeIdx
                         ? "bg-title-bar-blue/30 text-desktop-gray"
-                        : "text-desktop-gray/80 hover:bg-title-bar-blue/15 active:bg-title-bar-blue/20",
+                        : "text-desktop-gray/85 hover:bg-title-bar-blue/15 active:bg-title-bar-blue/20",
                     )}
                   >
-                    <span className="text-hd-10 md:text-hd-10 text-bevel-dark/50 w-[48px] flex-shrink-0">{typeLabels[s.type]}</span>
+                    <span className="text-hd-10 md:text-hd-10 text-bevel-dark/85 w-[48px] flex-shrink-0">{typeLabels[s.type]}</span>
                     <span className="truncate">{s.label}</span>
                   </button>
                 ))}
@@ -232,7 +232,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
             onClick={() => setShowHelp(!showHelp)}
             className={cn(
               "text-hd-13 md:text-hd-11 cursor-pointer transition-colors-fast flex-shrink-0 min-w-[32px] min-h-[32px] md:min-w-0 md:min-h-0 flex items-center justify-center",
-              showHelp ? "text-desert-amber" : "text-bevel-dark/40 hover:text-bevel-dark active:text-bevel-dark",
+              showHelp ? "text-desert-amber" : "text-bevel-dark/85 hover:text-bevel-dark active:text-bevel-dark",
             )}
             title="Search syntax help"
           >
@@ -240,20 +240,20 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
           </button>
         </div>
         {showHelp && (
-          <div className="text-hd-11 md:text-hd-10 text-bevel-dark/60 flex flex-wrap gap-x-3 gap-y-1 md:gap-y-0.5 px-1 py-1 md:py-0 w98-inset-dark bg-inset-well/50 md:bg-transparent md:border-0">
-            <span><span className="text-desert-amber/70">guest:</span>name</span>
-            <span><span className="text-desert-amber/70">year:</span>1997</span>
-            <span><span className="text-desert-amber/70">tag:</span>ufo</span>
-            <span><span className="text-desert-amber/70">show:</span>coast</span>
-            <span><span className="text-desert-amber/70">cat:</span>paranormal</span>
-            <span><span className="text-desert-amber/70">series:</span>name</span>
-            <span><span className="text-desert-amber/70">has:</span>favorite</span>
-            <span><span className="text-desert-amber/70">has:</span>notable</span>
-            <span><span className="text-desert-amber/70">has:</span>bookmark</span>
-            <span><span className="text-desert-amber/70">has:</span>played</span>
-            <span><span className="text-desert-amber/70">duration:</span>&gt;60</span>
-            <span><span className="text-desert-amber/70">rating:</span>&gt;=4</span>
-            <span><span className="text-desert-amber/70">favorited:</span>true</span>
+          <div className="text-hd-11 md:text-hd-10 text-bevel-dark/85 flex flex-wrap gap-x-3 gap-y-1 md:gap-y-0.5 px-1 py-1 md:py-0 w98-inset-dark bg-inset-well/50 md:bg-transparent md:border-0">
+            <span><span className="text-desert-amber/85">guest:</span>name</span>
+            <span><span className="text-desert-amber/85">year:</span>1997</span>
+            <span><span className="text-desert-amber/85">tag:</span>ufo</span>
+            <span><span className="text-desert-amber/85">show:</span>coast</span>
+            <span><span className="text-desert-amber/85">cat:</span>paranormal</span>
+            <span><span className="text-desert-amber/85">series:</span>name</span>
+            <span><span className="text-desert-amber/85">has:</span>favorite</span>
+            <span><span className="text-desert-amber/85">has:</span>notable</span>
+            <span><span className="text-desert-amber/85">has:</span>bookmark</span>
+            <span><span className="text-desert-amber/85">has:</span>played</span>
+            <span><span className="text-desert-amber/85">duration:</span>&gt;60</span>
+            <span><span className="text-desert-amber/85">rating:</span>&gt;=4</span>
+            <span><span className="text-desert-amber/85">favorited:</span>true</span>
           </div>
         )}
       </div>

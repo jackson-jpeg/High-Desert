@@ -44,7 +44,7 @@ export function ContinueListening({ onPlay, className }: ContinueListeningProps)
     <div className={cn("w98-raised-dark bg-raised-surface animate-slide-up", className)}>
       <div className="px-3 py-2">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-hd-12 md:text-hd-10 text-bevel-dark/60 uppercase tracking-wider">
+          <span className="text-hd-12 md:text-hd-10 text-bevel-dark/85 uppercase tracking-wider">
             Continue Listening
           </span>
           <button
@@ -73,7 +73,7 @@ export function ContinueListening({ onPlay, className }: ContinueListeningProps)
                   {ep.title || ep.fileName}
                 </div>
                 {ep.guestName && (
-                  <div className="text-hd-10 text-static-green/60 truncate mt-0.5">
+                  <div className="text-hd-10 text-static-green/85 truncate mt-0.5">
                     {ep.guestName}
                   </div>
                 )}

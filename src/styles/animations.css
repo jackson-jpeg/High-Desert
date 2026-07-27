@@ -215,11 +215,19 @@
   .animate-glass-backdrop-out,
   .animate-glass-toast {
     animation-duration: 0.01ms !important;
+    /* .animate-bar-grow staggers via animation-delay: calc(var(--i) * 50ms);
+       clamping duration alone still spread a 20-bar chart over a second. */
+    animation-delay: 0ms !important;
   }
 
+  /* Tailwind's built-in animate-pulse was never listed here. One use is a
+     full-viewport bg-black/80 pulse (EasterEggOverlays), i.e. a whole-screen
+     luminance oscillation running under prefers-reduced-motion — a
+     vestibular and photosensitivity concern, not just a polish issue. */
+  .animate-pulse,
+  .animate-dot-1,
   .animate-on-air,
   .animate-pulse-glow,
-  .animate-stat-glow,
   .animate-skeleton,
   .animate-signal-1,
   .animate-signal-2,
@@ -230,9 +238,14 @@
   }
 
   .transition-colors-fast,
-  .transition-press,
-  .transition-state {
+  .transition-state,
+  .tag-cloud-item {
     transition-duration: 0.01ms !important;
+  }
+
+  /* The tag cloud scales 1.15x on hover; kill the transform outright. */
+  .tag-cloud-item:hover {
+    transform: none !important;
   }
 }
 

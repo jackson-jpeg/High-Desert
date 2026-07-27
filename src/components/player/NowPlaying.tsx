@@ -32,11 +32,11 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
         {displayTitle}
       </div>
       {episode.guestName && (
-        <div className="hidden md:block text-hd-11 text-static-green/80 truncate" title={episode.guestName}>
+        <div className="hidden md:block text-hd-11 text-static-green/85 truncate" title={episode.guestName}>
           {episode.guestName}
         </div>
       )}
-      <div className="text-hd-12 md:text-hd-11 text-bevel-dark/70 truncate" title={[showLabel, formatAirDate(episode.airDate)].filter(Boolean).join(" \u00B7 ")}>
+      <div className="text-hd-12 md:text-hd-11 text-bevel-dark/85 truncate" title={[showLabel, formatAirDate(episode.airDate)].filter(Boolean).join(" \u00B7 ")}>
         {[showLabel, formatAirDate(episode.airDate)].filter(Boolean).join(" \u00B7 ")}
       </div>
 
@@ -44,7 +44,7 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
       {expanded && (
         <>
           {episode.aiSummary && (
-            <div className="text-hd-11 text-desktop-gray/50 leading-relaxed mt-1 line-clamp-2">
+            <div className="text-hd-11 text-desktop-gray/85 leading-relaxed mt-1 line-clamp-2">
               {episode.aiSummary}
             </div>
           )}
@@ -53,7 +53,7 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
               {episode.aiTags.map((tag) => (
                 <span
                   key={tag}
-                  className="text-hd-10 text-desert-amber/50 px-1 py-px"
+                  className="text-hd-10 text-desert-amber/85 px-1 py-px"
                 >
                   {tag}
                 </span>

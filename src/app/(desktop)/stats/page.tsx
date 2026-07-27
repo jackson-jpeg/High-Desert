@@ -205,7 +205,7 @@ export default function StatsPage() {
           <div className="p-8 flex flex-col items-center gap-3 text-center">
             <div className="text-hd-24 text-desert-amber/30 select-none">{"\u{1F4E1}"}</div>
             <div className="text-hd-11 text-bevel-dark">No episodes in the library yet.</div>
-            <div className="text-hd-9 text-bevel-dark/60">
+            <div className="text-hd-9 text-bevel-dark/85">
               {isAdmin
                 ? "Import episodes from the Scanner or Search page to see your station stats."
                 : "No episodes in the library yet. Check back soon!"}
@@ -242,7 +242,7 @@ export default function StatsPage() {
               label="Library"
               value={`${libraryHours.toFixed(0)}h`}
               sub={`${listenedDays > 1 ? Math.round(libraryHours / 24) + (Math.round(libraryHours / 24) === 1 ? " day" : " days") : Math.round(libraryHours) + (Math.round(libraryHours) === 1 ? " hour" : " hours")} of audio`}
-              color="text-title-bar-blue"
+              color="text-signal-blue"
             />
             <HeroStat
               label="Listened"
@@ -277,7 +277,7 @@ export default function StatsPage() {
               label="Series"
               value={stats.seriesCount.toLocaleString()}
               sub={stats.seriesCount === 1 ? "multi-part set" : "multi-part sets"}
-              color="text-title-bar-blue"
+              color="text-signal-blue"
             />
             <HeroStat
               label="Favorites"
@@ -317,7 +317,7 @@ export default function StatsPage() {
             </span>
           </div>
           {completionPct === 0 && (
-            <span className="text-hd-8 text-bevel-dark/50 mt-0.5 ml-[68px]">Percentage of the archive you&apos;ve listened to.</span>
+            <span className="text-hd-8 text-bevel-dark/85 mt-0.5 ml-[68px]">Percentage of the archive you&apos;ve listened to.</span>
           )}
         </div>
       </Window>
@@ -335,7 +335,7 @@ export default function StatsPage() {
                   {stats.decades.map(([decade, count]) => (
                     <span key={decade} className="text-hd-10 md:text-hd-9 text-bevel-dark whitespace-nowrap flex-shrink-0">
                       <span className="text-desktop-gray">{decade}</span>
-                      <span className="text-bevel-dark/60 ml-1">{count.toLocaleString()}</span>
+                      <span className="text-bevel-dark/85 ml-1">{count.toLocaleString()}</span>
                     </span>
                   ))}
                 </div>
@@ -368,7 +368,7 @@ export default function StatsPage() {
                           )}
                         </div>
                       </div>
-                      <span className="text-hd-8 text-bevel-dark/60 tabular-nums w-[36px] md:w-[48px] text-right opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                      <span className="text-hd-8 text-bevel-dark/85 tabular-nums w-[36px] md:w-[48px] text-right opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         {yearHours.toFixed(0)}h
                       </span>
                       {pct <= 20 && (
@@ -519,7 +519,7 @@ export default function StatsPage() {
                 )}
               </div>
               <div className="flex items-center gap-3 text-hd-9">
-                <span className="text-title-bar-blue">{stats.archiveCount.toLocaleString()} archive</span>
+                <span className="text-signal-blue">{stats.archiveCount.toLocaleString()} archive</span>
                 <span className="text-bevel-dark">{stats.localCount.toLocaleString()} local</span>
               </div>
             </div>
@@ -534,7 +534,7 @@ export default function StatsPage() {
                 <div className="text-hd-12 md:text-hd-10 text-desktop-gray">
                   {cacheSize > 0 ? formatBytes(cacheSize) : "Empty"}
                 </div>
-                <div className="text-hd-10 md:text-hd-8 text-bevel-dark/60">
+                <div className="text-hd-10 md:text-hd-8 text-bevel-dark/85">
                   Offline audio cached in OPFS
                 </div>
               </div>
@@ -564,7 +564,7 @@ export default function StatsPage() {
                 >
                   <span className="text-hd-9 text-red-400/70">⚑</span>
                   <span className="text-hd-10 text-desktop-gray truncate flex-1">{ep.title || ep.fileName}</span>
-                  <span className="text-hd-8 text-bevel-dark/50 tabular-nums flex-shrink-0">
+                  <span className="text-hd-8 text-bevel-dark/85 tabular-nums flex-shrink-0">
                     {ep.airDate ? formatAirDate(ep.airDate) : ""}
                   </span>
                 </button>
@@ -580,7 +580,7 @@ export default function StatsPage() {
               <div className="flex flex-col gap-[3px]">
                 {stats.topGuests.map(([guest, count], i) => (
                   <div key={guest} className="flex items-center gap-2 group">
-                    <span className="text-hd-8 text-bevel-dark/60 tabular-nums w-[14px] text-right">
+                    <span className="text-hd-8 text-bevel-dark/85 tabular-nums w-[14px] text-right">
                       {i + 1}
                     </span>
                     <span className="text-hd-11 md:text-hd-10 text-desktop-gray truncate w-[100px] md:w-[140px] flex-shrink-0">
@@ -616,7 +616,7 @@ export default function StatsPage() {
                     : 0;
                   return (
                     <div key={ep.id} className="flex items-start gap-2">
-                      <span className="text-hd-8 text-bevel-dark/60 tabular-nums w-[12px] text-right mt-0.5">
+                      <span className="text-hd-8 text-bevel-dark/85 tabular-nums w-[12px] text-right mt-0.5">
                         {i + 1}
                       </span>
                       <div className="flex-1 min-w-0">
@@ -628,7 +628,7 @@ export default function StatsPage() {
                             <span className="text-hd-9 md:text-hd-8 text-desert-amber tabular-nums">{ep.airDate}</span>
                           )}
                           {ep.guestName && (
-                            <span className="text-hd-9 md:text-hd-8 text-static-green/70 truncate">{ep.guestName}</span>
+                            <span className="text-hd-9 md:text-hd-8 text-static-green/85 truncate">{ep.guestName}</span>
                           )}
                         </div>
                         <div className="h-[3px] w98-inset-dark bg-inset-well mt-1 overflow-hidden">
@@ -718,7 +718,7 @@ function HeroStat({ label, value, sub, color, className }: {
       <div className="text-hd-9 md:text-hd-8 text-bevel-dark uppercase tracking-wider">
         {label}
       </div>
-      <div className="text-hd-8 md:text-hd-7 text-bevel-dark/50 truncate max-w-full text-center">
+      <div className="text-hd-8 md:text-hd-7 text-bevel-dark/85 truncate max-w-full text-center">
         {sub}
       </div>
     </div>

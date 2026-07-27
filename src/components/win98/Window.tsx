@@ -18,6 +18,8 @@ export interface WindowProps {
   footer?: ReactNode;
   /** Render title as a semantic heading (h1–h6). */
   headingLevel?: 1 | 2 | 3 | 4 | 5 | 6;
+  /** id for the title element, so a Dialog can point aria-labelledby at it. */
+  titleId?: string;
 }
 
 export function Window({
@@ -33,6 +35,7 @@ export function Window({
   variant = "dark",
   footer,
   headingLevel,
+  titleId,
 }: WindowProps) {
   return (
     <div
@@ -51,6 +54,7 @@ export function Window({
         onMinimize={onMinimize}
         onMaximize={onMaximize}
         headingLevel={headingLevel}
+        titleId={titleId}
         {...titleBarProps}
       />
       <div className="flex-1 overflow-auto p-1">{children}</div>

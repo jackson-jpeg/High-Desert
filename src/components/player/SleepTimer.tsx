@@ -42,7 +42,7 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
           "flex items-center gap-1 cursor-pointer transition-colors-fast",
           isMobile
             ? "min-w-[44px] min-h-[44px] justify-center text-hd-13 text-desert-amber"
-            : "text-hd-9 text-desert-amber hover:text-desert-amber/70 px-1.5 py-0.5 tabular-nums",
+            : "text-hd-9 text-desert-amber hover:text-desert-amber/85 px-1.5 py-0.5 tabular-nums",
         )}
         title="Cancel sleep timer"
         aria-label={`Sleep timer: ${formatRemaining(remaining)} remaining. Click to cancel.`}
@@ -130,8 +130,8 @@ export function SleepTimer({ variant = "desktop" }: SleepTimerProps) {
         className={cn(
           "cursor-pointer transition-colors-fast",
           isMobile
-            ? "min-w-[44px] min-h-[44px] flex items-center justify-center text-hd-13 text-bevel-dark/50"
-            : "text-hd-9 text-bevel-dark/50 hover:text-desktop-gray px-1",
+            ? "min-w-[44px] min-h-[44px] flex items-center justify-center text-hd-13 text-bevel-dark/85"
+            : "text-hd-9 text-bevel-dark/85 hover:text-desktop-gray px-1",
         )}
       >
         {"\u2715"}

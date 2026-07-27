@@ -110,7 +110,7 @@ export function CatalogScraper() {
 
         {/* Idle description */}
         {phase === "idle" && (
-          <div className="text-hd-12 md:text-hd-10 text-bevel-dark/70 leading-relaxed">
+          <div className="text-hd-12 md:text-hd-10 text-bevel-dark/85 leading-relaxed">
             Import the complete Art Bell archive from archive.org. Discovers episodes, imports metadata, and uses AI to categorize.
           </div>
         )}
@@ -148,7 +148,7 @@ export function CatalogScraper() {
 
         {/* Phase description */}
         {isRunning && PHASE_DESCRIPTIONS[phase] && (
-          <div className="text-hd-11 md:text-hd-9 text-bevel-dark/50 leading-relaxed">
+          <div className="text-hd-11 md:text-hd-9 text-bevel-dark/85 leading-relaxed">
             {PHASE_DESCRIPTIONS[phase]}
           </div>
         )}
@@ -274,7 +274,7 @@ export function CatalogScraper() {
         {/* Advanced options */}
         {showAdvanced && !isRunning && (
           <div className="flex flex-col gap-2 pt-1 border-t border-bevel-dark/20">
-            <div className="text-hd-9 text-bevel-dark/60 leading-relaxed">
+            <div className="text-hd-9 text-bevel-dark/85 leading-relaxed">
               Episodes import with metadata parsed from filenames. AI categorization
               runs offline via <code>scripts/categorize-library.py</code> and ships in
               the seed catalog — nothing is sent to a third party at runtime.

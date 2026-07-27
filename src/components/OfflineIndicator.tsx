@@ -87,7 +87,7 @@ export function OfflineIndicator() {
         <span>Archive.org is temporarily down &mdash; this is not a High Desert issue</span>
         <button
           onClick={() => setArchiveDown(false)}
-          className="text-desert-amber/50 hover:text-desert-amber cursor-pointer text-hd-12 md:text-hd-10 ml-1"
+          className="text-desert-amber/85 hover:text-desert-amber cursor-pointer text-hd-12 md:text-hd-10 ml-1"
           aria-label="Dismiss"
         >
           {"\u2715"}

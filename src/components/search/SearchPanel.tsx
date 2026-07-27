@@ -220,7 +220,7 @@ export function SearchPanel() {
 
             {/* Featured guests */}
             <div className="flex flex-wrap gap-1 items-center">
-              <span className="text-hd-10 md:text-hd-8 text-bevel-dark/40 uppercase tracking-wider mr-0.5">Guests</span>
+              <span className="text-hd-10 md:text-hd-8 text-bevel-dark/85 uppercase tracking-wider mr-0.5">Guests</span>
               {FEATURED_GUESTS.map((guest) => (
                 <button
                   key={guest}
@@ -229,7 +229,7 @@ export function SearchPanel() {
                     "px-3 py-2.5 text-hd-13 min-h-[44px] md:px-1.5 md:py-0.5 md:text-hd-9 md:min-h-0 cursor-pointer transition-colors-fast",
                     query === guest
                       ? "bg-static-green/15 text-static-green/90"
-                      : "text-bevel-dark hover:text-static-green/80 hover:bg-static-green/5 active:bg-static-green/5",
+                      : "text-bevel-dark hover:text-static-green/85 hover:bg-static-green/5 active:bg-static-green/5",
                   )}
                 >
                   {guest}
@@ -241,7 +241,7 @@ export function SearchPanel() {
               <div className="flex items-center justify-between">
                 <span className="text-hd-10 text-bevel-dark">
                   {totalResults.toLocaleString()} results
-                  {query && <span className="text-bevel-dark/60"> for &ldquo;{query}&rdquo;</span>}
+                  {query && <span className="text-bevel-dark/85"> for &ldquo;{query}&rdquo;</span>}
                 </span>
                 {newCount > 0 && (
                   <Button

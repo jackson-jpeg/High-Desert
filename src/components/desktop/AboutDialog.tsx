@@ -78,19 +78,19 @@ export function AboutDialog({
             </pre>
           </div>
 
-          <div className="text-hd-10 text-desktop-gray/60">
-            v0.5.0 <span className="text-desert-amber/50">&ldquo;Kingdom of Nye&rdquo;</span>
-            {isAdmin && <span className="text-static-green/40 ml-1">(Admin)</span>}
+          <div className="text-hd-10 text-desktop-gray/85">
+            v0.5.0 <span className="text-desert-amber/85">&ldquo;Kingdom of Nye&rdquo;</span>
+            {isAdmin && <span className="text-static-green/85 ml-1">(Admin)</span>}
           </div>
 
           <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-desert-amber/20 to-transparent" />
 
           {/* Dedication */}
           <div className="flex flex-col gap-1">
-            <div className="text-hd-10 text-desktop-gray/80 font-bold">
+            <div className="text-hd-10 text-desktop-gray/85 font-bold">
               Dedicated to Art Bell (1945–2018)
             </div>
-            <div className="text-hd-9 text-desktop-gray/50 italic leading-relaxed">
+            <div className="text-hd-9 text-desktop-gray/85 italic leading-relaxed">
               Pioneer of late-night talk radio. For over two decades, Art brought the strange,
               the unexplained, and the wonderful into millions of homes from his studio
               in the high desert of Pahrump, Nevada.
@@ -101,7 +101,7 @@ export function AboutDialog({
 
           {/* Fun facts */}
           <div className="flex flex-col gap-1.5">
-            <div className="text-hd-9 text-desert-amber/70 font-bold uppercase tracking-wider">
+            <div className="text-hd-9 text-desert-amber/85 font-bold uppercase tracking-wider">
               Archive Statistics
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-hd-9">
@@ -134,16 +134,16 @@ export function AboutDialog({
 
           {/* Quote */}
           <div
-            className="text-hd-9 text-static-green/50 italic"
+            className="text-hd-9 text-static-green/85 italic"
             style={{ textShadow: "0 0 4px rgba(74, 222, 128, 0.15)" }}
           >
             &ldquo;I have seen things that I cannot explain...&rdquo;
           </div>
 
           {/* Attribution */}
-          <div className="text-hd-9 text-desktop-gray/40">
+          <div className="text-hd-9 text-desktop-gray/85">
             A{" "}
-            <a href="https://sang3r.com" target="_blank" rel="noopener noreferrer" className="text-desert-amber/50 hover:text-desert-amber">
+            <a href="https://sang3r.com" target="_blank" rel="noopener noreferrer" className="text-desert-amber/85 hover:text-desert-amber">
               Sang3r.com
             </a>
             {" "}production
@@ -155,7 +155,7 @@ export function AboutDialog({
               href="https://archive.org/details/artaborneradio"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-hd-9 text-desert-amber/50 hover:text-desert-amber underline underline-offset-2"
+              className="text-hd-9 text-desert-amber/85 hover:text-desert-amber underline underline-offset-2"
             >
               Source: archive.org
             </a>

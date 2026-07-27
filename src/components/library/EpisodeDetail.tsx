@@ -154,7 +154,7 @@ export function EpisodeDetail({
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-bevel-dark/20 glass-divider">
         <div className="flex items-center gap-1.5">
-          <span className="text-hd-12 md:text-hd-10 text-bevel-dark/70">
+          <span className="text-hd-12 md:text-hd-10 text-bevel-dark/85">
             {[showLabel, isArchive ? "Archive" : null].filter(Boolean).join(" \u00B7 ")}
           </span>
           {episode.aiCategory && (
@@ -162,7 +162,7 @@ export function EpisodeDetail({
               onClick={() => {
                 window.dispatchEvent(new CustomEvent("hd:filter-category", { detail: episode.aiCategory }));
               }}
-              className="text-hd-12 md:text-hd-10 text-desert-amber/60 bg-desert-amber/8 px-2 py-1 md:px-1 md:py-px cursor-pointer hover:text-desert-amber hover:bg-desert-amber/15 active:text-desert-amber active:bg-desert-amber/15 transition-colors-fast"
+              className="text-hd-12 md:text-hd-10 text-desert-amber/85 bg-desert-amber/8 px-2 py-1 md:px-1 md:py-px cursor-pointer hover:text-desert-amber hover:bg-desert-amber/15 active:text-desert-amber active:bg-desert-amber/15 transition-colors-fast"
               title={`Filter by ${episode.aiCategory}`}
             >
               {episode.aiCategory}
@@ -288,12 +288,12 @@ export function EpisodeDetail({
                   </span>
                 )}
                 {episode.duration != null && (
-                  <span className="text-hd-12 md:text-hd-11 text-bevel-dark/60 tabular-nums font-mono">
+                  <span className="text-hd-12 md:text-hd-11 text-bevel-dark/85 tabular-nums font-mono">
                     {formatDuration(episode.duration)}
                   </span>
                 )}
                 {communityPlays != null && communityPlays > 0 && (
-                  <span className="text-hd-10 md:text-hd-9 text-bevel-dark/50">
+                  <span className="text-hd-10 md:text-hd-9 text-bevel-dark/85">
                     ▶ {communityPlays.toLocaleString()} community plays
                   </span>
                 )}
@@ -303,7 +303,7 @@ export function EpisodeDetail({
             {/* Guest */}
             {episode.guestName && (
               <div
-                className="text-hd-14 md:text-hd-12 text-static-green/80 hover:text-static-green hover:underline cursor-pointer w-fit"
+                className="text-hd-14 md:text-hd-12 text-static-green/85 hover:text-static-green hover:underline cursor-pointer w-fit"
                 onClick={() => {
                   window.dispatchEvent(new CustomEvent("hd:show-guest", { detail: episode.guestName }));
                 }}
@@ -323,7 +323,7 @@ export function EpisodeDetail({
 
             {/* Topic */}
             {episode.topic && !episode.guestName && (
-              <div className="text-hd-14 md:text-hd-12 text-desktop-gray/80">
+              <div className="text-hd-14 md:text-hd-12 text-desktop-gray/85">
                 {episode.topic}
               </div>
             )}
@@ -334,7 +334,7 @@ export function EpisodeDetail({
                 onClick={() => {
                   window.dispatchEvent(new CustomEvent("hd:filter-series", { detail: episode.aiSeries }));
                 }}
-                className="text-hd-12 md:text-hd-10 text-title-bar-blue/70 bg-title-bar-blue/8 px-2 py-1 md:px-1.5 md:py-px cursor-pointer hover:text-title-bar-blue hover:bg-title-bar-blue/15 active:text-title-bar-blue active:bg-title-bar-blue/15 transition-colors-fast flex items-center gap-1 w-fit"
+                className="text-hd-12 md:text-hd-10 text-signal-blue bg-title-bar-blue/8 px-2 py-1 md:px-1.5 md:py-px cursor-pointer hover:text-signal-blue hover:bg-title-bar-blue/15 active:text-signal-blue active:bg-title-bar-blue/15 transition-colors-fast flex items-center gap-1 w-fit"
                 title={`Filter by ${episode.aiSeries}`}
               >
                 <span>{"\u{1F4DA}"}</span>
@@ -347,7 +347,7 @@ export function EpisodeDetail({
 
             {/* Summary or Description */}
             {(episode.aiSummary || episode.description) && (
-              <div className="text-hd-14 md:text-hd-11 text-desktop-gray/55 leading-relaxed font-sans">
+              <div className="text-hd-14 md:text-hd-11 text-desktop-gray/85 leading-relaxed font-sans">
                 {episode.aiSummary || episode.description}
               </div>
             )}
@@ -361,7 +361,7 @@ export function EpisodeDetail({
                     onClick={() => {
                       window.dispatchEvent(new CustomEvent("hd:filter-tag", { detail: tag }));
                     }}
-                    className="text-hd-13 md:text-hd-10 text-desert-amber/70 bg-desert-amber/10 border border-desert-amber/15 px-2.5 py-1.5 md:px-1.5 md:py-px rounded-sm cursor-pointer hover:bg-desert-amber/20 hover:text-desert-amber active:bg-desert-amber/20 active:text-desert-amber transition-colors-fast"
+                    className="text-hd-13 md:text-hd-10 text-desert-amber/85 bg-desert-amber/10 border border-desert-amber/15 px-2.5 py-1.5 md:px-1.5 md:py-px rounded-sm cursor-pointer hover:bg-desert-amber/20 hover:text-desert-amber active:bg-desert-amber/20 active:text-desert-amber transition-colors-fast"
                     title={`Filter by "${tag}"`}
                   >
                     {tag}
@@ -389,7 +389,7 @@ export function EpisodeDetail({
                     style={{ width: `${Math.min(100, (episode.playbackPosition / episode.duration) * 100)}%` }}
                   />
                 </div>
-                <span className="text-hd-12 md:text-hd-10 text-bevel-dark/70 tabular-nums flex-shrink-0">
+                <span className="text-hd-12 md:text-hd-10 text-bevel-dark/85 tabular-nums flex-shrink-0">
                   {formatTime(episode.playbackPosition)} / {formatDuration(episode.duration)}
                 </span>
               </div>
@@ -435,7 +435,7 @@ export function EpisodeDetail({
                   onClick={() => onToggleFavorite(episode)}
                   className={cn(
                     "text-hd-17 md:text-hd-13 cursor-pointer transition-colors-fast ml-auto min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center",
-                    episode.favoritedAt ? "text-desert-amber" : "text-bevel-dark/40 hover:text-desert-amber",
+                    episode.favoritedAt ? "text-desert-amber" : "text-bevel-dark/85 hover:text-desert-amber",
                   )}
                   title={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
                 >
@@ -463,7 +463,7 @@ export function EpisodeDetail({
                       "text-hd-20 md:text-hd-12 cursor-pointer transition-colors-fast min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center",
                       star <= (episode.rating ?? 0)
                         ? "text-desert-amber"
-                        : "text-bevel-dark/50 hover:text-desert-amber/60 active:text-desert-amber/60",
+                        : "text-bevel-dark/85 hover:text-desert-amber/85 active:text-desert-amber/85",
                     )}
                     title={`Rate ${star} star${star !== 1 ? "s" : ""}`}
                     aria-label={`Rate ${star} star${star !== 1 ? "s" : ""}`}
@@ -472,10 +472,10 @@ export function EpisodeDetail({
                   </button>
                 ))}
                 {episode.rating && (
-                  <span className="text-hd-12 md:text-hd-10 text-bevel-dark/40 ml-1">{episode.rating}/5</span>
+                  <span className="text-hd-12 md:text-hd-10 text-bevel-dark/85 ml-1">{episode.rating}/5</span>
                 )}
                 {communityRating && communityRating.count > 0 && (
-                  <span className="text-hd-11 md:text-hd-9 text-bevel-dark/40 ml-2" title={`${communityRating.count} community rating${communityRating.count !== 1 ? "s" : ""}`}>
+                  <span className="text-hd-11 md:text-hd-9 text-bevel-dark/85 ml-2" title={`${communityRating.count} community rating${communityRating.count !== 1 ? "s" : ""}`}>
                     {communityRating.avg.toFixed(1)} avg · {communityRating.count}
                   </span>
                 )}
@@ -489,7 +489,7 @@ export function EpisodeDetail({
                   href={`https://archive.org/details/${episode.archiveIdentifier}${episode.fileName ? `/${episode.fileName}` : ""}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-hd-13 md:text-hd-10 text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+                  className="text-hd-13 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
                 >
                   Archive ↗
                 </a>
@@ -504,7 +504,7 @@ export function EpisodeDetail({
                   "text-hd-13 md:text-hd-10 cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center",
                   episode.flaggedAt
                     ? "text-red-400/70 hover:text-red-400"
-                    : "text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray",
+                    : "text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray",
                 )}
                 title={episode.flaggedAt ? "Remove flag" : "Report broken/dead link"}
               >
@@ -513,7 +513,7 @@ export function EpisodeDetail({
               {onEdit && (
                 <button
                   onClick={startEditing}
-                  className="text-hd-13 md:text-hd-10 text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+                  className="text-hd-13 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
                 >
                   Edit
                 </button>
@@ -558,7 +558,7 @@ function SeriesPartsList({ seriesName, currentEpisodeId, onPlay }: { seriesName:
 
   return (
     <div className="border-t border-bevel-dark/15 glass-divider pt-2 mt-0.5">
-      <div className="text-hd-12 md:text-hd-10 text-title-bar-blue/60 uppercase tracking-wider mb-1.5 font-bold">
+      <div className="text-hd-12 md:text-hd-10 text-signal-blue uppercase tracking-wider mb-1.5 font-bold">
         Series ({sorted.length} parts)
       </div>
       <div className="flex flex-col gap-0.5">
@@ -571,18 +571,18 @@ function SeriesPartsList({ seriesName, currentEpisodeId, onPlay }: { seriesName:
               className={cn(
                 "text-left px-2 py-1.5 md:px-1.5 md:py-1 text-hd-13 md:text-hd-11 cursor-pointer transition-colors-fast flex items-center gap-2 min-h-[36px] md:min-h-0",
                 isCurrent
-                  ? "bg-title-bar-blue/15 text-title-bar-blue"
-                  : "text-desktop-gray/70 hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/15",
+                  ? "bg-title-bar-blue/15 text-signal-blue"
+                  : "text-desktop-gray/85 hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/15",
               )}
             >
               {ep.aiSeriesPart && (
-                <span className="text-hd-10 md:text-hd-10 text-title-bar-blue/50 w-[20px] flex-shrink-0 tabular-nums">
+                <span className="text-hd-10 md:text-hd-10 text-signal-blue w-[20px] flex-shrink-0 tabular-nums">
                   Pt.{ep.aiSeriesPart}
                 </span>
               )}
               <span className="truncate flex-1">{ep.title || ep.fileName}</span>
               {ep.airDate && (
-                <span className="text-hd-10 md:text-hd-10 text-bevel-dark/40 flex-shrink-0 tabular-nums">
+                <span className="text-hd-10 md:text-hd-10 text-bevel-dark/85 flex-shrink-0 tabular-nums">
                   {formatAirDate(ep.airDate)}
                 </span>
               )}
@@ -617,7 +617,7 @@ function PlayStats({ episode }: { episode: Episode }) {
   const text = formatPlayStats(episode);
   if (!text) return null;
   return (
-    <div className="text-hd-12 md:text-hd-10 text-bevel-dark/50 tabular-nums">
+    <div className="text-hd-12 md:text-hd-10 text-bevel-dark/85 tabular-nums">
       {text}
     </div>
   );
@@ -660,7 +660,7 @@ function ShareButton({ episode }: { episode: Episode }) {
     return (
       <button
         onClick={copyLink}
-        className="text-hd-13 md:text-hd-10 text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+        className="text-hd-13 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
       >
         Share
       </button>
@@ -671,7 +671,7 @@ function ShareButton({ episode }: { episode: Episode }) {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setMenuOpen(!menuOpen)}
-        className="text-hd-13 md:text-hd-10 text-bevel-dark/50 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
+        className="text-hd-13 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-[44px] md:min-h-0 flex items-center"
       >
         Share
       </button>
@@ -679,13 +679,13 @@ function ShareButton({ episode }: { episode: Episode }) {
         <div className="absolute bottom-full mb-1 left-0 w98-raised-dark bg-raised-surface z-30 min-w-[120px] shadow-lg">
           <button
             onClick={copyLink}
-            className="w-full text-left px-3 py-3 md:px-2 md:py-1.5 text-hd-15 md:text-hd-11 text-desktop-gray/80 hover:bg-title-bar-blue/20 active:bg-title-bar-blue/20 cursor-pointer transition-colors-fast"
+            className="w-full text-left px-3 py-3 md:px-2 md:py-1.5 text-hd-15 md:text-hd-11 text-desktop-gray/85 hover:bg-title-bar-blue/20 active:bg-title-bar-blue/20 cursor-pointer transition-colors-fast"
           >
             Copy Link
           </button>
           <button
             onClick={webShare}
-            className="w-full text-left px-3 py-3 md:px-2 md:py-1.5 text-hd-15 md:text-hd-11 text-desktop-gray/80 hover:bg-title-bar-blue/20 active:bg-title-bar-blue/20 cursor-pointer transition-colors-fast"
+            className="w-full text-left px-3 py-3 md:px-2 md:py-1.5 text-hd-15 md:text-hd-11 text-desktop-gray/85 hover:bg-title-bar-blue/20 active:bg-title-bar-blue/20 cursor-pointer transition-colors-fast"
           >
             Share...
           </button>

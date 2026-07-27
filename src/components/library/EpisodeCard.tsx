@@ -162,7 +162,7 @@ export const EpisodeCard = memo(function EpisodeCard({
             </span>
           )}
           {isCompleted && !isPlaying && (
-            <span className="text-hd-10 text-static-green/70 flex-shrink-0" title="Completed">
+            <span className="text-hd-10 text-static-green/85 flex-shrink-0" title="Completed">
               {"\u2713"}
             </span>
           )}
@@ -178,12 +178,12 @@ export const EpisodeCard = memo(function EpisodeCard({
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {episode.rating && (
-            <span className="text-hd-10 text-desert-amber/60 flex-shrink-0 tabular-nums hidden md:inline" title={`Rated ${episode.rating}/5`}>
+            <span className="text-hd-10 text-desert-amber/85 flex-shrink-0 tabular-nums hidden md:inline" title={`Rated ${episode.rating}/5`}>
               {"★".repeat(episode.rating)}
             </span>
           )}
           {episode.aiCategory && (
-            <span className="text-hd-9 text-desert-amber/50 flex-shrink-0 hidden md:inline">
+            <span className="text-hd-9 text-desert-amber/85 flex-shrink-0 hidden md:inline">
               {episode.aiCategory}
             </span>
           )}
@@ -207,7 +207,7 @@ export const EpisodeCard = memo(function EpisodeCard({
                 "text-hd-12 md:text-hd-10 min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors-fast",
                 episode.favoritedAt
                   ? "text-desert-amber"
-                  : "text-bevel-dark/50 md:opacity-0 md:group-hover:opacity-100",
+                  : "text-bevel-dark/85 md:opacity-0 md:group-hover:opacity-100",
               )}
               title={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
               role="button"
@@ -219,7 +219,7 @@ export const EpisodeCard = memo(function EpisodeCard({
             </span>
           )}
           {showLabel && (
-            <span className="text-hd-10 text-bevel-dark/70 flex-shrink-0">
+            <span className="text-hd-10 text-bevel-dark/85 flex-shrink-0">
               {showLabel}
             </span>
           )}
@@ -232,7 +232,7 @@ export const EpisodeCard = memo(function EpisodeCard({
       </div>
       {/* Category — mobile only (shown in top-right area on desktop) */}
       {episode.aiCategory && (
-        <span className="text-hd-11 text-desert-amber/50 truncate mt-0.5 block md:hidden">
+        <span className="text-hd-11 text-desert-amber/85 truncate mt-0.5 block md:hidden">
           {episode.aiCategory}
         </span>
       )}
@@ -242,7 +242,7 @@ export const EpisodeCard = memo(function EpisodeCard({
         <div className="flex items-center gap-1.5 min-w-0 truncate">
           {episode.guestName ? (
             <span
-              className="text-hd-14 md:text-hd-11 text-static-green/90 md:text-static-green/80 truncate hover:text-static-green hover:underline active:text-static-green cursor-pointer py-0.5 -my-0.5"
+              className="text-hd-14 md:text-hd-11 text-static-green/90 md:text-static-green/85 truncate hover:text-static-green hover:underline active:text-static-green cursor-pointer py-0.5 -my-0.5"
               onClick={(e) => {
                 e.stopPropagation();
                 window.dispatchEvent(new CustomEvent("hd:show-guest", { detail: episode.guestName }));
@@ -261,7 +261,7 @@ export const EpisodeCard = memo(function EpisodeCard({
               {episode.guestName}
             </span>
           ) : (
-            <span className="text-hd-13 md:text-hd-11 text-static-green/80 truncate">
+            <span className="text-hd-13 md:text-hd-11 text-static-green/85 truncate">
               {episode.topic || "\u00A0"}
             </span>
           )}
@@ -271,19 +271,19 @@ export const EpisodeCard = memo(function EpisodeCard({
                 e.stopPropagation();
                 window.dispatchEvent(new CustomEvent("hd:filter-series", { detail: episode.aiSeries }));
               }}
-              className="text-hd-10 text-title-bar-blue/50 flex-shrink-0 hidden md:inline cursor-pointer hover:text-title-bar-blue hover:underline active:text-title-bar-blue transition-colors-fast"
+              className="text-hd-10 text-signal-blue flex-shrink-0 hidden md:inline cursor-pointer hover:text-signal-blue hover:underline active:text-signal-blue transition-colors-fast"
             >
               {episode.aiSeries}{episode.aiSeriesPart ? ` Pt.${episode.aiSeriesPart}` : ""}
             </button>
           )}
         </div>
         {episode.duration != null && (
-          <span className="text-hd-12 md:text-hd-11 text-bevel-dark/60 tabular-nums flex-shrink-0 font-mono">
+          <span className="text-hd-12 md:text-hd-11 text-bevel-dark/85 tabular-nums flex-shrink-0 font-mono">
             {formatDuration(episode.duration)}
           </span>
         )}
         {communityPlays != null && communityPlays > 0 && (
-          <span className="text-hd-8 text-bevel-dark/40 tabular-nums flex-shrink-0" title={`Played ${communityPlays} times across all listeners`}>
+          <span className="text-hd-8 text-bevel-dark/85 tabular-nums flex-shrink-0" title={`Played ${communityPlays} times across all listeners`}>
             ▶ {communityPlays.toLocaleString()}
           </span>
         )}

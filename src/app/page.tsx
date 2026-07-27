@@ -9,35 +9,39 @@ export default function WelcomePage() {
   const router = useRouter();
   const [isReturning, setIsReturning] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
-  const [episodeCount, setEpisodeCount] = useState<number | null>(null);
+  const [episodeCount, setEpisodeCount] = useState<number | null>(() => {
+    const n = Number(process.env.NEXT_PUBLIC_CATALOG_COUNT);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  });
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Check if returning visitor — fade out then redirect
+  // Returning visitors go straight through. This used to fade for 400ms and
+  // navigate at 900ms — a mandatory wait on every hit of the root URL, spent
+  // hydrating a splash (starfield rAF loop included) purely to leave it.
   useEffect(() => {
-    const visited = localStorage.getItem("hd-visited");
-    if (visited) {
-      setIsReturning(true);
-      // Brief pause so they see the splash, then fade out
-      const fadeTimer = setTimeout(() => setFadeOut(true), 400);
-      const navTimer = setTimeout(() => router.push("/library"), 900);
-      return () => {
-        clearTimeout(fadeTimer);
-        clearTimeout(navTimer);
-      };
-    }
+    if (!localStorage.getItem("hd-visited")) return;
+    setIsReturning(true);
+    router.replace("/library");
   }, [router]);
 
-  // Try to get episode count from IndexedDB
+  // Episode count. Seeded from the build-time catalog size so the line shows
+  // on a first visit too — it previously required a populated IndexedDB, so the
+  // one piece of value proof was missing for exactly the people it was written
+  // for. The live count takes over once the DB has been seeded.
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const { db } = await import("@/db");
         const count = await db.episodes.count();
-        if (count > 0) setEpisodeCount(count);
+        if (!cancelled && count > 0) setEpisodeCount(count);
       } catch {
-        // DB not ready
+        // DB not ready — the build-time count stands.
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Starfield
@@ -135,7 +139,7 @@ export default function WelcomePage() {
         </p>
 
         {/* Quote */}
-        <div className="text-hd-10 md:text-hd-11 italic max-w-xs font-[family-name:var(--font-w95)] text-static-green/70 [text-shadow:0_0_6px_rgba(74,222,128,0.2)]">
+        <div className="text-hd-10 md:text-hd-11 italic max-w-xs font-[family-name:var(--font-w95)] text-static-green/85 [text-shadow:0_0_6px_rgba(74,222,128,0.2)]">
           &ldquo;I have seen things that I cannot explain...&rdquo;
         </div>
 
@@ -157,7 +161,7 @@ export default function WelcomePage() {
         </Button>
 
         {/* Footer */}
-        <div className="text-hd-8 mt-4 font-[family-name:var(--font-w95)] text-bevel-dark/40">
+        <div className="text-hd-8 mt-4 font-[family-name:var(--font-w95)] text-bevel-dark/85">
           Art Bell &middot; 1945–2018 &middot; From the Kingdom of Nye
         </div>
       </div>

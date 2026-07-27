@@ -60,7 +60,7 @@ export class DBErrorBoundary extends Component<Props, State> {
               )}
             </div>
             {isIDB && (
-              <div className="text-hd-10 text-desert-amber/80 leading-relaxed">
+              <div className="text-hd-10 text-desert-amber/85 leading-relaxed">
                 Try opening High Desert in a regular (non-private) browser window.
               </div>
             )}

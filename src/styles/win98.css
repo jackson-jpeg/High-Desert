@@ -86,7 +86,7 @@ button.w98-raised-dark:active:not(:disabled) {
    ============================================ */
 
 .w98-font {
-  font-family: "W95FA", "MS Sans Serif", "Microsoft Sans Serif", Arial, sans-serif;
+  font-family: var(--font-w95);
   font-smooth: never;
   -webkit-font-smoothing: none;
   -moz-osx-font-smoothing: unset;
@@ -96,12 +96,19 @@ button.w98-raised-dark:active:not(:disabled) {
    Title Bar Gradient
    ============================================ */
 
+/* The classic sweep ended at #A6CAF0 from the 50% mark, which put white title
+   text at 1.70:1 over the right half of the bar. The light end is now held to
+   the last 15%, past where titles truncate, and the text carries a shadow. */
 .w98-titlebar-gradient {
-  background: linear-gradient(90deg, #000080 0%, #0A246A 50%, #A6CAF0 100%);
+  background: linear-gradient(90deg, #000080 0%, #0A246A 55%, #3A6EA5 85%, #A6CAF0 100%);
 }
 
 .w98-titlebar-inactive-gradient {
   background: linear-gradient(90deg, #808080 0%, #B0B0B0 100%);
+}
+
+.w98-titlebar-title {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
 }
 
 /* ============================================
@@ -117,7 +124,7 @@ button.w98-raised-dark:active:not(:disabled) {
     inset -1px -1px 0 var(--w98-bevel-darker);
   padding: 4px 16px;
   min-width: 75px;
-  font-family: "W95FA", "MS Sans Serif", Arial, sans-serif;
+  font-family: var(--font-w95);
   font-size: var(--hd-text-12);
   color: var(--w98-text);
   cursor: pointer;
@@ -177,7 +184,7 @@ button.w98-raised-dark:active:not(:disabled) {
   background: var(--w98-surface);
   border-bottom: 1px solid var(--w98-bevel-dark);
   padding: 2px 0;
-  font-family: "W95FA", "MS Sans Serif", Arial, sans-serif;
+  font-family: var(--font-w95);
   font-size: var(--hd-text-12);
 }
 
@@ -185,7 +192,7 @@ button.w98-raised-dark:active:not(:disabled) {
   background: var(--w98-dark-surface);
   border-bottom: 1px solid #2A3050;
   padding: 2px 0;
-  font-family: "W95FA", "MS Sans Serif", Arial, sans-serif;
+  font-family: var(--font-w95);
   font-size: var(--hd-text-12);
   color: var(--w98-dark-text);
 }
@@ -266,7 +273,7 @@ button.w98-raised-dark:active:not(:disabled) {
   background: var(--w98-surface);
   border-top: 1px solid var(--w98-bevel-dark);
   padding: 2px 4px;
-  font-family: "W95FA", "MS Sans Serif", Arial, sans-serif;
+  font-family: var(--font-w95);
   font-size: var(--hd-text-12);
   display: flex;
   gap: 2px;
@@ -276,7 +283,7 @@ button.w98-raised-dark:active:not(:disabled) {
   background: var(--w98-dark-surface);
   border-top: 1px solid #2A3050;
   padding: 2px 4px;
-  font-family: "W95FA", "MS Sans Serif", Arial, sans-serif;
+  font-family: var(--font-w95);
   font-size: var(--hd-text-12);
   color: var(--w98-dark-text);
   display: flex;

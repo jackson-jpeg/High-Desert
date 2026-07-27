@@ -69,12 +69,12 @@ export function ListeningStats({ className }: ListeningStatsProps) {
         </span>
       )}
       {stats.topGuest && (
-        <span className="text-desktop-gray/70 truncate">
-          👤 Most played: <span className="text-static-green/80">{stats.topGuest}</span>
+        <span className="text-desktop-gray/85 truncate">
+          👤 Most played: <span className="text-static-green/85">{stats.topGuest}</span>
         </span>
       )}
       {activeCount > 0 && (
-        <span className="text-desktop-gray/70">
+        <span className="text-desktop-gray/85">
           👥 {activeCount} listening now
         </span>
       )}

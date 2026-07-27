@@ -93,7 +93,7 @@ export function MilestoneDialog() {
           <div className="text-hd-13 text-desktop-gray font-bold">
             {msg.title}
           </div>
-          <div className="text-hd-10 text-desktop-gray/60 mt-2 leading-relaxed">
+          <div className="text-hd-10 text-desktop-gray/85 mt-2 leading-relaxed">
             {msg.body}
           </div>
         </div>
@@ -101,14 +101,14 @@ export function MilestoneDialog() {
         <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-desert-amber/20 to-transparent" />
 
         <div className="text-center">
-          <div className="text-hd-9 text-bevel-dark/50 mb-2">
+          <div className="text-hd-9 text-bevel-dark/85 mb-2">
             If you&apos;re enjoying High Desert, consider buying the developer a coffee.
           </div>
           <a
             href="https://venmo.com/sanger"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block text-hd-11 text-desert-amber hover:text-desert-amber/80 underline underline-offset-2 transition-colors-fast"
+            className="inline-block text-hd-11 text-desert-amber hover:text-desert-amber/85 underline underline-offset-2 transition-colors-fast"
           >
             @sanger on Venmo
           </a>

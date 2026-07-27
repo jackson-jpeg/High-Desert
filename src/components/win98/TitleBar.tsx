@@ -13,6 +13,8 @@ export interface TitleBarProps {
   className?: string;
   /** Render the title as a semantic heading element (h1–h6). Defaults to span. */
   headingLevel?: 1 | 2 | 3 | 4 | 5 | 6;
+  /** id for the title element, so a Dialog can point aria-labelledby at it. */
+  titleId?: string;
 }
 
 function TitleBarButton({
@@ -48,6 +50,7 @@ export function TitleBar({
   onMaximize,
   className,
   headingLevel,
+  titleId,
 }: TitleBarProps) {
   const HeadingTag = headingLevel ? (`h${headingLevel}` as const) : "span";
 
@@ -61,9 +64,12 @@ export function TitleBar({
     >
       {icon && <span className="mr-1 flex-shrink-0">{icon}</span>}
       <HeadingTag
+        id={titleId}
         className={cn(
           "w98-font text-hd-13 md:text-hd-11 font-bold truncate flex-1",
-          active ? "text-white" : "text-[#D4D4D4]",
+          /* Dark text on the inactive bar: #D4D4D4 sat at 1.46–2.66:1 across
+             its #808080→#B0B0B0 gradient. #1F1F1F gives 4.2–7.6:1. */
+          active ? "w98-titlebar-title text-white" : "text-[#1F1F1F]",
         )}
       >
         {title}

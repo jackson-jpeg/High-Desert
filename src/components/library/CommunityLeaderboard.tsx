@@ -104,7 +104,7 @@ export function CommunityLeaderboard() {
                   onClick={() => handlePlay(entry.episodeId)}
                   className="flex items-center gap-2 text-left w-full px-1 py-0.5 cursor-pointer hover:bg-title-bar-blue/15 transition-colors-fast group"
                 >
-                  <span className="text-hd-8 text-bevel-dark/60 tabular-nums w-[14px] text-right flex-shrink-0">
+                  <span className="text-hd-8 text-bevel-dark/85 tabular-nums w-[14px] text-right flex-shrink-0">
                     {i + 1}
                   </span>
                   <div className="flex flex-col min-w-0 w-[120px] md:w-[160px] flex-shrink-0">
@@ -112,7 +112,7 @@ export function CommunityLeaderboard() {
                       {ep?.title || ep?.fileName || entry.episodeId}
                     </span>
                     {ep?.airDate && (
-                      <span className="text-hd-8 text-bevel-dark/50 tabular-nums">
+                      <span className="text-hd-8 text-bevel-dark/85 tabular-nums">
                         {formatAirDate(ep.airDate)}
                       </span>
                     )}

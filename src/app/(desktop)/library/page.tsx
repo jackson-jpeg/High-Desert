@@ -23,6 +23,7 @@ import { ContinueListening } from "@/components/library/ContinueListening";
 import { cn } from "@/lib/utils/cn";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { useCommunityStats } from "@/hooks/useCommunityStats";
+import { currentItemHeight } from "@/hooks/useTextScale";
 import { communityKey } from "@/lib/utils/community-key";
 
 function matchComparison(actual: number, op: ComparisonOp["op"], target: number): boolean {
@@ -56,6 +57,9 @@ export default function LibraryPage() {
   const [showFilter, setShowFilter] = useState<ShowFilter>("all");
   const [guestFilter, setGuestFilter] = useState<string | null>(null);
   const [showFacets, setShowFacets] = useState(false);
+  // Seeding is deferred to idle in the desktop layout, so an empty table is
+  // ambiguous until it reports back. Until then, keep showing the skeleton.
+  const [seedSettled, setSeedSettled] = useState(false);
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [lastClickedId, setLastClickedId] = useState<number | null>(null);
@@ -88,6 +92,19 @@ export default function LibraryPage() {
     };
     window.addEventListener("hd:focus-search", handler);
     return () => window.removeEventListener("hd:focus-search", handler);
+  }, []);
+
+  // The desktop layout fires this once seeding has resolved, either way.
+  // The timeout is a backstop: on routes where the layout effect never runs,
+  // or if it throws before dispatching, an empty library must still resolve.
+  useEffect(() => {
+    const handler = () => setSeedSettled(true);
+    window.addEventListener("hd:seed-settled", handler);
+    const backstop = window.setTimeout(handler, 8000);
+    return () => {
+      window.removeEventListener("hd:seed-settled", handler);
+      window.clearTimeout(backstop);
+    };
   }, []);
 
   // Listen for tag/category click-to-filter events from detail panel
@@ -471,7 +488,7 @@ export default function LibraryPage() {
         setFocusedIndex(idx);
         const container = document.querySelector('[role="listbox"]')?.parentElement;
         if (container) {
-          const itemH = window.innerWidth < 768 ? 88 : 72;
+          const itemH = currentItemHeight();
         container.scrollTop = idx * itemH - container.clientHeight / 2 + itemH / 2;
         }
       }
@@ -687,7 +704,7 @@ export default function LibraryPage() {
     if (focusedIndex < 0) return;
     const container = document.querySelector('[role="listbox"]')?.parentElement;
     if (!container) return;
-    const itemH = window.innerWidth < 768 ? 92 : 76;
+    const itemH = currentItemHeight();
     const targetTop = focusedIndex * itemH;
     const viewTop = container.scrollTop;
     const viewBottom = viewTop + container.clientHeight;
@@ -859,7 +876,7 @@ export default function LibraryPage() {
                 }
                 toast.info(`Shuffling ${batch.length} from ${filtered.length} episodes`);
               }}
-              className="hidden md:flex items-center justify-center w-[28px] h-[28px] text-hd-11 text-bevel-dark/50 hover:text-desert-amber cursor-pointer transition-colors-fast flex-shrink-0"
+              className="hidden md:flex items-center justify-center w-[28px] h-[28px] text-hd-11 text-bevel-dark/85 hover:text-desert-amber cursor-pointer transition-colors-fast flex-shrink-0"
               title="Shuffle filtered episodes"
               aria-label="Shuffle filtered episodes"
             >
@@ -904,19 +921,19 @@ export default function LibraryPage() {
               {guestFilter && (
                 <span className="bg-static-green/15 text-static-green px-2 py-1 md:px-1.5 md:py-0.5 flex items-center gap-1">
                   Guest: {guestFilter}
-                  <button onClick={() => setGuestFilter(null)} className="text-static-green/60 hover:text-static-green active:text-static-green cursor-pointer min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center">x</button>
+                  <button onClick={() => setGuestFilter(null)} className="text-static-green/85 hover:text-static-green active:text-static-green cursor-pointer min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center">x</button>
                 </span>
               )}
               {categoryFilter && (
                 <span className="bg-desert-amber/15 text-desert-amber px-2 py-1 md:px-1.5 md:py-0.5 flex items-center gap-1">
                   {categoryFilter}
-                  <button onClick={() => setCategoryFilter(null)} className="text-desert-amber/60 hover:text-desert-amber active:text-desert-amber cursor-pointer min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center">x</button>
+                  <button onClick={() => setCategoryFilter(null)} className="text-desert-amber/85 hover:text-desert-amber active:text-desert-amber cursor-pointer min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center">x</button>
                 </span>
               )}
               {seriesFilter && (
-                <span className="bg-title-bar-blue/15 text-title-bar-blue px-2 py-1 md:px-1.5 md:py-0.5 flex items-center gap-1">
+                <span className="bg-title-bar-blue/15 text-signal-blue px-2 py-1 md:px-1.5 md:py-0.5 flex items-center gap-1">
                   {seriesFilter}
-                  <button onClick={() => setSeriesFilter(null)} className="text-title-bar-blue/60 hover:text-title-bar-blue active:text-title-bar-blue cursor-pointer min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center">x</button>
+                  <button onClick={() => setSeriesFilter(null)} className="text-signal-blue hover:text-signal-blue active:text-signal-blue cursor-pointer min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center">x</button>
                 </span>
               )}
               <button
@@ -937,7 +954,7 @@ export default function LibraryPage() {
                   store.enqueueMany(episodes);
                   toast.info(`Added ${episodes.length} episodes to queue`);
                 }}
-                className="text-title-bar-blue hover:text-title-bar-blue/80 cursor-pointer transition-colors-fast"
+                className="text-signal-blue hover:text-signal-blue cursor-pointer transition-colors-fast"
               >
                 Add to Queue
               </button>
@@ -985,7 +1002,7 @@ export default function LibraryPage() {
                   "px-3 py-1.5 md:px-2 md:py-0.5 text-hd-12 md:text-hd-10 whitespace-nowrap flex-shrink-0 cursor-pointer transition-colors-fast",
                   isActive
                     ? "bg-desert-amber/15 text-desert-amber w98-inset-dark"
-                    : "text-bevel-dark/60 hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/15",
+                    : "text-bevel-dark/85 hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/15",
                 )}
               >
                 {mood.label}
@@ -999,12 +1016,12 @@ export default function LibraryPage() {
       {/* Swipe gesture tip — shown once on mobile */}
       {swipeTip && (
         <div className="mx-3 mb-1 px-3 py-2 bg-desert-amber/10 border border-desert-amber/20 rounded flex items-center justify-between gap-2 flex-shrink-0 md:hidden animate-fade-in">
-          <span className="text-hd-12 text-desert-amber/80">
+          <span className="text-hd-12 text-desert-amber/85">
             Swipe cards: {"\u2190"} favorite {"\u00B7"} queue {"\u2192"}
           </span>
           <button
             onClick={() => { setSwipeTip(false); setPreference("swipe-hint-dismissed", "1"); }}
-            className="text-hd-12 text-bevel-dark/50 active:text-desktop-gray cursor-pointer min-w-[28px] min-h-[28px] flex items-center justify-center"
+            className="text-hd-12 text-bevel-dark/85 active:text-desktop-gray cursor-pointer min-w-[28px] min-h-[28px] flex items-center justify-center"
           >
             OK
           </button>
@@ -1023,7 +1040,7 @@ export default function LibraryPage() {
       {/* Sort presets — visible when a non-default sort is active or on hover */}
       {sortMode !== "date" && (
         <div className="flex items-center gap-1 px-3 pb-1 flex-shrink-0">
-          <span className="text-hd-10 text-bevel-dark/40 mr-1">Sort:</span>
+          <span className="text-hd-10 text-bevel-dark/85 mr-1">Sort:</span>
           {(["date", "recent", "progress", "rated", "played"] as const).map((mode) => (
             <button
               key={mode}
@@ -1032,7 +1049,7 @@ export default function LibraryPage() {
                 "px-2 py-0.5 text-hd-10 cursor-pointer transition-colors-fast",
                 sortMode === mode
                   ? "text-desert-amber bg-desert-amber/10 w98-inset-dark"
-                  : "text-bevel-dark/50 hover:text-desktop-gray",
+                  : "text-bevel-dark/85 hover:text-desktop-gray",
               )}
             >
               {{ date: "Date", recent: "Recent", progress: "In Progress", rated: "Top Rated", played: "Most Played" }[mode]}
@@ -1149,7 +1166,7 @@ export default function LibraryPage() {
                         className={cn(
                           "text-left px-1.5 py-0.5 text-hd-10 cursor-pointer transition-colors-fast truncate",
                           seriesFilter === series
-                            ? "bg-title-bar-blue/20 text-title-bar-blue"
+                            ? "bg-title-bar-blue/20 text-signal-blue"
                             : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10",
                         )}
                       >
@@ -1187,8 +1204,9 @@ export default function LibraryPage() {
           </div>
         )}
 
-        {/* Loading skeleton */}
-        {allEpisodes === undefined && (
+        {/* Loading skeleton — also covers the window between Dexie reporting an
+            empty table and the deferred seed landing. */}
+        {(allEpisodes === undefined || (allEpisodes.length === 0 && !seedSettled)) && (
           <div className="flex-1 p-2 flex flex-col gap-0">
             {Array.from({ length: 8 }).map((_, i) => (
               <div
@@ -1220,14 +1238,14 @@ export default function LibraryPage() {
         )}
 
         {/* Episode list */}
-        {allEpisodes !== undefined && (
+        {allEpisodes !== undefined && (allEpisodes.length > 0 || seedSettled) && (
         <div className="flex-1 overflow-hidden min-w-0">
           {/* Empty library state */}
           {allEpisodes.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center px-8">
               <div className="text-hd-24 text-desert-amber/30 select-none mb-3">📡</div>
               <div className="text-hd-13 text-desktop-gray mb-2">No episodes in the library yet.</div>
-              <div className="text-hd-11 text-bevel-dark/60 leading-relaxed max-w-[260px]">
+              <div className="text-hd-11 text-bevel-dark/85 leading-relaxed max-w-[260px]">
                 The library seeds automatically on first visit. If this persists, try refreshing the page.
               </div>
             </div>
@@ -1242,7 +1260,7 @@ export default function LibraryPage() {
               {isAdmin && (
                 <button
                   onClick={() => router.push(`/search`)}
-                  className="text-hd-11 text-title-bar-blue hover:text-title-bar-blue/80 cursor-pointer transition-colors-fast px-3 py-1.5 w98-raised-dark bg-raised-surface"
+                  className="text-hd-11 text-signal-blue hover:text-signal-blue cursor-pointer transition-colors-fast px-3 py-1.5 w98-raised-dark bg-raised-surface"
                 >
                   Search Archive.org for &ldquo;{search}&rdquo;
                 </button>
@@ -1348,6 +1366,7 @@ export default function LibraryPage() {
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
         title="Delete Episodes"
+        urgent
         width="320px"
       >
         <div className="p-4 flex flex-col gap-4">

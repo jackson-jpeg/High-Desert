@@ -156,6 +156,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       if (v === "1.15" || v === "1.3") {
         setTextScale(v);
         document.documentElement.style.setProperty("--hd-text-scale", v);
+        window.dispatchEvent(new CustomEvent("hd:text-scale"));
         localStorage.setItem("hd-text-scale", v);
       }
     });
@@ -164,6 +165,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const handleSetTextScale = useCallback(async (value: "1" | "1.15" | "1.3") => {
     setTextScale(value);
     document.documentElement.style.setProperty("--hd-text-scale", value);
+    window.dispatchEvent(new CustomEvent("hd:text-scale"));
     localStorage.setItem("hd-text-scale", value);
     await setPreference("text-scale", value);
     const label = TEXT_SCALE_OPTIONS.find((o) => o.value === value)?.label ?? value;
@@ -543,6 +545,20 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       {/* Desert night sky */}
       <Starfield />
 
+      {/* Skip link — first tab stop, so keyboard users aren't forced through
+          the menu bar and every nav tab to reach the episode list. */}
+      <a
+        href="#hd-main"
+        className={cn(
+          "sr-only focus:not-sr-only",
+          "focus:fixed focus:top-2 focus:left-2 focus:z-[200]",
+          "focus:w98-raised-dark focus:bg-raised-surface",
+          "focus:px-3 focus:py-2 focus:text-hd-12 focus:text-desktop-gray",
+        )}
+      >
+        Skip to episode list
+      </a>
+
       {/* Top menu bar — desktop only */}
       <header>
         <MenuBar
@@ -611,6 +627,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
 
       {/* Main content area — padded on mobile to clear fixed player + tab bar */}
       <main
+        id="hd-main"
+        tabIndex={-1}
         className="flex-1 overflow-hidden relative z-10 md:pb-0"
         style={{ paddingBottom: `calc(${bottomPadding}px + var(--safe-bottom))` }}
       >
@@ -648,7 +666,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           }] : []),
           ...((streak ?? 0) > 1 ? [{
             content: (
-              <span className="text-hd-10 text-desert-amber/70" title={`${streak}-day listening streak`}>
+              <span className="text-hd-10 text-desert-amber/85" title={`${streak}-day listening streak`}>
                 🔥 {streak}d
               </span>
             ),
@@ -656,7 +674,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           }] : []),
           ...(activeListeners > 0 ? [{
             content: (
-              <span className="text-hd-10 text-static-green/70">
+              <span className="text-hd-10 text-static-green/85">
                 {activeListeners} listening
               </span>
             ),

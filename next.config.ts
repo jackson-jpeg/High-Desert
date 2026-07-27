@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 
 /**
  * Identifies this build. Baked into the service worker's script URL so each
@@ -18,8 +19,25 @@ function resolveBuildId(): string {
 
 const BUILD_ID = resolveBuildId();
 
+/**
+ * How many episodes ship in the seed catalog. The splash advertises this before
+ * IndexedDB exists, and the seed file is 1.9 MB — far too heavy to fetch just
+ * to call `.length` on it. Counted once here at build time instead.
+ */
+function resolveCatalogCount(): string {
+  try {
+    const seed = JSON.parse(readFileSync("./public/seed/library.json", "utf8"));
+    return String(Array.isArray(seed) ? seed.length : seed?.episodes?.length ?? 0);
+  } catch {
+    return "0";
+  }
+}
+
 const nextConfig: NextConfig = {
-  env: { NEXT_PUBLIC_BUILD_ID: BUILD_ID },
+  env: {
+    NEXT_PUBLIC_BUILD_ID: BUILD_ID,
+    NEXT_PUBLIC_CATALOG_COUNT: resolveCatalogCount(),
+  },
   async headers() {
     return [
       {

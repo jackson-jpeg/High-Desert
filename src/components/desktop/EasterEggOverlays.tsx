@@ -44,10 +44,10 @@ function Area51Overlay({ onDismiss }: OverlayProps) {
             <div className="text-hd-14 text-red-400 font-bold mb-2 tracking-wider">
               SIGNAL LOST
             </div>
-            <div className="text-hd-11 text-desktop-gray/80 italic leading-relaxed">
+            <div className="text-hd-11 text-desktop-gray/85 italic leading-relaxed">
               &ldquo;We have just lost our uplink&hellip; I&rsquo;ll be right back.&rdquo;
             </div>
-            <div className="text-hd-9 text-bevel-dark/50 mt-3">
+            <div className="text-hd-9 text-bevel-dark/85 mt-3">
               September 11, 1997 &mdash; Area 51 Caller
             </div>
           </div>
@@ -69,7 +69,7 @@ function W6OBBOverlay({ onDismiss }: OverlayProps) {
           <div className="text-hd-11 text-desert-amber text-center tracking-widest">
             50,000 WATTS CLEAR CHANNEL
           </div>
-          <div className="text-hd-11 text-desktop-gray/80 leading-relaxed space-y-2">
+          <div className="text-hd-11 text-desktop-gray/85 leading-relaxed space-y-2">
             <p>
               <span className="text-static-green">Art Bell</span> &mdash; licensed at age 13,
               Amateur Extra Class operator. Call sign{" "}
@@ -79,7 +79,7 @@ function W6OBBOverlay({ onDismiss }: OverlayProps) {
               Built a massive double-loop rhombic antenna on his Pahrump, Nevada property.
               Worked every continent from the High Desert.
             </p>
-            <p className="text-hd-10 text-bevel-dark/60 italic">
+            <p className="text-hd-10 text-bevel-dark/85 italic">
               &ldquo;W6OBB, SK&rdquo; &mdash; ARRL, 2018
             </p>
           </div>
@@ -118,10 +118,10 @@ function KingdomOfNyeOverlay({ onDismiss }: OverlayProps) {
         <div className="text-hd-20 md:text-hd-28 text-desert-amber/90 tracking-widest leading-relaxed drop-shadow-[0_0_12px_rgba(255,160,0,0.4)]">
           From the High Desert
         </div>
-        <div className="text-hd-14 md:text-hd-18 text-desktop-gray/60 tracking-wider mt-1">
+        <div className="text-hd-14 md:text-hd-18 text-desktop-gray/85 tracking-wider mt-1">
           and the Great American Southwest&hellip;
         </div>
-        <div className="text-hd-12 md:text-hd-14 text-bevel-dark/40 tracking-wider mt-3">
+        <div className="text-hd-12 md:text-hd-14 text-bevel-dark/85 tracking-wider mt-3">
           this is High Desert
         </div>
       </div>
@@ -166,17 +166,17 @@ function MelsHoleOverlay({ onDismiss }: OverlayProps) {
         />
         {phase >= 1 && !clicked && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-            <div className="text-hd-12 md:text-hd-14 text-bevel-dark/50 tracking-wider leading-relaxed">
+            <div className="text-hd-12 md:text-hd-14 text-bevel-dark/85 tracking-wider leading-relaxed">
               9 miles west of Ellensburg
             </div>
-            <div className="text-hd-11 md:text-hd-12 text-bevel-dark/35 mt-1">
+            <div className="text-hd-11 md:text-hd-12 text-bevel-dark/85 mt-1">
               9 feet across. 80,000 feet of fishing line.
             </div>
-            <div className="text-hd-14 md:text-hd-16 text-desktop-gray/40 mt-2 tracking-widest">
+            <div className="text-hd-14 md:text-hd-16 text-desktop-gray/85 mt-2 tracking-widest">
               No bottom.
             </div>
             {phase >= 2 && (
-              <div className="text-hd-9 text-bevel-dark/25 mt-4 animate-pulse">
+              <div className="text-hd-9 text-bevel-dark/85 mt-4 animate-pulse">
                 Dogs won&rsquo;t come within 100 feet.
               </div>
             )}
@@ -184,7 +184,7 @@ function MelsHoleOverlay({ onDismiss }: OverlayProps) {
         )}
         {clicked && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="text-hd-12 text-bevel-dark/40 italic">
+            <div className="text-hd-12 text-bevel-dark/85 italic">
               You threw a refrigerator in. You heard nothing.
             </div>
           </div>
@@ -236,7 +236,7 @@ function KonamiOverlay({ onDismiss }: OverlayProps) {
       <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 pointer-events-auto">
         <div className="w98-raised-dark bg-raised-surface p-4 max-w-[300px] text-center">
           <div className="text-hd-12 text-red-400 font-bold">SIGNAL LOST</div>
-          <div className="text-hd-10 text-bevel-dark/50 mt-2">Connection terminated</div>
+          <div className="text-hd-10 text-bevel-dark/85 mt-2">Connection terminated</div>
         </div>
       </div>
     );
@@ -248,7 +248,7 @@ function KonamiOverlay({ onDismiss }: OverlayProps) {
         <div className="p-3 flex flex-col gap-2">
           {!selected ? (
             <>
-              <div className="text-hd-10 text-bevel-dark/60 mb-1">Select a line:</div>
+              <div className="text-hd-10 text-bevel-dark/85 mb-1">Select a line:</div>
               {LINES.map((line) => (
                 <Button
                   key={line.name}
@@ -263,7 +263,7 @@ function KonamiOverlay({ onDismiss }: OverlayProps) {
             </>
           ) : (
             <div className="min-h-[80px]">
-              <div className="text-hd-11 text-desktop-gray/80 italic leading-relaxed">
+              <div className="text-hd-11 text-desktop-gray/85 italic leading-relaxed">
                 {selected === "frantic" ? typing : `"${selected}"`}
               </div>
               {selected !== "frantic" && (
@@ -296,7 +296,7 @@ function TitorOverlay({ onDismiss }: OverlayProps) {
   if (glitching) {
     return (
       <div className="fixed inset-0 z-[200] pointer-events-none flex items-end justify-end p-2">
-        <div className="text-hd-14 text-static-green/80 tabular-nums animate-pulse">
+        <div className="text-hd-14 text-static-green/85 tabular-nums animate-pulse">
           2001 &rarr; 2015 &rarr; 2036
         </div>
       </div>
@@ -309,12 +309,12 @@ function TitorOverlay({ onDismiss }: OverlayProps) {
         <div className="p-3 flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <span className="text-hd-11 text-static-green font-bold">TimeTravel_0</span>
-            <span className="text-hd-9 text-bevel-dark/40">Posted from: 2036</span>
+            <span className="text-hd-9 text-bevel-dark/85">Posted from: 2036</span>
           </div>
-          <div className="w98-inset-dark bg-inset-well p-2 text-hd-11 text-desktop-gray/80 leading-relaxed">
+          <div className="w98-inset-dark bg-inset-well p-2 text-hd-11 text-desktop-gray/85 leading-relaxed">
             <p>I was sent back to 1975 to retrieve an IBM 5100.</p>
             <p className="mt-2">The divergence in your timeline is 2.5%. Good luck.</p>
-            <p className="mt-2 text-bevel-dark/50 text-hd-9">
+            <p className="mt-2 text-bevel-dark/85 text-hd-9">
               — John Titor, November 2000
             </p>
           </div>
@@ -359,7 +359,7 @@ function GhostToGhostOverlay({ onDismiss, onGhostToggle }: GhostOverlayProps) {
         <div className="text-hd-20 md:text-hd-28 tracking-widest" style={{ color: "#7eb8ff" }}>
           Ghost to Ghost AM
         </div>
-        <div className="text-hd-12 md:text-hd-14 text-desktop-gray/50 mt-2 italic">
+        <div className="text-hd-12 md:text-hd-14 text-desktop-gray/85 mt-2 italic">
           It&rsquo;s that time of year&hellip; the lines are open for your ghost stories.
         </div>
       </div>

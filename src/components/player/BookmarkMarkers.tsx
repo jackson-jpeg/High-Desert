@@ -110,7 +110,7 @@ function BookmarkButton({ variant, className }: { variant: "desktop" | "mobile";
         />
         <button
           onClick={handleAdd}
-          className="text-hd-12 md:text-hd-9 text-static-green active:text-static-green/80 cursor-pointer min-h-[44px] md:min-h-0 px-2 flex items-center"
+          className="text-hd-12 md:text-hd-9 text-static-green active:text-static-green/85 cursor-pointer min-h-[44px] md:min-h-0 px-2 flex items-center"
         >
           Save
         </button>
@@ -128,7 +128,7 @@ function BookmarkButton({ variant, className }: { variant: "desktop" | "mobile";
     <button
       onClick={() => setShowInput(true)}
       className={cn(
-        "cursor-pointer transition-colors-fast text-bevel-dark/50 hover:text-desert-amber",
+        "cursor-pointer transition-colors-fast text-bevel-dark/85 hover:text-desert-amber",
         variant === "mobile"
           ? "text-hd-14 min-w-[44px] min-h-[44px] flex items-center justify-center"
           : "text-hd-10 px-1",
@@ -192,7 +192,7 @@ export function BookmarkList({
             <span className="text-hd-12 md:text-hd-9 text-desert-amber tabular-nums flex-shrink-0">
               {formatTime(bm.position)}
             </span>
-            <span className="text-hd-12 md:text-hd-9 text-desktop-gray/70 truncate">
+            <span className="text-hd-12 md:text-hd-9 text-desktop-gray/85 truncate">
               {bm.label}
             </span>
           </button>

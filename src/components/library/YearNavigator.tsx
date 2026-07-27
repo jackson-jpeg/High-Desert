@@ -30,7 +30,7 @@ export function YearNavigator({ years, currentYear, onYearClick, className }: Ye
               "text-hd-9 tabular-nums leading-tight px-1 py-[1px] cursor-pointer transition-colors-fast w-full text-center",
               year === currentYear
                 ? "text-desert-amber bg-desert-amber/10 font-bold"
-                : "text-bevel-dark/50 hover:text-desktop-gray hover:bg-title-bar-blue/10",
+                : "text-bevel-dark/85 hover:text-desktop-gray hover:bg-title-bar-blue/10",
               i % 2 === 1 && year !== currentYear && "bg-white/[0.02]",
               isDecadeBoundary && "mt-1.5 border-t border-bevel-dark/15 pt-1",
             )}

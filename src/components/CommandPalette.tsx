@@ -251,13 +251,13 @@ export function CommandPalette() {
         {/* Results */}
         <div className="max-h-[320px] overflow-auto overscroll-contain py-1">
           {results.length === 0 && query.trim() && (
-            <div className="px-3 py-4 text-center text-hd-10 text-bevel-dark/60">
+            <div className="px-3 py-4 text-center text-hd-10 text-bevel-dark/85">
               No results found
             </div>
           )}
           {Array.from(groups.entries()).map(([groupName, items]) => (
             <div key={groupName}>
-              <div className="px-3 py-1 text-hd-8 uppercase tracking-wider text-bevel-dark/50">
+              <div className="px-3 py-1 text-hd-8 uppercase tracking-wider text-bevel-dark/85">
                 {groupName}
               </div>
               {items.map((item) => {
@@ -270,12 +270,12 @@ export function CommandPalette() {
                       "w-full text-left px-3 py-2.5 md:py-1.5 min-h-[44px] md:min-h-0 flex flex-col justify-center cursor-pointer transition-colors-fast",
                       idx === activeIndex
                         ? "bg-title-bar-blue/30 text-desktop-gray"
-                        : "text-desktop-gray/80 hover:bg-title-bar-blue/15",
+                        : "text-desktop-gray/85 hover:bg-title-bar-blue/15",
                     )}
                   >
                     <span className="text-hd-12 md:text-hd-11 truncate">{item.label}</span>
                     {item.subtitle && (
-                      <span className="text-hd-9 text-bevel-dark/60 truncate">{item.subtitle}</span>
+                      <span className="text-hd-9 text-bevel-dark/85 truncate">{item.subtitle}</span>
                     )}
                   </button>
                 );
@@ -285,7 +285,7 @@ export function CommandPalette() {
         </div>
 
         {/* Footer hint */}
-        <div className="px-3 py-1.5 border-t border-bevel-dark/15 text-hd-8 text-bevel-dark/40 flex items-center gap-3">
+        <div className="px-3 py-1.5 border-t border-bevel-dark/15 text-hd-8 text-bevel-dark/85 flex items-center gap-3">
           <span>↑↓ navigate</span>
           <span>↵ select</span>
           <span>esc close</span>

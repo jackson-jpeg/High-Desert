@@ -252,7 +252,7 @@ export function PlaybackControls({
       </div>
 
       {/* Volume + Sleep timer */}
-      <div className="flex items-center gap-2 text-hd-13 md:text-hd-11 text-bevel-dark/70 px-2">
+      <div className="flex items-center gap-2 text-hd-13 md:text-hd-11 text-bevel-dark/85 px-2">
         <button
           onClick={toggleMute}
           className="text-hd-12 md:text-hd-10 cursor-pointer hover:text-desert-amber transition-colors"
@@ -277,7 +277,7 @@ export function PlaybackControls({
           aria-valuetext={`${Math.round(volume * 100)}%`}
           className="flex-1 h-[4px] w98-range-dark cursor-pointer"
         />
-        <span className="w-[28px] tabular-nums text-bevel-dark/50">
+        <span className="w-[28px] tabular-nums text-bevel-dark/85">
           {Math.round(volume * 100)}%
         </span>
         <SleepTimer variant="desktop" />
@@ -299,10 +299,10 @@ function NextButtonWithTooltip({ onNext, hasNext }: { onNext: () => void; hasNex
       {show && nextEp && (
         <div className="hidden md:block absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
           <div className="w98-raised-dark bg-raised-surface px-2 py-1.5 max-w-[200px] whitespace-nowrap">
-            <div className="text-hd-10 text-bevel-dark/50 mb-0.5">Up Next</div>
+            <div className="text-hd-10 text-bevel-dark/85 mb-0.5">Up Next</div>
             <div className="text-hd-10 text-desktop-gray truncate">{nextEp.title || nextEp.fileName}</div>
-            {nextEp.guestName && <div className="text-hd-9 text-static-green/70 truncate">{nextEp.guestName}</div>}
-            {nextEp.airDate && <div className="text-hd-9 text-bevel-dark/60">{formatAirDate(nextEp.airDate)}</div>}
+            {nextEp.guestName && <div className="text-hd-9 text-static-green/85 truncate">{nextEp.guestName}</div>}
+            {nextEp.airDate && <div className="text-hd-9 text-bevel-dark/85">{formatAirDate(nextEp.airDate)}</div>}
           </div>
         </div>
       )}

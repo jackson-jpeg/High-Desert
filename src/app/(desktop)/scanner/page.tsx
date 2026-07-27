@@ -45,7 +45,7 @@ export default function ScannerPage() {
       {/* Divider */}
       <div className="flex items-center gap-3 px-1">
         <div className="flex-1 h-[1px] bg-bevel-dark/20" />
-        <span className="text-hd-9 text-bevel-dark/50 uppercase tracking-widest">or search the full catalog</span>
+        <span className="text-hd-9 text-bevel-dark/85 uppercase tracking-widest">or search the full catalog</span>
         <div className="flex-1 h-[1px] bg-bevel-dark/20" />
       </div>
 
@@ -57,7 +57,7 @@ export default function ScannerPage() {
       {/* Divider */}
       <div className="flex items-center gap-3 px-1">
         <div className="flex-1 h-[1px] bg-bevel-dark/20" />
-        <span className="text-hd-9 text-bevel-dark/50 uppercase tracking-widest">or import local files</span>
+        <span className="text-hd-9 text-bevel-dark/85 uppercase tracking-widest">or import local files</span>
         <div className="flex-1 h-[1px] bg-bevel-dark/20" />
       </div>
 

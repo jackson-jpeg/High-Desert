@@ -41,8 +41,8 @@ export function OnThisDay({ onPlay, compact, className }: OnThisDayProps) {
   if (compact) {
     return (
       <div className={cn("flex flex-col gap-0.5", className)}>
-        <span className="text-hd-8 text-bevel-dark/70 uppercase tracking-wider px-1">{monthName}</span>
-        <span className="text-hd-7 text-bevel-dark/40 px-1 -mt-0.5">Episodes that aired on this date</span>
+        <span className="text-hd-8 text-bevel-dark/85 uppercase tracking-wider px-1">{monthName}</span>
+        <span className="text-hd-7 text-bevel-dark/85 px-1 -mt-0.5">Episodes that aired on this date</span>
         {matches.map((ep) => {
           const year = ep.airDate?.slice(0, 4);
           return (
@@ -63,7 +63,7 @@ export function OnThisDay({ onPlay, compact, className }: OnThisDayProps) {
   return (
     <Window title={`On This Day \u00B7 ${monthName}`} variant="dark" className={className}>
       <div className="p-2 flex flex-col gap-1 max-h-[200px] md:max-h-[120px] overflow-auto overscroll-contain">
-        <span className="text-hd-8 text-bevel-dark/40 mb-0.5">Episodes that originally aired on this date in Art Bell history</span>
+        <span className="text-hd-8 text-bevel-dark/85 mb-0.5">Episodes that originally aired on this date in Art Bell history</span>
         {matches.map((ep) => {
           const year = ep.airDate?.slice(0, 4);
           return (
@@ -78,10 +78,10 @@ export function OnThisDay({ onPlay, compact, className }: OnThisDayProps) {
               <span className="text-hd-10 text-desert-amber tabular-nums w-[32px] flex-shrink-0">{year}</span>
               <div className="flex-1 min-w-0">
                 <div className="text-hd-10 text-desktop-gray truncate">{ep.title || ep.fileName}</div>
-                {ep.guestName && <div className="text-hd-10 md:text-hd-8 text-static-green/60 truncate">{ep.guestName}</div>}
+                {ep.guestName && <div className="text-hd-10 md:text-hd-8 text-static-green/85 truncate">{ep.guestName}</div>}
               </div>
               {ep.showType && ep.showType !== "unknown" && (
-                <span className="text-hd-9 md:text-hd-7 text-bevel-dark/50 flex-shrink-0 uppercase">
+                <span className="text-hd-9 md:text-hd-7 text-bevel-dark/85 flex-shrink-0 uppercase">
                   {ep.showType === "coast" ? "C2C" : ep.showType === "dreamland" ? "DL" : "SP"}
                 </span>
               )}
