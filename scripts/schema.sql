@@ -97,3 +97,61 @@ CREATE TABLE IF NOT EXISTS rating_votes (
   updated_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (voter, episode_id)
 );
+
+-- ---------------------------------------------------------------------------
+-- Permanent history
+--
+-- Everything above is either a counter with no timestamps (episode_plays), a
+-- live set that is pruned as it is read (active_sessions), a 24h ticker
+-- (recent_plays) or a 90-day sample window (listener_samples). None of it can
+-- answer "what was played on a Tuesday last spring". These two tables are the
+-- forever log, and they are the only tables here that are never pruned.
+-- ---------------------------------------------------------------------------
+
+-- One row per play, kept indefinitely.
+--
+-- Distinct from recent_plays, which is a 24h ticker feeding the "on air" strip
+-- and is pruned in the same statement that writes it. This one only grows: at
+-- the site's traffic a decade of plays is still a few hundred thousand rows.
+--
+-- session_ref carries the anonymous per-page-load id so a listening session's
+-- sequence of plays can be reconstructed while it is recent. It is NULLed out
+-- after SESSION_REF_RETENTION_DAYS by anonymizeOldSessions(), so the permanent
+-- record degrades to exactly what recent_plays always was — an episode and a
+-- time, attached to nobody. The id was never linkable to a person or to a
+-- returning visitor (see src/lib/utils/session-id.ts); expiring it means the
+-- long tail cannot even group one session's listening after the fact.
+CREATE TABLE IF NOT EXISTS play_events (
+  id          bigserial   PRIMARY KEY,
+  episode_id  text        NOT NULL,
+  played_at   timestamptz NOT NULL DEFAULT now(),
+  session_ref text
+);
+CREATE INDEX IF NOT EXISTS play_events_played_at_idx
+  ON play_events (played_at DESC);
+CREATE INDEX IF NOT EXISTS play_events_episode_idx
+  ON play_events (episode_id, played_at DESC);
+-- Partial: anonymizeOldSessions() only ever looks for rows that still have a
+-- ref, and after the first pass that is a small recent slice of the table.
+CREATE INDEX IF NOT EXISTS play_events_session_ref_idx
+  ON play_events (played_at) WHERE session_ref IS NOT NULL;
+
+-- Daily rollup of traffic, kept indefinitely.
+--
+-- listener_samples is pruned at 90 days because 2-minute resolution is only
+-- interesting while it is recent. Rolling each day up before that happens is
+-- what makes multi-year history possible without keeping 650k sample rows a
+-- year. Recomputed for the last few days on every sample, so a late-arriving
+-- or corrected sample is picked up rather than frozen in.
+CREATE TABLE IF NOT EXISTS traffic_daily (
+  day            date   PRIMARY KEY,
+  peak_online    int    NOT NULL DEFAULT 0,
+  peak_listening int    NOT NULL DEFAULT 0,
+  avg_online     numeric NOT NULL DEFAULT 0,
+  avg_listening  numeric NOT NULL DEFAULT 0,
+  plays          bigint NOT NULL DEFAULT 0,
+  -- Distinct session_refs seen that day. Goes stale-but-correct once the refs
+  -- expire: the count is written at rollup time, not derived on read.
+  sessions       int    NOT NULL DEFAULT 0,
+  samples        int    NOT NULL DEFAULT 0
+);

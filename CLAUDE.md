@@ -58,7 +58,8 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/heartbeat` | POST | Mark a session present. Body `{sessionId}`. Returns `{ok}`. Every open tab posts on a 60s interval |
 | `/api/stats/now` | GET | Presence **plus what is playing**. Returns **`{online, listening, onAir: [{episodeId, listeners}], recent: [{episodeId, at}]}`**. `no-store` — a stale on-air list is worse than none. Aggregate only: no query joins `session_id` to `episode_id`, and `recent_plays` stores no session at all |
 | `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, plays}], peakOnline, peakListening, playsInRange, totalPlays, peakAt, hourly: [{hour, online, listening, plays, samples}]}`**. `hourly` is always a 24-entry, zero-filled, **UTC**-hour profile over the last 30 days and does *not* vary with `range`; the client rotates it into local time. `samples: 0` means *never observed*, which is not the same as "observed, nobody here" — the UI hides the profile until 8 hours have been sampled, or a day-old deployment draws 23 empty columns and looks like a dead site |
-| `/api/stats/sample` | POST | Writes one traffic sample. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Returns `{ok, online, listening, totalPlays}` |
+| `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Returns `{ok, online, listening, totalPlays, rolledUp, anonymized}` |
+| `/api/stats/export` | GET | **The permanent record, for sang3r.com.** Requires `x-service-token` (`STATS_EXPORT_SECRET`). `?mode=summary\|events\|daily\|episodes`. The only route that returns the event log rather than aggregates, and the only one not reachable from a browser. Episode ids are resolved to titles from the seed catalog. Page `events` with `after=<last id>` — **not** with `since`, which cannot disambiguate two plays sharing a timestamp |
 
 > Response shapes are inconsistent by history, not design. `src/services/stats/client.ts`
 > tolerates both wrapped and bare forms — a mismatch here silently made every community
@@ -266,6 +267,20 @@ No third-party hosting. Same shape as `sanger-next`.
   same statement that inserts. It exists because neither `episode_plays` (a counter) nor
   `listener_samples` (a cumulative total) can answer *what* was just put on — the one thing
   that makes the site feel inhabited. It deliberately holds no session id
+- **The forever log:** `play_events` and `traffic_daily` are the only tables here that are
+  never pruned, and everything else is expressly temporary — `recent_plays` at 24h,
+  `listener_samples` at 90 days, `weekly_plays` at 3 weeks, `active_sessions` as a live set.
+  `recordPlay` appends to `play_events` in the same atomic statement as everything else, and
+  the sample timer rolls the day up into `traffic_daily` so multi-year history survives the
+  sample prune. Rollup recomputes a 3-day trailing window (so a play either side of midnight
+  is not frozen into the wrong day) and never revises a day's plays or sessions *downward*
+- **Session refs expire, events do not.** `play_events.session_ref` holds the anonymous
+  per-page-load id for 90 days, then `anonymizeOldSessions()` NULLs it and the permanent row
+  becomes exactly what `recent_plays` always was: an episode and a time, attached to nobody.
+  The id was never linkable to a person or a returning visitor (`src/lib/utils/session-id.ts`
+  regenerates it every page load), so this is about not being able to group one sitting's
+  listening years later. **Keep the public `/api/stats/*` routes aggregate-only** — the
+  session ref exists for `/api/stats/export` and nothing else
 - **Rate limiting:** `src/lib/utils/rate-limit.ts` is an in-memory Map. That was useless on
   serverless but is **correct here** — one long-lived process. It depends on nginx setting
   `X-Forwarded-For` to `$remote_addr` (overwrite, not append) so clients can't spoof it
@@ -274,11 +289,22 @@ No third-party hosting. Same shape as `sanger-next`.
   previous build's cache. Do not hardcode the cache name again
 - **No env vars are required** for the app to boot; without `DATABASE_URL` the `/api/stats/*`
   routes return 503 and the UI degrades to empty stats
+- **sang3r.com reads this database, it does not copy it.** `/high-desert` on sang3r.com and
+  the `sanger_highdesert` MCP tool both proxy `/api/stats/export` over loopback
+  (`HIGHDESERT_API` / `HIGHDESERT_TOKEN` in `/root/Sanger/.env.local`, where the token is this
+  app's `STATS_EXPORT_SECRET`). Mirroring the log into Supabase was the alternative and would
+  have meant a sync cursor to babysit and a second definition of "a play". One writer, one
+  source of truth — if the shape of the export changes, only the proxy and the page follow
 
 ## Scripts (`/scripts/`)
 
 - `categorize-library.py` — offline batch AI categorization; output is committed into `public/seed/library.json`. This is the ONLY place AI runs
 - `clean-library.py` — Python script for library cleanup
+- `schema.sql` — the community stats schema; idempotent, re-run on every deploy that touches it
+- `backfill-traffic-daily.sql` — one-time (and re-runnable) fill of `traffic_daily` from
+  whatever `listener_samples` still holds. Only matters when the rollup is deployed after
+  sampling has been running; plays are derived from cumulative deltas, so those days are
+  approximate at the midnight boundary and carry `sessions: 0`
 
 ## Deploying to the VPS — do not break the live service
 

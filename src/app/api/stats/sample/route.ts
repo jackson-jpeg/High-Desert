@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
-import { recordSample } from "@/services/stats/store";
+import {
+  anonymizeOldSessions,
+  recordSample,
+  rollUpTraffic,
+} from "@/services/stats/store";
 
 /**
  * Writes one traffic sample. Called by the `highdesert-sample.timer` systemd
@@ -29,7 +33,21 @@ export async function POST(request: NextRequest) {
 
   try {
     const sample = await recordSample();
-    return NextResponse.json({ ok: true, ...sample });
+
+    // Maintenance for the permanent tables rides on the same timer. Kept out
+    // of the sample write and individually caught: the 2-minute cadence is the
+    // one thing that must not miss a beat, and a rollup that fails is a gap in
+    // a derived table that the next pass recomputes anyway.
+    let rolledUp = 0;
+    let anonymized = 0;
+    try {
+      rolledUp = await rollUpTraffic();
+      anonymized = await anonymizeOldSessions();
+    } catch (err) {
+      console.error("[stats/sample] history maintenance:", err);
+    }
+
+    return NextResponse.json({ ok: true, ...sample, rolledUp, anonymized });
   } catch (err) {
     console.error("[stats/sample] store error:", err);
     return NextResponse.json(

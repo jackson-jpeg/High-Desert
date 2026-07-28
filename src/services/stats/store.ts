@@ -53,6 +53,18 @@ const ACTIVE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 const WEEKLY_RETENTION_WEEKS = 3;
 /** How long traffic samples are kept. */
 const SAMPLE_RETENTION_DAYS = 90;
+/**
+ * How long a play event keeps its session reference. After this it is NULLed
+ * out and the row becomes what recent_plays always was — an episode and a time,
+ * attached to nobody. The event itself is kept forever.
+ */
+const SESSION_REF_RETENTION_DAYS = 90;
+/**
+ * How many trailing days the daily rollup recomputes on each pass. More than
+ * one so a sample that lands either side of midnight, or a backfill, is picked
+ * up instead of being frozen into whichever day it was first counted under.
+ */
+const ROLLUP_DAYS = 3;
 
 // ---------------------------------------------------------------------------
 // Writes
@@ -78,6 +90,10 @@ export async function recordPlay(
       INSERT INTO recent_plays (episode_id) VALUES ($1)
     ), pruned AS (
       DELETE FROM recent_plays WHERE played_at < now() - interval '24 hours'
+    ), ev AS (
+      -- The permanent log. Same event as recent_plays, but never pruned and
+      -- carrying the session ref until it expires; see scripts/schema.sql.
+      INSERT INTO play_events (episode_id, session_ref) VALUES ($1, $3)
     )
     INSERT INTO active_sessions (session_id, seen_at, listening_at, episode_id)
     VALUES ($3, now(), now(), $1)
@@ -388,6 +404,116 @@ export async function recordSample(): Promise<Presence & { totalPlays: number }>
   return { ...presence, totalPlays: Number(rows[0]?.total_plays ?? 0) };
 }
 
+// ---------------------------------------------------------------------------
+// Permanent history
+//
+// listener_samples is pruned at 90 days and recent_plays at 24 hours, so these
+// two functions are what stops the record from ending at the prune horizon.
+// Both are driven by the same two-minute timer that writes samples.
+// ---------------------------------------------------------------------------
+
+/**
+ * Recompute the daily rollup for the trailing ROLLUP_DAYS.
+ *
+ * Presence comes from listener_samples (a gauge — peak and mean both mean
+ * something); plays and sessions come from play_events, which is an actual
+ * event log and so does not need the cumulative-delta arithmetic getTraffic()
+ * has to do. Days are UTC, matching the hour-of-day profile.
+ */
+export async function rollUpTraffic(): Promise<number> {
+  const { rowCount } = await pool().query(
+    `
+    WITH days AS (
+      SELECT generate_series(
+        (now() AT TIME ZONE 'UTC')::date - ($1::int - 1),
+        (now() AT TIME ZONE 'UTC')::date,
+        interval '1 day'
+      )::date AS day
+    ), s AS (
+      SELECT
+        (sampled_at AT TIME ZONE 'UTC')::date AS day,
+        max(online)                           AS peak_online,
+        max(listening)                        AS peak_listening,
+        round(avg(online), 2)                 AS avg_online,
+        round(avg(listening), 2)              AS avg_listening,
+        count(*)::int                         AS samples
+      FROM listener_samples
+      WHERE (sampled_at AT TIME ZONE 'UTC')::date
+            >= (now() AT TIME ZONE 'UTC')::date - ($1::int - 1)
+      GROUP BY 1
+    ), p AS (
+      SELECT
+        (played_at AT TIME ZONE 'UTC')::date  AS day,
+        count(*)                              AS plays,
+        count(DISTINCT session_ref)::int      AS sessions
+      FROM play_events
+      WHERE (played_at AT TIME ZONE 'UTC')::date
+            >= (now() AT TIME ZONE 'UTC')::date - ($1::int - 1)
+      GROUP BY 1
+    )
+    INSERT INTO traffic_daily AS td
+      (day, peak_online, peak_listening, avg_online, avg_listening,
+       plays, sessions, samples)
+    SELECT
+      days.day,
+      COALESCE(s.peak_online, 0),
+      COALESCE(s.peak_listening, 0),
+      COALESCE(s.avg_online, 0),
+      COALESCE(s.avg_listening, 0),
+      COALESCE(p.plays, 0),
+      COALESCE(p.sessions, 0),
+      COALESCE(s.samples, 0)
+    FROM days
+    LEFT JOIN s USING (day)
+    LEFT JOIN p USING (day)
+    -- A day the sampler never observed is not a day with no traffic, and
+    -- writing it as zeroes would put a fabricated empty column on the chart
+    -- for every day of the rollup window that predates collection. A quiet
+    -- day the sampler *did* observe still lands here with samples > 0, which
+    -- is the real zero worth keeping.
+    WHERE COALESCE(s.samples, 0) > 0 OR COALESCE(p.plays, 0) > 0
+    ON CONFLICT (day) DO UPDATE SET
+      peak_online    = EXCLUDED.peak_online,
+      peak_listening = EXCLUDED.peak_listening,
+      avg_online     = EXCLUDED.avg_online,
+      avg_listening  = EXCLUDED.avg_listening,
+      -- Plays for a past day only ever grow, so taking the larger value is
+      -- always right and it carries the changeover: days backfilled from
+      -- sample deltas keep their count instead of collapsing to however much
+      -- of that day the event log happened to catch.
+      plays          = GREATEST(td.plays, EXCLUDED.plays),
+      -- Never revise a session count downward. Once session refs expire the
+      -- recomputed value would be 0, and a re-rollup of an old day (a manual
+      -- backfill, a clock change) must not erase what was counted while the
+      -- refs still existed. The rollup window is far shorter than the ref
+      -- retention, so in normal operation this never fires.
+      sessions       = GREATEST(td.sessions, EXCLUDED.sessions),
+      samples        = EXCLUDED.samples
+    `,
+    [ROLLUP_DAYS],
+  );
+  return rowCount ?? 0;
+}
+
+/**
+ * Strip session references off play events older than the retention window.
+ *
+ * The event survives; only the link between events in one sitting is dropped.
+ * Cheap after the first pass — the partial index means this only ever scans
+ * rows that still carry a ref.
+ */
+export async function anonymizeOldSessions(): Promise<number> {
+  const { rowCount } = await pool().query(
+    `
+    UPDATE play_events SET session_ref = NULL
+    WHERE session_ref IS NOT NULL
+      AND played_at < now() - ($1::int * interval '1 day')
+    `,
+    [SESSION_REF_RETENTION_DAYS],
+  );
+  return rowCount ?? 0;
+}
+
 export type TrafficRange = "24h" | "7d" | "30d";
 
 export interface TrafficPoint {
@@ -487,6 +613,237 @@ export async function getTraffic(range: TrafficRange): Promise<Traffic> {
     peakAt: peakOnline > 0 ? (points.find((p) => p.online === peakOnline)?.t ?? null) : null,
     hourly,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Export — reads for sang3r.com
+//
+// Everything below is read-only and serves GET /api/stats/export. It is the
+// only consumer of the permanent tables; the public /api/stats/* routes still
+// read the live ones, so the site is unaffected by anything here.
+// ---------------------------------------------------------------------------
+
+export interface PlayEvent {
+  /** Monotonic id — use as the pagination cursor, not the timestamp. */
+  id: number;
+  episodeId: string;
+  /** ISO 8601. */
+  at: string;
+  /** Null once the reference has expired, or if the play predates the log. */
+  session: string | null;
+}
+
+/**
+ * A page of the permanent play log, oldest first.
+ *
+ * Ordered and paged by id rather than played_at: two plays can share a
+ * timestamp, and a timestamp cursor would either skip or repeat them.
+ */
+export async function getPlayEvents(opts: {
+  since?: Date;
+  until?: Date;
+  /** Return events with id strictly greater than this. */
+  afterId?: number;
+  limit: number;
+}): Promise<PlayEvent[]> {
+  const { rows } = await pool().query<{
+    id: string;
+    episode_id: string;
+    played_at: Date;
+    session_ref: string | null;
+  }>(
+    `
+    SELECT id, episode_id, played_at, session_ref
+    FROM play_events
+    WHERE ($1::timestamptz IS NULL OR played_at >= $1)
+      AND ($2::timestamptz IS NULL OR played_at <  $2)
+      AND ($3::bigint      IS NULL OR id        >  $3)
+    ORDER BY id
+    LIMIT $4
+    `,
+    [opts.since ?? null, opts.until ?? null, opts.afterId ?? null, opts.limit],
+  );
+
+  return rows.map((r) => ({
+    id: Number(r.id),
+    episodeId: r.episode_id,
+    at: new Date(r.played_at).toISOString(),
+    session: r.session_ref,
+  }));
+}
+
+export interface DailyTraffic {
+  /** `YYYY-MM-DD`, UTC. */
+  day: string;
+  peakOnline: number;
+  peakListening: number;
+  avgOnline: number;
+  avgListening: number;
+  plays: number;
+  /** Distinct listening sessions, as counted while refs were still live. */
+  sessions: number;
+  /**
+   * Traffic samples the presence figures were built from. Zero means the day
+   * was never sampled — not that nobody came. The same distinction the hourly
+   * profile makes.
+   */
+  samples: number;
+}
+
+/** The permanent daily history, oldest first. */
+export async function getDailyTraffic(days: number): Promise<DailyTraffic[]> {
+  const { rows } = await pool().query<{
+    day: Date;
+    peak_online: number;
+    peak_listening: number;
+    avg_online: string;
+    avg_listening: string;
+    plays: string;
+    sessions: number;
+    samples: number;
+  }>(
+    `
+    SELECT day, peak_online, peak_listening, avg_online, avg_listening,
+           plays, sessions, samples
+    FROM traffic_daily
+    WHERE day >= (now() AT TIME ZONE 'UTC')::date - ($1::int - 1)
+    ORDER BY day
+    `,
+    [days],
+  );
+
+  return rows.map((r) => ({
+    // `day` is a DATE; node-postgres hands it back as a local-midnight Date, so
+    // toISOString() can roll it to the previous day west of UTC. Format the
+    // local fields instead — they are the ones that carry the right calendar day.
+    day: `${r.day.getFullYear()}-${String(r.day.getMonth() + 1).padStart(2, "0")}-${String(r.day.getDate()).padStart(2, "0")}`,
+    peakOnline: r.peak_online,
+    peakListening: r.peak_listening,
+    avgOnline: Number(r.avg_online),
+    avgListening: Number(r.avg_listening),
+    plays: Number(r.plays),
+    sessions: r.sessions,
+    samples: r.samples,
+  }));
+}
+
+export interface ExportSummary {
+  /** Total plays ever, from the counter — authoritative, predates the log. */
+  totalPlays: number;
+  /** Rows in the permanent log. Lower than totalPlays for plays before it existed. */
+  loggedPlays: number;
+  /** Distinct episodes that have ever been played. */
+  episodesPlayed: number;
+  /** Oldest and newest logged event, ISO 8601. Null on an empty log. */
+  firstPlayAt: string | null;
+  lastPlayAt: string | null;
+  /** Highest id in the log — the cursor a full sync should resume from. */
+  lastEventId: number;
+  playsLast24h: number;
+  playsLast7d: number;
+  playsLast30d: number;
+  /** Distinct listening sessions in the last 24h / 7d, while refs are live. */
+  sessionsLast24h: number;
+  sessionsLast7d: number;
+  daysRecorded: number;
+  ratingsSubmitted: number;
+}
+
+/** One-shot headline figures for the dashboard. */
+export async function getExportSummary(): Promise<ExportSummary> {
+  const { rows } = await pool().query<Record<string, string | null>>(
+    `
+    SELECT
+      (SELECT COALESCE(sum(plays), 0) FROM episode_plays)                AS total_plays,
+      (SELECT count(*) FROM play_events)                                 AS logged_plays,
+      (SELECT count(*) FROM episode_plays WHERE plays > 0)               AS episodes_played,
+      (SELECT min(played_at)::text FROM play_events)                     AS first_play_at,
+      (SELECT max(played_at)::text FROM play_events)                     AS last_play_at,
+      (SELECT COALESCE(max(id), 0) FROM play_events)                     AS last_event_id,
+      (SELECT count(*) FROM play_events
+        WHERE played_at >= now() - interval '24 hours')                  AS plays_24h,
+      (SELECT count(*) FROM play_events
+        WHERE played_at >= now() - interval '7 days')                    AS plays_7d,
+      (SELECT count(*) FROM play_events
+        WHERE played_at >= now() - interval '30 days')                   AS plays_30d,
+      (SELECT count(DISTINCT session_ref) FROM play_events
+        WHERE played_at >= now() - interval '24 hours')                  AS sessions_24h,
+      (SELECT count(DISTINCT session_ref) FROM play_events
+        WHERE played_at >= now() - interval '7 days')                    AS sessions_7d,
+      (SELECT count(*) FROM traffic_daily WHERE samples > 0)             AS days_recorded,
+      (SELECT COALESCE(sum(count), 0) FROM episode_ratings)              AS ratings
+    `,
+  );
+
+  const r = rows[0] ?? {};
+  const n = (k: string) => Number(r[k] ?? 0);
+  const iso = (k: string) => (r[k] ? new Date(r[k] as string).toISOString() : null);
+
+  return {
+    totalPlays: n("total_plays"),
+    loggedPlays: n("logged_plays"),
+    episodesPlayed: n("episodes_played"),
+    firstPlayAt: iso("first_play_at"),
+    lastPlayAt: iso("last_play_at"),
+    lastEventId: n("last_event_id"),
+    playsLast24h: n("plays_24h"),
+    playsLast7d: n("plays_7d"),
+    playsLast30d: n("plays_30d"),
+    sessionsLast24h: n("sessions_24h"),
+    sessionsLast7d: n("sessions_7d"),
+    daysRecorded: n("days_recorded"),
+    ratingsSubmitted: n("ratings"),
+  };
+}
+
+export interface EpisodeStat {
+  episodeId: string;
+  plays: number;
+  /** Community rating, null when nobody has voted. */
+  rating: number | null;
+  ratingCount: number;
+  /** Most recent logged play, ISO 8601. Null if it predates the log. */
+  lastPlayedAt: string | null;
+}
+
+/** Per-episode totals, most played first. Joins the counter to ratings. */
+export async function getEpisodeStats(limit: number): Promise<EpisodeStat[]> {
+  const { rows } = await pool().query<{
+    episode_id: string;
+    plays: string;
+    sum: string | null;
+    count: string | null;
+    last_played_at: Date | null;
+  }>(
+    `
+    SELECT
+      p.episode_id,
+      p.plays,
+      r.sum,
+      r.count,
+      (SELECT max(played_at) FROM play_events e
+        WHERE e.episode_id = p.episode_id) AS last_played_at
+    FROM episode_plays p
+    LEFT JOIN episode_ratings r ON r.episode_id = p.episode_id
+    WHERE p.plays > 0
+    ORDER BY p.plays DESC, p.episode_id
+    LIMIT $1
+    `,
+    [limit],
+  );
+
+  return rows.map((r) => {
+    const count = Number(r.count ?? 0);
+    return {
+      episodeId: r.episode_id,
+      plays: Number(r.plays),
+      rating: count > 0 ? Number((Number(r.sum) / count).toFixed(2)) : null,
+      ratingCount: count,
+      lastPlayedAt: r.last_played_at
+        ? new Date(r.last_played_at).toISOString()
+        : null,
+    };
+  });
 }
 
 /** Drop weekly leaderboard rows older than the retention window. */
