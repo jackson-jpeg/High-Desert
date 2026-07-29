@@ -50,6 +50,7 @@ const noteProgress = vi.fn();
 const noteListenersAttached = vi.fn();
 const noteListenersDetached = vi.fn();
 const noteError = vi.fn();
+const armWatchdog = vi.fn();
 
 let element: HTMLAudioElement;
 /** Whether a load attempt is outstanding — decides who owns an `error`. */
@@ -89,7 +90,7 @@ vi.mock("@/services/archive/health", () => ({
 }));
 
 vi.mock("@/audio/playback-watchdog", () => ({
-  armWatchdog: vi.fn(),
+  armWatchdog: (...a: unknown[]) => armWatchdog(...a),
   // The real one — the point of the detail test below is that production calls it.
   describeMediaError: (e: MediaError | null) =>
     e ? `code=${e.code}${e.message ? ` ${e.message}` : ""}` : null,
@@ -106,6 +107,7 @@ vi.mock("@/audio/playback-watchdog", () => ({
   setFailureHandler: (...a: unknown[]) => setFailureHandler(...a),
 }));
 
+const { communityKey } = await import("@/lib/utils/community-key");
 const { useAudioPlayer } = await import("@/hooks/useAudioPlayer");
 const { usePlayerStore } = await import("@/stores/player-store");
 
@@ -120,7 +122,9 @@ function makeEpisode(over: Partial<Episode> = {}): Episode {
     fileName: `1997-07-2${episodeSeq} - Coast to Coast AM.mp3`,
     archiveIdentifier: "ultimate-art-bell-collection",
     title: "Coast to Coast AM",
-    sourceUrl: "https://archive.org/download/coll/show.mp3",
+    // Distinct per episode: "armed against the new source" is not decidable if
+    // every fixture shares one URL.
+    sourceUrl: `https://archive.org/download/coll/show-${episodeSeq}.mp3`,
     duration: 10_800,
     showType: "coast",
     createdAt: 0,
@@ -280,6 +284,46 @@ describe("globals installed by useAudioPlayer", () => {
     });
 
     expect(noteReady).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands the next show to the watchdog, not the one that just ended", async () => {
+    // The other half of an episode boundary. `ended` advances the queue and
+    // dispatches `hd:play-episode`; the desktop layout answers it by calling
+    // `playEpisode`, which assigns the new source and only then arms. If the
+    // watchdog kept the finished episode's url, its retry would re-request the
+    // show the listener has already heard — and report the failure against the
+    // wrong one. This whole path had never executed in production: `ended` came
+    // from a listener that was never attached.
+    mountBoth();
+    const [a, b] = [makeEpisode(), makeEpisode()];
+    const forward = (e: Event) =>
+      void instances[0].api.playEpisode((e as CustomEvent).detail);
+    window.addEventListener("hd:play-episode", forward);
+
+    try {
+      await act(async () => {
+        usePlayerStore.setState({ queue: [a, b], queueIndex: 0, currentEpisode: a });
+        usePlayerStore.getState().setDuration(10_800);
+        Object.defineProperty(element, "duration", {
+          value: 10_800,
+          configurable: true,
+        });
+        element.dispatchEvent(new Event("ended"));
+      });
+
+      expect(usePlayerStore.getState().queueIndex).toBe(1);
+      expect(armWatchdog).toHaveBeenCalledTimes(1);
+      const armed = armWatchdog.mock.calls[0][0] as {
+        url: string;
+        episodeId: string;
+      };
+      expect(armed.url).toBe(b.sourceUrl);
+      expect(armed.url).not.toBe(a.sourceUrl);
+      expect(armed.episodeId).toBe(communityKey(b));
+      expect(armed.episodeId).not.toBe(communityKey(a));
+    } finally {
+      window.removeEventListener("hd:play-episode", forward);
+    }
   });
 
   it("hands the watchdog what the browser said went wrong", () => {
