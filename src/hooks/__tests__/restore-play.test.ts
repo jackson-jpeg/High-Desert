@@ -1,6 +1,11 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { usePlayerStore } from "@/stores/player-store";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { act } from "react";
 import type { Episode } from "@/db/schema";
+import {
+  mountHook,
+  makeMediaElement,
+  type Mounted,
+} from "./support/mount-player";
 
 /**
  * The bug this file exists to prevent.
@@ -20,10 +25,52 @@ import type { Episode } from "@/db/schema";
  *   1. Restoring an episode leaves the element pointed at something playable.
  *   2. Pressing play with no source loaded must never be a silent no-op.
  *
- * Asserting on the real hook would mean rendering the whole desktop layout, so
- * this exercises the two behaviours directly against the store and a stand-in
- * element, mirroring primeEpisode and togglePlay in ../useAudioPlayer.ts.
+ * This used to assert both against a local `primeEpisode` and an inlined copy of
+ * `togglePlay`'s no-source branch, on the grounds that mounting the real hook
+ * would mean rendering the whole desktop layout. That was not true — it needs a
+ * two-line harness — and the cost of the shortcut was exactly what you would
+ * expect: the copy fell behind the original, which had since gained a
+ * `notifySourceChanged()` call and a `playbackRate` assignment. The suite was
+ * green and testing nothing. It mounts the real hook now.
  */
+
+const notifySourceChanged = vi.fn();
+
+let element: HTMLAudioElement;
+
+vi.mock("@/services/stats/client", () => ({
+  reportPlay: vi.fn(),
+  reportStop: vi.fn(),
+  reportStopBeacon: vi.fn(),
+  reportPlaybackFailure: vi.fn(),
+}));
+
+vi.mock("@/audio/engine", () => ({
+  getMediaElement: () => element,
+  initEngine: vi.fn(),
+  setEngineVolume: vi.fn(),
+  notifySourceChanged: () => notifySourceChanged(),
+  getAnalyserNode: () => null,
+  resumeContext: () => Promise.resolve(),
+}));
+
+vi.mock("@/db", () => ({
+  db: {
+    episodes: { update: () => Promise.resolve(1) },
+    userPrefs: {
+      get: () => Promise.resolve(undefined),
+      put: () => Promise.resolve(),
+    },
+  },
+}));
+
+vi.mock("@/services/archive/health", () => ({
+  checkArchiveHealth: () => Promise.resolve({ ok: true, up: true }),
+  clearHealthCache: vi.fn(),
+}));
+
+const { useAudioPlayer } = await import("@/hooks/useAudioPlayer");
+const { usePlayerStore } = await import("@/stores/player-store");
 
 function makeEpisode(over: Partial<Episode> = {}): Episode {
   return {
@@ -41,26 +88,13 @@ function makeEpisode(over: Partial<Episode> = {}): Episode {
   } as Episode;
 }
 
-function fakeAudio() {
-  return {
-    src: "",
-    currentTime: 0,
-    playbackRate: 1,
-    preload: "metadata",
-  } as HTMLAudioElement;
-}
-
-/** Mirrors primeEpisode in ../useAudioPlayer.ts. */
-function primeEpisode(audio: HTMLAudioElement, episode: Episode) {
-  if (!episode.sourceUrl) return;
-  if (audio.src) return;
-  audio.preload = "none";
-  audio.src = episode.sourceUrl;
-  audio.currentTime = episode.playbackPosition ?? 0;
-}
+type Api = ReturnType<typeof useAudioPlayer>;
+let player: Mounted<Api>;
 
 describe("restoring the last-played episode", () => {
   beforeEach(() => {
+    notifySourceChanged.mockClear();
+    element = makeMediaElement();
     usePlayerStore.setState({
       currentEpisode: null,
       queue: [],
@@ -68,76 +102,103 @@ describe("restoring the last-played episode", () => {
       playing: false,
       position: 0,
       duration: 0,
+      playbackRate: 1,
       loadState: "idle",
+      error: null,
     });
+    player = mountHook(useAudioPlayer);
+  });
+
+  afterEach(() => {
+    player.unmount();
   });
 
   it("points the element at the episode, so play has something to resume", () => {
-    const audio = fakeAudio();
     const ep = makeEpisode();
 
     // What the layout's restore effect does.
-    usePlayerStore.getState().loadEpisode(ep, "");
-    usePlayerStore.getState().setPosition(ep.playbackPosition ?? 0);
-    usePlayerStore.getState().setDuration(ep.duration ?? 0);
-    primeEpisode(audio, ep);
+    act(() => {
+      usePlayerStore.getState().loadEpisode(ep, "");
+      usePlayerStore.getState().setPosition(ep.playbackPosition ?? 0);
+      usePlayerStore.getState().setDuration(ep.duration ?? 0);
+      player.api.primeEpisode(ep);
+    });
 
-    expect(audio.src).toBe(ep.sourceUrl);
-    expect(audio.currentTime).toBe(615);
+    expect(element.src).toBe(ep.sourceUrl);
+    expect(element.currentTime).toBe(615);
   });
 
   it("costs no network — a restored episode nobody plays must not be fetched", () => {
-    const audio = fakeAudio();
-    primeEpisode(audio, makeEpisode());
+    act(() => {
+      player.api.primeEpisode(makeEpisode());
+    });
     // "metadata" would have every page load pull the head of a show nobody
     // asked for; on a VBR rip with no Xing header that can be most of the file.
-    expect(audio.preload).toBe("none");
+    expect(element.preload).toBe("none");
+  });
+
+  it("tells the engine the source changed", () => {
+    // The assertion the hand-written copy was missing. It is a no-op in the
+    // engine today (createMediaElementSource survives a src change), which is
+    // precisely why nobody noticed the copy had dropped it — and why the call
+    // needs a test rather than a reader's good intentions.
+    act(() => {
+      player.api.primeEpisode(makeEpisode());
+    });
+    expect(notifySourceChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it("carries the listener's playback rate onto the restored element", () => {
+    // Also missing from the copy. Someone who listens at 1.5× and comes back
+    // should not be dropped to 1× by the act of being remembered.
+    act(() => {
+      usePlayerStore.setState({ playbackRate: 1.5 });
+      player.api.primeEpisode(makeEpisode());
+    });
+    expect(element.playbackRate).toBe(1.5);
   });
 
   it("does not auto-play — restoring is not starting", () => {
-    const audio = fakeAudio();
     const ep = makeEpisode();
-
-    usePlayerStore.getState().loadEpisode(ep, "");
-    primeEpisode(audio, ep);
-
+    act(() => {
+      usePlayerStore.getState().loadEpisode(ep, "");
+      player.api.primeEpisode(ep);
+    });
     expect(usePlayerStore.getState().playing).toBe(false);
   });
 
   it("never stomps a source that is already loaded", () => {
-    const audio = fakeAudio();
-    audio.src = "https://archive.org/download/coll/already-playing.mp3";
+    element.src = "https://archive.org/download/coll/already-playing.mp3";
 
-    primeEpisode(audio, makeEpisode());
+    act(() => {
+      player.api.primeEpisode(makeEpisode());
+    });
 
-    expect(audio.src).toContain("already-playing");
+    expect(element.src).toContain("already-playing");
   });
 
   it("leaves the element alone for an episode with no source", () => {
-    const audio = fakeAudio();
-    primeEpisode(audio, makeEpisode({ sourceUrl: undefined }));
-    expect(audio.src).toBe("");
+    act(() => {
+      player.api.primeEpisode(makeEpisode({ sourceUrl: undefined }));
+    });
+    expect(element.getAttribute("src")).toBeNull();
   });
 
-  it("pressing play with no source asks for the episode instead of doing nothing", () => {
+  it("pressing play with no source asks for the episode instead of doing nothing", async () => {
     const ep = makeEpisode();
-    usePlayerStore.getState().loadEpisode(ep, "");
+    act(() => {
+      usePlayerStore.getState().loadEpisode(ep, "");
+    });
 
     const dispatched: Episode[] = [];
     const listener = (e: Event) =>
       dispatched.push((e as CustomEvent<Episode>).detail);
     window.addEventListener("hd:play-episode", listener);
 
-    // Mirrors togglePlay's no-source branch. The old code was `return`.
-    const audio = fakeAudio();
-    if (!audio.src) {
-      const current = usePlayerStore.getState().currentEpisode;
-      if (current) {
-        window.dispatchEvent(
-          new CustomEvent("hd:play-episode", { detail: current }),
-        );
-      }
-    }
+    // No primeEpisode: the element has no src. The old code was a bare `return`.
+    await act(async () => {
+      await player.api.togglePlay();
+    });
 
     window.removeEventListener("hd:play-episode", listener);
 

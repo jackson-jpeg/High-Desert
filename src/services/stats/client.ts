@@ -41,6 +41,13 @@ export interface PlaybackFailure {
   recovered: boolean;
   elapsedMs: number;
   uaClass: string;
+  /**
+   * Free-text context for advisory rows, currently only the duration
+   * `loadedmetadata` reported for an `empty-media-suspected`. Deliberately not a
+   * reuse of `elapsedMs`, which means "how long the listener waited" everywhere
+   * else and would have poisoned the failures view's timing column.
+   */
+  detail?: string;
 }
 
 /**

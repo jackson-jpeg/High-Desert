@@ -26,6 +26,13 @@ const KINDS = new Set([
   // these rows always carry retried=false — a nonzero count here means a bad
   // rip in the catalog, not a flaky connection.
   "empty-media",
+  // Advisory, not a failure: `loadedmetadata` reported a duration under the
+  // five-second floor and playback was allowed to continue anyway, because for
+  // a VBR rip with no Xing header that number is an extrapolation. Carries the
+  // reported duration in `detail`. Excluded from the failures ranking — it
+  // exists to answer, later and from real traffic, whether the floor is safe to
+  // make authoritative.
+  "empty-media-suspected",
 ]);
 
 const UA_CLASSES = new Set([
@@ -64,7 +71,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { episodeId, kind, retried, recovered, elapsedMs, uaClass } =
+  const { episodeId, kind, retried, recovered, elapsedMs, uaClass, detail } =
     body as Record<string, unknown>;
 
   if (typeof episodeId !== "string" || !episodeId) {
@@ -92,6 +99,14 @@ export async function POST(request: NextRequest) {
       ? Math.min(Math.max(Math.round(elapsedMs), 0), 600_000)
       : 0;
 
+  // Truncated rather than rejected, same reasoning as elapsedMs. Bounded so the
+  // column cannot be used as arbitrary storage — the allowlist gate above stops
+  // that for episodeId, and this is the only other free-text field on the row.
+  const det =
+    typeof detail === "string" && detail.trim() !== ""
+      ? detail.slice(0, 200)
+      : null;
+
   try {
     await recordPlaybackFailure({
       episodeId,
@@ -100,6 +115,7 @@ export async function POST(request: NextRequest) {
       recovered: recovered === true,
       elapsedMs: elapsed,
       uaClass: cls,
+      detail: det,
     });
   } catch (err) {
     // No DATABASE_URL, or Postgres is down. Losing a failure report is not

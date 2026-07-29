@@ -186,6 +186,14 @@ CREATE TABLE IF NOT EXISTS playback_failures (
   ua_class   text        NOT NULL DEFAULT 'other',
   at         timestamptz NOT NULL DEFAULT now()
 );
+-- Free-text context, only ever written for advisory kinds. Today that is
+-- empty-media-suspected, which carries the duration `loadedmetadata` claimed so
+-- the five-second floor can be judged against real traffic before it is given
+-- the power to stop a show. Added separately so re-running this file on a
+-- database that predates it is still a no-op.
+ALTER TABLE playback_failures
+  ADD COLUMN IF NOT EXISTS detail text;
+
 CREATE INDEX IF NOT EXISTS playback_failures_at_idx
   ON playback_failures (at DESC);
 CREATE INDEX IF NOT EXISTS playback_failures_episode_idx

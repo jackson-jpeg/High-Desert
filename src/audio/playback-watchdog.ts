@@ -48,7 +48,18 @@ export type FailureKind =
   | "network-error"
   | "decode-error"
   /** The file loaded fine and contains no usable broadcast. Never retried. */
-  | "empty-media";
+  | "empty-media"
+  /**
+   * `loadedmetadata` reported a duration under the floor. Advisory only: it is
+   * recorded and playback is *not* stopped. For a VBR rip with no Xing header —
+   * most of this catalog — the duration at that point is extrapolated from the
+   * first frame, and an extrapolation should not get stopping power over an
+   * episode that plays fine. `ended` keeps sole authority to fail a show.
+   *
+   * These rows exist to answer, from real traffic, how many working episodes the
+   * five-second floor would have eaten if it had been authoritative.
+   */
+  | "empty-media-suspected";
 
 interface Attempt {
   audio: HTMLAudioElement;
@@ -68,6 +79,36 @@ let current: Attempt | null = null;
 let loadTimer = 0;
 let stallTimer = 0;
 
+// ── Is anything actually feeding this thing? ──
+//
+// Every input this module has — noteProgress, noteReady, noteWaiting, noteError
+// — arrives from a media element listener installed by useAudioPlayer. For four
+// months those listeners were never attached (a ref-counting bug shared one
+// counter across five install sites), and nothing here noticed. The watchdog
+// armed, saw no `progress` because nothing was listening for it, ran its
+// deadline out, tore down an element that was playing perfectly well, and
+// reported a timeout. Every row in `playback_failures` was written that way.
+//
+// The failure mode is specific and worth naming: a detector with no inputs
+// cannot distinguish "nothing happened" from "I cannot see". It failed open and
+// invented telemetry. So it now requires positive evidence that it is wired,
+// and fails closed without it — no timer, no teardown, no report.
+let listenerRefs = 0;
+
+/** The media element listeners are installed. Called from their install. */
+export function noteListenersAttached(): void {
+  listenerRefs++;
+}
+
+/** ...and from their cleanup. */
+export function noteListenersDetached(): void {
+  listenerRefs = Math.max(0, listenerRefs - 1);
+}
+
+function wired(): boolean {
+  return listenerRefs > 0;
+}
+
 /** Called with the terminal failure kind once the retry is also spent. */
 type FailHandler = (kind: FailureKind) => void;
 let onFail: FailHandler = () => {};
@@ -83,6 +124,46 @@ function clearTimers() {
   stallTimer = 0;
 }
 
+/** readyState at which the element has a current frame to render/play. */
+const HAVE_CURRENT_DATA = 2;
+
+/**
+ * Is the show, right now, audibly playing?
+ *
+ * The floor under everything else here. A watchdog exists to catch silence, and
+ * the one thing it must never do is interrupt sound — which is precisely what it
+ * spent four months doing: twelve seconds into a broadcast that was streaming
+ * perfectly, it tore the element down and re-assigned `src`, so the show cut out
+ * and restarted from the beginning (or, on iOS, stopped for good).
+ *
+ * `paused` alone is not enough: `play()` clears it synchronously, so a load that
+ * has stalled with nothing buffered also reports `paused === false`. The
+ * readyState half is what makes this mean "there is audio coming out".
+ */
+function isAudiblyPlaying(attempt: Attempt): boolean {
+  const { audio } = attempt;
+  return (
+    audio.paused === false &&
+    typeof audio.readyState === "number" &&
+    audio.readyState >= HAVE_CURRENT_DATA
+  );
+}
+
+/**
+ * If the show is playing, the deadline was wrong — stand down instead of firing.
+ *
+ * Belt and braces with noteProgress(): that is the designed signal and this is
+ * the check that does not depend on any signal arriving at all.
+ */
+function standDownIfPlaying(attempt: Attempt): boolean {
+  if (!isAudiblyPlaying(attempt)) return false;
+  if (attempt.retried) report("timeout", attempt, true);
+  attempt.settled = true;
+  clearTimers();
+  if (current === attempt) current = null;
+  return true;
+}
+
 /**
  * (Re)start the no-progress deadline. Called on arm, on retry, and every time
  * bytes arrive — so a download that is merely slow is never interrupted.
@@ -91,6 +172,7 @@ function resetLoadDeadline(attempt: Attempt) {
   window.clearTimeout(loadTimer);
   loadTimer = window.setTimeout(() => {
     if (attempt.settled) return;
+    if (standDownIfPlaying(attempt)) return;
     if (!attempt.retried) retry("timeout", attempt);
     else giveUp("timeout", attempt);
   }, LOAD_TIMEOUT_MS);
@@ -113,6 +195,10 @@ function withCacheBuster(url: string, attempt: number): string {
 
 function report(kind: FailureKind, attempt: Attempt, recovered: boolean) {
   if (!attempt.episodeId) return;
+  // Second gate. armWatchdog already refuses to arm unwired, so reaching here
+  // unwired should be impossible — which is exactly why it is worth asserting
+  // rather than assuming.
+  if (!wired()) return;
   reportPlaybackFailure({
     episodeId: attempt.episodeId,
     kind,
@@ -120,6 +206,31 @@ function report(kind: FailureKind, attempt: Attempt, recovered: boolean) {
     recovered,
     elapsedMs: Math.round(performance.now() - attempt.startedAt),
     uaClass: uaClass(),
+  });
+}
+
+/**
+ * `loadedmetadata` claimed a duration below the playable floor.
+ *
+ * Advisory: recorded, never acted on. Separate from the Attempt lifecycle
+ * because it is not a failure and must not settle, retry or fail anything — it
+ * can also arrive long after a load has settled. `retried`/`recovered` are
+ * pinned false so it can never be mistaken for a real failure, and `detail`
+ * carries the duration the element reported so the floor can be judged later.
+ */
+export function noteSuspectDuration(
+  episodeId: string | null,
+  reportedDuration: number,
+): void {
+  if (!episodeId || !wired()) return;
+  reportPlaybackFailure({
+    episodeId,
+    kind: "empty-media-suspected",
+    retried: false,
+    recovered: false,
+    elapsedMs: 0,
+    uaClass: uaClass(),
+    detail: `duration=${Number.isFinite(reportedDuration) ? reportedDuration.toFixed(3) : String(reportedDuration)}`,
   });
 }
 
@@ -148,6 +259,11 @@ function retry(kind: FailureKind, attempt: Attempt) {
   clearTimers();
 
   const { audio } = attempt;
+  // Whether the listener had asked for sound before we reset the element. A
+  // primed-but-unplayed element, or one they paused mid-load, must not be
+  // started by a timer on their behalf.
+  const wanted = audio.paused === false;
+
   resetElement(audio);
   audio.src = withCacheBuster(attempt.url, 1);
   audio.currentTime = attempt.startAt;
@@ -158,8 +274,17 @@ function retry(kind: FailureKind, attempt: Attempt) {
   attempt.startedAt = performance.now();
   resetLoadDeadline(attempt);
 
+  if (!wanted) return;
+
   audio.play().catch(() => {
-    if (!attempt.settled) giveUp("play-rejected", attempt);
+    if (attempt.settled) return;
+    // This runs inside a timer callback, so on iOS the call sits outside the
+    // user-activation chain and Safari refuses it outright — no amount of
+    // retrying gets it back, the listener has to tap again. Terminal, then, and
+    // it now raises the dialog that says so. It used to stop the audio dead
+    // twelve seconds in and show nothing at all, because the failure handler
+    // this routes through was never installed.
+    giveUp("play-rejected", attempt);
   });
 }
 
@@ -171,6 +296,20 @@ export function armWatchdog(opts: {
   startAt: number;
 }): void {
   clearTimers();
+
+  // Fail closed. Without the media listeners this cannot see `progress` or
+  // `canplay`, so every attempt would run its deadline out and be reported as a
+  // timeout regardless of what the network actually did — and the retry would
+  // tear down a working stream on the way. Better to supervise nothing and say
+  // so than to supervise blind.
+  if (!wired()) {
+    console.error(
+      "[watchdog] refusing to arm: media element listeners are not attached. " +
+        "Playback is unsupervised — no timeout, no retry, no failure dialog.",
+    );
+    current = null;
+    return;
+  }
 
   const attempt: Attempt = {
     ...opts,
@@ -202,6 +341,7 @@ export function noteWaiting(): void {
 
   stallTimer = window.setTimeout(() => {
     if (attempt.settled) return;
+    if (standDownIfPlaying(attempt)) return;
     if (!attempt.retried) retry("stall", attempt);
     else giveUp("stall", attempt);
   }, STALL_TIMEOUT_MS);
@@ -260,4 +400,8 @@ export const __testing = {
   STALL_TIMEOUT_MS,
   withCacheBuster,
   resetElement,
+  /** Drop the wiring count back to zero between tests. */
+  resetListeners: () => {
+    listenerRefs = 0;
+  },
 };

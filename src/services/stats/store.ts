@@ -970,7 +970,16 @@ export interface PlaybackFailureInput {
   recovered: boolean;
   elapsedMs: number;
   uaClass: string;
+  /** Context for advisory rows; null for real failures. */
+  detail?: string | null;
 }
+
+/**
+ * Kinds that are recorded but are not failures, and must never be counted as
+ * one. Kept next to the writer so a new advisory kind cannot be added without
+ * passing this line.
+ */
+const ADVISORY_KINDS = ["empty-media-suspected"];
 
 /**
  * Record a playback failure and prune anything older than 90 days, in one
@@ -987,10 +996,18 @@ export async function recordPlaybackFailure(
       DELETE FROM playback_failures WHERE at < now() - interval '90 days'
     )
     INSERT INTO playback_failures
-      (episode_id, kind, retried, recovered, elapsed_ms, ua_class)
-    VALUES ($1, $2, $3, $4, $5, $6)
+      (episode_id, kind, retried, recovered, elapsed_ms, ua_class, detail)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
     `,
-    [f.episodeId, f.kind, f.retried, f.recovered, f.elapsedMs, f.uaClass],
+    [
+      f.episodeId,
+      f.kind,
+      f.retried,
+      f.recovered,
+      f.elapsedMs,
+      f.uaClass,
+      f.detail ?? null,
+    ],
   );
 }
 
@@ -1039,6 +1056,7 @@ export async function getFailureRates(
                count(*) OVER (PARTITION BY episode_id, kind) AS n
         FROM playback_failures
         WHERE at > now() - ($1 || ' days')::interval
+          AND NOT (kind = ANY($3))
       ) s
       GROUP BY episode_id
     ), u AS (
@@ -1047,6 +1065,7 @@ export async function getFailureRates(
         SELECT episode_id, ua_class, count(*) AS n
         FROM playback_failures
         WHERE at > now() - ($1 || ' days')::interval
+          AND NOT (kind = ANY($3))
         GROUP BY episode_id, ua_class
       ) t
       GROUP BY episode_id
@@ -1069,7 +1088,10 @@ export async function getFailureRates(
     ORDER BY f.failures DESC, f.last_at DESC
     LIMIT $2
     `,
-    [String(days), limit],
+    // Advisory rows are excluded here rather than filtered in the route: this
+    // view ranks episodes by how badly they are failing, and a row that did not
+    // stop playback would inflate that ranking with something nobody noticed.
+    [String(days), limit, ADVISORY_KINDS],
   );
 
   return rows.map((r) => {

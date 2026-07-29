@@ -20,8 +20,11 @@ import {
   disarmWatchdog,
   isWatching,
   noteError,
+  noteListenersAttached,
+  noteListenersDetached,
   noteProgress,
   noteReady,
+  noteSuspectDuration,
   noteUnplayable,
   noteWaiting,
   setFailureHandler,
@@ -64,17 +67,41 @@ function flushListenTime(reason: "pause" | "ended" | "unload" | "stop") {
 //
 // Ref-counted rather than claimed-by-first-mount: the count survives one
 // instance unmounting, and React StrictMode's double-invoke (1→2→1) is a no-op.
-let globalRefs = 0;
-let releaseGlobals: (() => void) | null = null;
+//
+// The count is PER CALL SITE, which is the whole point and was the bug. A single
+// shared counter meant `globalRefs === 1` was true for exactly one of the calls
+// below — whichever ran first, i.e. the position timer — and the other four
+// installs never ran at all. Not once, in any browser, since this was written.
+// What that cost: the media element listeners were never attached, so the
+// watchdog could see neither `progress` nor `canplay` and every load ran its
+// deadline out and reported a phantom timeout over audio that was playing;
+// `setFailureHandler` was never installed, so PlaybackErrorDialog could not
+// open; playback position was never persisted; and the unload beacon never
+// fired, so sessions accumulated in `active_sessions`.
+//
+// `releaseGlobals` was the same mistake twice: one variable for five cleanups,
+// so even with a correct count a second install would have overwritten the
+// first's teardown.
+const globalRefs = new Map<string, number>();
+const globalRelease = new Map<string, () => void>();
 
-function withGlobals(install: () => () => void): () => void {
-  globalRefs++;
-  if (globalRefs === 1) releaseGlobals = install();
+type GlobalKey =
+  | "position-timer"
+  | "media-events"
+  | "failure-handler"
+  | "persist-position"
+  | "unload-flush";
+
+function withGlobals(key: GlobalKey, install: () => () => void): () => void {
+  const next = (globalRefs.get(key) ?? 0) + 1;
+  globalRefs.set(key, next);
+  if (next === 1) globalRelease.set(key, install());
   return () => {
-    globalRefs--;
-    if (globalRefs === 0) {
-      releaseGlobals?.();
-      releaseGlobals = null;
+    const remaining = (globalRefs.get(key) ?? 1) - 1;
+    globalRefs.set(key, remaining);
+    if (remaining === 0) {
+      globalRelease.get(key)?.();
+      globalRelease.delete(key);
     }
   };
 }
@@ -469,7 +496,7 @@ export function useAudioPlayer() {
   // `playing` the effect re-ran on every play/pause, which meant the ref count
   // never fell to zero and both hook instances kept a 250ms timer alive.
   useEffect(() => {
-    return withGlobals(() => {
+    return withGlobals("position-timer", () => {
       const start = () => {
         if (positionTimerRef.current) return;
         positionTimerRef.current = window.setInterval(() => {
@@ -501,7 +528,7 @@ export function useAudioPlayer() {
   // Listen for audio ended + errors. Installed once — see withGlobals.
   useEffect(() => {
     const audio = getAudio();
-    return withGlobals(() => {
+    return withGlobals("media-events", () => {
 
     /**
      * The file is not a broadcast. Stop, and say so.
@@ -561,19 +588,25 @@ export function useAudioPlayer() {
     const onLoadedMetadata = () => {
       setDuration(audio.duration);
 
-      // Only the absolute floor is judged here. For a VBR rip with no Xing
-      // header — most of this catalog — `duration` at this point is
-      // extrapolated from the first frame and gets corrected later, so the
-      // "shorter than catalogued" comparison waits for `ended`. Nothing that
-      // reports under five seconds is a broadcast, however it was measured.
+      // Advisory. For a VBR rip with no Xing header — most of this catalog —
+      // `duration` here is extrapolated from the first frame and browsers
+      // correct it later, so this number is a guess. A guess must not be able to
+      // stop an episode that plays perfectly well: a false stop costs a listener
+      // a show, while letting a genuinely empty file run costs a few seconds
+      // before `ended` catches it. `ended` keeps sole authority to fail.
+      //
+      // Recorded rather than dropped, so the question "how many working shows
+      // would the five-second floor have eaten" has an answer from real traffic
+      // rather than from argument.
+      const ep = usePlayerStore.getState().currentEpisode;
       if (
         assessDuration({
           actual: audio.duration,
-          expected: usePlayerStore.getState().currentEpisode?.duration ?? null,
+          expected: ep?.duration ?? null,
           stage: "metadata",
         }) !== "ok"
       ) {
-        failUnplayable();
+        noteSuspectDuration(ep ? communityKey(ep) : null, audio.duration);
       }
     };
     const onError = () => {
@@ -658,6 +691,11 @@ export function useAudioPlayer() {
       if (isWatching()) noteError("network-error");
     };
 
+    // Tell the watchdog it has eyes. Without this it refuses to arm, which is
+    // the only thing standing between "supervising playback" and "reporting
+    // timeouts it has no way to observe" — the state this file shipped in.
+    noteListenersAttached();
+
     audio.addEventListener("ended", onEnded);
     audio.addEventListener("loadedmetadata", onLoadedMetadata);
     audio.addEventListener("error", onError);
@@ -684,6 +722,7 @@ export function useAudioPlayer() {
       audio.removeEventListener("stalled", onStalled);
       audio.removeEventListener("suspend", onSuspend);
       audio.removeEventListener("abort", onAbort);
+      noteListenersDetached();
     };
     });
   }, [getAudio, setPlaying, setDuration, setError]);
@@ -691,7 +730,7 @@ export function useAudioPlayer() {
   // The watchdog reports terminal failures here — the retry is already spent,
   // so this is what raises the modal.
   useEffect(() => {
-    return withGlobals(() => {
+    return withGlobals("failure-handler", () => {
       setFailureHandler((kind) => {
         const { setLoadState: setLS, setBuffering: setBuf, setError: setErr } =
           usePlayerStore.getState();
@@ -713,7 +752,7 @@ export function useAudioPlayer() {
   // Persist playback position periodically. Mount-once for the same reason as
   // the position timer — otherwise both instances wrote the same row every 5s.
   useEffect(() => {
-    return withGlobals(() => {
+    return withGlobals("persist-position", () => {
       let interval = 0;
       const start = () => {
         if (interval) return;
@@ -754,7 +793,7 @@ export function useAudioPlayer() {
 
   // Flush position + listen time on page unload
   useEffect(() => {
-    return withGlobals(() => {
+    return withGlobals("unload-flush", () => {
     const flush = () => {
       flushListenTime("unload");
       reportStopBeacon(_sessionId);

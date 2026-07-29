@@ -59,8 +59,8 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/now` | GET | Presence **plus what is playing**. Returns **`{online, listening, onAir: [{episodeId, listeners}], recent: [{episodeId, at}]}`**. `no-store` — a stale on-air list is worse than none. Aggregate only: no query joins `session_id` to `episode_id`, and `recent_plays` stores no session at all |
 | `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, plays}], peakOnline, peakListening, playsInRange, totalPlays, peakAt, hourly: [{hour, online, listening, plays, samples}]}`**. `hourly` is always a 24-entry, zero-filled, **UTC**-hour profile over the last 30 days and does *not* vary with `range`; the client rotates it into local time. `samples: 0` means *never observed*, which is not the same as "observed, nobody here" — the UI hides the profile until 8 hours have been sampled, or a day-old deployment draws 23 empty columns and looks like a dead site |
 | `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Returns `{ok, online, listening, totalPlays, rolledUp, anonymized}` |
-| `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`network-error`/`decode-error`; `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. No session id, no IP. `episodeId` must be in the community-key allowlist |
-| `/api/stats/failures` | GET | Which episodes are failing, worst first. `?days=7\|30\|90`. Returns **`{days, entries: [{episodeId, title, failures, recovered, plays, rate, kinds, uaClasses, lastAt}]}`**. Ids resolved to titles from the seed catalog. Unauthenticated — it is aggregate-only, and the admin gate is presentation, not protection |
+| `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass, detail?}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`network-error`/`decode-error`/`empty-media`/`empty-media-suspected`; `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. `detail` is short (≤200 char) free text written only for advisory kinds. No session id, no IP. `episodeId` must be in the community-key allowlist |
+| `/api/stats/failures` | GET | Which episodes are failing, worst first. `?days=7\|30\|90`. Returns **`{days, entries: [{episodeId, title, failures, recovered, plays, rate, kinds, uaClasses, lastAt}]}`**. Ids resolved to titles from the seed catalog. **Excludes advisory kinds** (`ADVISORY_KINDS` in `src/services/stats/store.ts`) — this ranks episodes by how badly they are failing, and a row that never stopped playback would inflate that. Unauthenticated — it is aggregate-only, and the admin gate is presentation, not protection |
 | `/api/stats/export` | GET | **The permanent record, for sang3r.com.** Requires `x-service-token` (`STATS_EXPORT_SECRET`). `?mode=summary\|events\|daily\|episodes`. The only route that returns the event log rather than aggregates, and the only one not reachable from a browser. Episode ids are resolved to titles from the seed catalog. Page `events` with `after=<last id>` — **not** with `since`, which cannot disambiguate two plays sharing a timestamp |
 
 > Response shapes are inconsistent by history, not design. `src/services/stats/client.ts`
@@ -244,11 +244,36 @@ concluded it was their own mistake. Regression test:
   deadline resets on every `progress` event — it catches *silence*, not slowness.
   Timing out a slow-but-moving download would throw away everything buffered, the same
   mistake the service worker's navigation handler once made.
+- **A watchdog that cannot see must not report, and must never interrupt sound.** Both
+  learned the hard way. Because the media listeners were never attached (above), no
+  `progress` ever reset the deadline and no `canplay` ever settled the attempt: every
+  load ran the full 12s out, the retry tore down an element that was *streaming fine* —
+  the show cut out and restarted, or on iOS stopped dead — and a timeout was recorded
+  against a working episode. All 32 rows in `playback_failures` were written that way,
+  with `recovered: false` on every one, because `noteReady()` was unreachable. So:
+  `noteListenersAttached()`/`noteListenersDetached()` bracket the media-events install,
+  and `armWatchdog()` **refuses to arm** without them rather than supervising blind;
+  and before the deadline or stall clock acts it checks `!paused && readyState >=
+  HAVE_CURRENT_DATA` and stands down if the show is audibly playing. `paused` alone is
+  not enough — `play()` clears it synchronously, so a dead load also reports unpaused.
+- **The retry must not start audio nobody asked for.** It runs in a timer callback, so
+  on iOS it is outside the user-activation chain and `play()` is refused outright; that
+  is terminal and now raises the dialog instead of stopping silently. It also only
+  re-issues `play()` if the element was unpaused when the deadline fired.
 - **`useAudioPlayer` is mounted twice** — by `(desktop)/layout.tsx` and by
   `AudioPlayer.tsx`, whose `return null` sits after the hooks. Global listeners,
-  timers and intervals go through `withGlobals()` so they install once. Anything new
-  with a side effect outside React must too, or it runs twice: that is why the queue
-  used to skip two tracks at the end of a show.
+  timers and intervals go through `withGlobals(key, install)` so they install once.
+  Anything new with a side effect outside React must too, or it runs twice: that is why
+  the queue used to skip two tracks at the end of a show.
+  **The count is per `key`, and that is not a detail.** It was one shared module-level
+  counter across all five call sites, so `count === 1` was true for exactly one call in
+  the whole hook — the position timer, which happens to be declared first — and the
+  other four installs *never ran, in any browser, ever*. The media element listeners
+  were never attached, `setFailureHandler` was never installed, position was never
+  persisted and the unload beacon never fired. A new call site needs a new key in
+  `GlobalKey`; reusing an existing one silently disables one of them.
+  Regression test: `src/hooks/__tests__/global-listeners.test.ts`, which mounts the hook
+  **twice** — the way production does — and asserts each subsystem installs exactly once.
 - **The service worker must never see media.** `public/sw.js` returns early for
   `Range` requests, `destination === "audio"`, archive.org hosts and audio extensions.
   It never cached audio, so `respondWith()` bought nothing while defeating native
@@ -257,12 +282,22 @@ concluded it was their own mistake. Regression test:
 
 ## Dexie: clearing a field
 
-**`Table.update()` ignores keys whose value is `undefined`.** `update(id, { rating:
-undefined })` is a silent no-op, not a delete. Every "toggle off" path in
-`src/services/episodes/management.ts` was written that way, so un-rating, un-favouriting
-and un-flagging all returned the new state and fired a toast while the stored row never
-changed. Use `applyEpisodeFields()` in that file, which goes through `.modify()` and
-`delete`s the key. Regression test: `src/services/episodes/__tests__/clear-field.test.ts`.
+**Correction — the claim that used to be here was wrong.** It said `Table.update()`
+ignores keys whose value is `undefined`, making `update(id, { rating: undefined })` a
+silent no-op. **Dexie 4.3.0 deletes the key**, exactly as `.modify()` does. Verified
+directly against the installed library; `dexie` has been pinned `^4.3.0` since the first
+commit and has never been upgraded, so the premise was never true for this project.
+
+The belief survived because the regression test asserted it against a *hand-written model
+of Dexie* rather than Dexie — it could not fail. The test now uses `fake-indexeddb` and
+drives `toggleFavorite`/`rateEpisode`/`toggleFlag` end to end against the real database:
+`src/services/episodes/__tests__/clear-field.test.ts`.
+
+`applyEpisodeFields()` in `src/services/episodes/management.ts` stays, and is still what
+to use — it is explicit about intent and does not depend on a third-party library's
+treatment of `undefined` staying put. But it is **not load-bearing** for this behaviour.
+Whatever made ratings and favourites appear uncleared, it was not `update()`; the other
+half of that fix, below, is the likelier culprit and is independently confirmed.
 
 Related: the library's detail panel renders `selectedEpisodeLive`, re-read from the
 live query, not the `useState` snapshot taken when the row was clicked. Writes made from
@@ -469,12 +504,19 @@ show didn't start" report that began this work.
   carry cover art and run ~77KB, so a window taken from byte zero lands entirely inside the
   artwork and reports working three-hour shows as empty. The first draft did exactly that to 10 of
   the first 12 episodes.
-- **`src/audio/duration-sanity.ts`** is the runtime guard, and it is deliberately timid. Only the
-  absolute floor (under 5s) is judged at `loadedmetadata`, because `duration` there is
-  extrapolated from the first frame for a VBR rip with no Xing header — which is most of this
-  catalog — and browsers correct it later. The "much shorter than catalogued" comparison waits for
-  `ended`, when the number is a measurement. 37 of the episodes are legitimately under ten
-  minutes; flagging on length alone would break working shows to fix a broken one.
+- **`src/audio/duration-sanity.ts`** is the runtime guard, and it is deliberately timid. The
+  "much shorter than catalogued" comparison waits for `ended`, when the number is a measurement.
+  37 of the episodes are legitimately under ten minutes; flagging on length alone would break
+  working shows to fix a broken one.
+- **`ended` has sole authority to fail a show. `loadedmetadata` is advisory.** The absolute
+  floor (under 5s) is still evaluated there, but it now only *records* — kind
+  `empty-media-suspected`, with the reported duration in `detail` — and lets playback continue.
+  `duration` at `loadedmetadata` is extrapolated from the first frame for a VBR rip with no Xing
+  header, which is most of this catalog, and an extrapolation must not get stopping power over an
+  episode that plays fine: a false stop costs a listener a show, while letting a genuinely empty
+  file run costs a few seconds until `ended`. Note this code path had **never executed in
+  production** before the `withGlobals` fix — the listener that calls it was never attached. The
+  advisory rows exist to decide, from real traffic, whether the 5s floor is safe to promote.
 - **A missing `duration` is not evidence of anything.** Archive.org's VBR derive reports
   `length: "0"` for five episodes here, two of which are full three-hour broadcasts.
 - `empty-media` is the one `FailureKind` that is **never retried** — the same bytes come back, so a

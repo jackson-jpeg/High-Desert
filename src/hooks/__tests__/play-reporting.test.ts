@@ -1,8 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { createElement, useEffect } from "react";
 import { act } from "react";
-import { createRoot, type Root } from "react-dom/client";
 import type { Episode } from "@/db/schema";
+import {
+  mountHook,
+  makeMediaElement,
+  setReadyState,
+  type Mounted,
+} from "./support/mount-player";
 
 /**
  * A listen must be reported however it was started.
@@ -25,9 +29,6 @@ import type { Episode } from "@/db/schema";
  * was a missing call site: a test that re-implements togglePlay would have
  * reproduced the omission and passed.
  */
-
-// React 19 refuses to run act() without this, and warns on every render.
-(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
 const reportPlay = vi.fn<(episodeId: string, sessionId: string) => void>();
 const updateEpisode =
@@ -84,8 +85,11 @@ vi.mock("@/audio/playback-watchdog", () => ({
   }),
   isWatching: () => watching,
   noteError: vi.fn(),
+  noteListenersAttached: vi.fn(),
+  noteListenersDetached: vi.fn(),
   noteProgress: vi.fn(),
   noteReady: vi.fn(),
+  noteSuspectDuration: vi.fn(),
   noteUnplayable: vi.fn(),
   noteWaiting: vi.fn(),
   setFailureHandler: vi.fn(),
@@ -123,46 +127,16 @@ function makeEpisode(over: Partial<Episode> = {}): Episode {
 
 /** A media element jsdom will accept, with the bits it refuses to implement. */
 function makeElement(): HTMLAudioElement {
-  const el = document.createElement("audio");
-  el.play = vi.fn(() => Promise.resolve());
-  el.load = vi.fn();
-  Object.defineProperty(el, "readyState", {
-    value: 0,
-    writable: true,
-    configurable: true,
-  });
-  return el;
+  return makeMediaElement(vi.fn(() => Promise.resolve()));
 }
 
 type Api = ReturnType<typeof useAudioPlayer>;
 
-let root: Root | null = null;
-let container: HTMLDivElement | null = null;
+let player: Mounted<Api>;
 
-/**
- * Mount the real hook and hand back what it returns.
- *
- * The handoff goes through an effect rather than an assignment during render:
- * writing to an outer variable mid-render is a side effect, and the lint rules
- * this repo runs are right to refuse it. Effects flush before act() returns, so
- * the sink is populated by the time this does.
- */
 function mountPlayer(): Api {
-  const sink: { api?: Api } = {};
-  function Harness() {
-    const api = useAudioPlayer();
-    useEffect(() => {
-      sink.api = api;
-    });
-    return null;
-  }
-  container = document.createElement("div");
-  document.body.appendChild(container);
-  root = createRoot(container);
-  act(() => {
-    root!.render(createElement(Harness));
-  });
-  return sink.api!;
+  player = mountHook(useAudioPlayer);
+  return player.api;
 }
 
 describe("a listen is reported however it was started", () => {
@@ -185,12 +159,7 @@ describe("a listen is reported however it was started", () => {
   });
 
   afterEach(() => {
-    act(() => {
-      root?.unmount();
-    });
-    container?.remove();
-    root = null;
-    container = null;
+    player?.unmount();
   });
 
   it("reports a play started from the library", async () => {
@@ -299,11 +268,7 @@ describe("a listen is reported however it was started", () => {
       usePlayerStore.setState({ playing: true });
     });
     element.src = ep.sourceUrl!;
-    Object.defineProperty(element, "readyState", {
-      value: 4, // HAVE_ENOUGH_DATA
-      writable: true,
-      configurable: true,
-    });
+    setReadyState(element, 4); // HAVE_ENOUGH_DATA
 
     await act(async () => {
       await api.togglePlay(); // pause
