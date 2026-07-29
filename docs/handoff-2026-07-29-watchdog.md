@@ -238,9 +238,26 @@ duration would corrupt the advisory dataset they were testing. Full write-up in
 
 ## What to watch over the next day
 
-1. `playback_failures` should stay at or near **zero**. It is currently empty. If
-   it starts accruing timeouts again at ~12 s, something has re-broken the
-   wiring — and the `armWatchdog` refusal message in the console will say so.
+1. `playback_failures` should stay at or near **zero** *timeouts*. In the first
+   ~25 minutes after the fix it took exactly one row, and it is worth reading:
+
+   ```
+   id 36 | play-rejected | retried=t | elapsed_ms=0 | ios-safari | 16:15:35
+   ```
+
+   Not a 12 s timeout — that pattern is gone, which is the signal that matters.
+   It is one of two things and I cannot tell which from the row alone: a tab
+   still running the pre-fix bundle (anyone who had the page open before
+   16:08:53 was), or the genuine iOS case I documented — a load that really did
+   stall, a retry that fired, and Safari refusing the retry's `play()` because a
+   timer callback holds no user activation. If it is the second, that listener
+   now *sees a dialog* instead of silence, which is the point. Watch whether
+   `play-rejected` on `ios-safari` persists past a day, once stale tabs are gone.
+   If it does, the honest fix is to stop auto-retrying on iOS and ask for the tap
+   directly.
+
+   If **12 s timeouts** start accruing again, something has re-broken the wiring
+   — and the `armWatchdog` refusal message in the console will say so.
 2. `empty-media-suspected` rows: this is the dataset that decides whether the 5 s
    floor is safe to make authoritative. **Zero so far** — Chromium errors on the
    empty file rather than reporting a short duration, so this may only ever fire
