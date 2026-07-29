@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePlayerStore } from "@/stores/player-store";
+import { LARGE_EPISODE_BYTES } from "@/lib/utils/format";
 
 /**
  * Copy for the gap between a tap and the first sound.
@@ -21,6 +22,9 @@ import { usePlayerStore } from "@/stores/player-store";
 export function useLoadingHint(): string | null {
   const loadState = usePlayerStore((s) => s.loadState);
   const loadStartedAt = usePlayerStore((s) => s.loadStartedAt);
+  const large = usePlayerStore(
+    (s) => (s.currentEpisode?.fileSize ?? 0) >= LARGE_EPISODE_BYTES,
+  );
   // Only the interval writes this; elapsed is derived below rather than stored,
   // so there is no setState on the effect's synchronous path.
   const [now, setNow] = useState(0);
@@ -35,6 +39,18 @@ export function useLoadingHint(): string | null {
   if (loadState !== "loading" || loadStartedAt == null) return null;
 
   const elapsed = now - loadStartedAt;
+
+  // A 190MB rip is genuinely slow to start and there is nothing wrong with it.
+  // Waiting the usual 4s to say so means the listener spends those 4s deciding
+  // the site is broken — on exactly the episodes where they are most likely to
+  // be right about the wait and wrong about the cause. So when we already know
+  // the file is large, skip the neutral phase and explain immediately.
+  if (large) {
+    if (elapsed < 800) return null;
+    if (elapsed < 12000) return "Tuning in… this is a big recording, give it a moment.";
+    return "Still trying — a long broadcast on a slow signal.";
+  }
+
   if (elapsed < 1500) return null;
   if (elapsed < 4000) return "Tuning in…";
   if (elapsed < 9000) return "Tuning in… long broadcast, this one takes a moment.";

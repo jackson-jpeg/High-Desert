@@ -8,6 +8,34 @@ export function formatDuration(seconds: number): string {
   return `${m}m`;
 }
 
+/**
+ * How big is this download, roughly.
+ *
+ * Shown next to the runtime so a long wait reads as expected rather than
+ * broken. These are community rips at wildly varying bitrates — the catalog
+ * spans 0.1MB to 268MB — so runtime alone does not predict the wait at all: a
+ * three-hour show can be 25MB or 190MB depending on who ripped it.
+ *
+ * Deliberately coarse. Nobody needs "182.44 MB", and a number that precise
+ * invites reading it as a progress figure.
+ */
+export function formatFileSize(bytes: number | null | undefined): string {
+  if (!bytes || bytes <= 0 || !isFinite(bytes)) return "";
+  const mb = bytes / 1_000_000;
+  if (mb < 1) return "<1 MB";
+  if (mb < 10) return `${mb.toFixed(1)} MB`;
+  return `${Math.round(mb)} MB`;
+}
+
+/**
+ * Past this, a cold start is slow enough that the player should say so early
+ * rather than let the listener sit on a silent ▶ wondering. Chosen from the
+ * catalog's own distribution: the median episode is 39MB and 95% are under
+ * ~120MB, so this flags the genuine outliers — the 190MB and 268MB rips — and
+ * not the ordinary three-hour show.
+ */
+export const LARGE_EPISODE_BYTES = 150_000_000;
+
 /** Format seconds as "H:MM:SS" or "M:SS" */
 export function formatTime(seconds: number): string {
   if (!seconds || !isFinite(seconds)) return "0:00";

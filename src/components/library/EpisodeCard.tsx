@@ -2,7 +2,13 @@
 
 import type { Episode } from "@/db/schema";
 import { cn } from "@/lib/utils/cn";
-import { formatDuration, formatAirDate, getShowLabel } from "@/lib/utils/format";
+import {
+  formatDuration,
+  formatAirDate,
+  formatFileSize,
+  getShowLabel,
+  LARGE_EPISODE_BYTES,
+} from "@/lib/utils/format";
 import { useRef, useCallback, memo } from "react";
 import { useLongPress } from "@/hooks/useLongPress";
 import { MiniWaveform } from "./MiniWaveform";
@@ -34,7 +40,7 @@ interface EpisodeCardProps {
  */
 export const EPISODE_GRID_COLS =
   "grid-cols-[132px_minmax(0,1fr)_minmax(0,150px)_60px_56px_20px] " +
-  "lg:grid-cols-[132px_minmax(0,1fr)_minmax(0,180px)_minmax(0,140px)_60px_56px_44px_20px]";
+  "lg:grid-cols-[132px_minmax(0,1fr)_minmax(0,180px)_minmax(0,140px)_60px_56px_64px_44px_20px]";
 
 export const EpisodeCard = memo(function EpisodeCard({
   episode,
@@ -66,6 +72,9 @@ export const EpisodeCard = memo(function EpisodeCard({
     ? Math.min(100, ((episode.playbackPosition! / episode.duration!) * 100))
     : 0;
   const isCompleted = hasProgress && progressPct > 90;
+
+  const sizeLabel = formatFileSize(episode.fileSize);
+  const isLarge = (episode.fileSize ?? 0) >= LARGE_EPISODE_BYTES;
 
   const handleContextMenu = (e: React.MouseEvent) => {
     if (onContextMenu) {
@@ -301,6 +310,31 @@ export const EpisodeCard = memo(function EpisodeCard({
           {episode.duration != null ? formatDuration(episode.duration) : ""}
         </span>
 
+        {/*
+          Download size, as its own column rather than a second line under the
+          runtime — the desktop row is a fixed 34px virtual-list item and "a
+          single aligned table row", so stacking here is what makes rows overlap
+          at larger text scales.
+
+          Worth a column of its own because runtime does not predict the wait:
+          these are community rips spanning 0.1MB to 268MB, so a three-hour show
+          might be 25MB or 190MB. Amber past LARGE_EPISODE_BYTES, so a slow start
+          reads as "this is a big file" rather than "the site is broken".
+        */}
+        <span
+          className={cn(
+            "hidden lg:block text-hd-10 tabular-nums font-mono text-right",
+            isLarge ? "text-desert-amber/85" : "text-bevel-dark/85",
+          )}
+          title={
+            isLarge
+              ? "Large file — expect a longer wait before it starts"
+              : undefined
+          }
+        >
+          {sizeLabel}
+        </span>
+
         {/* Community plays */}
         <span
           className="hidden lg:block text-hd-10 text-bevel-dark/85 tabular-nums text-right"
@@ -366,6 +400,17 @@ export const EpisodeCard = memo(function EpisodeCard({
             {episode.duration != null && (
               <span className="text-hd-12 text-bevel-dark/85 tabular-nums font-mono">
                 {formatDuration(episode.duration)}
+              </span>
+            )}
+            {sizeLabel && (
+              <span
+                className={cn(
+                  "text-hd-micro tabular-nums font-mono",
+                  isLarge ? "text-desert-amber/85" : "text-bevel-dark/85",
+                )}
+                title={isLarge ? "Large file — expect a longer wait to start" : undefined}
+              >
+                {sizeLabel}
               </span>
             )}
             {communityPlays != null && communityPlays > 0 && (

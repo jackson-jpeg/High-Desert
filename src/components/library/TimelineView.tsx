@@ -208,6 +208,7 @@ export function TimelineView({
             <span className="hidden lg:block">Category</span>
             <span>Show</span>
             <span className="text-right">Length</span>
+            <span className="hidden lg:block text-right">Size</span>
             <span className="hidden lg:block text-right">Plays</span>
             <span />
           </div>
