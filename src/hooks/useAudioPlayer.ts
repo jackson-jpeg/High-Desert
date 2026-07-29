@@ -17,6 +17,7 @@ import { communityKey } from "@/lib/utils/community-key";
 import { checkArchiveHealth, clearHealthCache } from "@/services/archive/health";
 import {
   armWatchdog,
+  describeMediaError,
   disarmWatchdog,
   isWatching,
   noteError,
@@ -542,7 +543,10 @@ export function useAudioPlayer() {
       audio.pause();
       setPlaying(false);
       if (isWatching()) {
-        noteUnplayable("empty-media");
+        noteUnplayable(
+          "empty-media",
+          `ended duration=${Number.isFinite(audio.duration) ? audio.duration.toFixed(3) : String(audio.duration)}`,
+        );
       } else {
         usePlayerStore.getState().setLoadState("failed", "empty-media");
       }
@@ -618,7 +622,15 @@ export function useAudioPlayer() {
       // Errors outside a load attempt (mid-playback) still go straight to the
       // banner, which is the right weight for a transient interruption.
       if (isWatching()) {
-        noteError(code === 3 ? "decode-error" : "network-error");
+        // Carry what the element actually said. On Chromium a file with no
+        // decodable frames errors here rather than reporting a short duration,
+        // so `empty-media-suspected` can never fire on that engine — the
+        // `MediaError` message ("DEMUXER_ERROR_COULD_NOT_OPEN: …") is the only
+        // thing that distinguishes an empty file from an unreachable one.
+        noteError(
+          code === 3 ? "decode-error" : "network-error",
+          describeMediaError(audio.error),
+        );
       } else {
         const messages: Record<number, string> = {
           1: "Playback aborted.",

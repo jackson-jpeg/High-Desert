@@ -49,8 +49,11 @@ const noteReady = vi.fn();
 const noteProgress = vi.fn();
 const noteListenersAttached = vi.fn();
 const noteListenersDetached = vi.fn();
+const noteError = vi.fn();
 
 let element: HTMLAudioElement;
+/** Whether a load attempt is outstanding — decides who owns an `error`. */
+let watching = false;
 
 vi.mock("@/services/stats/client", () => ({
   reportPlay: (...a: unknown[]) => reportPlay(...a),
@@ -87,9 +90,12 @@ vi.mock("@/services/archive/health", () => ({
 
 vi.mock("@/audio/playback-watchdog", () => ({
   armWatchdog: vi.fn(),
+  // The real one — the point of the detail test below is that production calls it.
+  describeMediaError: (e: MediaError | null) =>
+    e ? `code=${e.code}${e.message ? ` ${e.message}` : ""}` : null,
   disarmWatchdog: vi.fn(),
-  isWatching: () => false,
-  noteError: vi.fn(),
+  isWatching: () => watching,
+  noteError: (...a: unknown[]) => noteError(...a),
   noteListenersAttached: () => noteListenersAttached(),
   noteListenersDetached: () => noteListenersDetached(),
   noteProgress: () => noteProgress(),
@@ -133,6 +139,7 @@ function mountBoth(): void {
 describe("globals installed by useAudioPlayer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    watching = false;
     element = makeMediaElement(vi.fn(() => Promise.resolve()));
     usePlayerStore.setState({
       currentEpisode: null,
@@ -273,6 +280,30 @@ describe("globals installed by useAudioPlayer", () => {
     });
 
     expect(noteReady).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands the watchdog what the browser said went wrong", () => {
+    // On Chromium a file with no decodable frames raises `error` rather than
+    // reporting a short duration, so the duration-based advisory can never fire
+    // there. `MediaError.message` is the only thing that separates an empty file
+    // from an unreachable one on that engine — and it is only observable if this
+    // listener actually reads it and passes it on.
+    mountBoth();
+    watching = true;
+    Object.defineProperty(element, "error", {
+      value: { code: 3, message: "DEMUXER_ERROR_COULD_NOT_OPEN" },
+      configurable: true,
+    });
+
+    act(() => {
+      element.dispatchEvent(new Event("error"));
+    });
+
+    expect(noteError).toHaveBeenCalledTimes(1);
+    expect(noteError).toHaveBeenCalledWith(
+      "decode-error",
+      "code=3 DEMUXER_ERROR_COULD_NOT_OPEN",
+    );
   });
 
   it("keeps the globals alive while one of the two instances unmounts", () => {

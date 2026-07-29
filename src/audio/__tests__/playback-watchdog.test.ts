@@ -23,6 +23,7 @@ vi.mock("@/lib/utils/platform", () => ({
 
 import {
   armWatchdog,
+  describeMediaError,
   disarmWatchdog,
   isWatching,
   noteError,
@@ -384,6 +385,160 @@ describe("playback watchdog", () => {
     it("says nothing for a local file with no community key", () => {
       noteSuspectDuration(null, 3.25);
       expect(reportPlaybackFailure).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a retry that cannot call play() must not be attempted", () => {
+    /**
+     * The silent retry runs from a `setTimeout`, twelve seconds after the tap
+     * that started the load — by which point the transient activation that
+     * authorised the original `play()` has expired. The old code tore the
+     * element down anyway and then discovered it could not restart it, which on
+     * iOS is where a show stopped dead mid-load with nothing on screen.
+     *
+     * Not an iOS special case: a `play()` that cannot succeed should not be
+     * attempted anywhere. The dialog's *Try Again* is a real gesture and can.
+     */
+    function setActivation(isActive: boolean | undefined) {
+      if (isActive === undefined) {
+        Reflect.deleteProperty(navigator, "userActivation");
+        return;
+      }
+      Object.defineProperty(navigator, "userActivation", {
+        value: { isActive, hasBeenActive: true },
+        configurable: true,
+      });
+    }
+
+    afterEach(() => setActivation(undefined));
+
+    it("skips the retry and raises the dialog when activation has expired", () => {
+      setActivation(false);
+      const audio = fakeAudio();
+      arm(audio);
+
+      vi.advanceTimersByTime(LOAD_TIMEOUT_MS);
+
+      // No teardown, no re-source, no play() into a refusal.
+      expect(audio.play).not.toHaveBeenCalled();
+      expect(audio.src).toBe("");
+      expect(audio.load).not.toHaveBeenCalled();
+      // And the listener is told, on the first deadline rather than the second.
+      expect(onFail).toHaveBeenCalledTimes(1);
+      expect(onFail).toHaveBeenCalledWith("timeout");
+    });
+
+    it("records retried=false, so these are distinguishable in the data", () => {
+      setActivation(false);
+      arm(fakeAudio());
+
+      vi.advanceTimersByTime(LOAD_TIMEOUT_MS);
+
+      expect(reportPlaybackFailure).toHaveBeenCalledWith(
+        expect.objectContaining({ kind: "timeout", retried: false, recovered: false }),
+      );
+    });
+
+    it("still retries while the listener's activation is live", () => {
+      setActivation(true);
+      const audio = fakeAudio();
+      arm(audio);
+
+      vi.advanceTimersByTime(LOAD_TIMEOUT_MS);
+
+      expect(audio.play).toHaveBeenCalledTimes(1);
+      expect(onFail).not.toHaveBeenCalled();
+    });
+
+    it("retries on a browser that does not report activation at all", () => {
+      // Safari below 16.4, Firefox below 121. Guessing "no" would disable the
+      // retry where it may well work; guessing "yes" costs at worst a rejected
+      // play(), which is terminal and raises the same dialog seconds later.
+      setActivation(undefined);
+      expect(__testing.hasUserActivation()).toBe(true);
+
+      const audio = fakeAudio();
+      arm(audio);
+      vi.advanceTimersByTime(LOAD_TIMEOUT_MS);
+
+      expect(audio.play).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not gate a retry that was never going to call play()", () => {
+      // A primed-but-unpaused element needs no activation, so an expired one
+      // must not cost it its retry.
+      setActivation(false);
+      const audio = fakeAudio({ paused: true });
+      arm(audio);
+
+      vi.advanceTimersByTime(LOAD_TIMEOUT_MS);
+
+      expect(audio.src).toContain("hd_retry=1");
+      expect(audio.play).not.toHaveBeenCalled();
+      expect(onFail).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("what the element said about why", () => {
+    /**
+     * On Chromium a file with no decodable frames raises `error` rather than
+     * reporting a short duration, so `empty-media-suspected` can never fire
+     * there. `MediaError.message` is the only thing that separates an empty file
+     * from an unreachable one on that engine.
+     */
+    it("carries the media error detail onto the report", () => {
+      const audio = fakeAudio();
+      arm(audio);
+
+      noteError("decode-error", "code=3 DEMUXER_ERROR_COULD_NOT_OPEN");
+      noteError("decode-error", "code=3 DEMUXER_ERROR_COULD_NOT_OPEN");
+
+      expect(reportPlaybackFailure).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: "decode-error",
+          detail: "code=3 DEMUXER_ERROR_COULD_NOT_OPEN",
+        }),
+      );
+    });
+
+    it("keeps the first explanation when the retry rescues the show", () => {
+      const audio = fakeAudio();
+      arm(audio);
+
+      noteError("network-error", "code=2 NETWORK_ERROR");
+      noteReady();
+
+      expect(reportPlaybackFailure).toHaveBeenCalledWith(
+        expect.objectContaining({ recovered: true, detail: "code=2 NETWORK_ERROR" }),
+      );
+    });
+
+    it("omits detail entirely when the browser offered none", () => {
+      const audio = fakeAudio();
+      arm(audio);
+
+      noteError("network-error");
+      noteError("network-error");
+
+      const call = vi.mocked(reportPlaybackFailure).mock.calls.at(-1)![0];
+      expect("detail" in call).toBe(false);
+    });
+
+    it("normalises a rambling browser diagnostic to something a column can hold", () => {
+      const { shortDetail } = __testing;
+      expect(shortDetail("  a\n\n  b  ")).toBe("a b");
+      expect(shortDetail("")).toBeNull();
+      expect(shortDetail(null)).toBeNull();
+      expect(shortDetail("x".repeat(500))).toHaveLength(200);
+    });
+
+    it("describes a MediaError as code plus message", () => {
+      expect(describeMediaError({ code: 3, message: "DEMUXER_ERROR" } as MediaError)).toBe(
+        "code=3 DEMUXER_ERROR",
+      );
+      // Safari supplies an empty message; the code alone is still worth having.
+      expect(describeMediaError({ code: 4, message: "" } as MediaError)).toBe("code=4");
+      expect(describeMediaError(null)).toBeNull();
     });
   });
 

@@ -58,12 +58,19 @@ export async function deleteEpisodes(ids: number[]): Promise<void> {
  * Applies field changes to one episode, treating `undefined` as "remove this
  * field" rather than "leave it alone".
  *
- * Dexie's `Table.update()` silently ignores any key whose value is `undefined`,
- * so `update(id, { rating: undefined })` is a no-op. Every "toggle off" path in
- * this file was written that way, which meant un-rating, un-favouriting and
- * un-flagging all appeared to work — the function returned the new state and
- * the toast fired — while the stored row never changed. Re-opening the episode
- * showed the old value back again.
+ * **This is not a workaround.** The docblock here used to say Dexie's
+ * `Table.update()` silently ignores keys whose value is `undefined`. It does
+ * not: `Table.prototype.update` delegates to `.where(":id").equals(key)
+ * .modify(mods)` — the exact call below — and `modify` deletes any key set to
+ * `undefined`. Verified against the installed 4.3.0, which is the only version
+ * this project has ever resolved. See `docs/dexie-update-semantics.md`.
+ *
+ * It stays because it says what it means. `update(id, { favoritedAt: undefined
+ * })` reads to most people as "leave that alone", which is what someone assumed,
+ * wrote down as fact, and got into three files; and because all user data lives
+ * only in the visitor's IndexedDB with no server backup, so a future major
+ * version changing its mind about `undefined` is not something to find out from
+ * a bug report. It is not load-bearing — `update()` would work.
  *
  * Scoped to a single row by primary key, and only ever called from a user
  * action. See the data-safety notes in CLAUDE.md before widening this.

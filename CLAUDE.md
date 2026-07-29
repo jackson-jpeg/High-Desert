@@ -59,7 +59,7 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/now` | GET | Presence **plus what is playing**. Returns **`{online, listening, onAir: [{episodeId, listeners}], recent: [{episodeId, at}]}`**. `no-store` — a stale on-air list is worse than none. Aggregate only: no query joins `session_id` to `episode_id`, and `recent_plays` stores no session at all |
 | `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, plays}], peakOnline, peakListening, playsInRange, totalPlays, peakAt, hourly: [{hour, online, listening, plays, samples}]}`**. `hourly` is always a 24-entry, zero-filled, **UTC**-hour profile over the last 30 days and does *not* vary with `range`; the client rotates it into local time. `samples: 0` means *never observed*, which is not the same as "observed, nobody here" — the UI hides the profile until 8 hours have been sampled, or a day-old deployment draws 23 empty columns and looks like a dead site |
 | `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Returns `{ok, online, listening, totalPlays, rolledUp, anonymized}` |
-| `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass, detail?}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`network-error`/`decode-error`/`empty-media`/`empty-media-suspected`; `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. `detail` is short (≤200 char) free text written only for advisory kinds. No session id, no IP. `episodeId` must be in the community-key allowlist |
+| `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass, detail?}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`network-error`/`decode-error`/`empty-media`/`empty-media-suspected`; `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. `detail` is short (≤200 char) free text: the reported duration on an advisory row, or `MediaError.code` plus its message on a `decode-error`/`network-error`/`empty-media`. That message is a browser pipeline diagnostic (`DEMUXER_ERROR_COULD_NOT_OPEN: …`) and is the **only** way an empty file is distinguishable from an unreachable one on Chromium, which errors on the missing frames rather than reporting a short duration. No session id, no IP. `episodeId` must be in the community-key allowlist |
 | `/api/stats/failures` | GET | Which episodes are failing, worst first. `?days=7\|30\|90`. Returns **`{days, entries: [{episodeId, title, failures, recovered, plays, rate, kinds, uaClasses, lastAt}]}`**. Ids resolved to titles from the seed catalog. **Excludes advisory kinds** (`ADVISORY_KINDS` in `src/services/stats/store.ts`) — this ranks episodes by how badly they are failing, and a row that never stopped playback would inflate that. Unauthenticated — it is aggregate-only, and the admin gate is presentation, not protection |
 | `/api/stats/export` | GET | **The permanent record, for sang3r.com.** Requires `x-service-token` (`STATS_EXPORT_SECRET`). `?mode=summary\|events\|daily\|episodes`. The only route that returns the event log rather than aggregates, and the only one not reachable from a browser. Episode ids are resolved to titles from the seed catalog. Page `events` with `after=<last id>` — **not** with `since`, which cannot disambiguate two plays sharing a timestamp |
 
@@ -256,10 +256,25 @@ concluded it was their own mistake. Regression test:
   and before the deadline or stall clock acts it checks `!paused && readyState >=
   HAVE_CURRENT_DATA` and stands down if the show is audibly playing. `paused` alone is
   not enough — `play()` clears it synchronously, so a dead load also reports unpaused.
-- **The retry must not start audio nobody asked for.** It runs in a timer callback, so
-  on iOS it is outside the user-activation chain and `play()` is refused outright; that
-  is terminal and now raises the dialog instead of stopping silently. It also only
-  re-issues `play()` if the element was unpaused when the deadline fired.
+- **The retry must not start audio nobody asked for**, and **must not be attempted when
+  `play()` cannot succeed.** It runs in a timer callback twelve seconds after the tap, so
+  the transient activation that authorised the original `play()` has almost always
+  expired. It therefore checks `navigator.userActivation.isActive` *before* touching the
+  element: no activation and a `play()` would be needed → **skip the retry entirely** and
+  `giveUp`, raising `PlaybackErrorDialog`, whose *Try Again* is a real gesture and can
+  succeed. Tearing the element down first and discovering the refusal afterwards leaves
+  the listener with no audio, no buffer and (before `setFailureHandler` was wired) nothing
+  on screen. This is **not an iOS special case** — Safari refuses loudest, but a `play()`
+  that cannot succeed should not be attempted anywhere. Where the API is unsupported
+  (Safari <16.4, Firefox <121) it is treated as *permitted*: guessing "no" would disable
+  the retry where it may work, and guessing "yes" costs at worst a rejected `play()`,
+  which is terminal and raises the same dialog seconds later. Skipped retries record
+  `retried: false`, so they are distinguishable in the data from retries that ran and
+  did not help. It also still only re-issues `play()` if the element was unpaused when
+  the deadline fired.
+- **`PlaybackErrorDialog` is mounted in `(desktop)/layout.tsx`, not inside `AudioPlayer`.**
+  Keep it there. It must render in every player state — including ultra-mini, where the
+  error banner went missing once — and on pages that draw no player chrome at all.
 - **`useAudioPlayer` is mounted twice** — by `(desktop)/layout.tsx` and by
   `AudioPlayer.tsx`, whose `return null` sits after the hooks. Global listeners,
   timers and intervals go through `withGlobals(key, install)` so they install once.
@@ -291,7 +306,9 @@ commit and has never been upgraded, so the premise was never true for this proje
 The belief survived because the regression test asserted it against a *hand-written model
 of Dexie* rather than Dexie — it could not fail. The test now uses `fake-indexeddb` and
 drives `toggleFavorite`/`rateEpisode`/`toggleFlag` end to end against the real database:
-`src/services/episodes/__tests__/clear-field.test.ts`.
+`src/services/episodes/__tests__/clear-field.test.ts`. The full account — what `b88378d`
+claimed, what the library source actually does, and why the mirror test could not
+disprove it — is in `docs/dexie-update-semantics.md`.
 
 `applyEpisodeFields()` in `src/services/episodes/management.ts` stays, and is still what
 to use — it is explicit about intent and does not depend on a third-party library's

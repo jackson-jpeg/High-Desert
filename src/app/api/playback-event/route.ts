@@ -99,6 +99,13 @@ export async function POST(request: NextRequest) {
       ? Math.min(Math.max(Math.round(elapsedMs), 0), 600_000)
       : 0;
 
+  // What the browser said, in its own words: the reported duration for an
+  // advisory row, or `MediaError.code` plus its message for a decode or network
+  // failure. That message is a pipeline diagnostic Chromium writes
+  // ("DEMUXER_ERROR_COULD_NOT_OPEN: …") and is the only signal that separates an
+  // empty file from an unreachable one on that engine, where the duration-based
+  // guard cannot fire at all. Nothing the listener typed and nothing about them.
+  //
   // Truncated rather than rejected, same reasoning as elapsedMs. Bounded so the
   // column cannot be used as arbitrary storage — the allowlist gate above stops
   // that for episodeId, and this is the only other free-text field on the row.

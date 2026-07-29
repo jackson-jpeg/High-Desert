@@ -73,6 +73,16 @@ interface Attempt {
   retried: boolean;
   /** Set once the attempt has resolved, so late events are ignored. */
   settled: boolean;
+  /**
+   * Whatever the element told us about *why*, carried to the eventual report.
+   *
+   * `MediaError.code` plus its message, when the browser supplies one. Chromium
+   * writes a real diagnostic there ("DEMUXER_ERROR_COULD_NOT_OPEN: …"), which is
+   * the only way an empty file is distinguishable from an unreachable one on
+   * that engine — it errors on the missing MPEG frames rather than reporting a
+   * short duration, so `empty-media-suspected` can never fire there.
+   */
+  detail: string | null;
 }
 
 let current: Attempt | null = null;
@@ -206,7 +216,56 @@ function report(kind: FailureKind, attempt: Attempt, recovered: boolean) {
     recovered,
     elapsedMs: Math.round(performance.now() - attempt.startedAt),
     uaClass: uaClass(),
+    ...(attempt.detail ? { detail: attempt.detail } : {}),
   });
+}
+
+/**
+ * Is there transient user activation right now — may we call `play()`?
+ *
+ * The silent retry runs from a `setTimeout`, twelve seconds after the tap that
+ * started the load, so by then the activation that authorised the original
+ * `play()` has almost always expired. Calling anyway does not fail politely: the
+ * element has already been torn down and re-sourced by that point, so a refusal
+ * leaves the listener with no audio, no buffer and — before the failure handler
+ * was wired up — nothing on screen either. A `play()` that cannot succeed should
+ * not be attempted; the dialog's *Try Again* button is a real gesture and can.
+ *
+ * Not an iOS special case. Safari refuses loudest, but the rule is the same
+ * everywhere and the honest dialog is better than a silent teardown on all of
+ * them.
+ *
+ * Unsupported (Safari below 16.4, Firefox below 121) is treated as *permitted*.
+ * We cannot tell, and guessing "no" would disable the retry on browsers where it
+ * may well work; guessing "yes" costs at worst a rejected `play()`, which is now
+ * terminal and raises the same dialog a few seconds later.
+ */
+function hasUserActivation(): boolean {
+  const ua = (
+    navigator as Navigator & { userActivation?: { isActive?: unknown } }
+  ).userActivation;
+  if (!ua || typeof ua.isActive !== "boolean") return true;
+  return ua.isActive;
+}
+
+/** Trim a browser diagnostic to something a text column can hold. */
+function shortDetail(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const clean = text.replace(/\s+/g, " ").trim();
+  return clean === "" ? null : clean.slice(0, 200);
+}
+
+/**
+ * What the element said went wrong, as one short string.
+ *
+ * `MediaError.code` is always present; `message` is Chromium-only in practice
+ * and is a pipeline diagnostic, not anything the listener typed or that
+ * identifies them.
+ */
+export function describeMediaError(err: MediaError | null | undefined): string | null {
+  if (!err) return null;
+  const msg = shortDetail(typeof err.message === "string" ? err.message : null);
+  return shortDetail(`code=${err.code}${msg ? ` ${msg}` : ""}`);
 }
 
 /**
@@ -255,14 +314,25 @@ function giveUp(kind: FailureKind, attempt: Attempt) {
 }
 
 function retry(kind: FailureKind, attempt: Attempt) {
-  attempt.retried = true;
-  clearTimers();
-
   const { audio } = attempt;
   // Whether the listener had asked for sound before we reset the element. A
   // primed-but-unplayed element, or one they paused mid-load, must not be
   // started by a timer on their behalf.
   const wanted = audio.paused === false;
+
+  // A retry that will need `play()` and cannot have it is not a retry — it is a
+  // teardown followed by silence. Skip it entirely, keeping whatever the element
+  // still holds, and raise the dialog: its *Try Again* runs inside a real
+  // gesture and is the only thing that can actually succeed from here.
+  // `retried` stays false, so these rows are distinguishable in the telemetry
+  // from failures where the retry ran and did not help.
+  if (wanted && !hasUserActivation()) {
+    giveUp(kind, attempt);
+    return;
+  }
+
+  attempt.retried = true;
+  clearTimers();
 
   resetElement(audio);
   audio.src = withCacheBuster(attempt.url, 1);
@@ -316,6 +386,7 @@ export function armWatchdog(opts: {
     startedAt: performance.now(),
     retried: false,
     settled: false,
+    detail: null,
   };
   current = attempt;
 
@@ -362,9 +433,12 @@ export function noteProgress(): void {
  * The element reported a hard error. Unlike a timeout this is definitive, so
  * it consumes the retry immediately rather than waiting out the clock.
  */
-export function noteError(kind: FailureKind): void {
+export function noteError(kind: FailureKind, detail?: string | null): void {
   const attempt = current;
   if (!attempt || attempt.settled) return;
+  // Kept even if the retry rescues it and the eventual report is a recovery —
+  // "what did it say the first time" is the useful half of a flaky episode.
+  attempt.detail = shortDetail(detail) ?? attempt.detail;
   if (!attempt.retried) retry(kind, attempt);
   else giveUp(kind, attempt);
 }
@@ -377,9 +451,10 @@ export function noteError(kind: FailureKind): void {
  * twelve seconds of the listener waiting on a file that was never going to
  * play. Fail immediately and say so.
  */
-export function noteUnplayable(kind: FailureKind): void {
+export function noteUnplayable(kind: FailureKind, detail?: string | null): void {
   const attempt = current;
   if (!attempt || attempt.settled) return;
+  attempt.detail = shortDetail(detail) ?? attempt.detail;
   giveUp(kind, attempt);
 }
 
@@ -400,6 +475,8 @@ export const __testing = {
   STALL_TIMEOUT_MS,
   withCacheBuster,
   resetElement,
+  hasUserActivation,
+  shortDetail,
   /** Drop the wiring count back to zero between tests. */
   resetListeners: () => {
     listenerRefs = 0;
