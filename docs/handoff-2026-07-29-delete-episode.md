@@ -172,7 +172,7 @@ have left two of the three properties unobserved.
 `delete-tombstone` going red is the second, independent proof that the control test works:
 with the tombstone write removed, reconcile restored the row and the suite noticed.
 
-**22 mutations total, all red.**
+**21 mutations total, all red.**
 
 ### One thing observed but not changed
 
@@ -189,7 +189,7 @@ tests. Not changed — it works, and rewriting the play path was not in scope.
 ## State
 
 - **198 tests, 19 files** — all passing
-- **22 of 22 mutations red**
+- **21 of 21 mutations red**
 - `npx tsc --noEmit` — clean
 - `npm run lint` — clean
 - Deploy and push state: see the final section of the session log; verified with command

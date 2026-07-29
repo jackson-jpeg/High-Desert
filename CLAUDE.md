@@ -137,10 +137,23 @@ src/
 | `useScannerStore` | `status`, `totalFiles`, `processedFiles`, `newEpisodes`, `duplicates` |
 | `useScraperStore` | `phase`, `fetched`, `total`, `imported`, `categorized`, `errors` |
 | `useSearchStore` | `query`, `results[]`, `loading`, `addingIds`, `addedIds` |
-| `useSleepTimerStore` | `remaining`, `active` |
+| `useSleepTimerStore` | `remaining`, `active`, `fadeFrom` |
 | `useToastStore` | `toasts[]` — also exports module-level `toast.success/error/info/caller()` |
 | `useAdminStore` | `isAdmin` — SHA-256 password gate, persisted in localStorage |
 | `useContextMenuStore` | `open`, `position`, `items[]` |
+
+All nine have tests in `src/stores/__tests__/` and a mutation each in
+`scripts/mutate-check.mjs`.
+
+**`setVolume()` writes `preMuteVolume` on every call with a non-zero value.** Anything that
+changes the volume temporarily must remember the original itself and put it back — reading
+`player.volume` or `preMuteVolume` on a later tick reads back its own output. The sleep
+timer's fade did exactly that: it compounded to ~0.7% with fifteen seconds still to run,
+then "restored" that faded number as the listener's setting, and because `preMuteVolume`
+had been overwritten too, muting and unmuting could not recover it either. The app was
+simply quiet the next morning with nothing on screen to explain it. `useSleepTimerStore`
+now captures `fadeFrom` once and hands exactly that back — on expiry, and on cancel. A
+timer that expires without ever fading does not touch the volume at all.
 
 ## Custom Events (Window Bus)
 
