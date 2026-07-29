@@ -59,6 +59,8 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/now` | GET | Presence **plus what is playing**. Returns **`{online, listening, onAir: [{episodeId, listeners}], recent: [{episodeId, at}]}`**. `no-store` — a stale on-air list is worse than none. Aggregate only: no query joins `session_id` to `episode_id`, and `recent_plays` stores no session at all |
 | `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, plays}], peakOnline, peakListening, playsInRange, totalPlays, peakAt, hourly: [{hour, online, listening, plays, samples}]}`**. `hourly` is always a 24-entry, zero-filled, **UTC**-hour profile over the last 30 days and does *not* vary with `range`; the client rotates it into local time. `samples: 0` means *never observed*, which is not the same as "observed, nobody here" — the UI hides the profile until 8 hours have been sampled, or a day-old deployment draws 23 empty columns and looks like a dead site |
 | `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Returns `{ok, online, listening, totalPlays, rolledUp, anonymized}` |
+| `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`network-error`/`decode-error`; `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. No session id, no IP. `episodeId` must be in the community-key allowlist |
+| `/api/stats/failures` | GET | Which episodes are failing, worst first. `?days=7\|30\|90`. Returns **`{days, entries: [{episodeId, title, failures, recovered, plays, rate, kinds, uaClasses, lastAt}]}`**. Ids resolved to titles from the seed catalog. Unauthenticated — it is aggregate-only, and the admin gate is presentation, not protection |
 | `/api/stats/export` | GET | **The permanent record, for sang3r.com.** Requires `x-service-token` (`STATS_EXPORT_SECRET`). `?mode=summary\|events\|daily\|episodes`. The only route that returns the event log rather than aggregates, and the only one not reachable from a browser. Episode ids are resolved to titles from the seed catalog. Page `events` with `after=<last id>` — **not** with `since`, which cannot disambiguate two plays sharing a timestamp |
 
 > Response shapes are inconsistent by history, not design. `src/services/stats/client.ts`
@@ -204,6 +206,43 @@ inside `win98.css`.
 Use `min-h-touch` / `min-w-touch` (44px, `--spacing-touch`) for tap targets rather than
 a literal. Note the common pairing `min-h-touch md:min-h-0` — the floor is a mobile
 concern, so measure it at a mobile viewport or you will read `0px` and think it broke.
+
+## Playback — read before touching the play path
+
+**`loadEpisode()` does not touch the `<audio>` element.** It is a Zustand setter.
+The only things that assign a real `src` are `playEpisode()` and `primeEpisode()` in
+`src/hooks/useAudioPlayer.ts`. The restore-on-revisit path called only `loadEpisode`,
+so the player rendered a live ▶ over an element with no source and `togglePlay`
+returned at `if (!audio.src)` — silently. No error, no toast, no log. A listener hit
+this every time they came back, worked around it by picking a different show, and
+concluded it was their own mistake. Regression test:
+`src/hooks/__tests__/restore-play.test.ts`.
+
+- **`primeEpisode()` sets `preload="none"` before assigning `src`.** Keep it that way.
+  At `"metadata"` every page load fetches the head of a show nobody asked for, and a
+  VBR rip with no Xing header can make that most of the file. `play()` loads
+  regardless of `preload`, so the button still works.
+- **Never `audio.src = ""`.** It resolves against the document URL, so the browser
+  fetches the HTML page and tries to decode it as audio. Use `removeAttribute("src")`
+  then `load()`.
+- **`play()` before `resumeContext()`.** The analyser context is not required for
+  playback; awaiting it first put a task boundary between the tap and `play()`, which
+  is how Safari decides a call was not user-initiated.
+- **The watchdog owns failure policy** (`src/audio/playback-watchdog.ts`): one silent
+  retry, then `loadState: "failed"`, which raises `PlaybackErrorDialog`. Its load
+  deadline resets on every `progress` event — it catches *silence*, not slowness.
+  Timing out a slow-but-moving download would throw away everything buffered, the same
+  mistake the service worker's navigation handler once made.
+- **`useAudioPlayer` is mounted twice** — by `(desktop)/layout.tsx` and by
+  `AudioPlayer.tsx`, whose `return null` sits after the hooks. Global listeners,
+  timers and intervals go through `withGlobals()` so they install once. Anything new
+  with a side effect outside React must too, or it runs twice: that is why the queue
+  used to skip two tracks at the end of a show.
+- **The service worker must never see media.** `public/sw.js` returns early for
+  `Range` requests, `destination === "audio"`, archive.org hosts and audio extensions.
+  It never cached audio, so `respondWith()` bought nothing while defeating native
+  byte-range handling and turning network failures into a body-less 504 that the
+  element reports as "source not supported".
 
 ## Dexie: clearing a field
 

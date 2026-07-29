@@ -27,6 +27,35 @@ export function reportStop(sessionId: string, keepPresence = true): void {
   }).catch(() => {});
 }
 
+export interface PlaybackFailure {
+  episodeId: string;
+  kind: "timeout" | "stall" | "play-rejected" | "network-error" | "decode-error";
+  retried: boolean;
+  /** True when a retry succeeded — the listener never saw a problem. */
+  recovered: boolean;
+  elapsedMs: number;
+  uaClass: string;
+}
+
+/**
+ * A show failed to start. Fire-and-forget, like reportPlay.
+ *
+ * Carries no session id and no identifier of any kind beyond the episode and a
+ * coarse platform bucket. The point is to turn "it's a bit consistent for me"
+ * into a ranked list of specific episodes, which needs counts per episode and
+ * nothing per person.
+ */
+export function reportPlaybackFailure(failure: PlaybackFailure): void {
+  fetch("/api/playback-event", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(failure),
+    // A failure reported at the moment the user gives up and closes the tab is
+    // the most interesting kind, and is exactly the one a plain fetch drops.
+    keepalive: true,
+  }).catch(() => {});
+}
+
 export function reportStopBeacon(sessionId: string): void {
   const body = JSON.stringify({ sessionId });
   const blob = new Blob([body], { type: "application/json" });

@@ -12,6 +12,7 @@ import { CassetteTape } from "./CassetteTape";
 import { QueuePanel } from "./QueuePanel";
 import { cn } from "@/lib/utils/cn";
 import { useIsMobile } from "@/hooks/useMediaQuery";
+import { useLoadingHint } from "@/hooks/useLoadingHint";
 import { Button } from "@/components/win98";
 import { formatTime, formatAirDate } from "@/lib/utils/format";
 
@@ -25,7 +26,13 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   const playing = usePlayerStore((s) => s.playing);
   const mini = usePlayerStore((s) => s.mini);
   const error = usePlayerStore((s) => s.error);
-  const buffering = usePlayerStore((s) => s.buffering);
+  const rawBuffering = usePlayerStore((s) => s.buffering);
+  const loadState = usePlayerStore((s) => s.loadState);
+  const bufferedTo = usePlayerStore((s) => s.bufferedTo);
+  // The ⧗ glyph should appear the instant a load starts, not when the element
+  // eventually gets round to firing `waiting`.
+  const buffering = rawBuffering || loadState === "loading";
+  const loadingHint = useLoadingHint();
   const toggleMini = usePlayerStore((s) => s.toggleMini);
   const clearError = usePlayerStore((s) => s.setError);
   const queueLength = usePlayerStore((s) => s.queue.length);
@@ -163,9 +170,9 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
                   {formatAirDate(currentEpisode.airDate)}
                 </div>
               )}
-              {buffering && (
-                <div className="text-hd-12 text-desert-amber/85 mt-2 animate-pulse">
-                  Buffering...
+              {(loadingHint || rawBuffering) && (
+                <div className="text-hd-caption text-desert-amber/85 mt-2 animate-pulse">
+                  {loadingHint ?? "Buffering..."}
                 </div>
               )}
             </div>
@@ -174,13 +181,29 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
             <div className="flex items-center gap-3 text-hd-13 text-bevel-dark font-mono">
               <span className="w-[48px] text-right tabular-nums text-bevel-dark/85">{formatTime(position)}</span>
               <div className="flex-1 relative">
+                {/* How much is actually downloaded. Real progress beats an
+                    indefinite spinner: a slow load that is visibly moving
+                    reads as slow, not broken. */}
+                {duration > 0 && bufferedTo > position && (
+                  <div
+                    className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[3px] pointer-events-none"
+                    aria-hidden="true"
+                  >
+                    <div
+                      className="h-full bg-desert-amber/25 transition-[width] duration-500"
+                      style={{
+                        width: `${Math.min(100, (bufferedTo / duration) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                )}
                 <input
                   type="range"
                   min={0}
                   max={duration || 0}
                   value={position}
                   onChange={(e) => seek(Number(e.target.value))}
-                  className="w-full h-[12px] w98-range-dark cursor-pointer"
+                  className="w-full h-[12px] w98-range-dark cursor-pointer relative"
                   aria-label="Seek position"
                 />
               </div>
@@ -268,6 +291,16 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   // ─── Desktop ultra-mini taskbar player ───
   if (!isMobile && mini && ultraMini) {
     const progressPct = duration > 0 ? (position / duration) * 100 : 0;
+    // The error banner was rendered in every other layout but this one, so an
+    // error while collapsed to the taskbar was completely invisible. It doesn't
+    // fit in 28px, so surface it by expanding — the banner is the whole point.
+    if (error) {
+      return (
+        <div className={cn("w98-raised-dark bg-raised-surface relative", className)}>
+          {errorBanner}
+        </div>
+      );
+    }
     return (
       <div
         className={cn("w98-raised-dark bg-raised-surface h-[28px] flex items-center gap-2 px-2 relative", className)}

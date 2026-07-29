@@ -12,6 +12,7 @@ import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { CommunityLeaderboard } from "@/components/library/CommunityLeaderboard";
 import { SignalTraffic } from "@/components/library/SignalTraffic";
 import { OnAir } from "@/components/library/OnAir";
+import { PlaybackFailures } from "@/components/library/PlaybackFailures";
 import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
 import { getCacheSize, clearAudioCache } from "@/audio/cache";
@@ -498,6 +499,11 @@ export default function StatsPage() {
             </div>
           </Window>
         )}
+
+        {/* ── Playback Failures ── Admin only. Server-side, unlike everything
+            else on this page: which shows fail to start is a fact about the
+            catalog, not about this browser's listening. */}
+        {isAdmin && <PlaybackFailures />}
 
         {/* ── Flagged Episodes ── Admin only */}
         {isAdmin && stats.flaggedEpisodes.length > 0 && (

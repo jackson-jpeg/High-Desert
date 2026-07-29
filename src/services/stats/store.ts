@@ -936,3 +936,133 @@ export async function getRatings(
   }
   return result;
 }
+
+// ---------------------------------------------------------------------------
+// Playback failures
+// ---------------------------------------------------------------------------
+
+export interface PlaybackFailureInput {
+  episodeId: string;
+  kind: string;
+  retried: boolean;
+  recovered: boolean;
+  elapsedMs: number;
+  uaClass: string;
+}
+
+/**
+ * Record a playback failure and prune anything older than 90 days, in one
+ * statement — the same shape as recordPlay's rolling prune of recent_plays.
+ * Nothing else writes this table, so there is no other place the prune could
+ * reliably live.
+ */
+export async function recordPlaybackFailure(
+  f: PlaybackFailureInput,
+): Promise<void> {
+  await pool().query(
+    `
+    WITH pruned AS (
+      DELETE FROM playback_failures WHERE at < now() - interval '90 days'
+    )
+    INSERT INTO playback_failures
+      (episode_id, kind, retried, recovered, elapsed_ms, ua_class)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    `,
+    [f.episodeId, f.kind, f.retried, f.recovered, f.elapsedMs, f.uaClass],
+  );
+}
+
+export interface FailureRate {
+  episodeId: string;
+  failures: number;
+  /** Failures the retry rescued — the listener saw nothing, but it is flaky. */
+  recovered: number;
+  plays: number;
+  /** failures / (plays + failures), 0–1. Null when there is nothing to divide. */
+  rate: number | null;
+  kinds: Record<string, number>;
+  uaClasses: Record<string, number>;
+  lastAt: string;
+}
+
+/**
+ * Worst episodes over a window, ranked by failure count.
+ *
+ * Joined against play_events rather than episode_plays so the play total covers
+ * the same window as the failures — episode_plays is an all-time counter, and
+ * dividing recent failures by lifetime plays would flatter every old episode.
+ */
+export async function getFailureRates(
+  days: number,
+  limit = 50,
+): Promise<FailureRate[]> {
+  const { rows } = await pool().query<{
+    episode_id: string;
+    failures: string;
+    recovered: string;
+    plays: string;
+    kinds: Record<string, number>;
+    ua_classes: Record<string, number>;
+    last_at: Date;
+  }>(
+    `
+    WITH f AS (
+      SELECT episode_id,
+             count(*)                                    AS failures,
+             count(*) FILTER (WHERE recovered)           AS recovered,
+             jsonb_object_agg(kind, n)                   AS kinds,
+             max(at)                                     AS last_at
+      FROM (
+        SELECT episode_id, kind, recovered, at,
+               count(*) OVER (PARTITION BY episode_id, kind) AS n
+        FROM playback_failures
+        WHERE at > now() - ($1 || ' days')::interval
+      ) s
+      GROUP BY episode_id
+    ), u AS (
+      SELECT episode_id, jsonb_object_agg(ua_class, n) AS ua_classes
+      FROM (
+        SELECT episode_id, ua_class, count(*) AS n
+        FROM playback_failures
+        WHERE at > now() - ($1 || ' days')::interval
+        GROUP BY episode_id, ua_class
+      ) t
+      GROUP BY episode_id
+    ), p AS (
+      SELECT episode_id, count(*) AS plays
+      FROM play_events
+      WHERE played_at > now() - ($1 || ' days')::interval
+      GROUP BY episode_id
+    )
+    SELECT f.episode_id,
+           f.failures,
+           f.recovered,
+           COALESCE(p.plays, 0) AS plays,
+           f.kinds,
+           COALESCE(u.ua_classes, '{}'::jsonb) AS ua_classes,
+           f.last_at
+    FROM f
+    LEFT JOIN p ON p.episode_id = f.episode_id
+    LEFT JOIN u ON u.episode_id = f.episode_id
+    ORDER BY f.failures DESC, f.last_at DESC
+    LIMIT $2
+    `,
+    [String(days), limit],
+  );
+
+  return rows.map((r) => {
+    const failures = Number(r.failures);
+    const plays = Number(r.plays);
+    const attempts = plays + failures;
+    return {
+      episodeId: r.episode_id,
+      failures,
+      recovered: Number(r.recovered),
+      plays,
+      rate: attempts > 0 ? Number((failures / attempts).toFixed(3)) : null,
+      kinds: r.kinds ?? {},
+      uaClasses: r.ua_classes ?? {},
+      lastAt: r.last_at.toISOString(),
+    };
+  });
+}

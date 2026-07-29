@@ -85,6 +85,32 @@ function networkFirst(request) {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
+  // Media never goes through the worker.
+  //
+  // This used to fall through to the catch-all networkFirst below, which was
+  // pure downside: networkFirst only ever *reads* the cache, so audio was never
+  // stored and respondWith() bought us nothing. What it cost was real. Media
+  // elements fetch audio as a series of Range requests and expect 206s; routing
+  // those through a worker defeats the browser's native byte-range machinery,
+  // which is exactly the interaction iOS Safari handles worst. And when a fetch
+  // did fail, networkFirst returned a body-less 504, which the element reports
+  // as MediaError code 4 — so a network problem surfaced to the user as "audio
+  // source not supported", and sent us to check archive.org's health for no
+  // reason.
+  //
+  // Returning without calling respondWith() hands the request back to the
+  // browser untouched. Offline audio lives in OPFS (src/audio/cache.ts) and is
+  // unaffected by any of this.
+  if (
+    event.request.headers.has("range") ||
+    event.request.destination === "audio" ||
+    url.hostname === "archive.org" ||
+    url.hostname.endsWith(".archive.org") ||
+    /\.(mp3|m4a|aac|ogg|opus|flac|wav)$/i.test(url.pathname)
+  ) {
+    return;
+  }
+
   // API routes: always network-first, fall back to cache only if offline
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(networkFirst(event.request));

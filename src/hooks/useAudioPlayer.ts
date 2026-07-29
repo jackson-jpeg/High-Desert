@@ -15,6 +15,16 @@ import { reportPlay, reportStop, reportStopBeacon } from "@/services/stats/clien
 import { SESSION_ID } from "@/lib/utils/session-id";
 import { communityKey } from "@/lib/utils/community-key";
 import { checkArchiveHealth, clearHealthCache } from "@/services/archive/health";
+import {
+  armWatchdog,
+  disarmWatchdog,
+  isWatching,
+  noteError,
+  noteProgress,
+  noteReady,
+  noteWaiting,
+  setFailureHandler,
+} from "@/audio/playback-watchdog";
 
 // ── Listening session tracking ──
 //
@@ -38,6 +48,53 @@ function flushListenTime(reason: "pause" | "ended" | "unload" | "stop") {
   if (reason === "ended" || reason === "unload" || reason === "stop") {
     reportStop(_sessionId);
   }
+}
+
+// ── Single-owner globals ──
+//
+// This hook is instantiated twice: once by the desktop layout and once by
+// <AudioPlayer/>, whose `if (!currentEpisode) return null` sits *after* the
+// hooks, so it always runs them. Both instances share one HTMLAudioElement via
+// the engine, so every media listener, timer and interval below was installed
+// twice. The visible symptom was the queue advancing by two at the end of a
+// track — two `ended` handlers each calling next() — plus a doubled position
+// tick, a doubled persist interval and two reportStop() calls per unload.
+//
+// Ref-counted rather than claimed-by-first-mount: the count survives one
+// instance unmounting, and React StrictMode's double-invoke (1→2→1) is a no-op.
+let globalRefs = 0;
+let releaseGlobals: (() => void) | null = null;
+
+function withGlobals(install: () => () => void): () => void {
+  globalRefs++;
+  if (globalRefs === 1) releaseGlobals = install();
+  return () => {
+    globalRefs--;
+    if (globalRefs === 0) {
+      releaseGlobals?.();
+      releaseGlobals = null;
+    }
+  };
+}
+
+/**
+ * When each episode's play was last counted, for retry de-duplication.
+ *
+ * Pressing Retry is the same listen, not a second one, and a flaky stream
+ * inflated both the local playCount and the community leaderboard every time
+ * someone tried again. A time window rather than a once-per-page-load set:
+ * retries happen within seconds, but genuinely putting a show back on an hour
+ * later is a real second listen and should count as one.
+ */
+const lastCounted = new Map<string, number>();
+const COUNT_DEDUP_MS = 120_000;
+
+function shouldCountPlay(key: string): boolean {
+  const now = Date.now();
+  const prev = lastCounted.get(key);
+  if (prev != null && now - prev < COUNT_DEDUP_MS) return false;
+  lastCounted.set(key, now);
+  return true;
 }
 
 export function useAudioPlayer() {
@@ -83,6 +140,38 @@ export function useAudioPlayer() {
     return audioRef.current;
   }, []);
 
+  /**
+   * Point the element at an episode without playing it.
+   *
+   * This is the fix for the reported bug. Restoring the last-played episode on
+   * revisit called only `loadEpisode()` — a pure Zustand setter that never
+   * touches the media element. So the player rendered with a live ▶ button over
+   * an element whose `src` was still empty, and `togglePlay` returned at its
+   * `if (!audio.src)` guard: no sound, no error, no log. The listener saw a
+   * dead button and reasonably concluded they had done something wrong.
+   *
+   * Drops `preload` to "none" first, so this costs no network at all. Leaving
+   * it at "metadata" would have every page load fetch the head of a show
+   * nobody has asked for yet — and for a VBR rip with no Xing header, working
+   * out the duration can mean scanning a large part of the file. The catalog
+   * is full of those, and the bill lands on archive.org and on whatever mobile
+   * data the listener is paying for. `play()` loads regardless of preload, so
+   * the button still works.
+   */
+  const primeEpisode = useCallback(
+    (episode: Episode) => {
+      if (!episode.sourceUrl) return;
+      const audio = getAudio();
+      if (audio.src) return; // something is already loaded; don't stomp it
+      notifySourceChanged();
+      audio.preload = "none";
+      audio.src = episode.sourceUrl;
+      audio.currentTime = episode.playbackPosition ?? 0;
+      audio.playbackRate = usePlayerStore.getState().playbackRate;
+    },
+    [getAudio],
+  );
+
   // Load and optionally play an episode
   const playEpisode = useCallback(
     async (episode: Episode, file?: File) => {
@@ -101,37 +190,64 @@ export function useAudioPlayer() {
         return;
       }
 
+      const { setLoadState } = usePlayerStore.getState();
+      const key = communityKey(episode);
+
       setError(null);
       clearHealthCache();
       loadEpisode(episode, isObjectUrl ? url : "");
       notifySourceChanged();
+
+      // Reset before re-assigning: a stale src plus load() is its own source of
+      // hangs, and `src = ""` would make the browser fetch the HTML document
+      // and try to decode it as audio.
+      audio.removeAttribute("src");
+      audio.load();
+      // Back up from whatever primeEpisode left it at — we want this one.
+      audio.preload = "metadata";
       audio.src = url;
       audio.currentTime = episode.playbackPosition ?? 0;
       audio.playbackRate = usePlayerStore.getState().playbackRate;
 
-      await resumeContext();
+      setLoadState("loading");
+      armWatchdog({
+        audio,
+        url,
+        episodeId: key,
+        startAt: episode.playbackPosition ?? 0,
+      });
+
       try {
+        // play() first, resumeContext() after. The analyser context is not
+        // required for playback (see engine.ts) and awaiting it here put a
+        // real task boundary between the user's tap and play(), which is how
+        // Safari decides a call was not user-initiated.
         await audio.play();
+        resumeContext().catch(() => {});
         setPlaying(true);
 
-        // Report to community stats
-        const key = communityKey(episode);
-        if (key) {
-          reportPlay(key, _sessionId);
-        }
-
-        // Increment play count in DB
-        if (episode.id) {
-          db.episodes.update(episode.id, {
-            playCount: (episode.playCount ?? 0) + 1,
-            lastPlayedAt: Date.now(),
-            updatedAt: Date.now(),
-          }).catch((err) => { console.warn("[player] Failed to update play count:", err); });
+        // Count the listen, unless this is a retry of one just counted.
+        const countKey = key ?? `local:${episode.fileHash}`;
+        if (shouldCountPlay(countKey)) {
+          if (key) reportPlay(key, _sessionId);
+          if (episode.id) {
+            db.episodes.update(episode.id, {
+              playCount: (episode.playCount ?? 0) + 1,
+              lastPlayedAt: Date.now(),
+              updatedAt: Date.now(),
+            }).catch((err) => { console.warn("[player] Failed to update play count:", err); });
+          }
         }
       } catch (err) {
         console.error("[player] Playback failed:", err);
-        setError("Playback failed. The audio source may be unavailable.");
-        // Revoke object URL on failure to prevent memory leaks
+        // Hand it to the watchdog, which owns the one-retry-then-fail policy.
+        // Only fall back to the banner if there was no attempt to hand it to.
+        if (isWatching()) {
+          noteError("play-rejected");
+        } else {
+          setLoadState("failed");
+          setError("Playback failed. The audio source may be unavailable.");
+        }
         if (isObjectUrl) URL.revokeObjectURL(url);
       }
     },
@@ -141,29 +257,79 @@ export function useAudioPlayer() {
   // Play/pause toggle
   const togglePlay = useCallback(async () => {
     const audio = getAudio();
-    if (!audio.src) return;
 
-    await resumeContext();
+    // No source, but an episode is loaded — this is the restored-episode case.
+    // Route through the normal play path rather than dead-ending. Dispatching
+    // is synchronous and the seeded fast path reaches play() without an
+    // intervening task, so the user's gesture is still in hand.
+    if (!audio.src) {
+      const { currentEpisode: ep } = usePlayerStore.getState();
+      if (ep) {
+        window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: ep }));
+      }
+      return;
+    }
 
     if (playing) {
       audio.pause();
       setPlaying(false);
       flushListenTime("pause");
+      resumeContext().catch(() => {});
     } else {
+      const { currentEpisode: ep, setLoadState } = usePlayerStore.getState();
+
+      // A primed-but-never-loaded element has a src and readyState 0, so this
+      // is the restored episode's first play. It needs the same watchdog cover
+      // as a fresh one — it is the exact case the listener was hitting, and
+      // starting it unguarded would swap a silent dead button for a silent
+      // infinite spinner.
+      if (audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA && !isWatching()) {
+        // Undo primeEpisode's "none" so the element actually buffers ahead.
+        audio.preload = "metadata";
+        setLoadState("loading");
+        armWatchdog({
+          audio,
+          url: audio.src,
+          episodeId: ep ? communityKey(ep) : null,
+          startAt: audio.currentTime,
+        });
+      }
+
       try {
         await audio.play();
+        resumeContext().catch(() => {});
         setPlaying(true);
       } catch (err) {
         console.error("[player] Play failed:", err);
+        // This catch used to swallow the rejection entirely, so a refused
+        // resume left the UI paused with no explanation whatsoever.
+        if (isWatching()) {
+          noteError("play-rejected");
+        } else {
+          setError("Couldn't resume playback. Try again.");
+        }
       }
     }
-  }, [getAudio, playing, setPlaying]);
+  }, [getAudio, playing, setPlaying, setError]);
 
   // Seek to a position in seconds
   const seek = useCallback(
     (seconds: number) => {
       const audio = getAudio();
-      if (!audio.src || !audio.duration || !isFinite(audio.duration)) return;
+      // A restored episode has a duration in the store but nothing loaded in
+      // the element, so scrubbing was silently dead too. Record the intent —
+      // playEpisode seeks to playbackPosition when it loads.
+      if (!audio.src) {
+        const { currentEpisode: ep, duration: storeDuration } =
+          usePlayerStore.getState();
+        if (ep && storeDuration > 0) {
+          const clamped = Math.max(0, Math.min(seconds, storeDuration));
+          ep.playbackPosition = clamped;
+          setPosition(clamped);
+        }
+        return;
+      }
+      if (!audio.duration || !isFinite(audio.duration)) return;
       audio.currentTime = Math.max(0, Math.min(seconds, audio.duration));
       setPosition(audio.currentTime);
     },
@@ -173,9 +339,11 @@ export function useAudioPlayer() {
   // Stop playback
   const stopPlayback = useCallback(() => {
     flushListenTime("stop");
+    disarmWatchdog();
     const audio = getAudio();
     audio.pause();
-    audio.src = "";
+    audio.removeAttribute("src");
+    audio.load();
     stop();
   }, [getAudio, stop]);
 
@@ -219,24 +387,46 @@ export function useAudioPlayer() {
     }
   }, [playbackRate]);
 
-  // Position tracking timer
+  // Position tracking timer.
+  //
+  // Driven by a store subscription rather than a `playing` dependency so the
+  // effect itself can be mount-once and therefore single-owner. Keyed off
+  // `playing` the effect re-ran on every play/pause, which meant the ref count
+  // never fell to zero and both hook instances kept a 250ms timer alive.
   useEffect(() => {
-    if (playing) {
-      positionTimerRef.current = window.setInterval(() => {
-        const audio = getMediaElement();
-        if (audio && !audio.paused) {
-          usePlayerStore.getState().setPosition(audio.currentTime);
-        }
-      }, 250);
-    } else {
-      window.clearInterval(positionTimerRef.current);
-    }
-    return () => window.clearInterval(positionTimerRef.current);
-  }, [playing]);
+    return withGlobals(() => {
+      const start = () => {
+        if (positionTimerRef.current) return;
+        positionTimerRef.current = window.setInterval(() => {
+          const audio = getMediaElement();
+          if (audio && !audio.paused) {
+            usePlayerStore.getState().setPosition(audio.currentTime);
+          }
+        }, 250);
+      };
+      const stopTimer = () => {
+        window.clearInterval(positionTimerRef.current);
+        positionTimerRef.current = 0;
+      };
 
-  // Listen for audio ended + errors
+      if (usePlayerStore.getState().playing) start();
+      const unsub = usePlayerStore.subscribe((s, prev) => {
+        if (s.playing === prev.playing) return;
+        if (s.playing) start();
+        else stopTimer();
+      });
+
+      return () => {
+        unsub();
+        stopTimer();
+      };
+    });
+  }, []);
+
+  // Listen for audio ended + errors. Installed once — see withGlobals.
   useEffect(() => {
     const audio = getAudio();
+    return withGlobals(() => {
 
     const onEnded = () => {
       flushListenTime("ended");
@@ -263,13 +453,22 @@ export function useAudioPlayer() {
     const onError = () => {
       setPlaying(false);
       const code = audio.error?.code;
-      const messages: Record<number, string> = {
-        1: "Playback aborted.",
-        2: "Network error. Check your connection.",
-        3: "Audio decoding failed.",
-        4: "Audio source not supported or unavailable.",
-      };
-      setError(messages[code ?? 0] ?? "An unknown playback error occurred.");
+
+      // While a load attempt is outstanding the watchdog owns the response:
+      // it spends the retry, and only surfaces anything if that also fails.
+      // Errors outside a load attempt (mid-playback) still go straight to the
+      // banner, which is the right weight for a transient interruption.
+      if (isWatching()) {
+        noteError(code === 3 ? "decode-error" : "network-error");
+      } else {
+        const messages: Record<number, string> = {
+          1: "Playback aborted.",
+          2: "Network error. Check your connection.",
+          3: "Audio decoding failed.",
+          4: "Audio source not supported or unavailable.",
+        };
+        setError(messages[code ?? 0] ?? "An unknown playback error occurred.");
+      }
 
       // On network/source errors, check if archive.org itself is down
       if (code === 2 || code === 4) {
@@ -289,10 +488,49 @@ export function useAudioPlayer() {
       if (usePlayerStore.getState().playing) setPlaying(false);
     };
 
-    const { setBuffering } = usePlayerStore.getState();
-    const onWaiting = () => setBuffering(true);
-    const onCanPlay = () => setBuffering(false);
-    const onPlaying = () => setBuffering(false);
+    const { setBuffering, setLoadState, setBufferedTo } =
+      usePlayerStore.getState();
+
+    const onWaiting = () => {
+      setBuffering(true);
+      noteWaiting();
+    };
+    const ready = () => {
+      setBuffering(false);
+      noteReady();
+      setLoadState("playing");
+    };
+    const onCanPlay = ready;
+    const onPlaying = ready;
+
+    // `progress` is the only positive evidence that a slow load is still
+    // moving. Without it a download crawling in at 20KB/s was indistinguishable
+    // from one that had died, and both looked like a frozen ▶.
+    const onProgress = () => {
+      noteProgress();
+      try {
+        const { buffered, currentTime } = audio;
+        for (let i = 0; i < buffered.length; i++) {
+          if (buffered.start(i) <= currentTime + 0.5) {
+            setBufferedTo(buffered.end(i));
+          }
+        }
+      } catch {
+        // buffered throws on some elements before metadata; not worth guarding
+      }
+    };
+
+    // Neither of these was listened for. A connection that hangs mid-handshake
+    // fires `stalled` and then nothing at all — no error ever arrives.
+    const onStalled = () => noteWaiting();
+    const onSuspend = () => {
+      // Benign at the end of a load; only meaningful while still waiting.
+      if (audio.readyState < 3) noteWaiting();
+    };
+    const onAbort = () => {
+      setBuffering(false);
+      if (isWatching()) noteError("network-error");
+    };
 
     audio.addEventListener("ended", onEnded);
     audio.addEventListener("loadedmetadata", onLoadedMetadata);
@@ -302,6 +540,10 @@ export function useAudioPlayer() {
     audio.addEventListener("waiting", onWaiting);
     audio.addEventListener("canplay", onCanPlay);
     audio.addEventListener("playing", onPlaying);
+    audio.addEventListener("progress", onProgress);
+    audio.addEventListener("stalled", onStalled);
+    audio.addEventListener("suspend", onSuspend);
+    audio.addEventListener("abort", onAbort);
 
     return () => {
       audio.removeEventListener("ended", onEnded);
@@ -312,30 +554,79 @@ export function useAudioPlayer() {
       audio.removeEventListener("waiting", onWaiting);
       audio.removeEventListener("canplay", onCanPlay);
       audio.removeEventListener("playing", onPlaying);
+      audio.removeEventListener("progress", onProgress);
+      audio.removeEventListener("stalled", onStalled);
+      audio.removeEventListener("suspend", onSuspend);
+      audio.removeEventListener("abort", onAbort);
     };
+    });
   }, [getAudio, setPlaying, setDuration, setError]);
 
-  // Persist playback position periodically
+  // The watchdog reports terminal failures here — the retry is already spent,
+  // so this is what raises the modal.
   useEffect(() => {
-    if (!currentEpisode?.id || !playing) return;
+    return withGlobals(() => {
+      setFailureHandler((kind) => {
+        const { setLoadState: setLS, setBuffering: setBuf, setError: setErr } =
+          usePlayerStore.getState();
+        setBuf(false);
+        setPlaying(false);
+        setLS("failed");
+        setErr(
+          kind === "decode-error"
+            ? "This recording could not be decoded."
+            : "This broadcast isn't coming through.",
+        );
+      });
+      return () => setFailureHandler(() => {});
+    });
+  }, [setPlaying]);
 
-    const interval = window.setInterval(async () => {
-      const { position: pos, currentEpisode: ep } =
-        usePlayerStore.getState();
-      if (ep?.id) {
-        await db.episodes.update(ep.id, {
-          playbackPosition: pos,
-          lastPlayedAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-      }
-    }, 5000);
+  // Persist playback position periodically. Mount-once for the same reason as
+  // the position timer — otherwise both instances wrote the same row every 5s.
+  useEffect(() => {
+    return withGlobals(() => {
+      let interval = 0;
+      const start = () => {
+        if (interval) return;
+        interval = window.setInterval(async () => {
+          const { position: pos, currentEpisode: ep } = usePlayerStore.getState();
+          if (ep?.id) {
+            await db.episodes.update(ep.id, {
+              playbackPosition: pos,
+              lastPlayedAt: Date.now(),
+              updatedAt: Date.now(),
+            });
+          }
+        }, 5000);
+      };
+      const stopTimer = () => {
+        window.clearInterval(interval);
+        interval = 0;
+      };
 
-    return () => window.clearInterval(interval);
-  }, [currentEpisode?.id, playing]);
+      const sync = (playingNow: boolean, epId: number | undefined) => {
+        if (playingNow && epId) start();
+        else stopTimer();
+      };
+
+      const s0 = usePlayerStore.getState();
+      sync(s0.playing, s0.currentEpisode?.id);
+      const unsub = usePlayerStore.subscribe((s, prev) => {
+        if (s.playing === prev.playing && s.currentEpisode?.id === prev.currentEpisode?.id) return;
+        sync(s.playing, s.currentEpisode?.id);
+      });
+
+      return () => {
+        unsub();
+        stopTimer();
+      };
+    });
+  }, []);
 
   // Flush position + listen time on page unload
   useEffect(() => {
+    return withGlobals(() => {
     const flush = () => {
       flushListenTime("unload");
       reportStopBeacon(_sessionId);
@@ -380,6 +671,7 @@ export function useAudioPlayer() {
       window.removeEventListener("beforeunload", flush);
       document.removeEventListener("visibilitychange", onVisChange);
     };
+    });
   }, []);
 
   // MediaSession API integration
@@ -485,6 +777,7 @@ export function useAudioPlayer() {
 
   return {
     playEpisode,
+    primeEpisode,
     togglePlay,
     seek,
     stopPlayback,

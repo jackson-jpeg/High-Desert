@@ -155,3 +155,36 @@ CREATE TABLE IF NOT EXISTS traffic_daily (
   sessions       int    NOT NULL DEFAULT 0,
   samples        int    NOT NULL DEFAULT 0
 );
+
+-- Playback failures.
+--
+-- Added after a user reported that shows "sometimes don't start" and assumed it
+-- was their own fault. The direct cause was client-side, but the reason it went
+-- unreported for so long is that a failed play left no trace anywhere: it was
+-- invisible to them and invisible to us. This table is the trace.
+--
+-- Deliberately thinner than play_events. There is no session ref and no ip:
+-- the question it answers is "which episodes fail, on what kind of device",
+-- which needs counts per episode and nothing per person. `ua_class` is a
+-- seven-value bucket (see src/lib/utils/platform.ts), never a raw user-agent.
+--
+-- Pruned at 90 days in the same statement that inserts, like recent_plays.
+-- Unlike play_events this is operational data, not a record worth keeping: once
+-- a bad episode is fixed, its failures are noise.
+CREATE TABLE IF NOT EXISTS playback_failures (
+  id         bigserial   PRIMARY KEY,
+  episode_id text        NOT NULL,
+  -- timeout | stall | play-rejected | network-error | decode-error
+  kind       text        NOT NULL,
+  -- Whether the automatic retry ran, and whether it rescued the listen. A
+  -- recovered=true row means nobody saw a problem but the episode is flaky.
+  retried    boolean     NOT NULL DEFAULT false,
+  recovered  boolean     NOT NULL DEFAULT false,
+  elapsed_ms integer     NOT NULL DEFAULT 0,
+  ua_class   text        NOT NULL DEFAULT 'other',
+  at         timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS playback_failures_at_idx
+  ON playback_failures (at DESC);
+CREATE INDEX IF NOT EXISTS playback_failures_episode_idx
+  ON playback_failures (episode_id, at DESC);

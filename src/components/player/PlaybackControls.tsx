@@ -55,7 +55,12 @@ export function PlaybackControls({
   className,
 }: PlaybackControlsProps) {
   const playing = usePlayerStore((s) => s.playing);
-  const buffering = usePlayerStore((s) => s.buffering);
+  const rawBuffering = usePlayerStore((s) => s.buffering);
+  const loadState = usePlayerStore((s) => s.loadState);
+  // Show the hourglass from the moment a load starts, not from the element's
+  // first `waiting` — which on a cold, slow connection may be many seconds
+  // later, or never.
+  const buffering = rawBuffering || loadState === "loading";
   const position = usePlayerStore((s) => s.position);
   const duration = usePlayerStore((s) => s.duration);
   const volume = usePlayerStore((s) => s.volume);

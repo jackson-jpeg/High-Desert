@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { DesktopShell } from "@/components/desktop/DesktopShell";
 import { AudioPlayer } from "@/components/player/AudioPlayer";
+import { PlaybackErrorDialog } from "@/components/player/PlaybackErrorDialog";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
@@ -23,7 +24,7 @@ export default function DesktopLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { playEpisode, togglePlay, seek, playNext, playPrevious } = useAudioPlayer();
+  const { playEpisode, primeEpisode, togglePlay, seek, playNext, playPrevious } = useAudioPlayer();
   // NOT subscribed: reading position here would re-render the entire desktop
   // shell 4x/second during playback. The keyboard handler reads it on demand.
   const volume = usePlayerStore((s) => s.volume);
@@ -389,11 +390,19 @@ export default function DesktopLayout({
             usePlayerStore.getState().loadEpisode(ep, "");
             usePlayerStore.getState().setPosition(ep.playbackPosition ?? 0);
             usePlayerStore.getState().setDuration(ep.duration ?? 0);
+            // Point the element at it too. loadEpisode only touches the store,
+            // so without this the restored player rendered a live ▶ over an
+            // element with no source and the button did nothing at all — the
+            // whole reported bug. Deliberately still no auto-play; priming
+            // fetches no audio under preload="metadata".
+            primeEpisode(ep);
           }
         }
       }
     });
-  }, []);
+    // primeEpisode is stable (its only dep, getAudio, is []-memoized), so this
+    // still runs exactly once on mount.
+  }, [primeEpisode]);
 
   // handleResume/handleDismissContinue removed — ContinueListening handles this
 
@@ -516,6 +525,9 @@ export default function DesktopLayout({
         {children}
       </DesktopShell>
       <MilestoneDialog />
+      {/* Mounted here rather than inside AudioPlayer so a failure is still
+          announced on pages that render no player chrome. */}
+      <PlaybackErrorDialog />
       </div>
     </DBErrorBoundary>
   );

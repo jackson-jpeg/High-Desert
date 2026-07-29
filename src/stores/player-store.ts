@@ -4,6 +4,20 @@ import { toast } from "@/stores/toast-store";
 
 export type RepeatMode = "off" | "one" | "all";
 
+/**
+ * Where a load attempt has got to.
+ *
+ * `buffering` alone could not express this: it is driven by the element's
+ * `waiting`/`canplay` events, which say nothing at all between the moment a
+ * source is assigned and the moment the browser has an opinion about it. On a
+ * cold connection to a 60MB show that gap is tens of seconds during which the
+ * UI showed a plain ▶ and the user assumed their tap had missed.
+ *
+ * `failed` means the automatic retry has already been spent — it is the state
+ * that raises the modal, not a transient hiccup.
+ */
+export type LoadState = "idle" | "loading" | "playing" | "failed";
+
 export interface PlayerState {
   // Current track
   currentEpisode: Episode | null;
@@ -27,6 +41,11 @@ export interface PlayerState {
   mini: boolean;
   error: string | null;
   buffering: boolean;
+  loadState: LoadState;
+  /** `performance.now()` when the current load attempt began, for elapsed copy. */
+  loadStartedAt: number | null;
+  /** Seconds of the current source the browser has buffered, for the scrub bar. */
+  bufferedTo: number;
 
   // Actions
   loadEpisode: (episode: Episode, objectUrl: string) => void;
@@ -38,6 +57,8 @@ export interface PlayerState {
   setPlaybackRate: (rate: number) => void;
   setError: (error: string | null) => void;
   setBuffering: (buffering: boolean) => void;
+  setLoadState: (loadState: LoadState) => void;
+  setBufferedTo: (bufferedTo: number) => void;
   toggleMini: () => void;
   stop: () => void;
 
@@ -83,6 +104,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   mini: true,
   error: null,
   buffering: false,
+  loadState: "idle" as LoadState,
+  loadStartedAt: null,
+  bufferedTo: 0,
 
   loadEpisode: (episode, objectUrl) => {
     // Revoke previous object URL
@@ -93,28 +117,27 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const { queue, queueIndex } = get();
     const existingIdx = queue.findIndex((e) => e.id === episode.id);
 
+    // Changing source invalidates every read of the old one. `buffering` in
+    // particular was never cleared here, so the ⧗ glyph latched on after any
+    // mid-buffer failure and stayed for the rest of the session.
+    const reset = {
+      currentEpisode: episode,
+      objectUrl,
+      playing: false,
+      position: episode.playbackPosition ?? 0,
+      duration: episode.duration ?? 0,
+      buffering: false,
+      bufferedTo: 0,
+      error: null,
+    };
+
     if (existingIdx !== -1) {
-      set({
-        currentEpisode: episode,
-        objectUrl,
-        playing: false,
-        position: episode.playbackPosition ?? 0,
-        duration: episode.duration ?? 0,
-        queueIndex: existingIdx,
-      });
+      set({ ...reset, queueIndex: existingIdx });
     } else {
       const insertAt = queueIndex + 1;
       const newQueue = [...queue];
       newQueue.splice(insertAt, 0, episode);
-      set({
-        currentEpisode: episode,
-        objectUrl,
-        playing: false,
-        position: episode.playbackPosition ?? 0,
-        duration: episode.duration ?? 0,
-        queue: newQueue,
-        queueIndex: insertAt,
-      });
+      set({ ...reset, queue: newQueue, queueIndex: insertAt });
     }
   },
 
@@ -140,6 +163,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setPlaybackRate: (rate) => set({ playbackRate: rate }),
   setError: (error) => set({ error }),
   setBuffering: (buffering) => set({ buffering }),
+  setLoadState: (loadState) =>
+    set({
+      loadState,
+      // Stamped here rather than by the caller so every entry into "loading"
+      // gets a fresh clock, including the automatic retry.
+      loadStartedAt: loadState === "loading" ? performance.now() : null,
+    }),
+  setBufferedTo: (bufferedTo) => set({ bufferedTo }),
   toggleMini: () => set((s) => ({ mini: !s.mini })),
 
   stop: () => {
@@ -153,6 +184,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       duration: 0,
       queue: [],
       queueIndex: -1,
+      buffering: false,
+      bufferedTo: 0,
+      loadState: "idle",
+      loadStartedAt: null,
+      error: null,
     });
   },
 
