@@ -8,15 +8,19 @@ export async function deleteEpisode(id: number): Promise<void> {
   if (!episode) return;
 
   // Stop if currently playing
-  const store = usePlayerStore.getState();
-  if (store.currentEpisode?.id === id) {
-    store.stop();
+  if (usePlayerStore.getState().currentEpisode?.id === id) {
+    usePlayerStore.getState().stop();
   }
 
-  // Remove from queue
-  const queueIdx = store.queue.findIndex((e) => e.id === id);
+  // Re-read rather than reusing the snapshot above: stop() clears the queue, so
+  // a `queue` captured before it is stale by the time we index into it. That was
+  // harmless only by coincidence — removeFromQueue happens to bounds-check and
+  // return early against the now-empty live queue — and a coincidence with a
+  // test around it is not a property. Read the state you are about to act on.
+  const { queue, removeFromQueue } = usePlayerStore.getState();
+  const queueIdx = queue.findIndex((e) => e.id === id);
   if (queueIdx !== -1) {
-    store.removeFromQueue(queueIdx);
+    removeFromQueue(queueIdx);
   }
 
   // Remove OPFS cache
