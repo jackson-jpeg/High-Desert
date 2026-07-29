@@ -90,15 +90,26 @@ if (( FAILED )); then
      Re-run the build and restart before walking away."
 fi
 
-# sw.js reads its own ?v= at runtime, so the id lives in the page that
-# registers it, not in the worker source. This is the check that would have
-# caught the deploy stamped with its predecessor's commit.
-say "Build id the page registers the worker with"
-SERVED_ID="$(curl -s http://127.0.0.1:3003/ | grep -oE 'sw\.js\?v=[A-Za-z0-9._%-]+' | head -1 | sed 's/.*v=//')"
-echo "  sw.js?v=${SERVED_ID:-<none found>}"
-if [[ "$SERVED_ID" != "$BUILD_REF"* ]]; then
-  die "Served build id '$SERVED_ID' does not start with the deployed commit
-     '$BUILD_REF'. The build did not come from this tree."
+# sw.js reads its own ?v= at runtime, so the id lives in the client bundle that
+# registers it — not in the worker source, and not as a literal in the HTML
+# either: the registration is `sw.js?v=${encodeURIComponent(BUILD_ID)}`, so the
+# assembled string never appears statically anywhere. Find the chunk doing the
+# registering and confirm the deployed commit is baked into it.
+#
+# This is the check that would have caught the deploy stamped with its
+# predecessor's commit.
+say "Build id baked into the service-worker registration"
+REG_CHUNK="$(grep -rl 'sw\.js?v=' .next/static/chunks/*.js 2>/dev/null | head -1)"
+if [[ -z "$REG_CHUNK" ]]; then
+  die "Could not find the chunk that registers the service worker.
+     If the registration moved, update this check — do not delete it."
+fi
+if grep -q "$BUILD_REF" "$REG_CHUNK"; then
+  echo "  $BUILD_REF found in $(basename "$REG_CHUNK")"
+else
+  die "The deployed commit '$BUILD_REF' is not in the registration chunk.
+     The build did not come from this tree — this is the cache-name collision
+     that ships a deploy stamped with its predecessor. Rebuild and restart."
 fi
 
 say "Deployed $BUILD_REF cleanly"
