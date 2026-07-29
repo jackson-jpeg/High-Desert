@@ -25,6 +25,19 @@ the episodes while checking that the restored player reports a play at all.
 Row 61 is the one that matters: it is the first play ever recorded from the
 restored player, and its absence before `d0a22fb` was the bug being fixed.
 
+## 2026-07-29 — re-verifying after the consolidation (`57a06bf`)
+
+Two more, from the same browser check run against the redeployed build.
+
+| `play_events.id` | Episode | `played_at` (UTC) | Source |
+|---|---|---|---|
+| 66 | `…1998-07-29_-_Coast_to_Coast_AM…Time_Traveler_Line` | 04:50:37 | Playwright, session `9b09b159-…` (library click, to establish a remembered show) |
+| 68 | `…1998-07-29_-_Coast_to_Coast_AM…Time_Traveler_Line` | 04:50:53 | Playwright, session `cc7accd4-…` (restored player) |
+
+Ids 65 and 67, in the same minute, are **not** synthetic — session
+`a58c5d3b-…` is a real listener who happened to be on the site at the time.
+Six synthetic plays in total, then: 56, 57, 58, 61, 66, 68.
+
 The corresponding `active_sessions` rows were deleted at the time, so none of
 this affected presence or the on-air list beyond the few minutes it took to
 check. `session_ref` on all four expires at 90 days like any other.
