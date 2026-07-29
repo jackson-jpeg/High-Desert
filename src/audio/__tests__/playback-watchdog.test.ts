@@ -28,6 +28,7 @@ import {
   noteError,
   noteProgress,
   noteReady,
+  noteUnplayable,
   noteWaiting,
   setFailureHandler,
   __testing,
@@ -153,6 +154,23 @@ describe("playback watchdog", () => {
 
     noteError("network-error");
     expect(onFail).toHaveBeenCalledWith("network-error");
+  });
+
+  it("does not retry a file that arrived intact and holds no audio", () => {
+    const audio = fakeAudio();
+    arm(audio);
+
+    noteUnplayable("empty-media");
+
+    // Re-fetching returns the same bytes. A retry here buys nothing but another
+    // twelve seconds of the listener waiting on a file that will never play.
+    expect(audio.play).not.toHaveBeenCalled();
+    expect(onFail).toHaveBeenCalledTimes(1);
+    expect(onFail).toHaveBeenCalledWith("empty-media");
+    expect(isWatching()).toBe(false);
+    expect(reportPlaybackFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "empty-media", retried: false, recovered: false }),
+    );
   });
 
   it("stops watching once the element is ready", () => {

@@ -46,7 +46,9 @@ export type FailureKind =
   | "stall"
   | "play-rejected"
   | "network-error"
-  | "decode-error";
+  | "decode-error"
+  /** The file loaded fine and contains no usable broadcast. Never retried. */
+  | "empty-media";
 
 interface Attempt {
   audio: HTMLAudioElement;
@@ -225,6 +227,20 @@ export function noteError(kind: FailureKind): void {
   if (!attempt || attempt.settled) return;
   if (!attempt.retried) retry(kind, attempt);
   else giveUp(kind, attempt);
+}
+
+/**
+ * The transfer worked and what arrived is not playable.
+ *
+ * Distinct from noteError because the retry is not just useless here, it is
+ * harmful: a second request returns the same bytes, so all it buys is another
+ * twelve seconds of the listener waiting on a file that was never going to
+ * play. Fail immediately and say so.
+ */
+export function noteUnplayable(kind: FailureKind): void {
+  const attempt = current;
+  if (!attempt || attempt.settled) return;
+  giveUp(kind, attempt);
 }
 
 /** Whether a load attempt is outstanding — used to decide if an error is ours. */

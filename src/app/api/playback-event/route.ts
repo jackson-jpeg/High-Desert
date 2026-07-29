@@ -22,6 +22,10 @@ const KINDS = new Set([
   "play-rejected",
   "network-error",
   "decode-error",
+  // The transfer succeeded and the file holds no broadcast. Never retried, so
+  // these rows always carry retried=false — a nonzero count here means a bad
+  // rip in the catalog, not a flaky connection.
+  "empty-media",
 ]);
 
 const UA_CLASSES = new Set([

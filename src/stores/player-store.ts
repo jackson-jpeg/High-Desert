@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { FailureKind } from "@/audio/playback-watchdog";
 import type { Episode } from "@/db/schema";
 import { toast } from "@/stores/toast-store";
 
@@ -42,6 +43,13 @@ export interface PlayerState {
   error: string | null;
   buffering: boolean;
   loadState: LoadState;
+  /**
+   * Why the current load failed, when it has. Drives which copy the error
+   * dialog shows — an empty file and a dead connection are not the same
+   * apology, and offering "Try Again" for the former wastes the listener's
+   * time on a request that returns the same bytes.
+   */
+  failureKind: FailureKind | null;
   /** `performance.now()` when the current load attempt began, for elapsed copy. */
   loadStartedAt: number | null;
   /** Seconds of the current source the browser has buffered, for the scrub bar. */
@@ -57,7 +65,7 @@ export interface PlayerState {
   setPlaybackRate: (rate: number) => void;
   setError: (error: string | null) => void;
   setBuffering: (buffering: boolean) => void;
-  setLoadState: (loadState: LoadState) => void;
+  setLoadState: (loadState: LoadState, failureKind?: FailureKind | null) => void;
   setBufferedTo: (bufferedTo: number) => void;
   toggleMini: () => void;
   stop: () => void;
@@ -105,6 +113,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   error: null,
   buffering: false,
   loadState: "idle" as LoadState,
+  failureKind: null as FailureKind | null,
   loadStartedAt: null,
   bufferedTo: 0,
 
@@ -163,12 +172,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setPlaybackRate: (rate) => set({ playbackRate: rate }),
   setError: (error) => set({ error }),
   setBuffering: (buffering) => set({ buffering }),
-  setLoadState: (loadState) =>
+  setLoadState: (loadState, failureKind) =>
     set({
       loadState,
       // Stamped here rather than by the caller so every entry into "loading"
       // gets a fresh clock, including the automatic retry.
       loadStartedAt: loadState === "loading" ? performance.now() : null,
+      // Cleared on any non-failure transition, so a stale kind from an earlier
+      // failure can never pick the copy for the next one.
+      failureKind: loadState === "failed" ? (failureKind ?? null) : null,
     }),
   setBufferedTo: (bufferedTo) => set({ bufferedTo }),
   toggleMini: () => set((s) => ({ mini: !s.mini })),
@@ -187,6 +199,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       buffering: false,
       bufferedTo: 0,
       loadState: "idle",
+      failureKind: null,
       loadStartedAt: null,
       error: null,
     });

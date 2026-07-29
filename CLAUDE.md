@@ -358,11 +358,30 @@ app — buttons do nothing and audio never starts. This has happened once, durin
 a "clean install" verification, and took real users down. HTTP status checks
 will not catch it.
 
-Safe deploy:
+Safe deploy — **use the script**, which does all of the below and then verifies it:
 
 ```bash
 cd /root/High-Desert
 git pull                     # or checkout the intended ref
+bash scripts/deploy.sh       # refuses a dirty tree; build + restart + verify
+```
+
+It refuses to deploy uncommitted work (`--allow-dirty` to override), builds,
+restarts, then walks every `/_next/static/chunks/*.js` on four routes and exits
+non-zero if any does not return 200. Build and restart are one step on purpose:
+separating them is what leaves the running process serving a manifest for chunks
+that no longer exist.
+
+**Commit before you build.** `NEXT_PUBLIC_BUILD_ID` names the service worker
+cache, and `activate` only purges caches whose name *differs* from the current
+one — so a build id that repeats the previous deploy's leaves that deploy's
+shell cached and served to offline visitors. A build once ran 85 seconds before
+the commit it was meant to ship and went out stamped with its predecessor.
+`next.config.ts` now hashes the working tree into the id when the tree is dirty,
+so the collision cannot recur, but a dirty deploy still ships something that is
+not in git. The equivalent by hand:
+
+```bash
 npm ci                       # only if package-lock.json changed
 npm run build                # writes a new .next
 systemctl restart highdesert # load the new build
@@ -398,5 +417,48 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
 - **`deduplicateEpisodes()` has safety rails** (`MAX_GROUP_SIZE` 20, `MAX_DELETE_RATIO` 25%) and
   aborts rather than throwing. They are not optional — they would have prevented that incident
   independently of the key bug.
-- Regression tests live in `src/db/__tests__/`; `dedupKey` must yield 1,313 distinct keys for the
-  real seed catalog.
+- Regression tests live in `src/db/__tests__/`; `dedupKey` must yield one distinct key per row of
+  the real seed catalog (**1,312** — see `docs/broken-episodes.md` for the one that was removed).
+  The count is asserted against the catalog rather than hardcoded, so pulling an episode does not
+  need the test edited; changing it to a literal would make the next removal look like a bug.
+
+## Pulling an episode from the catalog
+
+Removing a row from `public/seed/library.json` is a three-step change, and skipping any of them
+breaks a test or a route:
+
+1. Remove the object from `public/seed/library.json`.
+2. `node scripts/gen-community-keys.mjs` — otherwise the allowlist keeps a key with no episode
+   behind it and `src/services/stats/__tests__/catalog.test.ts` fails. (It did, which is the
+   point of that test.)
+3. Record it in `docs/broken-episodes.md`, with the full original JSON object so it can be
+   restored without reconstruction.
+
+Existing visitors keep the row: `reconcileLibrary()` is `bulkAdd`-only and never deletes. That is
+deliberate, and it is why the runtime guard below matters — a removal only stops an episode
+reaching *new* visitors.
+
+## Is there actually a broadcast in the file?
+
+One catalogued episode contained no audio at all: 77,380 bytes of ID3v2 tag wrapping a JPEG cover,
+zero MPEG frames. Archive.org serves it with a clean `206`, the right `Content-Type` and a
+plausible `Content-Length`, so **every HTTP-level check passes it** — including the full 1,313-file
+sweep in `scripts/audit-episodes.mjs`. Pressing play produced nothing, which is exactly the "the
+show didn't start" report that began this work.
+
+- **`scripts/audit-durations.mjs`** is the catalog sweep. It reads the first 64KB of real audio and
+  walks the MPEG frame headers. It must seek past the ID3 tag first — the tags on this collection
+  carry cover art and run ~77KB, so a window taken from byte zero lands entirely inside the
+  artwork and reports working three-hour shows as empty. The first draft did exactly that to 10 of
+  the first 12 episodes.
+- **`src/audio/duration-sanity.ts`** is the runtime guard, and it is deliberately timid. Only the
+  absolute floor (under 5s) is judged at `loadedmetadata`, because `duration` there is
+  extrapolated from the first frame for a VBR rip with no Xing header — which is most of this
+  catalog — and browsers correct it later. The "much shorter than catalogued" comparison waits for
+  `ended`, when the number is a measurement. 37 of the episodes are legitimately under ten
+  minutes; flagging on length alone would break working shows to fix a broken one.
+- **A missing `duration` is not evidence of anything.** Archive.org's VBR derive reports
+  `length: "0"` for five episodes here, two of which are full three-hour broadcasts.
+- `empty-media` is the one `FailureKind` that is **never retried** — the same bytes come back, so a
+  retry only adds twelve seconds to the wait. `PlaybackErrorDialog` drops its "Try Again" button
+  and says the recording is empty rather than blaming the connection.

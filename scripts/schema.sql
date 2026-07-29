@@ -174,7 +174,9 @@ CREATE TABLE IF NOT EXISTS traffic_daily (
 CREATE TABLE IF NOT EXISTS playback_failures (
   id         bigserial   PRIMARY KEY,
   episode_id text        NOT NULL,
-  -- timeout | stall | play-rejected | network-error | decode-error
+  -- timeout | stall | play-rejected | network-error | decode-error | empty-media
+  -- empty-media is the odd one: the transfer succeeded and the file contains no
+  -- broadcast, so it is never retried and points at the catalog, not the network.
   kind       text        NOT NULL,
   -- Whether the automatic retry ran, and whether it rescued the listen. A
   -- recovered=true row means nobody saw a problem but the episode is flaky.

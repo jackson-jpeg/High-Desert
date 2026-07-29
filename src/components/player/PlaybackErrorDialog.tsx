@@ -23,12 +23,18 @@ import { toast } from "@/stores/toast-store";
  */
 export function PlaybackErrorDialog() {
   const loadState = usePlayerStore((s) => s.loadState);
+  const failureKind = usePlayerStore((s) => s.failureKind);
   const currentEpisode = usePlayerStore((s) => s.currentEpisode);
   const setLoadState = usePlayerStore((s) => s.setLoadState);
   const setError = usePlayerStore((s) => s.setError);
   const [picking, setPicking] = useState(false);
 
   const open = loadState === "failed" && currentEpisode !== null;
+
+  // "The signal may be weak on this end" is a lie when the transfer succeeded
+  // and the file simply has no audio in it — and it invites a Try Again that
+  // cannot possibly work. Name the real fault instead.
+  const empty = failureKind === "empty-media";
 
   const dismiss = useCallback(() => {
     setLoadState("idle");
@@ -88,14 +94,15 @@ export function PlaybackErrorDialog() {
     <Dialog
       open={open}
       onClose={dismiss}
-      title="Transmission Interrupted"
+      title={empty ? "Nothing On This Tape" : "Transmission Interrupted"}
       urgent
       width="360px"
     >
       <div className="p-4 flex flex-col gap-4">
         <div className="text-hd-body text-desktop-gray">
-          This broadcast isn&apos;t coming through. The signal may be weak on
-          this end.
+          {empty
+            ? "The archive's copy of this show has no audio in it. Nothing was lost on the way here — there is nothing in the recording."
+            : "This broadcast isn't coming through. The signal may be weak on this end."}
           {currentEpisode && (
             <span className="block mt-2 text-hd-caption text-bevel-dark break-words">
               {currentEpisode.title || currentEpisode.fileName}
@@ -103,12 +110,24 @@ export function PlaybackErrorDialog() {
           )}
         </div>
         <div className="flex flex-wrap justify-end gap-2">
-          <Button onClick={handleSomethingElse} disabled={picking}>
+          {/*
+            An empty file gets one button, not two. "Try Again" would re-request
+            the same bytes and fail identically, so offering it only invites the
+            listener to prove to themselves that it is their fault — which is
+            the exact conclusion this dialog exists to stop them reaching.
+          */}
+          <Button
+            variant={empty ? "dark" : undefined}
+            onClick={handleSomethingElse}
+            disabled={picking}
+          >
             {picking ? "Tuning…" : "Play Something Else"}
           </Button>
-          <Button variant="dark" onClick={handleRetry}>
-            Try Again
-          </Button>
+          {!empty && (
+            <Button variant="dark" onClick={handleRetry}>
+              Try Again
+            </Button>
+          )}
         </div>
       </div>
     </Dialog>

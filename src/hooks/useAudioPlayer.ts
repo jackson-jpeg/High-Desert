@@ -22,9 +22,11 @@ import {
   noteError,
   noteProgress,
   noteReady,
+  noteUnplayable,
   noteWaiting,
   setFailureHandler,
 } from "@/audio/playback-watchdog";
+import { assessDuration } from "@/audio/duration-sanity";
 
 // ── Listening session tracking ──
 //
@@ -428,8 +430,44 @@ export function useAudioPlayer() {
     const audio = getAudio();
     return withGlobals(() => {
 
+    /**
+     * The file is not a broadcast. Stop, and say so.
+     *
+     * Routed through the watchdog when a load attempt is outstanding so the
+     * failure is reported with the same shape as every other one; when it is
+     * not (an `ended` that arrives long after the load settled) the load state
+     * is set directly, which is what raises PlaybackErrorDialog.
+     */
+    const failUnplayable = () => {
+      audio.pause();
+      setPlaying(false);
+      if (isWatching()) {
+        noteUnplayable("empty-media");
+      } else {
+        usePlayerStore.getState().setLoadState("failed", "empty-media");
+      }
+    };
+
     const onEnded = () => {
+      // A show that "ended" without ever really starting is the last shape of
+      // the reported bug: archive.org serves the file with a clean 206, the
+      // element plays a few seconds of nothing and reports itself finished.
+      // Advancing the queue here would hide it — the listener would see the
+      // next show start and conclude they had mis-clicked. Again.
+      const unplayable =
+        assessDuration({
+          actual: audio.duration,
+          expected: usePlayerStore.getState().currentEpisode?.duration ?? null,
+          stage: "ended",
+        }) !== "ok";
+
       flushListenTime("ended");
+
+      if (unplayable) {
+        failUnplayable();
+        return;
+      }
+
       const state = usePlayerStore.getState();
 
       // Repeat one: just replay current track
@@ -449,6 +487,21 @@ export function useAudioPlayer() {
     };
     const onLoadedMetadata = () => {
       setDuration(audio.duration);
+
+      // Only the absolute floor is judged here. For a VBR rip with no Xing
+      // header — most of this catalog — `duration` at this point is
+      // extrapolated from the first frame and gets corrected later, so the
+      // "shorter than catalogued" comparison waits for `ended`. Nothing that
+      // reports under five seconds is a broadcast, however it was measured.
+      if (
+        assessDuration({
+          actual: audio.duration,
+          expected: usePlayerStore.getState().currentEpisode?.duration ?? null,
+          stage: "metadata",
+        }) !== "ok"
+      ) {
+        failUnplayable();
+      }
     };
     const onError = () => {
       setPlaying(false);
@@ -571,11 +624,13 @@ export function useAudioPlayer() {
           usePlayerStore.getState();
         setBuf(false);
         setPlaying(false);
-        setLS("failed");
+        setLS("failed", kind);
         setErr(
-          kind === "decode-error"
-            ? "This recording could not be decoded."
-            : "This broadcast isn't coming through.",
+          kind === "empty-media"
+            ? "This recording has no audio in it."
+            : kind === "decode-error"
+              ? "This recording could not be decoded."
+              : "This broadcast isn't coming through.",
         );
       });
       return () => setFailureHandler(() => {});

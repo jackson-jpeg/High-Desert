@@ -1,17 +1,53 @@
 import type { NextConfig } from "next";
 import { execSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 /**
  * Identifies this build. Baked into the service worker's script URL so each
  * deploy installs a fresh worker and purges the previous build's cache.
+ *
+ * The id must change whenever the shipped bytes change, because `activate` in
+ * public/sw.js only deletes caches whose name differs from the current one. An
+ * id that repeats the previous deploy's leaves that deploy's shell cached and
+ * served to offline visitors, pointing at chunk hashes that no longer exist.
+ *
+ * `git rev-parse HEAD` alone does not guarantee that. It describes the last
+ * commit, not the tree being compiled — so a build run against uncommitted work
+ * is stamped with its predecessor. That is not hypothetical: a build once ran
+ * 85 seconds before the commit it was meant to ship, and went out carrying the
+ * previous commit's id. Hashing the working tree closes it: a dirty build gets
+ * an id of its own, and the same tree always resolves to the same id, so
+ * rebuilding without editing is still a no-op.
  */
 function resolveBuildId(): string {
   if (process.env.NEXT_PUBLIC_BUILD_ID) return process.env.NEXT_PUBLIC_BUILD_ID;
   try {
-    return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] })
-      .toString()
-      .trim();
+    const git = (cmd: string) =>
+      execSync(cmd, { stdio: ["ignore", "pipe", "ignore"] })
+        .toString()
+        .trim();
+
+    const head = git("git rev-parse --short HEAD");
+    const status = git("git status --porcelain");
+    if (!status) return head;
+
+    // `git diff HEAD` covers tracked edits; untracked files show up in status
+    // by name only, so hash their contents too — otherwise editing a new file
+    // that has never been added would not move the id.
+    const untracked = git(
+      "git ls-files --others --exclude-standard -z | xargs -0 -r git hash-object",
+    );
+
+    const digest = createHash("sha1")
+      .update(status)
+      .update("\0")
+      .update(git("git diff HEAD"))
+      .update("\0")
+      .update(untracked)
+      .digest("hex")
+      .slice(0, 7);
+    return `${head}-${digest}`;
   } catch {
     return String(Date.now());
   }

@@ -1,4 +1,5 @@
 import { fetchWithRetry } from "@/lib/utils/retry";
+import type { FailureKind } from "@/audio/playback-watchdog";
 
 const RETRY_OPTS = { retries: 1, timeout: 5000 } as const;
 
@@ -29,7 +30,12 @@ export function reportStop(sessionId: string, keepPresence = true): void {
 
 export interface PlaybackFailure {
   episodeId: string;
-  kind: "timeout" | "stall" | "play-rejected" | "network-error" | "decode-error";
+  /**
+   * Sourced from the watchdog rather than re-listed here. The two copies drifted
+   * the moment a kind was added, and a duplicated union fails at the call site
+   * rather than at the definition — which reads like the caller is wrong.
+   */
+  kind: FailureKind;
   retried: boolean;
   /** True when a retry succeeded — the listener never saw a problem. */
   recovered: boolean;
