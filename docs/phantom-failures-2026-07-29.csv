@@ -1,0 +1,36 @@
+id,episode_id,kind,retried,recovered,elapsed_ms,ua_class,detail,at
+1,ultimate-ultimate-art-bell-collection--2003-10-25_-_Coast_to_Coast_AM_with_Art_Bell_-__Paul_Moller_-_Skycars___Vampires__classic_,timeout,t,f,12000,desktop-chromium,,2026-07-29 03:14:27.119282+00
+2,ultimate-ultimate-art-bell-collection--1997-07-28_-_Coast_to_Coast_AM_with_Art_Bell_-__Ufologist__Men_in_Black_-_Open_Lines_-_Jim_Dilettoso,play-rejected,t,f,1,ios-safari,,2026-07-29 03:16:09.718897+00
+3,ultimate-ultimate-art-bell-collection--2013-10-31_-_Dark_Matter_with_Art_Bell_-_Spooky_Matter_-_Ghost_Stories,timeout,t,f,12001,desktop-safari,,2026-07-29 03:36:42.946178+00
+4,ultimate-ultimate-art-bell-collection--2003-05-29_-_Coast_to_Coast_AM_with_Art_Bell_-_Cosmology___Consciousness_-_Adair_Butchins,timeout,t,f,12000,desktop-safari,,2026-07-29 03:37:43.711229+00
+5,ultimate-ultimate-art-bell-collection--2005-09-18_-_Coast_to_Coast_AM_with_Art_Bell_-_Brendan_Cook___Barbara_McBeath_-_EVP_in_the_House,timeout,t,f,12008,desktop-chromium,,2026-07-29 03:49:02.358653+00
+6,ultimate-ultimate-art-bell-collection--1997-07-28_-_Coast_to_Coast_AM_with_Art_Bell_-__Ufologist__Men_in_Black_-_Open_Lines_-_Jim_Dilettoso,timeout,t,f,12000,desktop-chromium,,2026-07-29 04:00:05.644958+00
+7,ultimate-ultimate-art-bell-collection--1998-07-27_-_Coast_to_Coast_AM_with_Art_Bell_-_Whitley_Strieber_-_UFO_Phenomena,timeout,t,f,12001,ios-safari,,2026-07-29 04:14:45.473253+00
+8,ultimate-ultimate-art-bell-collection--1996-01-19_-_Coast_to_Coast_AM_with_Art_Bell_-_Alien_and_Immortal_Open_Lines,timeout,t,f,12001,android-chrome,,2026-07-29 04:25:02.005174+00
+9,ultimate-ultimate-art-bell-collection--1998-07-29_-_Coast_to_Coast_AM_with_Art_Bell_-_Time_Traveler_Line,timeout,t,f,12001,desktop-chromium,,2026-07-29 04:29:32.223749+00
+10,ultimate-ultimate-art-bell-collection--1996-01-19_-_Coast_to_Coast_AM_with_Art_Bell_-_Alien_and_Immortal_Open_Lines,timeout,t,f,12001,desktop-firefox,,2026-07-29 04:30:19.014703+00
+11,ultimate-ultimate-art-bell-collection--2005-09-18_-_Coast_to_Coast_AM_with_Art_Bell_-_Brendan_Cook___Barbara_McBeath_-_EVP_in_the_House,timeout,t,f,12000,desktop-chromium,,2026-07-29 04:36:09.652174+00
+12,ultimate-ultimate-art-bell-collection--1998-07-29_-_Coast_to_Coast_AM_with_Art_Bell_-_Time_Traveler_Line,timeout,t,f,12003,desktop-chromium,,2026-07-29 04:38:20.129544+00
+13,ultimate-ultimate-art-bell-collection--1994-02-09_-_Coast_to_Coast_AM_with_Art_Bell_-_Romona_and_Art_Triangle_UFO_Sighting_-_John_Lear,timeout,t,f,12001,desktop-safari,,2026-07-29 04:38:40.599184+00
+14,ultimate-ultimate-art-bell-collection--1996-01-19_-_Coast_to_Coast_AM_with_Art_Bell_-_Alien_and_Immortal_Open_Lines,timeout,t,f,12000,desktop-safari,,2026-07-29 04:40:59.378393+00
+15,ultimate-ultimate-art-bell-collection--1999-12-00_-_Coast_to_Coast_AM_with_Art_Bell_-__Best_Sound_Clips,timeout,t,f,12002,ios-safari,,2026-07-29 04:45:24.493338+00
+16,ultimate-ultimate-art-bell-collection--2003-05-29_-_Coast_to_Coast_AM_with_Art_Bell_-_Cosmology___Consciousness_-_Adair_Butchins,timeout,t,f,12000,ios-safari,,2026-07-29 04:53:59.631698+00
+17,ultimate-ultimate-art-bell-collection--1997-01-01_-_Coast_to_Coast_AM_with_Art_Bell_-_Open_Lines,timeout,t,f,12001,ios-safari,,2026-07-29 04:54:48.447388+00
+18,ultimate-ultimate-art-bell-collection--2005-02-06_-_Coast_to_Coast_AM_with_Art_Bell_-_Amazing_Open_Lines,timeout,t,f,12003,ios-safari,,2026-07-29 04:55:13.733353+00
+19,ultimate-ultimate-art-bell-collection--2004-08-22_-_Coast_to_Coast_AM_with_Art_Bell_-_Open_Lines_-_Time_Travel,timeout,t,f,12001,ios-safari,,2026-07-29 04:55:51.494184+00
+20,ultimate-ultimate-art-bell-collection--1996-01-19_-_Coast_to_Coast_AM_with_Art_Bell_-_Alien_and_Immortal_Open_Lines,timeout,t,f,12010,desktop-firefox,,2026-07-29 05:13:24.109821+00
+21,ultimate-ultimate-art-bell-collection--1996-01-19_-_Coast_to_Coast_AM_with_Art_Bell_-_Alien_and_Immortal_Open_Lines,timeout,t,f,12001,desktop-firefox,,2026-07-29 05:25:56.2563+00
+22,ultimate-ultimate-art-bell-collection--1999-12-00_-_Coast_to_Coast_AM_with_Art_Bell_-__Best_Sound_Clips,timeout,t,f,12001,ios-safari,,2026-07-29 06:31:58.637686+00
+23,ultimate-ultimate-art-bell-collection--1998-11-27_-_Coast_to_Coast_AM_with_Art_Bell_-_Ghost_to_Ghost_-_Open_Lines,timeout,t,f,12008,android-chrome,,2026-07-29 07:46:42.400065+00
+24,ultimate-ultimate-art-bell-collection--2013-11-12_-_Gabcast_-_Art_Calls_into_the_Gabcast,timeout,t,f,12002,ios-safari,,2026-07-29 08:03:03.38275+00
+25,ultimate-ultimate-art-bell-collection--1999-02-26_-_Coast_to_Coast_AM_with_Art_Bell_-_Trumbull_County_UFO_Sightings_-_Kenny_Young,timeout,t,f,12044,ios-safari,,2026-07-29 09:17:43.38452+00
+26,ultimate-ultimate-art-bell-collection--2003-05-29_-_Coast_to_Coast_AM_with_Art_Bell_-_Cosmology___Consciousness_-_Adair_Butchins,timeout,t,f,12001,android-chrome,,2026-07-29 11:57:42.384823+00
+27,ultimate-ultimate-art-bell-collection--1998-07-06_-_Coast_to_Coast_AM_with_Art_Bell_-_James_Redfield_-_Synchronicity___The_Celestine_Prophecy,play-rejected,t,f,4,android-chrome,,2026-07-29 12:05:05.973569+00
+28,ultimate-ultimate-art-bell-collection--2003-09-05_-_Coast_to_Coast_AM_with_Art_Bell_-_Contact_Night_-_Open_Lines,timeout,t,f,12002,android-chrome,,2026-07-29 13:02:18.111956+00
+29,ultimate-ultimate-art-bell-collection--1992-12-12_-_Coast_to_Coast_AM_with_Art_Bell_-_Area_51_-_John_Lear_-_Bob_Lazar,timeout,t,f,12007,desktop-firefox,,2026-07-29 14:21:15.201868+00
+30,ultimate-ultimate-art-bell-collection--2005-02-06_-_Coast_to_Coast_AM_with_Art_Bell_-_Amazing_Open_Lines,timeout,t,f,12001,android-chrome,,2026-07-29 14:26:41.488892+00
+31,ultimate-ultimate-art-bell-collection--2002-12-25_-_Coast_to_Coast_AM_with_Art_Bell_-__Mel_Waters_-_Bottomless_Hole_-_Replay_Compilation__1-29-02__12-20-02_,timeout,t,f,12013,desktop-firefox,,2026-07-29 14:29:52.641656+00
+32,ultimate-ultimate-art-bell-collection--1997-02-21_-_Coast_to_Coast_AM_with_Art_Bell_-_Steven_Greer_-_Contact_and_Disclosure__Mel_Waters__first_appearance_-_Mel,timeout,t,f,12000,desktop-firefox,,2026-07-29 14:31:42.325916+00
+33,ultimate-ultimate-art-bell-collection--1999-02-26_-_Coast_to_Coast_AM_with_Art_Bell_-_Trumbull_County_UFO_Sightings_-_Kenny_Young,play-rejected,t,f,1,ios-safari,,2026-07-29 15:14:48.905812+00
+34,ultimate-ultimate-art-bell-collection--1998-07-29_-_Coast_to_Coast_AM_with_Art_Bell_-_Time_Traveler_Line,empty-media-suspected,f,f,0,desktop-chromium,duration=3.187 (VERIFY 50dd320),2026-07-29 16:12:44.051256+00
+35,ultimate-ultimate-art-bell-collection--1998-07-29_-_Coast_to_Coast_AM_with_Art_Bell_-_Time_Traveler_Line,empty-media-suspected,f,f,0,desktop-chromium,duration=3.187 (VERIFY 50dd320),2026-07-29 16:12:53.525648+00

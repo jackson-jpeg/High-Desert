@@ -42,6 +42,36 @@ The corresponding `active_sessions` rows were deleted at the time, so none of
 this affected presence or the on-air list beyond the few minutes it took to
 check. `session_ref` on all four expires at 90 days like any other.
 
+## 2026-07-29 — verifying the watchdog fix (`50dd320`)
+
+One play, from a headless browser on the VPS, checking that a show streams for
+its first forty seconds without the watchdog tearing it down at twelve — the
+behaviour `50dd320` fixes.
+
+| `play_events.id` | Episode | `played_at` (UTC) | Source |
+|---|---|---|---|
+| 94 | `…1996-01-19_-_Coast_to_Coast_AM…Alien_and_Immortal_Open_Lines` | 16:10:10 | Playwright, session `957b35bd-…` |
+
+Id 95, two minutes later, is **not** synthetic — session `211b9526-…` is a real
+listener who put on the Gabcast episode while the check was running. Seven
+synthetic plays in total across this file, then: 56, 57, 58, 61, 66, 68, 94.
+
+The episode was chosen deliberately: it was the worst offender in
+`playback_failures`, five phantom timeouts against it, and it played through
+without incident.
+
+The same run also attempted the known-empty Hulbe file from
+`broken-episodes.md`. It wrote nothing — the episode was pulled from the catalog,
+so its community key is not in the allowlist and `/api/playback-event` returned
+400, which is the gate behaving correctly. No `play_events` row either.
+
+Two rows *were* written to `playback_failures` by hand in the same session, to
+prove the new `empty-media-suspected` kind and its `detail` column work end to
+end. Both were deleted afterwards and are recorded in
+[`phantom-failures.md`](./phantom-failures.md) — they carried a duration
+(`3.187`) that was never observed, and would have corrupted the very dataset
+they were testing.
+
 ## Adding to this file
 
 Verification that writes to the permanent log should be recorded here in the
