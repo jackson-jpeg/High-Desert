@@ -501,6 +501,17 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
   the real seed catalog (**1,312** — see `docs/broken-episodes.md` for the one that was removed).
   The count is asserted against the catalog rather than hardcoded, so pulling an episode does not
   need the test edited; changing it to a literal would make the next removal look like a bug.
+- **`deleteEpisode()` is covered end to end** against `fake-indexeddb` in
+  `src/services/episodes/__tests__/delete-episode.test.ts` — the cascade into
+  history/bookmarks/playlists, the tombstone, and `reconcileLibrary()` honouring it. Note the
+  **control test**: it deletes the same row *without* a tombstone and asserts reconcile **does**
+  restore it. Without that, "reconcile restored nothing" is not evidence — a reconcile that never
+  ran would pass identically, which is the exact trap `docs/disconnected-checks.md` is about.
+  The cascade assertions are written on what **survives**, not on what is gone; the incident here
+  was blast radius, and a too-wide cascade is invisible to a test that only checks the target row.
+  `management.ts` carries four mutations in `scripts/mutate-check.mjs` rather than the usual one —
+  it writes to five tables and there is no server backup, so one anchor would leave two of the
+  three properties unobserved.
 
 ## Pulling an episode from the catalog
 

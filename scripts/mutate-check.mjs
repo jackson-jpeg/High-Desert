@@ -168,6 +168,35 @@ const MUTATIONS = [
     replace: "row[key] = undefined;",
     why: "un-favouriting must remove the key, not store undefined under it",
   },
+  // deleteEpisode gets one mutation per distinct behaviour rather than one for
+  // the module. It writes to five tables, all user data lives only in the
+  // visitor's IndexedDB with no server backup, and its batch form is what
+  // deleted 1,312 of 1,313 episodes. A single anchor here would leave two of
+  // the three properties unobserved.
+  {
+    id: "delete-tombstone",
+    test: "src/services/episodes/__tests__/delete-episode.test.ts",
+    file: "src/services/episodes/management.ts",
+    find: "await addTombstone(episode.fileHash);",
+    replace: "await Promise.resolve();",
+    why: "without the tombstone, reconcileLibrary() restores an episode the user deliberately deleted",
+  },
+  {
+    id: "delete-cascade-history",
+    test: "src/services/episodes/__tests__/delete-episode.test.ts",
+    file: "src/services/episodes/management.ts",
+    find: 'await db.history.where("episodeId").equals(id).delete();',
+    replace: "await Promise.resolve();",
+    why: "history rows must not outlive the episode they point at",
+  },
+  {
+    id: "delete-playlist-scrub",
+    test: "src/services/episodes/__tests__/delete-episode.test.ts",
+    file: "src/services/episodes/management.ts",
+    find: "episodeIds: pl.episodeIds.filter((eid) => eid !== id),",
+    replace: "episodeIds: pl.episodeIds,",
+    why: "a deleted episode must leave the playlists that held it, or they point at a missing row",
+  },
   {
     id: "verification-marker",
     test: "src/app/api/playback-event/__tests__/verification-marker.test.ts",
