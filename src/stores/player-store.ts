@@ -118,9 +118,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   bufferedTo: 0,
 
   loadEpisode: (episode, objectUrl) => {
-    // Revoke previous object URL
+    // Revoke the previous object URL — but only if it is genuinely being
+    // replaced. Revoking unconditionally made this unsafe to call twice for the
+    // same source: the second call freed the blob and then stored the dead
+    // handle, so a local file would stop playing the moment anything
+    // re-established queue context. That is exactly what the shared start-of-
+    // listen path in useAudioPlayer needs to be able to do.
     const prev = get().objectUrl;
-    if (prev) URL.revokeObjectURL(prev);
+    if (prev && prev !== objectUrl) URL.revokeObjectURL(prev);
 
     // If episode is already in queue, update index; otherwise insert after current
     const { queue, queueIndex } = get();

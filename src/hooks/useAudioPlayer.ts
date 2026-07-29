@@ -99,17 +99,70 @@ function shouldCountPlay(key: string): boolean {
   return true;
 }
 
+// ── Starting a listen ──
+//
+// There are two ways playback starts and they had drifted apart. `playEpisode()`
+// is the obvious one — library click, queue advance, radio dial. The other is
+// `togglePlay()` resuming an episode that `primeEpisode()` pointed the element
+// at on restore: it plays the element in place and never goes near playEpisode.
+//
+// Every side effect playEpisode accumulated over time was therefore missing from
+// the restored player, silently, one at a time. The one that mattered was the
+// play report — a listen started from the remembered show wrote no leaderboard
+// entry, no permanent event and no `active_sessions.episode_id`, so it never
+// appeared on air while it was audibly playing.
+//
+// The three functions below are the whole of what starting a listen means, and
+// both paths call all three. Adding a side effect to one caller instead of to
+// these is how the next one goes missing.
+//
+//   openListen  — before the source is assigned
+//   armListen   — after it is, once there is something to watch
+//   countListen — after play() resolves, so a rejected play counts as nothing
+
+/**
+ * Clear what the last attempt left behind and establish queue context.
+ *
+ * `setError(null)`: a failure banner from a previous show must not outlive the
+ * decision to play a new one. `clearHealthCache()`: the archive.org outage
+ * verdict is about to be re-tested by an actual request, so the cached one is
+ * stale by definition. `loadEpisode`: makes this episode the current one and
+ * puts it in the queue — the restore path in (desktop)/layout.tsx does this
+ * already, but the invariant belongs to starting a listen rather than to one
+ * caller happening to have run first.
+ */
+function openListen(episode: Episode, objectUrl: string): void {
+  const store = usePlayerStore.getState();
+  store.setError(null);
+  clearHealthCache();
+  // Skip when nothing would change: loadEpisode resets position and duration
+  // from the episode record, and re-running it mid-listen would throw away a
+  // seek. Cheap identity check rather than a flag any caller could forget.
+  if (store.currentEpisode?.id !== episode.id || store.queueIndex < 0) {
+    store.loadEpisode(episode, objectUrl);
+  }
+}
+
+/**
+ * Hand the attempt to the watchdog. Must follow the source assignment — there
+ * is nothing to time out until the element has been pointed at something.
+ */
+function armListen(
+  episode: Episode | null,
+  audio: HTMLAudioElement,
+  startAt: number,
+): void {
+  usePlayerStore.getState().setLoadState("loading");
+  armWatchdog({
+    audio,
+    url: audio.src,
+    episodeId: episode ? communityKey(episode) : null,
+    startAt,
+  });
+}
+
 /**
  * A listen has begun: tell the community stats and bump the local play count.
- *
- * Module-level, and called from *both* start paths, because there are two and
- * only one used to do this. `playEpisode()` is the obvious one — library click,
- * queue advance, radio dial. The other is `togglePlay()` resuming an episode
- * that `primeEpisode()` pointed the element at on restore: that plays the
- * element in place and never goes near `playEpisode`, so every listen started
- * from the restored player wrote nothing at all. No leaderboard entry, no
- * permanent event, and — the visible symptom — no `active_sessions.episode_id`,
- * so the show never appeared on air while somebody was plainly listening to it.
  *
  * Whether the play is *counted* stays with shouldCountPlay; this is only about
  * there being a call site on both paths.
@@ -148,7 +201,9 @@ export function useAudioPlayer() {
   const playbackRate = usePlayerStore((s) => s.playbackRate);
   const error = usePlayerStore((s) => s.error);
   // Actions have stable identities, so selecting them never triggers a render.
-  const loadEpisode = usePlayerStore((s) => s.loadEpisode);
+  // loadEpisode is deliberately not among them: it belongs to openListen now,
+  // so that starting a listen is one call rather than a list of steps each
+  // caller is trusted to remember.
   const setPlaying = usePlayerStore((s) => s.setPlaying);
   const setPosition = usePlayerStore((s) => s.setPosition);
   const setDuration = usePlayerStore((s) => s.setDuration);
@@ -225,12 +280,7 @@ export function useAudioPlayer() {
         return;
       }
 
-      const { setLoadState } = usePlayerStore.getState();
-      const key = communityKey(episode);
-
-      setError(null);
-      clearHealthCache();
-      loadEpisode(episode, isObjectUrl ? url : "");
+      openListen(episode, isObjectUrl ? url : "");
       notifySourceChanged();
 
       // Reset before re-assigning: a stale src plus load() is its own source of
@@ -244,13 +294,7 @@ export function useAudioPlayer() {
       audio.currentTime = episode.playbackPosition ?? 0;
       audio.playbackRate = usePlayerStore.getState().playbackRate;
 
-      setLoadState("loading");
-      armWatchdog({
-        audio,
-        url,
-        episodeId: key,
-        startAt: episode.playbackPosition ?? 0,
-      });
+      armListen(episode, audio, episode.playbackPosition ?? 0);
 
       try {
         // play() first, resumeContext() after. The analyser context is not
@@ -270,13 +314,13 @@ export function useAudioPlayer() {
         if (isWatching()) {
           noteError("play-rejected");
         } else {
-          setLoadState("failed");
+          usePlayerStore.getState().setLoadState("failed");
           setError("Playback failed. The audio source may be unavailable.");
         }
         if (isObjectUrl) URL.revokeObjectURL(url);
       }
     },
-    [getAudio, loadEpisode, setPlaying, setError],
+    [getAudio, setPlaying, setError],
   );
 
   // Play/pause toggle
@@ -301,7 +345,7 @@ export function useAudioPlayer() {
       flushListenTime("pause");
       resumeContext().catch(() => {});
     } else {
-      const { currentEpisode: ep, setLoadState } = usePlayerStore.getState();
+      const { currentEpisode: ep } = usePlayerStore.getState();
 
       // A primed-but-never-loaded element has a src and readyState 0, so this
       // is the restored episode's first play. It needs the same watchdog cover
@@ -319,13 +363,10 @@ export function useAudioPlayer() {
       if (firstPlay) {
         // Undo primeEpisode's "none" so the element actually buffers ahead.
         audio.preload = "metadata";
-        setLoadState("loading");
-        armWatchdog({
-          audio,
-          url: audio.src,
-          episodeId: ep ? communityKey(ep) : null,
-          startAt: audio.currentTime,
-        });
+        // The source is already assigned, so openListen runs against it rather
+        // than before it — the only ordering difference between the two paths.
+        if (ep) openListen(ep, usePlayerStore.getState().objectUrl ?? "");
+        armListen(ep, audio, audio.currentTime);
       }
 
       try {

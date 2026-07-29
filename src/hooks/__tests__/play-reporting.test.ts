@@ -64,9 +64,11 @@ vi.mock("@/db", () => ({
   },
 }));
 
+const clearHealthCache = vi.fn();
+
 vi.mock("@/services/archive/health", () => ({
   checkArchiveHealth: () => Promise.resolve({ ok: true }),
-  clearHealthCache: vi.fn(),
+  clearHealthCache: () => clearHealthCache(),
 }));
 
 // The watchdog owns retry policy and is covered by its own suite. Here it only
@@ -167,6 +169,7 @@ describe("a listen is reported however it was started", () => {
   beforeEach(() => {
     reportPlay.mockClear();
     updateEpisode.mockClear();
+    clearHealthCache.mockClear();
     watching = false;
     element = makeElement();
     usePlayerStore.setState({
@@ -231,6 +234,57 @@ describe("a listen is reported however it was started", () => {
       11,
       expect.objectContaining({ playCount: 4 }),
     );
+  });
+
+  it("gives the restored player every side effect the library path gets", async () => {
+    // The play report was the one that mattered, but it went missing because
+    // the whole start-of-listen block did — one side effect at a time, silently,
+    // as playEpisode accumulated them and this path did not. These are the rest:
+    // a stale failure banner outliving the decision to play, a cached
+    // archive.org outage verdict about to be re-tested by a real request, and
+    // queue context. Asserted here so the two paths cannot drift again.
+    const api = mountPlayer();
+    const ep = makeEpisode({ id: 21 });
+
+    act(() => {
+      usePlayerStore.getState().loadEpisode(ep, "");
+      api.primeEpisode(ep);
+      // Left over from a previous show that failed.
+      usePlayerStore.setState({ error: "Playback failed.", queueIndex: -1 });
+    });
+    clearHealthCache.mockClear();
+
+    await act(async () => {
+      await api.togglePlay();
+    });
+
+    const s = usePlayerStore.getState();
+    expect(s.error).toBeNull();
+    expect(clearHealthCache).toHaveBeenCalled();
+    expect(s.currentEpisode?.id).toBe(21);
+    expect(s.queueIndex).toBeGreaterThanOrEqual(0);
+    expect(s.queue[s.queueIndex].id).toBe(21);
+    expect(s.loadState).toBe("loading");
+  });
+
+  it("does not throw away a seek when the listen is already current", async () => {
+    // openListen re-establishes queue context, and loadEpisode resets position
+    // from the episode record. Running it against the episode already playing
+    // would silently rewind the listener to where the row says they were.
+    const api = mountPlayer();
+    const ep = makeEpisode({ id: 22, playbackPosition: 100 });
+
+    act(() => {
+      usePlayerStore.getState().loadEpisode(ep, "");
+      api.primeEpisode(ep);
+      usePlayerStore.getState().setPosition(4200); // scrubbed forward
+    });
+
+    await act(async () => {
+      await api.togglePlay();
+    });
+
+    expect(usePlayerStore.getState().position).toBe(4200);
   });
 
   it("does not count a pause and resume as a second listen", async () => {
