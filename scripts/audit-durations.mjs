@@ -191,6 +191,9 @@ async function range(url, from, to) {
         await sleep(1000 * attempt * attempt);
         continue;
       }
+      // 416 is not an error when we are asking for the bytes after the ID3
+      // tag: it means there are none, which is the whole finding.
+      if (res.status === 416) return { unsatisfiable: true };
       if (res.status !== 206 && res.status !== 200) {
         return { error: `HTTP ${res.status}` };
       }
@@ -221,6 +224,11 @@ async function sampleAudio(url) {
 
   const second = await range(url, offset, offset + SAMPLE_BYTES - 1);
   if (second.error) return second;
+  // Nothing exists past the tag: the file is metadata and stops. This is
+  // exactly the defect this script was written to find, and reporting it as an
+  // unreachable file would bury it among transient network noise — which is
+  // what happened on the first full sweep.
+  if (second.unsatisfiable) return { buf: Buffer.alloc(0), offset };
   return { buf: second.buf, offset };
 }
 

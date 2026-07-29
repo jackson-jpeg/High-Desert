@@ -13,6 +13,27 @@ audio from each file and walks the MPEG frame headers. Nothing at the HTTP layer
 catches these: archive.org serves them with a clean `206`, the correct
 `Content-Type: audio/mpeg`, and a plausible `Content-Length`.
 
+## Last full sweep — 2026-07-29, all 1,313 episodes
+
+```
+checked 1313 · ok 1308 · flagged 5
+  no audio in the file:  1   (pulled — below)
+  duration mismatch:     4   (catalog metadata errors, files are fine)
+```
+
+**Exactly one episode in the catalog has no audio in it.** The other four
+flagged rows are all files *longer* than the catalog claims, which is a wrong
+number in the metadata rather than a defect in the audio, and none of them can
+trip the runtime guard — that only fires on a file much *shorter* than
+catalogued. Left alone; the player reads duration from the element anyway.
+
+| Episode | Catalog says | File actually holds |
+|---|---|---|
+| 1999-01-25 — Chemtrails and HAARP | 18s | ~2h35m |
+| 1998-01-13 — Trends Research and Phoenix Lights | 43m | ~2h16m |
+| 2000-03-31 — Remote Viewing and Antarctica | 34m | ~2h36m |
+| 2001-11-26 — Egyptian Cave in Illinois | 2h18m | ~6h58m |
+
 ---
 
 ## 2002-03-19 — Coast to Coast AM: Climate Change (Prof. Christina Hulbe)
@@ -33,6 +54,16 @@ tag on this collection is ~77,700 bytes, so this file is *exactly one cover-art
 tag with the audio never appended* — the rip failed after writing metadata and
 nobody noticed, because the result is a well-formed MP3 container that any
 byte-range check passes.
+
+It is worse than empty, in fact. The tag's own header declares that it ends at
+byte **77,774**, and the file is **77,380** bytes long — it stops 394 bytes
+before its own metadata finishes. Asking archive.org for the bytes after the tag
+returns `416 Range Not Satisfiable`:
+
+```
+GET  bytes=0-65535          -> 206   (ID3 header says the tag ends at 77,774)
+GET  bytes=77774-143309     -> 416   (there is nothing there)
+```
 
 To a listener this reads as the show refusing to start, which is the complaint
 that began this whole investigation.
