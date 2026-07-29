@@ -99,6 +99,39 @@ function shouldCountPlay(key: string): boolean {
   return true;
 }
 
+/**
+ * A listen has begun: tell the community stats and bump the local play count.
+ *
+ * Module-level, and called from *both* start paths, because there are two and
+ * only one used to do this. `playEpisode()` is the obvious one — library click,
+ * queue advance, radio dial. The other is `togglePlay()` resuming an episode
+ * that `primeEpisode()` pointed the element at on restore: that plays the
+ * element in place and never goes near `playEpisode`, so every listen started
+ * from the restored player wrote nothing at all. No leaderboard entry, no
+ * permanent event, and — the visible symptom — no `active_sessions.episode_id`,
+ * so the show never appeared on air while somebody was plainly listening to it.
+ *
+ * Whether the play is *counted* stays with shouldCountPlay; this is only about
+ * there being a call site on both paths.
+ */
+function countListen(episode: Episode): void {
+  const key = communityKey(episode);
+  if (!shouldCountPlay(key ?? `local:${episode.fileHash}`)) return;
+
+  if (key) reportPlay(key, _sessionId);
+  if (episode.id) {
+    db.episodes
+      .update(episode.id, {
+        playCount: (episode.playCount ?? 0) + 1,
+        lastPlayedAt: Date.now(),
+        updatedAt: Date.now(),
+      })
+      .catch((err) => {
+        console.warn("[player] Failed to update play count:", err);
+      });
+  }
+}
+
 export function useAudioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const positionTimerRef = useRef<number>(0);
@@ -229,17 +262,7 @@ export function useAudioPlayer() {
         setPlaying(true);
 
         // Count the listen, unless this is a retry of one just counted.
-        const countKey = key ?? `local:${episode.fileHash}`;
-        if (shouldCountPlay(countKey)) {
-          if (key) reportPlay(key, _sessionId);
-          if (episode.id) {
-            db.episodes.update(episode.id, {
-              playCount: (episode.playCount ?? 0) + 1,
-              lastPlayedAt: Date.now(),
-              updatedAt: Date.now(),
-            }).catch((err) => { console.warn("[player] Failed to update play count:", err); });
-          }
-        }
+        countListen(episode);
       } catch (err) {
         console.error("[player] Playback failed:", err);
         // Hand it to the watchdog, which owns the one-retry-then-fail policy.
@@ -285,7 +308,15 @@ export function useAudioPlayer() {
       // as a fresh one — it is the exact case the listener was hitting, and
       // starting it unguarded would swap a silent dead button for a silent
       // infinite spinner.
-      if (audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA && !isWatching()) {
+      //
+      // It is also a *listen starting*, which is the part this branch used to
+      // miss: unlike every other start path it never touches playEpisode, so
+      // nothing reported the play. Distinguished from an ordinary pause/resume,
+      // which is the same listen continuing and must not be counted again.
+      const firstPlay =
+        audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA && !isWatching();
+
+      if (firstPlay) {
         // Undo primeEpisode's "none" so the element actually buffers ahead.
         audio.preload = "metadata";
         setLoadState("loading");
@@ -301,6 +332,7 @@ export function useAudioPlayer() {
         await audio.play();
         resumeContext().catch(() => {});
         setPlaying(true);
+        if (firstPlay && ep) countListen(ep);
       } catch (err) {
         console.error("[player] Play failed:", err);
         // This catch used to swallow the rejection entirely, so a refused

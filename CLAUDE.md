@@ -55,7 +55,7 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/ratings` | GET | Ratings for up to **50** ids. Returns a **bare map** `{id: {avg, count}}` |
 | `/api/stats/leaderboard` | GET | Top episodes. Returns **`{entries: [{episodeId, plays}]}`** |
 | `/api/stats/active` | GET | Presence. Returns **`{count, online, listening}`** — `count` is a synonym for `listening`, kept for older clients |
-| `/api/stats/heartbeat` | POST | Mark a session present. Body `{sessionId}`. Returns `{ok}`. Every open tab posts on a 60s interval |
+| `/api/stats/heartbeat` | POST | Mark a session present. Body `{sessionId, episodeId?}`. Returns `{ok}`. Every open tab posts on a 60s interval. `episodeId` is sent **only while that tab is actually playing** and renews `listening_at` — it is what keeps a show on air for its whole runtime instead of for five minutes after someone pressed play. Omitting it leaves the listening mark alone rather than clearing it, so a pause does not yank the show off the air; the mark decays on its own. Same allowlist gate as `/api/stats/play`, but a bad id drops the mark instead of failing the beat — presence is the primary job |
 | `/api/stats/now` | GET | Presence **plus what is playing**. Returns **`{online, listening, onAir: [{episodeId, listeners}], recent: [{episodeId, at}]}`**. `no-store` — a stale on-air list is worse than none. Aggregate only: no query joins `session_id` to `episode_id`, and `recent_plays` stores no session at all |
 | `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, plays}], peakOnline, peakListening, playsInRange, totalPlays, peakAt, hourly: [{hour, online, listening, plays, samples}]}`**. `hourly` is always a 24-entry, zero-filled, **UTC**-hour profile over the last 30 days and does *not* vary with `range`; the client rotates it into local time. `samples: 0` means *never observed*, which is not the same as "observed, nobody here" — the UI hides the profile until 8 hours have been sampled, or a day-old deployment draws 23 empty columns and looks like a dead site |
 | `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Returns `{ok, online, listening, totalPlays, rolledUp, anonymized}` |
@@ -218,6 +218,17 @@ this every time they came back, worked around it by picking a different show, an
 concluded it was their own mistake. Regression test:
 `src/hooks/__tests__/restore-play.test.ts`.
 
+- **There are two start paths, and anything a play must do has to happen on both.**
+  `playEpisode()` covers the library click, the queue advance and the radio dial.
+  `togglePlay()` covers the restored player: once `primeEpisode()` has given the element
+  a `src`, pressing ▶ plays it in place and never goes near `playEpisode`. That second
+  path shipped reporting nothing — no `reportPlay`, no local `playCount` — so a listen
+  started from the remembered show wrote no leaderboard entry, no permanent event, and
+  no `active_sessions.episode_id`, which is what made it absent from "on air" while it
+  was audibly playing. Both now call `countListen()`; `firstPlay` distinguishes it from
+  an ordinary pause/resume, which is the same listen continuing. Regression test:
+  `src/hooks/__tests__/play-reporting.test.ts`, which mounts the real hook precisely
+  because a test that re-implements `togglePlay` would reproduce the omission and pass.
 - **`primeEpisode()` sets `preload="none"` before assigning `src`.** Keep it that way.
   At `"metadata"` every page load fetches the head of a show nobody asked for, and a
   VBR rip with no Xing header can make that most of the file. `play()` loads
@@ -302,6 +313,13 @@ No third-party hosting. Same shape as `sanger-next`.
   `listener_samples`, and the only reason any *history* exists — `active_sessions` is a live
   set that is pruned as it is counted, and `episode_plays` has no timestamps. A timer rather
   than sampling on read, so quiet periods record real zeroes instead of leaving gaps
+- **On air is a renewed mark, not a timestamp of when you pressed play.** `onAir` filters
+  `active_sessions` on `listening_at >= now() - 5 min`. `recordPlay` sets that mark once;
+  if nothing renews it, every listener drops off the air five minutes in and stays off for
+  the remaining two hours and fifty-five minutes of a Coast to Coast broadcast — the list
+  silently degrades into "who started something recently". The 60s heartbeat carries the
+  episode while playing and renews it. Anything that changes the heartbeat must keep that
+  property, and `ACTIVE_WINDOW_MS` must stay comfortably above the heartbeat interval
 - **Recent plays:** `recent_plays` is a rolling 24h log written by `recordPlay`, pruned in the
   same statement that inserts. It exists because neither `episode_plays` (a counter) nor
   `listener_samples` (a cumulative total) can answer *what* was just put on — the one thing

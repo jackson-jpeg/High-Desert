@@ -108,14 +108,36 @@ export async function recordPlay(
  * Mark a session present. Sent by every open tab on an interval, whether or not
  * anything is playing — this is what makes "online" a real number rather than a
  * synonym for "started playback recently".
+ *
+ * `episodeId` is passed when that tab is playing something right now, and it
+ * renews the listening mark. Without it, `listening_at` was written once by
+ * recordPlay and never again, while `onAir` filters on `listening_at >= now() -
+ * 5 minutes` — so everyone dropped off the air five minutes after pressing
+ * play and stayed off it for the remaining two hours and fifty-five minutes of
+ * a Coast to Coast broadcast. "On air" measured who had *started* a show
+ * recently, not who was listening to one.
+ *
+ * Omitting it deliberately leaves `listening_at` alone rather than clearing it:
+ * a paused tab is mid-show, and it decays out of the window on its own. Stopping
+ * and leaving are explicit, and go through clearListening/removeActiveSession.
  */
-export async function recordHeartbeat(sessionId: string): Promise<void> {
+export async function recordHeartbeat(
+  sessionId: string,
+  episodeId?: string | null,
+): Promise<void> {
   await pool().query(
     `
-    INSERT INTO active_sessions (session_id, seen_at) VALUES ($1, now())
-    ON CONFLICT (session_id) DO UPDATE SET seen_at = now()
+    INSERT INTO active_sessions (session_id, seen_at, listening_at, episode_id)
+    VALUES ($1, now(), CASE WHEN $2::text IS NULL THEN NULL ELSE now() END, $2)
+    ON CONFLICT (session_id) DO UPDATE SET
+      seen_at = now(),
+      listening_at = CASE
+        WHEN $2::text IS NULL THEN active_sessions.listening_at
+        ELSE now()
+      END,
+      episode_id = COALESCE($2, active_sessions.episode_id)
     `,
-    [sessionId],
+    [sessionId, episodeId ?? null],
   );
 }
 

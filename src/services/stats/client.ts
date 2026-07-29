@@ -193,12 +193,21 @@ export async function fetchPresence(): Promise<Presence> {
   }
 }
 
-/** Mark this session present. Fire-and-forget, never throws. */
-export function reportHeartbeat(sessionId: string): void {
+/**
+ * Mark this session present. Fire-and-forget, never throws.
+ *
+ * `episodeId` is sent only while something is actually playing, and renews the
+ * listening mark that puts a show on air. Without it the mark was written once
+ * at play time and expired five minutes later, mid-broadcast.
+ */
+export function reportHeartbeat(
+  sessionId: string,
+  episodeId?: string | null,
+): void {
   fetch("/api/stats/heartbeat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionId }),
+    body: JSON.stringify(episodeId ? { sessionId, episodeId } : { sessionId }),
   }).catch(() => {});
 }
 

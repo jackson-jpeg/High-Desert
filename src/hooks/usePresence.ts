@@ -3,8 +3,23 @@
 import { useEffect, useState } from "react";
 import { fetchPresence, reportHeartbeat, type Presence } from "@/services/stats/client";
 import { SESSION_ID } from "@/lib/utils/session-id";
+import { usePlayerStore } from "@/stores/player-store";
+import { communityKey } from "@/lib/utils/community-key";
 
 const HEARTBEAT_MS = 60_000;
+
+/**
+ * What this tab is playing right now, as a community key, or null.
+ *
+ * Read from the store at beat time rather than subscribed to: this hook must
+ * not re-render the shell every time playback state changes, and the heartbeat
+ * only needs the answer once a minute.
+ */
+export function nowListeningTo(): string | null {
+  const { currentEpisode, playing } = usePlayerStore.getState();
+  if (!playing || !currentEpisode) return null;
+  return communityKey(currentEpisode);
+}
 
 /**
  * Announces this tab as present and reports who else is here.
@@ -24,7 +39,7 @@ export function usePresence(): Presence {
     let cancelled = false;
 
     const tick = () => {
-      reportHeartbeat(SESSION_ID);
+      reportHeartbeat(SESSION_ID, nowListeningTo());
       fetchPresence().then((p) => {
         if (!cancelled) setPresence(p);
       });
