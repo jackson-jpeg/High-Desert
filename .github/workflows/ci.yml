@@ -19,5 +19,11 @@ jobs:
         run: npm run typecheck
       - name: Test
         run: npm run test
+      # Does each test file actually observe the code it claims to test? Breaks
+      # one real line per module and requires the suite to notice. Three defects
+      # in this repo were passing tests disconnected from their subject, which
+      # `npm run test` cannot distinguish from working ones.
+      - name: Mutation check
+        run: npm run test:mutations
       - name: Build
         run: npm run build

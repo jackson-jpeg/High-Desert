@@ -44,6 +44,26 @@ describe("parseArtBellFilename", () => {
     expect(result!.guestName).toBe("Art Calls into the Gabcast");
   });
 
+  /**
+   * Found by `scripts/mutate-check.mjs`: deleting the "with Art Bell" strip in
+   * the parser left this file entirely green.
+   *
+   * Every case above names one of the six recognised shows, so `showName` is
+   * overwritten with a clean label from SHOW_PATTERNS and the strip never runs.
+   * All 1,312 filenames in the shipped catalog match a pattern too — but this
+   * parser also serves the local-file scanner and the archive.org import, where
+   * the filename is whatever someone else named it. The unrecognised-show path
+   * was reachable and unobserved.
+   */
+  it("strips the host from a show it does not recognise", () => {
+    const result = parseArtBellFilename(
+      "1997-08-15 - The Art Bell Special with Art Bell - Whitley Strieber - Contact.mp3",
+    );
+    expect(result).not.toBeNull();
+    expect(result!.showType).toBe("special");
+    expect(result!.showName).toBe("The Art Bell Special");
+  });
+
   it("returns null for missing date", () => {
     expect(parseArtBellFilename("random-file.mp3")).toBeNull();
   });

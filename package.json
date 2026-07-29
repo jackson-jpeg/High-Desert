@@ -24,7 +24,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:mutations": "node scripts/mutate-check.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",

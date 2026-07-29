@@ -1022,6 +1022,40 @@ export interface FailureRate {
   kinds: Record<string, number>;
   uaClasses: Record<string, number>;
   lastAt: string;
+  /**
+   * The most recent distinct things the browser said, newest first, capped.
+   *
+   * `MediaError.code` plus its message on a decode or network failure. Chromium
+   * writes a real diagnostic ("DEMUXER_ERROR_COULD_NOT_OPEN: …") and it is the
+   * only signal that separates an empty file from an unreachable one on that
+   * engine. It was already being stored and was only readable by hand — which
+   * is the same condition that let 33 phantom rows sit unexamined for four
+   * months.
+   */
+  details: string[];
+  /**
+   * Failures where the retry was skipped because there was no user activation
+   * to call `play()` with — the listener got the dialog instead of a silent
+   * teardown.
+   *
+   * `empty-media` is excluded: it is never retried by design, so counting it
+   * here would swamp the number this exists to measure.
+   */
+  skippedRetries: number;
+}
+
+/**
+ * Site-wide totals for the same window, so the shape of failure is readable
+ * without ranking episodes.
+ */
+export interface FailureSummary {
+  failures: number;
+  recovered: number;
+  /** See FailureRate.skippedRetries. The instrument for the activation gate. */
+  skippedRetries: number;
+  /** Failures where the retry ran and did not help. */
+  retriedAndFailed: number;
+  episodes: number;
 }
 
 /**
@@ -1043,21 +1077,42 @@ export async function getFailureRates(
     kinds: Record<string, number>;
     ua_classes: Record<string, number>;
     last_at: Date;
+    skipped_retries: string;
+    details: string[] | null;
   }>(
     `
     WITH f AS (
       SELECT episode_id,
              count(*)                                    AS failures,
              count(*) FILTER (WHERE recovered)           AS recovered,
+             -- A retry that was skipped for want of a user gesture. empty-media
+             -- is never retried by design and would swamp the count.
+             count(*) FILTER (
+               WHERE NOT retried AND kind <> 'empty-media'
+             )                                           AS skipped_retries,
              jsonb_object_agg(kind, n)                   AS kinds,
              max(at)                                     AS last_at
       FROM (
-        SELECT episode_id, kind, recovered, at,
+        SELECT episode_id, kind, recovered, retried, at,
                count(*) OVER (PARTITION BY episode_id, kind) AS n
         FROM playback_failures
         WHERE at > now() - ($1 || ' days')::interval
           AND NOT (kind = ANY($3))
       ) s
+      GROUP BY episode_id
+    ), d AS (
+      -- Most recent distinct diagnostics per episode. DISTINCT ON collapses
+      -- the usual case of one message repeated fifty times; the LIMIT inside
+      -- the aggregate keeps a chatty episode from dominating the payload.
+      SELECT episode_id, array_agg(detail ORDER BY at DESC) AS details
+      FROM (
+        SELECT DISTINCT ON (episode_id, detail) episode_id, detail, at
+        FROM playback_failures
+        WHERE at > now() - ($1 || ' days')::interval
+          AND NOT (kind = ANY($3))
+          AND detail IS NOT NULL
+        ORDER BY episode_id, detail, at DESC
+      ) x
       GROUP BY episode_id
     ), u AS (
       SELECT episode_id, jsonb_object_agg(ua_class, n) AS ua_classes
@@ -1078,13 +1133,16 @@ export async function getFailureRates(
     SELECT f.episode_id,
            f.failures,
            f.recovered,
+           f.skipped_retries,
            COALESCE(p.plays, 0) AS plays,
            f.kinds,
            COALESCE(u.ua_classes, '{}'::jsonb) AS ua_classes,
+           COALESCE(d.details, ARRAY[]::text[]) AS details,
            f.last_at
     FROM f
     LEFT JOIN p ON p.episode_id = f.episode_id
     LEFT JOIN u ON u.episode_id = f.episode_id
+    LEFT JOIN d ON d.episode_id = f.episode_id
     ORDER BY f.failures DESC, f.last_at DESC
     LIMIT $2
     `,
@@ -1107,6 +1165,51 @@ export async function getFailureRates(
       kinds: r.kinds ?? {},
       uaClasses: r.ua_classes ?? {},
       lastAt: r.last_at.toISOString(),
+      // Three is enough to see whether an episode fails the same way every
+      // time or differently each time, which is the question worth asking.
+      details: (r.details ?? []).slice(0, 3),
+      skippedRetries: Number(r.skipped_retries),
     };
   });
+}
+
+/**
+ * Site-wide failure totals for a window.
+ *
+ * Separate from `getFailureRates` because it must not be a sum of that: the
+ * ranked view is capped at 50 episodes, so summing it would silently
+ * under-report the moment there are 51. Same advisory exclusion, so the two
+ * agree about what counts as a failure.
+ */
+export async function getFailureSummary(days: number): Promise<FailureSummary> {
+  const { rows } = await pool().query<{
+    failures: string;
+    recovered: string;
+    skipped_retries: string;
+    retried_and_failed: string;
+    episodes: string;
+  }>(
+    `
+    SELECT count(*)                                          AS failures,
+           count(*) FILTER (WHERE recovered)                 AS recovered,
+           count(*) FILTER (
+             WHERE NOT retried AND kind <> 'empty-media'
+           )                                                 AS skipped_retries,
+           count(*) FILTER (WHERE retried AND NOT recovered) AS retried_and_failed,
+           count(DISTINCT episode_id)                        AS episodes
+    FROM playback_failures
+    WHERE at > now() - ($1 || ' days')::interval
+      AND NOT (kind = ANY($2))
+    `,
+    [String(days), ADVISORY_KINDS],
+  );
+
+  const r = rows[0];
+  return {
+    failures: Number(r?.failures ?? 0),
+    recovered: Number(r?.recovered ?? 0),
+    skippedRetries: Number(r?.skipped_retries ?? 0),
+    retriedAndFailed: Number(r?.retried_and_failed ?? 0),
+    episodes: Number(r?.episodes ?? 0),
+  };
 }

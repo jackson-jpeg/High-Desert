@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
-import { getFailureRates } from "@/services/stats/store";
+import { getFailureRates, getFailureSummary } from "@/services/stats/store";
 import { withEpisodeInfo } from "@/services/stats/catalog";
 
 /**
  * Which episodes are failing to start, worst first.
  *
- * Returns `{days, entries: [{episodeId, title, failures, recovered, plays,
- * rate, kinds, uaClasses, lastAt}]}`.
+ * Returns `{days, summary, entries: [{episodeId, title, failures, recovered,
+ * skippedRetries, plays, rate, kinds, uaClasses, details, lastAt}]}`.
+ *
+ * `summary` is site-wide for the same window and is deliberately *not* a sum of
+ * `entries`, which is capped at 50 episodes — summing it would under-report the
+ * moment there are 51 and nothing would say so.
+ *
+ * `details` carries what the browser itself said (`MediaError.code` plus its
+ * message). It was being stored and was only readable via psql, which is the
+ * condition that let 33 phantom rows sit unexamined for four months.
  *
  * Ids are resolved to titles here for the same reason /api/stats/export does
  * it: the admin panel is a list of *shows*, and a bare `ultimate-ultimate-art
@@ -38,10 +46,13 @@ export async function GET(request: NextRequest) {
   const days = [7, 30, 90].includes(daysParam) ? daysParam : 7;
 
   try {
-    const rows = await getFailureRates(days, 50);
+    const [rows, summary] = await Promise.all([
+      getFailureRates(days, 50),
+      getFailureSummary(days),
+    ]);
     const entries = await withEpisodeInfo(rows);
     return NextResponse.json(
-      { days, entries },
+      { days, summary, entries },
       // Short cache: this is a diagnostic view, not a live dashboard, and it
       // runs three aggregates over the failure table.
       { headers: { "Cache-Control": "public, max-age=60" } },

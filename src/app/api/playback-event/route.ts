@@ -35,6 +35,23 @@ const KINDS = new Set([
   "empty-media-suspected",
 ]);
 
+/**
+ * A row carrying this marker is a verification row and must never land here.
+ *
+ * `playback_failures` is the instrument used to decide whether the five-second
+ * duration floor is safe to make authoritative. Twice now, checking that the
+ * pipeline works has written rows into it that had to be found, dumped and
+ * deleted afterwards — once carrying a duration (`3.187`) that was never
+ * observed, in the very dataset that exists to observe durations.
+ *
+ * The rule that worked was to intercept the POST in the page rather than let it
+ * through. This is that rule in code rather than in a document: mark the payload
+ * and the route refuses it, so a verification row cannot reach the real dataset
+ * even if someone forgets. 400, not a silent drop — a check that quietly does
+ * nothing is how the last three defects here stayed hidden.
+ */
+const VERIFICATION_MARKER = "HD-VERIFY";
+
 const UA_CLASSES = new Set([
   "ios-safari",
   "ios-pwa",
@@ -113,6 +130,19 @@ export async function POST(request: NextRequest) {
     typeof detail === "string" && detail.trim() !== ""
       ? detail.slice(0, 200)
       : null;
+
+  // Checked after truncation, so a marker cannot be pushed past the 200-char
+  // cut to smuggle a row in.
+  if (det?.toUpperCase().includes(VERIFICATION_MARKER)) {
+    return NextResponse.json(
+      {
+        error:
+          "Verification payload refused. Intercept the POST in the page instead — " +
+          "this table is the instrument, not a place to test the instrument.",
+      },
+      { status: 400 },
+    );
+  }
 
   try {
     await recordPlaybackFailure({
