@@ -33,6 +33,14 @@ Neither was a failed start. Part of the drop from this baseline is therefore
 measurement, not reliability. That is expected, and it is why the target is a
 rate and not a delta.
 
+## After — release line readings
+
+Each session records what `highdesert-status` printed for `release`.
+
+| When (UTC) | Release line |
+|---|---|
+| 2026-09-21T16:11Z | `OK release no plays yet since the release (2026-09-21T16:03:19Z); target <3%` |
+
 ## Android "code=4 MEDIA_ELEMENT_ERROR: Format error"
 
 These are every `android-*` row in `playback_failures` whose `detail` is
