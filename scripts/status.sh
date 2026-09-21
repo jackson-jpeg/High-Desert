@@ -11,10 +11,15 @@
 #   backup    highdesert-backup-status (OK / FAILED / STALE after 36h)
 #   sampler   highdesert-sample.timer active and its last run succeeded recently
 #   failures  7-day failed-start rate from /api/stats/failures vs plays from /api/stats/traffic
+#   release   failed-start rate over the 7 days after the release recorded in
+#             docs/reliability-baseline.md (/api/stats/failures?since=), WARN at 3%+
 #   audit     npm audit --omit=dev critical + high count
 #
 # The failure rate is reported, not judged: WARN above 10%, never FAIL — it
 # is a product metric, and a bad week of archive.org is not an outage here.
+# The release line is the same kind of number held to a tighter target: the
+# trailing rate still carries the old build for a week after a deploy, so it
+# cannot say whether the deploy helped.
 #
 # Overridable for scripts/__tests__/status.test.ts:
 #   HD_ROOT, HD_API (http://127.0.0.1:3003), HD_SYSTEMCTL, HD_NPM,
@@ -114,6 +119,29 @@ else
   level=OK
   awk -v x="$pct" 'BEGIN { exit !(x > 10) }' && level=WARN
   line "$level" failures "${pct}% of starts failed in 7 days ($failures failures / $plays plays)"
+fi
+
+# --- release -----------------------------------------------------------------
+RELEASE_TARGET_PCT=3
+baseline_doc="docs/reliability-baseline.md"
+release_at="$(sed -n 's/^\*\*Release deployed:\*\* `\([^`]*\)`.*/\1/p' "$baseline_doc" 2>/dev/null | head -1)"
+if [[ -z "$release_at" ]]; then
+  line WARN release "no '**Release deployed:**' timestamp in $baseline_doc"
+else
+  window_json="$(curl -s --max-time 10 "$API/api/stats/failures?days=7&since=$release_at" 2>/dev/null)"
+  wf="$(jq -r '.window.failures // empty' <<<"$window_json" 2>/dev/null)"
+  wp="$(jq -r '.window.plays // empty' <<<"$window_json" 2>/dev/null)"
+  wdays="$(jq -r '((.window.to | sub("\\.[0-9]+Z$"; "Z") | fromdate) - (.window.from | sub("\\.[0-9]+Z$"; "Z") | fromdate)) / 86400 | . * 10 | floor / 10' <<<"$window_json" 2>/dev/null)"
+  if [[ -z "$wf" || -z "$wp" || -z "$wdays" ]]; then
+    line FAIL release "could not read /api/stats/failures?since=$release_at from $API"
+  elif (( wp == 0 )); then
+    line OK release "no plays yet since the release ($release_at); target <${RELEASE_TARGET_PCT}%"
+  else
+    rpct="$(awk -v f="$wf" -v p="$wp" 'BEGIN { printf "%.1f", 100 * f / p }')"
+    level=OK
+    awk -v x="$rpct" -v t="$RELEASE_TARGET_PCT" 'BEGIN { exit !(x >= t) }' && level=WARN
+    line "$level" release "${rpct}% of starts failed in the ${wdays} of 7 days since $release_at ($wf failures / $wp plays; target <${RELEASE_TARGET_PCT}%)"
+  fi
 fi
 
 # --- audit -------------------------------------------------------------------

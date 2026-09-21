@@ -1211,6 +1211,43 @@ export async function getFailureRates(
   });
 }
 
+/** Failed starts against plays over one fixed window — see `getFailureWindow`. */
+export interface FailureWindow {
+  from: string;
+  to: string;
+  failures: number;
+  plays: number;
+}
+
+/**
+ * Failed starts and plays over `[from, to)`, for measuring a release against
+ * the week before it (`docs/reliability-baseline.md`). A trailing window cannot
+ * do that: seven days after a deploy it still holds the old build's failures,
+ * and seven days later it has forgotten the release happened.
+ *
+ * Failures exclude advisory kinds, exactly as `getFailureSummary` does, and
+ * plays are `play_events` — the same count `/api/stats/traffic` reports as
+ * `playsInRange`, which is what the baseline was measured with.
+ */
+export async function getFailureWindow(from: Date, to: Date): Promise<FailureWindow> {
+  const { rows } = await pool().query<{ failures: string; plays: string }>(
+    `
+    SELECT (SELECT count(*) FROM playback_failures
+             WHERE at >= $1 AND at < $2
+               AND NOT (kind = ANY($3)))                AS failures,
+           (SELECT count(*) FROM play_events
+             WHERE played_at >= $1 AND played_at < $2)  AS plays
+    `,
+    [from.toISOString(), to.toISOString(), ADVISORY_KINDS],
+  );
+  return {
+    from: from.toISOString(),
+    to: to.toISOString(),
+    failures: Number(rows[0]?.failures ?? 0),
+    plays: Number(rows[0]?.plays ?? 0),
+  };
+}
+
 /**
  * Site-wide failure totals for a window.
  *

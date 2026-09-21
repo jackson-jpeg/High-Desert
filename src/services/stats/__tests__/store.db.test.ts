@@ -100,6 +100,43 @@ describeDb("stats store (Postgres)", () => {
     }
   });
 
+  it("getFailureWindow counts failures and plays inside [from, to) only, without advisory rows", async () => {
+    // A window in 2001, offset by pid, so nothing else in the test database
+    // lands in it — the counts are exact rather than "at least".
+    const from = new Date(Date.UTC(2001, 0, 1) + process.pid * 1000);
+    const to = new Date(from.getTime() + 7 * 86_400_000);
+    const at = (t: number) => new Date(t).toISOString();
+    const inside = [from.getTime(), from.getTime() + 86_400_000, to.getTime() - 1];
+    const outside = [from.getTime() - 1, to.getTime()];
+    const fail = (t: number, kind: string) =>
+      q(
+        `INSERT INTO playback_failures (episode_id, kind, retried, recovered, elapsed_ms, ua_class, at)
+         VALUES ($1, $2, false, false, 0, 'desktop-chromium', $3)`,
+        [TAG, kind, at(t)],
+      );
+    const clean = async () => {
+      await q("DELETE FROM playback_failures WHERE episode_id = $1", [TAG]);
+      await q("DELETE FROM play_events WHERE episode_id = $1", [TAG]);
+    };
+
+    await clean();
+    try {
+      for (const t of [...inside, ...outside]) {
+        await fail(t, "timeout");
+        await q("INSERT INTO play_events (episode_id, played_at) VALUES ($1, $2)", [TAG, at(t)]);
+      }
+      // Advisory: recorded, never stopped playback, so not a failed start.
+      await fail(from.getTime() + 1000, "empty-media-suspected");
+      // Five plays in all inside the window, for a denominator that differs from the numerator.
+      await q("INSERT INTO play_events (episode_id, played_at) VALUES ($1, $2), ($1, $2)", [TAG, at(from.getTime() + 5000)]);
+
+      const w = await store.getFailureWindow(from, to);
+      expect(w).toEqual({ from: from.toISOString(), to: to.toISOString(), failures: 3, plays: 5 });
+    } finally {
+      await clean();
+    }
+  });
+
   it("pruneOldWeeks deletes weeks past retention and keeps the current one", async () => {
     const current = store.weekKey();
     await q("INSERT INTO weekly_plays (week, episode_id, plays) VALUES ('2020-W01', $1, 1), ($2, $1, 1)", [TAG, current]);

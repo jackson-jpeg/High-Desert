@@ -743,6 +743,39 @@ const MUTATIONS = [
     replace: "      \"no-restricted-syntax\": \"off\",",
     why: "the lint ban is what stops document.querySelector(\"audio\") and src = \"\" coming back",
   },
+  {
+    id: "failure-window-advisory",
+    test: "src/services/stats/__tests__/store.db.test.ts",
+    file: "src/services/stats/store.ts",
+    find: "               AND NOT (kind = ANY($3)))                AS failures,",
+    replace: "               AND $3::text[] IS NOT NULL)               AS failures,",
+    needs: "TEST_DATABASE_URL",
+    why: "the release window would count advisory rows — reports that never stopped playback — as failed starts",
+  },
+  {
+    id: "failure-window-seven-days",
+    test: "src/app/api/stats/failures/__tests__/since-window.test.ts",
+    file: "src/app/api/stats/failures/route.ts",
+    find: "new Date(Math.min(since.getTime() + WINDOW_MS, Date.now()))",
+    replace: "new Date(Date.now())",
+    why: "the release window would never close, and turn back into the trailing rate it exists to replace",
+  },
+  {
+    id: "status-release-since",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: "failures?days=7&since=$release_at\"",
+    replace: "failures?days=7&since=2026-01-01T00:00:00Z\"",
+    why: "the release line must measure from the timestamp the baseline doc records, not some other instant",
+  },
+  {
+    id: "status-release-target",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: "'BEGIN { exit !(x >= t) }' && level=WARN",
+    replace: "'BEGIN { exit !(x > t) }' && level=WARN",
+    why: "a release sitting exactly at the 3% target would read OK",
+  },
 ];
 
 const filters = process.argv.slice(2);

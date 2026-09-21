@@ -28,6 +28,9 @@ interface World {
   backupOk: boolean;
   backupMacSkipped: boolean;
   deployedIsHead: boolean;
+  /** The `**Release deployed:**` timestamp in docs/reliability-baseline.md; null writes no doc. */
+  releaseAt: string | null;
+  release: { failures: number; plays: number; days: number };
 }
 
 const HEALTHY: World = {
@@ -41,6 +44,8 @@ const HEALTHY: World = {
   backupOk: true,
   backupMacSkipped: false,
   deployedIsHead: true,
+  releaseAt: "2026-09-21T15:50:00Z",
+  release: { failures: 4, plays: 200, days: 7 },
 };
 
 let dir: string;
@@ -48,6 +53,7 @@ let root: string;
 let server: Server;
 let api: string;
 let world: World;
+let sinceAsked: string | null;
 
 function git(...args: string[]): Promise<string> {
   return new Promise((resolve, reject) =>
@@ -91,6 +97,14 @@ async function run(): Promise<{ code: number; out: string }> {
   const head = await git("rev-parse", "--short", "HEAD");
   const deployed = world.deployedIsHead ? head : await git("rev-parse", "--short", "HEAD~1");
   await writeFile(path.join(root, ".deploy/deployed"), `${deployed} 2026-09-21T14:00:00Z\n`);
+  if (world.releaseAt) {
+    await writeFile(
+      path.join(root, "docs/reliability-baseline.md"),
+      `# Reliability baseline\n\n**Release deployed:** \`${world.releaseAt}\` (abc1234)\n`,
+    );
+  } else {
+    await rm(path.join(root, "docs/reliability-baseline.md"), { force: true });
+  }
 
   return new Promise((resolve) => {
     execFile(
@@ -121,11 +135,13 @@ function lineFor(out: string, area: string): string {
 }
 
 beforeEach(async () => {
-  world = { ...HEALTHY, audit: { ...HEALTHY.audit } };
+  world = { ...HEALTHY, audit: { ...HEALTHY.audit }, release: { ...HEALTHY.release } };
+  sinceAsked = null;
   dir = await mkdtemp(path.join(tmpdir(), "hd-status-"));
   root = path.join(dir, "High-Desert");
   await mkdir(path.join(root, "deploy"), { recursive: true });
   await mkdir(path.join(root, ".deploy"));
+  await mkdir(path.join(root, "docs"));
   await mkdir(path.join(dir, "bin"));
   await copyFile(UNIT, path.join(root, "deploy/highdesert.service"));
   await writeFile(path.join(root, ".gitignore"), ".deploy\n");
@@ -139,6 +155,19 @@ beforeEach(async () => {
   server = createServer((req, res) => {
     res.setHeader("content-type", "application/json");
     if (req.url?.startsWith("/api/stats/failures")) {
+      const since = new URL(req.url, "http://x").searchParams.get("since");
+      if (since) {
+        sinceAsked = since;
+        const from = new Date(since);
+        const to = new Date(from.getTime() + world.release.days * 86_400_000);
+        res.end(
+          JSON.stringify({
+            summary: { failures: world.failures },
+            window: { from: from.toISOString(), to: to.toISOString(), ...world.release },
+          }),
+        );
+        return;
+      }
       res.end(JSON.stringify({ summary: { failures: world.failures } }));
     } else if (req.url?.startsWith("/api/stats/traffic")) {
       res.end(JSON.stringify({ playsInRange: world.plays }));
@@ -162,6 +191,37 @@ describe("highdesert-status", () => {
     expect(r.out).not.toMatch(/^FAIL/m);
     expect(lineFor(r.out, "failures")).toContain("5.0% of starts failed in 7 days (15 failures / 300 plays)");
     expect(r.code).toBe(0);
+  });
+
+  describe("release line", () => {
+    it("measures from the timestamp in docs/reliability-baseline.md, and is OK under 3%", async () => {
+      const r = await run();
+      expect(sinceAsked).toBe("2026-09-21T15:50:00Z");
+      expect(lineFor(r.out, "release")).toBe(
+        "OK    release   2.0% of starts failed in the 7 of 7 days since 2026-09-21T15:50:00Z (4 failures / 200 plays; target <3%)",
+      );
+    });
+
+    it("WARNs at 3% — and only WARNs: a bad week is not an outage", async () => {
+      world.release = { failures: 6, plays: 200, days: 2.5 };
+      const r = await run();
+      expect(lineFor(r.out, "release")).toMatch(/^WARN\s+release\s+3\.0% of starts failed in the 2\.5 of 7 days/);
+      expect(r.code).toBe(0);
+    });
+
+    it("says so when there have been no plays yet, rather than dividing by zero", async () => {
+      world.release = { failures: 0, plays: 0, days: 0.1 };
+      const r = await run();
+      expect(lineFor(r.out, "release")).toMatch(/^OK\s+release\s+no plays yet since the release/);
+    });
+
+    it("WARNs, and asks the API nothing, when there is no baseline to measure from", async () => {
+      world.releaseAt = null;
+      const r = await run();
+      expect(lineFor(r.out, "release")).toMatch(/^WARN\s+release\s+no '\*\*Release deployed:\*\*' timestamp/);
+      expect(sinceAsked).toBeNull();
+      expect(r.code).toBe(0);
+    });
   });
 
   it("FAILs on a deployed commit that is not HEAD", async () => {
