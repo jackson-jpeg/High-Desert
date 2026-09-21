@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, createElement, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { emit } from "@/lib/events";
 
 /**
  * HD-018: the shell must not re-render on the status bar's timers.
@@ -125,7 +126,7 @@ describe("DesktopShell under the status bar's timers", () => {
   it("does not re-render the shell for a status-bar message", () => {
     const rendersBefore = menuBarRenders.mock.calls.length;
     act(() => {
-      window.dispatchEvent(new CustomEvent("hd:status-message", { detail: "Sorted by date" }));
+      emit("status-message", "Sorted by date");
     });
     expect(container.querySelector("footer")?.textContent).toContain("Sorted by date");
     expect(menuBarRenders.mock.calls.length).toBe(rendersBefore);

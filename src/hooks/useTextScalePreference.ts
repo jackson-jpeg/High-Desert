@@ -4,6 +4,7 @@ import { useCallback, useEffect } from "react";
 import { getPreference, setPreference } from "@/db";
 import { toast } from "@/stores/toast-store";
 import { useTextScale } from "@/hooks/useTextScale";
+import { emit } from "@/lib/events";
 
 export type TextScaleValue = "1" | "1.15" | "1.3";
 
@@ -31,7 +32,7 @@ export function toTextScaleValue(scale: number): TextScaleValue {
  */
 export function applyTextScale(value: TextScaleValue): void {
   document.documentElement.style.setProperty("--hd-text-scale", value);
-  window.dispatchEvent(new CustomEvent("hd:text-scale"));
+  emit("text-scale");
   localStorage.setItem("hd-text-scale", value);
 }
 

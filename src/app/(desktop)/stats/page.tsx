@@ -18,6 +18,7 @@ import { formatAirDate } from "@/lib/utils/format";
 import { getCacheSize, clearAudioCache } from "@/audio/cache";
 import { toast } from "@/stores/toast-store";
 import { computeStreak } from "@/lib/utils/streak";
+import { emit } from "@/lib/events";
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -515,7 +516,7 @@ export default function StatsPage() {
                   onClick={() => {
                     router.push("/library");
                     setTimeout(() => {
-                      window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: ep }));
+                      emit("play-episode", ep);
                     }, 200);
                   }}
                   className="flex items-center gap-2 text-left px-2 py-1.5 w98-raised-dark bg-card-surface cursor-pointer hover:bg-title-bar-blue/15 transition-colors-fast"
@@ -636,7 +637,7 @@ export default function StatsPage() {
                     onClick={() => {
                       router.push("/library");
                       setTimeout(() => {
-                        window.dispatchEvent(new CustomEvent("hd:filter-tag", { detail: tag }));
+                        emit("filter-tag", tag);
                       }, 100);
                     }}
                   >
@@ -653,7 +654,7 @@ export default function StatsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <WidgetErrorBoundary name="Smart Playlists">
           <SmartPlaylists onPlay={(ep) => {
-            window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: ep }));
+            emit("play-episode", ep);
           }} />
         </WidgetErrorBoundary>
         <WidgetErrorBoundary name="History">

@@ -6,6 +6,7 @@ import {
   makeMediaElement,
   type Mounted,
 } from "./support/mount-player";
+import { onHdEvent } from "@/lib/events";
 
 /**
  * The bug this file exists to prevent.
@@ -205,16 +206,14 @@ describe("restoring the last-played episode", () => {
     });
 
     const dispatched: Episode[] = [];
-    const listener = (e: Event) =>
-      dispatched.push((e as CustomEvent<Episode>).detail);
-    window.addEventListener("hd:play-episode", listener);
+    const off = onHdEvent("play-episode", (ep) => dispatched.push(ep));
 
     // No primeEpisode: the element has no src. The old code was a bare `return`.
     await act(async () => {
       await player.api.togglePlay();
     });
 
-    window.removeEventListener("hd:play-episode", listener);
+    off();
 
     expect(dispatched).toHaveLength(1);
     expect(dispatched[0].id).toBe(ep.id);

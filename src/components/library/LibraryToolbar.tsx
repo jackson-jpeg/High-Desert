@@ -8,6 +8,7 @@ import { toast } from "@/stores/toast-store";
 import { SearchBar } from "@/components/library/SearchBar";
 import { shuffle } from "@/lib/utils/shuffle";
 import { cn } from "@/lib/utils/cn";
+import { emit } from "@/lib/events";
 
 export const SHOW_TABS: { key: ShowFilter; label: string }[] = [
   { key: "all", label: "All" },
@@ -66,7 +67,7 @@ export function LibraryToolbar({
               const store = usePlayerStore.getState();
               store.enqueueMany(batch);
               if (batch[0]) {
-                window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: batch[0] }));
+                emit("play-episode", batch[0]);
               }
               toast.info(`Shuffling ${batch.length} from ${visibleEpisodes.length} episodes`);
             }}

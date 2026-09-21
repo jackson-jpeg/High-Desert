@@ -19,6 +19,7 @@ import { playStartupSound } from "@/audio/startup-sound";
 import { createScanPreview } from "@/audio/scan-preview";
 import { beginStart, isCurrentStart } from "@/audio/play-session";
 import { toast } from "@/stores/toast-store";
+import { emit, onHdEvent, SW_OFFLINE_FALLBACK } from "@/lib/events";
 
 export default function DesktopLayout({
   children,
@@ -60,8 +61,7 @@ export default function DesktopLayout({
 
   // Listen for custom play-episode events from library
   useEffect(() => {
-    const handler = async (e: Event) => {
-      const episode = (e as CustomEvent<Episode>).detail;
+    const handler = async (episode: Episode) => {
       // This is the start. Everything below may await (a metadata fetch, an
       // OPFS read, a file picker), and the listener may pick another show in
       // the meantime; each continuation checks it is still the newest start
@@ -165,8 +165,7 @@ export default function DesktopLayout({
       }
     };
 
-    window.addEventListener("hd:play-episode", handler);
-    return () => window.removeEventListener("hd:play-episode", handler);
+    return onHdEvent("play-episode", handler);
   }, [playEpisode, enqueue]);
 
   // Scan preview: brief audio snippet during radio scan. The element, its
@@ -174,8 +173,7 @@ export default function DesktopLayout({
   useEffect(() => {
     const preview = createScanPreview();
 
-    const handlePreview = (e: Event) => {
-      const episode = (e as CustomEvent<Episode>).detail;
+    const handlePreview = (episode: Episode) => {
       // Don't preview if main player is playing
       if (usePlayerStore.getState().playing) return;
       void preview.start(episode);
@@ -189,12 +187,12 @@ export default function DesktopLayout({
       }
     });
 
-    window.addEventListener("hd:scan-preview", handlePreview);
-    window.addEventListener("hd:scan-preview-stop", handlePreviewStop);
+    const offPreview = onHdEvent("scan-preview", handlePreview);
+    const offPreviewStop = onHdEvent("scan-preview-stop", handlePreviewStop);
     return () => {
       unsubscribe();
-      window.removeEventListener("hd:scan-preview", handlePreview);
-      window.removeEventListener("hd:scan-preview-stop", handlePreviewStop);
+      offPreview();
+      offPreviewStop();
       preview.stop();
     };
   }, []);
@@ -246,7 +244,7 @@ export default function DesktopLayout({
           // deferred to idle but Dexie's live query resolves immediately, so
           // without this every first-time visitor was shown "No episodes in
           // the library yet… try refreshing" — a failure message, on success.
-          window.dispatchEvent(new CustomEvent("hd:seed-settled"));
+          emit("seed-settled");
         });
     };
 
@@ -275,7 +273,7 @@ export default function DesktopLayout({
   // persistent state deserves a persistent indicator, not a transient toast.
   useEffect(() => {
     const onSWMessage = (e: MessageEvent) => {
-      if (e.data?.type === "hd:offline-fallback") {
+      if (e.data?.type === SW_OFFLINE_FALLBACK) {
         toast.info("Showing cached content — you may be offline.");
       }
     };
@@ -384,14 +382,14 @@ export default function DesktopLayout({
       // Easter egg: Ctrl+Shift+A → Area 51 signal drop
       if (e.code === "KeyA" && e.ctrlKey && e.shiftKey) {
         e.preventDefault();
-        window.dispatchEvent(new CustomEvent("hd:easter-egg", { detail: "area51" }));
+        emit("easter-egg", "area51");
         return;
       }
 
       // Q to queue selected episode (from library page)
       if (e.code === "KeyQ" && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
-        window.dispatchEvent(new CustomEvent("hd:queue-selected"));
+        emit("queue-selected");
         return;
       }
 
@@ -442,16 +440,16 @@ export default function DesktopLayout({
           if (e.shiftKey) {
             // ? key = show shortcuts
             e.preventDefault();
-            window.dispatchEvent(new CustomEvent("hd:toggle-shortcuts"));
+            emit("toggle-shortcuts");
           } else {
             e.preventDefault();
-            window.dispatchEvent(new CustomEvent("hd:focus-search"));
+            emit("focus-search");
           }
           break;
         case "KeyF":
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
-            window.dispatchEvent(new CustomEvent("hd:focus-search"));
+            emit("focus-search");
           }
           break;
       }

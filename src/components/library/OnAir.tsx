@@ -8,6 +8,7 @@ import { formatAirDate, formatRelativeTime, getShowLabel } from "@/lib/utils/for
 import { useNowPlaying } from "@/hooks/useNowPlaying";
 import { useCommunityKeyIndex } from "@/hooks/useCommunityKeyIndex";
 import type { OnAirEntry, RecentPlay } from "@/services/stats/client";
+import { emit } from "@/lib/events";
 
 /** Animated level meter, matching the status bar's signal bars. */
 function LevelMeter({ live }: { live: boolean }) {
@@ -133,7 +134,7 @@ export function OnAir() {
   }, []);
 
   const handlePlay = useCallback((episode: Episode) => {
-    window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: episode }));
+    emit("play-episode", episode);
   }, []);
 
   // Nothing to say yet, or stats are down — either way, no empty frame.

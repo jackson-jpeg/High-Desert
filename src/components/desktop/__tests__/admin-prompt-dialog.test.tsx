@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { emit } from "@/lib/events";
 
 /**
  * <AdminPromptDialog>, extracted from DesktopShell (HD-018).
@@ -59,10 +60,10 @@ async function submit() {
 }
 
 describe("AdminPromptDialog", () => {
-  it("is closed until hd:admin-prompt, then opens", () => {
+  it('is closed until "admin-prompt", then opens', () => {
     expect(input()).toBeNull();
     act(() => {
-      window.dispatchEvent(new CustomEvent("hd:admin-prompt"));
+      emit("admin-prompt");
     });
     expect(input()).not.toBeNull();
     expect(container.textContent).toContain("Admin Access");
@@ -70,7 +71,7 @@ describe("AdminPromptDialog", () => {
 
   it("says so on a wrong password and stays open", async () => {
     act(() => {
-      window.dispatchEvent(new CustomEvent("hd:admin-prompt"));
+      emit("admin-prompt");
     });
     type("wrong");
     await submit();
@@ -81,7 +82,7 @@ describe("AdminPromptDialog", () => {
 
   it("closes on the right password, and clears it for next time", async () => {
     act(() => {
-      window.dispatchEvent(new CustomEvent("hd:admin-prompt"));
+      emit("admin-prompt");
     });
     type("right");
     await submit();
@@ -89,7 +90,7 @@ describe("AdminPromptDialog", () => {
     expect(input()).toBeNull();
 
     act(() => {
-      window.dispatchEvent(new CustomEvent("hd:admin-prompt"));
+      emit("admin-prompt");
     });
     expect(input()!.value).toBe("");
   });

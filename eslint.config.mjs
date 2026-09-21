@@ -35,6 +35,23 @@ export const AUDIO_ELEMENT_RULES = [
   },
 ];
 
+/**
+ * `hd:*` window event names may be spelled only in src/lib/events.ts, which
+ * types them (HD-019). A raw `new CustomEvent("hd:sort")` elsewhere is
+ * untyped, invisible to the listener-per-route test, and exactly how a library
+ * intent came to be fired on pages where nothing listened (HD-013).
+ */
+export const HD_EVENT_NAME_RULES = [
+  {
+    selector: "Literal[value=/^hd:/]",
+    message: 'hd:* event names live in src/lib/events.ts. Use emit("key", detail) / useHdEvent("key", handler) from @/lib/events.',
+  },
+  {
+    selector: "TemplateElement[value.raw=/^hd:/]",
+    message: 'hd:* event names live in src/lib/events.ts. Use emit("key", detail) / useHdEvent("key", handler) from @/lib/events.',
+  },
+];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -44,7 +61,15 @@ const eslintConfig = defineConfig([
     // removeAttribute("src") on fakes; the ban is for code that ships.
     ignores: ["src/**/__tests__/**"],
     rules: {
-      "no-restricted-syntax": ["error", ...AUDIO_ELEMENT_RULES],
+      "no-restricted-syntax": ["error", ...AUDIO_ELEMENT_RULES, ...HD_EVENT_NAME_RULES],
+    },
+  },
+  {
+    // The one file allowed to spell an hd:* name. A later block replaces the
+    // rule's options wholesale, so the audio bans are restated here.
+    files: ["src/lib/events.ts"],
+    rules: {
+      "no-restricted-syntax": ["error", ...AUDIO_ELEMENT_RULES /* not HD_EVENT_NAME_RULES */],
     },
   },
   // Override default ignores of eslint-config-next.

@@ -9,6 +9,7 @@ import { usePlayerStore } from "@/stores/player-store";
 import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
 import type { ArchiveSearchResult } from "@/services/archive/types";
+import { emit } from "@/lib/events";
 
 const COLLECTIONS = [
   { label: "Most Popular", query: "Art Bell" },
@@ -146,9 +147,7 @@ export function SearchPanel() {
             .equals(result.identifier)
             .first();
           if (episode) {
-            window.dispatchEvent(
-              new CustomEvent("hd:play-episode", { detail: episode }),
-            );
+            emit("play-episode", episode);
           }
         },
         disabled: isAdded,

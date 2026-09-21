@@ -5,6 +5,7 @@ import { db } from "@/db";
 import type { HistoryEntry } from "@/db/schema";
 import { Window } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
+import { emit } from "@/lib/events";
 
 interface HistoryPanelProps {
   onPlayEpisode?: (episodeId: number) => void;
@@ -46,7 +47,7 @@ export function HistoryPanel({ onPlayEpisode, className }: HistoryPanelProps) {
     if (!onPlayEpisode) return;
     const episode = await db.episodes.get(entry.episodeId);
     if (episode) {
-      window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: episode }));
+      emit("play-episode", episode);
     }
   };
 

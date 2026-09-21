@@ -15,6 +15,7 @@ import { SignalMeter } from "./SignalMeter";
 import { DialControls } from "./DialControls";
 import { RadioShortcuts } from "./RadioShortcuts";
 import type { Episode } from "@/db/schema";
+import { emit } from "@/lib/events";
 
 interface RadioDialProps {
   episodes: Episode[] | undefined;
@@ -126,9 +127,7 @@ export function RadioDial({ episodes }: RadioDialProps) {
         case "Space":
           e.preventDefault();
           if (lockedEpisode) {
-            window.dispatchEvent(
-              new CustomEvent("hd:play-episode", { detail: lockedEpisode }),
-            );
+            emit("play-episode", lockedEpisode);
           }
           break;
 

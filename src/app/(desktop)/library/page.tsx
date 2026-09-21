@@ -27,6 +27,7 @@ import { useLibraryKeyboard } from "@/hooks/library/useLibraryKeyboard";
 import { useLibraryBusListeners } from "@/hooks/library/useLibraryBusListeners";
 import { useLibraryPanels } from "@/hooks/library/useLibraryPanels";
 import { communityKey } from "@/lib/utils/community-key";
+import { emit } from "@/lib/events";
 
 /**
  * The library. A composition: the list pipeline is `selectLibraryEpisodes`
@@ -143,7 +144,7 @@ export default function LibraryPage() {
         bottomScrollRef.current++;
         if (bottomScrollRef.current >= 12) {
           bottomScrollRef.current = 0;
-          window.dispatchEvent(new CustomEvent("hd:easter-egg", { detail: "melsHole" }));
+          emit("easter-egg", "melsHole");
         }
       } else {
         bottomScrollRef.current = 0;
@@ -314,7 +315,7 @@ export default function LibraryPage() {
       {/* Floating "Now Playing" button — mobile only */}
       {isMobile && currentEpisodeId && !selectedEpisode && (
         <button
-          onClick={() => window.dispatchEvent(new CustomEvent("hd:scroll-to-current"))}
+          onClick={() => emit("scroll-to-current")}
           className="fixed bottom-[120px] right-3 z-25 w-[40px] h-[40px] rounded-full bg-midnight/90 border border-desert-amber/30 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
           aria-label="Scroll to now playing"
           title="Scroll to now playing"

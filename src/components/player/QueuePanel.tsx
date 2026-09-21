@@ -8,6 +8,7 @@ import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
 import { useIsMobile } from "@/hooks/useMediaQuery";
+import { emit } from "@/lib/events";
 
 // memo: rendered inside AudioPlayer, which re-renders on every player state
 // change; this has nothing to redraw unless its own props or selectors do (HD-017).
@@ -43,9 +44,7 @@ export const QueuePanel = memo(function QueuePanel() {
   const handlePlay = (index: number) => {
     const episode = usePlayerStore.getState().playFromQueue(index);
     if (episode) {
-      window.dispatchEvent(
-        new CustomEvent("hd:play-episode", { detail: episode }),
-      );
+      emit("play-episode", episode);
     }
   };
 

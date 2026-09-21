@@ -58,6 +58,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { usePresence } from "@/hooks/usePresence";
 import { useShellMenus } from "@/hooks/useShellMenus";
 import { useTextScalePreference } from "@/hooks/useTextScalePreference";
+import { useHdEvent } from "@/lib/events";
 
 interface DesktopShellProps {
   children: ReactNode;
@@ -173,14 +174,9 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   }, []);
 
   // Easter egg triggers from search bar + keyboard shortcuts
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const egg = (e as CustomEvent<string>).detail as EasterEgg;
-      if (egg) setActiveEgg(egg);
-    };
-    window.addEventListener("hd:easter-egg", handler);
-    return () => window.removeEventListener("hd:easter-egg", handler);
-  }, []);
+  useHdEvent("easter-egg", (egg) => {
+    if (egg) setActiveEgg(egg);
+  });
 
   // Drives the nav tab's now-playing dot. The status bar selects its own.
   const isPlaying = usePlayerStore((s) => s.playing);
@@ -201,11 +197,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const handleClearCache = useCallback(() => setClearCacheOpen(true), []);
 
   // Listen for ? key to toggle shortcuts
-  useEffect(() => {
-    const handler = () => setShortcutsOpen((prev) => !prev);
-    window.addEventListener("hd:toggle-shortcuts", handler);
-    return () => window.removeEventListener("hd:toggle-shortcuts", handler);
-  }, []);
+  useHdEvent("toggle-shortcuts", () => setShortcutsOpen((prev) => !prev));
 
   const menus = useShellMenus({
     onAbout: handleAbout,
@@ -383,7 +375,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       {/* Command palette (Ctrl+K / Cmd+K) */}
       {paletteOpen && <CommandPalette open onClose={() => setPaletteOpen(false)} />}
 
-      {/* Admin password dialog — opened by hd:admin-prompt */}
+      {/* Admin password dialog — opened by the "admin-prompt" event */}
       <AdminPromptDialog />
 
       {/* Easter egg overlays — 401 lines reachable only by secret input, so

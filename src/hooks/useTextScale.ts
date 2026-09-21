@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { onHdEvent } from "@/lib/events";
 
 /**
  * The user's text-size multiplier (`--hd-text-scale`), as a number.
@@ -24,8 +25,7 @@ export function useTextScale(): number {
     };
 
     read();
-    window.addEventListener("hd:text-scale", read);
-    return () => window.removeEventListener("hd:text-scale", read);
+    return onHdEvent("text-scale", read);
   }, []);
 
   return scale;

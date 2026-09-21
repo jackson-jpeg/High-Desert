@@ -12,6 +12,7 @@ import {
 import { useRef, useCallback, memo } from "react";
 import { useLongPress } from "@/hooks/useLongPress";
 import { MiniWaveform } from "./MiniWaveform";
+import { emit } from "@/lib/events";
 
 interface EpisodeCardProps {
   episode: Episode;
@@ -138,11 +139,11 @@ export const EpisodeCard = memo(function EpisodeCard({
 
   const showGuest = (e: React.SyntheticEvent) => {
     e.stopPropagation();
-    window.dispatchEvent(new CustomEvent("hd:show-guest", { detail: episode.guestName }));
+    if (episode.guestName) emit("show-guest", episode.guestName);
   };
   const filterSeries = (e: React.SyntheticEvent) => {
     e.stopPropagation();
-    window.dispatchEvent(new CustomEvent("hd:filter-series", { detail: episode.aiSeries }));
+    if (episode.aiSeries) emit("filter-series", episode.aiSeries);
   };
 
   /* Status glyphs, shared by both layouts. */

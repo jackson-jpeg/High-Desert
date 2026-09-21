@@ -9,6 +9,7 @@ import { usePlayerStore } from "@/stores/player-store";
 import { db } from "@/db";
 import { computeStreak } from "@/lib/utils/streak";
 import type { Presence } from "@/services/stats/client";
+import { emit, useHdEvent } from "@/lib/events";
 
 export const CALLER_MESSAGES = [
   "East of the Rockies, you’re on the air...",
@@ -98,20 +99,13 @@ export function StatusBar({ episodeCount, presence }: StatusBarProps) {
   }, []);
 
   // Status bar action messages — show briefly then fade back to flavor text
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const msg = (e as CustomEvent<string>).detail;
-      if (!msg) return;
-      clearTimeout(actionTimeoutRef.current);
-      setActionMessage(msg);
-      actionTimeoutRef.current = setTimeout(() => setActionMessage(null), 4000);
-    };
-    window.addEventListener("hd:status-message", handler);
-    return () => {
-      window.removeEventListener("hd:status-message", handler);
-      clearTimeout(actionTimeoutRef.current);
-    };
-  }, []);
+  useHdEvent("status-message", (msg) => {
+    if (!msg) return;
+    clearTimeout(actionTimeoutRef.current);
+    setActionMessage(msg);
+    actionTimeoutRef.current = setTimeout(() => setActionMessage(null), 4000);
+  });
+  useEffect(() => () => clearTimeout(actionTimeoutRef.current), []);
 
   // Listening streak. Only the last year of history can affect it, so bound the
   // read by time rather than by row count (the old .limit(500) could disagree
@@ -139,7 +133,7 @@ export function StatusBar({ episodeCount, presence }: StatusBarProps) {
       router.push("/library");
     }
     // Dispatch event so the library page can scroll to the current episode
-    window.dispatchEvent(new CustomEvent("hd:scroll-to-current"));
+    emit("scroll-to-current");
   }, [hasEpisode, pathname, router]);
 
   // Ghost to Ghost badge click handler. The listener lives on the library
@@ -147,7 +141,7 @@ export function StatusBar({ episodeCount, presence }: StatusBarProps) {
   // otherwise the event is dispatched into a page that isn't mounted.
   const handleGhostClick = useCallback(() => {
     const fire = () =>
-      window.dispatchEvent(new CustomEvent("hd:search", { detail: "ghost to ghost" }));
+      emit("search", "ghost to ghost");
     if (pathname === "/library") {
       fire();
     } else {
@@ -173,7 +167,7 @@ export function StatusBar({ episodeCount, presence }: StatusBarProps) {
     return (
       <button
         onClick={handleStatusClick}
-        onDoubleClick={() => window.dispatchEvent(new CustomEvent("hd:toggle-ultra-mini"))}
+        onDoubleClick={() => emit("toggle-ultra-mini")}
         className="flex items-center gap-1.5 cursor-pointer hover:text-desktop-gray transition-colors-fast text-left w-full"
       >
         {isPlaying && (

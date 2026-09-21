@@ -15,6 +15,7 @@ import { MoreLikeThis } from "@/components/library/MoreLikeThis";
 import { useSwipeDown } from "@/hooks/useSwipeDown";
 import { cn } from "@/lib/utils/cn";
 import { formatDuration, formatTime, formatAirDate, getShowLabel } from "@/lib/utils/format";
+import { emit } from "@/lib/events";
 
 interface EpisodeDetailProps {
   episode: Episode;
@@ -161,7 +162,7 @@ export function EpisodeDetail({
           {episode.aiCategory && (
             <button
               onClick={() => {
-                window.dispatchEvent(new CustomEvent("hd:filter-category", { detail: episode.aiCategory }));
+                if (episode.aiCategory) emit("filter-category", episode.aiCategory);
               }}
               className="text-hd-12 md:text-hd-10 text-desert-amber/85 bg-desert-amber/8 px-2 py-1 md:px-1 md:py-px cursor-pointer hover:text-desert-amber hover:bg-desert-amber/15 active:text-desert-amber active:bg-desert-amber/15 transition-colors-fast"
               title={`Filter by ${episode.aiCategory}`}
@@ -306,12 +307,12 @@ export function EpisodeDetail({
               <div
                 className="text-hd-14 md:text-hd-12 text-static-green/85 hover:text-static-green hover:underline cursor-pointer w-fit"
                 onClick={() => {
-                  window.dispatchEvent(new CustomEvent("hd:show-guest", { detail: episode.guestName }));
+                  if (episode.guestName) emit("show-guest", episode.guestName);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    window.dispatchEvent(new CustomEvent("hd:show-guest", { detail: episode.guestName }));
+                    if (episode.guestName) emit("show-guest", episode.guestName);
                   }
                 }}
                 role="button"
@@ -333,7 +334,7 @@ export function EpisodeDetail({
             {episode.aiSeries && (
               <button
                 onClick={() => {
-                  window.dispatchEvent(new CustomEvent("hd:filter-series", { detail: episode.aiSeries }));
+                  if (episode.aiSeries) emit("filter-series", episode.aiSeries);
                 }}
                 className="text-hd-12 md:text-hd-10 text-signal-blue bg-title-bar-blue/8 px-2 py-1 md:px-1.5 md:py-px cursor-pointer hover:text-signal-blue hover:bg-title-bar-blue/15 active:text-signal-blue active:bg-title-bar-blue/15 transition-colors-fast flex items-center gap-1 w-fit"
                 title={`Filter by ${episode.aiSeries}`}
@@ -360,7 +361,7 @@ export function EpisodeDetail({
                   <button
                     key={tag}
                     onClick={() => {
-                      window.dispatchEvent(new CustomEvent("hd:filter-tag", { detail: tag }));
+                      emit("filter-tag", tag);
                     }}
                     className="text-hd-13 md:text-hd-10 text-desert-amber/85 bg-desert-amber/10 border border-desert-amber/15 px-2.5 py-1.5 md:px-1.5 md:py-px rounded-sm cursor-pointer hover:bg-desert-amber/20 hover:text-desert-amber active:bg-desert-amber/20 active:text-desert-amber transition-colors-fast"
                     title={`Filter by "${tag}"`}

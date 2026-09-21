@@ -8,6 +8,7 @@ import { fetchLeaderboard } from "@/services/stats/client";
 import { formatAirDate } from "@/lib/utils/format";
 import { cn } from "@/lib/utils/cn";
 import { communityKey } from "@/lib/utils/community-key";
+import { emit } from "@/lib/events";
 
 type Period = "alltime" | "week";
 
@@ -62,9 +63,7 @@ export function CommunityLeaderboard() {
     (episodeId: string) => {
       const ep = keyToEpisode?.get(episodeId);
       if (ep) {
-        window.dispatchEvent(
-          new CustomEvent("hd:play-episode", { detail: ep }),
-        );
+        emit("play-episode", ep);
       }
     },
     [keyToEpisode],

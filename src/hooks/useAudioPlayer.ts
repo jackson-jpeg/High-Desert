@@ -41,6 +41,7 @@ import {
   setFailureHandler,
 } from "@/audio/playback-watchdog";
 import { assessDuration } from "@/audio/duration-sanity";
+import { emit } from "@/lib/events";
 
 // ── Listening session tracking ──
 //
@@ -455,7 +456,7 @@ export function useAudioPlayer() {
     if (!audio.src) {
       const { currentEpisode: ep } = usePlayerStore.getState();
       if (ep) {
-        window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: ep }));
+        emit("play-episode", ep);
       }
       return;
     }
@@ -757,7 +758,7 @@ export function useAudioPlayer() {
       if (code === 2 || code === 4) {
         checkArchiveHealth().then(({ up }) => {
           if (!up) {
-            window.dispatchEvent(new CustomEvent("hd:archive-status", { detail: { up: false } }));
+            emit("archive-status", { up: false });
           }
         });
       }

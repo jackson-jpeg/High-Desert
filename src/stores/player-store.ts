@@ -3,6 +3,7 @@ import type { FailureKind } from "@/audio/playback-watchdog";
 import type { Episode } from "@/db/schema";
 import { toast } from "@/stores/toast-store";
 import { startPositionFor } from "@/audio/play-session";
+import { emit } from "@/lib/events";
 
 export type RepeatMode = "off" | "one" | "all";
 
@@ -374,9 +375,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (idx !== -1) {
       set({ queueIndex: idx });
     }
-    window.dispatchEvent(
-      new CustomEvent("hd:play-episode", { detail: episode }),
-    );
+    emit("play-episode", episode);
   },
 
   restoreQueue: (queue, queueIndex) => {

@@ -8,6 +8,7 @@ import { useAdminStore } from "@/stores/admin-store";
 import { toast } from "@/stores/toast-store";
 import { deleteEpisode, toggleFavorite, toggleFlag, addToPlaylist } from "@/services/episodes/management";
 import { shuffle } from "@/lib/utils/shuffle";
+import { emit } from "@/lib/events";
 
 /**
  * What can be done to an episode from the library: play, queue, favourite,
@@ -34,9 +35,7 @@ export function useLibraryActions({
   const [deleting, setDeleting] = useState(false);
 
   const handlePlay = useCallback((episode: Episode) => {
-    window.dispatchEvent(
-      new CustomEvent("hd:play-episode", { detail: episode }),
-    );
+    emit("play-episode", episode);
   }, []);
 
   const handleQueue = useCallback((episode: Episode) => {
@@ -64,7 +63,7 @@ export function useLibraryActions({
     const store = usePlayerStore.getState();
     store.enqueueMany(batch);
     if (batch[0]) {
-      window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: batch[0] }));
+      emit("play-episode", batch[0]);
     }
     const label = showType && showType !== "all"
       ? showType === "coast" ? "Coast to Coast" : showType === "dreamland" ? "Dreamland" : "Specials"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { onHdEvent } from "@/lib/events";
 
 export function OfflineIndicator() {
   const [online, setOnline] = useState(true);
@@ -21,8 +22,7 @@ export function OfflineIndicator() {
       setShowReconnect(false);
     };
 
-    const handleArchiveStatus = (e: Event) => {
-      const { up } = (e as CustomEvent<{ up: boolean }>).detail;
+    const handleArchiveStatus = ({ up }: { up: boolean }) => {
       if (!up) {
         setArchiveDown(true);
       } else {
@@ -32,11 +32,11 @@ export function OfflineIndicator() {
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-    window.addEventListener("hd:archive-status", handleArchiveStatus);
+    const offArchiveStatus = onHdEvent("archive-status", handleArchiveStatus);
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
-      window.removeEventListener("hd:archive-status", handleArchiveStatus);
+      offArchiveStatus();
     };
   }, []);
 

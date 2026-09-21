@@ -7,6 +7,7 @@ import {
   setReadyState,
   type Mounted,
 } from "./support/mount-player";
+import { onHdEvent } from "@/lib/events";
 
 /**
  * The side effects this hook installs outside React must be installed exactly
@@ -318,9 +319,7 @@ describe("globals installed by useAudioPlayer", () => {
     // from a listener that was never attached.
     mountBoth();
     const [a, b] = [makeEpisode(), makeEpisode()];
-    const forward = (e: Event) =>
-      void instances[0].api.playEpisode((e as CustomEvent).detail);
-    window.addEventListener("hd:play-episode", forward);
+    const off = onHdEvent("play-episode", (ep) => void instances[0].api.playEpisode(ep));
 
     try {
       await act(async () => {
@@ -344,7 +343,7 @@ describe("globals installed by useAudioPlayer", () => {
       expect(armed.episodeId).toBe(communityKey(b));
       expect(armed.episodeId).not.toBe(communityKey(a));
     } finally {
-      window.removeEventListener("hd:play-episode", forward);
+      off();
     }
   });
 

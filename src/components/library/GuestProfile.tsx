@@ -10,6 +10,7 @@ import { Button } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
 import { shuffle } from "@/lib/utils/shuffle";
 import { formatDuration } from "@/lib/utils/format";
+import { emit } from "@/lib/events";
 
 interface GuestProfileProps {
   guestName: string;
@@ -58,7 +59,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
     if (!episodes || episodes.length === 0) return;
     const store = usePlayerStore.getState();
     store.enqueueMany(episodes);
-    window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: episodes[0] }));
+    emit("play-episode", episodes[0]);
   };
 
   const handleShuffle = () => {
@@ -66,7 +67,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
     const shuffled = shuffle(episodes);
     const store = usePlayerStore.getState();
     store.enqueueMany(shuffled);
-    window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: shuffled[0] }));
+    emit("play-episode", shuffled[0]);
   };
 
   return (

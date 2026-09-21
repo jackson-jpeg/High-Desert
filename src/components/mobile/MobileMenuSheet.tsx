@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
+import { emit } from "@/lib/events";
 
 interface MobileMenuSheetProps {
   open: boolean;
@@ -156,7 +157,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
           </div>
           <button
             onClick={() => {
-              window.dispatchEvent(new CustomEvent("hd:shuffle", { detail: "all" }));
+              emit("shuffle", "all");
               hide();
             }}
             className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desert-amber cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
@@ -185,7 +186,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
             <button
               key={mode}
               onClick={() => {
-                window.dispatchEvent(new CustomEvent("hd:sort", { detail: mode }));
+                emit("sort", mode);
                 hide();
               }}
               className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"

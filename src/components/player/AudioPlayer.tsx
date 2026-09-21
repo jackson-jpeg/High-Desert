@@ -16,6 +16,7 @@ import { useLoadingHint } from "@/hooks/useLoadingHint";
 import { Button } from "@/components/win98";
 import { formatTime, formatAirDate } from "@/lib/utils/format";
 import { PositionTime, SeekRange, ProgressFill, BufferedFill } from "./PositionReadouts";
+import { emit, useHdEvent } from "@/lib/events";
 
 interface AudioPlayerProps {
   className?: string;
@@ -68,20 +69,14 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   }, [mobileExpanded]);
 
   // Listen for double-click on status bar now-playing to toggle ultra-mini
-  useEffect(() => {
-    const handler = () => setUltraMini((prev) => !prev);
-    window.addEventListener("hd:toggle-ultra-mini", handler);
-    return () => window.removeEventListener("hd:toggle-ultra-mini", handler);
-  }, []);
+  useHdEvent("toggle-ultra-mini", () => setUltraMini((prev) => !prev));
 
   if (!currentEpisode) return null;
 
   const handleRetry = () => {
     clearError(null);
     if (currentEpisode) {
-      window.dispatchEvent(
-        new CustomEvent("hd:play-episode", { detail: currentEpisode }),
-      );
+      emit("play-episode", currentEpisode);
     }
   };
 

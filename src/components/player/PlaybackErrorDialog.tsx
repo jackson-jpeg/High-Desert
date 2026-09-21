@@ -5,6 +5,7 @@ import { Dialog, Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
 import { db } from "@/db";
 import { toast } from "@/stores/toast-store";
+import { emit } from "@/lib/events";
 
 /**
  * Shown when a show will not start.
@@ -45,7 +46,7 @@ export function PlaybackErrorDialog() {
     const ep = usePlayerStore.getState().currentEpisode;
     dismiss();
     if (ep) {
-      window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: ep }));
+      emit("play-episode", ep);
     }
   }, [dismiss]);
 
@@ -76,9 +77,7 @@ export function PlaybackErrorDialog() {
 
       dismiss();
       if (pick) {
-        window.dispatchEvent(
-          new CustomEvent("hd:play-episode", { detail: pick }),
-        );
+        emit("play-episode", pick);
       }
     } catch {
       dismiss();

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act } from "react";
 import type { Episode } from "@/db/schema";
 import { mountHook, makeMediaElement, setReadyState, type Mounted } from "./support/mount-player";
+import { onHdEvent } from "@/lib/events";
 
 /**
  * The playback correctness release: HD-003, HD-004, HD-024, HD-032, HD-033.
@@ -395,15 +396,14 @@ describe("HD-024: edge cases", () => {
     const a = makeEpisode();
     const b = makeEpisode();
     const dispatched: Episode[] = [];
-    const onPlay = (e: Event) => dispatched.push((e as CustomEvent<Episode>).detail);
-    window.addEventListener("hd:play-episode", onPlay);
+    const off = onHdEvent("play-episode", (ep) => dispatched.push(ep));
     act(() => {
       usePlayerStore.setState({ queue: [a, b], queueIndex: 0, currentEpisode: a, repeat: "one" });
     });
     act(() => {
       player.api.playNext();
     });
-    window.removeEventListener("hd:play-episode", onPlay);
+    off();
     expect(dispatched.map((e) => e.id)).toEqual([b.id]);
   });
 

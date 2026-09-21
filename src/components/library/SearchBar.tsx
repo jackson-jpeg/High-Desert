@@ -3,6 +3,7 @@
 import { forwardRef, useState, useEffect, useRef, useCallback } from "react";
 import { TextField } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
+import { emit, type HdEventMap } from "@/lib/events";
 
 const RECENT_SEARCHES_KEY = "hd-recent-searches";
 const MAX_RECENT = 5;
@@ -159,11 +160,11 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
                 const lower = val.toLowerCase();
                 if (lower === "ilovedelaney") {
                   onChange("");
-                  window.dispatchEvent(new CustomEvent("hd:admin-prompt"));
+                  emit("admin-prompt");
                   return;
                 }
                 // Easter egg triggers via custom event bus
-                const EASTER_EGGS: Record<string, string> = {
+                const EASTER_EGGS: Record<string, HdEventMap["easter-egg"]> = {
                   "area51": "area51", "area 51": "area51",
                   "ghosttoghost": "ghostToGhost", "ghost to ghost am": "ghostToGhost",
                   "w6obb": "w6obb",
@@ -172,7 +173,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
                 const egg = EASTER_EGGS[lower];
                 if (egg) {
                   onChange("");
-                  window.dispatchEvent(new CustomEvent("hd:easter-egg", { detail: egg }));
+                  emit("easter-egg", egg);
                   return;
                 }
                 onChange(val);

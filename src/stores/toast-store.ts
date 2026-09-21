@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { emit } from "@/lib/events";
 
 export interface Toast {
   id: string;
@@ -24,7 +25,7 @@ export const useToastStore = create<ToastState>((set) => ({
     }));
     // Mirror non-error toasts to the status bar
     if (type !== "error" && typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("hd:status-message", { detail: message }));
+      emit("status-message", message);
     }
   },
   removeToast: (id) =>

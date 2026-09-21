@@ -3,6 +3,7 @@
 import { useMemo, useEffect, useRef, useCallback } from "react";
 import type { Episode } from "@/db/schema";
 import { useRadioDialStore } from "@/stores/radio-dial-store";
+import { emit } from "@/lib/events";
 
 // ---------- Types ----------
 
@@ -266,13 +267,11 @@ export function useRadioDial(episodes: Episode[] | undefined) {
           setPosition(station.dayIndex);
 
           // Dispatch scan preview event for brief audio snippet
-          window.dispatchEvent(
-            new CustomEvent("hd:scan-preview", { detail: station.episode }),
-          );
+          emit("scan-preview", station.episode);
 
           scanTimerRef.current = setTimeout(() => {
             // Stop preview before moving on
-            window.dispatchEvent(new CustomEvent("hd:scan-preview-stop"));
+            emit("scan-preview-stop");
             scanPauseRef.current = false;
           }, PAUSE_DURATION);
           return;

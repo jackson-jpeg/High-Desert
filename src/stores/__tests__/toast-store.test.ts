@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { useToastStore, toast } from "../toast-store";
+import { onHdEvent } from "@/lib/events";
 
 /**
  * Toasts are how this app reports that something went wrong. "No visible error
@@ -51,13 +52,13 @@ describe("adding toasts", () => {
 
 describe("the status-bar mirror", () => {
   const seen: string[] = [];
-  const onStatus = (e: Event) => seen.push((e as CustomEvent<string>).detail);
+  let off = () => {};
 
   beforeEach(() => {
     seen.length = 0;
-    window.addEventListener("hd:status-message", onStatus);
+    off = onHdEvent("status-message", (msg) => seen.push(msg));
   });
-  afterEach(() => window.removeEventListener("hd:status-message", onStatus));
+  afterEach(() => off());
 
   it("mirrors a success toast to the status bar", () => {
     toast.success("Loaded 1,312 episodes");

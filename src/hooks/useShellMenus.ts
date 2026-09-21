@@ -8,6 +8,7 @@ import { toast } from "@/stores/toast-store";
 import { db } from "@/db";
 import { exportLibrarySeed } from "@/db/seed";
 import { TEXT_SCALE_OPTIONS, type TextScaleValue } from "@/hooks/useTextScalePreference";
+import { emit } from "@/lib/events";
 
 /**
  * What the menus open or toggle. The state behind these stays in the shell,
@@ -27,7 +28,7 @@ export interface ShellMenuActions {
 }
 
 function dispatchSort(sort: string) {
-  window.dispatchEvent(new CustomEvent("hd:sort", { detail: sort }));
+  emit("sort", sort);
 }
 
 async function exportLibrary() {
@@ -144,9 +145,9 @@ export function useShellMenus(actions: ShellMenuActions): Menu[] {
         { label: "Top Rated", onClick: () => dispatchSort("rated") },
         { label: "Most Played", onClick: () => dispatchSort("played") },
         { separator: true, label: "" },
-        { label: "Surprise Me — Shuffle All", onClick: () => window.dispatchEvent(new CustomEvent("hd:shuffle", { detail: "all" })) },
-        { label: "Shuffle Coast to Coast", onClick: () => window.dispatchEvent(new CustomEvent("hd:shuffle", { detail: "coast" })) },
-        { label: "Shuffle Dreamland", onClick: () => window.dispatchEvent(new CustomEvent("hd:shuffle", { detail: "dreamland" })) },
+        { label: "Surprise Me — Shuffle All", onClick: () => emit("shuffle", "all") },
+        { label: "Shuffle Coast to Coast", onClick: () => emit("shuffle", "coast") },
+        { label: "Shuffle Dreamland", onClick: () => emit("shuffle", "dreamland") },
         { separator: true, label: "" },
         { label: "Radio Dial", onClick: () => router.push("/radio") },
         { label: "Statistics", onClick: () => router.push("/stats") },

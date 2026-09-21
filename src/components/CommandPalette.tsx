@@ -7,6 +7,7 @@ import { usePlayerStore } from "@/stores/player-store";
 import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
 import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
+import { emit } from "@/lib/events";
 
 interface Result {
   id: string;
@@ -153,19 +154,19 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       id: "act-shuffle",
       group: "Actions" as const,
       label: "Shuffle All Episodes",
-      action: () => { window.dispatchEvent(new CustomEvent("hd:shuffle", { detail: "all" })); },
+      action: () => { emit("shuffle", "all"); },
     },
     {
       id: "act-shuffle-coast",
       group: "Actions" as const,
       label: "Shuffle Coast to Coast",
-      action: () => { window.dispatchEvent(new CustomEvent("hd:shuffle", { detail: "coast" })); },
+      action: () => { emit("shuffle", "coast"); },
     },
     {
       id: "act-shuffle-dreamland",
       group: "Actions" as const,
       label: "Shuffle Dreamland",
-      action: () => { window.dispatchEvent(new CustomEvent("hd:shuffle", { detail: "dreamland" })); },
+      action: () => { emit("shuffle", "dreamland"); },
     },
     {
       id: "act-clear-queue",
@@ -220,7 +221,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
               .get(hit.id)
               .then((ep) => {
                 if (ep) {
-                  window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: ep }));
+                  emit("play-episode", ep);
                 }
               })
               .catch(() => {});

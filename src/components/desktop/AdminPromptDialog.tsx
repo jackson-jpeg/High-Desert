@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Dialog, TextField, Button } from "@/components/win98";
 import { useAdminStore } from "@/stores/admin-store";
 import { toast } from "@/stores/toast-store";
+import { useHdEvent } from "@/lib/events";
 
 /**
  * The admin password prompt. Opened only by `hd:admin-prompt`, which the
@@ -18,11 +19,7 @@ export function AdminPromptDialog() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const handler = () => setOpen(true);
-    window.addEventListener("hd:admin-prompt", handler);
-    return () => window.removeEventListener("hd:admin-prompt", handler);
-  }, []);
+  useHdEvent("admin-prompt", () => setOpen(true));
 
   const close = useCallback(() => {
     setOpen(false);

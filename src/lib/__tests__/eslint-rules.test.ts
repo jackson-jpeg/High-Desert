@@ -13,9 +13,9 @@ import path from "node:path";
 const ROOT = path.resolve(__dirname, "../../..");
 const eslint = new ESLint({ cwd: ROOT });
 
-async function messages(code: string): Promise<string[]> {
+async function messages(code: string, file = "src/lint-probe.ts"): Promise<string[]> {
   const [result] = await eslint.lintText(code, {
-    filePath: path.join(ROOT, "src/lint-probe.ts"),
+    filePath: path.join(ROOT, file),
   });
   return result.messages
     .filter((m) => m.ruleId === "no-restricted-syntax")
@@ -53,6 +53,41 @@ describe("audio element lint bans", () => {
         '  el.src = "https://archive.org/download/x/y.mp3";\n' +
         '  return document.querySelector("audiobook-list");\n' +
         "}\n",
+    );
+    expect(found).toEqual([]);
+  }, 30_000);
+});
+
+describe("hd:* event name ban (HD-019)", () => {
+  it("flags an hd:* name spelled outside src/lib/events.ts, in every form", async () => {
+    const found = await messages(
+      'window.dispatchEvent(new CustomEvent("hd:sort", { detail: "date" }));\n' +
+        'window.addEventListener("hd:shuffle", () => {});\n' +
+        "export const name = `hd:${String(1)}`;\n",
+    );
+    expect(found.map((m) => m.split(":")[0])).toEqual(["1", "2", "3"]);
+    for (const m of found) expect(m).toMatch(/src\/lib\/events\.ts/);
+  }, 30_000);
+
+  it("allows them in src/lib/events.ts, which is where they are declared", async () => {
+    const found = await messages(
+      'export const SW = "hd:offline-fallback";\n' +
+        "export const name = (t: string) => `hd:${t}`;\n",
+      "src/lib/events.ts",
+    );
+    expect(found).toEqual([]);
+  }, 30_000);
+
+  it("still applies the audio bans in src/lib/events.ts", async () => {
+    const found = await messages('export const a = document.querySelector("audio");\n', "src/lib/events.ts");
+    expect(found).toHaveLength(1);
+  }, 30_000);
+
+  it("leaves look-alikes alone", async () => {
+    const found = await messages(
+      'export const a = "text-hd-micro";\n' +
+        'export const b = "hd-visited";\n' +
+        'export const c = "see hd:sort";\n',
     );
     expect(found).toEqual([]);
   }, 30_000);

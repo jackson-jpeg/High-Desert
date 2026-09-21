@@ -6,6 +6,7 @@ import { useRadioDialStore } from "@/stores/radio-dial-store";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils/cn";
 import type { Episode } from "@/db/schema";
+import { emit } from "@/lib/events";
 
 interface DialControlsProps {
   lockedEpisode: Episode | null;
@@ -43,9 +44,7 @@ export function DialControls({
 
   const handleTuneIn = useCallback(() => {
     if (!lockedEpisode) return;
-    window.dispatchEvent(
-      new CustomEvent("hd:play-episode", { detail: lockedEpisode }),
-    );
+    emit("play-episode", lockedEpisode);
   }, [lockedEpisode]);
 
   // Mobile: glass-style buttons with SVG icons
