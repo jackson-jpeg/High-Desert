@@ -1,0 +1,49 @@
+[Unit]
+Description=High Desert — highdesert.space Next.js Production Server
+After=network.target postgresql.service
+Wants=network.target
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/High-Desert
+# Loopback only. nginx (upstream highdesert_app → 127.0.0.1:3003) is the only
+# client; listening on * made the app reachable wherever the firewall allowed,
+# and there X-Forwarded-For — which the rate limiter trusts — is spoofable.
+ExecStart=/usr/bin/node /root/High-Desert/node_modules/.bin/next start -H 127.0.0.1 -p 3003
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=PORT=3003
+Environment=HOSTNAME=127.0.0.1
+Environment=NEXT_TELEMETRY_DISABLED=1
+# DATABASE_URL lives here, chmod 600, never inline and never committed
+EnvironmentFile=/root/.high-desert.env
+
+# Hardening (HD-026). Still root — see docs/deploy.md, "Service user", for why
+# a dedicated user needs the app moved out of /root first. Until then, make
+# root inside this unit unable to gain privileges or write outside .next.
+NoNewPrivileges=true
+ProtectSystem=strict
+# strict covers /usr, /etc and the rest of the tree, but not home directories —
+# and this app lives in /root. Without this, the probe in docs/deploy.md could
+# still write anywhere under /root/High-Desert.
+ProtectHome=read-only
+PrivateTmp=true
+# The only thing the app writes at runtime: .next/cache (fetch cache) and ISR
+# output under .next/server. deploy.sh renames .next on each deploy and then
+# restarts, so the bind always lands on the live build.
+ReadWritePaths=/root/High-Desert/.next
+
+# Resource limits
+MemoryMax=1200M
+MemoryHigh=1000M
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=highdesert
+
+[Install]
+WantedBy=multi-user.target

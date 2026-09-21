@@ -127,6 +127,97 @@ The planned downtime lasted about 9 seconds.
 The success path, including the dependency swap, was then exercised by the real
 deploy of the Next.js 16.3 upgrade. See the Deploy log below.
 
+## Service hardening (HD-026), 2026-09-21
+
+`deploy/highdesert.service` is the versioned unit. The live copy is
+`/etc/systemd/system/highdesert.service`, and `highdesert-status` reports any
+drift between the two. `scripts/__tests__/service-unit.test.ts` asserts the
+properties below; the `unit-loopback` and `unit-protect-home` mutations prove it
+observes them.
+
+| Setting | Why |
+|---|---|
+| `next start -H 127.0.0.1 -p 3003` | nginx (`upstream highdesert_app → 127.0.0.1:3003`) is the only client. |
+| `NoNewPrivileges=true` | |
+| `ProtectSystem=strict` | `/usr`, `/etc` and the rest of the tree are read-only. |
+| `ProtectHome=read-only` | `strict` does **not** cover `/root`. Without this, the probe below could still write into `/root/High-Desert`. |
+| `PrivateTmp=true` | |
+| `ReadWritePaths=/root/High-Desert/.next` | The only runtime writes: `.next/cache` and ISR output under `.next/server`. |
+| `NEXT_TELEMETRY_DISABLED=1` | Otherwise Next tries to write telemetry config under `$HOME`. |
+
+**Probed from inside the service's mount namespace** (`nsenter -t <MainPID> -m`):
+
+```
+write .next/cache:      OK
+write project root:     Read-only file system
+write /root/.high-desert.env: Read-only file system
+write /root/Sanger/…:   Read-only file system
+write /etc:             Read-only file system
+```
+
+The first attempt used `ProtectSystem=strict` alone, and the project-root write
+**succeeded**. That is why `ProtectHome=read-only` is in the unit.
+
+**Reachability:**
+
+- Before: listening on `*:3003`.
+- After: `127.0.0.1:3003`.
+- From the MacBook, a tailnet peer, `nc -z 100.101.181.105 3003` was
+  **unreachable both before and after**. The firewall was already dropping it,
+  so the audit's "looks reachable from tailnet peers (not tested)" was wrong.
+  The loopback bind makes that no longer depend on the firewall.
+- `https://highdesert.space` returned 200 through nginx, `/api/stats/active`
+  answered, and the sampler timer's next run succeeded.
+
+**Rollback under the hardened unit.** `ReadWritePaths` binds `.next` when the
+service starts, and a deploy renames `.next`, so this had to be tested.
+`--rollback` was run twice (14:22:29 and 14:22:31 UTC). The first run put the
+`60dcc41` build on Next 16.2.12 back, verified. The second run returned to
+`43a0d89` on 16.3.5, verified.
+
+### Service user: follow-up, not done
+
+The unit still runs as `root`. A dedicated user needs read access to the app
+directory, and `/root` is mode 700. Both options change things outside this
+repo:
+
+1. Move the app to `/srv/high-desert`, or similar, owned by a `highdesert`
+   user. This means updating `WorkingDirectory`, `ExecStart`, `ReadWritePaths`,
+   the sampler and backup units, `deploy.sh`'s default root, the `.macsync`
+   and autosync conventions, and every doc that names `/root/High-Desert`.
+2. Loosen `/root` to allow traversal. This exposes every other project's
+   directory listing, so it was rejected.
+
+Until then, `NoNewPrivileges` plus a read-only filesystem, with only `.next`
+writable, bounds what code running as root inside this unit can do.
+
+## Incident, 2026-09-21: `npm install` run in the live directory
+
+During the Step 2 dependency work, `npm install next@16.3.5 …` and
+`npm install -D playwright` were run **directly in `/root/High-Desert`**, which
+replaced packages in the live `node_modules` under the running 16.2.12 server
+between about 13:52 and 14:01 UTC. That is exactly the hazard HD-005 exists to
+remove. The site kept serving: a browser check of every route on
+highdesert.space passed at about 13:55. But nothing guaranteed that it would.
+
+It also left `node_modules.prev` holding the *upgraded* packages. The first live
+rollback rehearsal therefore ran the old build on the new Next, and still passed
+verification, which shows how little the check can tell about which runtime is
+underneath. `node_modules.prev` was rebuilt from `60dcc41`'s lockfile with
+`npm ci` in a staging directory, and the rollback was rehearsed again (above).
+
+**Rule:** dependency changes are made in a separate checkout, never in
+`/root/High-Desert`. For example:
+
+```bash
+git worktree add ../hd-deps main && cd ../hd-deps
+npm install …
+# test, commit, push; then in /root/High-Desert:
+git pull && bash scripts/deploy.sh
+```
+
+`deploy.sh` then sees the lockfile change and installs in its staging copy.
+
 ## Deploy log
 
 | When (UTC) | Commit | Path | Result |

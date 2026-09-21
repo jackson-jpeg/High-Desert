@@ -386,6 +386,22 @@ const MUTATIONS = [
     replace: "if false; then",
     why: "a missed night writes nothing; an old newest dump is the only trace it leaves",
   },
+  {
+    id: "unit-loopback",
+    test: "scripts/__tests__/service-unit.test.ts",
+    file: "deploy/highdesert.service",
+    find: "ExecStart=/usr/bin/node /root/High-Desert/node_modules/.bin/next start -H 127.0.0.1 -p 3003",
+    replace: "ExecStart=/usr/bin/node /root/High-Desert/node_modules/.bin/next start -p 3003",
+    why: "listening on * exposes the app past nginx, where X-Forwarded-For is spoofable (HD-026)",
+  },
+  {
+    id: "unit-protect-home",
+    test: "scripts/__tests__/service-unit.test.ts",
+    file: "deploy/highdesert.service",
+    find: "ProtectHome=read-only",
+    replace: "ProtectHome=no",
+    why: "ProtectSystem=strict does not cover /root; without this the app can write its own source",
+  },
 ];
 
 const filters = process.argv.slice(2);
