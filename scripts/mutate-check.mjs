@@ -691,8 +691,8 @@ const MUTATIONS = [
     id: "watchdog-superseded-giveup",
     test: "src/audio/__tests__/playback-watchdog.test.ts",
     file: "src/audio/playback-watchdog.ts",
-    find: "  if (current !== attempt) return;\n",
-    replace: "",
+    find: "  // over the attempt that replaced it and raise the dialog on the wrong show.\n  if (current) current.settled = true;\n",
+    replace: "  // over the attempt that replaced it and raise the dialog on the wrong show.\n",
     why: "HD-003: a superseded retry's rejection gave up on its replacement — clearing its timers and opening the dialog over the wrong show",
   },
   {

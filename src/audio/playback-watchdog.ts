@@ -311,10 +311,6 @@ function resetElement(audio: HTMLAudioElement) {
 
 function giveUp(kind: FailureKind, attempt: Attempt) {
   attempt.settled = true;
-  // A superseded attempt's failure is nobody's (HD-003). It must not clear the
-  // current attempt's timers or report — armWatchdog settles the old one, so
-  // this is the belt to that brace.
-  if (current !== attempt) return;
   clearTimers();
   current = null;
   report(kind, attempt, false);
