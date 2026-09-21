@@ -133,3 +133,63 @@ Default view, scrolled down — list is in 2001, the active cell has climbed *up
 
 These are encoded in `e2e/library-rail.spec.ts`; the cases that fail on current code are marked
 `test.fail()` with "fixed in Step 3 (rail is a projection of the list)".
+
+## After the fix
+
+The rail is now `deriveRailGroups(rows, sortMode, seriesFilter)`
+(`src/lib/library/rail-groups.ts`): one walk over the exact array TimelineView renders,
+emitting a group per run of consecutive rows with the index of its first row. It never
+sorts, counts or filters on its own; the year → count histogram, the ascending sort and
+the header's year dots are gone. If a group key comes back after another group has
+started, the list is not grouped by it and the rail is empty rather than wrong.
+
+- **Active group** = the group holding `floor(scrollTop / rowHeight)`
+  (`firstVisibleIndex`, exposed by `useVirtualList` as `visibleStartIndex`) — never
+  `virtualItems[0]`. The sticky header names the same group.
+- **Click / drag** scrolls the group's first row to the top of the list
+  (`scrollToIndex(i, "start")`), so the entry chosen is the one that becomes active.
+- **Oldest first** is a real sort now: `SortMode "date-asc"`, offered in the sort
+  presets, the mobile menu and a *Newest first ↓ / Oldest first ↑* toggle in the list
+  header. The chosen sort is remembered per visitor (`UserPrefs` key `library-sort`,
+  restored after mount; an explicit choice before it loads wins). The desktop
+  *View* menu lives in `DesktopShell.tsx`, which was being split concurrently, and does
+  not list it yet.
+- **Desktop** keeps the column rail (`YearNavigator`), labelled with `text-hd-caption`
+  and counts in `text-hd-micro` at the `/85` floor; a rail taller than the list
+  scrolls itself to keep the active entry in view.
+- **Phone (390)**: a slim glass scrubber down the right edge (`YearScrubber`), built from
+  the same groups. It appears while the list scrolls, fades ~1.5 s after it stops
+  (`SCRUBBER_IDLE_MS`; no transition under reduced motion), and dragging it jumps the
+  list with a bubble naming the group under the finger. Its hit area is 44 px wide;
+  while hidden it takes no pointer events, so the cards stay tappable.
+
+### Groups per sort
+
+| Sort | Rail groups (top → bottom = list order) | Notes |
+|---|---|---|
+| Date, newest first | years `'13 '10 … '92` | 20 groups |
+| Date, oldest first | years `'92 … '10 '13` | exactly the reverse |
+| Series filter | years, in part order | overrides the sort, as the list does |
+| Name | title initials | this catalogue's titles start with the show name, so it is `C`, `D`, `S` — truthful, if coarse |
+| Guest | guest initials (`#` for digits/punctuation, accents folded) | 24 groups |
+| Top Rated | `5★ … 1★`, then `—` unrated | |
+| Most Played | `10+`, `5–9`, `2–4`, `1×`, `0` | buckets, monotonic in the sort key |
+| Recently Played | `Today`, `7d`, `30d`, `Older`, `Never` | buckets of `lastPlayedAt` |
+| In Progress | **no rail** | a short work list; a rail over a dozen rows is noise |
+
+### Measured (production build of `nav/rail`, [`timeline-rail/after/capture.mjs`](timeline-rail/after/capture.mjs), [`results.json`](timeline-rail/after/results.json))
+
+| Mode | Viewport | Rail (top → bottom) | Top of list: first row / active / y | Scrolled 40%: first row / active / y | |
+|---|---|---|---|---|---|
+| Date, newest first | 1440 | `2013 2010 … 1993 1992` | 2013 / 2013 / 282 | 2001 / 2001 / 629 — **moves down** | [top](timeline-rail/after/desktop-date-top.png) · [scrolled](timeline-rail/after/desktop-date-scrolled.png) |
+| Date, oldest first | 1440 | `1992 1993 … 2010 2013` | 1992 / 1992 / 313 | 1999 / 1999 / 550 — **moves down** | [top](timeline-rail/after/desktop-date-asc-top.png) · [scrolled](timeline-rail/after/desktop-date-asc-scrolled.png) |
+| Date, newest first | 390 | same, as the scrubber | 2013 / 2013 / 301 | 2001 / 2001 / 525 — **moves down** | [top](timeline-rail/after/mobile-date-top.png) · [scrolled](timeline-rail/after/mobile-date-scrolled.png) |
+| Date, oldest first | 390 | same, as the scrubber | 1992 / 1992 / 351 | 1999 / 1999 / 491 — **moves down** | [top](timeline-rail/after/mobile-date-asc-top.png) · [scrolled](timeline-rail/after/mobile-date-asc-scrolled.png) |
+
+The active group equals the first visible row's in every capture (no overscan lag).
+`e2e/library-rail.spec.ts` holds all of this at both sizes — rail order equals list
+order and the indicator moves down, for newest first, oldest first, a series and Name;
+click (desktop) and drag (phone) land a group's first row at the top; the scrubber
+appears on scroll and hides when idle. None of it is `test.fail()` any more.
+
+![Date, newest first at 1440, scrolled](timeline-rail/after/desktop-date-scrolled.png)

@@ -55,6 +55,10 @@ export async function openLibrary(page: Page): Promise<{ rowCount: number }> {
   await expect
     .poll(() => renderedRowCount(page), { timeout: 45_000, message: "seeded list never reached the catalog size" })
     .toBe(expected);
+  // The boot screen (#app-loading, src/app/layout.tsx) has a 2.8s floor on a
+  // first visit — every test is one — and until it is display:none it sits
+  // over the page and swallows the first pointer press, even while fading.
+  await expect(page.locator("#app-loading")).toBeHidden({ timeout: 10_000 });
   return { rowCount: expected };
 }
 
