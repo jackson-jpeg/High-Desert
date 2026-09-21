@@ -3,7 +3,7 @@
 import { useRef, useCallback } from "react";
 import { db } from "@/db";
 import type { Episode } from "@/db/schema";
-import { deleteEpisode, updateEpisode } from "@/services/episodes/management";
+import { updateEpisode } from "@/services/episodes/management";
 import { EpisodeDetail } from "@/components/library/EpisodeDetail";
 import { cn } from "@/lib/utils/cn";
 
@@ -27,6 +27,7 @@ export function DetailSheet({
   onClose,
   onToggleFavorite,
   setSelectedEpisode,
+  onRequestDelete,
 }: {
   selectedEpisode: Episode;
   selectedEpisodeLive: Episode | null;
@@ -37,6 +38,8 @@ export function DetailSheet({
   onClose: () => void;
   onToggleFavorite: (episode: Episode) => void;
   setSelectedEpisode: (ep: Episode | null) => void;
+  /** Opens the library's delete confirmation (HD-011) — never deletes itself. */
+  onRequestDelete: (ids: number[]) => void;
 }) {
   // Detail panel swipe-down-to-close
   const detailSwipe = useRef({ startY: 0, currentY: 0, swiping: false });
@@ -106,10 +109,7 @@ export function DetailSheet({
           communityPlays={communityPlays}
           {...(isAdmin
             ? {
-                onDelete: async (ep: Episode) => {
-                  await deleteEpisode(ep.id!);
-                  setSelectedEpisode(null);
-                },
+                onDelete: (ep: Episode) => onRequestDelete([ep.id!]),
                 onEdit: async (id: number, fields: Partial<Episode>) => {
                   await updateEpisode(id, fields);
                   const updated = await db.episodes.get(id);

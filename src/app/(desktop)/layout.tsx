@@ -19,6 +19,7 @@ import { playStartupSound } from "@/audio/startup-sound";
 import { createScanPreview } from "@/audio/scan-preview";
 import { beginStart, isCurrentStart } from "@/audio/play-session";
 import { toast } from "@/stores/toast-store";
+import { isKeyOwnedByTarget } from "@/lib/utils/key-ownership";
 
 export default function DesktopLayout({
   children,
@@ -363,20 +364,9 @@ export default function DesktopLayout({
       // Don't intercept when typing in inputs, or when focus is on a control
       // that owns the key itself. Buttons were missing here, so tabbing to any
       // button and pressing Space toggled playback instead of activating it —
-      // which broke every button in the app for keyboard users.
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.tagName === "SELECT" ||
-        target.tagName === "BUTTON" ||
-        target.tagName === "A" ||
-        target.isContentEditable ||
-        target.getAttribute("role") === "button" ||
-        target.closest("[role='menu'], [role='dialog'], [role='alertdialog']")
-      ) {
-        return;
-      }
+      // which broke every button in the app for keyboard users. The guard is
+      // shared with the library and radio handlers (HD-011).
+      if (isKeyOwnedByTarget(e)) return;
 
       // Radio dial page has its own keyboard handler
       if (pathname === "/radio") return;

@@ -11,7 +11,16 @@ import { shuffle } from "@/lib/utils/shuffle";
 
 /**
  * What can be done to an episode from the library: play, queue, favourite,
- * shuffle, the row context menu, and the confirmed bulk delete.
+ * shuffle, the row context menu, and the confirmed delete.
+ *
+ * **Every delete goes through the confirmation dialog, one episode or many.**
+ * Single deletes used to be immediate from three places — Backspace/Delete in
+ * admin mode, the row context menu, and the detail panel's Delete — with no
+ * confirmation and no undo, while only the bulk path asked. Admin mode is
+ * reachable through an easter egg, and all user data lives only in this
+ * browser's IndexedDB (HD-011). `requestDelete(ids)` is the one way in; the ids
+ * are captured when the dialog opens, so what the user confirms is exactly
+ * what is deleted even if the selection changes behind the dialog.
  */
 export function useLibraryActions({
   allEpisodes,
@@ -30,7 +39,8 @@ export function useLibraryActions({
   selectedIds: Set<number>;
   setSelectedIds: (ids: Set<number>) => void;
 }) {
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<number[] | null>(null);
+  const deleteOpen = pendingDelete !== null;
   const [deleting, setDeleting] = useState(false);
 
   const handlePlay = useCallback((episode: Episode) => {
@@ -129,10 +139,9 @@ export function useLibraryActions({
               label: "Delete",
               onClick: async () => {
                 if (selectedIds.size > 1 && selectedIds.has(episode.id!)) {
-                  setDeleteOpen(true);
+                  setPendingDelete([...selectedIds]);
                 } else {
-                  await deleteEpisode(episode.id!);
-                  if (selectedEpisode?.id === episode.id) setSelectedEpisode(null);
+                  setPendingDelete([episode.id!]);
                 }
               },
               danger: true,
@@ -142,25 +151,45 @@ export function useLibraryActions({
     ];
 
     useContextMenuStore.getState().show(x, y, items);
-  }, [currentEpisodeId, handlePlay, handleToggleFavorite, selectedIds, selectedEpisode, setSelectedEpisode, allPlaylists]);
+  }, [currentEpisodeId, handlePlay, handleToggleFavorite, selectedIds, allPlaylists]);
 
-  const handleBulkDelete = useCallback(async () => {
+  /** Opens the confirmation for exactly these episodes. Deletes nothing. */
+  const requestDelete = useCallback((ids: number[]) => {
+    if (ids.length > 0) setPendingDelete(ids);
+  }, []);
+
+  const requestBulkDelete = useCallback(
+    () => requestDelete([...selectedIds]),
+    [requestDelete, selectedIds],
+  );
+
+  const setDeleteOpen = useCallback((open: boolean) => {
+    if (!open) setPendingDelete(null);
+  }, []);
+
+  /** The dialog's Delete button — the only caller of `deleteEpisode` here. */
+  const handleConfirmDelete = useCallback(async () => {
+    if (!pendingDelete) return;
     setDeleting(true);
-    const count = selectedIds.size;
+    const ids = pendingDelete;
+    const count = ids.length;
     try {
-      for (const id of selectedIds) {
+      for (const id of ids) {
         await deleteEpisode(id);
       }
-      setSelectedIds(new Set());
-      setSelectedEpisode(null);
+      const gone = new Set(ids);
+      if ([...selectedIds].some((id) => gone.has(id))) {
+        setSelectedIds(new Set([...selectedIds].filter((id) => !gone.has(id))));
+      }
+      if (selectedEpisode?.id !== undefined && gone.has(selectedEpisode.id)) {
+        setSelectedEpisode(null);
+      }
       toast.success(`Deleted ${count} episode${count !== 1 ? "s" : ""}`);
     } finally {
       setDeleting(false);
-      setDeleteOpen(false);
+      setPendingDelete(null);
     }
-  }, [selectedIds, setSelectedIds, setSelectedEpisode]);
-
-  const requestBulkDelete = useCallback(() => setDeleteOpen(true), []);
+  }, [pendingDelete, selectedIds, setSelectedIds, selectedEpisode, setSelectedEpisode]);
 
   return {
     handlePlay,
@@ -168,8 +197,10 @@ export function useLibraryActions({
     handleToggleFavorite,
     handleShuffle,
     handleContextMenu,
-    handleBulkDelete,
-    deleteOpen, setDeleteOpen, requestBulkDelete,
+    handleConfirmDelete,
+    /** How many episodes the open confirmation will delete. */
+    pendingDeleteCount: pendingDelete?.length ?? 0,
+    deleteOpen, setDeleteOpen, requestDelete, requestBulkDelete,
     deleting,
   };
 }

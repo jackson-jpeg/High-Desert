@@ -91,7 +91,7 @@ export default function LibraryPage() {
   const actions = useLibraryActions({
     allEpisodes, allPlaylists, currentEpisodeId, selectedEpisode, setSelectedEpisode, selectedIds, setSelectedIds,
   });
-  const { handlePlay, handleQueue, handleToggleFavorite, deleteOpen, setDeleteOpen, requestBulkDelete, deleting } = actions;
+  const { handlePlay, handleQueue, handleToggleFavorite, deleteOpen, setDeleteOpen, requestDelete, requestBulkDelete, deleting } = actions;
 
   useLibraryKeyboard({
     visibleEpisodes,
@@ -103,6 +103,7 @@ export default function LibraryPage() {
     setSelectedIds,
     onPlay: handlePlay,
     onRequestBulkDelete: requestBulkDelete,
+    onRequestDelete: requestDelete,
   });
 
   useLibraryBusListeners({
@@ -307,6 +308,7 @@ export default function LibraryPage() {
             onClose={selection.handleCloseDetail}
             onToggleFavorite={handleToggleFavorite}
             setSelectedEpisode={setSelectedEpisode}
+            onRequestDelete={requestDelete}
           />
         )}
       </div>
@@ -323,7 +325,7 @@ export default function LibraryPage() {
         </button>
       )}
 
-      {/* Bulk delete confirmation */}
+      {/* Delete confirmation — every delete, one episode or many (HD-011) */}
       <Dialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
@@ -333,11 +335,11 @@ export default function LibraryPage() {
       >
         <div className="p-4 flex flex-col gap-4">
           <div className="text-hd-12 text-desktop-gray">
-            Delete {selectedIds.size > 0 ? selectedIds.size : 1} episode{selectedIds.size !== 1 ? "s" : ""}? This cannot be undone.
+            Delete {actions.pendingDeleteCount} episode{actions.pendingDeleteCount !== 1 ? "s" : ""}? This cannot be undone.
           </div>
           <div className="flex justify-end gap-2">
             <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
-            <Button variant="dark" onClick={actions.handleBulkDelete} disabled={deleting}>
+            <Button variant="dark" onClick={actions.handleConfirmDelete} disabled={deleting}>
               {deleting ? "Deleting..." : "Delete"}
             </Button>
           </div>
