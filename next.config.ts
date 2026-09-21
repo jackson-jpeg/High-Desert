@@ -69,7 +69,21 @@ function resolveCatalogCount(): string {
   }
 }
 
+/**
+ * Where `next build` writes. Production reads `.next`; `scripts/deploy.sh`
+ * builds into `.next-staging` (HD_DIST_DIR) so the directory the running
+ * server is reading from is never touched by a build — a failed build used to
+ * leave the live process serving a manifest for chunks that had been deleted.
+ * The staging directory is renamed into place only after the build succeeds.
+ *
+ * It must stay a sibling of `.next` at the same depth: Turbopack links server
+ * externals as `.next/node_modules/<pkg> -> ../../../High-Desert/node_modules/…`,
+ * which survives the rename only because the depth does not change.
+ */
+const DIST_DIR = process.env.HD_DIST_DIR || ".next";
+
 const nextConfig: NextConfig = {
+  distDir: DIST_DIR,
   env: {
     NEXT_PUBLIC_BUILD_ID: BUILD_ID,
     NEXT_PUBLIC_CATALOG_COUNT: resolveCatalogCount(),

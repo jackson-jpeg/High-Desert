@@ -304,6 +304,38 @@ const MUTATIONS = [
     replace: "const key = ep.fileName;",
     why: "the catalog must key episodes exactly as the allowlist generator does, or the export returns raw ids",
   },
+  {
+    id: "deploy-staging-dist",
+    test: "scripts/__tests__/deploy.test.ts",
+    file: "scripts/deploy.sh",
+    find: 'HD_DIST_DIR="$STAGING" $BUILD_CMD || BUILD_OK=0',
+    replace: 'HD_DIST_DIR="$LIVE" $BUILD_CMD || BUILD_OK=0',
+    why: "next build empties its distDir first — building into the live .next is the outage where a failed build left the site serving deleted chunks",
+  },
+  {
+    id: "deploy-zero-chunks",
+    test: "scripts/__tests__/deploy.test.ts",
+    file: "scripts/deploy.sh",
+    find: "    if (( total == 0 )); then",
+    replace: "    if false; then",
+    why: "a page with no chunks used to verify as \"0 broken chunks\" and print success",
+  },
+  {
+    id: "deploy-never-up",
+    test: "scripts/__tests__/deploy.test.ts",
+    file: "scripts/deploy.sh",
+    find: "  if (( ! up )); then",
+    replace: "  if false; then",
+    why: "a server that never came up must fail verification, not fall through the wait loop",
+  },
+  {
+    id: "deploy-auto-rollback",
+    test: "scripts/__tests__/deploy.test.ts",
+    file: "scripts/deploy.sh",
+    find: "  swap_back  # undo the failed deploy",
+    replace: "  :  # undo the failed deploy",
+    why: "a deploy that fails verification must put the previous build back, not leave a broken one live",
+  },
 ];
 
 const filters = process.argv.slice(2);

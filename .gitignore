@@ -48,3 +48,12 @@ firebase-debug.log
 # tool artifacts
 .serena/
 .playwright-mcp/
+
+# deploy.sh staging and rollback copies — see scripts/deploy.sh
+/.next-staging/
+/.next.prev/
+/.next.failed/
+/.deploy/
+/node_modules.prev/
+/node_modules.staging/
+/node_modules.failed/
