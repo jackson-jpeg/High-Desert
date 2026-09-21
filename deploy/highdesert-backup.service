@@ -1,0 +1,15 @@
+[Unit]
+Description=High Desert — nightly pg_dump of the highdesert database (HD-006)
+Documentation=file:///root/High-Desert/docs/backup.md
+After=postgresql.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# DATABASE_URL from the app's chmod-600 env file; never inlined here.
+EnvironmentFile=/root/.high-desert.env
+ExecStart=/usr/bin/bash /root/High-Desert/scripts/backup-db.sh
+# The Mac leg uses root's ssh config (the `macbook` Tailscale alias).
+Environment=HOME=/root
+Nice=10
+IOSchedulingClass=idle

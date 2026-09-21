@@ -1,0 +1,15 @@
+[Unit]
+Description=High Desert — daily database backup
+
+[Timer]
+# 17:30 UTC, not 03:00: the dump itself could run any time, but the off-box
+# copy needs the MacBook awake, and the reverse tunnel is up ~85% of the 17:00
+# UTC hour against ~50% at 03:00 (see /root/CLAUDE.md). Fifteen minutes after
+# repo-bundle so the two do not contend for the same Mac link.
+OnCalendar=*-*-* 17:30:00 UTC
+# A missed run (box down at 17:30) runs at the next boot instead of waiting a day.
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target

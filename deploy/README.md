@@ -47,3 +47,16 @@ systemctl list-timers highdesert-sample.timer
 psql "$DATABASE_URL" -c 'SELECT * FROM listener_samples ORDER BY sampled_at DESC LIMIT 5;'
 curl -s 'http://127.0.0.1:3003/api/stats/traffic?range=24h' | jq '{peakOnline, playsInRange, n: (.points|length)}'
 ```
+
+## Database backup
+
+`highdesert-backup.timer` runs `scripts/backup-db.sh` daily at 17:30 UTC:
+pg_dump → `/root/backups/highdesert` (14 days) → MacBook over Tailscale. See
+`docs/backup.md`.
+
+```bash
+sudo cp deploy/highdesert-backup.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now highdesert-backup.timer
+highdesert-backup-status        # OK / FAILED / STALE (>36h)
+```

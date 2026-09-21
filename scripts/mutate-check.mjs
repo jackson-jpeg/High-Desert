@@ -360,6 +360,32 @@ const MUTATIONS = [
     replace: "if (false) result.title = common.title;",
     why: "the music-metadata v11 migration still reads tags from a real MP3",
   },
+  {
+    id: "backup-retention",
+    test: "scripts/__tests__/backup-db.test.ts",
+    file: "scripts/backup-db.sh",
+    find: 'done < <(find "$BACKUP_DIR" -maxdepth 1 -name \'highdesert-*.dump\' -mtime "+$((RETENTION_DAYS - 1))")',
+    replace: 'done < <(find "$BACKUP_DIR" -maxdepth 1 -name \'highdesert-*.dump\' -mtime "+99999")',
+    why: "dumps older than the 14-day window are deleted, or /root/backups grows until the disk fills",
+    needs: "TEST_DATABASE_URL",
+  },
+  {
+    id: "backup-mac-floor",
+    test: "scripts/__tests__/backup-db.test.ts",
+    file: "scripts/backup-db.sh",
+    find: "  elif (( free_mb < MAC_MIN_FREE_MB )); then",
+    replace: "  elif false; then",
+    why: "never push a backup onto a Mac with under 5 GB free — the same floor repo-bundle enforces",
+    needs: "TEST_DATABASE_URL",
+  },
+  {
+    id: "backup-status-stale",
+    test: "scripts/__tests__/backup-db.test.ts",
+    file: "scripts/backup-status.sh",
+    find: "if (( age_s > MAX_AGE_H * 3600 )); then",
+    replace: "if false; then",
+    why: "a missed night writes nothing; an old newest dump is the only trace it leaves",
+  },
 ];
 
 const filters = process.argv.slice(2);
@@ -430,6 +456,16 @@ const results = [];
 console.log(`\n[mutate-check] ${selected.length} mutation(s)\n`);
 
 for (const m of selected) {
+  // Some tests need a real database. Without one they skip — and a skipped
+  // test observes nothing, so the mutation would "survive" for the wrong
+  // reason. Say so plainly instead; in CI, where the database is provided,
+  // a missing one is a failure rather than a skip.
+  if (m.needs && !process.env[m.needs]) {
+    const verdict = process.env.CI ? "NO-ENV" : "skipped";
+    results.push({ ...m, verdict, detail: `${m.needs} is not set` });
+    console.log(`  ${verdict === "skipped" ? "skip  " : "NO-ENV"} ${m.id.padEnd(24)} needs ${m.needs}`);
+    continue;
+  }
   const abs = path.join(ROOT, m.file);
   const original = await readFile(abs, "utf8");
   const hits = original.split(m.find).length - 1;
@@ -455,11 +491,20 @@ for (const m of selected) {
   }
 }
 
-const survivors = results.filter((r) => r.verdict !== "red");
+const skipped = results.filter((r) => r.verdict === "skipped");
+const survivors = results.filter((r) => r.verdict !== "red" && r.verdict !== "skipped");
+if (skipped.length) {
+  console.log(
+    `\n[mutate-check] ${skipped.length} mutation(s) NOT CHECKED — their tests need a database.` +
+      `\n  On the VPS: set -a; . /root/.high-desert-test.env; set +a  (CI always runs them)`,
+  );
+}
 
 console.log("");
 if (survivors.length === 0) {
-  console.log(`[mutate-check] all ${results.length} mutations went red. Every test observes its subject.\n`);
+  console.log(
+    `[mutate-check] all ${results.length - skipped.length} checked mutations went red. Every test observes its subject.\n`,
+  );
   process.exit(0);
 }
 
