@@ -78,7 +78,12 @@ export const HD_NOTIFICATIONS: readonly HdEventKey[] = [
  */
 export const SW_OFFLINE_FALLBACK = "hd:offline-fallback";
 
-function eventName(type: HdEventKey): string {
+/**
+ * The transport name for a key. Exported for the e2e specs, which run in a
+ * browser outside the bundle and must listen (or dispatch) by name — they
+ * import this rather than spell `hd:*` themselves, so the name has one home.
+ */
+export function hdEventName(type: HdEventKey): string {
   return `hd:${type}`;
 }
 
@@ -88,7 +93,7 @@ type DetailArgs<K extends HdEventKey> = HdEventMap[K] extends void ? [] : [detai
 export function emit<K extends HdEventKey>(type: K, ...detail: DetailArgs<K>): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(
-    detail.length > 0 ? new CustomEvent(eventName(type), { detail: detail[0] }) : new CustomEvent(eventName(type)),
+    detail.length > 0 ? new CustomEvent(hdEventName(type), { detail: detail[0] }) : new CustomEvent(hdEventName(type)),
   );
 }
 
@@ -100,7 +105,7 @@ export function onHdEvent<K extends HdEventKey>(
   type: K,
   handler: (detail: HdEventMap[K]) => void,
 ): () => void {
-  const name = eventName(type);
+  const name = hdEventName(type);
   const listener = (e: Event) => handler((e as CustomEvent<HdEventMap[K]>).detail);
   window.addEventListener(name, listener);
   return () => window.removeEventListener(name, listener);

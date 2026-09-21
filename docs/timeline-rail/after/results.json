@@ -1,0 +1,82 @@
+[
+  {
+    "viewport": "desktop",
+    "mode": "date",
+    "at": "top",
+    "firstVisibleYear": "2013",
+    "rail": "2013 2010 2009 2008 2007 2006 2005 2004 2003 2002 2001 2000 1999 1998 1997 1996 1995 1994 1993 1992",
+    "active": "2013",
+    "activeY": 282,
+    "shown": true
+  },
+  {
+    "viewport": "desktop",
+    "mode": "date",
+    "at": "scrolled",
+    "firstVisibleYear": "2001",
+    "rail": "2013 2010 2009 2008 2007 2006 2005 2004 2003 2002 2001 2000 1999 1998 1997 1996 1995 1994 1993 1992",
+    "active": "2001",
+    "activeY": 629,
+    "shown": true
+  },
+  {
+    "viewport": "desktop",
+    "mode": "date-asc",
+    "at": "top",
+    "firstVisibleYear": "1992",
+    "rail": "1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2013",
+    "active": "1992",
+    "activeY": 313,
+    "shown": true
+  },
+  {
+    "viewport": "desktop",
+    "mode": "date-asc",
+    "at": "scrolled",
+    "firstVisibleYear": "1999",
+    "rail": "1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2013",
+    "active": "1999",
+    "activeY": 550,
+    "shown": true
+  },
+  {
+    "viewport": "mobile",
+    "mode": "date",
+    "at": "top",
+    "firstVisibleYear": "2013",
+    "rail": "2013 2010 2009 2008 2007 2006 2005 2004 2003 2002 2001 2000 1999 1998 1997 1996 1995 1994 1993 1992",
+    "active": "2013",
+    "activeY": 301,
+    "shown": true
+  },
+  {
+    "viewport": "mobile",
+    "mode": "date",
+    "at": "scrolled",
+    "firstVisibleYear": "2001",
+    "rail": "2013 2010 2009 2008 2007 2006 2005 2004 2003 2002 2001 2000 1999 1998 1997 1996 1995 1994 1993 1992",
+    "active": "2001",
+    "activeY": 525,
+    "shown": true
+  },
+  {
+    "viewport": "mobile",
+    "mode": "date-asc",
+    "at": "top",
+    "firstVisibleYear": "1992",
+    "rail": "1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2013",
+    "active": "1992",
+    "activeY": 351,
+    "shown": true
+  },
+  {
+    "viewport": "mobile",
+    "mode": "date-asc",
+    "at": "scrolled",
+    "firstVisibleYear": "1999",
+    "rail": "1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2013",
+    "active": "1999",
+    "activeY": 491,
+    "shown": true
+  }
+]

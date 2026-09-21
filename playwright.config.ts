@@ -7,8 +7,13 @@ import { defineConfig, devices } from "@playwright/test";
  *
  * There is deliberately no `webServer`: CI starts `next start` once for the
  * CSP check and points this at the same process, and locally the thing worth
- * testing is usually a build that is already up (production included —
- * nothing here writes server-side; each test gets a fresh browser profile).
+ * testing is usually a build that is already up, production included. That
+ * is safe because every spec imports `test` from e2e/fixtures.ts, which
+ * answers each stats write (/api/stats/play|stop|rate|heartbeat,
+ * /api/playback-event) in the page and blocks the service worker, whose
+ * fetches would bypass that interception. The app writes to the server
+ * through nothing else; each test also gets a fresh browser profile. A spec
+ * that imports `test` from @playwright/test directly loses both — don't.
  * A missing base URL is an error, not a default: a spec that silently ran
  * against the wrong server would be a check disconnected from its subject
  * (docs/disconnected-checks.md).

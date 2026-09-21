@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useEffectEvent } from "react";
+import { isKeyOwnedByTarget } from "@/lib/utils/key-ownership";
 
 /**
  * The library's own keys: `/` and Ctrl/Cmd+F focus the search box, Q queues
@@ -24,22 +25,11 @@ export function useLibrarySearchShortcuts({
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // The layout's guard, for the same reasons: typing in a field, or a
-      // control that owns the key itself (Ctrl+F in a text box is still the
-      // browser's find).
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.tagName === "SELECT" ||
-        target.tagName === "BUTTON" ||
-        target.tagName === "A" ||
-        target.isContentEditable ||
-        target.getAttribute("role") === "button" ||
-        target.closest("[role='menu'], [role='dialog'], [role='alertdialog']")
-      ) {
-        return;
-      }
+      // Typing in a field, or a control that owns the key itself (Ctrl+F in
+      // a text box is still the browser's find; Q in the search box is a
+      // letter). The guard shared with the layout, library and radio
+      // handlers (HD-011).
+      if (isKeyOwnedByTarget(e)) return;
 
       if (e.code === "KeyQ" && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();

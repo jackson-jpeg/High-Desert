@@ -9,6 +9,7 @@ import { useRadioStatic } from "@/hooks/useRadioStatic";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { getPreference, setPreference } from "@/db";
 import { cn } from "@/lib/utils/cn";
+import { isKeyOwnedByTarget } from "@/lib/utils/key-ownership";
 import { TuningStrip } from "./TuningStrip";
 import { FrequencyDisplay } from "./FrequencyDisplay";
 import { SignalMeter } from "./SignalMeter";
@@ -78,15 +79,11 @@ export function RadioDial({ episodes }: RadioDialProps) {
   // Keyboard handler
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Don't intercept when typing in inputs
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable
-      ) {
-        return;
-      }
+      // Don't intercept keys a focused control owns. This used to skip only
+      // inputs, so Enter and Space on a focused Seek/Play button or year tab
+      // locked the dial / started the locked show instead of pressing the
+      // button (HD-011).
+      if (isKeyOwnedByTarget(e)) return;
 
       switch (e.code) {
         case "ArrowLeft":

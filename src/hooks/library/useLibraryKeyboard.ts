@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import type { Episode } from "@/db/schema";
 import { useAdminStore } from "@/stores/admin-store";
-import { deleteEpisode } from "@/services/episodes/management";
+import { isKeyOwnedByTarget } from "@/lib/utils/key-ownership";
 import { currentItemHeight } from "@/hooks/useTextScale";
 
 /**
@@ -11,6 +11,10 @@ import { currentItemHeight } from "@/hooks/useTextScale";
  * unchanged (HD-018). Shift+Up/Down moves the focus row and opens it, Enter
  * plays the open episode, Delete/Backspace deletes (admin), Escape dismisses
  * one layer. HD-021 changes this behaviour; this file only gives it a home.
+ *
+ * HD-011: keys a focused control owns (`isKeyOwnedByTarget`) are left alone —
+ * Enter on a button presses the button, not "play" — and Delete/Backspace
+ * only ever *requests* a delete; the confirmation dialog does the deleting.
  */
 export function useLibraryKeyboard({
   visibleEpisodes,
@@ -22,6 +26,7 @@ export function useLibraryKeyboard({
   setSelectedIds,
   onPlay,
   onRequestBulkDelete,
+  onRequestDelete,
 }: {
   visibleEpisodes: Episode[];
   focusedIndex: number;
@@ -32,6 +37,8 @@ export function useLibraryKeyboard({
   setSelectedIds: (ids: Set<number>) => void;
   onPlay: (episode: Episode) => void;
   onRequestBulkDelete: () => void;
+  /** Opens the delete confirmation for these ids. Must not delete. */
+  onRequestDelete: (ids: number[]) => void;
 }) {
   // Scroll to focused item on keyboard navigation
   useEffect(() => {
@@ -50,8 +57,7 @@ export function useLibraryKeyboard({
   // Keyboard navigation for the library list
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+      if (isKeyOwnedByTarget(e)) return;
 
       if (e.code === "ArrowUp" && e.shiftKey) {
         e.preventDefault();
@@ -78,7 +84,7 @@ export function useLibraryKeyboard({
           onRequestBulkDelete();
         } else if (selectedEpisode) {
           e.preventDefault();
-          deleteEpisode(selectedEpisode.id!).then(() => setSelectedEpisode(null));
+          onRequestDelete([selectedEpisode.id!]);
         }
       } else if (e.code === "Escape") {
         // Dismiss one layer at a time. This used to clear the panel, the
@@ -98,5 +104,5 @@ export function useLibraryKeyboard({
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [visibleEpisodes, focusedIndex, selectedEpisode, selectedIds, onPlay, onRequestBulkDelete, setFocusedIndex, setSelectedEpisode, setSelectedIds]);
+  }, [visibleEpisodes, focusedIndex, selectedEpisode, selectedIds, onPlay, onRequestBulkDelete, onRequestDelete, setFocusedIndex, setSelectedEpisode, setSelectedIds]);
 }

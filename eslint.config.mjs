@@ -72,6 +72,23 @@ const eslintConfig = defineConfig([
       "no-restricted-syntax": ["error", ...AUDIO_ELEMENT_RULES /* not HD_EVENT_NAME_RULES */],
     },
   },
+  {
+    // Specs take `test` from e2e/fixtures.ts, which answers every stats write
+    // in the page and blocks the service worker. Imported straight from
+    // Playwright, a spec that starts a show writes a play to whatever server
+    // it is pointed at — production included (playwright.config.ts).
+    files: ["e2e/**/*.ts"],
+    ignores: ["e2e/fixtures.ts"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        paths: [{
+          name: "@playwright/test",
+          message: "Import test/expect from ./fixtures — it keeps specs from writing to the server.",
+          allowTypeImports: true,
+        }],
+      }],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

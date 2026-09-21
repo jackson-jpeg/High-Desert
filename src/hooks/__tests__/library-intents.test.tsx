@@ -217,6 +217,29 @@ describe("useLibrarySearchShortcuts", () => {
     expect(s.queueSelected).not.toHaveBeenCalled();
   });
 
+  it("defers to whatever owns the key: buttons, dialogs, menus, contenteditable — not the list's rows", () => {
+    const s = mountShortcuts();
+    const host = document.createElement("div");
+    host.innerHTML =
+      '<button id="b">x</button>' +
+      '<div role="dialog"><span id="in-dialog" tabindex="0">d</span></div>' +
+      '<div role="menu"><span id="in-menu" role="menuitem" tabindex="0">m</span></div>' +
+      '<div id="ce" contenteditable="true">e</div>' +
+      '<div role="listbox"><div id="row" role="option" tabindex="-1">r</div></div>';
+    document.body.appendChild(host);
+    const el = (id: string) => host.querySelector(`#${id}`)!;
+    for (const id of ["b", "in-dialog", "in-menu", "ce"]) {
+      expect(press({ code: "Slash", key: "/" }, el(id)).defaultPrevented, id).toBe(false);
+      expect(press({ code: "KeyQ", key: "q" }, el(id)).defaultPrevented, id).toBe(false);
+    }
+    expect(s.focusSearch).not.toHaveBeenCalled();
+    expect(s.queueSelected).not.toHaveBeenCalled();
+    // A focused row is the library's own: Q queues it.
+    expect(press({ code: "KeyQ", key: "q" }, el("row")).defaultPrevented).toBe(true);
+    expect(s.queueSelected).toHaveBeenCalledTimes(1);
+    host.remove();
+  });
+
   it("gives the browser its find back once the library unmounts (HD-013)", () => {
     const s = mountShortcuts();
     act(() => root!.unmount());

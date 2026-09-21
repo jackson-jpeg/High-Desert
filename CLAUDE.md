@@ -15,7 +15,14 @@ npm run lint                  # ESLint (next/core-web-vitals + typescript)
 npm run test                  # Vitest
 npm run test:mutations        # does each test actually observe its subject?
 npm run check:csp -- <url>    # every route in Chromium: CSP violations / console errors
+E2E_BASE_URL=<url> npm run test:e2e   # Playwright, desktop + mobile projects
 ```
+
+**e2e specs import `test` from `e2e/fixtures.ts`, never from `@playwright/test`** (ESLint
+enforces it). The fixture answers every stats write in the page and blocks the service
+worker, whose fetches bypass `page.route()`. Without it, a spec that starts a show writes a
+permanent play to whatever server it points at — this broke the test DB once. Run e2e servers
+against the e2e database (`/root/.high-desert-e2e.env`), never `TEST_DATABASE_URL`.
 
 (Quick Start is for a *development* checkout. In `/root/High-Desert`, which is
 production, never `npm install` — see "Deploying to the VPS".)
@@ -170,7 +177,8 @@ timer that expires without ever fading does not touch the volume at all.
 **The bus is typed: `src/lib/events.ts`.** `HdEventMap` declares every key and its
 detail type; `emit("play-episode", ep)`, `useHdEvent("key", handler)` (one
 subscription, latest handler) and `onHdEvent` for non-React code. The transport is still
-a `window` CustomEvent named `hd:<key>`, so e2e helpers can dispatch by name — but in
+a `window` CustomEvent named `hd:<key>`, so e2e specs can listen and dispatch by name
+(they take it from `hdEventName()` via `e2e/fixtures.ts`, never spelled) — but in
 `src/` an `hd:*` string literal anywhere except events.ts is an ESLint error
 (`HD_EVENT_NAME_RULES`, proven in `src/lib/__tests__/eslint-rules.test.ts`). Always pass
 the key as a string literal.

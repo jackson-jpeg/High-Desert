@@ -14,9 +14,10 @@ import { DetailSheet } from "@/components/library/DetailSheet";
 import { ExploreBand } from "@/components/library/ExploreBand";
 import { LibraryToolbar } from "@/components/library/LibraryToolbar";
 import { ActiveFilterBar, MoodFilterBar, SortPresets } from "@/components/library/LibraryFilterBars";
-import { LibraryListSkeleton, EmptyLibrary, NoFilterMatches, NoSearchMatches } from "@/components/library/LibraryListStates";
+import { LibraryListSkeleton, EmptyLibrary, NoFilterMatches, NoSearchMatches, NothingInProgress } from "@/components/library/LibraryListStates";
 import { cn } from "@/lib/utils/cn";
 import { selectLibraryEpisodes, type ShowFilter } from "@/lib/library/filter-episodes";
+import { libraryListState } from "@/lib/library/list-state";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { useCommunityStats } from "@/hooks/useCommunityStats";
 import { useLibraryFilters } from "@/hooks/library/useLibraryFilters";
@@ -95,7 +96,7 @@ export default function LibraryPage() {
   const actions = useLibraryActions({
     allEpisodes, allPlaylists, currentEpisodeId, selectedEpisode, setSelectedEpisode, selectedIds, setSelectedIds,
   });
-  const { handlePlay, handleQueue, handleToggleFavorite, deleteOpen, setDeleteOpen, requestBulkDelete, deleting } = actions;
+  const { handlePlay, handleQueue, handleToggleFavorite, deleteOpen, setDeleteOpen, requestDelete, requestBulkDelete, deleting } = actions;
 
   useLibraryKeyboard({
     visibleEpisodes,
@@ -107,6 +108,7 @@ export default function LibraryPage() {
     setSelectedIds,
     onPlay: handlePlay,
     onRequestBulkDelete: requestBulkDelete,
+    onRequestDelete: requestDelete,
   });
 
   useLibraryBusListeners({
@@ -172,6 +174,15 @@ export default function LibraryPage() {
   const handleAction = useCallback((action: "scan" | "search") => {
     router.push(action === "scan" ? "/scanner" : "/search");
   }, [router]);
+
+  const listState = libraryListState({
+    libraryCount: allEpisodes?.length ?? 0,
+    visibleCount: visibleEpisodes.length,
+    search,
+    hasActiveFilters,
+    sortMode,
+    seriesFilter,
+  });
 
   const { setShowFilter, setGuestFilter, setSeriesFilter } = filters;
   const onShowTab = useCallback((key: ShowFilter) => {
@@ -259,9 +270,14 @@ export default function LibraryPage() {
         {/* Episode list */}
         {allEpisodes !== undefined && (allEpisodes.length > 0 || seedSettled) && (
         <div className="flex-1 overflow-hidden min-w-0">
-          {allEpisodes.length === 0 ? (
+          {listState === "empty-library" ? (
             <EmptyLibrary />
-          ) : visibleEpisodes.length === 0 && !search.trim() && hasActiveFilters ? (
+          ) : listState === "nothing-in-progress" ? (
+            <NothingInProgress
+              narrowed={!!search.trim() || hasActiveFilters}
+              onShowAll={() => filters.setSortMode("date")}
+            />
+          ) : listState === "no-filter-matches" ? (
             <NoFilterMatches
               showFilter={showFilter}
               categoryFilter={categoryFilter}
@@ -270,7 +286,7 @@ export default function LibraryPage() {
               favoritesOnly={favoritesOnly}
               onClear={filters.clearAllFilters}
             />
-          ) : visibleEpisodes.length === 0 && search.trim() ? (
+          ) : listState === "no-search-matches" ? (
             <NoSearchMatches
               search={search}
               isAdmin={isAdmin}
@@ -280,6 +296,9 @@ export default function LibraryPage() {
           ) : (
             <TimelineView
               episodes={visibleEpisodes}
+              sortMode={sortMode}
+              seriesFilter={seriesFilter}
+              onSortModeChange={filters.setSortMode}
               currentEpisodeId={currentEpisodeId}
               onEpisodeClick={selection.handleEpisodeClick}
               onEpisodeDoubleClick={handlePlay}
@@ -326,6 +345,7 @@ export default function LibraryPage() {
             onClose={selection.handleCloseDetail}
             onToggleFavorite={handleToggleFavorite}
             setSelectedEpisode={setSelectedEpisode}
+            onRequestDelete={requestDelete}
           />
         )}
       </div>
@@ -342,7 +362,7 @@ export default function LibraryPage() {
         </button>
       )}
 
-      {/* Bulk delete confirmation */}
+      {/* Delete confirmation — every delete, one episode or many (HD-011) */}
       <Dialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
@@ -352,11 +372,11 @@ export default function LibraryPage() {
       >
         <div className="p-4 flex flex-col gap-4">
           <div className="text-hd-12 text-desktop-gray">
-            Delete {selectedIds.size > 0 ? selectedIds.size : 1} episode{selectedIds.size !== 1 ? "s" : ""}? This cannot be undone.
+            Delete {actions.pendingDeleteCount} episode{actions.pendingDeleteCount !== 1 ? "s" : ""}? This cannot be undone.
           </div>
           <div className="flex justify-end gap-2">
             <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
-            <Button variant="dark" onClick={actions.handleBulkDelete} disabled={deleting}>
+            <Button variant="dark" onClick={actions.handleConfirmDelete} disabled={deleting}>
               {deleting ? "Deleting..." : "Delete"}
             </Button>
           </div>

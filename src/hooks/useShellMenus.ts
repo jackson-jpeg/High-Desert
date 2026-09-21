@@ -139,6 +139,7 @@ export function useShellMenus(actions: ShellMenuActions): Menu[] {
       label: "View",
       items: [
         { label: "Sort by Date", onClick: () => sort("date") },
+        { label: "Sort by Date — Oldest First", onClick: () => sort("date-asc") },
         { label: "Sort by Name", onClick: () => sort("name") },
         { label: "Sort by Guest", onClick: () => sort("guest") },
         { separator: true, label: "" },

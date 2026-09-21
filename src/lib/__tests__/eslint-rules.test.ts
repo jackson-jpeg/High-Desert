@@ -92,3 +92,21 @@ describe("hd:* event name ban (HD-019)", () => {
     expect(found).toEqual([]);
   }, 30_000);
 });
+
+describe("e2e specs take test from e2e/fixtures.ts", () => {
+  async function restrictedImports(code: string, file: string): Promise<string[]> {
+    const [result] = await eslint.lintText(code, { filePath: path.join(ROOT, file) });
+    return result.messages.filter((m) => m.ruleId === "no-restricted-imports").map((m) => m.message);
+  }
+
+  it("flags a spec importing test from @playwright/test — it would write plays to the server", async () => {
+    const found = await restrictedImports('import { test } from "@playwright/test";\ntest("x", () => {});\n', "e2e/probe.spec.ts");
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatch(/fixtures/);
+  }, 30_000);
+
+  it("allows the fixture itself, and type-only imports elsewhere", async () => {
+    expect(await restrictedImports('import { test } from "@playwright/test";\nexport { test };\n', "e2e/fixtures.ts")).toEqual([]);
+    expect(await restrictedImports('import type { Page } from "@playwright/test";\nexport type P = Page;\n', "e2e/probe.spec.ts")).toEqual([]);
+  }, 30_000);
+});

@@ -99,6 +99,33 @@ export function NoFilterMatches({
   );
 }
 
+/**
+ * "In Progress" with nothing in it. Not "No episodes yet" — the library is
+ * full; the listener just has not stopped a show partway through, or has, but
+ * not one that matches the search or filters also in force.
+ */
+export function NothingInProgress({ narrowed, onShowAll }: { narrowed: boolean; onShowAll: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center px-8">
+      <div className="text-hd-24 text-desert-amber/30 select-none mb-3">◑</div>
+      <div className="text-hd-13 text-desktop-gray mb-2">
+        {narrowed ? "Nothing in progress matches." : "Nothing half-listened yet."}
+      </div>
+      <div className="text-hd-11 text-bevel-dark/85 mb-4 max-w-[280px] leading-relaxed">
+        {narrowed
+          ? "None of the shows you have started matches this search or filter."
+          : "Stop a show partway through and it waits here, so you can pick up where you left off."}
+      </div>
+      <button
+        onClick={onShowAll}
+        className="text-hd-11 text-signal-blue cursor-pointer transition-colors-fast px-3 py-1.5 w98-raised-dark bg-raised-surface"
+      >
+        Show all episodes
+      </button>
+    </div>
+  );
+}
+
 /** A search with no results. Admins are offered archive.org instead. */
 export function NoSearchMatches({
   search,

@@ -1,18 +1,29 @@
 "use client";
 
-import { useRef, useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import type { Episode } from "@/db/schema";
 import { EpisodeCard, EPISODE_GRID_COLS } from "./EpisodeCard";
 import { YearNavigator } from "./YearNavigator";
+import { YearScrubber } from "./YearScrubber";
+import { useWakeFlag } from "@/hooks/useWakeFlag";
 import { useVirtualList } from "@/hooks/useVirtualList";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils/cn";
 import { communityKey } from "@/lib/utils/community-key";
 import { useCommunityStats } from "@/hooks/useCommunityStats";
 import { useTextScale, itemHeightFor } from "@/hooks/useTextScale";
+import { deriveRailGroups, activeGroupIndex, type RailGroup } from "@/lib/library/rail-groups";
+import type { SortMode } from "@/lib/library/filter-episodes";
 
 interface TimelineViewProps {
+  /** The rendered list, already filtered and sorted — the rail is derived from exactly this. */
   episodes: Episode[];
+  /** How `episodes` was ordered; decides what the rail's groups are. */
+  sortMode?: SortMode;
+  /** An active series filter overrides `sortMode`'s order (see `sortEpisodes`). */
+  seriesFilter?: string | null;
+  /** Offered as the newest/oldest toggle in date order. */
+  onSortModeChange?: (mode: SortMode) => void;
   currentEpisodeId?: number;
   selectedEpisodeId?: number;
   selectedIds?: Set<number>;
@@ -25,12 +36,18 @@ interface TimelineViewProps {
   className?: string;
 }
 
+/** How long the mobile scrubber stays up after the list stops moving. */
+export const SCRUBBER_IDLE_MS = 1500;
+
 // Row heights live in @/hooks/useTextScale — they are shared with the
 // scroll-to-index call sites in the library page, which used to carry their own
 // diverging copies.
 
 export function TimelineView({
   episodes,
+  sortMode = "date",
+  seriesFilter = null,
+  onSortModeChange,
   currentEpisodeId,
   selectedEpisodeId,
   selectedIds,
@@ -42,16 +59,13 @@ export function TimelineView({
   onQueue,
   className,
 }: TimelineViewProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
   const isMobile = useIsMobile();
   const textScale = useTextScale();
   const ITEM_HEIGHT = itemHeightFor(isMobile, textScale);
 
-  const { virtualItems, totalHeight, onScroll, scrollToIndex } = useVirtualList({
+  const { containerRef, virtualItems, totalHeight, visibleStartIndex, onScroll, scrollToIndex } = useVirtualList({
     items: episodes,
     itemHeight: ITEM_HEIGHT,
-    containerRef,
     overscan: 5,
   });
 
@@ -67,35 +81,34 @@ export function TimelineView({
   );
   const communityPlayCounts = useCommunityStats(visibleKeys);
 
-  // Derive current year header from first visible episode
-  const currentYear = useMemo(() => {
-    if (virtualItems.length === 0) return null;
-    const firstEp = virtualItems[0].item;
-    return firstEp.airDate ? firstEp.airDate.slice(0, 4) : "Unknown";
-  }, [virtualItems]);
+  // The rail and the sticky header are projections of `episodes` — the same
+  // array, in the same order, as the rows below (docs/timeline-rail.md).
+  const groups = useMemo(
+    () => deriveRailGroups(episodes, sortMode, seriesFilter),
+    [episodes, sortMode, seriesFilter],
+  );
 
-  // Count episodes per year for header badge
-  const yearCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const ep of episodes) {
-      const year = ep.airDate ? ep.airDate.slice(0, 4) : "Unknown";
-      counts.set(year, (counts.get(year) ?? 0) + 1);
-    }
-    return counts;
-  }, [episodes]);
+  // The first row actually on screen. Not `virtualItems[0]`, which is an
+  // overscan row five rows above the viewport (HD-035).
+  const firstRow = visibleStartIndex;
+  const activeIndex = activeGroupIndex(groups, firstRow);
+  const activeGroup: RailGroup | null = activeIndex >= 0 ? groups[activeIndex] : null;
 
-  const sortedYears = useMemo(() => {
-    return Array.from(yearCounts.entries())
-      .filter(([y]) => y !== "Unknown")
-      .sort(([a], [b]) => a.localeCompare(b));
-  }, [yearCounts]);
+  // A rail entry means "the start of this group": its first row goes to the
+  // top of the list, so the entry clicked is the one that becomes active.
+  const handleSelect = useCallback(
+    (group: RailGroup) => scrollToIndex(group.firstIndex, "start"),
+    [scrollToIndex],
+  );
 
-  const handleYearClick = useMemo(() => {
-    return (year: string) => {
-      const idx = episodes.findIndex((ep) => ep.airDate?.startsWith(year));
-      if (idx !== -1) scrollToIndex(idx);
-    };
-  }, [episodes, scrollToIndex]);
+  // Mobile scrubber: up while the list moves, gone ~1.5s after it stops.
+  const [scrubberAwake, wakeScrubber] = useWakeFlag(SCRUBBER_IDLE_MS);
+  const handleScroll = useCallback(() => {
+    onScroll();
+    wakeScrubber();
+  }, [onScroll, wakeScrubber]);
+
+  const dateDirection = !seriesFilter && (sortMode === "date" || sortMode === "date-asc") ? sortMode : null;
 
   if (episodes.length === 0) {
     return (
@@ -152,39 +165,39 @@ export function TimelineView({
 
   return (
     <div className={cn("flex flex-col h-full", className)}>
-      {/* Sticky year header */}
-      {currentYear && (
+      {/* Sticky group header: the group of the first visible row, and in
+          date order the direction toggle — the only place the ascending sort
+          is offered on desktop outside the sort presets. */}
+      {(activeGroup || dateDirection) && (
         <div className="sticky top-0 z-10 bg-midnight/95 backdrop-blur-sm px-4 py-1.5 border-b border-bevel-dark/15 glass-light flex items-center gap-2">
-          <span className="text-hd-13 text-desert-amber/90 font-bold tabular-nums">
-            {currentYear}
-          </span>
-          <span className="text-hd-10 text-bevel-dark/85">
-            {yearCounts.get(currentYear) ?? 0}
-          </span>
-          {/* Year nav dots — desktop only */}
-          <div className="hidden md:flex items-center gap-[3px] ml-auto">
-            {Array.from(yearCounts.keys())
-              .filter((y) => y !== "Unknown")
-              .sort()
-              .map((year) => (
-                <span
-                  key={year}
-                  className={cn(
-                    "w-[3px] h-[3px] rounded-full transition-colors-fast",
-                    year === currentYear ? "bg-desert-amber/80" : "bg-bevel-dark/20",
-                  )}
-                  title={`${year} (${yearCounts.get(year)})`}
-                />
-              ))}
-          </div>
+          {activeGroup && (
+            <>
+              <span data-testid="rail-header-group" data-group={activeGroup.key} className="text-hd-13 text-desert-amber/90 font-bold tabular-nums truncate">
+                {activeGroup.title}
+              </span>
+              <span className="text-hd-10 text-bevel-dark/85">
+                {activeGroup.count}
+              </span>
+            </>
+          )}
+          {dateDirection && onSortModeChange && (
+            <button
+              type="button"
+              onClick={() => onSortModeChange(dateDirection === "date" ? "date-asc" : "date")}
+              aria-label={dateDirection === "date" ? "Newest first — switch to oldest first" : "Oldest first — switch to newest first"}
+              className="ml-auto min-h-touch md:min-h-0 px-2 text-hd-10 text-bevel-dark/85 hover:text-desktop-gray cursor-pointer transition-colors-fast whitespace-nowrap"
+            >
+              {dateDirection === "date" ? "Newest first \u2193" : "Oldest first \u2191"}
+            </button>
+          )}
         </div>
       )}
 
       {/* Virtual scrolling container + year nav */}
-      <div className="flex-1 overflow-hidden flex">
+      <div className="relative flex-1 overflow-hidden flex">
         <div
           ref={containerRef}
-          onScroll={onScroll}
+          onScroll={handleScroll}
           className="flex-1 overflow-auto overscroll-contain"
         >
           {/* Column header — desktop only. It lives *inside* the scroller, and
@@ -236,12 +249,16 @@ export function TimelineView({
             ))}
           </div>
         </div>
-        {sortedYears.length > 1 && (
-          <YearNavigator
-            years={sortedYears}
-            currentYear={currentYear}
-            onYearClick={handleYearClick}
+        {isMobile ? (
+          <YearScrubber
+            groups={groups}
+            activeIndex={activeIndex}
+            awake={scrubberAwake}
+            onSelect={handleSelect}
+            onRelease={wakeScrubber}
           />
+        ) : (
+          <YearNavigator groups={groups} activeIndex={activeIndex} onSelect={handleSelect} />
         )}
       </div>
     </div>
