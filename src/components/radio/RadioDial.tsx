@@ -15,6 +15,7 @@ import { FrequencyDisplay } from "./FrequencyDisplay";
 import { SignalMeter } from "./SignalMeter";
 import { DialControls } from "./DialControls";
 import { RadioShortcuts } from "./RadioShortcuts";
+import { YearTabs } from "./YearTabs";
 import type { Episode } from "@/db/schema";
 import { emit } from "@/lib/events";
 
@@ -162,51 +163,22 @@ export function RadioDial({ episodes }: RadioDialProps) {
     ensureInitialized,
   ]);
 
-  // Current year for distance-fade on mobile
+  // The tuned year: the selected tab, and the centre of the mobile fade.
   const currentYear = currentDate ? currentDate.getFullYear() : null;
+
+  const selectYear = useCallback((year: number) => {
+    ensureInitialized();
+    jumpToYear(year);
+  }, [ensureInitialized, jumpToYear]);
 
   // Year quick-jump bar
   const yearBar = index ? (
-    <div
-      className="flex items-center gap-0 md:gap-0.5 overflow-x-auto pb-0.5"
-      role="tablist"
-      aria-label="Jump to year"
-    >
-      {index.years.filter((y) => Number.isFinite(y)).map((year) => {
-        // Distance-based opacity fade on mobile
-        const dist = currentYear ? Math.abs(year - currentYear) : 0;
-        const mobileOpacity = currentYear
-          ? Math.max(0.15, 1 - dist * 0.15)
-          : 0.4;
-        const isCurrentYear = year === currentYear;
-
-        return (
-          <button
-            key={year}
-            onClick={() => {
-              ensureInitialized();
-              jumpToYear(year);
-            }}
-            className={cn(
-              "md:text-hd-8 md:px-1.5 md:py-0.5 md:min-h-0 text-desert-amber hover:text-desert-amber active:text-desert-amber cursor-pointer transition-colors-fast whitespace-nowrap flex-shrink-0",
-              // Mobile: monospace abbreviated years
-              "text-hd-9 px-[7px] py-2 min-h-touch font-mono tracking-wide",
-              isCurrentYear && "font-bold md:font-normal",
-            )}
-            style={isMobile ? {
-              opacity: mobileOpacity,
-              textShadow: isCurrentYear ? "0 0 8px rgba(212,168,67,0.3)" : "none",
-              fontSize: isCurrentYear ? "10px" : undefined,
-            } : undefined}
-            role="tab"
-            aria-label={`Jump to ${year}`}
-          >
-            <span className="md:hidden">&rsquo;{String(year).slice(2)}</span>
-            <span className="hidden md:inline">{year}</span>
-          </button>
-        );
-      })}
-    </div>
+    <YearTabs
+      years={index.years.filter((y) => Number.isFinite(y))}
+      currentYear={currentYear}
+      isMobile={isMobile}
+      onSelect={selectYear}
+    />
   ) : null;
 
   if (!index) {
