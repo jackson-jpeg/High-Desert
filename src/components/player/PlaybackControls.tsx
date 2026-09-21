@@ -8,6 +8,7 @@ import { BookmarkMarkers } from "./BookmarkMarkers";
 import { cn } from "@/lib/utils/cn";
 import { formatTime, formatAirDate } from "@/lib/utils/format";
 import { toast } from "@/stores/toast-store";
+import { PositionTime, SeekRange, ProgressFill } from "./PositionReadouts";
 
 /** Tooltip showing the next episode info on hover */
 function NextEpisodeTooltip() {
@@ -61,7 +62,8 @@ export function PlaybackControls({
   // first `waiting` — which on a cold, slow connection may be many seconds
   // later, or never.
   const buffering = rawBuffering || loadState === "loading";
-  const position = usePlayerStore((s) => s.position);
+  // `position` is not selected here — PositionReadouts.tsx subscribes to it
+  // at the leaves, so the 250 ms tick re-renders a clock, not these controls.
   const duration = usePlayerStore((s) => s.duration);
   const volume = usePlayerStore((s) => s.volume);
   const setVolume = usePlayerStore((s) => s.setVolume);
@@ -89,12 +91,8 @@ export function PlaybackControls({
     setSeekPreview({ time: pct * duration, x: e.clientX - rect.left });
   }, [duration]);
 
-  const handleSeekBack = () => onSeek(position - 15);
-  const handleSeekForward = () => onSeek(position + 30);
-
-  const handleScrub = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onSeek(Number(e.target.value));
-  };
+  const handleSeekBack = () => onSeek(usePlayerStore.getState().position - 15);
+  const handleSeekForward = () => onSeek(usePlayerStore.getState().position + 30);
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setVolume(Number(e.target.value));
@@ -152,9 +150,7 @@ export function PlaybackControls({
     <div className={cn("flex flex-col gap-2", className)}>
       {/* Seek bar */}
       <div className="flex items-center gap-2 text-hd-13 md:text-hd-11 text-bevel-dark">
-        <span className="w-[45px] text-right tabular-nums">
-          {formatTime(position)}
-        </span>
+        <PositionTime className="w-[45px] text-right tabular-nums" />
         <div
           ref={seekBarRef}
           className="flex-1 relative"
@@ -164,24 +160,16 @@ export function PlaybackControls({
           {/* Visual progress fill behind the range input */}
           {duration > 0 && (
             <div className="absolute top-1/2 left-0 right-0 h-[4px] -mt-[2px] pointer-events-none z-0 overflow-hidden rounded-sm">
-              <div
+              <ProgressFill
+                duration={duration}
                 className="h-full bg-desert-amber/25 transition-[width] duration-100"
-                style={{ width: `${(position / duration) * 100}%` }}
               />
             </div>
           )}
-          <input
-            type="range"
-            min={0}
-            max={duration || 0}
-            value={position}
-            onChange={handleScrub}
-            role="slider"
-            aria-label="Seek position"
-            aria-valuemin={0}
-            aria-valuemax={duration || 0}
-            aria-valuenow={position}
-            aria-valuetext={formatTime(position)}
+          <SeekRange
+            duration={duration}
+            onSeek={onSeek}
+            fullAria
             className="w-full h-[20px] md:h-[6px] w98-range-dark cursor-pointer relative z-[1]"
           />
           <BookmarkMarkers mode="markers" />

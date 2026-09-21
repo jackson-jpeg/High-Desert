@@ -16,6 +16,8 @@ import { seedLibraryIfEmpty, reconcileLibrary } from "@/db/seed";
 import { DBErrorBoundary } from "@/components/DBErrorBoundary";
 import { MilestoneDialog } from "@/components/desktop/MilestoneDialog";
 import { playStartupSound } from "@/audio/startup-sound";
+import { createScanPreview } from "@/audio/scan-preview";
+import { beginStart, isCurrentStart } from "@/audio/play-session";
 import { toast } from "@/stores/toast-store";
 
 export default function DesktopLayout({
@@ -60,6 +62,11 @@ export default function DesktopLayout({
   useEffect(() => {
     const handler = async (e: Event) => {
       const episode = (e as CustomEvent<Episode>).detail;
+      // This is the start. Everything below may await (a metadata fetch, an
+      // OPFS read, a file picker), and the listener may pick another show in
+      // the meantime; each continuation checks it is still the newest start
+      // before going on, and playEpisode checks again (HD-003).
+      const start = beginStart();
 
       // Also enqueue so manually-played episodes enter the queue
       enqueue(episode);
@@ -67,7 +74,7 @@ export default function DesktopLayout({
       // Archive episodes stream directly — no file picker needed
       if (episode.sourceUrl) {
         try {
-          await playEpisode(episode);
+          await playEpisode(episode, undefined, start);
         } catch (err) {
           console.error("[layout] Failed to play archive episode:", err);
         }
@@ -91,6 +98,7 @@ export default function DesktopLayout({
             const timeout = setTimeout(() => controller.abort(), 10000);
             const res = await fetch(`/api/archive/metadata?id=${encodeURIComponent(identifier)}`, { signal: controller.signal });
             clearTimeout(timeout);
+            if (!isCurrentStart(start)) return;
             if (res.ok) {
               const data = await res.json();
               const files = data.files as { name: string; format: string }[];
@@ -106,10 +114,11 @@ export default function DesktopLayout({
             if (episode.id) {
               db.episodes.update(episode.id, { sourceUrl: episode.sourceUrl }).catch((err) => { console.warn("[layout] Failed to persist sourceUrl:", err); });
             }
-            await playEpisode(episode);
+            await playEpisode(episode, undefined, start);
             return;
           }
         } catch (err) {
+          if (!isCurrentStart(start)) return;
           console.error("[layout] Failed to resolve archive URL:", err);
           toast.error("Couldn't reach archive.org. Check your connection.");
         }
@@ -118,13 +127,15 @@ export default function DesktopLayout({
       // For local files, check OPFS cache first
       try {
         const cached = await getCachedAudio(episode.fileHash);
+        if (!isCurrentStart(start)) return;
         if (cached) {
-          await playEpisode(episode, new File([cached], episode.fileName, { type: "audio/mpeg" }));
+          await playEpisode(episode, new File([cached], episode.fileName, { type: "audio/mpeg" }), start);
           return;
         }
       } catch {
         // OPFS not available, fall through to file picker
       }
+      if (!isCurrentStart(start)) return;
 
       // Open a file picker as fallback
       try {
@@ -142,8 +153,8 @@ export default function DesktopLayout({
           input.click();
         });
 
-        if (file) {
-          await playEpisode(episode, file);
+        if (file && isCurrentStart(start)) {
+          await playEpisode(episode, file, start);
           // Cache to OPFS in background after playback starts
           cacheAudioBlob(episode.fileHash, file).catch((err) => {
             console.warn("[layout] OPFS cache failed:", err);
@@ -158,83 +169,23 @@ export default function DesktopLayout({
     return () => window.removeEventListener("hd:play-episode", handler);
   }, [playEpisode, enqueue]);
 
-  // Scan preview: brief audio snippet during radio scan
+  // Scan preview: brief audio snippet during radio scan. The element, its
+  // timers and the never-`src = ""` reset live in src/audio/scan-preview.ts.
   useEffect(() => {
-    let previewAudio: HTMLAudioElement | null = null;
-    let fadeTimer: ReturnType<typeof setTimeout> | null = null;
+    const preview = createScanPreview();
 
-    const handlePreview = async (e: Event) => {
+    const handlePreview = (e: Event) => {
       const episode = (e as CustomEvent<Episode>).detail;
-      if (!episode.sourceUrl) return;
-
       // Don't preview if main player is playing
       if (usePlayerStore.getState().playing) return;
-
-      try {
-        // Stop any existing preview
-        if (previewAudio) {
-          previewAudio.pause();
-          previewAudio.src = "";
-        }
-
-        previewAudio = new Audio(episode.sourceUrl);
-        previewAudio.volume = 0;
-        previewAudio.crossOrigin = "anonymous";
-
-        // Start from a random point (skip first 30s intro if long enough)
-        previewAudio.currentTime = (episode.duration && episode.duration > 120)
-          ? 30 + Math.random() * Math.min(episode.duration - 60, 300)
-          : 0;
-
-        await previewAudio.play();
-
-        // Fade in over 300ms
-        let vol = 0;
-        const fadeIn = setInterval(() => {
-          vol = Math.min(vol + 0.05, 0.3);
-          if (previewAudio) previewAudio.volume = vol;
-          if (vol >= 0.3) clearInterval(fadeIn);
-        }, 30);
-
-        // Auto-fade-out after 2.5s
-        fadeTimer = setTimeout(() => {
-          if (!previewAudio) return;
-          const fadeOut = setInterval(() => {
-            if (!previewAudio) { clearInterval(fadeOut); return; }
-            previewAudio.volume = Math.max(0, previewAudio.volume - 0.05);
-            if (previewAudio.volume <= 0) {
-              clearInterval(fadeOut);
-              previewAudio.pause();
-              previewAudio.src = "";
-            }
-          }, 30);
-        }, 2500);
-      } catch {
-        // Preview failed silently — not critical
-      }
+      void preview.start(episode);
     };
-
-    const handlePreviewStop = () => {
-      if (fadeTimer) clearTimeout(fadeTimer);
-      if (previewAudio) {
-        // Quick fade out
-        const audio = previewAudio;
-        const fadeOut = setInterval(() => {
-          audio.volume = Math.max(0, audio.volume - 0.1);
-          if (audio.volume <= 0) {
-            clearInterval(fadeOut);
-            audio.pause();
-            audio.src = "";
-          }
-        }, 20);
-        previewAudio = null;
-      }
-    };
+    const handlePreviewStop = () => preview.stop();
 
     // Stop preview when main player starts playing
     const unsubscribe = usePlayerStore.subscribe((state, prev) => {
       if (state.playing && !prev.playing) {
-        handlePreviewStop();
+        preview.stop();
       }
     });
 
@@ -244,7 +195,7 @@ export default function DesktopLayout({
       unsubscribe();
       window.removeEventListener("hd:scan-preview", handlePreview);
       window.removeEventListener("hd:scan-preview-stop", handlePreviewStop);
-      handlePreviewStop();
+      preview.stop();
     };
   }, []);
 

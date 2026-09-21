@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { usePlayerStore } from "./player-store";
+import { pauseEngine } from "@/audio/engine";
 
 export type SleepPreset = number;
 
@@ -7,8 +8,17 @@ export type SleepPreset = number;
 const FADE_SECONDS = 30;
 
 interface SleepTimerState {
-  /** Seconds remaining, 0 = off */
+  /** Seconds remaining, 0 = off. Derived from `deadline` on every tick. */
   remaining: number;
+  /**
+   * When the timer expires, as a `Date.now()` timestamp; `null` when off.
+   *
+   * The timer used to count ticks, decrementing `remaining` once per interval
+   * callback. Browsers throttle intervals in background tabs and on a locked
+   * phone — exactly where a sleep timer runs — so a 30-minute timer could take
+   * far longer than 30 minutes to fire. Wall-clock time cannot be throttled.
+   */
+  deadline: number | null;
   /** Whether the timer is actively counting down */
   active: boolean;
   /**
@@ -30,7 +40,7 @@ interface SleepTimerState {
   start: (minutes: number) => void;
   /** Cancel the timer */
   cancel: () => void;
-  /** Called every second by the tick interval */
+  /** Called by the tick interval; recomputes from the wall clock. */
   tick: () => void;
 }
 
@@ -52,6 +62,7 @@ function stopTicking() {
 
 export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
   remaining: 0,
+  deadline: null,
   active: false,
   fadeFrom: null,
 
@@ -60,7 +71,15 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
       get().cancel();
       return;
     }
-    set({ remaining: minutes * 60, active: true, fadeFrom: null });
+    // Restarting mid-fade hands the volume back first, like cancel does.
+    const { fadeFrom } = get();
+    if (fadeFrom !== null) usePlayerStore.getState().setVolume(fadeFrom);
+    set({
+      remaining: minutes * 60,
+      deadline: Date.now() + minutes * 60_000,
+      active: true,
+      fadeFrom: null,
+    });
     startTicking();
   },
 
@@ -71,21 +90,41 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
     // volume they set, with the control that did it already gone from the UI.
     const { fadeFrom } = get();
     if (fadeFrom !== null) usePlayerStore.getState().setVolume(fadeFrom);
-    set({ remaining: 0, active: false, fadeFrom: null });
+    set({ remaining: 0, deadline: null, active: false, fadeFrom: null });
   },
 
   tick: () => {
-    const { remaining, active } = get();
-    if (!active || remaining <= 0) {
+    const { active, deadline } = get();
+    if (!active || deadline === null) {
       stopTicking();
-      set({ remaining: 0, active: false, fadeFrom: null });
+      set({ remaining: 0, deadline: null, active: false, fadeFrom: null });
       return;
     }
 
-    const next = remaining - 1;
+    const leftMs = deadline - Date.now();
+
+    if (leftMs <= 0) {
+      // Time's up. Pause the element itself — the player is a detached
+      // `new Audio()`, never in the DOM, so the `document.querySelector("audio")`
+      // this used to call found nothing and the show played on all night at
+      // the restored volume below (HD-001). Unconditional: if the store and the
+      // element disagree about whether sound is playing, the element wins.
+      stopTicking();
+      const player = usePlayerStore.getState();
+      pauseEngine();
+      player.setPlaying(false);
+      // Restore only what we actually took. A timer that expired without ever
+      // fading has no business moving the volume slider.
+      const { fadeFrom } = get();
+      if (fadeFrom !== null) player.setVolume(fadeFrom);
+      set({ remaining: 0, deadline: null, active: false, fadeFrom: null });
+      return;
+    }
+
+    const leftS = leftMs / 1000;
 
     // Fade volume over the last FADE_SECONDS
-    if (next <= FADE_SECONDS && next > 0) {
+    if (leftS <= FADE_SECONDS) {
       const player = usePlayerStore.getState();
       // Only fade if currently playing
       if (player.playing) {
@@ -97,27 +136,10 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
           fadeFrom = player.volume > 0 ? player.volume : player.preMuteVolume;
           set({ fadeFrom });
         }
-        player.setVolume((next / FADE_SECONDS) * fadeFrom);
+        player.setVolume((leftS / FADE_SECONDS) * fadeFrom);
       }
     }
 
-    if (next <= 0) {
-      // Time's up — pause playback and restore volume
-      stopTicking();
-      const player = usePlayerStore.getState();
-      if (player.playing) {
-        player.setPlaying(false);
-        // Pause the actual audio element
-        const audio = document.querySelector("audio");
-        if (audio) audio.pause();
-      }
-      // Restore only what we actually took. A timer that expired without ever
-      // fading has no business moving the volume slider.
-      const { fadeFrom } = get();
-      if (fadeFrom !== null) player.setVolume(fadeFrom);
-      set({ remaining: 0, active: false, fadeFrom: null });
-    } else {
-      set({ remaining: next });
-    }
+    set({ remaining: Math.ceil(leftS) });
   },
 }));

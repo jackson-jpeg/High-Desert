@@ -194,6 +194,10 @@ function resetLoadDeadline(attempt: Attempt) {
  * might, and `?a=1?b=2` is not a URL.
  */
 function withCacheBuster(url: string, attempt: number): string {
+  // An object URL names a blob in this document's memory, not a resource on a
+  // server — there is no cache to bust, and `blob:…?hd_retry=1` names nothing
+  // at all, so the retry of a local file could never work (HD-033).
+  if (/^(blob|data):/i.test(url)) return url;
   try {
     const u = new URL(url, window.location.href);
     u.searchParams.set("hd_retry", String(attempt));
@@ -307,6 +311,10 @@ function resetElement(audio: HTMLAudioElement) {
 
 function giveUp(kind: FailureKind, attempt: Attempt) {
   attempt.settled = true;
+  // A superseded attempt's failure is nobody's (HD-003). It must not clear the
+  // current attempt's timers or report — armWatchdog settles the old one, so
+  // this is the belt to that brace.
+  if (current !== attempt) return;
   clearTimers();
   current = null;
   report(kind, attempt, false);
@@ -366,6 +374,10 @@ export function armWatchdog(opts: {
   startAt: number;
 }): void {
   clearTimers();
+  // Whatever was being watched has been replaced. Settle it, so a retry of it
+  // still in flight — its play() rejecting seconds from now — cannot giveUp()
+  // over the attempt that replaced it and raise the dialog on the wrong show.
+  if (current) current.settled = true;
 
   // Fail closed. Without the media listeners this cannot see `progress` or
   // `canplay`, so every attempt would run its deadline out and be reported as a

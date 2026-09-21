@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { usePlayerStore } from "@/stores/player-store";
 
 interface CassetteTapeProps {
@@ -10,7 +11,9 @@ interface CassetteTapeProps {
  * Tiny decorative cassette tape SVG with spinning reels.
  * Left reel spins faster at start, right reel faster near end.
  */
-export function CassetteTape({ className }: CassetteTapeProps) {
+// memo: rendered inside AudioPlayer, which re-renders on every player state
+// change; this has nothing to redraw unless its own props or selectors do (HD-017).
+export const CassetteTape = memo(function CassetteTape({ className }: CassetteTapeProps) {
   const playing = usePlayerStore((s) => s.playing);
 
   /*
@@ -92,4 +95,4 @@ export function CassetteTape({ className }: CassetteTapeProps) {
       `}</style>
     </svg>
   );
-}
+});

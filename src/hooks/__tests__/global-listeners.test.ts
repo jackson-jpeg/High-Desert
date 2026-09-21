@@ -63,14 +63,28 @@ vi.mock("@/services/stats/client", () => ({
   reportPlaybackFailure: vi.fn(),
 }));
 
-vi.mock("@/audio/engine", () => ({
+// The real seekEngine/pauseEngine, bound to this suite's element: seeking is
+// what HD-004/HD-024 changed, so it must be the production code under test.
+vi.mock("@/audio/engine", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/audio/engine")>();
+  const bound = () => real.initEngine(element);
+  return {
   getMediaElement: () => element,
   initEngine: vi.fn(),
   setEngineVolume: vi.fn(),
   notifySourceChanged: vi.fn(),
   getAnalyserNode: () => null,
   resumeContext: () => Promise.resolve(),
-}));
+    seekEngine: (t: number) => {
+      bound();
+      return real.seekEngine(t);
+    },
+    pauseEngine: () => {
+      bound();
+      real.pauseEngine();
+    },
+  };
+});
 
 vi.mock("@/db", () => ({
   db: {
@@ -108,7 +122,7 @@ vi.mock("@/audio/playback-watchdog", () => ({
 }));
 
 const { communityKey } = await import("@/lib/utils/community-key");
-const { useAudioPlayer } = await import("@/hooks/useAudioPlayer");
+const { useAudioPlayer, POSITION_SAVE_MS } = await import("@/hooks/useAudioPlayer");
 const { usePlayerStore } = await import("@/stores/player-store");
 
 type Api = ReturnType<typeof useAudioPlayer>;
@@ -255,15 +269,23 @@ describe("globals installed by useAudioPlayer", () => {
       });
     });
 
+    const positionWrites = () =>
+      updateEpisode.mock.calls.filter(
+        (c) => (c as unknown as [number, Record<string, unknown>])[1]
+          ?.playbackPosition !== undefined,
+      );
+
+    // Every write re-runs full-table live queries (HD-016): not every 5 s any more.
     act(() => {
       vi.advanceTimersByTime(5000);
     });
+    expect(positionWrites()).toHaveLength(0);
 
-    const positionWrites = updateEpisode.mock.calls.filter(
-      (c) => (c as unknown as [number, Record<string, unknown>])[1]
-        ?.playbackPosition !== undefined,
-    );
-    expect(positionWrites).toHaveLength(1);
+    act(() => {
+      vi.advanceTimersByTime(POSITION_SAVE_MS - 5000);
+    });
+    // One write — two mounted instances must not mean two intervals.
+    expect(positionWrites()).toHaveLength(1);
   });
 
   it("tears every global down when the last instance unmounts, and rebuilds them", () => {

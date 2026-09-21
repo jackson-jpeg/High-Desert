@@ -15,6 +15,7 @@ import { useIsMobile } from "@/hooks/useMediaQuery";
 import { useLoadingHint } from "@/hooks/useLoadingHint";
 import { Button } from "@/components/win98";
 import { formatTime, formatAirDate } from "@/lib/utils/format";
+import { PositionTime, SeekRange, ProgressFill, BufferedFill } from "./PositionReadouts";
 
 interface AudioPlayerProps {
   className?: string;
@@ -28,7 +29,6 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   const error = usePlayerStore((s) => s.error);
   const rawBuffering = usePlayerStore((s) => s.buffering);
   const loadState = usePlayerStore((s) => s.loadState);
-  const bufferedTo = usePlayerStore((s) => s.bufferedTo);
   // The ⧗ glyph should appear the instant a load starts, not when the element
   // eventually gets round to firing `waiting`.
   const buffering = rawBuffering || loadState === "loading";
@@ -40,7 +40,8 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
     const nextIdx = s.queueIndex + 1;
     return nextIdx < s.queue.length ? s.queue[nextIdx] : null;
   });
-  const position = usePlayerStore((s) => s.position);
+  // `position` is deliberately NOT selected here — see PositionReadouts.tsx.
+  // Handlers that need it read it at click time.
   const duration = usePlayerStore((s) => s.duration);
   const hasPrev = usePlayerStore((s) => s.queueIndex > 0);
   const hasNext = usePlayerStore((s) => {
@@ -179,32 +180,16 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
 
             {/* Seek bar — custom styled */}
             <div className="flex items-center gap-3 text-hd-13 text-bevel-dark font-mono">
-              <span className="w-[48px] text-right tabular-nums text-bevel-dark/85">{formatTime(position)}</span>
+              <PositionTime className="w-[48px] text-right tabular-nums text-bevel-dark/85" />
               <div className="flex-1 relative">
                 {/* How much is actually downloaded. Real progress beats an
                     indefinite spinner: a slow load that is visibly moving
                     reads as slow, not broken. */}
-                {duration > 0 && bufferedTo > position && (
-                  <div
-                    className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[3px] pointer-events-none"
-                    aria-hidden="true"
-                  >
-                    <div
-                      className="h-full bg-desert-amber/25 transition-[width] duration-500"
-                      style={{
-                        width: `${Math.min(100, (bufferedTo / duration) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                )}
-                <input
-                  type="range"
-                  min={0}
-                  max={duration || 0}
-                  value={position}
-                  onChange={(e) => seek(Number(e.target.value))}
+                <BufferedFill duration={duration} />
+                <SeekRange
+                  duration={duration}
+                  onSeek={seek}
                   className="w-full h-[12px] w98-range-dark cursor-pointer relative"
-                  aria-label="Seek position"
                 />
               </div>
               <span className="w-[48px] tabular-nums text-bevel-dark/85">{formatTime(duration)}</span>
@@ -215,13 +200,13 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
               <Button variant="dark" size="sm" onClick={playPrevious} disabled={!hasPrev} aria-label="Previous track" className="min-w-[48px] min-h-[48px]">
                 |&laquo;
               </Button>
-              <Button variant="dark" size="sm" onClick={() => seek(position - 15)} aria-label="Seek back 15 seconds" className="min-w-[48px] min-h-[48px]">
+              <Button variant="dark" size="sm" onClick={() => seek(usePlayerStore.getState().position - 15)} aria-label="Seek back 15 seconds" className="min-w-[48px] min-h-[48px]">
                 -15
               </Button>
               <Button variant="dark" onClick={togglePlay} aria-label={buffering ? "Buffering" : playing ? "Pause" : "Play"} className="min-w-[56px] min-h-[56px] text-hd-16">
                 {buffering ? "\u29D7" : playing ? "\u275A\u275A" : "\u25B6"}
               </Button>
-              <Button variant="dark" size="sm" onClick={() => seek(position + 30)} aria-label="Seek forward 30 seconds" className="min-w-[48px] min-h-[48px]">
+              <Button variant="dark" size="sm" onClick={() => seek(usePlayerStore.getState().position + 30)} aria-label="Seek forward 30 seconds" className="min-w-[48px] min-h-[48px]">
                 +30
               </Button>
               <Button variant="dark" size="sm" onClick={playNext} disabled={!hasNext} aria-label="Next track" className="min-w-[48px] min-h-[48px]">
@@ -246,16 +231,15 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
 
   // ─── Mobile mini player ───
   if (isMobile && mini) {
-    const progressPct = duration > 0 ? (position / duration) * 100 : 0;
     return (
       <div className={cn("glass-medium glass-promote relative", playing && "glass-glow-amber", className)}>
         {/* Full-width progress bar at top — thin amber gradient */}
         {duration > 0 && (
           <div className="absolute top-0 left-0 right-0 h-[3px]">
-            <div
+            <ProgressFill
+              duration={duration}
               className="h-full transition-[width] duration-300"
               style={{
-                width: `${progressPct}%`,
                 background: "linear-gradient(90deg, rgba(212,168,67,0.7), rgba(100,200,100,0.9))",
               }}
             />
@@ -290,7 +274,6 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
 
   // ─── Desktop ultra-mini taskbar player ───
   if (!isMobile && mini && ultraMini) {
-    const progressPct = duration > 0 ? (position / duration) * 100 : 0;
     // The error banner was rendered in every other layout but this one, so an
     // error while collapsed to the taskbar was completely invisible. It doesn't
     // fit in 28px, so surface it by expanding — the banner is the whole point.
@@ -309,7 +292,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
         {/* Ultra-compact seek bar behind content */}
         {duration > 0 && (
           <div className="absolute bottom-0 left-0 right-0 h-[2px]">
-            <div className="h-full bg-desert-amber/50 transition-[width] duration-300" style={{ width: `${progressPct}%` }} />
+            <ProgressFill duration={duration} className="h-full bg-desert-amber/50 transition-[width] duration-300" />
           </div>
         )}
         {/* Cassette icon + title */}
@@ -318,14 +301,11 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           {currentEpisode.title || currentEpisode.fileName}
         </span>
         {/* Compact seek */}
-        <input
-          type="range"
-          min={0}
-          max={duration || 0}
-          value={position}
-          onChange={(e) => seek(Number(e.target.value))}
+        <SeekRange
+          duration={duration}
+          onSeek={seek}
           className="w-[80px] h-[2px] w98-range-dark cursor-pointer flex-shrink-0"
-          aria-label="Seek"
+          ariaLabel="Seek"
         />
         {/* Play/pause */}
         <Button variant="dark" size="sm" onClick={togglePlay} className="h-[22px] px-1.5 text-hd-10" aria-label={buffering ? "Buffering" : playing ? "Pause" : "Play"}>
@@ -343,15 +323,14 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
 
   // ─── Desktop mini player ───
   if (mini) {
-    const progressPctDesktop = duration > 0 ? (position / duration) * 100 : 0;
     return (
       <div className={cn("w98-raised-dark bg-raised-surface relative", className)}>
         {/* Mini progress bar at top */}
         {duration > 0 && (
           <div className="absolute top-0 left-0 right-0 h-[2px]">
-            <div
+            <ProgressFill
+              duration={duration}
               className="h-full bg-desert-amber/40 transition-[width] duration-300"
-              style={{ width: `${progressPctDesktop}%` }}
             />
           </div>
         )}

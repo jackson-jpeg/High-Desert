@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { FailureKind } from "@/audio/playback-watchdog";
 import type { Episode } from "@/db/schema";
 import { toast } from "@/stores/toast-store";
+import { startPositionFor } from "@/audio/play-session";
 
 export type RepeatMode = "off" | "one" | "all";
 
@@ -57,6 +58,12 @@ export interface PlayerState {
 
   // Actions
   loadEpisode: (episode: Episode, objectUrl: string) => void;
+  /**
+   * Replace the current episode with a copy carrying `fields`. The object the
+   * store holds is shared with every subscriber; writing into it in place is a
+   * state change nobody is told about (HD-032).
+   */
+  patchCurrentEpisode: (fields: Partial<Episode>) => void;
   setPlaying: (playing: boolean) => void;
   setPosition: (position: number) => void;
   setDuration: (duration: number) => void;
@@ -77,7 +84,13 @@ export interface PlayerState {
   playFromQueue: (index: number) => Episode | null;
   removeFromQueue: (index: number) => void;
   clearQueue: () => void;
-  next: () => Episode | null;
+  /**
+   * The episode after this one. `manual: true` is a press of Next — it moves
+   * on even in repeat-one, which otherwise hands back the same track, so the
+   * button did nothing a listener could see (HD-024). The end-of-track advance
+   * calls it without, and repeat-one still repeats.
+   */
+  next: (opts?: { manual?: boolean }) => Episode | null;
   previous: () => Episode | null;
   hasNext: () => boolean;
   hasPrevious: () => boolean;
@@ -138,7 +151,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       currentEpisode: episode,
       objectUrl,
       playing: false,
-      position: episode.playbackPosition ?? 0,
+      // A finished show is shown (and played) from the top — see
+      // startPositionFor, which the player uses for the same decision.
+      position: startPositionFor(episode.playbackPosition, episode.duration),
       duration: episode.duration ?? 0,
       buffering: false,
       bufferedTo: 0,
@@ -153,6 +168,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       newQueue.splice(insertAt, 0, episode);
       set({ ...reset, queue: newQueue, queueIndex: insertAt });
     }
+  },
+
+  patchCurrentEpisode: (fields) => {
+    const ep = get().currentEpisode;
+    if (!ep) return;
+    set({ currentEpisode: { ...ep, ...fields } });
   },
 
   setPlaying: (playing) => set({ playing }),
@@ -265,11 +286,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({ queue: [], queueIndex: -1 });
   },
 
-  next: () => {
+  next: (opts) => {
     const { queue, queueIndex, shuffle, repeat } = get();
 
-    // Repeat one: return current track again (index stays the same)
-    if (repeat === "one" && queueIndex >= 0 && queueIndex < queue.length) {
+    // Repeat one: return current track again (index stays the same) — unless
+    // the listener pressed Next, which is a request to leave it.
+    if (!opts?.manual && repeat === "one" && queueIndex >= 0 && queueIndex < queue.length) {
       return queue[queueIndex];
     }
 

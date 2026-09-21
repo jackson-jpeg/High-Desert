@@ -8,7 +8,17 @@ import {
   resumeContext,
   getMediaElement,
   notifySourceChanged,
+  seekEngine,
 } from "@/audio/engine";
+import {
+  beginStart,
+  currentStart,
+  isAbortError,
+  isCurrentStart,
+  isListenCounted,
+  markListenCounted,
+  startPositionFor,
+} from "@/audio/play-session";
 import { db } from "@/db";
 import type { Episode } from "@/db/schema";
 import { reportPlay, reportStop, reportStopBeacon } from "@/services/stats/client";
@@ -93,6 +103,33 @@ type GlobalKey =
   | "persist-position"
   | "unload-flush";
 
+/**
+ * How often position is written while playing. Every write re-runs the live
+ * queries over the whole episodes table (library facets, smart playlists, stats)
+ * so at 5 s a three-hour show cost ~2,000 full rebuilds (HD-016). 30 s, plus a
+ * save on pause, on `visibilitychange` and on `pagehide`, loses at most 30 s on
+ * a crash and nothing on any ordinary exit.
+ */
+export const POSITION_SAVE_MS = 30_000;
+
+/** Write the current episode's position. Never throws — see the catch. */
+function savePosition(): void {
+  const { position: pos, currentEpisode: ep } = usePlayerStore.getState();
+  if (!ep?.id) return;
+  db.episodes
+    .update(ep.id, {
+      playbackPosition: pos,
+      lastPlayedAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+    // This ran inside a setInterval with no catch: a failed write (quota, a
+    // closed database, a blocked upgrade) was an unhandled rejection on every
+    // tick for the rest of the show (HD-032).
+    .catch((err) => {
+      console.warn("[player] Failed to save position:", err);
+    });
+}
+
 function withGlobals(key: GlobalKey, install: () => () => void): () => void {
   const next = (globalRefs.get(key) ?? 0) + 1;
   globalRefs.set(key, next);
@@ -166,7 +203,14 @@ function openListen(episode: Episode, objectUrl: string): void {
   // Skip when nothing would change: loadEpisode resets position and duration
   // from the episode record, and re-running it mid-listen would throw away a
   // seek. Cheap identity check rather than a flag any caller could forget.
-  if (store.currentEpisode?.id !== episode.id || store.queueIndex < 0) {
+  //
+  // A new object URL for the same episode (Try Again with a re-picked file) is
+  // the exception: the store must own it, or it is never revoked (HD-033).
+  if (
+    store.currentEpisode?.id !== episode.id ||
+    store.queueIndex < 0 ||
+    (objectUrl !== "" && objectUrl !== store.objectUrl)
+  ) {
     store.loadEpisode(episode, objectUrl);
   }
 }
@@ -195,7 +239,10 @@ function armListen(
  * Whether the play is *counted* stays with shouldCountPlay; this is only about
  * there being a call site on both paths.
  */
-function countListen(episode: Episode): void {
+function countListen(episode: Episode, start: number): void {
+  // This source's listen is counted, whatever the de-duplication below decides:
+  // a pause/seek/resume of it is the same listen continuing.
+  markListenCounted(start);
   const key = communityKey(episode);
   if (!shouldCountPlay(key ?? `local:${episode.fileHash}`)) return;
 
@@ -281,18 +328,30 @@ export function useAudioPlayer() {
       if (!episode.sourceUrl) return;
       const audio = getAudio();
       if (audio.src) return; // something is already loaded; don't stomp it
+      // A new source is a new start: its listen has not been counted.
+      beginStart();
       notifySourceChanged();
       audio.preload = "none";
       audio.src = episode.sourceUrl;
-      audio.currentTime = episode.playbackPosition ?? 0;
+      // readyState is 0 here, so this is held until loadedmetadata (engine.ts).
+      seekEngine(startPositionFor(episode.playbackPosition, episode.duration));
       audio.playbackRate = usePlayerStore.getState().playbackRate;
     },
     [getAudio],
   );
 
-  // Load and optionally play an episode
+  // Load and optionally play an episode.
+  //
+  // `start` is the id the caller took with beginStart() before any async work
+  // of its own (the hd:play-episode handler resolves URLs and reads OPFS first).
+  // Without one, this call is the start.
   const playEpisode = useCallback(
-    async (episode: Episode, file?: File) => {
+    async (episode: Episode, file?: File, start?: number) => {
+      const id = start ?? beginStart();
+      // Superseded before we got here — someone picked another show while the
+      // caller was still resolving this one. Touch nothing.
+      if (!isCurrentStart(id)) return;
+
       const audio = getAudio();
 
       // Create object URL from file, or use sourceUrl for archive episodes
@@ -313,16 +372,19 @@ export function useAudioPlayer() {
 
       // Reset before re-assigning: a stale src plus load() is its own source of
       // hangs, and `src = ""` would make the browser fetch the HTML document
-      // and try to decode it as audio.
+      // and try to decode it as audio. load() also rejects any play() still
+      // pending from the previous start with AbortError — which that start's
+      // catch below recognises as not its business.
       audio.removeAttribute("src");
       audio.load();
       // Back up from whatever primeEpisode left it at — we want this one.
       audio.preload = "metadata";
       audio.src = url;
-      audio.currentTime = episode.playbackPosition ?? 0;
+      const startAt = startPositionFor(episode.playbackPosition, episode.duration);
+      seekEngine(startAt);
       audio.playbackRate = usePlayerStore.getState().playbackRate;
 
-      armListen(episode, audio, episode.playbackPosition ?? 0);
+      armListen(episode, audio, startAt);
 
       try {
         // play() first, resumeContext() after. The analyser context is not
@@ -330,29 +392,60 @@ export function useAudioPlayer() {
         // real task boundary between the user's tap and play(), which is how
         // Safari decides a call was not user-initiated.
         await audio.play();
+        // Whatever happened, it happened to a show the listener has since
+        // replaced. Its success is not ours to announce or count.
+        if (!isCurrentStart(id)) return;
         resumeContext().catch(() => {});
         setPlaying(true);
 
         // Count the listen, unless this is a retry of one just counted.
-        countListen(episode);
+        countListen(episode, id);
       } catch (err) {
+        // A superseded start's rejection belongs to nobody (HD-003): charged to
+        // the watchdog it lands on whatever is loading *now*. An AbortError is
+        // a load() or pause() interrupting play() — the listener changing
+        // course, not the stream failing.
+        if (!isCurrentStart(id)) return;
+        if (isAbortError(err)) return;
         console.error("[player] Playback failed:", err);
         // Hand it to the watchdog, which owns the one-retry-then-fail policy.
         // Only fall back to the banner if there was no attempt to hand it to.
+        //
+        // The object URL is NOT revoked here. The watchdog's retry re-assigns
+        // it, and revoking it first guaranteed the retry could not work
+        // (HD-033). The store owns it and revokes it when a new source
+        // replaces it or playback stops.
         if (isWatching()) {
           noteError("play-rejected");
         } else {
           usePlayerStore.getState().setLoadState("failed");
           setError("Playback failed. The audio source may be unavailable.");
         }
-        if (isObjectUrl) URL.revokeObjectURL(url);
       }
     },
     [getAudio, setPlaying, setError],
   );
 
-  // Play/pause toggle
-  const togglePlay = useCallback(async () => {
+  /**
+   * Pause, unconditionally. MediaSession's `pause` action calls this directly:
+   * routing it through togglePlay() inverted it whenever the store and the
+   * element disagreed — a lock-screen pause that started the show (HD-032).
+   */
+  const pausePlayback = useCallback(() => {
+    const audio = getAudio();
+    audio.pause();
+    // Paused before the load settled: the listener changed their mind, and a
+    // deadline that later fires over a paused element would raise a failure
+    // dialog about a show nobody is waiting for. Resuming re-arms it, because
+    // this source's listen has not been counted yet.
+    if (isWatching() && !isListenCounted()) disarmWatchdog();
+    setPlaying(false);
+    flushListenTime("pause");
+    resumeContext().catch(() => {});
+  }, [getAudio, setPlaying]);
+
+  /** Play or resume, unconditionally. MediaSession's `play` action. */
+  const resumePlayback = useCallback(async () => {
     const audio = getAudio();
 
     // No source, but an episode is loaded — this is the restored-episode case.
@@ -367,53 +460,53 @@ export function useAudioPlayer() {
       return;
     }
 
-    if (playing) {
-      audio.pause();
-      setPlaying(false);
-      flushListenTime("pause");
+    const { currentEpisode: ep } = usePlayerStore.getState();
+    const id = currentStart();
+
+    // The first play of this source — a primed restored episode, or one paused
+    // before its load settled. It needs the same watchdog cover as a fresh
+    // start, and it is a *listen starting*, which must be counted: this branch
+    // never touches playEpisode.
+    //
+    // Decided by the counted-listen flag, not by readyState. A seek while
+    // paused drops readyState below HAVE_FUTURE_DATA, so the old test counted
+    // pause-scrub-resume as a brand new listen (HD-024).
+    const firstPlay = !isListenCounted() && !isWatching();
+
+    if (firstPlay) {
+      // Undo primeEpisode's "none" so the element actually buffers ahead.
+      audio.preload = "metadata";
+      // The source is already assigned, so openListen runs against it rather
+      // than before it — the only ordering difference between the two paths.
+      if (ep) openListen(ep, usePlayerStore.getState().objectUrl ?? "");
+      armListen(ep, audio, audio.currentTime);
+    }
+
+    try {
+      await audio.play();
+      if (!isCurrentStart(id)) return;
       resumeContext().catch(() => {});
-    } else {
-      const { currentEpisode: ep } = usePlayerStore.getState();
-
-      // A primed-but-never-loaded element has a src and readyState 0, so this
-      // is the restored episode's first play. It needs the same watchdog cover
-      // as a fresh one — it is the exact case the listener was hitting, and
-      // starting it unguarded would swap a silent dead button for a silent
-      // infinite spinner.
-      //
-      // It is also a *listen starting*, which is the part this branch used to
-      // miss: unlike every other start path it never touches playEpisode, so
-      // nothing reported the play. Distinguished from an ordinary pause/resume,
-      // which is the same listen continuing and must not be counted again.
-      const firstPlay =
-        audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA && !isWatching();
-
-      if (firstPlay) {
-        // Undo primeEpisode's "none" so the element actually buffers ahead.
-        audio.preload = "metadata";
-        // The source is already assigned, so openListen runs against it rather
-        // than before it — the only ordering difference between the two paths.
-        if (ep) openListen(ep, usePlayerStore.getState().objectUrl ?? "");
-        armListen(ep, audio, audio.currentTime);
-      }
-
-      try {
-        await audio.play();
-        resumeContext().catch(() => {});
-        setPlaying(true);
-        if (firstPlay && ep) countListen(ep);
-      } catch (err) {
-        console.error("[player] Play failed:", err);
-        // This catch used to swallow the rejection entirely, so a refused
-        // resume left the UI paused with no explanation whatsoever.
-        if (isWatching()) {
-          noteError("play-rejected");
-        } else {
-          setError("Couldn't resume playback. Try again.");
-        }
+      setPlaying(true);
+      if (firstPlay && ep) countListen(ep, id);
+    } catch (err) {
+      if (!isCurrentStart(id)) return;
+      if (isAbortError(err)) return;
+      console.error("[player] Play failed:", err);
+      // This catch used to swallow the rejection entirely, so a refused
+      // resume left the UI paused with no explanation whatsoever.
+      if (isWatching()) {
+        noteError("play-rejected");
+      } else {
+        setError("Couldn't resume playback. Try again.");
       }
     }
-  }, [getAudio, playing, setPlaying, setError]);
+  }, [getAudio, setPlaying, setError]);
+
+  // Play/pause toggle — the ▶/❚❚ button, whose label is the store's `playing`.
+  const togglePlay = useCallback(async () => {
+    if (usePlayerStore.getState().playing) pausePlayback();
+    else await resumePlayback();
+  }, [pausePlayback, resumePlayback]);
 
   // Seek to a position in seconds
   const seek = useCallback(
@@ -427,14 +520,16 @@ export function useAudioPlayer() {
           usePlayerStore.getState();
         if (ep && storeDuration > 0) {
           const clamped = Math.max(0, Math.min(seconds, storeDuration));
-          ep.playbackPosition = clamped;
+          // A new object, not a write into the one the store holds: mutating
+          // it in place changed state without a set(), so nothing subscribed
+          // to currentEpisode could see it (HD-032).
+          usePlayerStore.getState().patchCurrentEpisode({ playbackPosition: clamped });
           setPosition(clamped);
         }
         return;
       }
-      if (!audio.duration || !isFinite(audio.duration)) return;
-      audio.currentTime = Math.max(0, Math.min(seconds, audio.duration));
-      setPosition(audio.currentTime);
+      // At readyState 0 the engine holds the seek until loadedmetadata.
+      setPosition(seekEngine(seconds));
     },
     [getAudio, setPosition],
   );
@@ -453,7 +548,9 @@ export function useAudioPlayer() {
   // Play next track in queue
   const playNext = useCallback(() => {
     const state = usePlayerStore.getState();
-    const nextEp = state.next();
+    // A press of Next is a request to move on, including in repeat-one,
+    // where next() on its own hands back the same track (HD-024).
+    const nextEp = state.next({ manual: true });
     if (nextEp) {
       state.playTrack(nextEp);
     }
@@ -466,7 +563,7 @@ export function useAudioPlayer() {
       // Restart current track
       const audio = getAudio();
       if (audio.src) {
-        audio.currentTime = 0;
+        seekEngine(0);
         state.setPosition(0);
       }
       return;
@@ -574,10 +671,25 @@ export function useAudioPlayer() {
 
       const state = usePlayerStore.getState();
 
+      // The show is finished: next time it starts from the top. Without this
+      // the saved position sat in the last few seconds, so replaying a finished
+      // show ended it again at once and the queue moved on — "the show didn't
+      // start" (HD-004). Store first, so neither the pause save nor the pagehide
+      // flush can write the old position back over it.
+      const finished = state.currentEpisode;
+      state.setPosition(0);
+      if (finished?.id) {
+        state.patchCurrentEpisode({ playbackPosition: 0 });
+        db.episodes
+          .update(finished.id, { playbackPosition: 0, updatedAt: Date.now() })
+          .catch((err) => {
+            console.warn("[player] Failed to clear finished position:", err);
+          });
+      }
+
       // Repeat one: just replay current track
       if (state.repeat === "one") {
-        const audio = getAudio();
-        audio.currentTime = 0;
+        seekEngine(0);
         audio.play().catch(() => setPlaying(false));
         return;
       }
@@ -698,9 +810,14 @@ export function useAudioPlayer() {
       // Benign at the end of a load; only meaningful while still waiting.
       if (audio.readyState < 3) noteWaiting();
     };
+    // `abort` is not an error. It means the fetch stopped "not due to an
+    // error" — in practice because load() or a new src replaced it. The event
+    // is queued, so when one show replaces another it arrives *after* the new
+    // start has armed the watchdog; reporting it charged the new show with a
+    // network error and spent its retry tearing down a healthy load. The same
+    // phantom as HD-003, by a different route.
     const onAbort = () => {
       setBuffering(false);
-      if (isWatching()) noteError("network-error");
     };
 
     // Tell the watchdog it has eyes. Without this it refuses to arm, which is
@@ -761,23 +878,15 @@ export function useAudioPlayer() {
     });
   }, [setPlaying]);
 
-  // Persist playback position periodically. Mount-once for the same reason as
-  // the position timer — otherwise both instances wrote the same row every 5s.
+  // Persist playback position: every POSITION_SAVE_MS while playing, and at
+  // once on pause. Mount-once for the same reason as the position timer —
+  // otherwise both instances wrote the same row on every interval.
   useEffect(() => {
     return withGlobals("persist-position", () => {
       let interval = 0;
       const start = () => {
         if (interval) return;
-        interval = window.setInterval(async () => {
-          const { position: pos, currentEpisode: ep } = usePlayerStore.getState();
-          if (ep?.id) {
-            await db.episodes.update(ep.id, {
-              playbackPosition: pos,
-              lastPlayedAt: Date.now(),
-              updatedAt: Date.now(),
-            });
-          }
-        }, 5000);
+        interval = window.setInterval(savePosition, POSITION_SAVE_MS);
       };
       const stopTimer = () => {
         window.clearInterval(interval);
@@ -793,6 +902,17 @@ export function useAudioPlayer() {
       sync(s0.playing, s0.currentEpisode?.id);
       const unsub = usePlayerStore.subscribe((s, prev) => {
         if (s.playing === prev.playing && s.currentEpisode?.id === prev.currentEpisode?.id) return;
+        // Paused (the same episode, no longer playing): save now. With a 30 s
+        // interval, waiting for the next tick would lose the pause position to
+        // anything that ends the page before then.
+        if (
+          prev.playing &&
+          !s.playing &&
+          s.currentEpisode?.id !== undefined &&
+          s.currentEpisode.id === prev.currentEpisode?.id
+        ) {
+          savePosition();
+        }
         sync(s.playing, s.currentEpisode?.id);
       });
 
@@ -830,9 +950,9 @@ export function useAudioPlayer() {
             };
             getReq.onerror = () => {}; // best-effort
           };
-          req.onerror = () => {}; // best-effort — position was saved within 5s interval
+          req.onerror = () => {}; // best-effort — the interval saved within 30s
         } catch {
-          // Best-effort — if IDB fails during unload, position was saved within 5s
+          // Best-effort — if IDB fails during unload, the interval saved within 30s
         }
       }
     };
@@ -889,8 +1009,11 @@ export function useAudioPlayer() {
     const session = navigator.mediaSession;
 
     const actions: [MediaSessionAction, MediaSessionActionHandler][] = [
-      ["play", () => togglePlay()],
-      ["pause", () => togglePlay()],
+      // Explicit, never togglePlay(): the lock screen says which it wants, and
+      // a toggle inverts whenever the store's `playing` is out of step with
+      // the element — which is exactly when a listener reaches for it (HD-032).
+      ["play", () => void resumePlayback()],
+      ["pause", () => pausePlayback()],
       ["previoustrack", () => playPrevious()],
       ["nexttrack", () => playNext()],
       ["seekforward", (details) => {
@@ -926,7 +1049,7 @@ export function useAudioPlayer() {
         }
       }
     };
-  }, [togglePlay, playNext, playPrevious, seek]);
+  }, [resumePlayback, pausePlayback, playNext, playPrevious, seek]);
 
   // Update MediaSession position state on a timer rather than on every position
   // change — reading from getState() keeps this off the render path entirely.
@@ -958,6 +1081,8 @@ export function useAudioPlayer() {
     playEpisode,
     primeEpisode,
     togglePlay,
+    pausePlayback,
+    resumePlayback,
     seek,
     stopPlayback,
     playNext,

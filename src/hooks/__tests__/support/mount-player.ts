@@ -1,4 +1,5 @@
 import { createElement, useEffect } from "react";
+import { vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
@@ -71,13 +72,68 @@ export function mountHook<T>(useHook: () => T): Mounted<T> {
  * `readyState` is writable so a test can say "this element has data" — the
  * difference between a stalled load and a playing show, which is the distinction
  * both the watchdog and `togglePlay`'s first-play detection turn on.
+ *
+ * `load()` and `pause()` reject every pending `play()` promise with an
+ * `AbortError`, because that is what real browsers do and what the play path
+ * has to survive (HD-003). The stub this replaced made `load()` a no-op, so a
+ * test could not even express "B started while A's play() was pending": A's
+ * promise just sat there, and the bug — A's rejection being charged to B —
+ * could not happen in the one place built to catch it.
+ *
+ * `paused` is tracked the way the element reports it: `play()` clears it
+ * synchronously, `pause()` and `load()` set it.
  */
 export function makeMediaElement(
   play: () => Promise<void> = () => Promise.resolve(),
 ): HTMLAudioElement {
   const el = document.createElement("audio");
-  el.play = play as HTMLAudioElement["play"];
-  el.load = () => {};
+  const pending = new Set<(err: DOMException) => void>();
+  let paused = true;
+
+  Object.defineProperty(el, "paused", {
+    get: () => paused,
+    configurable: true,
+  });
+
+  const abortPending = (message: string) => {
+    for (const reject of [...pending]) {
+      reject(new DOMException(message, "AbortError"));
+    }
+  };
+
+  // A spy, so suites can assert on play() calls as they did against the old stub.
+  el.play = vi.fn(() => {
+    paused = false;
+    return new Promise<void>((resolve, reject) => {
+      const abort = (err: DOMException) => {
+        pending.delete(abort);
+        reject(err);
+      };
+      pending.add(abort);
+      play().then(
+        () => {
+          if (pending.delete(abort)) resolve();
+        },
+        (err: unknown) => {
+          if (pending.delete(abort)) {
+            paused = true;
+            reject(err);
+          }
+        },
+      );
+    });
+  }) as unknown as HTMLAudioElement["play"];
+
+  el.pause = () => {
+    paused = true;
+    abortPending("The play() request was interrupted by a call to pause().");
+  };
+
+  el.load = () => {
+    paused = true;
+    abortPending("The play() request was interrupted by a new load request.");
+  };
+
   setReadyState(el, 0);
   return el;
 }

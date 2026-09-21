@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, memo } from "react";
 import { useOscilloscope } from "@/hooks/useOscilloscope";
 import { useContextMenuStore } from "@/stores/context-menu-store";
 import { VISUALIZATION_META } from "@/audio/visualizations";
@@ -10,7 +10,9 @@ interface OscilloscopeProps {
   className?: string;
 }
 
-export function Oscilloscope({ className }: OscilloscopeProps) {
+// memo: rendered inside AudioPlayer, which re-renders on every player state
+// change; this has nothing to redraw unless its own props or selectors do (HD-017).
+export const Oscilloscope = memo(function Oscilloscope({ className }: OscilloscopeProps) {
   const { canvasRef, vizId, vizName, cycleViz, setVizMode } =
     useOscilloscope();
   const [labelVisible, setLabelVisible] = useState(false);
@@ -90,4 +92,4 @@ export function Oscilloscope({ className }: OscilloscopeProps) {
       </span>
     </div>
   );
-}
+});

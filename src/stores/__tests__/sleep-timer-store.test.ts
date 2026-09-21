@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { useSleepTimerStore } from "../sleep-timer-store";
 import { usePlayerStore } from "../player-store";
+import { initEngine, getMediaElement } from "@/audio/engine";
+import { makeMediaElement } from "@/hooks/__tests__/support/mount-player";
 
 /**
  * The sleep timer fades the volume over the last thirty seconds and then pauses.
@@ -10,10 +12,27 @@ import { usePlayerStore } from "../player-store";
  * quiet the next morning with no indication why; and its interval must be torn
  * down on cancel, or a cancelled timer goes on ticking and pauses playback later
  * for no visible reason.
+ *
+ * And it must actually stop the show. The player is a detached `new Audio()` —
+ * never in the DOM — and this store used to pause it with
+ * `document.querySelector("audio")`, which found nothing in production. The show
+ * faded out, the store said "paused", the volume came back, and the broadcast
+ * played on all night (HD-001). The old version of this suite appended an
+ * <audio> to the document for that lookup to find, so it passed. There is no
+ * <audio> in the DOM here, on purpose: every assertion is on the engine's own
+ * element, the one production plays through.
  */
 
 const t = () => useSleepTimerStore.getState();
 const p = () => usePlayerStore.getState();
+
+/** The engine's element, detached like production's, and currently playing. */
+function playingEngineElement(): HTMLAudioElement {
+  const el = makeMediaElement();
+  initEngine(el);
+  void el.play();
+  return el;
+}
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -66,25 +85,41 @@ describe("starting and cancelling", () => {
     expect(t().active).toBe(false);
   });
 
-  it("restarting does not stack a second interval", () => {
+  it("restarting re-bases the deadline rather than adding to it", () => {
     t().start(2);
+    vi.advanceTimersByTime(30_000);
     t().start(2);
     vi.advanceTimersByTime(1000);
-    // Two intervals would take off two seconds.
     expect(t().remaining).toBe(119);
   });
 });
 
-describe("the fade and the stop", () => {
-  /** An <audio> the store's `document.querySelector("audio")` will find. */
-  function mountAudio() {
-    const audio = document.createElement("audio");
-    const pause = vi.fn();
-    audio.pause = pause;
-    document.body.appendChild(audio);
-    return { audio, pause };
-  }
+describe("wall-clock time, not ticks (HD-024)", () => {
+  it("expires on time even when the browser throttles the interval", () => {
+    // A locked phone or a background tab — exactly where a sleep timer runs —
+    // throttles intervals. Counting ticks, thirty minutes of real time that
+    // delivered one callback took one second off the timer.
+    const el = playingEngineElement();
+    usePlayerStore.setState({ playing: true });
+    t().start(30);
 
+    vi.setSystemTime(Date.now() + 30 * 60_000); // half an hour passes...
+    vi.advanceTimersByTime(1000); // ...and the throttled interval fires once
+
+    expect(t().active).toBe(false);
+    expect(t().remaining).toBe(0);
+    expect(el.paused).toBe(true);
+  });
+
+  it("reports remaining time from the deadline after a gap", () => {
+    t().start(10);
+    vi.setSystemTime(Date.now() + 4 * 60_000);
+    vi.advanceTimersByTime(1000);
+    expect(t().remaining).toBe(6 * 60 - 1);
+  });
+});
+
+describe("the fade and the stop", () => {
   it("fades linearly over the last thirty seconds", () => {
     // Regression: the fade used to read the player's live volume back on every
     // tick, and `setVolume` writes `preMuteVolume` on every call — so the ramp
@@ -121,8 +156,10 @@ describe("the fade and the stop", () => {
     expect(p().volume).toBe(0.8);
   });
 
-  it("pauses playback and gives the volume back when it reaches zero", () => {
-    const { audio, pause } = mountAudio();
+  it("pauses the engine's element — not a DOM lookup — and gives the volume back", () => {
+    const el = playingEngineElement();
+    expect(document.querySelector("audio")).toBeNull(); // as in production
+    expect(getMediaElement()).toBe(el);
     usePlayerStore.setState({ playing: true, volume: 0.8, preMuteVolume: 0.8 });
     t().start(1);
 
@@ -131,18 +168,27 @@ describe("the fade and the stop", () => {
     expect(t().active).toBe(false);
     expect(t().remaining).toBe(0);
     expect(p().playing).toBe(false);
-    expect(pause).toHaveBeenCalled();
+    // HD-001: the element itself must be paused. The store saying so is what
+    // the old code achieved while the show played on.
+    expect(el.paused).toBe(true);
     // The one that bites the next morning: this used to come back as ~0.027.
     expect(p().volume).toBeCloseTo(0.8, 5);
+  });
 
-    audio.remove();
+  it("pauses the element even when the store already thinks it is paused", () => {
+    // If the two disagree, the element is the one making noise.
+    const el = playingEngineElement();
+    usePlayerStore.setState({ playing: false });
+    t().start(1);
+    vi.advanceTimersByTime(60_000);
+    expect(el.paused).toBe(true);
   });
 
   it("leaves preMuteVolume intact, so unmuting still works afterwards", () => {
     // The second half of the same defect. `setVolume` tracks preMuteVolume, so
     // fading also destroyed the value `toggleMute` restores from — the listener
     // could not recover their volume by muting and unmuting either.
-    const { audio } = mountAudio();
+    playingEngineElement();
     usePlayerStore.setState({ playing: true, volume: 0.8, preMuteVolume: 0.8 });
     t().start(1);
 
@@ -152,8 +198,6 @@ describe("the fade and the stop", () => {
     expect(p().volume).toBe(0);
     p().toggleMute(); // -> back
     expect(p().volume).toBeCloseTo(0.8, 5);
-
-    audio.remove();
   });
 
   it("hands the volume back when the timer is cancelled mid-fade", () => {

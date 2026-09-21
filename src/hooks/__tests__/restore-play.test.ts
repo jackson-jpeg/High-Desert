@@ -45,14 +45,28 @@ vi.mock("@/services/stats/client", () => ({
   reportPlaybackFailure: vi.fn(),
 }));
 
-vi.mock("@/audio/engine", () => ({
+// The real seekEngine/pauseEngine, bound to this suite's element: seeking is
+// what HD-004/HD-024 changed, so it must be the production code under test.
+vi.mock("@/audio/engine", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/audio/engine")>();
+  const bound = () => real.initEngine(element);
+  return {
   getMediaElement: () => element,
   initEngine: vi.fn(),
   setEngineVolume: vi.fn(),
   notifySourceChanged: () => notifySourceChanged(),
   getAnalyserNode: () => null,
   resumeContext: () => Promise.resolve(),
-}));
+    seekEngine: (t: number) => {
+      bound();
+      return real.seekEngine(t);
+    },
+    pauseEngine: () => {
+      bound();
+      real.pauseEngine();
+    },
+  };
+});
 
 vi.mock("@/db", () => ({
   db: {

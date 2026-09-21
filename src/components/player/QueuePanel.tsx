@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, memo } from "react";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
 import { db } from "@/db";
@@ -9,7 +9,9 @@ import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 
-export function QueuePanel() {
+// memo: rendered inside AudioPlayer, which re-renders on every player state
+// change; this has nothing to redraw unless its own props or selectors do (HD-017).
+export const QueuePanel = memo(function QueuePanel() {
   const queue = usePlayerStore((s) => s.queue);
   const queueIndex = usePlayerStore((s) => s.queueIndex);
   const removeFromQueue = usePlayerStore((s) => s.removeFromQueue);
@@ -265,4 +267,4 @@ export function QueuePanel() {
       </div>
     </div>
   );
-}
+});

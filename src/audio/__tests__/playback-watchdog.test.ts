@@ -553,5 +553,40 @@ describe("playback watchdog", () => {
       expect(out).toContain("token=1");
       expect(out).toContain("hd_retry=1");
     });
+
+    it("leaves a blob: URL alone — it names memory, not a server resource (HD-033)", () => {
+      const blob = "blob:https://highdesert.space/0b9c8f1e-6f1a-4a51-9d3c-2f7b1a0e2c11";
+      expect(withCacheBuster(blob, 1)).toBe(blob);
+    });
+  });
+
+  describe("a superseded attempt cannot fail its replacement (HD-003)", () => {
+    it("a retry whose play() is rejected after a new attempt armed raises nothing", async () => {
+      // A times out and retries; the retry's play() is still pending when the
+      // listener picks B. B's load() rejects that play() — and the rejection
+      // used to giveUp() on A: clearing B's timers, nulling B's attempt and
+      // opening the failure dialog over B.
+      let rejectRetry!: (e: unknown) => void;
+      const a = fakeAudio({
+        play: vi.fn(
+          () => new Promise<void>((_res, rej) => {
+            rejectRetry = rej;
+          }),
+        ) as unknown as HTMLAudioElement["play"],
+      });
+      arm(a, "coll--a");
+      vi.advanceTimersByTime(LOAD_TIMEOUT_MS); // A's retry, play() pending
+      expect(a.play).toHaveBeenCalledTimes(1);
+
+      arm(fakeAudio(), "coll--b"); // B
+      rejectRetry(new DOMException("interrupted", "AbortError"));
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(onFail).not.toHaveBeenCalled();
+      expect(reportPlaybackFailure).not.toHaveBeenCalled();
+      // B is still supervised: its own deadline still runs.
+      expect(isWatching()).toBe(true);
+    });
   });
 });

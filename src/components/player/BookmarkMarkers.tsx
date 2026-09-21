@@ -5,6 +5,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
 import type { Bookmark } from "@/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
+import { seekEngine } from "@/audio/engine";
 import { useAdminStore } from "@/stores/admin-store";
 import { addBookmark, removeBookmark } from "@/services/episodes/management";
 import { toast } from "@/stores/toast-store";
@@ -59,9 +60,10 @@ export function BookmarkMarkers(props: Props) {
             style={{ left: `${pct}%` }}
             onClick={(e) => {
               e.stopPropagation();
-              const audio = document.querySelector("audio");
-              if (audio) audio.currentTime = bm.position;
-              usePlayerStore.getState().setPosition(bm.position);
+              // Through the engine: the player's element is never in the DOM,
+              // so the querySelector("audio") this used found nothing and only
+              // the store moved — which the next position tick overwrote (HD-012).
+              usePlayerStore.getState().setPosition(seekEngine(bm.position));
             }}
             title={`${bm.label} (${formatTime(bm.position)})`}
           >
@@ -79,16 +81,19 @@ function BookmarkButton({ variant, className }: { variant: "desktop" | "mobile";
   const [label, setLabel] = useState("");
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const episodeId = usePlayerStore((s) => s.currentEpisode?.id);
-  const position = usePlayerStore((s) => s.position);
 
+  // Position is read when the bookmark is added, not subscribed to: a
+  // subscription re-rendered this button four times a second for the whole
+  // show, to display nothing (HD-017).
   const handleAdd = useCallback(async () => {
     if (!episodeId) return;
+    const position = usePlayerStore.getState().position;
     const text = label.trim() || `Bookmark at ${formatTime(position)}`;
     await addBookmark(episodeId, position, text);
     toast.info(`Bookmark added at ${formatTime(position)}`);
     setLabel("");
     setShowInput(false);
-  }, [episodeId, position, label]);
+  }, [episodeId, label]);
 
   if (!isAdmin || !episodeId) return null;
 
@@ -134,7 +139,7 @@ function BookmarkButton({ variant, className }: { variant: "desktop" | "mobile";
           : "text-hd-10 px-1",
         className,
       )}
-      title={`Add bookmark at ${formatTime(position)}`}
+      title="Add bookmark at the current position"
       aria-label="Add bookmark"
     >
       {"\u{1F516}"}
@@ -170,10 +175,11 @@ export function BookmarkList({
     if (onSeek) {
       onSeek(bm.position);
     } else {
-      // If episode is currently loaded, seek directly
+      // If episode is currently loaded, seek directly — the element, not just
+      // the store, which the next position tick would overwrite (HD-012).
       const state = usePlayerStore.getState();
       if (state.currentEpisode?.id === episodeId) {
-        state.setPosition(bm.position);
+        state.setPosition(seekEngine(bm.position));
       }
     }
   };
