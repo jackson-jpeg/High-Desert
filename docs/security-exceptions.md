@@ -30,4 +30,6 @@ The whole suite and every mutation stayed green.
 ## Dependabot majors declined
 
 Majors that could not be upgraded with the suite and every mutation green are
-closed with a one-line reason here, so the decision is findable. None so far.
+closed with a one-line reason here, so the decision is findable.
+
+- **eslint 9 → 10** (PR #14, 2026-09-21): `npm run lint` crashes — the `eslint-plugin-react` bundled by `eslint-config-next` 16.3.5 calls `context.getFilename()`, removed in ESLint 10, and it and `eslint-plugin-import`/`jsx-a11y` declare peer ranges ending at `^9`. Retry when `eslint-config-next` supports 10. Dev-only; no advisory against eslint 9.
