@@ -1,21 +1,19 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/db";
 import type { Episode } from "@/db/schema";
-import { Button } from "@/components/win98";
-import { usePlayerStore } from "@/stores/player-store";
 import { toast } from "@/stores/toast-store";
-import { rateEpisode, toggleFlag } from "@/services/episodes/management";
-import { reportRating, fetchRatings } from "@/services/stats/client";
-import { communityKey } from "@/lib/utils/community-key";
 import { BookmarkList } from "@/components/player/BookmarkMarkers";
 import { MoreLikeThis } from "@/components/library/MoreLikeThis";
+import { EpisodeDetailHeader } from "@/components/library/EpisodeDetailHeader";
+import { EpisodeEditForm } from "@/components/library/EpisodeEditForm";
+import { EpisodeOverview } from "@/components/library/EpisodeOverview";
+import { EpisodeProgress } from "@/components/library/EpisodeProgress";
+import { EpisodePlayControls, EpisodeManageBar } from "@/components/library/EpisodeActions";
+import { EpisodeRating, useCommunityRating } from "@/components/library/EpisodeRating";
+import { SeriesPartsList } from "@/components/library/SeriesPartsList";
 import { useSwipeDown } from "@/hooks/useSwipeDown";
 import { cn } from "@/lib/utils/cn";
-import { formatDuration, formatTime, formatAirDate, getShowLabel } from "@/lib/utils/format";
-import { emit } from "@/lib/events";
 
 interface EpisodeDetailProps {
   episode: Episode;
@@ -29,13 +27,12 @@ interface EpisodeDetailProps {
   className?: string;
 }
 
-const SHOW_TYPE_OPTIONS: { value: Episode["showType"]; label: string }[] = [
-  { value: "coast", label: "Coast to Coast" },
-  { value: "dreamland", label: "Dreamland" },
-  { value: "special", label: "Special" },
-  { value: "unknown", label: "Unknown" },
-];
-
+/**
+ * The library's episode detail panel. The shell — slide in/out, swipe to
+ * dismiss, view/edit mode — lives here; each section is its own sibling
+ * component (split under HD-018), and the pure pieces are in
+ * src/lib/library/episode-detail.ts.
+ */
 export function EpisodeDetail({
   episode,
   isPlaying,
@@ -47,9 +44,6 @@ export function EpisodeDetail({
   communityPlays,
   className,
 }: EpisodeDetailProps) {
-  const showLabel = getShowLabel(episode.showType);
-  const isArchive = episode.source === "archive";
-
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -78,66 +72,22 @@ export function EpisodeDetail({
   }, [episode.id]);
 
   const [editing, setEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState("");
-  const [editGuest, setEditGuest] = useState("");
-  const [editAirDate, setEditAirDate] = useState("");
-  const [editTopic, setEditTopic] = useState("");
-  const [editShowType, setEditShowType] = useState<Episode["showType"]>("unknown");
-  const [editSummary, setEditSummary] = useState("");
-  const [editCategory, setEditCategory] = useState("");
-  const [editSeries, setEditSeries] = useState("");
 
-  // Community rating
-  const [communityRating, setCommunityRating] = useState<{ avg: number; count: number } | null>(null);
-
-  const epCommunityKey = communityKey(episode);
-  useEffect(() => {
-    if (!epCommunityKey) return;
-    // Without the catch this was an unhandled rejection on every open while
-    // the stats service was unreachable.
-    fetchRatings([epCommunityKey])
-      .then((data) => setCommunityRating(data[epCommunityKey] ?? null))
-      .catch(() => setCommunityRating(null));
-  }, [epCommunityKey, episode.rating]); // re-fetch after local rating changes
+  // Fetched here rather than in <EpisodeRating> so it runs in edit mode too
+  // and survives the view/edit switch without a refetch.
+  const communityRating = useCommunityRating(episode);
 
   // Reset edit state when episode changes
   useEffect(() => {
     setEditing(false); // eslint-disable-line react-hooks/set-state-in-effect -- reset derived state on prop change
   }, [episode.id]);
 
-  const startEditing = () => {
-    setEditTitle(episode.title ?? "");
-    setEditGuest(episode.guestName ?? "");
-    setEditAirDate(episode.airDate ?? "");
-    setEditTopic(episode.topic ?? "");
-    setEditShowType(episode.showType ?? "unknown");
-    setEditSummary(episode.aiSummary ?? "");
-    setEditCategory(episode.aiCategory ?? "");
-    setEditSeries(episode.aiSeries ?? "");
-    setEditing(true);
-  };
-
-  const handleSave = () => {
+  const handleSave = (fields: Partial<Episode>) => {
     if (!onEdit || !episode.id) return;
-    onEdit(episode.id, {
-      title: editTitle || undefined,
-      guestName: editGuest || undefined,
-      airDate: editAirDate || undefined,
-      topic: editTopic || undefined,
-      showType: editShowType,
-      aiSummary: editSummary || undefined,
-      aiCategory: editCategory || undefined,
-      aiSeries: editSeries || undefined,
-    });
+    onEdit(episode.id, fields);
     setEditing(false);
     toast.success("Episode updated");
   };
-
-  const handleCancel = () => {
-    setEditing(false);
-  };
-
-  const inputClass = "w-full bg-inset-well w98-inset-dark px-2 py-2 md:px-1.5 md:py-1 text-hd-16 md:text-hd-12 text-desktop-gray outline-none min-h-touch md:min-h-0";
 
   return (
     <div
@@ -153,382 +103,37 @@ export function EpisodeDetail({
         <div className="w-8 h-[3px] rounded-full bg-white/15" />
       </div>
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-bevel-dark/20 glass-divider">
-        <div className="flex items-center gap-1.5">
-          <span className="text-hd-12 md:text-hd-10 text-bevel-dark/85">
-            {[showLabel, isArchive ? "Archive" : null].filter(Boolean).join(" \u00B7 ")}
-          </span>
-          {episode.aiCategory && (
-            <button
-              onClick={() => {
-                if (episode.aiCategory) emit("filter-category", episode.aiCategory);
-              }}
-              className="text-hd-12 md:text-hd-10 text-desert-amber/85 bg-desert-amber/8 px-2 py-1 md:px-1 md:py-px cursor-pointer hover:text-desert-amber hover:bg-desert-amber/15 active:text-desert-amber active:bg-desert-amber/15 transition-colors-fast"
-              title={`Filter by ${episode.aiCategory}`}
-            >
-              {episode.aiCategory}
-            </button>
-          )}
-          {episode.aiNotable && (
-            <span className="text-hd-12 md:text-hd-10 text-yellow-400/80" title="Notable episode">
-              {"\u272A"}
-            </span>
-          )}
-        </div>
-        <button
-          onClick={handleClose}
-          className="text-hd-14 md:text-hd-11 text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer flex-shrink-0 min-w-touch min-h-touch md:min-w-0 md:min-h-0 flex items-center justify-center"
-          aria-label="Close detail"
-        >
-          {"\u2715"}
-        </button>
-      </div>
+      <EpisodeDetailHeader episode={episode} onClose={handleClose} />
 
       {/* Body */}
       <div className="p-3 pb-[calc(0.75rem+var(--safe-bottom))] md:pb-3 flex flex-col gap-2.5 max-h-[80vh] md:max-h-none overflow-auto overscroll-contain md:overflow-visible">
         {editing ? (
-          /* ── Edit Mode ── */
-          <div className="flex flex-col gap-2">
-            <label className="flex flex-col gap-0.5">
-              <span className="text-hd-12 md:text-hd-10 text-bevel-dark uppercase tracking-wider">Title</span>
-              <input
-                type="text"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                autoComplete="off"
-                className={inputClass}
-              />
-            </label>
-            <label className="flex flex-col gap-0.5">
-              <span className="text-hd-12 md:text-hd-10 text-bevel-dark uppercase tracking-wider">Guest Name</span>
-              <input
-                type="text"
-                value={editGuest}
-                onChange={(e) => setEditGuest(e.target.value)}
-                autoComplete="off"
-                className={inputClass}
-              />
-            </label>
-            <label className="flex flex-col gap-0.5">
-              <span className="text-hd-12 md:text-hd-10 text-bevel-dark uppercase tracking-wider">Air Date</span>
-              <input
-                type="date"
-                value={editAirDate}
-                onChange={(e) => setEditAirDate(e.target.value)}
-                placeholder="YYYY-MM-DD"
-                className={inputClass}
-              />
-            </label>
-            <label className="flex flex-col gap-0.5">
-              <span className="text-hd-12 md:text-hd-10 text-bevel-dark uppercase tracking-wider">Topic</span>
-              <input
-                type="text"
-                value={editTopic}
-                onChange={(e) => setEditTopic(e.target.value)}
-                className={inputClass}
-              />
-            </label>
-            <label className="flex flex-col gap-0.5">
-              <span className="text-hd-12 md:text-hd-10 text-bevel-dark uppercase tracking-wider">Show Type</span>
-              <select
-                value={editShowType}
-                onChange={(e) => setEditShowType(e.target.value as Episode["showType"])}
-                className={inputClass}
-              >
-                {SHOW_TYPE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-0.5">
-              <span className="text-hd-12 md:text-hd-10 text-bevel-dark uppercase tracking-wider">Category</span>
-              <input
-                type="text"
-                value={editCategory}
-                onChange={(e) => setEditCategory(e.target.value)}
-                placeholder="e.g. UFOs & Aliens, Paranormal, Conspiracy"
-                className={inputClass}
-              />
-            </label>
-            <label className="flex flex-col gap-0.5">
-              <span className="text-hd-12 md:text-hd-10 text-bevel-dark uppercase tracking-wider">Series</span>
-              <input
-                type="text"
-                value={editSeries}
-                onChange={(e) => setEditSeries(e.target.value)}
-                placeholder="e.g. Mel's Hole, Area 51 Caller"
-                className={inputClass}
-              />
-            </label>
-            <label className="flex flex-col gap-0.5">
-              <span className="text-hd-12 md:text-hd-10 text-bevel-dark uppercase tracking-wider">AI Summary</span>
-              <textarea
-                value={editSummary}
-                onChange={(e) => setEditSummary(e.target.value)}
-                rows={4}
-                className={cn(inputClass, "resize-y")}
-              />
-            </label>
-            <div className="flex items-center gap-2 pt-1">
-              <Button variant="dark" size="sm" onClick={handleSave}>Save</Button>
-              <Button size="sm" onClick={handleCancel}>Cancel</Button>
-            </div>
-          </div>
+          <EpisodeEditForm episode={episode} onSave={handleSave} onCancel={() => setEditing(false)} />
         ) : (
-          /* ── View Mode ── */
           <>
-            {/* Title + date + duration */}
-            <div>
-              <div className="text-hd-17 md:text-hd-13 text-desktop-gray font-bold leading-snug break-words font-sans">
-                {episode.title || episode.fileName}
-              </div>
-              <div className="flex items-center gap-2 mt-1.5">
-                {episode.airDate && (
-                  <span className="text-hd-12 md:text-hd-11 text-desert-amber tabular-nums font-mono tracking-tight">
-                    {formatAirDate(episode.airDate)}
-                  </span>
-                )}
-                {episode.duration != null && (
-                  <span className="text-hd-12 md:text-hd-11 text-bevel-dark/85 tabular-nums font-mono">
-                    {formatDuration(episode.duration)}
-                  </span>
-                )}
-                {communityPlays != null && communityPlays > 0 && (
-                  <span className="text-hd-10 md:text-hd-9 text-bevel-dark/85">
-                    ▶ {communityPlays.toLocaleString()} community plays
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Guest */}
-            {episode.guestName && (
-              <div
-                className="text-hd-14 md:text-hd-12 text-static-green/85 hover:text-static-green hover:underline cursor-pointer w-fit"
-                onClick={() => {
-                  if (episode.guestName) emit("show-guest", episode.guestName);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    if (episode.guestName) emit("show-guest", episode.guestName);
-                  }
-                }}
-                role="button"
-                tabIndex={0}
-                aria-label={`View guest profile: ${episode.guestName}`}
-              >
-                {episode.guestName}
-              </div>
-            )}
-
-            {/* Topic */}
-            {episode.topic && !episode.guestName && (
-              <div className="text-hd-14 md:text-hd-12 text-desktop-gray/85">
-                {episode.topic}
-              </div>
-            )}
-
-            {/* Series */}
-            {episode.aiSeries && (
-              <button
-                onClick={() => {
-                  if (episode.aiSeries) emit("filter-series", episode.aiSeries);
-                }}
-                className="text-hd-12 md:text-hd-10 text-signal-blue bg-title-bar-blue/8 px-2 py-1 md:px-1.5 md:py-px cursor-pointer hover:text-signal-blue hover:bg-title-bar-blue/15 active:text-signal-blue active:bg-title-bar-blue/15 transition-colors-fast flex items-center gap-1 w-fit"
-                title={`Filter by ${episode.aiSeries}`}
-              >
-                <span>{"\u{1F4DA}"}</span>
-                <span>
-                  {episode.aiSeries}
-                  {episode.aiSeriesPart ? ` \u2014 Part ${episode.aiSeriesPart}` : ""}
-                </span>
-              </button>
-            )}
-
-            {/* Summary or Description */}
-            {(episode.aiSummary || episode.description) && (
-              <div className="text-hd-14 md:text-hd-11 text-desktop-gray/85 leading-relaxed font-sans">
-                {episode.aiSummary || episode.description}
-              </div>
-            )}
-
-            {/* Tags (clickable) */}
-            {episode.aiTags && episode.aiTags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {episode.aiTags.map((tag) => (
-                  <button
-                    key={tag}
-                    onClick={() => {
-                      emit("filter-tag", tag);
-                    }}
-                    className="text-hd-13 md:text-hd-10 text-desert-amber/85 bg-desert-amber/10 border border-desert-amber/15 px-2.5 py-1.5 md:px-1.5 md:py-px rounded-sm cursor-pointer hover:bg-desert-amber/20 hover:text-desert-amber active:bg-desert-amber/20 active:text-desert-amber transition-colors-fast"
-                    title={`Filter by "${tag}"`}
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-            )}
+            <EpisodeOverview episode={episode} communityPlays={communityPlays} />
 
             {/* Bookmarks */}
             {episode.id && (
               <BookmarkList episodeId={episode.id} />
             )}
 
-            {/* Playback progress */}
-            {episode.playbackPosition != null && episode.playbackPosition > 0 && episode.duration != null && episode.duration > 0 && (
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-[3px] w98-inset-dark bg-inset-well overflow-hidden">
-                  <div
-                    className={cn(
-                      "h-full",
-                      episode.playbackPosition / episode.duration > 0.9
-                        ? "bg-static-green/50"
-                        : "bg-phosphor-amber/50",
-                    )}
-                    style={{ width: `${Math.min(100, (episode.playbackPosition / episode.duration) * 100)}%` }}
-                  />
-                </div>
-                <span className="text-hd-12 md:text-hd-10 text-bevel-dark/85 tabular-nums flex-shrink-0">
-                  {formatTime(episode.playbackPosition)} / {formatDuration(episode.duration)}
-                </span>
-              </div>
-            )}
+            <EpisodeProgress episode={episode} />
 
-            {/* Play stats */}
-            {(episode.playCount ?? 0) > 0 && (
-              <PlayStats episode={episode} />
-            )}
+            <EpisodePlayControls
+              episode={episode}
+              isPlaying={isPlaying}
+              onPlay={onPlay}
+              onToggleFavorite={onToggleFavorite}
+            />
 
-            {/* Play buttons */}
-            <div className="flex items-center gap-2 pt-1">
-              <Button
-                variant="dark"
-                onClick={() => onPlay(episode)}
-                disabled={isPlaying}
-              >
-                {isPlaying ? "Playing" : "\u25B6 Play"}
-              </Button>
-              <Button
-                variant="dark"
-                size="sm"
-                onClick={() => {
-                  usePlayerStore.getState().enqueueNext(episode);
-                  toast.info(`"${episode.title || episode.fileName}" plays next`);
-                }}
-                disabled={isPlaying}
-              >
-                Play Next
-              </Button>
-              <Button
-                variant="dark"
-                size="sm"
-                onClick={() => {
-                  usePlayerStore.getState().enqueue(episode);
-                  toast.info("Added to queue");
-                }}
-              >
-                Queue
-              </Button>
-              {onToggleFavorite && (
-                <button
-                  onClick={() => onToggleFavorite(episode)}
-                  className={cn(
-                    "text-hd-17 md:text-hd-13 cursor-pointer transition-colors-fast ml-auto min-w-touch min-h-touch md:min-w-0 md:min-h-0 flex items-center justify-center",
-                    episode.favoritedAt ? "text-desert-amber" : "text-bevel-dark/85 hover:text-desert-amber",
-                  )}
-                  title={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
-                >
-                  {episode.favoritedAt ? "\u2605" : "\u2606"}
-                </button>
-              )}
-            </div>
+            {episode.id && <EpisodeRating episode={episode} communityRating={communityRating} />}
 
-            {/* Star rating */}
-            {episode.id && (
-              <div className="flex items-center gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    onClick={async () => {
-                      const newRating = episode.rating === star ? undefined : star;
-                      await rateEpisode(episode.id!, newRating);
-                      // Sync to community rating system
-                      const ratingKey = communityKey(episode);
-                      if (ratingKey) {
-                        reportRating(ratingKey, newRating ?? null);
-                      }
-                    }}
-                    className={cn(
-                      "text-hd-20 md:text-hd-12 cursor-pointer transition-colors-fast min-w-touch min-h-touch md:min-w-0 md:min-h-0 flex items-center justify-center",
-                      star <= (episode.rating ?? 0)
-                        ? "text-desert-amber"
-                        : "text-bevel-dark/85 hover:text-desert-amber/85 active:text-desert-amber/85",
-                    )}
-                    title={`Rate ${star} star${star !== 1 ? "s" : ""}`}
-                    aria-label={`Rate ${star} star${star !== 1 ? "s" : ""}`}
-                  >
-                    {star <= (episode.rating ?? 0) ? "\u2605" : "\u2606"}
-                  </button>
-                ))}
-                {episode.rating && (
-                  <span className="text-hd-12 md:text-hd-10 text-bevel-dark/85 ml-1">{episode.rating}/5</span>
-                )}
-                {communityRating && communityRating.count > 0 && (
-                  <span className="text-hd-11 md:text-hd-9 text-bevel-dark/85 ml-2" title={`${communityRating.count} community rating${communityRating.count !== 1 ? "s" : ""}`}>
-                    {communityRating.avg.toFixed(1)} avg · {communityRating.count}
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* File info + management */}
-            <div className="flex items-center gap-2 border-t border-bevel-dark/15 glass-divider pt-2 mt-0.5">
-              {episode.archiveIdentifier && (
-                <a
-                  href={`https://archive.org/details/${episode.archiveIdentifier}${episode.fileName ? `/${episode.fileName}` : ""}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-hd-13 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-touch md:min-h-0 flex items-center"
-                >
-                  Archive ↗
-                </a>
-              )}
-              <ShareButton episode={episode} />
-              <button
-                onClick={async () => {
-                  const flagged = await toggleFlag(episode.id!);
-                  toast[flagged ? "info" : "success"](flagged ? "Episode flagged as broken" : "Flag removed");
-                }}
-                className={cn(
-                  "text-hd-13 md:text-hd-10 cursor-pointer transition-colors-fast min-h-touch md:min-h-0 flex items-center",
-                  episode.flaggedAt
-                    ? "text-red-400/70 hover:text-red-400"
-                    : "text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray",
-                )}
-                title={episode.flaggedAt ? "Remove flag" : "Report broken/dead link"}
-              >
-                {episode.flaggedAt ? "Flagged" : "Flag"}
-              </button>
-              {onEdit && (
-                <button
-                  onClick={startEditing}
-                  className="text-hd-13 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-touch md:min-h-0 flex items-center"
-                >
-                  Edit
-                </button>
-              )}
-              {onDelete && (
-                <button
-                  onClick={() => onDelete(episode)}
-                  className="text-hd-13 md:text-hd-10 text-red-400/40 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast ml-auto min-h-touch md:min-h-0 flex items-center"
-                >
-                  Delete
-                </button>
-              )}
-            </div>
+            <EpisodeManageBar
+              episode={episode}
+              onEdit={onEdit ? () => setEditing(true) : undefined}
+              onDelete={onDelete}
+            />
 
             {/* Series parts list */}
             {episode.aiSeries && (
@@ -540,166 +145,6 @@ export function EpisodeDetail({
           </>
         )}
       </div>
-    </div>
-  );
-}
-
-function SeriesPartsList({ seriesName, currentEpisodeId, onPlay }: { seriesName: string; currentEpisodeId?: number; onPlay: (ep: Episode) => void }) {
-  const parts = useLiveQuery(
-    () => db.episodes.where("aiSeries").equals(seriesName).toArray(),
-    [seriesName],
-  );
-
-  if (!parts || parts.length < 2) return null;
-
-  const sorted = [...parts].sort((a, b) => {
-    const partA = a.aiSeriesPart ?? 999;
-    const partB = b.aiSeriesPart ?? 999;
-    return partA - partB || (a.airDate ?? "").localeCompare(b.airDate ?? "");
-  });
-
-  return (
-    <div className="border-t border-bevel-dark/15 glass-divider pt-2 mt-0.5">
-      <div className="text-hd-12 md:text-hd-10 text-signal-blue uppercase tracking-wider mb-1.5 font-bold">
-        Series ({sorted.length} parts)
-      </div>
-      <div className="flex flex-col gap-0.5">
-        {sorted.map((ep) => {
-          const isCurrent = ep.id === currentEpisodeId;
-          return (
-            <button
-              key={ep.id}
-              onClick={() => { if (!isCurrent) onPlay(ep); }}
-              className={cn(
-                "text-left px-2 py-1.5 md:px-1.5 md:py-1 text-hd-13 md:text-hd-11 cursor-pointer transition-colors-fast flex items-center gap-2 min-h-[36px] md:min-h-0",
-                isCurrent
-                  ? "bg-title-bar-blue/15 text-signal-blue"
-                  : "text-desktop-gray/85 hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/15",
-              )}
-            >
-              {ep.aiSeriesPart && (
-                <span className="text-hd-10 md:text-hd-10 text-signal-blue w-[20px] flex-shrink-0 tabular-nums">
-                  Pt.{ep.aiSeriesPart}
-                </span>
-              )}
-              <span className="truncate flex-1">{ep.title || ep.fileName}</span>
-              {ep.airDate && (
-                <span className="text-hd-10 md:text-hd-10 text-bevel-dark/85 flex-shrink-0 tabular-nums">
-                  {formatAirDate(ep.airDate)}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function formatPlayStats(episode: Episode): string {
-  const parts: string[] = [];
-  if (episode.playCount != null && episode.playCount > 0) {
-    parts.push(`Played ${episode.playCount}x`);
-  }
-  if (episode.lastPlayedAt != null && episode.lastPlayedAt > 0) {
-    const ago = Date.now() - episode.lastPlayedAt;
-    const days = Math.floor(ago / 86400000);
-    const label = days === 0 ? "today" : days === 1 ? "yesterday" : days < 7 ? `${days}d ago` : new Date(episode.lastPlayedAt).toLocaleDateString();
-    parts.push(label);
-  }
-  if (episode.duration && episode.playbackPosition) {
-    const pct = Math.round((episode.playbackPosition / episode.duration) * 100);
-    if (pct > 0 && pct < 100) parts.push(`${pct}% heard`);
-    else if (pct >= 100) parts.push("completed");
-  }
-  return parts.join(" \u00B7 ");
-}
-
-function PlayStats({ episode }: { episode: Episode }) {
-  const text = formatPlayStats(episode);
-  if (!text) return null;
-  return (
-    <div className="text-hd-12 md:text-hd-10 text-bevel-dark/85 tabular-nums">
-      {text}
-    </div>
-  );
-}
-
-function ShareButton({ episode }: { episode: Episode }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setMenuOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [menuOpen]);
-
-  // Share by community key, not episode.id. `id` is a per-browser IndexedDB
-  // auto-increment, so a shared link opened by anyone else resolved to a
-  // different episode, or to none at all. The community key is derived from the
-  // archive identifier and file name, so it is the same everywhere.
-  const shareKey = communityKey(episode);
-  const url = typeof window !== "undefined"
-    ? shareKey
-      ? `${window.location.origin}/library?ep=${encodeURIComponent(shareKey)}`
-      : `${window.location.origin}/library`
-    : "";
-  const shareText = `🎙️ ${episode.title || episode.fileName}${episode.guestName ? ` — Art Bell with ${episode.guestName}` : ""}${episode.airDate ? ` (${episode.airDate})` : ""} — Listen on High Desert`;
-
-  const copyLink = () => {
-    navigator.clipboard.writeText(url).then(() => toast.success("Link copied")).catch(() => toast.info(url));
-    setMenuOpen(false);
-  };
-
-  const webShare = async () => {
-    try {
-      await navigator.share({ title: episode.title || episode.fileName, text: shareText, url });
-    } catch { /* user cancelled */ }
-    setMenuOpen(false);
-  };
-
-  const hasWebShare = typeof navigator !== "undefined" && !!navigator.share;
-
-  if (!hasWebShare) {
-    // No Web Share API — just copy link directly
-    return (
-      <button
-        onClick={copyLink}
-        className="text-hd-13 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-touch md:min-h-0 flex items-center"
-      >
-        Share
-      </button>
-    );
-  }
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setMenuOpen(!menuOpen)}
-        className="text-hd-13 md:text-hd-10 text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-touch md:min-h-0 flex items-center"
-      >
-        Share
-      </button>
-      {menuOpen && (
-        <div className="absolute bottom-full mb-1 left-0 w98-raised-dark bg-raised-surface z-30 min-w-[120px] shadow-lg">
-          <button
-            onClick={copyLink}
-            className="w-full text-left px-3 py-3 md:px-2 md:py-1.5 text-hd-15 md:text-hd-11 text-desktop-gray/85 hover:bg-title-bar-blue/20 active:bg-title-bar-blue/20 cursor-pointer transition-colors-fast"
-          >
-            Copy Link
-          </button>
-          <button
-            onClick={webShare}
-            className="w-full text-left px-3 py-3 md:px-2 md:py-1.5 text-hd-15 md:text-hd-11 text-desktop-gray/85 hover:bg-title-bar-blue/20 active:bg-title-bar-blue/20 cursor-pointer transition-colors-fast"
-          >
-            Share...
-          </button>
-        </div>
-      )}
     </div>
   );
 }
