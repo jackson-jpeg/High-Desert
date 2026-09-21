@@ -119,7 +119,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
                 className="text-hd-11 md:text-hd-8 text-desert-amber/85 bg-desert-amber/8 px-2 py-1 md:px-1.5 md:py-px"
               >
                 {cat}
-                <span className="ml-0.5 opacity-50">{count}</span>
+                <span className="ml-0.5 text-bevel-dark/85">{count}</span>
               </span>
             ))}
           </div>

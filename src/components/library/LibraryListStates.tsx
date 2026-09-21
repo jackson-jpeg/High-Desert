@@ -44,7 +44,9 @@ export function LibraryListSkeleton() {
 export function EmptyLibrary() {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center px-8">
-      <div className="text-hd-24 text-desert-amber/30 select-none mb-3">📡</div>
+      {/* Decorative glyph, hidden from assistive technology: no text to read. */}
+      {/* eslint-disable-next-line hd/text-opacity-floor */}
+      <div className="text-hd-24 text-desert-amber opacity-30 select-none mb-3" aria-hidden="true">📡</div>
       <div className="text-hd-13 text-desktop-gray mb-2">No episodes in the library yet.</div>
       <div className="text-hd-11 text-bevel-dark/85 leading-relaxed max-w-[260px]">
         The library seeds automatically on first visit. If this persists, try refreshing the page.
@@ -76,7 +78,9 @@ export function NoFilterMatches({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center px-8">
-      <div className="text-hd-24 text-desert-amber/30 select-none mb-3">🔍</div>
+      {/* Decorative glyph, hidden from assistive technology: no text to read. */}
+      {/* eslint-disable-next-line hd/text-opacity-floor */}
+      <div className="text-hd-24 text-desert-amber opacity-30 select-none mb-3" aria-hidden="true">🔍</div>
       <div className="text-hd-13 text-desktop-gray mb-2">
         No episodes match these filters.
       </div>
@@ -107,7 +111,9 @@ export function NoFilterMatches({
 export function NothingInProgress({ narrowed, onShowAll }: { narrowed: boolean; onShowAll: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center px-8">
-      <div className="text-hd-24 text-desert-amber/30 select-none mb-3">◑</div>
+      {/* Decorative glyph, hidden from assistive technology: no text to read. */}
+      {/* eslint-disable-next-line hd/text-opacity-floor */}
+      <div className="text-hd-24 text-desert-amber opacity-30 select-none mb-3" aria-hidden="true">◑</div>
       <div className="text-hd-13 text-desktop-gray mb-2">
         {narrowed ? "Nothing in progress matches." : "Nothing half-listened yet."}
       </div>

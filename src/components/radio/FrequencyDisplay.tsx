@@ -58,7 +58,9 @@ export function FrequencyDisplay({
         }}
       >
         {/* Scanlines */}
-        <div className="crt-scanlines absolute inset-0 pointer-events-none opacity-[0.04]" />
+        {/* A texture over the display, not text. */}
+        {/* eslint-disable-next-line hd/text-opacity-floor */}
+        <div className="crt-scanlines absolute inset-0 pointer-events-none opacity-[0.04]" aria-hidden="true" />
 
         {/* TV static overlay */}
         {staticEnabled && signalStrength < 1 && (
@@ -141,7 +143,7 @@ export function FrequencyDisplay({
             </div>
           ) : (
             <div className="flex flex-col gap-1 pt-2">
-              <span className="crt-text text-hd-12 opacity-50">SEARCHING...</span>
+              <span className="crt-text text-hd-12 opacity-85">SEARCHING...</span>
             </div>
           )}
         </div>
@@ -170,7 +172,7 @@ export function FrequencyDisplay({
                 noise could not be turned off short of leaving the page. */}
             <button
               onClick={toggleStatic}
-              className="text-hd-9 text-desert-amber/70 hover:text-desert-amber cursor-pointer px-1.5 py-0.5 min-w-[28px] min-h-[28px] md:min-h-0 flex items-center justify-center transition-colors-fast"
+              className="text-hd-9 text-desert-amber/85 hover:text-desert-amber cursor-pointer px-1.5 py-0.5 min-w-[28px] min-h-[28px] md:min-h-0 flex items-center justify-center transition-colors-fast"
               title={staticEnabled ? "Mute tuning static" : "Unmute tuning static"}
               aria-label={staticEnabled ? "Mute tuning static" : "Unmute tuning static"}
               aria-pressed={!staticEnabled}
@@ -195,7 +197,7 @@ export function FrequencyDisplay({
               {currentStation.episode.title || currentStation.episode.fileName}
             </div>
             {currentStation.episode.guestName && (
-              <div className="crt-text text-hd-9 opacity-70 truncate">
+              <div className="crt-text text-hd-9 opacity-85 truncate">
                 {currentStation.episode.guestName}
               </div>
             )}
@@ -230,7 +232,7 @@ export function FrequencyDisplay({
           </div>
         ) : (
           <div className="flex flex-col gap-1">
-            <div className="crt-text text-hd-9 opacity-50">SEARCHING...</div>
+            <div className="crt-text text-hd-9 opacity-85">SEARCHING...</div>
             <div className="text-hd-8 text-bevel-dark/85">{dateStr}</div>
           </div>
         )}

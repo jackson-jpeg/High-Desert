@@ -192,14 +192,19 @@ export const QueuePanel = memo(function QueuePanel() {
                 "group flex items-center gap-2 px-3 py-1.5 min-h-touch md:min-h-0 cursor-pointer select-none",
                 "hover:bg-title-bar-blue/10 active:bg-title-bar-blue/10 transition-colors-fast",
                 isCurrent && "ring-1 ring-static-green/40 bg-title-bar-blue/10",
-                isPast && "opacity-50",
+                // Played rows step back, but not below the /85 text floor
+                // (HD-023); the current row carries the ring.
+                isPast && "opacity-85",
+                // The row being dragged, for the length of the drag only: a
+                // pointer-only transient, the row's text is at its drop target.
+                // eslint-disable-next-line hd/text-opacity-floor
                 dragFrom === i && "opacity-30",
                 isDragTarget && "border-t-2 border-t-desert-amber/60",
               )}
               onClick={() => handlePlay(i)}
             >
               {/* Drag handle — always visible on mobile */}
-              <span className="text-hd-11 md:text-hd-10 text-bevel-dark/85 cursor-grab active:cursor-grabbing flex-shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-60 transition-opacity">
+              <span className="text-hd-11 md:text-hd-10 text-bevel-dark/85 cursor-grab active:cursor-grabbing flex-shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                 {"\u2261"}
               </span>
 

@@ -175,6 +175,8 @@ export function StatusBar({ episodeCount, presence }: StatusBarProps) {
           key={i}
           className={cn(
             "w-[2px] bg-static-green/70",
+            // Signal-strength bars: a graphic, no text.
+            // eslint-disable-next-line hd/text-opacity-floor
             isPlaying ? `animate-signal-${i + 1}` : "opacity-20",
           )}
           style={{ height: `${h}px` }}

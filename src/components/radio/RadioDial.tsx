@@ -8,7 +8,6 @@ import { useRadioDial } from "@/hooks/useRadioDial";
 import { useRadioStatic } from "@/hooks/useRadioStatic";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { getPreference, setPreference } from "@/db";
-import { cn } from "@/lib/utils/cn";
 import { isKeyOwnedByTarget } from "@/lib/utils/key-ownership";
 import { TuningStrip } from "./TuningStrip";
 import { FrequencyDisplay } from "./FrequencyDisplay";

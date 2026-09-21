@@ -71,6 +71,9 @@ export function AboutDialog({
         <div className="flex-1 p-4 flex flex-col gap-3">
           {/* Header */}
           <div>
+            {/* The ASCII logotype: decoration, aria-hidden, and a logotype is
+                exempt from WCAG 1.4.3. The dialog's title names it in text. */}
+            {/* eslint-disable-next-line hd/text-opacity-floor */}
             <pre className="text-hd-7 text-desert-amber/60 leading-[1.1] font-mono select-none" aria-hidden="true">
 {`  ╦ ╦╦╔═╗╦ ╦  ╔╦╗╔═╗╔═╗╔═╗╦═╗╔╦╗
   ╠═╣║║ ╦╠═╣   ║║║╣ ╚═╗║╣ ╠╦╝ ║ 

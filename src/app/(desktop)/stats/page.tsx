@@ -208,7 +208,9 @@ export default function StatsPage() {
       <div className="p-4 flex flex-col gap-4 max-w-5xl mx-auto">
         <Window title="Station Dashboard" variant="dark" headingLevel={1}>
           <div className="p-8 flex flex-col items-center gap-3 text-center">
-            <div className="text-hd-24 text-desert-amber/30 select-none">{"\u{1F4E1}"}</div>
+            {/* Decorative glyph, hidden from assistive technology: no text to read. */}
+            {/* eslint-disable-next-line hd/text-opacity-floor */}
+            <div className="text-hd-24 text-desert-amber opacity-30 select-none" aria-hidden="true">{"\u{1F4E1}"}</div>
             <div className="text-hd-11 text-bevel-dark">No episodes in the library yet.</div>
             <div className="text-hd-9 text-bevel-dark/85">
               {isAdmin
@@ -409,7 +411,7 @@ export default function StatsPage() {
                     title={`${key}: ${count}`}
                   >
                     {pct > 8 && (
-                      <span className="absolute inset-0 flex items-center justify-center text-hd-7 text-white/70">
+                      <span className="absolute inset-0 flex items-center justify-center text-hd-7 text-white">
                         {Math.round(pct)}%
                       </span>
                     )}
@@ -523,7 +525,7 @@ export default function StatsPage() {
                   }}
                   className="flex items-center gap-2 text-left px-2 py-1.5 w98-raised-dark bg-card-surface cursor-pointer hover:bg-title-bar-blue/15 transition-colors-fast"
                 >
-                  <span className="text-hd-9 text-red-400/70">⚑</span>
+                  <span className="text-hd-9 text-red-400">⚑</span>
                   <span className="text-hd-10 text-desktop-gray truncate flex-1">{ep.title || ep.fileName}</span>
                   <span className="text-hd-8 text-bevel-dark/85 tabular-nums flex-shrink-0">
                     {ep.airDate ? formatAirDate(ep.airDate) : ""}
@@ -626,13 +628,16 @@ export default function StatsPage() {
               {stats.topTags.map(([tag, count]) => {
                 const ratio = count / stats.maxTagCount;
                 const size = 10 + ratio * 10; // 10px to 20px
-                const opacity = 0.5 + ratio * 0.5; // 0.5 to 1.0
+                // Weight shows in size; colour only steps from the /85 text
+                // floor to full (it went down to 0.5 — HD-023).
+                const opacity = 0.85 + ratio * 0.15;
                 return (
                   <button
                     key={tag}
                     className="tag-cloud-item cursor-pointer select-none hover:underline"
                     style={{
-                      fontSize: `${size}px`,
+                      // Scaled with the text-size setting, like the text-hd-* steps.
+                      fontSize: `calc(${size}px * var(--hd-text-scale, 1))`,
                       color: `rgba(212, 168, 67, ${opacity})`,
                     }}
                     title={`Filter library by "${tag}" (${count})`}

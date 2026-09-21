@@ -71,7 +71,7 @@ test("Shuffle Coast to Coast from /stats, via the command palette, lands on a sh
   await hydrated(page);
   await page.keyboard.press("Control+k");
   await expect(page.getByLabel("Search episodes, pages, and actions")).toBeVisible();
-  await page.getByRole("button", { name: "Shuffle Coast to Coast" }).click();
+  await page.getByRole("option", { name: "Shuffle Coast to Coast" }).click();
 
   // On the library, with the intent consumed and cleared from the address bar.
   await expect(page).toHaveURL(/\/library$/);
@@ -132,7 +132,7 @@ test("Now playing in the status bar, clicked on /stats, finds the show in the li
   await openLibrary(page);
   // Something to be playing: the palette's shuffle, as above.
   await page.keyboard.press("Control+k");
-  await page.getByRole("button", { name: "Shuffle Coast to Coast" }).click();
+  await page.getByRole("option", { name: "Shuffle Coast to Coast" }).click();
   await expect.poll(async () => (await queuedShowTypes(page)).length, { timeout: 15_000 }).toBeGreaterThanOrEqual(20);
 
   // Client-side to /stats, so the player (and what it is playing) survives.

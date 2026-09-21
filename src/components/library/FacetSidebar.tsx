@@ -54,7 +54,7 @@ export function FacetSidebar({
                 `}
               >
                 {guest}
-                <span className="ml-1 tabular-nums opacity-50">{count}</span>
+                <span className="ml-1 tabular-nums text-bevel-dark/85">{count}</span>
               </button>
             ))}
           </div>
@@ -84,7 +84,7 @@ export function FacetSidebar({
                   )}
                 >
                   {cat}
-                  <span className="ml-1 tabular-nums opacity-50">{count}</span>
+                  <span className="ml-1 tabular-nums text-bevel-dark/85">{count}</span>
                 </button>
               ))}
           </div>
@@ -116,7 +116,7 @@ export function FacetSidebar({
                   )}
                 >
                   {series}
-                  <span className="ml-1 tabular-nums opacity-50">{count} parts</span>
+                  <span className="ml-1 tabular-nums text-bevel-dark/85">{count} parts</span>
                 </button>
               ))}
           </div>
@@ -139,7 +139,7 @@ export function FacetSidebar({
                 className="text-left px-1.5 py-0.5 text-hd-10 text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10 cursor-pointer transition-colors-fast truncate"
               >
                 {topic}
-                <span className="ml-1 tabular-nums opacity-50">{count}</span>
+                <span className="ml-1 tabular-nums text-bevel-dark/85">{count}</span>
               </button>
             ))}
           </div>

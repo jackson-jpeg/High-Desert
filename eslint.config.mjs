@@ -1,6 +1,7 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import { hdPlugin } from "./eslint-rules/text-opacity.mjs";
 
 /**
  * Two ways to reach the audio element that have each broken playback.
@@ -62,6 +63,15 @@ const eslintConfig = defineConfig([
     ignores: ["src/**/__tests__/**"],
     rules: {
       "no-restricted-syntax": ["error", ...AUDIO_ELEMENT_RULES, ...HD_EVENT_NAME_RULES],
+    },
+  },
+  {
+    // No text below the /85 opacity floor (HD-023; eslint-rules/text-opacity.mjs).
+    // Tests are included: a fixture's class string is still a class string.
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { hd: hdPlugin },
+    rules: {
+      "hd/text-opacity-floor": "error",
     },
   },
   {

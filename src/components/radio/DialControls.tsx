@@ -79,9 +79,11 @@ export function DialControls({
             className={cn(
               "flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl",
               "border transition-colors-fast cursor-pointer active:scale-[0.97]",
+              // Dimmed only while disabled: WCAG 1.4.3 exempts inactive controls.
+              "disabled:opacity-50",
               isLocked
                 ? "bg-static-green/[0.08] border-static-green/15"
-                : "bg-bevel-dark/[0.06] border-bevel-dark/10 opacity-50",
+                : "bg-bevel-dark/[0.06] border-bevel-dark/10",
             )}
             style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04), 0 2px 8px rgba(0,0,0,0.2)" }}
           >

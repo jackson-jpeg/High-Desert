@@ -154,7 +154,9 @@ export function TimelineView({
       <div className={cn("flex flex-col items-center justify-center py-20 text-center px-8 animate-fade-in", className)}>
         {/* Radio tower icon */}
         <div className="relative mb-5">
-          <div className="text-hd-32 text-desert-amber/20 select-none">{"\u{1F4E1}"}</div>
+          {/* Decorative glyph, hidden from assistive technology: no text to read. */}
+          {/* eslint-disable-next-line hd/text-opacity-floor */}
+          <div className="text-hd-32 text-desert-amber opacity-20 select-none" aria-hidden="true">{"\u{1F4E1}"}</div>
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-[3px] h-[3px] rounded-full bg-desert-amber/40 animate-on-air" />
           </div>

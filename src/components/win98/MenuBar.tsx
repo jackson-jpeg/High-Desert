@@ -102,7 +102,7 @@ function DropdownMenu({
             <span className="flex justify-between gap-4">
               <span>{item.label}</span>
               {item.shortcut && (
-                <span className={cn(j === focused ? "text-white/60" : "text-bevel-dark")}>
+                <span className={cn(j === focused ? "text-white/85" : "text-bevel-dark")}>
                   {item.shortcut}
                 </span>
               )}
@@ -164,17 +164,24 @@ export function MenuBar({ menus, variant = "classic", className, title, onTitleC
       aria-label="Application menu"
       onKeyDown={handleKeyDown}
     >
+      {/* A menubar's children must be menuitems (axe: aria-required-children);
+          the wrappers are role="none" so the items are its direct children in
+          the accessibility tree. */}
       {title && (
         <button
-          className="w98-menubar-item w98-font text-desert-amber/80 cursor-pointer select-none"
+          role="menuitem"
+          className="w98-menubar-item w98-font text-desert-amber/85 cursor-pointer select-none"
           onClick={onTitleClick}
         >
           {title}
         </button>
       )}
       {menus.map((menu, i) => (
-        <div key={menu.label} className="relative">
+        <div key={menu.label} className="relative" role="none">
           <button
+            role="menuitem"
+            aria-haspopup="menu"
+            aria-expanded={openIndex === i}
             className={cn(
               "w98-menubar-item w98-font",
               openIndex === i && "bg-[var(--w98-highlight)] text-white",

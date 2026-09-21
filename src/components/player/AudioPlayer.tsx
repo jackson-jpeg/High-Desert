@@ -99,7 +99,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
         </button>
         <button
           onClick={() => clearError(null)}
-          className="text-hd-13 md:text-hd-11 text-red-400/60 hover:text-red-400 active:text-red-400 cursor-pointer min-h-touch md:min-h-0 px-2"
+          className="text-hd-13 md:text-hd-11 text-red-400/85 hover:text-red-400 active:text-red-400 cursor-pointer min-h-touch md:min-h-0 px-2"
         >
           Dismiss
         </button>
@@ -257,7 +257,9 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
         {errorBanner}
         {/* Swipe-up affordance chevron */}
         <div className="flex justify-center pt-1">
-          <span className="text-hd-9 text-white/15 leading-none">{"\u25B2"}</span>
+          {/* A drag-affordance chevron, not text; hidden from assistive technology. */}
+          {/* eslint-disable-next-line hd/text-opacity-floor */}
+          <span className="text-hd-9 text-white/15 leading-none" aria-hidden="true">{"\u25B2"}</span>
         </div>
         <div className="flex items-center gap-2 px-3 py-1 pb-1.5">
           {/* Tap to expand */}

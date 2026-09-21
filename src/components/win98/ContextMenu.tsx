@@ -92,7 +92,7 @@ function MobileActionSheet({
                 className={cn(
                   "w-full text-left px-4 py-3 text-hd-14 min-h-[48px] cursor-pointer",
                   "active:bg-white/[0.06] transition-colors-fast",
-                  item.disabled && "opacity-40 cursor-default",
+                  item.disabled && "disabled:opacity-40 cursor-default",
                   item.danger ? "text-red-400" : "text-desktop-gray",
                 )}
               >
@@ -257,7 +257,7 @@ function ContextMenuInner({
               "transition-colors-fast",
               isFocused && !item.disabled && "bg-title-bar-blue/20",
               !isFocused && "hover:bg-title-bar-blue/10",
-              item.disabled && "opacity-40 cursor-default",
+              item.disabled && "disabled:opacity-40 cursor-default",
               item.danger ? "text-red-400" : "text-desktop-gray",
             )}
           >

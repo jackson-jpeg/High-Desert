@@ -208,7 +208,8 @@ export function BookmarkList({
                 await removeBookmark(bm.id!);
                 toast.info("Bookmark removed");
               }}
-              className="text-hd-12 md:text-hd-8 text-red-400/50 md:text-red-400/0 md:group-hover:text-red-400/50 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast flex-shrink-0 min-w-touch min-h-touch md:min-w-0 md:min-h-0 flex items-center justify-center"
+              aria-label={`Remove bookmark ${bm.label}`}
+              className="text-hd-12 md:text-hd-8 text-red-400/85 md:text-red-400/0 md:group-hover:text-red-400/85 hover:text-red-400 active:text-red-400 cursor-pointer transition-colors-fast flex-shrink-0 min-w-touch min-h-touch md:min-w-0 md:min-h-0 flex items-center justify-center"
             >
               {"\u2715"}
             </button>

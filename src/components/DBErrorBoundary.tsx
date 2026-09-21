@@ -65,7 +65,7 @@ export class DBErrorBoundary extends Component<Props, State> {
               </div>
             )}
             <div className="w98-inset-dark bg-inset-well p-2">
-              <div className="text-hd-9 text-red-400/70 font-mono break-all">
+              <div className="text-hd-9 text-red-400/85 font-mono break-all">
                 {this.state.error?.message ?? "Unknown error"}
               </div>
             </div>

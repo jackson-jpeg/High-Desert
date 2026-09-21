@@ -70,7 +70,7 @@ export function ActiveFilterBar({
             Add to Queue
           </button>
           {isAdmin && (
-            <button onClick={onRequestBulkDelete} className="text-red-400/60 hover:text-red-400 cursor-pointer transition-colors-fast">Delete</button>
+            <button onClick={onRequestBulkDelete} className="text-red-400/85 hover:text-red-400 cursor-pointer transition-colors-fast">Delete</button>
           )}
           <button onClick={() => setSelectedIds(new Set())} className="text-bevel-dark hover:text-desktop-gray cursor-pointer transition-colors-fast ml-auto">Deselect</button>
         </div>

@@ -110,3 +110,88 @@ describe("e2e specs take test from e2e/fixtures.ts", () => {
     expect(await restrictedImports('import type { Page } from "@playwright/test";\nexport type P = Page;\n', "e2e/probe.spec.ts")).toEqual([]);
   }, 30_000);
 });
+
+describe("text opacity floor (HD-023)", () => {
+  async function floorHits(code: string, file = "src/lint-probe.tsx"): Promise<string[]> {
+    const [result] = await eslint.lintText(code, { filePath: path.join(ROOT, file) });
+    const fatal = result.messages.filter((m) => m.fatal);
+    expect(fatal, "the probe must parse").toEqual([]);
+    return result.messages
+      .filter((m) => m.ruleId === "hd/text-opacity-floor")
+      .map((m) => `${m.line}: ${m.message.split("`")[1]}`);
+  }
+
+  it("flags dim text in className and cn()/clsx() arguments, in every spelling", async () => {
+    const found = await floorHits(
+      'import { cn } from "@/lib/utils/cn";\n' +
+        'import clsx from "clsx";\n' +
+        "export function A({ on }: { on: boolean }) {\n" +
+        "  return (\n" +
+        "    <div>\n" +
+        '      <span className="text-hd-10 text-bevel-dark/60">a</span>\n' +
+        '      <span className={cn("text-hd-10", on && "text-desert-amber/30")}>b</span>\n' +
+        '      <span className={cn(on ? "opacity-50" : "opacity-100")}>c</span>\n' +
+        "      <span className={`px-1 hover:text-white/70 ${on ? \"x\" : \"y\"}`}>d</span>\n" +
+        '      <span className={clsx({ "opacity-[0.4]": on }, ["text-red-400/[0.6]"])}>e</span>\n' +
+        "    </div>\n" +
+        "  );\n" +
+        "}\n",
+    );
+    expect(found).toEqual([
+      "6: text-bevel-dark/60",
+      "7: text-desert-amber/30",
+      "8: opacity-50",
+      "9: hover:text-white/70",
+      "10: opacity-[0.4]",
+      "10: text-red-400/[0.6]",
+    ]);
+  }, 30_000);
+
+  it("the floor is /85: 85 passes, 84 does not", async () => {
+    const found = await floorHits(
+      "export const A = () => (\n" +
+        "  <>\n" +
+        '    <span className="text-bevel-dark/85 opacity-85">ok</span>\n' +
+        '    <span className="text-bevel-dark/84">dim</span>\n' +
+        '    <span className="opacity-80">dim</span>\n' +
+        "  </>\n" +
+        ");\n",
+    );
+    expect(found).toEqual(["4: text-bevel-dark/84", "5: opacity-80"]);
+  }, 30_000);
+
+  it("leaves alone what is not dim text", async () => {
+    const found = await floorHits(
+      'import { cn } from "@/lib/utils/cn";\n' +
+        "export const A = ({ on }: { on: boolean }) => (\n" +
+        "  <>\n" +
+        // Font size with a line height, not a colour.
+        '    <span className="text-sm/6 text-hd-12/5">size</span>\n' +
+        // Backgrounds and borders are not text.
+        '    <span className="bg-black/50 border-bevel-dark/20 ring-white/10">bg</span>\n' +
+        // Invisible is not dim: a reveal-on-hover control.
+        '    <span className="opacity-0 group-hover:opacity-100 md:text-red-400/0">hidden</span>\n' +
+        // WCAG 1.4.3 exempts inactive components.
+        '    <button className={cn("disabled:opacity-40", on && "aria-disabled:opacity-50")}>x</button>\n' +
+        "  </>\n" +
+        ");\n" +
+        // Not a class list: not className, not cn().
+        'export const label = "text-bevel-dark/50";\n',
+    );
+    expect(found).toEqual([]);
+  }, 30_000);
+
+  it("is disabled line by line for decorative elements, and only that line", async () => {
+    const found = await floorHits(
+      "export const A = () => (\n" +
+        "  <>\n" +
+        "    {/* A texture, not text. */}\n" +
+        "    {/* eslint-disable-next-line hd/text-opacity-floor */}\n" +
+        '    <div className="opacity-[0.04]" aria-hidden="true" />\n' +
+        '    <div className="opacity-40">text</div>\n' +
+        "  </>\n" +
+        ");\n",
+    );
+    expect(found).toEqual(["6: opacity-40"]);
+  }, 30_000);
+});

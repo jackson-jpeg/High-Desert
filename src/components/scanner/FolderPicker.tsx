@@ -80,6 +80,9 @@ export function FolderPicker({
             dragOver
               ? "bg-title-bar-blue/20 border-title-bar-blue"
               : "bg-inset-well",
+            // The drop zone while a scan runs: inactive, and WCAG 1.4.3
+            // exempts inactive components. It says so in text below.
+            // eslint-disable-next-line hd/text-opacity-floor
             disabled && "opacity-50 pointer-events-none",
           )}
         >

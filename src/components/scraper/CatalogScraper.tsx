@@ -213,7 +213,7 @@ export function CatalogScraper() {
             <button
               onClick={() => setShowErrors(!showErrors)}
               aria-expanded={showErrors}
-              className="text-hd-11 md:text-hd-9 text-red-400/70 hover:text-red-400 cursor-pointer flex items-center gap-1 min-h-touch md:min-h-0"
+              className="text-hd-11 md:text-hd-9 text-red-400/85 hover:text-red-400 cursor-pointer flex items-center gap-1 min-h-touch md:min-h-0"
             >
               <span className="text-hd-10 md:text-hd-8">{showErrors ? "\u25BC" : "\u25B6"}</span>
               {errorMessages.length} error{errorMessages.length !== 1 ? "s" : ""}
@@ -221,7 +221,7 @@ export function CatalogScraper() {
             {showErrors && (
               <div className="w98-inset-dark bg-inset-well p-2 mt-1 max-h-[120px] overflow-auto">
                 {errorMessages.map((msg, i) => (
-                  <div key={i} className="text-hd-8 text-red-400/70 leading-relaxed font-mono">
+                  <div key={i} className="text-hd-8 text-red-400/85 leading-relaxed font-mono">
                     {msg}
                   </div>
                 ))}
