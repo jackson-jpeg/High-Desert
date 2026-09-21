@@ -59,6 +59,10 @@ const eslintConfig = defineConfig([
     ".next.failed/**",
     ".next-staging/**",
     "node_modules.*/**",
+    // Playwright's run output (npm run test:e2e).
+    "test-results/**",
+    "playwright-report/**",
+    "blob-report/**",
   ]),
 ]);
 

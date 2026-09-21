@@ -60,3 +60,21 @@ jobs:
           DATABASE_URL="$TEST_DATABASE_URL" npm start -- -p 3000 > next-start.log 2>&1 &
           for _ in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:3000/ && break; sleep 1; done
           npm run check:csp -- http://127.0.0.1:3000 || { echo "--- next start log ---"; cat next-start.log; exit 1; }
+      # The same running build, driven through real user flows: open /library,
+      # let it seed, sort, scroll, and check what is on screen (e2e/). The
+      # server started above is still up — background processes live until
+      # the job ends — so this reuses it rather than starting a second one.
+      - name: End-to-end (Playwright)
+        env:
+          E2E_BASE_URL: http://127.0.0.1:3000
+        run: |
+          curl -sf -o /dev/null "$E2E_BASE_URL/library" || { echo "app not running"; cat next-start.log; exit 1; }
+          npm run test:e2e || { echo "--- next start log ---"; cat next-start.log; exit 1; }
+      - name: Upload e2e traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
