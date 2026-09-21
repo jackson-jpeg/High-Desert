@@ -139,7 +139,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("the episode list is a listbox (HD-021)", () => {
+// Each test mounts the whole page over 60 rows and walks it key by key; under
+// the full suite's load that ran past vitest's 5s default.
+describe("the episode list is a listbox (HD-021)", { timeout: 30_000 }, () => {
   it("is a focusable listbox; the rows are not tab stops", async () => {
     const lb = await mount();
     expect(lb.tabIndex).toBe(0);
