@@ -763,9 +763,9 @@ const MUTATIONS = [
     id: "admin-prompt-listener",
     test: "src/components/desktop/__tests__/admin-prompt-dialog.test.tsx",
     file: "src/components/desktop/AdminPromptDialog.tsx",
-    find: "    window.addEventListener(\"hd:admin-prompt\", handler);",
-    replace: "    void handler;",
-    why: "hd:admin-prompt is the prompt's only way in; without the listener it is silently unreachable",
+    find: '  useHdEvent("admin-prompt", () => setOpen(true));',
+    replace: "  void setOpen;",
+    why: "the admin-prompt event is the prompt's only way in; without the listener it is silently unreachable",
   },
   {
     id: "admin-prompt-wrong-password",
@@ -779,9 +779,9 @@ const MUTATIONS = [
     id: "shell-menus-sort-detail",
     test: "src/hooks/__tests__/shell-menus.test.tsx",
     file: "src/hooks/useShellMenus.ts",
-    find: "  window.dispatchEvent(new CustomEvent(\"hd:sort\", { detail: sort }));",
-    replace: "  window.dispatchEvent(new CustomEvent(\"hd:sort\"));",
-    why: "View > Sort items reach the library only through hd:sort's detail",
+    find: "  const sort = (mode: SortMode) => openLibrary({ sort: mode });",
+    replace: "  const sort = (mode: SortMode) => openLibrary({ q: mode });",
+    why: "View > Sort items reach the library only through the ?sort= intent (HD-013)",
   },
   {
     id: "shell-menus-admin-gate",
@@ -818,9 +818,9 @@ const MUTATIONS = [
   {
     id: "event-routes-listener",
     test: "src/lib/__tests__/event-routes.test.ts",
-    file: "src/components/desktop/AdminPromptDialog.tsx",
-    find: '  useHdEvent("admin-prompt", () => setOpen(true));',
-    replace: "  void setOpen;",
+    file: "src/components/desktop/DesktopShell.tsx",
+    find: '  useHdEvent("toggle-shortcuts", () => setShortcutsOpen((prev) => !prev));',
+    replace: "  void setShortcutsOpen;",
     why: "an instruction emitted with no listener mounted on its route is HD-013; the route test must see a listener go (HD-019)",
   },
   {
