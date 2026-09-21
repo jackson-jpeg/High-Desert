@@ -776,6 +776,55 @@ const MUTATIONS = [
     replace: "'BEGIN { exit !(x > t) }' && level=WARN",
     why: "a release sitting exactly at the 3% target would read OK",
   },
+  // HD-018: the library list pipeline and facets, out of library/page.tsx.
+  {
+    id: "library-filter-guest",
+    test: "src/lib/library/__tests__/filter-episodes.test.ts",
+    file: "src/lib/library/filter-episodes.ts",
+    find: "list = list.filter((ep) => ep.guestName === guestFilter);",
+    replace: "list = list.filter(() => true);",
+    why: "clicking a guest in the browse panel must narrow the list to that guest",
+  },
+  {
+    id: "library-filter-bookmark",
+    test: "src/lib/library/__tests__/filter-episodes.test.ts",
+    file: "src/lib/library/filter-episodes.ts",
+    find: "list = list.filter((ep) => bookmarkedIds?.has(ep.id!));",
+    replace: "list = list.filter(() => true);",
+    why: "has:bookmark reads the bookmark set, the one criterion that is not a field on the row",
+  },
+  {
+    id: "library-filter-text-tags",
+    test: "src/lib/library/__tests__/filter-episodes.test.ts",
+    file: "src/lib/library/filter-episodes.ts",
+    find: "ep.aiTags?.some((tag) => tag.toLowerCase().includes(q)),",
+    replace: "false,",
+    why: "free text searches AI tags as well as titles",
+  },
+  {
+    id: "library-sort-series-part",
+    test: "src/lib/library/__tests__/filter-episodes.test.ts",
+    file: "src/lib/library/filter-episodes.ts",
+    find: "return partA - partB || (a.airDate ?? \"\").localeCompare(b.airDate ?? \"\");",
+    replace: "return (a.airDate ?? \"\").localeCompare(b.airDate ?? \"\");",
+    why: "a series plays in part order, which is not always air order",
+  },
+  {
+    id: "library-facets-count",
+    test: "src/lib/library/__tests__/facets.test.ts",
+    file: "src/lib/library/facets.ts",
+    find: "if (ep.aiCategory) bump(categoryCounts, ep.aiCategory);",
+    replace: "if (ep.aiCategory) categoryCounts.set(ep.aiCategory, 1);",
+    why: "the single pass must still count, not just collect, or every facet reads 1 and the ranking is arbitrary",
+  },
+  {
+    id: "library-facets-favorites",
+    test: "src/lib/library/__tests__/facets.test.ts",
+    file: "src/lib/library/facets.ts",
+    find: "if (ep.favoritedAt) favCount++;",
+    replace: "",
+    why: "the Favorites chip appears once the listener has a favourite — absent from the seed, so only the layered equivalence test sees it",
+  },
 ];
 
 const filters = process.argv.slice(2);
