@@ -52,13 +52,6 @@ export interface HdEventMap {
   /** `null` clears the series filter. */
   "filter-series": string | null;
   "show-guest": string;
-  /** Library intents, answered only by /library (HD-013 moves these to the URL). */
-  "sort": string;
-  "shuffle": string;
-  "search": string;
-  "scroll-to-current": void;
-  "focus-search": void;
-  "queue-selected": void;
 }
 
 export type HdEventKey = keyof HdEventMap;

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
-import { emit } from "@/lib/events";
+import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 
 interface MobileMenuSheetProps {
   open: boolean;
@@ -23,6 +23,8 @@ const TEXT_SCALE_LABELS: Record<string, string> = { "1": "Normal", "1.15": "Larg
 
 export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundOn, onToggleStartupSound, textScale, onCycleTextScale, presence }: MobileMenuSheetProps) {
   const router = useRouter();
+  // Shuffle and sort are URL intents: this sheet opens on every route (HD-013).
+  const openLibrary = useOpenLibraryIntent();
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -157,7 +159,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
           </div>
           <button
             onClick={() => {
-              emit("shuffle", "all");
+              openLibrary({ shuffle: "all" });
               hide();
             }}
             className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desert-amber cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
@@ -186,7 +188,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
             <button
               key={mode}
               onClick={() => {
-                emit("sort", mode);
+                openLibrary({ sort: mode });
                 hide();
               }}
               className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"

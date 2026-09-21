@@ -19,6 +19,7 @@ import { getCacheSize, clearAudioCache } from "@/audio/cache";
 import { toast } from "@/stores/toast-store";
 import { computeStreak } from "@/lib/utils/streak";
 import { emit } from "@/lib/events";
+import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -30,6 +31,7 @@ function formatBytes(bytes: number): string {
 
 export default function StatsPage() {
   const router = useRouter();
+  const openLibrary = useOpenLibraryIntent();
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const episodes = useLiveQuery(() => db.episodes.toArray(), []);
   const history = useLiveQuery(() => db.history.orderBy("timestamp").reverse().toArray(), []);
@@ -634,12 +636,7 @@ export default function StatsPage() {
                       color: `rgba(212, 168, 67, ${opacity})`,
                     }}
                     title={`Filter library by "${tag}" (${count})`}
-                    onClick={() => {
-                      router.push("/library");
-                      setTimeout(() => {
-                        emit("filter-tag", tag);
-                      }, 100);
-                    }}
+                    onClick={() => openLibrary({ q: `tag:${tag}` })}
                   >
                     {tag}
                   </button>

@@ -7,7 +7,8 @@ import type { Menu } from "@/components/win98";
  * useShellMenus, extracted from DesktopShell (HD-018).
  *
  * The menus are data plus handlers; this drives the handlers and checks what
- * they reach — the hd:* event on window, the router, the shell's callbacks —
+ * they reach — the router (library actions are URL intents, HD-013), the
+ * shell's callbacks —
  * rather than the labels alone. The admin-only items are UI gating, not
  * protection (CLAUDE.md, "Admin Mode"), but a visitor seeing "Clear Library..."
  * is still a bug.
@@ -16,9 +17,11 @@ import type { Menu } from "@/components/win98";
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
 const push = vi.fn();
+const replace = vi.fn();
+let pathname = "/library";
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push }),
-  usePathname: () => "/library",
+  useRouter: () => ({ push, replace }),
+  usePathname: () => pathname,
 }));
 
 const { useShellMenus } = await import("@/hooks/useShellMenus");
@@ -61,6 +64,7 @@ const item = (menuLabel: string, label: string) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  pathname = "/library";
 });
 
 afterEach(() => {
@@ -69,15 +73,27 @@ afterEach(() => {
 });
 
 describe("useShellMenus", () => {
-  it("View's sort items dispatch hd:sort with the sort key", () => {
+  it("View's sort items carry the sort key to the library as a URL intent", () => {
     mount(false);
-    const seen: unknown[] = [];
-    const listener = (e: Event) => seen.push((e as CustomEvent).detail);
-    window.addEventListener("hd:sort", listener);
     item("View", "Sort by Date")!.onClick!();
     item("View", "Most Played")!.onClick!();
-    window.removeEventListener("hd:sort", listener);
-    expect(seen).toEqual(["date", "played"]);
+    // On /library itself: replace, so the intent adds no history entry.
+    expect(replace.mock.calls.map((c) => c[0])).toEqual(["/library?sort=date", "/library?sort=played"]);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("from another route, sort and shuffle navigate to /library with the intent (HD-013)", () => {
+    pathname = "/stats";
+    mount(false);
+    item("View", "Shuffle Coast to Coast")!.onClick!();
+    item("View", "Sort by Guest")!.onClick!();
+    item("View", "Surprise Me — Shuffle All")!.onClick!();
+    expect(push.mock.calls.map((c) => c[0])).toEqual([
+      "/library?shuffle=coast",
+      "/library?sort=guest",
+      "/library?shuffle=all",
+    ]);
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("hides the Library menu and admin items from visitors", () => {

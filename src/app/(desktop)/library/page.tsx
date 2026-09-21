@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { Suspense, useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useRouter } from "next/navigation";
 import { db } from "@/db";
@@ -26,6 +26,9 @@ import { useLibraryActions } from "@/hooks/library/useLibraryActions";
 import { useLibraryKeyboard } from "@/hooks/library/useLibraryKeyboard";
 import { useLibraryBusListeners } from "@/hooks/library/useLibraryBusListeners";
 import { useLibraryPanels } from "@/hooks/library/useLibraryPanels";
+import { useLibraryIntents } from "@/hooks/library/useLibraryIntents";
+import { useLibrarySearchShortcuts } from "@/hooks/library/useLibrarySearchShortcuts";
+import { LibraryIntentReader } from "@/components/library/LibraryIntentReader";
 import { communityKey } from "@/lib/utils/community-key";
 import { emit } from "@/lib/events";
 
@@ -107,20 +110,32 @@ export default function LibraryPage() {
   });
 
   useLibraryBusListeners({
-    searchBarRef,
-    setSortMode: filters.setSortMode,
     setSearch,
     setCategoryFilter: filters.setCategoryFilter,
     setSeriesFilter: filters.setSeriesFilter,
     setSeedSettled,
     setGuestProfileName,
     setSelectedEpisode,
-    setFocusedIndex,
-    selectedEpisode,
+  });
+
+  // What the rest of the app asks of the library arrives in the URL (HD-013).
+  const { applyIntent, scrollToCurrent } = useLibraryIntents({
+    allEpisodes,
     visibleEpisodes,
+    seedSettled,
     currentEpisodeId,
+    setSortMode: filters.setSortMode,
+    setSearch,
+    setSelectedEpisode,
+    setFocusedIndex,
     onShuffle: actions.handleShuffle,
-    onQueue: handleQueue,
+  });
+
+  useLibrarySearchShortcuts({
+    focusSearch: () => searchBarRef.current?.focus(),
+    queueSelected: () => {
+      if (selectedEpisode) handleQueue(selectedEpisode);
+    },
   });
 
   const panels = useLibraryPanels({ isMobile, allEpisodes });
@@ -167,6 +182,9 @@ export default function LibraryPage() {
 
   return (
     <div className="flex flex-col h-full overflow-auto overscroll-contain">
+      <Suspense fallback={null}>
+        <LibraryIntentReader onIntent={applyIntent} />
+      </Suspense>
       <LibraryToolbar
         searchBarRef={searchBarRef}
         search={search}
@@ -315,7 +333,7 @@ export default function LibraryPage() {
       {/* Floating "Now Playing" button — mobile only */}
       {isMobile && currentEpisodeId && !selectedEpisode && (
         <button
-          onClick={() => emit("scroll-to-current")}
+          onClick={scrollToCurrent}
           className="fixed bottom-[120px] right-3 z-25 w-[40px] h-[40px] rounded-full bg-midnight/90 border border-desert-amber/30 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
           aria-label="Scroll to now playing"
           title="Scroll to now playing"

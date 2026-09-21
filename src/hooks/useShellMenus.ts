@@ -8,7 +8,8 @@ import { toast } from "@/stores/toast-store";
 import { db } from "@/db";
 import { exportLibrarySeed } from "@/db/seed";
 import { TEXT_SCALE_OPTIONS, type TextScaleValue } from "@/hooks/useTextScalePreference";
-import { emit } from "@/lib/events";
+import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
+import type { SortMode } from "@/lib/library/filter-episodes";
 
 /**
  * What the menus open or toggle. The state behind these stays in the shell,
@@ -25,10 +26,6 @@ export interface ShellMenuActions {
   onSetTextScale: (value: TextScaleValue) => void;
   /** Present only once the browser has offered a PWA install. */
   onInstall?: () => void;
-}
-
-function dispatchSort(sort: string) {
-  emit("sort", sort);
 }
 
 async function exportLibrary() {
@@ -111,11 +108,16 @@ async function deduplicateLibrary() {
  */
 export function useShellMenus(actions: ShellMenuActions): Menu[] {
   const router = useRouter();
+  const openLibrary = useOpenLibraryIntent();
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const logout = useCallback(() => {
     useAdminStore.getState().logout();
     toast.info("Admin mode disabled");
   }, []);
+
+  // Every library action is a URL intent: these menus are on every route,
+  // and the library is mounted on one (HD-013).
+  const sort = (mode: SortMode) => openLibrary({ sort: mode });
 
   const {
     onAbout, onShortcuts, onClearLibrary, onClearCache,
@@ -136,18 +138,18 @@ export function useShellMenus(actions: ShellMenuActions): Menu[] {
     {
       label: "View",
       items: [
-        { label: "Sort by Date", onClick: () => dispatchSort("date") },
-        { label: "Sort by Name", onClick: () => dispatchSort("name") },
-        { label: "Sort by Guest", onClick: () => dispatchSort("guest") },
+        { label: "Sort by Date", onClick: () => sort("date") },
+        { label: "Sort by Name", onClick: () => sort("name") },
+        { label: "Sort by Guest", onClick: () => sort("guest") },
         { separator: true, label: "" },
-        { label: "Recently Played", onClick: () => dispatchSort("recent") },
-        { label: "In Progress", onClick: () => dispatchSort("progress") },
-        { label: "Top Rated", onClick: () => dispatchSort("rated") },
-        { label: "Most Played", onClick: () => dispatchSort("played") },
+        { label: "Recently Played", onClick: () => sort("recent") },
+        { label: "In Progress", onClick: () => sort("progress") },
+        { label: "Top Rated", onClick: () => sort("rated") },
+        { label: "Most Played", onClick: () => sort("played") },
         { separator: true, label: "" },
-        { label: "Surprise Me — Shuffle All", onClick: () => emit("shuffle", "all") },
-        { label: "Shuffle Coast to Coast", onClick: () => emit("shuffle", "coast") },
-        { label: "Shuffle Dreamland", onClick: () => emit("shuffle", "dreamland") },
+        { label: "Surprise Me — Shuffle All", onClick: () => openLibrary({ shuffle: "all" }) },
+        { label: "Shuffle Coast to Coast", onClick: () => openLibrary({ shuffle: "coast" }) },
+        { label: "Shuffle Dreamland", onClick: () => openLibrary({ shuffle: "dreamland" }) },
         { separator: true, label: "" },
         { label: "Radio Dial", onClick: () => router.push("/radio") },
         { label: "Statistics", onClick: () => router.push("/stats") },

@@ -165,22 +165,45 @@ simply quiet the next morning with nothing on screen to explain it. `useSleepTim
 now captures `fadeFrom` once and hands exactly that back — on expiry, and on cancel. A
 timer that expires without ever fading does not touch the volume at all.
 
-## Custom Events (Window Bus)
+## Event bus and library intents — read before adding a cross-component signal
 
-Cross-component communication via `window.dispatchEvent(new CustomEvent(...))`:
+**The bus is typed: `src/lib/events.ts`.** `HdEventMap` declares every key and its
+detail type; `emit("play-episode", ep)`, `useHdEvent("key", handler)` (one
+subscription, latest handler) and `onHdEvent` for non-React code. The transport is still
+a `window` CustomEvent named `hd:<key>`, so e2e helpers can dispatch by name — but in
+`src/` an `hd:*` string literal anywhere except events.ts is an ESLint error
+(`HD_EVENT_NAME_RULES`, proven in `src/lib/__tests__/eslint-rules.test.ts`). Always pass
+the key as a string literal.
 
-| Event | Purpose |
-|---|---|
-| `hd:play-episode` | Trigger playback |
-| `hd:sort`, `hd:shuffle` | Library sorting/shuffling |
-| `hd:focus-search` | Focus the search box |
-| `hd:scroll-to-current` | Scroll library to now-playing |
-| `hd:show-guest` | Open guest profile modal |
-| `hd:filter-tag`, `hd:filter-category`, `hd:filter-series` | Apply library filters |
-| `hd:easter-egg`, `hd:admin-prompt`, `hd:status-message` | Shell/easter-egg signals |
-| `hd:archive-status`, `hd:queue-selected`, `hd:toggle-shortcuts` | Misc |
-| `hd:toggle-ultra-mini` | Toggle ultra-mini player |
-| `hd:scan-preview` / `hd:scan-preview-stop` | Radio scan audio snippets |
+**An instruction needs a listener on every route it can fire from.**
+`src/lib/__tests__/event-routes.test.ts` walks the import graph from each `page.tsx` and
+its layouts, and fails when a key is emitted on a route where nothing listens. That is
+HD-013: "Shuffle Coast" in the palette on `/stats` fired an event only the library page
+heard. Keys that merely announce something (`HD_NOTIFICATIONS`: `seed-settled`,
+`text-scale`, `archive-status`, `status-message`) are exempt.
+
+| Key | Emitted by | Heard by |
+|---|---|---|
+| `play-episode` | library, stats, radio, search, palette, player, queue, stores | `(desktop)/layout.tsx` |
+| `scan-preview`, `scan-preview-stop` | `useRadioDial` | `(desktop)/layout.tsx` |
+| `filter-tag`, `filter-category`, `filter-series`, `show-guest` | `EpisodeCard`, `EpisodeDetail` (on /library) | `useLibraryBusListeners` |
+| `easter-egg` | layout keys, library, `SearchBar` | `DesktopShell` |
+| `admin-prompt` | `SearchBar` | `AdminPromptDialog` |
+| `toggle-shortcuts` | layout `?` key | `DesktopShell` |
+| `toggle-ultra-mini` | `StatusBar` | `AudioPlayer` |
+| `seed-settled` | layout | library (notification) |
+| `text-scale` | `applyTextScale` | `useTextScale` (notification) |
+| `archive-status` | `useAudioPlayer` | `OfflineIndicator` (notification) |
+| `status-message` | `toast-store` | `StatusBar` (notification) |
+
+**Library intents are URLs, not events** (`src/lib/library/intents.ts`):
+`/library?shuffle=all|coast|dreamland|special`, `?sort=<SortMode>`, `?q=<search>`,
+`?scroll=current`. Callers use `useOpenLibraryIntent()` — push from another route,
+replace on /library — never an event and never `setTimeout` waiting for the page to mount.
+`LibraryIntentReader` parses (invalid values ignored), clears the parameters with a
+replace, and `useLibraryIntents` applies them once the data they need exists.
+`/`, Ctrl/Cmd+F and Q are registered by the library itself
+(`useLibrarySearchShortcuts`), so the browser's find works on every other route.
 
 ## Conventions
 

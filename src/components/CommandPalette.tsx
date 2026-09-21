@@ -8,6 +8,7 @@ import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
 import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
 import { emit } from "@/lib/events";
+import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 
 interface Result {
   id: string;
@@ -88,6 +89,9 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  // Library actions navigate to a URL intent: the palette is open on every
+  // route, and the library is mounted on one (HD-013).
+  const openLibrary = useOpenLibraryIntent();
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   /**
@@ -154,19 +158,19 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       id: "act-shuffle",
       group: "Actions" as const,
       label: "Shuffle All Episodes",
-      action: () => { emit("shuffle", "all"); },
+      action: () => openLibrary({ shuffle: "all" }),
     },
     {
       id: "act-shuffle-coast",
       group: "Actions" as const,
       label: "Shuffle Coast to Coast",
-      action: () => { emit("shuffle", "coast"); },
+      action: () => openLibrary({ shuffle: "coast" }),
     },
     {
       id: "act-shuffle-dreamland",
       group: "Actions" as const,
       label: "Shuffle Dreamland",
-      action: () => { emit("shuffle", "dreamland"); },
+      action: () => openLibrary({ shuffle: "dreamland" }),
     },
     {
       id: "act-clear-queue",
@@ -180,7 +184,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       label: "Stop Playback",
       action: () => { usePlayerStore.getState().stop(); },
     },
-  ], []);
+  ], [openLibrary]);
 
   // Search with debounce
   useEffect(() => {

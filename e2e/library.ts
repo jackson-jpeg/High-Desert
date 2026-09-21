@@ -10,7 +10,7 @@
  */
 import { expect, type Locator, type Page } from "@playwright/test";
 
-/** The library's sort modes, exactly as `hd:sort` accepts them (library/page.tsx `SortMode`). */
+/** The library's sort modes, exactly as `?sort=` accepts them (filter-episodes.ts `SortMode`). */
 export type SortMode = "date" | "name" | "guest" | "recent" | "progress" | "rated" | "played";
 
 const SEED_URL = "/seed/library.json";
@@ -71,19 +71,27 @@ export function renderedRowCount(page: Page): Promise<number> {
 }
 
 /**
- * Select a sort mode through the app's own bus. Both the desktop View menu and
- * the mobile menu sheet dispatch `hd:sort` and nothing else, so this is the
- * seam they share — and it keeps specs independent of menu markup that is
- * being refactored. Resolves once the list has re-rendered and settled.
+ * Select a sort mode through the library's URL intent. Both the desktop View
+ * menu and the mobile menu sheet navigate to `/library?sort=<mode>` and
+ * nothing else (HD-013), so this is the seam they share — and it keeps specs
+ * independent of menu markup that is being refactored. A full load: the
+ * catalog is already seeded in this profile, so it only waits for the list to
+ * render and for the intent to be applied and cleared from the URL. Other
+ * library state (filters, scroll) starts fresh, as it would after a menu pick
+ * from another page. Resolves once the list has re-rendered and settled.
  */
 export async function selectSort(page: Page, mode: SortMode): Promise<void> {
-  await page.evaluate((m) => window.dispatchEvent(new CustomEvent("hd:sort", { detail: m })), mode);
+  await page.goto(`/library?sort=${mode}`);
+  await expect(episodeList(page).locator('[role="option"]').first()).toBeVisible({ timeout: 45_000 });
+  await expect.poll(() => new URL(page.url()).search, { message: "the ?sort= intent was never cleared" }).toBe("");
   await waitForListSettled(page);
 }
 
 /**
- * Filter the library to one series (`hd:filter-series`, as the series badges
- * dispatch). A series is sorted by part number, then air date ascending — the
+ * Filter the library to one series, as the series badges do: they emit the
+ * bus event `filter-series`, whose transport is a window CustomEvent named
+ * `hd:filter-series` (src/lib/events.ts) — the name is spelled here because
+ * this runs in the browser, outside the bundle. A series is sorted by part number, then air date ascending — the
  * only oldest-first listing the app has, since there is no ascending date sort.
  * Pass `null` to clear.
  */

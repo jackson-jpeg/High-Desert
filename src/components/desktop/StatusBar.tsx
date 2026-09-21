@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { cn } from "@/lib/utils/cn";
 import { StatusBar as Win98StatusBar } from "@/components/win98";
@@ -10,6 +10,7 @@ import { db } from "@/db";
 import { computeStreak } from "@/lib/utils/streak";
 import type { Presence } from "@/services/stats/client";
 import { emit, useHdEvent } from "@/lib/events";
+import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 
 export const CALLER_MESSAGES = [
   "East of the Rockies, you’re on the air...",
@@ -58,7 +59,6 @@ interface StatusBarProps {
  */
 export function StatusBar({ episodeCount, presence }: StatusBarProps) {
   const router = useRouter();
-  const pathname = usePathname();
   const [clock, setClock] = useState("");
   const [callerIdx, setCallerIdx] = useState(0);
   const [callerFade, setCallerFade] = useState(true);
@@ -126,30 +126,18 @@ export function StatusBar({ episodeCount, presence }: StatusBarProps) {
     setIsHalloweenSeason((m === 9 && d >= 28) || (m === 10 && d <= 2));
   }, []);
 
-  // Navigate to library and highlight the current episode when clicking status bar
+  // The now-playing text and the Ghost to Ghost badge both ask the library for
+  // something. They used to navigate and then fire a window event — the first
+  // into a page that had not mounted yet ("Now playing" did nothing from
+  // /stats), the second after a 150 ms guess. A URL intent arrives with the
+  // page instead (HD-013).
+  const openLibrary = useOpenLibraryIntent();
   const handleStatusClick = useCallback(() => {
     if (!hasEpisode) return;
-    if (pathname !== "/library") {
-      router.push("/library");
-    }
-    // Dispatch event so the library page can scroll to the current episode
-    emit("scroll-to-current");
-  }, [hasEpisode, pathname, router]);
+    openLibrary({ scroll: "current" });
+  }, [hasEpisode, openLibrary]);
 
-  // Ghost to Ghost badge click handler. The listener lives on the library
-  // page, so route there first when the badge is clicked from elsewhere —
-  // otherwise the event is dispatched into a page that isn't mounted.
-  const handleGhostClick = useCallback(() => {
-    const fire = () =>
-      emit("search", "ghost to ghost");
-    if (pathname === "/library") {
-      fire();
-    } else {
-      router.push("/library");
-      // Let the route mount and attach its listener before firing.
-      setTimeout(fire, 150);
-    }
-  }, [pathname, router]);
+  const handleGhostClick = useCallback(() => openLibrary({ q: "ghost to ghost" }), [openLibrary]);
 
   // Status bar now-playing content
   const statusContent = (() => {

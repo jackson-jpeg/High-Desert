@@ -386,13 +386,6 @@ export default function DesktopLayout({
         return;
       }
 
-      // Q to queue selected episode (from library page)
-      if (e.code === "KeyQ" && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        emit("queue-selected");
-        return;
-      }
-
       switch (e.code) {
         case "Space":
           e.preventDefault();
@@ -437,19 +430,13 @@ export default function DesktopLayout({
           }
           break;
         case "Slash":
+          // ? = show shortcuts. `/`, Ctrl/Cmd+F and Q are the library's, and
+          // only registered while it is mounted (useLibrarySearchShortcuts):
+          // handled here they were preventDefault-ed on every route, which
+          // disabled the browser's find on /stats and /scanner (HD-013).
           if (e.shiftKey) {
-            // ? key = show shortcuts
             e.preventDefault();
             emit("toggle-shortcuts");
-          } else {
-            e.preventDefault();
-            emit("focus-search");
-          }
-          break;
-        case "KeyF":
-          if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-            emit("focus-search");
           }
           break;
       }
