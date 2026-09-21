@@ -51,7 +51,7 @@
     "eslint": "^9",
     "eslint-config-next": "^16.3.5",
     "fake-indexeddb": "^6.2.5",
-    "jsdom": "^26",
+    "jsdom": "^30",
     "playwright": "^1.63.0",
     "tailwindcss": "^4",
     "typescript": "^5",
