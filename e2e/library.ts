@@ -11,7 +11,7 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 /** The library's sort modes, exactly as `hd:sort` accepts them (library/page.tsx `SortMode`). */
-export type SortMode = "date" | "name" | "guest" | "recent" | "progress" | "rated" | "played";
+export type SortMode = "date" | "date-asc" | "name" | "guest" | "recent" | "progress" | "rated" | "played";
 
 const SEED_URL = "/seed/library.json";
 
@@ -83,9 +83,8 @@ export async function selectSort(page: Page, mode: SortMode): Promise<void> {
 
 /**
  * Filter the library to one series (`hd:filter-series`, as the series badges
- * dispatch). A series is sorted by part number, then air date ascending — the
- * only oldest-first listing the app has, since there is no ascending date sort.
- * Pass `null` to clear.
+ * dispatch). A series is sorted by part number, then air date ascending,
+ * whatever the sort mode. Pass `null` to clear.
  */
 export async function filterSeries(page: Page, series: string | null): Promise<void> {
   await page.evaluate((s) => window.dispatchEvent(new CustomEvent("hd:filter-series", { detail: s })), series);
@@ -119,14 +118,28 @@ export async function scrollListTo(page: Page, fraction: number): Promise<void> 
   }, fraction);
 }
 
+/** How a row is assigned to a rail group, read from its `aria-label`. */
+export type RowGrouping = "year" | "title-initial";
+
+/**
+ * Group key of a row's `aria-label`. Mirrors the rail's *definitions* (air
+ * year; a title's initial, accents folded, non-letters as "#") — not its code —
+ * so a rail that disagreed with the rows would be caught, not reproduced.
+ */
+export function groupOfLabel(label: string, grouping: RowGrouping): string {
+  if (grouping === "year") return ROW_YEAR.exec(label)?.[1] ?? "Unknown";
+  const title = label.replace(ROW_YEAR, "");
+  const ch = title.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").charAt(0).toUpperCase();
+  return /\p{L}/u.test(ch) ? ch : "#";
+}
+
 /**
  * The list's group order, top to bottom: walk the whole list a screen at a
- * time and collapse consecutive rows of the same air year into one entry.
+ * time and collapse consecutive rows of the same group into one entry.
  * Rows with no date read as "Unknown". Leaves the list scrolled to the top.
  */
-export async function listYearRuns(page: Page): Promise<string[]> {
-  return listScroller(page).evaluate(async (sc, pattern) => {
-    const re = new RegExp(pattern);
+export async function listGroupRuns(page: Page, grouping: RowGrouping = "year"): Promise<string[]> {
+  const labels = await listScroller(page).evaluate(async (sc) => {
     const lb = sc.querySelector('[role="listbox"]') as HTMLElement;
     const slotH = parseFloat((lb.firstElementChild as HTMLElement | null)?.style.height ?? "0");
     if (!(slotH > 0)) return [];
@@ -137,18 +150,25 @@ export async function listYearRuns(page: Page): Promise<string[]> {
       await frame();
       for (const o of lb.querySelectorAll('[role="option"]')) {
         const idx = Math.round(parseFloat((o.parentElement as HTMLElement).style.top) / slotH);
-        byIndex.set(idx, re.exec(o.getAttribute("aria-label") ?? "")?.[1] ?? "Unknown");
+        byIndex.set(idx, o.getAttribute("aria-label") ?? "");
       }
       if (top + sc.clientHeight >= sc.scrollHeight) break;
     }
     sc.scrollTop = 0;
     await frame();
-    const runs: string[] = [];
-    for (const [, year] of [...byIndex.entries()].sort((a, b) => a[0] - b[0])) {
-      if (runs[runs.length - 1] !== year) runs.push(year);
-    }
-    return runs;
-  }, ROW_YEAR.source);
+    return [...byIndex.entries()].sort((a, b) => a[0] - b[0]).map(([, label]) => label);
+  });
+  const runs: string[] = [];
+  for (const label of labels) {
+    const g = groupOfLabel(label, grouping);
+    if (runs[runs.length - 1] !== g) runs.push(g);
+  }
+  return runs;
+}
+
+/** Year runs of the list, top to bottom (see `listGroupRuns`). */
+export function listYearRuns(page: Page): Promise<string[]> {
+  return listGroupRuns(page, "year");
 }
 
 /** Air year of the first row actually in view (not an overscan row above it). */
@@ -167,51 +187,92 @@ export async function firstVisibleRowYear(page: Page): Promise<string | null> {
   }, ROW_YEAR.source);
 }
 
-/**
- * The year rail's entries.
- *
- * Today the rail (YearNavigator) has no test hook, so entries are found by
- * their `title="YYYY (N episodes)"` and the active one by its `font-bold`
- * class. A rewritten rail should expose `data-testid="year-rail"`, a
- * `data-year` per entry and `aria-current` on the active one; those are
- * preferred here when present, so the Step 3 rail can adopt them without
- * editing any spec.
- */
-export function railEntries(page: Page): Locator {
-  const tagged = page.locator('[data-testid="year-rail"] [data-year]');
-  const legacy = page.locator('button[title$=" episodes)"]');
-  return tagged.or(legacy);
+/** Group key of the row at `index` (it must be rendered — in view or in the overscan). */
+export async function rowGroupAt(page: Page, index: number, grouping: RowGrouping = "year"): Promise<string | null> {
+  const label = await listScroller(page).evaluate((sc, idx) => {
+    const lb = sc.querySelector('[role="listbox"]') as HTMLElement;
+    const slotH = parseFloat((lb.firstElementChild as HTMLElement | null)?.style.height ?? "0");
+    for (const o of lb.querySelectorAll('[role="option"]')) {
+      if (Math.round(parseFloat((o.parentElement as HTMLElement).style.top) / slotH) === idx) {
+        return o.getAttribute("aria-label") ?? "";
+      }
+    }
+    return null;
+  }, index);
+  return label === null ? null : groupOfLabel(label, grouping);
 }
 
-/** Rail labels top to bottom, as 4-digit years. Empty when there is no rail in the DOM. */
-export async function railYears(page: Page): Promise<string[]> {
-  return railEntries(page).evaluateAll((els) => {
-    const entries: { top: number; year: string }[] = [];
-    for (const el of els) {
-      const year = el.getAttribute("data-year") ?? /^(\d{4}) \(/.exec(el.getAttribute("title") ?? "")?.[1];
-      if (year) entries.push({ top: el.getBoundingClientRect().top, year });
-    }
-    // Stable sort: entries hidden with display:none all report top 0 and keep DOM order.
-    return entries.sort((a, b) => a.top - b.top).map((e) => e.year);
+/** The list's scroll position and row height, and the index of the first row in view. */
+export async function listPosition(page: Page): Promise<{ scrollTop: number; rowHeight: number; firstIndex: number }> {
+  return listScroller(page).evaluate((sc) => {
+    const lb = sc.querySelector('[role="listbox"]') as HTMLElement;
+    const rowHeight = parseFloat((lb.firstElementChild as HTMLElement | null)?.style.height ?? "0");
+    return { scrollTop: sc.scrollTop, rowHeight, firstIndex: Math.floor(sc.scrollTop / rowHeight) };
   });
 }
 
-/** Whether the rail is actually on screen (it exists in the DOM at 390 but is `display: none`). */
+/**
+ * The rail: on desktop the column beside the list (`year-rail`), on a phone
+ * the scrubber down the right edge (`year-scrubber`), which is only on screen
+ * while the list scrolls. Both mark entries with `data-group` (and `data-year`
+ * for years) and the active one with `aria-current="true"`.
+ */
+export function railEntries(page: Page): Locator {
+  return page.locator('[data-testid="year-rail"] [data-group], [data-testid="year-scrubber"] [data-group]');
+}
+
+/** The mobile scrubber's root element. */
+export function scrubber(page: Page): Locator {
+  return page.getByTestId("year-scrubber");
+}
+
+/**
+ * Scroll the list by a pixel and back, as a listener's thumb would — the
+ * mobile scrubber only appears while the list moves. Harmless on desktop.
+ */
+export async function nudgeList(page: Page): Promise<void> {
+  await listScroller(page).evaluate(async (el) => {
+    const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const at = el.scrollTop;
+    el.scrollTop = at + 1;
+    await frame();
+    el.scrollTop = at;
+    await frame();
+  });
+}
+
+/** Rail group keys, top to bottom. Empty when there is no rail in the DOM. */
+export async function railGroups(page: Page): Promise<string[]> {
+  return railEntries(page).evaluateAll((els) =>
+    els
+      .map((el) => ({ top: el.getBoundingClientRect().top, key: el.getAttribute("data-group") ?? "" }))
+      .sort((a, b) => a.top - b.top)
+      .map((e) => e.key),
+  );
+}
+
+/** Rail labels top to bottom, as 4-digit years (entries that are not years are skipped). */
+export async function railYears(page: Page): Promise<string[]> {
+  return railEntries(page).evaluateAll((els) =>
+    els
+      .filter((el) => el.hasAttribute("data-year"))
+      .map((el) => ({ top: el.getBoundingClientRect().top, year: el.getAttribute("data-year")! }))
+      .sort((a, b) => a.top - b.top)
+      .map((e) => e.year),
+  );
+}
+
+/** Whether the rail is actually on screen (the scrubber is `visibility: hidden` while idle). */
 export async function railIsVisible(page: Page): Promise<boolean> {
   const count = await railEntries(page).count();
   return count > 0 && (await railEntries(page).first().isVisible());
 }
 
-/** The active rail entry's year and its on-screen y (px), or null if none is active/visible. */
-export async function railActive(page: Page): Promise<{ year: string; y: number } | null> {
+/** The active rail entry's group and its on-screen y (px), or null if none is active. */
+export async function railActive(page: Page): Promise<{ group: string; y: number } | null> {
   return railEntries(page).evaluateAll((els) => {
-    const active =
-      els.find((el) => {
-        const c = el.getAttribute("aria-current");
-        return c !== null && c !== "false";
-      }) ?? els.find((el) => el.classList.contains("font-bold"));
-    if (!active || (active as HTMLElement).offsetParent === null) return null;
-    const year = active.getAttribute("data-year") ?? /^(\d{4}) \(/.exec(active.getAttribute("title") ?? "")?.[1];
-    return year ? { year, y: Math.round(active.getBoundingClientRect().top) } : null;
+    const active = els.find((el) => el.getAttribute("aria-current") === "true");
+    if (!active) return null;
+    return { group: active.getAttribute("data-group") ?? "", y: Math.round(active.getBoundingClientRect().top) };
   });
 }

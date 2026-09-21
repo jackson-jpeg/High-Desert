@@ -14,9 +14,10 @@ import { DetailSheet } from "@/components/library/DetailSheet";
 import { ExploreBand } from "@/components/library/ExploreBand";
 import { LibraryToolbar } from "@/components/library/LibraryToolbar";
 import { ActiveFilterBar, MoodFilterBar, SortPresets } from "@/components/library/LibraryFilterBars";
-import { LibraryListSkeleton, EmptyLibrary, NoFilterMatches, NoSearchMatches } from "@/components/library/LibraryListStates";
+import { LibraryListSkeleton, EmptyLibrary, NoFilterMatches, NoSearchMatches, NothingInProgress } from "@/components/library/LibraryListStates";
 import { cn } from "@/lib/utils/cn";
 import { selectLibraryEpisodes, type ShowFilter } from "@/lib/library/filter-episodes";
+import { libraryListState } from "@/lib/library/list-state";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { useCommunityStats } from "@/hooks/useCommunityStats";
 import { useLibraryFilters } from "@/hooks/library/useLibraryFilters";
@@ -157,6 +158,15 @@ export default function LibraryPage() {
     router.push(action === "scan" ? "/scanner" : "/search");
   }, [router]);
 
+  const listState = libraryListState({
+    libraryCount: allEpisodes?.length ?? 0,
+    visibleCount: visibleEpisodes.length,
+    search,
+    hasActiveFilters,
+    sortMode,
+    seriesFilter,
+  });
+
   const { setShowFilter, setGuestFilter, setSeriesFilter } = filters;
   const onShowTab = useCallback((key: ShowFilter) => {
     setShowFilter(key);
@@ -240,9 +250,14 @@ export default function LibraryPage() {
         {/* Episode list */}
         {allEpisodes !== undefined && (allEpisodes.length > 0 || seedSettled) && (
         <div className="flex-1 overflow-hidden min-w-0">
-          {allEpisodes.length === 0 ? (
+          {listState === "empty-library" ? (
             <EmptyLibrary />
-          ) : visibleEpisodes.length === 0 && !search.trim() && hasActiveFilters ? (
+          ) : listState === "nothing-in-progress" ? (
+            <NothingInProgress
+              narrowed={!!search.trim() || hasActiveFilters}
+              onShowAll={() => filters.setSortMode("date")}
+            />
+          ) : listState === "no-filter-matches" ? (
             <NoFilterMatches
               showFilter={showFilter}
               categoryFilter={categoryFilter}
@@ -251,7 +266,7 @@ export default function LibraryPage() {
               favoritesOnly={favoritesOnly}
               onClear={filters.clearAllFilters}
             />
-          ) : visibleEpisodes.length === 0 && search.trim() ? (
+          ) : listState === "no-search-matches" ? (
             <NoSearchMatches
               search={search}
               isAdmin={isAdmin}
@@ -261,6 +276,9 @@ export default function LibraryPage() {
           ) : (
             <TimelineView
               episodes={visibleEpisodes}
+              sortMode={sortMode}
+              seriesFilter={seriesFilter}
+              onSortModeChange={filters.setSortMode}
               currentEpisodeId={currentEpisodeId}
               onEpisodeClick={selection.handleEpisodeClick}
               onEpisodeDoubleClick={handlePlay}
