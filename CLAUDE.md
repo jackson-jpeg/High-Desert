@@ -14,7 +14,17 @@ npm run build                 # production build
 npm run lint                  # ESLint (next/core-web-vitals + typescript)
 npm run test                  # Vitest
 npm run test:mutations        # does each test actually observe its subject?
+npm run check:csp -- <url>    # every route in Chromium: CSP violations / console errors
 ```
+
+(Quick Start is for a *development* checkout. In `/root/High-Desert`, which is
+production, never `npm install` — see "Deploying to the VPS".)
+
+**Database-backed tests** (`*.db.test.ts`, `scripts/__tests__/backup-db.test.ts`) need
+`TEST_DATABASE_URL`, a `*_test` database — enforced by `src/test-support/test-db.ts`. CI
+provides one; on the VPS: `set -a; . /root/.high-desert-test.env; set +a`. Without it they
+skip, and `test:mutations` reports their mutations as **NOT CHECKED** rather than passing
+(in CI a missing URL is an error).
 
 **`npm run test:mutations` is not optional garnish.** Four defects in this project
 were checks disconnected from the thing they checked — a watchdog whose listeners
@@ -68,7 +78,7 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/heartbeat` | POST | Mark a session present. Body `{sessionId, episodeId?}`. Returns `{ok}`. Every open tab posts on a 60s interval. `episodeId` is sent **only while that tab is actually playing** and renews `listening_at` — it is what keeps a show on air for its whole runtime instead of for five minutes after someone pressed play. Omitting it leaves the listening mark alone rather than clearing it, so a pause does not yank the show off the air; the mark decays on its own. Same allowlist gate as `/api/stats/play`, but a bad id drops the mark instead of failing the beat — presence is the primary job |
 | `/api/stats/now` | GET | Presence **plus what is playing**. Returns **`{online, listening, onAir: [{episodeId, listeners}], recent: [{episodeId, at}]}`**. `no-store` — a stale on-air list is worse than none. Aggregate only: no query joins `session_id` to `episode_id`, and `recent_plays` stores no session at all |
 | `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, plays}], peakOnline, peakListening, playsInRange, totalPlays, peakAt, hourly: [{hour, online, listening, plays, samples}]}`**. `hourly` is always a 24-entry, zero-filled, **UTC**-hour profile over the last 30 days and does *not* vary with `range`; the client rotates it into local time. `samples: 0` means *never observed*, which is not the same as "observed, nobody here" — the UI hides the profile until 8 hours have been sampled, or a day-old deployment draws 23 empty columns and looks like a dead site |
-| `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Returns `{ok, online, listening, totalPlays, rolledUp, anonymized}` |
+| `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Also prunes `weekly_plays` past 3 weeks. Returns `{ok, online, listening, totalPlays, rolledUp, anonymized, prunedWeeks}` |
 | `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass, detail?}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`network-error`/`decode-error`/`empty-media`/`empty-media-suspected`; `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. `detail` is short (≤200 char) free text: the reported duration on an advisory row, or `MediaError.code` plus its message on a `decode-error`/`network-error`/`empty-media`. That message is a browser pipeline diagnostic (`DEMUXER_ERROR_COULD_NOT_OPEN: …`) and is the **only** way an empty file is distinguishable from an unreachable one on Chromium, which errors on the missing frames rather than reporting a short duration. A `detail` containing `HD-VERIFY` (any case, checked after truncation) is **rejected with 400** — this table is the instrument that decides whether the 5s duration floor is safe to promote, and verification rows have polluted it twice; intercept the POST in the page instead. No session id, no IP. `episodeId` must be in the community-key allowlist |
 | `/api/stats/failures` | GET | Which episodes are failing, worst first. `?days=7\|30\|90`. Returns **`{days, summary, entries: [{episodeId, title, failures, recovered, skippedRetries, plays, rate, kinds, uaClasses, details, lastAt}]}`**. Ids resolved to titles from the seed catalog. `details` is the browser's own diagnostics (up to 3 distinct, newest first). `skippedRetries` counts retries not attempted for want of a user gesture, excluding `empty-media`, which is never retried by design — it is the instrument for the activation gate. `summary` is site-wide and is deliberately **not** a sum of `entries`, which is capped at 50 episodes. **Excludes advisory kinds** (`ADVISORY_KINDS` in `src/services/stats/store.ts`) — this ranks episodes by how badly they are failing, and a row that never stopped playback would inflate that. Unauthenticated — it is aggregate-only, and the admin gate is presentation, not protection |
 | `/api/stats/export` | GET | **The permanent record, for sang3r.com.** Requires `x-service-token` (`STATS_EXPORT_SECRET`). `?mode=summary\|events\|daily\|episodes`. The only route that returns the event log rather than aggregates, and the only one not reachable from a browser. Episode ids are resolved to titles from the seed catalog. Page `events` with `after=<last id>` — **not** with `since`, which cannot disambiguate two plays sharing a timestamp |
@@ -370,9 +380,17 @@ admin features are local-only and touch nothing server-side.
 
 ## Security Headers
 
-CSP configured in `next.config.ts` — `connect-src` allows only `archive.org` (and self).
-`frame-ancestors` permits `'self'` plus `sang3r.com`/`www.sang3r.com` (deliberate embedding),
-so it is *not* fully denied. Still carries `unsafe-inline`/`unsafe-eval` for Next.js.
+CSP built in `src/lib/csp.ts`, sent by `next.config.ts` — `connect-src` allows only
+`archive.org` (and self). `frame-ancestors` permits `'self'` plus `sang3r.com`/`www.sang3r.com`
+(deliberate embedding), so it is *not* fully denied. `'unsafe-inline'` stays (Next's inline
+bootstrap); **`'unsafe-eval'` is development-only**. `object-src 'none'`, `base-uri 'self'`,
+`form-action 'self'`. `images.unoptimized` (nothing uses `next/image`, so `/_next/image` is
+404) and `poweredByHeader: false`.
+
+`npm run check:csp -- <url>` (`scripts/csp-check.mjs`) loads every route in headless Chromium
+and fails on any CSP violation, page error or console error. CI runs it against the built app
+with a real Postgres behind it. Run it against production after anything that could change
+what a page loads.
 
 ## Deployment — self-hosted on the VPS
 
@@ -383,6 +401,10 @@ No third-party hosting. Same shape as `sanger-next`.
   chmod-600 `EnvironmentFile=` (`/root/.high-desert.env`), never inlined into the unit and
   never committed. Apply schema changes with
   `psql "$DATABASE_URL" -f scripts/schema.sql` — it is idempotent
+- **Backup:** `highdesert-backup.timer` (17:30 UTC) pg_dumps to `/root/backups/highdesert`
+  (14 days) and rsyncs to the MacBook over Tailscale (skipped under 5 GB free).
+  `highdesert-backup-status` → OK / FAILED / STALE (>36h). Restore procedure and the
+  rehearsal: `docs/backup.md`
 - **Traffic sampler:** `highdesert-sample.timer` POSTs `/api/stats/sample` every 2 minutes,
   authenticated with `STATS_SAMPLE_SECRET` from the same env file. This is the only writer to
   `listener_samples`, and the only reason any *history* exists — `active_sessions` is a live
@@ -451,48 +473,51 @@ app — buttons do nothing and audio never starts. This has happened once, durin
 a "clean install" verification, and took real users down. HTTP status checks
 will not catch it.
 
-Safe deploy — **use the script**, which does all of the below and then verifies it:
+Deploy — **always with the script** (full account: `docs/deploy.md`):
 
 ```bash
 cd /root/High-Desert
-git pull                     # or checkout the intended ref
-bash scripts/deploy.sh       # refuses a dirty tree; build + restart + verify
+git pull                               # or checkout the intended ref
+bash scripts/deploy.sh                 # refuses a dirty tree
+bash scripts/deploy.sh --verify-only   # client-side check of the running server
+bash scripts/deploy.sh --rollback      # swap live <-> previous build, restart, verify
+highdesert-status                      # deploy drift, service, backup, sampler, failures, audit
 ```
 
-It refuses to deploy uncommitted work (`--allow-dirty` to override), builds,
-restarts, then walks every `/_next/static/chunks/*.js` on four routes and exits
-non-zero if any does not return 200. Build and restart are one step on purpose:
-separating them is what leaves the running process serving a manifest for chunks
-that no longer exist.
+- **It builds into `.next-staging`** (`HD_DIST_DIR`, read by `next.config.ts`), never
+  into the live `.next`. `next build` empties its distDir first, so building in place
+  meant a failed build left the running server serving deleted chunks. A failed build
+  now exits non-zero with the live site untouched and nothing restarted.
+- **A lockfile change installs and builds in a staging copy** of the tree and swaps
+  `node_modules` in with the build. The live `node_modules` is never deleted under the
+  running process.
+- **Verification is client-side and fails closed**: the server must answer, and `/`,
+  `/library`, `/radio`, `/stats` must each be 200, reference ≥1 chunk, and every chunk
+  must be 200. Any failure **rolls back to `.next.prev` automatically**.
+- The commit is checked into the service-worker registration chunk *before* the swap.
+
+**Never run `npm install` / `npm ci` in `/root/High-Desert`.** It rewrites the live
+`node_modules` under the running server — this happened during the 2026-09-21 upgrade
+(`docs/deploy.md`, "Incident"). Change dependencies in a separate checkout
+(`git worktree add ../hd-deps main`), commit, pull here, and let `deploy.sh` install
+them in its staging copy. There is no safe "by hand" equivalent of the deploy any more:
+the old `npm run build && systemctl restart` builds in place.
 
 **Commit before you build.** `NEXT_PUBLIC_BUILD_ID` names the service worker
 cache, and `activate` only purges caches whose name *differs* from the current
 one — so a build id that repeats the previous deploy's leaves that deploy's
 shell cached and served to offline visitors. A build once ran 85 seconds before
 the commit it was meant to ship and went out stamped with its predecessor.
-`next.config.ts` now hashes the working tree into the id when the tree is dirty,
-so the collision cannot recur, but a dirty deploy still ships something that is
-not in git. The equivalent by hand:
-
-```bash
-npm ci                       # only if package-lock.json changed
-npm run build                # writes a new .next
-systemctl restart highdesert # load the new build
-```
-
-Then verify the **client**, not just the status code — fetch the page and
-confirm every `/_next/static/chunks/*.js` it references returns 200:
-
-```bash
-R="--resolve highdesert.space:443:187.77.218.14"
-for c in $(curl -s $R https://highdesert.space/library \
-    | grep -oE '/_next/static/chunks/[a-zA-Z0-9._-]+\.js' | sort -u); do
-  echo "$(curl -s $R -o /dev/null -w '%{http_code}' https://highdesert.space$c) $c"
-done
-```
+`next.config.ts` hashes the working tree into the id when the tree is dirty, but a
+dirty deploy still ships something that is not in git.
 
 For destructive verification (clean installs, dependency bisects), copy the repo
-elsewhere and test there. Restart the live service only onto a finished build.
+elsewhere and test there.
+
+**The service is sandboxed** (`deploy/highdesert.service`, HD-026): `next start -H
+127.0.0.1`, `NoNewPrivileges`, `ProtectSystem=strict`, `ProtectHome=read-only`,
+`PrivateTmp`, and only `.next` writable. Anything new that writes at runtime outside
+`.next` will fail with `EROFS` — add a `ReadWritePaths=` for it, deliberately.
 
 ## Data safety — read before touching `src/db/`
 

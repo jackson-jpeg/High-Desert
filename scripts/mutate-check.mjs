@@ -453,6 +453,30 @@ const MUTATIONS = [
     why: "the same expression-wrapped predicate on listener_samples (HD-020)",
     needs: "TEST_DATABASE_URL",
   },
+  {
+    id: "status-drift",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: 'elif [[ "$deployed_ref" != "$head_ref" ]]; then',
+    replace: "elif false; then",
+    why: "a commit on main that was never deployed is invisible unless something compares them",
+  },
+  {
+    id: "status-audit",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: "elif (( crit + high > 0 )); then",
+    replace: "elif false; then",
+    why: "the critical Next.js advisory went unnoticed because nothing looked",
+  },
+  {
+    id: "status-sampler",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: 'if [[ "$timer_state" != active ]]; then',
+    replace: "if false; then",
+    why: "the sampler is the only writer of traffic history; a stopped timer records nothing and says nothing",
+  },
 ];
 
 const filters = process.argv.slice(2);
