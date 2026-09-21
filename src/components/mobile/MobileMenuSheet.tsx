@@ -177,6 +177,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
           </div>
           {([
             ["date", "Date — newest first", "\u{1F4C5}"],
+            ["date-asc", "Date — oldest first", "\u{1F4C5}"],
             ["recent", "Recently played", "\u{1F553}"],
             ["progress", "In progress", "◑"],
             ["rated", "Top rated", "★"],
