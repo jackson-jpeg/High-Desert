@@ -142,7 +142,7 @@ export function SortPresets({ filters }: { filters: LibraryFilters }) {
   return (
     <div className="flex items-center gap-1 px-3 pb-1 flex-shrink-0">
       <span className="text-hd-10 text-bevel-dark/85 mr-1">Sort:</span>
-      {(["date", "recent", "progress", "rated", "played"] as const).map((mode) => (
+      {(["date", "date-asc", "recent", "progress", "rated", "played"] as const).map((mode) => (
         <button
           key={mode}
           onClick={() => setSortMode(mode)}
@@ -153,7 +153,7 @@ export function SortPresets({ filters }: { filters: LibraryFilters }) {
               : "text-bevel-dark/85 hover:text-desktop-gray",
           )}
         >
-          {{ date: "Date", recent: "Recent", progress: "In Progress", rated: "Top Rated", played: "Most Played" }[mode]}
+          {{ date: "Newest", "date-asc": "Oldest", recent: "Recent", progress: "In Progress", rated: "Top Rated", played: "Most Played" }[mode]}
         </button>
       ))}
     </div>

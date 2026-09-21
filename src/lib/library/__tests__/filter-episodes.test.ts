@@ -7,6 +7,7 @@ import {
   sortEpisodes,
   selectLibraryEpisodes,
   matchComparison,
+  SORT_MODES,
   type LibraryCriteria,
   type SortMode,
 } from "@/lib/library/filter-episodes";
@@ -179,9 +180,24 @@ describe("sortEpisodes", () => {
   });
   it("never mutates its input", () => {
     const before = ids(LIB);
-    for (const m of ["name", "guest", "recent", "progress", "rated", "played"] as SortMode[]) sortEpisodes(LIB, m, null);
+    for (const m of ["date-asc", "name", "guest", "recent", "progress", "rated", "played"] as SortMode[]) sortEpisodes(LIB, m, null);
     sortEpisodes(LIB, "date", "Mel's Hole");
     expect(ids(LIB)).toEqual(before);
+  });
+  it("date-asc sorts oldest first", () => {
+    expect(sort("date-asc")).toEqual([6, 5, 4, 3, 2, 1]);
+  });
+  it("date-asc keeps same-day rows in their input order, and puts undated rows last", () => {
+    const list = [
+      ep({ id: 301 }),
+      ep({ id: 302, airDate: "1999-01-01" }),
+      ep({ id: 303, airDate: "1995-05-05" }),
+      ep({ id: 304, airDate: "1999-01-01" }),
+    ];
+    expect(sort("date-asc", list)).toEqual([303, 302, 304, 301]);
+  });
+  it("date-asc is offered through hd:sort (SORT_MODES)", () => {
+    expect(SORT_MODES).toContain("date-asc");
   });
   it("name sorts by title, falling back to fileName", () => {
     expect(sort("name")).toEqual([1, 5, 2, 3, 4, 6]);

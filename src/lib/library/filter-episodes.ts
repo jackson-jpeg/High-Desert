@@ -18,10 +18,16 @@
 import type { Episode } from "@/db/schema";
 import { parseSearch, type ComparisonOp } from "@/lib/utils/search-parser";
 
-export type SortMode = "date" | "name" | "guest" | "recent" | "progress" | "rated" | "played";
+/**
+ * "date" is newest first (Dexie's order, kept as is); "date-asc" is oldest
+ * first. There was no ascending date sort until the rail was made to follow
+ * the list (docs/timeline-rail.md) — the only oldest-first listing was a
+ * series filter.
+ */
+export type SortMode = "date" | "date-asc" | "name" | "guest" | "recent" | "progress" | "rated" | "played";
 export type ShowFilter = "all" | "coast" | "dreamland" | "special" | "unknown";
 
-export const SORT_MODES: readonly SortMode[] = ["date", "name", "guest", "recent", "progress", "rated", "played"];
+export const SORT_MODES: readonly SortMode[] = ["date", "date-asc", "name", "guest", "recent", "progress", "rated", "played"];
 
 export interface LibraryCriteria {
   /** Raw search box text, operators included (see `parseSearch`). */
@@ -188,6 +194,14 @@ export function sortEpisodes(list: Episode[], sortMode: SortMode, seriesFilter: 
       const partA = a.aiSeriesPart ?? 999;
       const partB = b.aiSeriesPart ?? 999;
       return partA - partB || (a.airDate ?? "").localeCompare(b.airDate ?? "");
+    });
+  } else if (sortMode === "date-asc") {
+    // An explicit sort rather than reversing the input: reversing would also
+    // reverse the order of same-day rows. Rows without a date go last, as
+    // they would at the bottom of any date listing.
+    return [...list].sort((a, b) => {
+      if (!a.airDate || !b.airDate) return (a.airDate ? 0 : 1) - (b.airDate ? 0 : 1);
+      return a.airDate.localeCompare(b.airDate);
     });
   } else if (sortMode === "name") {
     return [...list].sort((a, b) => {
