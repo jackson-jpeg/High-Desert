@@ -945,6 +945,30 @@ const MUTATIONS = [
     replace: "await deleteEpisode(episode.id!);",
     why: "HD-011: the row context menu's Delete was a third unconfirmed single-delete path",
   },
+  {
+    id: "keys-button-owns-arrows",
+    test: "src/lib/utils/__tests__/key-ownership.test.ts",
+    file: "src/lib/utils/key-ownership.ts",
+    find: "const NAVIGATION_OWNERS = [\n",
+    replace: "const NAVIGATION_OWNERS = [\n  \"button\",\n",
+    why: "HD-011: arrows go to elements that navigate with them; a button that owned arrows is a dead zone after every mouse click",
+  },
+  {
+    id: "keys-button-owns-arrows-radio",
+    test: "src/components/radio/__tests__/radio-keys.test.tsx",
+    file: "src/lib/utils/key-ownership.ts",
+    find: "const NAVIGATION_OWNERS = [\n",
+    replace: "const NAVIGATION_OWNERS = [\n  \"button\",\n",
+    why: "HD-011: after clicking Scan or Seek (which focuses the button) the arrows must still tune the dial",
+  },
+  {
+    id: "keys-button-owns-arrows-library",
+    test: "src/hooks/library/__tests__/library-keys.test.tsx",
+    file: "src/lib/utils/key-ownership.ts",
+    find: "const NAVIGATION_OWNERS = [\n",
+    replace: "const NAVIGATION_OWNERS = [\n  \"button\",\n",
+    why: "HD-011: after clicking a row's star (which focuses it) Shift+Arrow must still move the selection",
+  },
 ];
 
 const filters = process.argv.slice(2);

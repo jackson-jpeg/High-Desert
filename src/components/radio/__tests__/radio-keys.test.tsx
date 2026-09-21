@@ -100,17 +100,33 @@ describe("RadioDial — keys a focused control owns", () => {
     expect(plays).toEqual(["Men in Black"]);
   });
 
-  it("Enter/Space/arrows on a focused dial button are the button's", () => {
+  it("Enter/Space on a focused dial button are the button's", () => {
     act(() => useRadioDialStore.setState({ position: 100, lockedEpisode: EPISODES[0] }));
     for (const label of ["Scan forward", "Seek to nearest station", "Scan backward"]) {
       const b = control(label);
       b.focus();
       expect(press(b, "Enter"), `${label} Enter`).toBe(false);
       expect(press(b, "Space", " "), `${label} Space`).toBe(false);
-      expect(press(b, "ArrowRight"), `${label} ArrowRight`).toBe(false);
     }
     expect(useRadioDialStore.getState().position).toBe(100);
     expect(plays).toEqual([]);
+  });
+
+  it("arrows still tune the dial with a dial button focused (as after a mouse click)", () => {
+    // Chromium focuses a button on click. A button does nothing with an
+    // arrow, so owning arrows there would only make the dial untunable
+    // after clicking Scan or Seek.
+    act(() => useRadioDialStore.setState({ position: 100 }));
+    for (const label of ["Scan forward", "Seek to nearest station", "Scan backward"]) {
+      const b = control(label);
+      b.focus();
+      expect(press(b, "ArrowRight"), `${label} ArrowRight`).toBe(true);
+    }
+    expect(useRadioDialStore.getState().position).toBe(103);
+    const b = control("Scan forward");
+    b.focus();
+    expect(press(b, "ArrowLeft")).toBe(true);
+    expect(useRadioDialStore.getState().position).toBe(102);
   });
 
   it("a focused year tab owns Enter", () => {

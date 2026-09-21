@@ -186,6 +186,27 @@ describe("library keyboard — keys a focused control owns", () => {
     expect((await db.episodes.toArray()).map((e) => e.id)).toEqual(ids);
   });
 
+  it("Shift+ArrowDown still moves the selection with a row's star button focused", async () => {
+    // Chromium focuses a button on click, so this is the state right after
+    // favouriting a row with the mouse. A button does nothing with an arrow.
+    await seed();
+    const r = await mountAndSelect("Whitley Strieber");
+    const star = r.querySelector<HTMLButtonElement>("button[aria-pressed]")!;
+    expect(star).not.toBeNull();
+    star.focus();
+    expect(document.activeElement).toBe(star);
+    const ev = new KeyboardEvent("keydown", { key: "ArrowDown", code: "ArrowDown", shiftKey: true, bubbles: true, cancelable: true });
+    act(() => { star.dispatchEvent(ev); });
+    expect(ev.defaultPrevented).toBe(true);
+    // The focus row starts at -1, so the first Shift+ArrowDown opens the
+    // first row on screen — not the one that was clicked.
+    const first = container.querySelector<HTMLElement>('[role="option"]')!;
+    expect(first.getAttribute("aria-label")).not.toMatch(/^Whitley Strieber/);
+    await waitFor(() => first.getAttribute("aria-selected") === "true", "the first row to be selected");
+    expect(row("Whitley Strieber")!.getAttribute("aria-selected")).toBe("false");
+    expect(plays).toEqual([]);
+  });
+
   it("keys inside a menu are ignored by the library", async () => {
     const ids = await seed();
     useAdminStore.setState({ isAdmin: true });
