@@ -80,7 +80,7 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, plays}], peakOnline, peakListening, playsInRange, totalPlays, peakAt, hourly: [{hour, online, listening, plays, samples}]}`**. `hourly` is always a 24-entry, zero-filled, **UTC**-hour profile over the last 30 days and does *not* vary with `range`; the client rotates it into local time. `samples: 0` means *never observed*, which is not the same as "observed, nobody here" — the UI hides the profile until 8 hours have been sampled, or a day-old deployment draws 23 empty columns and looks like a dead site |
 | `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Also prunes `weekly_plays` past 3 weeks. Returns `{ok, online, listening, totalPlays, rolledUp, anonymized, prunedWeeks}` |
 | `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass, detail?}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`network-error`/`decode-error`/`empty-media`/`empty-media-suspected`; `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. `detail` is short (≤200 char) free text: the reported duration on an advisory row, or `MediaError.code` plus its message on a `decode-error`/`network-error`/`empty-media`. That message is a browser pipeline diagnostic (`DEMUXER_ERROR_COULD_NOT_OPEN: …`) and is the **only** way an empty file is distinguishable from an unreachable one on Chromium, which errors on the missing frames rather than reporting a short duration. A `detail` containing `HD-VERIFY` (any case, checked after truncation) is **rejected with 400** — this table is the instrument that decides whether the 5s duration floor is safe to promote, and verification rows have polluted it twice; intercept the POST in the page instead. No session id, no IP. `episodeId` must be in the community-key allowlist |
-| `/api/stats/failures` | GET | Which episodes are failing, worst first. `?days=7\|30\|90`. Returns **`{days, summary, entries: [{episodeId, title, failures, recovered, skippedRetries, plays, rate, kinds, uaClasses, details, lastAt}]}`**. Ids resolved to titles from the seed catalog. `details` is the browser's own diagnostics (up to 3 distinct, newest first). `skippedRetries` counts retries not attempted for want of a user gesture, excluding `empty-media`, which is never retried by design — it is the instrument for the activation gate. `summary` is site-wide and is deliberately **not** a sum of `entries`, which is capped at 50 episodes. **Excludes advisory kinds** (`ADVISORY_KINDS` in `src/services/stats/store.ts`) — this ranks episodes by how badly they are failing, and a row that never stopped playback would inflate that. Unauthenticated — it is aggregate-only, and the admin gate is presentation, not protection |
+| `/api/stats/failures` | GET | Which episodes are failing, worst first. `?days=7\|30\|90`. Returns **`{days, summary, entries: [{episodeId, title, failures, recovered, skippedRetries, plays, rate, kinds, uaClasses, details, lastAt}]}`**. Ids resolved to titles from the seed catalog. `details` is the browser's own diagnostics (up to 3 distinct, newest first). `skippedRetries` counts retries not attempted for want of a user gesture, excluding `empty-media`, which is never retried by design — it is the instrument for the activation gate. `summary` is site-wide and is deliberately **not** a sum of `entries`, which is capped at 50 episodes. **Excludes advisory kinds** (`ADVISORY_KINDS` in `src/services/stats/store.ts`) — this ranks episodes by how badly they are failing, and a row that never stopped playback would inflate that. Unauthenticated — it is aggregate-only, and the admin gate is presentation, not protection. `?since=<ISO>` adds **`window: {from, to, failures, plays}`**, the fixed 7 days from that instant (cut at now) — how `highdesert-status` holds a release to `docs/reliability-baseline.md` |
 | `/api/stats/export` | GET | **The permanent record, for sang3r.com.** Requires `x-service-token` (`STATS_EXPORT_SECRET`). `?mode=summary\|events\|daily\|episodes`. The only route that returns the event log rather than aggregates, and the only one not reachable from a browser. Episode ids are resolved to titles from the seed catalog. Page `events` with `after=<last id>` — **not** with `since`, which cannot disambiguate two plays sharing a timestamp |
 
 > Response shapes are inconsistent by history, not design. `src/services/stats/client.ts`
@@ -262,6 +262,35 @@ concluded it was their own mistake. Regression test:
   an ordinary pause/resume, which is the same listen continuing. Regression test:
   `src/hooks/__tests__/play-reporting.test.ts`, which mounts the real hook precisely
   because a test that re-implements `togglePlay` would reproduce the omission and pass.
+- **Nothing outside `src/audio/engine.ts` touches the player's element.** It is a detached
+  `new Audio()` that is never in the DOM, so `document.querySelector("audio")` finds nothing —
+  the sleep timer "paused" that way for months while the show played on, and bookmark
+  markers moved only the store's `position`, which the next tick overwrote. Use
+  `pauseEngine()` / `seekEngine(t)`. `seekEngine` at `readyState` 0 holds the seek and applies
+  it on `loadedmetadata` — a `currentTime` written before there is a timeline is discarded.
+  ESLint bans `querySelector("audio")` and every `src = ""` spelling in `src/` (the proof
+  is `src/lib/__tests__/eslint-rules.test.ts`).
+- **Every start takes a generation token** (`src/audio/play-session.ts`). Picking show B
+  while A is loading makes A's `play()` reject with `AbortError` and queues an `abort`
+  event that fires *after* B has started; both used to be charged as failures — to B.
+  A superseded start's rejection, any `AbortError`, and `abort` itself are not failures.
+  The layout's `hd:play-episode` handler takes its token *before* its awaits (metadata,
+  OPFS) and passes it to `playEpisode`, so a slow A cannot land on top of B.
+- **A listen is counted once per source** (`markListenCounted`), which is what separates
+  a first ▶ on a restored show from resume. `togglePlay` dispatches on the store's
+  `playing`; MediaSession play/pause call `resumePlayback`/`pausePlayback` explicitly,
+  never a toggle — a headset "pause" must never start audio.
+- **Finished means start over.** `startPositionFor()`: within 30 s of the end or past 95%
+  starts at 0, and `ended` clears `playbackPosition`. Position is saved every 30 s
+  (`POSITION_SAVE_MS`) plus on pause, `visibilitychange` and `pagehide`; the save is
+  caught, never an unhandled rejection.
+- **Only the leaves in `PositionReadouts.tsx` subscribe to `position`.** It changes four
+  times a second; `AudioPlayer` selecting it re-rendered the whole player per tick.
+  `render-pressure.test.tsx` holds that.
+- **The radio scan preview is `src/audio/scan-preview.ts`**, its own elements, not the
+  player's. A new preview clears every timer of the last one (its fade-out used to fire
+  on the *new* preview), stops with `removeAttribute("src")` + `load()`, and seeks on
+  `loadedmetadata`.
 - **`primeEpisode()` sets `preload="none"` before assigning `src`.** Keep it that way.
   At `"metadata"` every page load fetches the head of a show nobody asked for, and a
   VBR rip with no Xing header can make that most of the file. `play()` loads
