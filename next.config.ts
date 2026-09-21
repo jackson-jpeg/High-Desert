@@ -86,6 +86,12 @@ const DIST_DIR = process.env.HD_DIST_DIR || ".next";
 
 const nextConfig: NextConfig = {
   distDir: DIST_DIR,
+  // This project is its own workspace root. Without this Next walks up, finds
+  // /root/package-lock.json — the lockfile of /root/node_modules, which the
+  // sanger-conductor/monitor/prometheus services import from, so it is not
+  // stray and must stay — and warns on every start. __dirname, not a literal,
+  // so deploy.sh's staging copy resolves to itself.
+  turbopack: { root: __dirname },
   // Nothing here uses next/image. Leaving the optimizer on only kept
   // /_next/image reachable — the endpoint behind GHSA-2xp9-vwfh-vxw4.
   images: { unoptimized: true },

@@ -353,6 +353,14 @@ const MUTATIONS = [
     why: "/_next/image is the endpoint behind GHSA-2xp9-vwfh-vxw4, and nothing here uses it",
   },
   {
+    id: "turbopack-root",
+    test: "src/lib/__tests__/security-headers.test.ts",
+    file: "next.config.ts",
+    find: "  turbopack: { root: __dirname },",
+    replace: "  turbopack: {},",
+    why: "without it Next infers /root as the workspace (a live lockfile for other services lives there) and warns on every start",
+  },
+  {
     id: "scanner-metadata-tags",
     test: "src/services/scanner/__tests__/metadata.test.ts",
     file: "src/services/scanner/metadata.ts",

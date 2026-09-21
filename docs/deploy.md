@@ -175,21 +175,18 @@ service starts, and a deploy renames `.next`, so this had to be tested.
 `60dcc41` build on Next 16.2.12 back, verified. The second run returned to
 `43a0d89` on 16.3.5, verified.
 
-### Service user: follow-up, not done
+### Service user: closed — stays on root, sandboxed (decided 2026-09-21)
 
-The unit still runs as `root`. A dedicated user needs read access to the app
-directory, and `/root` is mode 700. Both options change things outside this
-repo:
+**Closed. Do not raise it again.** The unit runs as `root` inside the sandbox
+above: `NoNewPrivileges`, `ProtectSystem=strict`, `ProtectHome=read-only`,
+`PrivateTmp`, loopback-only, and only `.next` writable. A dedicated user would
+need the app moved out of `/root` (mode 700) — new paths in every unit,
+`deploy.sh`, the sync conventions and the docs — and the owner decided that
+cost buys too little over the sandbox. Loosening `/root` to allow traversal was
+rejected too, since it exposes every other project's directory listing.
 
-1. Move the app to `/srv/high-desert`, or similar, owned by a `highdesert`
-   user. This means updating `WorkingDirectory`, `ExecStart`, `ReadWritePaths`,
-   the sampler and backup units, `deploy.sh`'s default root, the `.macsync`
-   and autosync conventions, and every doc that names `/root/High-Desert`.
-2. Loosen `/root` to allow traversal. This exposes every other project's
-   directory listing, so it was rejected.
-
-Until then, `NoNewPrivileges` plus a read-only filesystem, with only `.next`
-writable, bounds what code running as root inside this unit can do.
+If a future change needs the service to write outside `.next`, add a
+deliberate `ReadWritePaths=`. Do not reopen the user question.
 
 ## Incident, 2026-09-21: `npm install` run in the live directory
 

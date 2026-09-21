@@ -22,6 +22,12 @@ advisories in production dependencies. The upgrade that got there:
 
 ## Development-only
 
-| Advisory | Package | Severity | Why it stays open |
-|---|---|---|---|
-| Path traversal / arbitrary file read via the `@vitest/mocker` redirect mock | `vitest` 3.2.7 → `@vitest/mocker` 3.2.7 | moderate | Test runner only; it never ships or runs in production. The fix is `vitest` 5, a major upgrade that needs its own pass over the test suite and `scripts/mutate-check.mjs`. Dependabot (weekly) will propose it. Revisit when that PR lands. |
+**None.** `npm audit` (all dependencies) reports 0 advisories as of 2026-09-21.
+The `@vitest/mocker` path-traversal advisory (moderate) was closed by upgrading
+`vitest` 3.2.7 → 5.0.1; `jsdom` went 26 → 30 in the same pass (Dependabot #11).
+The whole suite and every mutation stayed green.
+
+## Dependabot majors declined
+
+Majors that could not be upgraded with the suite and every mutation green are
+closed with a one-line reason here, so the decision is findable. None so far.

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 
 /**
  * Guards the "a show just never starts" class of bug.
@@ -78,12 +78,12 @@ function arm(audio: HTMLAudioElement, episodeId: string | null = "coll--show") {
 }
 
 describe("playback watchdog", () => {
-  let onFail: ReturnType<typeof vi.fn>;
+  let onFail: Mock<Parameters<typeof setFailureHandler>[0]>;
 
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
-    onFail = vi.fn();
+    onFail = vi.fn<Parameters<typeof setFailureHandler>[0]>();
     setFailureHandler(onFail);
     // The watchdog refuses to arm without this — see the "unwired" block below.
     resetListeners();

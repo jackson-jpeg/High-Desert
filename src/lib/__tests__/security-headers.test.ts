@@ -1,4 +1,5 @@
 // @vitest-environment node
+import path from "node:path";
 import { describe, it, expect } from "vitest";
 import { contentSecurityPolicy } from "../csp";
 import nextConfig from "../../../next.config";
@@ -45,6 +46,10 @@ describe("Content-Security-Policy", () => {
 describe("next.config.ts", () => {
   it("disables the image optimizer, which nothing uses", () => {
     expect(nextConfig.images?.unoptimized).toBe(true);
+  });
+
+  it("pins Turbopack's workspace root to this project, not /root", () => {
+    expect(nextConfig.turbopack?.root).toBe(path.resolve(__dirname, "../../.."));
   });
 
   it("does not advertise X-Powered-By", () => {
