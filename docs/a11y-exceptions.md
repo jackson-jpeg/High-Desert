@@ -13,9 +13,8 @@ nothing excluded.
 
 ## Reported, not failed (moderate)
 
-- `page-has-heading-one` on `/library` and `/radio` (`/stats` too until its
-  Window heading renders): the Win98 shell has window title bars, not a page
-  heading. Printed on every run so it stays visible; not a WCAG A/AA failure.
+- `page-has-heading-one` on `/library`, `/radio` and `/stats`: the Win98
+  shell has window title bars, not a page heading. Printed on every run so it stays visible; not a WCAG A/AA failure.
 
 ## Lint: `hd/text-opacity-floor` disables
 
