@@ -13,10 +13,10 @@ import type { LibraryIntent } from "@/lib/library/intents";
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
-const replace = vi.fn();
 let search = "";
+const replaceState = vi.spyOn(window.history, "replaceState");
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace, push: vi.fn() }),
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
   usePathname: () => "/library",
   useSearchParams: () => new URLSearchParams(search),
 }));
@@ -39,6 +39,7 @@ function render(node: React.ReactNode) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  replaceState.mockImplementation(() => {});
   search = "";
 });
 
@@ -58,7 +59,7 @@ describe("LibraryIntentReader", () => {
     render(createElement(LibraryIntentReader, { onIntent }));
     expect(onIntent).toHaveBeenCalledTimes(1);
     expect(onIntent).toHaveBeenCalledWith({ shuffle: "coast", sort: "played" } satisfies LibraryIntent);
-    expect(replace).toHaveBeenCalledWith("/library", { scroll: false });
+    expect(replaceState).toHaveBeenCalledWith(null, "", "/library");
   });
 
   it("clears an invalid intent without acting on it", () => {
@@ -66,7 +67,7 @@ describe("LibraryIntentReader", () => {
     search = "shuffle=everything";
     render(createElement(LibraryIntentReader, { onIntent }));
     expect(onIntent).not.toHaveBeenCalled();
-    expect(replace).toHaveBeenCalledWith("/library", { scroll: false });
+    expect(replaceState).toHaveBeenCalledWith(null, "", "/library");
   });
 
   it("leaves a URL with no intent alone", () => {
@@ -74,7 +75,7 @@ describe("LibraryIntentReader", () => {
     search = "viewer";
     render(createElement(LibraryIntentReader, { onIntent }));
     expect(onIntent).not.toHaveBeenCalled();
-    expect(replace).not.toHaveBeenCalled();
+    expect(replaceState).not.toHaveBeenCalled();
   });
 
   it("acts once under StrictMode's double effect, and again when the same intent comes back", () => {

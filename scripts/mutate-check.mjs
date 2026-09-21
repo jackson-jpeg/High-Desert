@@ -851,7 +851,7 @@ const MUTATIONS = [
     id: "intent-reader-clears",
     test: "src/hooks/__tests__/library-intents.test.tsx",
     file: "src/components/library/LibraryIntentReader.tsx",
-    find: "    router.replace(`${pathname}${withoutIntentParams(search)}`, { scroll: false });",
+    find: "    window.history.replaceState(null, \"\", `${pathname}${withoutIntentParams(search)}`);",
     replace: "    void withoutIntentParams;",
     why: "an intent left in the URL shuffles again on every reload (HD-013)",
   },

@@ -19,6 +19,7 @@ import type { Menu } from "@/components/win98";
 const push = vi.fn();
 const replace = vi.fn();
 let pathname = "/library";
+const replaceState = vi.spyOn(window.history, "replaceState").mockImplementation(() => {});
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push, replace }),
   usePathname: () => pathname,
@@ -64,6 +65,7 @@ const item = (menuLabel: string, label: string) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  replaceState.mockImplementation(() => {});
   pathname = "/library";
 });
 
@@ -77,9 +79,10 @@ describe("useShellMenus", () => {
     mount(false);
     item("View", "Sort by Date")!.onClick!();
     item("View", "Most Played")!.onClick!();
-    // On /library itself: replace, so the intent adds no history entry.
-    expect(replace.mock.calls.map((c) => c[0])).toEqual(["/library?sort=date", "/library?sort=played"]);
+    // On /library itself: replace the history entry, so the intent adds none.
+    expect(replaceState.mock.calls.map((c) => c[2])).toEqual(["/library?sort=date", "/library?sort=played"]);
     expect(push).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("from another route, sort and shuffle navigate to /library with the intent (HD-013)", () => {
@@ -94,6 +97,7 @@ describe("useShellMenus", () => {
       "/library?shuffle=all",
     ]);
     expect(replace).not.toHaveBeenCalled();
+    expect(replaceState).not.toHaveBeenCalled();
   });
 
   it("hides the Library menu and admin items from visitors", () => {
