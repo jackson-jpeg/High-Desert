@@ -78,6 +78,8 @@ backup_out="$($BACKUP_STATUS_CMD 2>&1)"
 backup_rc=$?
 if (( backup_rc == 0 )); then
   line OK backup "$(head -1 <<<"$backup_out")"
+  backup_warn="$(grep -m1 '^WARN' <<<"$backup_out" | sed 's/^WARN *//')"
+  [[ -n "$backup_warn" ]] && line WARN backup "$backup_warn"
 else
   line FAIL backup "$(head -1 <<<"$backup_out")"
 fi

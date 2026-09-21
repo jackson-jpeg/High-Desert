@@ -34,6 +34,11 @@ mac_line() {
   local ok_epoch mac
   ok_epoch="$(field mac_last_ok_epoch)"
   mac="$(field mac_result)"
+  # A skipped Mac copy is a WARN, never a failure: the dump is safe on the VPS
+  # and the next run with room carries it across.
+  if [[ "$mac" == skipped* ]]; then
+    echo "WARN  off-box (Mac) copy ${mac}"
+  fi
   if [[ -n "$ok_epoch" && "$ok_epoch" != 0 ]]; then
     echo "  off-box (Mac) copy: last succeeded $(( (now - ok_epoch) / 3600 ))h ago; last run: ${mac:-unknown}"
   else

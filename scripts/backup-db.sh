@@ -14,7 +14,10 @@
 #   2. Deletes dumps older than $RETENTION_DAYS, but never the newest one.
 #   3. Copies the directory to the MacBook over Tailscale (rsync --delete, so
 #      the Mac mirrors the same retention). Skipped, with a logged warning, if
-#      the Mac is unreachable or has under $MAC_MIN_FREE_MB free. The Mac is
+#      the Mac is unreachable or lacks room for this dump plus
+#      $MAC_HEADROOM_MB. The Mac's disk is permanently tight — that is the
+#      environment, not a fault — so the floor is sized to what is actually
+#      being written rather than a fixed number of gigabytes. The Mac is
 #      the off-box copy, and it is often asleep: an unreachable Mac is a warning,
 #      not a failure. The next run carries everything across.
 #   4. Writes $STATUS_FILE on every run, success or failure. A run that never
@@ -46,7 +49,7 @@ LOG_FILE="${HD_BACKUP_LOG:-/var/log/highdesert-backup.log}"
 RETENTION_DAYS="${HD_BACKUP_RETENTION:-14}"
 MAC_HOST="${HD_BACKUP_MAC_HOST-macbook}"
 MAC_DEST="${HD_BACKUP_MAC_DEST:-/Users/jackson/Downloads/highdesert-db-backups}"
-MAC_MIN_FREE_MB="${HD_BACKUP_MAC_MIN_MB:-5120}"
+MAC_HEADROOM_MB="${HD_BACKUP_MAC_HEADROOM_MB:-500}"
 SSH="${HD_BACKUP_SSH:-ssh}"
 RSYNC="${HD_BACKUP_RSYNC:-rsync}"
 
@@ -150,8 +153,8 @@ else
   if [[ -z "$free_mb" ]]; then
     mac_result="skipped: Mac unreachable or free space unreadable"
     log "WARN $mac_result — dump kept on the VPS only; the next run will copy it"
-  elif (( free_mb < MAC_MIN_FREE_MB )); then
-    mac_result="skipped: Mac has ${free_mb}MB free, under the ${MAC_MIN_FREE_MB}MB floor"
+  elif need_mb=$(( (dump_bytes + 1048575) / 1048576 + MAC_HEADROOM_MB )); (( free_mb < need_mb )); then
+    mac_result="skipped: Mac has ${free_mb}MB free, needs ${need_mb}MB (dump + ${MAC_HEADROOM_MB}MB)"
     log "WARN $mac_result — dump kept on the VPS only; the next run will copy it"
   elif "$SSH" -o ConnectTimeout=20 -o BatchMode=yes "$MAC_HOST" "mkdir -p '$MAC_DEST'" >/dev/null 2>&1 \
     && "$RSYNC" -a --delete --timeout=300 "$BACKUP_DIR/" "$MAC_HOST:$MAC_DEST/" 2>>"$LOG_FILE"; then

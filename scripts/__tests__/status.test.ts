@@ -26,6 +26,7 @@ interface World {
   failures: number;
   plays: number;
   backupOk: boolean;
+  backupMacSkipped: boolean;
   deployedIsHead: boolean;
 }
 
@@ -38,6 +39,7 @@ const HEALTHY: World = {
   failures: 15,
   plays: 300,
   backupOk: true,
+  backupMacSkipped: false,
   deployedIsHead: true,
 };
 
@@ -82,7 +84,7 @@ async function run(): Promise<{ code: number; out: string }> {
   await writeFile(
     path.join(bin, "backup-status"),
     world.backupOk
-      ? "#!/bin/sh\necho 'DB BACKUP OK — fresh'\nexit 0\n"
+      ? `#!/bin/sh\necho 'DB BACKUP OK — fresh'\n${world.backupMacSkipped ? "echo 'WARN  off-box (Mac) copy skipped: Mac has 300MB free, needs 501MB'\n" : ""}exit 0\n`
       : "#!/bin/sh\necho 'DB BACKUP STALE — newest dump is 40h old'\nexit 1\n",
     { mode: 0o755 },
   );
@@ -195,6 +197,15 @@ describe("highdesert-status", () => {
     const r = await run();
     expect(lineFor(r.out, "backup")).toMatch(/^FAIL.*STALE/);
     expect(r.code).not.toBe(0);
+  });
+
+  it("WARNs, and still exits 0, when the backup's Mac copy was skipped", async () => {
+    world.backupMacSkipped = true;
+    const r = await run();
+    const backupLines = r.out.split("\n").filter((l) => l.split(/\s+/)[1] === "backup");
+    expect(backupLines[0]).toMatch(/^OK/);
+    expect(backupLines[1]).toMatch(/^WARN.*off-box \(Mac\) copy skipped: Mac has 300MB free/);
+    expect(r.code).toBe(0);
   });
 
   it("FAILs when the service is down", async () => {

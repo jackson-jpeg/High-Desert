@@ -153,12 +153,26 @@ describeDb("backup-db.sh", () => {
     expect(await readFile(statusFile, "utf8")).toMatch(/mac_result=ok/);
   });
 
-  it("skips the Mac copy, with a warning, when the Mac is under 5 GB free", async () => {
-    const r = await sh(BACKUP, backupEnv({ FAKE_FREE_MB: "2921" }));
+  // The floor is the dump's own size plus 500 MB — not a fixed number of
+  // gigabytes. The test dump is well under 1 MB, so it needs exactly 501 MB.
+  it("skips the Mac copy, with a warning, when the Mac lacks room for the dump plus 500 MB", async () => {
+    const r = await sh(BACKUP, backupEnv({ FAKE_FREE_MB: "500" }));
     expect(r.code).toBe(0);
     expect(await rsyncCalls()).toHaveLength(0);
-    expect(r.out).toContain("WARN skipped: Mac has 2921MB free");
+    expect(r.out).toContain("WARN skipped: Mac has 500MB free, needs 501MB (dump + 500MB)");
     expect(await dumps()).toHaveLength(1);
+    const status = await sh(STATUS, statusEnv());
+    expect(status.code).toBe(0);
+    expect(status.out).toMatch(/^DB BACKUP OK/);
+    expect(status.out).toMatch(/^WARN {2}off-box \(Mac\) copy skipped: Mac has 500MB free/m);
+  });
+
+  it("copies to a Mac with far less than 5 GB free when the dump fits", async () => {
+    const r = await sh(BACKUP, backupEnv({ FAKE_FREE_MB: "501" }));
+    expect(r.code).toBe(0);
+    expect(await rsyncCalls()).toHaveLength(1);
+    const status = await sh(STATUS, statusEnv());
+    expect(status.out).not.toMatch(/^WARN/m);
   });
 
   it("reports FAILED and leaves no dump when pg_dump cannot connect", async () => {

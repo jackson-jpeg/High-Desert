@@ -2,7 +2,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   ci:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # A real Postgres, so the stats store is tested against the database it
     # runs on (query plans, statement_timeout, rollup windows) and so the
     # browser check below exercises the /api/stats routes instead of a wall
@@ -27,7 +27,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
