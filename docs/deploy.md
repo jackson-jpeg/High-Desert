@@ -28,9 +28,10 @@ bash scripts/deploy.sh --rollback      # swap current <-> previous build, restar
    `/root/.hd-deploy-stage/High-Desert`, runs `npm ci` and the build there, and
    moves the new `node_modules` and the build across only after both succeed.
    The live `node_modules` is never deleted under the running server. The copy
-   keeps the `High-Desert` basename so that Turbopack's relative symlinks for
-   server externals (`.next/node_modules/pg-… -> ../../../High-Desert/node_modules/pg`)
-   still resolve after the move.
+   keeps the `High-Desert` basename and depth, so Turbopack's relative symlinks
+   for server externals still resolve after the move. Next 16.3 writes
+   `.next/node_modules/pg-… -> ../../node_modules/pg`; 16.2 wrote
+   `../../../High-Desert/node_modules/pg`.
 4. Confirms that the commit is baked into the chunk that registers the service
    worker, **before** anything is swapped.
 5. Renames `.next` to `.next.prev` and `.next-staging` to `.next` (and does the
@@ -130,3 +131,4 @@ deploy of the Next.js 16.3 upgrade. See the Deploy log below.
 
 | When (UTC) | Commit | Path | Result |
 |---|---|---|---|
+| 2026-09-21 14:00:49 → 14:01:57 | `43a0d89` (Next 16.3.5, music-metadata 11, CSP) | lockfile changed → staging copy, `npm ci`, node_modules swapped | ✅ verified: / 13 chunks, /library /radio /stats 19 each, all 200 |

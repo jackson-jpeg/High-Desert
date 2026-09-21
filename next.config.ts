@@ -78,8 +78,9 @@ function resolveCatalogCount(): string {
  * The staging directory is renamed into place only after the build succeeds.
  *
  * It must stay a sibling of `.next` at the same depth: Turbopack links server
- * externals as `.next/node_modules/<pkg> -> ../../../High-Desert/node_modules/…`,
- * which survives the rename only because the depth does not change.
+ * externals with relative symlinks (`.next/node_modules/pg-… -> ../../node_modules/pg`
+ * on 16.3; 16.2 went via the project's own directory name), which survive the
+ * rename only because the depth does not change.
  */
 const DIST_DIR = process.env.HD_DIST_DIR || ".next";
 

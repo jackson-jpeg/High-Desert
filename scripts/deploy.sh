@@ -198,10 +198,10 @@ fi
 rm -rf "$STAGING" node_modules.staging
 
 if (( DEPS_CHANGED )); then
-  # The staging copy must have the same basename, one level below a sibling
-  # parent, so the relative symlinks Turbopack writes into .next/node_modules
-  # (../../../<basename>/node_modules/<pkg>) resolve to the live tree after the
-  # build is moved across.
+  # The staging copy keeps the project's basename and depth, so the relative
+  # symlinks Turbopack writes into .next/node_modules (../../node_modules/<pkg>
+  # on Next 16.3; 16.2 wrote ../../../<basename>/node_modules/<pkg>) resolve to
+  # the live tree after the build is moved across.
   STAGE="$STAGE_PARENT/$(basename "$ROOT")"
   say "package-lock.json changed — installing and building in $STAGE"
   rm -rf "$STAGE"
