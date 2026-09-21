@@ -209,9 +209,11 @@ if (( DEPS_CHANGED )); then
   rsync -a --exclude=/node_modules --exclude='/node_modules.*' --exclude='/.next*' \
     --exclude="/$STATE_DIR" ./ "$STAGE/"
   if ! (cd "$STAGE" && npm ci --no-audit --no-fund); then
+    rm -rf "$STAGE"
     die "npm ci failed in the staging copy. The live site is untouched."
   fi
   if ! (cd "$STAGE" && HD_DIST_DIR="$STAGING" $BUILD_CMD); then
+    rm -rf "$STAGE"
     die "Build failed in the staging copy. The live site is untouched."
   fi
   echo "$LOCK_SHA" > "$STAGE/$LOCK_STAMP"
