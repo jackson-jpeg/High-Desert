@@ -2,11 +2,13 @@
 
 import { cn } from "@/lib/utils/cn";
 import dynamic from "next/dynamic";
-import { MenuBar, StatusBar, Dialog, TextField, Button } from "@/components/win98";
+import { MenuBar } from "@/components/win98";
 import { ContextMenu } from "@/components/win98/ContextMenu";
 import { Toaster } from "@/components/ui/Toaster";
 import { PageTransition } from "@/components/PageTransition";
 import { Starfield } from "./Starfield";
+import { StatusBar } from "./StatusBar";
+import { AdminPromptDialog } from "./AdminPromptDialog";
 import type { EasterEgg } from "./EasterEggOverlays";
 
 /*
@@ -44,39 +46,18 @@ const EasterEggOverlays = dynamic(
   { ssr: false },
 );
 import { useKonamiCode } from "@/hooks/useKonamiCode";
-import type { Menu } from "@/components/win98";
 import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
 import { toast } from "@/stores/toast-store";
 import { db, getPreference, setPreference } from "@/db";
-import { exportLibrarySeed } from "@/db/seed";
 import { MobileMenuSheet } from "@/components/mobile/MobileMenuSheet";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { useLiveQuery } from "dexie-react-hooks";
 import { usePresence } from "@/hooks/usePresence";
-import { computeStreak } from "@/lib/utils/streak";
-
-const CALLER_MESSAGES = [
-  "East of the Rockies, you\u2019re on the air...",
-  "West of the Rockies, first-time caller...",
-  "From the Kingdom of Nye, Nevada...",
-  "The wildcard line is open...",
-  "Somewhere in the night...",
-  "The desert is listening...",
-  "Coast to Coast, you\u2019re on the air...",
-  "From the high desert...",
-  "What\u2019s on your mind tonight?",
-  "Open lines, area code first...",
-  "The bumper music plays on...",
-  "You\u2019re in the first half...",
-  "We\u2019ll be right back after this...",
-  "From the Great American Southwest...",
-  "The phone lines are lit up...",
-  "You\u2019re on the wild card line...",
-];
-
+import { useShellMenus } from "@/hooks/useShellMenus";
+import { useTextScalePreference } from "@/hooks/useTextScalePreference";
 
 interface DesktopShellProps {
   children: ReactNode;
@@ -93,12 +74,6 @@ const NAV_ITEMS = [
   { label: "Stats", path: "/stats" },
 ] as const;
 
-const TEXT_SCALE_OPTIONS = [
-  { label: "Normal", value: "1" as const },
-  { label: "Large", value: "1.15" as const },
-  { label: "Extra Large", value: "1.3" as const },
-];
-
 export function DesktopShell({ children, player, episodeCount = 0, className }: DesktopShellProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -108,18 +83,11 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [clearOpen, setClearOpen] = useState(false);
   const [clearCacheOpen, setClearCacheOpen] = useState(false);
   const [startupSoundOn, setStartupSoundOn] = useState(true);
-  const [textScale, setTextScale] = useState<"1" | "1.15" | "1.3">("1");
-  const [clock, setClock] = useState("");
+  const { textScale, setTextScale, cycleTextScale } = useTextScalePreference();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [callerIdx, setCallerIdx] = useState(0);
-  const [callerFade, setCallerFade] = useState(true);
-  const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const actionTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const [adminPromptOpen, setAdminPromptOpen] = useState(false);
-  const [adminPassword, setAdminPassword] = useState("");
-  const [adminError, setAdminError] = useState("");
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // No timer-driven state in the shell. The clock and the caller rotation live in <StatusBar>.
 
   // Ctrl/Cmd+K lives here rather than inside CommandPalette, so the palette's
   // chunk is only fetched the first time someone actually opens it.
@@ -190,28 +158,6 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     toast.info(next ? "Startup sound enabled" : "Startup sound disabled");
   }, [startupSoundOn]);
 
-  // Load text scale preference
-  useEffect(() => {
-    getPreference("text-scale").then((v) => {
-      if (v === "1.15" || v === "1.3") {
-        setTextScale(v);
-        document.documentElement.style.setProperty("--hd-text-scale", v);
-        window.dispatchEvent(new CustomEvent("hd:text-scale"));
-        localStorage.setItem("hd-text-scale", v);
-      }
-    });
-  }, []);
-
-  const handleSetTextScale = useCallback(async (value: "1" | "1.15" | "1.3") => {
-    setTextScale(value);
-    document.documentElement.style.setProperty("--hd-text-scale", value);
-    window.dispatchEvent(new CustomEvent("hd:text-scale"));
-    localStorage.setItem("hd-text-scale", value);
-    await setPreference("text-scale", value);
-    const label = TEXT_SCALE_OPTIONS.find((o) => o.value === value)?.label ?? value;
-    toast.info(`Text size: ${label}`);
-  }, []);
-
   // Measure actual nav + player height
   useEffect(() => {
     const measure = () => {
@@ -226,13 +172,6 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     return () => ro.disconnect();
   }, []);
 
-  // Admin prompt triggered by easter egg
-  useEffect(() => {
-    const handler = () => setAdminPromptOpen(true);
-    window.addEventListener("hd:admin-prompt", handler);
-    return () => window.removeEventListener("hd:admin-prompt", handler);
-  }, []);
-
   // Easter egg triggers from search bar + keyboard shortcuts
   useEffect(() => {
     const handler = (e: Event) => {
@@ -243,72 +182,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     return () => window.removeEventListener("hd:easter-egg", handler);
   }, []);
 
-  const handleAdminLogin = useCallback(async () => {
-    const ok = await useAdminStore.getState().login(adminPassword);
-    if (ok) {
-      setAdminPromptOpen(false);
-      setAdminPassword("");
-      setAdminError("");
-      toast.success("Admin mode enabled");
-    } else {
-      setAdminError("Wrong password");
-    }
-  }, [adminPassword]);
-
-  // Now-playing info from store
-  const nowPlayingTitle = usePlayerStore((s) => s.currentEpisode?.title ?? s.currentEpisode?.fileName);
-  const nowPlayingGuest = usePlayerStore((s) => s.currentEpisode?.guestName);
+  // Drives the nav tab's now-playing dot. The status bar selects its own.
   const isPlaying = usePlayerStore((s) => s.playing);
-  const hasEpisode = usePlayerStore((s) => !!s.currentEpisode);
-
-  // Clock tick
-  useEffect(() => {
-    const tick = () => {
-      const now = new Date();
-      const h = now.getHours() % 12 || 12;
-      const m = String(now.getMinutes()).padStart(2, "0");
-      const period = now.getHours() >= 12 ? "PM" : "AM";
-      setClock(`${h}:${m} ${period}`);
-    };
-    tick();
-    const id = setInterval(tick, 30000);
-    return () => clearInterval(id);
-  }, []);
-
-  // Randomize initial caller message on client only (avoids hydration mismatch)
-  useEffect(() => {
-    setCallerIdx(Math.floor(Math.random() * CALLER_MESSAGES.length));
-  }, []);
-
-  // Rotating caller line messages (every 30s)
-  useEffect(() => {
-    const id = setInterval(() => {
-      setCallerFade(false);
-      setTimeout(() => {
-        setCallerIdx((prev) => (prev + 1) % CALLER_MESSAGES.length);
-        setCallerFade(true);
-      }, 500);
-    }, 30000);
-    return () => clearInterval(id);
-  }, []);
-
-  // Listening streak. Only the last year of history can affect it, so bound the
-  // read by time rather than by row count (the old .limit(500) could disagree
-  // with the same figure shown on the stats page).
-  const streak = useLiveQuery(async () => {
-    const cutoff = Date.now() - 366 * 86_400_000;
-    const entries = await db.history.where("timestamp").above(cutoff).toArray();
-    return computeStreak(entries);
-  }, []);
-
-  // Ghost to Ghost easter egg: detect Halloween season (Oct 28 - Nov 2)
-  const [isHalloweenSeason, setIsHalloweenSeason] = useState(false);
-  useEffect(() => {
-    const now = new Date();
-    const m = now.getMonth(); // 0-indexed
-    const d = now.getDate();
-    setIsHalloweenSeason((m === 9 && d >= 28) || (m === 10 && d <= 2));
-  }, []);
 
   // Show counts for AboutDialog
   const showCounts = useLiveQuery(async () => {
@@ -322,6 +197,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const handleCloseAbout = useCallback(() => setAboutOpen(false), []);
   const handleShortcuts = useCallback(() => setShortcutsOpen(true), []);
   const handleCloseShortcuts = useCallback(() => setShortcutsOpen(false), []);
+  const handleClearLibrary = useCallback(() => setClearOpen(true), []);
+  const handleClearCache = useCallback(() => setClearCacheOpen(true), []);
 
   // Listen for ? key to toggle shortcuts
   useEffect(() => {
@@ -330,257 +207,17 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     return () => window.removeEventListener("hd:toggle-shortcuts", handler);
   }, []);
 
-  // Status bar action messages — show briefly then fade back to flavor text
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const msg = (e as CustomEvent<string>).detail;
-      if (!msg) return;
-      clearTimeout(actionTimeoutRef.current);
-      setActionMessage(msg);
-      actionTimeoutRef.current = setTimeout(() => setActionMessage(null), 4000);
-    };
-    window.addEventListener("hd:status-message", handler);
-    return () => {
-      window.removeEventListener("hd:status-message", handler);
-      clearTimeout(actionTimeoutRef.current);
-    };
-  }, []);
-
-  const dispatchSort = useCallback((sort: string) => {
-    window.dispatchEvent(new CustomEvent("hd:sort", { detail: sort }));
-  }, []);
-
-  const handleExport = useCallback(async () => {
-    const episodes = await db.episodes.toArray();
-    const data = {
-      version: "0.4.0",
-      exportedAt: new Date().toISOString(),
-      episodeCount: episodes.length,
-      episodes: episodes.map((ep) => ({
-        title: ep.title,
-        artist: ep.artist,
-        airDate: ep.airDate,
-        guestName: ep.guestName,
-        showType: ep.showType,
-        topic: ep.topic,
-        description: ep.description,
-        duration: ep.duration,
-        format: ep.format,
-        source: ep.source,
-        sourceUrl: ep.sourceUrl,
-        archiveIdentifier: ep.archiveIdentifier,
-        aiSummary: ep.aiSummary,
-        aiTags: ep.aiTags,
-        aiStatus: ep.aiStatus,
-        playbackPosition: ep.playbackPosition,
-        playCount: ep.playCount,
-        lastPlayedAt: ep.lastPlayedAt,
-      })),
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `high-desert-library-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success(`Exported ${episodes.length} episodes`);
-  }, []);
-
-  const menus: Menu[] = [
-    {
-      label: "File",
-      items: [
-        ...(isAdmin
-          ? [{ label: "Open Folder...", shortcut: "Ctrl+O", onClick: () => router.push("/scanner") },
-             { separator: true as const, label: "" }]
-          : []),
-        { label: "Exit", onClick: () => window.close() },
-      ],
-    },
-    {
-      label: "View",
-      items: [
-        { label: "Sort by Date", onClick: () => dispatchSort("date") },
-        { label: "Sort by Name", onClick: () => dispatchSort("name") },
-        { label: "Sort by Guest", onClick: () => dispatchSort("guest") },
-        { separator: true, label: "" },
-        { label: "Recently Played", onClick: () => dispatchSort("recent") },
-        { label: "In Progress", onClick: () => dispatchSort("progress") },
-        { label: "Top Rated", onClick: () => dispatchSort("rated") },
-        { label: "Most Played", onClick: () => dispatchSort("played") },
-        { separator: true, label: "" },
-        { label: "Surprise Me \u2014 Shuffle All", onClick: () => window.dispatchEvent(new CustomEvent("hd:shuffle", { detail: "all" })) },
-        { label: "Shuffle Coast to Coast", onClick: () => window.dispatchEvent(new CustomEvent("hd:shuffle", { detail: "coast" })) },
-        { label: "Shuffle Dreamland", onClick: () => window.dispatchEvent(new CustomEvent("hd:shuffle", { detail: "dreamland" })) },
-        { separator: true, label: "" },
-        { label: "Radio Dial", onClick: () => router.push("/radio") },
-        { label: "Statistics", onClick: () => router.push("/stats") },
-      ],
-    },
-    ...(isAdmin
-      ? [{
-          label: "Library",
-          items: [
-            {
-              label: "Scan Folder...",
-              shortcut: "Ctrl+Shift+S",
-              onClick: () => router.push("/scanner"),
-            },
-            {
-              label: "Search Archive...",
-              onClick: () => router.push("/search"),
-            },
-            {
-              label: "Import Catalog...",
-              onClick: () => router.push("/scanner"),
-            },
-            { separator: true as const, label: "" },
-            { label: "Export Library...", onClick: handleExport },
-            { label: "Export Library Seed...", onClick: exportLibrarySeed },
-            { separator: true as const, label: "" },
-            {
-              label: "Deduplicate Library...",
-              onClick: async () => {
-                // Two-step: preview, confirm, then execute. This deletes episodes
-                // irreversibly and there is no server backup.
-                // Admin-only: load the dedup module on demand so it stays out
-                // of the bundle every visitor downloads.
-                const { previewDeduplication, validatePlan, deduplicateEpisodes } =
-                  await import("@/db/deduplicate");
-                const plan = await previewDeduplication();
-                if (plan.duplicatesToRemove === 0) {
-                  toast.info("No duplicates found");
-                  return;
-                }
-                const check = validatePlan(plan);
-                if (!check.ok) {
-                  toast.error(check.reason);
-                  return;
-                }
-                const ok = window.confirm(
-                  `Delete ${plan.duplicatesToRemove} duplicate episode${plan.duplicatesToRemove !== 1 ? "s" : ""} ` +
-                  `from ${plan.groups.length} group${plan.groups.length !== 1 ? "s" : ""}?\n\n` +
-                  `${plan.totalBefore} episodes before, ${plan.totalBefore - plan.duplicatesToRemove} after.\n` +
-                  `This cannot be undone.`,
-                );
-                if (!ok) return;
-
-                const result = await deduplicateEpisodes();
-                if (result.aborted) {
-                  toast.error(result.reason ?? "Deduplication aborted");
-                } else if (result.duplicatesRemoved > 0) {
-                  toast.success(`Removed ${result.duplicatesRemoved} duplicate${result.duplicatesRemoved !== 1 ? "s" : ""} from ${result.groupsMerged} group${result.groupsMerged !== 1 ? "s" : ""}`);
-                } else {
-                  toast.info("No duplicates found");
-                }
-              },
-            },
-            { separator: true as const, label: "" },
-            { label: "Clear Audio Cache...", onClick: () => setClearCacheOpen(true) },
-            { label: "Clear Library...", onClick: () => setClearOpen(true) },
-          ],
-        }]
-      : []),
-    {
-      label: "Help",
-      items: [
-        { label: "Keyboard Shortcuts", onClick: handleShortcuts },
-        { separator: true, label: "" },
-        {
-          label: startupSoundOn ? "Startup Sound ✓" : "Startup Sound",
-          onClick: handleToggleStartupSound,
-        },
-        { separator: true, label: "" },
-        ...TEXT_SCALE_OPTIONS.map((opt) => ({
-          label: `Text Size: ${opt.label}${textScale === opt.value ? " ✓" : ""}`,
-          onClick: () => handleSetTextScale(opt.value),
-        })),
-        { separator: true, label: "" },
-        ...(isAdmin
-          ? [{ label: "Log Out of Admin", onClick: () => {
-                useAdminStore.getState().logout();
-                toast.info("Admin mode disabled");
-              }},
-             { separator: true as const, label: "" }]
-          : []),
-        ...(installPrompt ? [
-          { label: "Install App...", onClick: handleInstall },
-          { separator: true as const, label: "" },
-        ] : []),
-        { label: "About High Desert", onClick: handleAbout },
-      ],
-    },
-  ];
-
-  // Navigate to library and highlight the current episode when clicking status bar
-  const handleStatusClick = useCallback(() => {
-    if (!hasEpisode) return;
-    if (pathname !== "/library") {
-      router.push("/library");
-    }
-    // Dispatch event so the library page can scroll to the current episode
-    window.dispatchEvent(new CustomEvent("hd:scroll-to-current"));
-  }, [hasEpisode, pathname, router]);
-
-  // Ghost to Ghost badge click handler. The listener lives on the library
-  // page, so route there first when the badge is clicked from elsewhere —
-  // otherwise the event is dispatched into a page that isn't mounted.
-  const handleGhostClick = useCallback(() => {
-    const fire = () =>
-      window.dispatchEvent(new CustomEvent("hd:search", { detail: "ghost to ghost" }));
-    if (pathname === "/library") {
-      fire();
-    } else {
-      router.push("/library");
-      // Let the route mount and attach its listener before firing.
-      setTimeout(fire, 150);
-    }
-  }, [pathname, router]);
-
-  // Status bar now-playing content
-  const statusContent = (() => {
-    if (!hasEpisode) return (
-      <span
-        className="transition-opacity duration-500"
-        style={{ opacity: callerFade ? 1 : 0 }}
-      >
-        {actionMessage ?? CALLER_MESSAGES[callerIdx]}
-      </span>
-    );
-    const icon = isPlaying ? "\u25B6" : "\u275A\u275A";
-    const parts = [nowPlayingTitle];
-    if (nowPlayingGuest) parts.push(nowPlayingGuest);
-    return (
-      <button
-        onClick={handleStatusClick}
-        onDoubleClick={() => window.dispatchEvent(new CustomEvent("hd:toggle-ultra-mini"))}
-        className="flex items-center gap-1.5 cursor-pointer hover:text-desktop-gray transition-colors-fast text-left w-full"
-      >
-        {isPlaying && (
-          <span className="inline-block w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air flex-shrink-0" />
-        )}
-        <span className="text-bevel-dark">{icon}</span>
-        <span className="truncate">{parts.join(" \u2014 ")}</span>
-      </button>
-    );
-  })();
-
-  // Signal bars (animated when streaming)
-  const signalBars = (
-    <span className="flex items-end gap-[1px] h-[11px]">
-      {[3, 5, 7, 9].map((h, i) => (
-        <span
-          key={i}
-          className={cn(
-            "w-[2px] bg-static-green/70",
-            isPlaying ? `animate-signal-${i + 1}` : "opacity-20",
-          )}
-          style={{ height: `${h}px` }}
-        />
-      ))}
-    </span>
-  );
+  const menus = useShellMenus({
+    onAbout: handleAbout,
+    onShortcuts: handleShortcuts,
+    onClearLibrary: handleClearLibrary,
+    onClearCache: handleClearCache,
+    startupSoundOn,
+    onToggleStartupSound: handleToggleStartupSound,
+    textScale,
+    onSetTextScale: setTextScale,
+    onInstall: installPrompt ? handleInstall : undefined,
+  });
 
   return (
     <div
@@ -722,65 +359,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
 
       {/* Bottom status bar — desktop only */}
       <footer>
-      <StatusBar
-        variant="dark"
-        panels={[
-          { content: statusContent, flex: 1 },
-          ...(isHalloweenSeason ? [{
-            content: (
-              <button
-                onClick={handleGhostClick}
-                className="text-hd-10 cursor-pointer hover:text-desert-amber transition-colors-fast"
-                style={{ color: "#FF8C00" }}
-                title="Ghost to Ghost AM Collection"
-              >
-                🎃 Ghost to Ghost
-              </button>
-            ),
-            width: "110px",
-          }] : []),
-          ...((streak ?? 0) > 1 ? [{
-            content: (
-              <span className="text-hd-10 text-desert-amber/85" title={`${streak}-day listening streak`}>
-                🔥 {streak}d
-              </span>
-            ),
-            width: "48px",
-          }] : []),
-          // Live presence. Always rendered when anyone is here — including this
-          // visitor — and clickable through to the traffic history. It used to
-          // be buried in ListeningStats behind a guard that returned null
-          // unless *you* already had a streak or listening hours, so the one
-          // genuinely social signal on the site was invisible to exactly the
-          // first-time visitors it would impress.
-          ...(presence.online > 0 ? [{
-            content: (
-              <button
-                onClick={() => router.push("/stats#on-air")}
-                className="flex items-center gap-1.5 cursor-pointer text-hd-10 text-static-green/85 hover:text-static-green transition-colors-fast w-full"
-                title={
-                  `${presence.online} ${presence.online === 1 ? "person" : "people"} on the site` +
-                  (presence.listening > 0 ? `, ${presence.listening} listening` : "") +
-                  " — click to see what they have on"
-                }
-              >
-                <span className="w-[6px] h-[6px] rounded-full bg-static-green animate-on-air flex-shrink-0" />
-                <span className="tabular-nums">{presence.online} online</span>
-                {presence.listening > 0 && (
-                  <span className="text-desert-amber/85 tabular-nums">
-                    · {presence.listening} ▶
-                  </span>
-                )}
-              </button>
-            ),
-            width: "150px",
-          }] : []),
-          { content: `${episodeCount.toLocaleString()} episode${episodeCount !== 1 ? "s" : ""}`, width: "120px" },
-          { content: signalBars, width: "24px" },
-          { content: clock, width: "72px" },
-        ]}
-        className="flex-shrink-0 relative z-10 hidden md:flex"
-      />
+        <StatusBar episodeCount={episodeCount} presence={presence} />
       </footer>
 
       {/* Global context menu */}
@@ -804,28 +383,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       {/* Command palette (Ctrl+K / Cmd+K) */}
       {paletteOpen && <CommandPalette open onClose={() => setPaletteOpen(false)} />}
 
-
-      {/* Admin password dialog */}
-      <Dialog open={adminPromptOpen} onClose={() => { setAdminPromptOpen(false); setAdminPassword(""); setAdminError(""); }} title="Admin Access">
-        <div className="p-3 flex flex-col gap-2">
-          <p className="text-hd-11 text-bevel-dark">Enter the admin password:</p>
-          <form onSubmit={(e) => { e.preventDefault(); handleAdminLogin(); }}>
-            <TextField
-              type="password"
-              value={adminPassword}
-              onChange={(e) => { setAdminPassword(e.target.value); setAdminError(""); }}
-              placeholder="Password"
-              autoFocus
-              className="w-full"
-            />
-            {adminError && <p className="text-hd-10 text-red-400 mt-1">{adminError}</p>}
-            <div className="flex justify-end gap-2 mt-3">
-              <Button size="sm" variant="dark" type="button" onClick={() => { setAdminPromptOpen(false); setAdminPassword(""); setAdminError(""); }}>Cancel</Button>
-              <Button size="sm" type="submit">OK</Button>
-            </div>
-          </form>
-        </div>
-      </Dialog>
+      {/* Admin password dialog — opened by hd:admin-prompt */}
+      <AdminPromptDialog />
 
       {/* Easter egg overlays — 401 lines reachable only by secret input, so
           the chunk is fetched at the moment one actually triggers. */}
@@ -843,10 +402,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         onToggleStartupSound={handleToggleStartupSound}
         presence={presence}
         textScale={textScale}
-        onCycleTextScale={() => {
-          const next = textScale === "1" ? "1.15" : textScale === "1.15" ? "1.3" : "1";
-          handleSetTextScale(next);
-        }}
+        onCycleTextScale={cycleTextScale}
       />
     </div>
   );
