@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { recordPlay } from "@/services/stats/store";
 import { isKnownEpisodeId } from "@/services/stats/allowlist";
+import { readJsonObject } from "@/lib/utils/json-body";
 
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
 
@@ -21,14 +22,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const parsed = await readJsonObject(request);
+  if (parsed.error) return parsed.error;
+  const body = parsed.body;
 
-  const { episodeId, sessionId } = body as Record<string, unknown>;
+  const { episodeId, sessionId } = body;
 
   if (
     typeof episodeId !== "string" ||

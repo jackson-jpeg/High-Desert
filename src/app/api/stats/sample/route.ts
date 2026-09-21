@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import {
   anonymizeOldSessions,
+  pruneOldWeeks,
   recordSample,
   rollUpTraffic,
 } from "@/services/stats/store";
@@ -40,14 +41,21 @@ export async function POST(request: NextRequest) {
     // a derived table that the next pass recomputes anyway.
     let rolledUp = 0;
     let anonymized = 0;
+    let prunedWeeks = 0;
     try {
       rolledUp = await rollUpTraffic();
       anonymized = await anonymizeOldSessions();
     } catch (err) {
       console.error("[stats/sample] history maintenance:", err);
     }
+    // Separate from the history block: a failure in one must not skip the other.
+    try {
+      prunedWeeks = await pruneOldWeeks();
+    } catch (err) {
+      console.error("[stats/sample] weekly prune:", err);
+    }
 
-    return NextResponse.json({ ok: true, ...sample, rolledUp, anonymized });
+    return NextResponse.json({ ok: true, ...sample, rolledUp, anonymized, prunedWeeks });
   } catch (err) {
     console.error("[stats/sample] store error:", err);
     return NextResponse.json(

@@ -100,7 +100,9 @@ describeDb("backup-db.sh", () => {
   const marker = `backup-test-${process.pid}-${Date.now()}`;
 
   beforeEach(async () => {
-    await psql(`INSERT INTO play_events (episode_id) VALUES ('${marker}')`);
+    // Dated far in the past so it sits outside the traffic rollup window that
+    // src/services/stats/__tests__/store.db.test.ts measures in parallel.
+    await psql(`INSERT INTO play_events (episode_id, played_at) VALUES ('${marker}', '2001-01-01T00:00:00Z')`);
   });
   afterEach(async () => {
     await psql(`DELETE FROM play_events WHERE episode_id = '${marker}'`);

@@ -14,6 +14,15 @@ import { Pool } from "pg";
 
 let _pool: Pool | null = null;
 
+/**
+ * Server-side cap on any one statement. Every query here is an index lookup or
+ * a small aggregate that completes in milliseconds; one that runs for seconds
+ * is a bug or a lock pile-up, and with `max: 8` connections it would starve
+ * the public routes of the pool while it ran. Postgres cancels it instead, the
+ * route returns 503, and the pool keeps serving.
+ */
+export const STATEMENT_TIMEOUT_MS = 10_000;
+
 function pool(): Pool {
   if (_pool) return _pool;
   const connectionString = process.env.DATABASE_URL;
@@ -25,12 +34,18 @@ function pool(): Pool {
     max: 8,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 5_000,
+    statement_timeout: STATEMENT_TIMEOUT_MS,
   });
   // A pool-level error (e.g. the server restarting) must not take the process down.
   _pool.on("error", (err) => {
     console.error("[stats/store] idle client error:", err.message);
   });
   return _pool;
+}
+
+/** The shared pool. For tests that need to inspect the connection itself. */
+export function getPool(): Pool {
+  return pool();
 }
 
 // ---------------------------------------------------------------------------
@@ -435,16 +450,18 @@ export async function recordSample(): Promise<Presence & { totalPlays: number }>
 // ---------------------------------------------------------------------------
 
 /**
- * Recompute the daily rollup for the trailing ROLLUP_DAYS.
+ * The daily rollup, as one statement so tests and docs/perf.md can EXPLAIN the
+ * exact text production runs. `$1` is the trailing window in days.
  *
- * Presence comes from listener_samples (a gauge — peak and mean both mean
- * something); plays and sessions come from play_events, which is an actual
- * event log and so does not need the cumulative-delta arithmetic getTraffic()
- * has to do. Days are UTC, matching the hour-of-day profile.
+ * The window predicates compare the **bare** timestamp columns against a
+ * computed UTC midnight. They used to read `(played_at AT TIME ZONE 'UTC')::date
+ * >= …`, which is the same set of rows but wraps the column in an expression,
+ * so neither `play_events_played_at_idx` nor `listener_samples_sampled_at_idx`
+ * could be used: every two-minute tick sequentially scanned the whole of
+ * `play_events`, a table that is never pruned. The date conversion is only
+ * needed for grouping, which still does it.
  */
-export async function rollUpTraffic(): Promise<number> {
-  const { rowCount } = await pool().query(
-    `
+export const ROLLUP_TRAFFIC_SQL = `
     WITH days AS (
       SELECT generate_series(
         (now() AT TIME ZONE 'UTC')::date - ($1::int - 1),
@@ -460,8 +477,8 @@ export async function rollUpTraffic(): Promise<number> {
         round(avg(listening), 2)              AS avg_listening,
         count(*)::int                         AS samples
       FROM listener_samples
-      WHERE (sampled_at AT TIME ZONE 'UTC')::date
-            >= (now() AT TIME ZONE 'UTC')::date - ($1::int - 1)
+      WHERE sampled_at >= ((now() AT TIME ZONE 'UTC')::date - ($1::int - 1))::timestamp
+                          AT TIME ZONE 'UTC'
       GROUP BY 1
     ), p AS (
       SELECT
@@ -469,8 +486,8 @@ export async function rollUpTraffic(): Promise<number> {
         count(*)                              AS plays,
         count(DISTINCT session_ref)::int      AS sessions
       FROM play_events
-      WHERE (played_at AT TIME ZONE 'UTC')::date
-            >= (now() AT TIME ZONE 'UTC')::date - ($1::int - 1)
+      WHERE played_at >= ((now() AT TIME ZONE 'UTC')::date - ($1::int - 1))::timestamp
+                         AT TIME ZONE 'UTC'
       GROUP BY 1
     )
     INSERT INTO traffic_daily AS td
@@ -511,7 +528,19 @@ export async function rollUpTraffic(): Promise<number> {
       -- retention, so in normal operation this never fires.
       sessions       = GREATEST(td.sessions, EXCLUDED.sessions),
       samples        = EXCLUDED.samples
-    `,
+    `;
+
+/**
+ * Recompute the daily rollup for the trailing ROLLUP_DAYS.
+ *
+ * Presence comes from listener_samples (a gauge — peak and mean both mean
+ * something); plays and sessions come from play_events, which is an actual
+ * event log and so does not need the cumulative-delta arithmetic getTraffic()
+ * has to do. Days are UTC, matching the hour-of-day profile.
+ */
+export async function rollUpTraffic(): Promise<number> {
+  const { rowCount } = await pool().query(
+    ROLLUP_TRAFFIC_SQL,
     [ROLLUP_DAYS],
   );
   return rowCount ?? 0;
@@ -868,12 +897,21 @@ export async function getEpisodeStats(limit: number): Promise<EpisodeStat[]> {
   });
 }
 
-/** Drop weekly leaderboard rows older than the retention window. */
-export async function pruneOldWeeks(): Promise<void> {
+/**
+ * Drop weekly leaderboard rows older than the retention window. Returns the
+ * number of rows deleted.
+ *
+ * Called from the sampler's maintenance block. It was defined and never
+ * called, so `weekly_plays` — documented as three weeks of retention — grew
+ * without bound. Only the current week is ever read; the permanent per-play
+ * record is `play_events`.
+ */
+export async function pruneOldWeeks(now = new Date()): Promise<number> {
   const cutoff = weekKey(
-    new Date(Date.now() - WEEKLY_RETENTION_WEEKS * 7 * 86_400_000),
+    new Date(now.getTime() - WEEKLY_RETENTION_WEEKS * 7 * 86_400_000),
   );
-  await pool().query(`DELETE FROM weekly_plays WHERE week < $1`, [cutoff]);
+  const { rowCount } = await pool().query(`DELETE FROM weekly_plays WHERE week < $1`, [cutoff]);
+  return rowCount ?? 0;
 }
 
 // ---------------------------------------------------------------------------

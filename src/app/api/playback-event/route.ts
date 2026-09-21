@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { recordPlaybackFailure } from "@/services/stats/store";
 import { isKnownEpisodeId } from "@/services/stats/allowlist";
+import { readJsonObject } from "@/lib/utils/json-body";
 
 /**
  * A show failed to start.
@@ -81,15 +82,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const parsed = await readJsonObject(request);
+  if (parsed.error) return parsed.error;
+  const body = parsed.body;
 
   const { episodeId, kind, retried, recovered, elapsedMs, uaClass, detail } =
-    body as Record<string, unknown>;
+    body;
 
   if (typeof episodeId !== "string" || !episodeId) {
     return NextResponse.json(

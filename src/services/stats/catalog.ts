@@ -39,13 +39,24 @@ interface SeedEpisode {
 
 let _catalog: Map<string, CatalogEntry> | null = null;
 let _loading: Promise<Map<string, CatalogEntry>> | null = null;
+let _failedAt = 0;
 
-async function load(): Promise<Map<string, CatalogEntry>> {
-  const map = new Map<string, CatalogEntry>();
+/**
+ * After a failed load, how long to serve an empty map before reading the file
+ * again. A failure used to be cached for the life of the process: one bad read
+ * (the file mid-deploy, say) and /api/stats/export and /api/stats/failures
+ * served bare ids with no titles until the next restart.
+ */
+export const CATALOG_RETRY_MS = 60_000;
+
+const EMPTY: Map<string, CatalogEntry> = new Map();
+
+async function load(): Promise<Map<string, CatalogEntry> | null> {
   try {
     const file = path.join(process.cwd(), "public", "seed", "library.json");
     const episodes = JSON.parse(await readFile(file, "utf8")) as SeedEpisode[];
 
+    const map = new Map<string, CatalogEntry>();
     for (const ep of episodes) {
       const key = communityKey(ep);
       if (!key) continue;
@@ -57,21 +68,32 @@ async function load(): Promise<Map<string, CatalogEntry>> {
         topic: ep.topic ?? null,
       });
     }
+    return map;
   } catch (err) {
     // A missing or malformed catalog degrades the export to bare ids, which is
     // still valid data. It must never fail the request.
     console.error("[stats/catalog] could not load seed catalog:", err);
+    return null;
   }
-  return map;
 }
 
-/** The id → episode map, loaded once. Concurrent callers share one read. */
+/**
+ * The id → episode map, loaded once. Concurrent callers share one read. A
+ * failed read is not cached: callers get an empty map and the file is read
+ * again once CATALOG_RETRY_MS has passed.
+ */
 export async function catalog(): Promise<Map<string, CatalogEntry>> {
   if (_catalog) return _catalog;
+  if (_failedAt && Date.now() - _failedAt < CATALOG_RETRY_MS) return EMPTY;
   if (!_loading) {
     _loading = load().then((m) => {
-      _catalog = m;
       _loading = null;
+      if (!m) {
+        _failedAt = Date.now();
+        return EMPTY;
+      }
+      _catalog = m;
+      _failedAt = 0;
       return m;
     });
   }

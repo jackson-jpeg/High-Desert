@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { removeActiveSession, clearListening } from "@/services/stats/store";
+import { readJsonObject } from "@/lib/utils/json-body";
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
@@ -18,14 +19,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const parsed = await readJsonObject(request);
+  if (parsed.error) return parsed.error;
+  const body = parsed.body;
 
-  const { sessionId, keepPresence } = body as Record<string, unknown>;
+  const { sessionId, keepPresence } = body;
 
   if (typeof sessionId !== "string" || !sessionId) {
     return NextResponse.json(
