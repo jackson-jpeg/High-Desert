@@ -1,193 +1,50 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, useRef, useDeferredValue } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useRouter } from "next/navigation";
-import { db, getPreference, setPreference } from "@/db";
-import type { Episode } from "@/db/schema";
+import { db } from "@/db";
 import { usePlayerStore } from "@/stores/player-store";
-import { useContextMenuStore } from "@/stores/context-menu-store";
-import { toast } from "@/stores/toast-store";
 import { useAdminStore } from "@/stores/admin-store";
-import { deleteEpisode, updateEpisode, toggleFavorite, toggleFlag, addToPlaylist } from "@/services/episodes/management";
-import { SearchBar } from "@/components/library/SearchBar";
 import { TimelineView } from "@/components/library/TimelineView";
-import { EpisodeDetail } from "@/components/library/EpisodeDetail";
-import { RecentlyPlayed } from "@/components/library/RecentlyPlayed";
-import { OnThisDay } from "@/components/library/OnThisDay";
 import { Dialog, Button } from "@/components/win98";
-import { parseSearch, type ComparisonOp } from "@/lib/utils/search-parser";
-import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { GuestProfile } from "@/components/library/GuestProfile";
-import { ContinueListening } from "@/components/library/ContinueListening";
+import { FacetSidebar } from "@/components/library/FacetSidebar";
+import { DetailSheet } from "@/components/library/DetailSheet";
+import { ExploreBand } from "@/components/library/ExploreBand";
+import { LibraryToolbar } from "@/components/library/LibraryToolbar";
+import { ActiveFilterBar, MoodFilterBar, SortPresets } from "@/components/library/LibraryFilterBars";
+import { LibraryListSkeleton, EmptyLibrary, NoFilterMatches, NoSearchMatches } from "@/components/library/LibraryListStates";
 import { cn } from "@/lib/utils/cn";
-import { shuffle } from "@/lib/utils/shuffle";
+import { selectLibraryEpisodes, type ShowFilter } from "@/lib/library/filter-episodes";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { useCommunityStats } from "@/hooks/useCommunityStats";
-import { currentItemHeight } from "@/hooks/useTextScale";
+import { useLibraryFilters } from "@/hooks/library/useLibraryFilters";
+import { useLibraryFacets } from "@/hooks/library/useLibraryFacets";
+import { useLibrarySelection } from "@/hooks/library/useLibrarySelection";
+import { useLibraryActions } from "@/hooks/library/useLibraryActions";
+import { useLibraryKeyboard } from "@/hooks/library/useLibraryKeyboard";
+import { useLibraryBusListeners } from "@/hooks/library/useLibraryBusListeners";
+import { useLibraryPanels } from "@/hooks/library/useLibraryPanels";
 import { communityKey } from "@/lib/utils/community-key";
 
-function matchComparison(actual: number, op: ComparisonOp["op"], target: number): boolean {
-  switch (op) {
-    case ">": return actual > target;
-    case ">=": return actual >= target;
-    case "<": return actual < target;
-    case "<=": return actual <= target;
-    case "=": return actual === target;
-  }
-}
-
-type SortMode = "date" | "name" | "guest" | "recent" | "progress" | "rated" | "played";
-type ShowFilter = "all" | "coast" | "dreamland" | "special" | "unknown";
-
-const SHOW_TABS: { key: ShowFilter; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "coast", label: "Coast to Coast" },
-  { key: "dreamland", label: "Dreamland" },
-  { key: "special", label: "Specials" },
-  { key: "unknown", label: "Uncategorized" },
-];
-
-// Mood filters are derived from actual episode data — see `moodFilters` memo below
-
+/**
+ * The library. A composition: the list pipeline is `selectLibraryEpisodes`
+ * (src/lib/library), the state and handlers are the `useLibrary*` hooks in
+ * src/hooks/library, and the chrome is in src/components/library (HD-018).
+ */
 export default function LibraryPage() {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search);
-  const [sortMode, setSortMode] = useState<SortMode>("date");
-  const [showFilter, setShowFilter] = useState<ShowFilter>("all");
-  const [guestFilter, setGuestFilter] = useState<string | null>(null);
-  const [showFacets, setShowFacets] = useState(false);
+  const filters = useLibraryFilters();
+  const { search, setSearch, deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, hasActiveFilters } = filters;
   // Seeding is deferred to idle in the desktop layout, so an empty table is
   // ambiguous until it reports back. Until then, keep showing the skeleton.
   const [seedSettled, setSeedSettled] = useState(false);
-  const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [lastClickedId, setLastClickedId] = useState<number | null>(null);
-  const [focusedIndex, setFocusedIndex] = useState(-1);
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [seriesFilter, setSeriesFilter] = useState<string | null>(null);
-  const [deleteOpen, setDeleteOpen] = useState(false);
   const [guestProfileName, setGuestProfileName] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const currentEpisodeId = usePlayerStore((s) => s.currentEpisode?.id);
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const isMobile = useIsMobile();
   const searchBarRef = useRef<HTMLInputElement>(null);
-
-  // Listen for sort events from the menu bar
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const sort = (e as CustomEvent<string>).detail;
-      if (["date", "name", "guest", "recent", "progress", "rated", "played"].includes(sort)) setSortMode(sort as SortMode);
-    };
-    window.addEventListener("hd:sort", handler);
-    return () => window.removeEventListener("hd:sort", handler);
-  }, []);
-
-  // Listen for focus-search events
-  useEffect(() => {
-    const handler = () => {
-      searchBarRef.current?.focus();
-    };
-    window.addEventListener("hd:focus-search", handler);
-    return () => window.removeEventListener("hd:focus-search", handler);
-  }, []);
-
-  // The desktop layout fires this once seeding has resolved, either way.
-  // The timeout is a backstop: on routes where the layout effect never runs,
-  // or if it throws before dispatching, an empty library must still resolve.
-  useEffect(() => {
-    const handler = () => setSeedSettled(true);
-    window.addEventListener("hd:seed-settled", handler);
-    const backstop = window.setTimeout(handler, 8000);
-    return () => {
-      window.removeEventListener("hd:seed-settled", handler);
-      window.clearTimeout(backstop);
-    };
-  }, []);
-
-  // Listen for tag/category click-to-filter events from detail panel
-  useEffect(() => {
-    const handleTag = (e: Event) => {
-      const tag = (e as CustomEvent<string>).detail;
-      setSearch(`tag:${tag}`);
-      setSelectedEpisode(null);
-    };
-    const handleCategory = (e: Event) => {
-      const cat = (e as CustomEvent<string>).detail;
-      setCategoryFilter(cat);
-      setSelectedEpisode(null);
-    };
-    const handleGuest = (e: Event) => {
-      const name = (e as CustomEvent<string>).detail;
-      setGuestProfileName(name);
-      setSelectedEpisode(null);
-    };
-    const handleSeries = (e: Event) => {
-      const series = (e as CustomEvent<string>).detail;
-      setSeriesFilter(series);
-      setSelectedEpisode(null);
-    };
-    // The Halloween "Ghost to Ghost" badge in the status bar has always
-    // dispatched this, and nothing has ever listened for it — clicking the
-    // badge did nothing at all.
-    const handleSearch = (e: Event) => {
-      const q = (e as CustomEvent<string>).detail;
-      if (typeof q !== "string") return;
-      setSearch(q);
-      setSelectedEpisode(null);
-    };
-    window.addEventListener("hd:search", handleSearch);
-    window.addEventListener("hd:filter-tag", handleTag);
-    window.addEventListener("hd:filter-category", handleCategory);
-    window.addEventListener("hd:show-guest", handleGuest);
-    window.addEventListener("hd:filter-series", handleSeries);
-    return () => {
-      window.removeEventListener("hd:search", handleSearch);
-      window.removeEventListener("hd:filter-tag", handleTag);
-      window.removeEventListener("hd:filter-category", handleCategory);
-      window.removeEventListener("hd:show-guest", handleGuest);
-      window.removeEventListener("hd:filter-series", handleSeries);
-    };
-  }, []);
-
-  // Deep links. `?ep=<communityKey>` is the shareable form — stable across
-  // browsers. `?episode=<id>` is the old form and only ever worked in the
-  // browser that generated it, since id is a local auto-increment; still
-  // honoured so previously-shared links keep working for their author.
-  //
-  // The param is deliberately NOT stripped on arrival any more. It used to be
-  // cleared immediately, which meant a refresh or a back-navigation dropped the
-  // episode — for a link whose whole purpose is to survive being shared and
-  // reopened. It is cleared when the panel is closed instead.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const key = params.get("ep");
-    const legacyId = params.get("episode");
-    if (!key && !legacyId) return;
-
-    let cancelled = false;
-    (async () => {
-      let ep: Episode | undefined;
-      if (key) {
-        const all = await db.episodes.toArray();
-        ep = all.find((e) => communityKey(e) === key);
-      } else if (legacyId) {
-        const id = parseInt(legacyId, 10);
-        if (!isNaN(id)) ep = await db.episodes.get(id);
-      }
-      if (cancelled) return;
-      if (ep) {
-        setSelectedEpisode(ep);
-      } else {
-        toast.error("That episode link could not be found in this library.");
-        window.history.replaceState({}, "", window.location.pathname);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
 
   const allEpisodes = useLiveQuery(
     () => db.episodes.orderBy("airDate").reverse().toArray(),
@@ -214,294 +71,58 @@ export default function LibraryPage() {
     [],
   );
 
-  // Show type counts for filter tabs
-  const showCounts = useMemo(() => {
-    if (!allEpisodes) return new Map<ShowFilter, number>();
-    const counts = new Map<ShowFilter, number>();
-    counts.set("all", allEpisodes.length);
-    for (const ep of allEpisodes) {
-      const type = (ep.showType ?? "unknown") as ShowFilter;
-      counts.set(type, (counts.get(type) ?? 0) + 1);
-    }
-    return counts;
-  }, [allEpisodes]);
+  const facets = useLibraryFacets(allEpisodes);
 
-  // Category counts for filter chips
-  const categoryCounts = useMemo(() => {
-    if (!allEpisodes) return new Map<string, number>();
-    const counts = new Map<string, number>();
-    for (const ep of allEpisodes) {
-      if (ep.aiCategory) {
-        counts.set(ep.aiCategory, (counts.get(ep.aiCategory) ?? 0) + 1);
-      }
-    }
-    return counts;
-  }, [allEpisodes]);
+  /**
+   * The rows on screen, in order. Everything that has to agree with the list —
+   * shift-click ranges, keyboard focus, scroll-to-current, a year rail — reads
+   * this array; nothing re-runs the pipeline.
+   */
+  const visibleEpisodes = useMemo(
+    () => selectLibraryEpisodes(allEpisodes, {
+      search: deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, bookmarkedIds,
+    }),
+    [allEpisodes, deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, bookmarkedIds],
+  );
 
-  // Dynamic mood filters — only shows categories that actually exist in the library
-  const moodFilters = useMemo(() => {
-    if (!allEpisodes) return [];
-    const filters: { label: string; kind: "notable" | "favorite" | "category"; category?: string }[] = [];
+  const selection = useLibrarySelection({ allEpisodes, visibleEpisodes });
+  const { selectedEpisode, setSelectedEpisode, selectedIds, setSelectedIds, setFocusedIndex } = selection;
 
-    // Notable episodes
-    const notableCount = allEpisodes.filter((ep) => !!ep.aiNotable).length;
-    if (notableCount > 0) filters.push({ label: "Late Night Classics", kind: "notable" });
+  const actions = useLibraryActions({
+    allEpisodes, allPlaylists, currentEpisodeId, selectedEpisode, setSelectedEpisode, selectedIds, setSelectedIds,
+  });
+  const { handlePlay, handleQueue, handleToggleFavorite, deleteOpen, setDeleteOpen, requestBulkDelete, deleting } = actions;
 
-    // Favorites
-    const favCount = allEpisodes.filter((ep) => !!ep.favoritedAt).length;
-    if (favCount > 0) filters.push({ label: "Favorites", kind: "favorite" });
+  useLibraryKeyboard({
+    visibleEpisodes,
+    focusedIndex: selection.focusedIndex,
+    setFocusedIndex,
+    selectedEpisode,
+    setSelectedEpisode,
+    selectedIds,
+    setSelectedIds,
+    onPlay: handlePlay,
+    onRequestBulkDelete: requestBulkDelete,
+  });
 
-    // Top categories by episode count (only those with 3+ episodes)
-    const sorted = Array.from(categoryCounts.entries())
-      .filter(([cat, count]) => count >= 3 && cat !== "Other" && cat !== "Best Of & Replay")
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8);
+  useLibraryBusListeners({
+    searchBarRef,
+    setSortMode: filters.setSortMode,
+    setSearch,
+    setCategoryFilter: filters.setCategoryFilter,
+    setSeriesFilter: filters.setSeriesFilter,
+    setSeedSettled,
+    setGuestProfileName,
+    setSelectedEpisode,
+    setFocusedIndex,
+    selectedEpisode,
+    visibleEpisodes,
+    currentEpisodeId,
+    onShuffle: actions.handleShuffle,
+    onQueue: handleQueue,
+  });
 
-    // Friendly labels for long category names
-    const SHORT_LABELS: Record<string, string> = {
-      "UFOs & Aliens": "UFOs",
-      "Science & Space": "Space & Science",
-      "Time Travel & Physics": "Time Travel",
-      "Remote Viewing & Psychic": "Psychic",
-      "Prophecy & Predictions": "Prophecy",
-      "Health & Medicine": "Health",
-      "Earth Changes": "Earth Changes",
-    };
-
-    for (const [cat] of sorted) {
-      filters.push({ label: SHORT_LABELS[cat] ?? cat, kind: "category", category: cat });
-    }
-
-    return filters;
-  }, [allEpisodes, categoryCounts]);
-
-  // Series counts for facets
-  const seriesCounts = useMemo(() => {
-    if (!allEpisodes) return new Map<string, number>();
-    const counts = new Map<string, number>();
-    for (const ep of allEpisodes) {
-      if (ep.aiSeries) {
-        counts.set(ep.aiSeries, (counts.get(ep.aiSeries) ?? 0) + 1);
-      }
-    }
-    return counts;
-  }, [allEpisodes]);
-
-  // Top guests for faceted browsing
-  const topGuests = useMemo(() => {
-    if (!allEpisodes) return [];
-    const guestCounts = new Map<string, number>();
-    for (const ep of allEpisodes) {
-      if (ep.guestName) {
-        guestCounts.set(ep.guestName, (guestCounts.get(ep.guestName) ?? 0) + 1);
-      }
-    }
-    return Array.from(guestCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 30);
-  }, [allEpisodes]);
-
-  // Top topics for faceted browsing
-  const topTopics = useMemo(() => {
-    if (!allEpisodes) return [];
-    const topicCounts = new Map<string, number>();
-    for (const ep of allEpisodes) {
-      if (ep.topic) {
-        topicCounts.set(ep.topic, (topicCounts.get(ep.topic) ?? 0) + 1);
-      }
-    }
-    return Array.from(topicCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 20);
-  }, [allEpisodes]);
-
-  // Search suggestion data
-  const searchGuests = useMemo(() => {
-    if (!allEpisodes) return [];
-    const set = new Set<string>();
-    for (const ep of allEpisodes) { if (ep.guestName) set.add(ep.guestName); }
-    return Array.from(set).sort();
-  }, [allEpisodes]);
-
-  const searchCategories = useMemo(() => {
-    if (!allEpisodes) return [];
-    const set = new Set<string>();
-    for (const ep of allEpisodes) { if (ep.aiCategory) set.add(ep.aiCategory); }
-    return Array.from(set).sort();
-  }, [allEpisodes]);
-
-  const searchSeries = useMemo(() => {
-    if (!allEpisodes) return [];
-    const set = new Set<string>();
-    for (const ep of allEpisodes) { if (ep.aiSeries) set.add(ep.aiSeries); }
-    return Array.from(set).sort();
-  }, [allEpisodes]);
-
-  const searchYears = useMemo(() => {
-    if (!allEpisodes) return [];
-    const set = new Set<string>();
-    for (const ep of allEpisodes) {
-      if (ep.airDate) { const y = ep.airDate.slice(0, 4); if (y.length === 4) set.add(y); }
-    }
-    return Array.from(set).sort().reverse();
-  }, [allEpisodes]);
-
-  const filtered = useMemo(() => {
-    if (!allEpisodes) return [];
-
-    let list = allEpisodes;
-
-    // Show type filter
-    if (showFilter !== "all") {
-      list = list.filter((ep) => (ep.showType ?? "unknown") === showFilter);
-    }
-
-    // Favorites filter
-    if (favoritesOnly) {
-      list = list.filter((ep) => !!ep.favoritedAt);
-    }
-
-    // Guest filter
-    if (guestFilter) {
-      list = list.filter((ep) => ep.guestName === guestFilter);
-    }
-
-    // Category filter
-    if (categoryFilter) {
-      list = list.filter((ep) => ep.aiCategory === categoryFilter);
-    }
-
-    // Series filter
-    if (seriesFilter) {
-      list = list.filter((ep) => ep.aiSeries === seriesFilter);
-    }
-
-    // Search filter with operator support
-    if (deferredSearch.trim()) {
-      const parsed = parseSearch(deferredSearch);
-
-      // Apply operators
-      if (parsed.guest) {
-        const g = parsed.guest;
-        list = list.filter((ep) => ep.guestName?.toLowerCase().includes(g));
-      }
-      if (parsed.year) {
-        const y = parsed.year;
-        list = list.filter((ep) => ep.airDate?.startsWith(y));
-      }
-      if (parsed.tag) {
-        const t = parsed.tag;
-        list = list.filter((ep) => ep.aiTags?.some((tag) => tag.toLowerCase().includes(t)));
-      }
-      if (parsed.show) {
-        const s = parsed.show;
-        list = list.filter((ep) => ep.showType === s);
-      }
-      if (parsed.cat) {
-        const c = parsed.cat;
-        list = list.filter((ep) => ep.aiCategory?.toLowerCase().includes(c));
-      }
-      if (parsed.series) {
-        const s = parsed.series;
-        list = list.filter((ep) => ep.aiSeries?.toLowerCase().includes(s));
-      }
-      if (parsed.has && parsed.has.length > 0) {
-        for (const h of parsed.has) {
-          if (h === "favorite" || h === "fav") {
-            list = list.filter((ep) => !!ep.favoritedAt);
-          } else if (h === "bookmark") {
-            list = list.filter((ep) => bookmarkedIds?.has(ep.id!));
-          } else if (h === "summary") {
-            list = list.filter((ep) => !!ep.aiSummary);
-          } else if (h === "played") {
-            list = list.filter((ep) => (ep.playCount ?? 0) > 0);
-          } else if (h === "notable") {
-            list = list.filter((ep) => !!ep.aiNotable);
-          } else if (h === "rated") {
-            list = list.filter((ep) => !!ep.rating);
-          } else if (h === "series") {
-            list = list.filter((ep) => !!ep.aiSeries);
-          }
-        }
-      }
-
-      // Duration filter (input in minutes, stored in seconds)
-      if (parsed.duration) {
-        const { op, value } = parsed.duration;
-        const secs = value * 60;
-        list = list.filter((ep) => {
-          if (ep.duration == null) return false;
-          return matchComparison(ep.duration, op, secs);
-        });
-      }
-
-      // Rating filter
-      if (parsed.rating) {
-        const { op, value } = parsed.rating;
-        list = list.filter((ep) => {
-          if (!ep.rating) return false;
-          return matchComparison(ep.rating, op, value);
-        });
-      }
-
-      // Favorited filter
-      if (parsed.favorited) {
-        list = list.filter((ep) => !!ep.favoritedAt);
-      }
-
-      // Free-text search on remaining terms
-      if (parsed.text) {
-        const q = parsed.text.toLowerCase();
-        list = list.filter(
-          (ep) =>
-            ep.fileName.toLowerCase().includes(q) ||
-            ep.title?.toLowerCase().includes(q) ||
-            ep.guestName?.toLowerCase().includes(q) ||
-            ep.topic?.toLowerCase().includes(q) ||
-            ep.airDate?.includes(q) ||
-            ep.description?.toLowerCase().includes(q) ||
-            ep.aiCategory?.toLowerCase().includes(q) ||
-            ep.aiSeries?.toLowerCase().includes(q) ||
-            ep.aiTags?.some((tag) => tag.toLowerCase().includes(q)),
-        );
-      }
-    }
-
-    // Sort
-    if (seriesFilter) {
-      // When filtering by series, sort by part number (fallback to airDate)
-      list = [...list].sort((a, b) => {
-        const partA = a.aiSeriesPart ?? 999;
-        const partB = b.aiSeriesPart ?? 999;
-        return partA - partB || (a.airDate ?? "").localeCompare(b.airDate ?? "");
-      });
-    } else if (sortMode === "name") {
-      list = [...list].sort((a, b) => {
-        const nameA = (a.title || a.fileName).toLowerCase();
-        const nameB = (b.title || b.fileName).toLowerCase();
-        return nameA.localeCompare(nameB);
-      });
-    } else if (sortMode === "guest") {
-      list = [...list].sort((a, b) => {
-        const gA = (a.guestName || "").toLowerCase();
-        const gB = (b.guestName || "").toLowerCase();
-        return gA.localeCompare(gB) || (a.airDate ?? "").localeCompare(b.airDate ?? "");
-      });
-    } else if (sortMode === "recent") {
-      list = [...list].sort((a, b) => (b.lastPlayedAt ?? 0) - (a.lastPlayedAt ?? 0));
-    } else if (sortMode === "progress") {
-      list = [...list]
-        .filter((ep) => ep.duration && ep.playbackPosition && ep.playbackPosition / ep.duration > 0.05 && ep.playbackPosition / ep.duration < 0.95)
-        .sort((a, b) => (b.lastPlayedAt ?? 0) - (a.lastPlayedAt ?? 0));
-    } else if (sortMode === "rated") {
-      list = [...list].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || (b.airDate ?? "").localeCompare(a.airDate ?? ""));
-    } else if (sortMode === "played") {
-      list = [...list].sort((a, b) => (b.playCount ?? 0) - (a.playCount ?? 0));
-    }
-    // "date" is already the default order from Dexie (airDate desc)
-
-    return list;
-  }, [allEpisodes, deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, bookmarkedIds]);
+  const panels = useLibraryPanels({ isMobile, allEpisodes });
 
   // TimelineView fetches counts for its own visible window. Here we only need the
   // one episode open in the detail panel.
@@ -510,25 +131,6 @@ export default function LibraryPage() {
     return key ? [key] : [];
   }, [selectedEpisode]);
   const communityCounts = useCommunityStats(detailKeys);
-
-  // Scroll to currently playing episode
-  useEffect(() => {
-    const handler = () => {
-      if (!currentEpisodeId || !filtered.length) return;
-      const idx = filtered.findIndex((ep) => ep.id === currentEpisodeId);
-      if (idx !== -1) {
-        setSelectedEpisode(filtered[idx]);
-        setFocusedIndex(idx);
-        const container = document.querySelector('[role="listbox"]')?.parentElement;
-        if (container) {
-          const itemH = currentItemHeight();
-        container.scrollTop = idx * itemH - container.clientHeight / 2 + itemH / 2;
-        }
-      }
-    };
-    window.addEventListener("hd:scroll-to-current", handler);
-    return () => window.removeEventListener("hd:scroll-to-current", handler);
-  }, [currentEpisodeId, filtered]);
 
   // Easter egg: Mel's Hole — scroll aggressively past the bottom
   const bottomScrollRef = useRef(0);
@@ -549,591 +151,53 @@ export default function LibraryPage() {
     };
     container.addEventListener("scroll", handler, { passive: true });
     return () => container.removeEventListener("scroll", handler);
-  }, [filtered]);
-
-  const handleEpisodeClick = useCallback((episode: Episode, e: React.MouseEvent) => {
-    if (e.shiftKey || e.metaKey || e.ctrlKey) {
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        if (e.shiftKey && lastClickedId != null) {
-          const allIds = filtered.map((ep) => ep.id!);
-          const startIdx = allIds.indexOf(lastClickedId);
-          const endIdx = allIds.indexOf(episode.id!);
-          if (startIdx !== -1 && endIdx !== -1) {
-            const [lo, hi] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
-            for (let i = lo; i <= hi; i++) {
-              next.add(allIds[i]);
-            }
-          }
-        } else {
-          if (next.has(episode.id!)) {
-            next.delete(episode.id!);
-          } else {
-            next.add(episode.id!);
-          }
-        }
-        return next;
-      });
-    } else {
-      setSelectedIds(new Set());
-      setSelectedEpisode(episode);
-    }
-    setLastClickedId(episode.id!);
-  }, [filtered, lastClickedId]);
-
-  const handlePlay = useCallback((episode: Episode) => {
-    window.dispatchEvent(
-      new CustomEvent("hd:play-episode", { detail: episode }),
-    );
-  }, []);
-
-  const handleDoubleClick = useCallback((episode: Episode) => {
-    window.dispatchEvent(
-      new CustomEvent("hd:play-episode", { detail: episode }),
-    );
-  }, []);
+  }, [visibleEpisodes]);
 
   const handleAction = useCallback((action: "scan" | "search") => {
     router.push(action === "scan" ? "/scanner" : "/search");
   }, [router]);
 
-  const handleQueue = useCallback((episode: Episode) => {
-    usePlayerStore.getState().enqueue(episode);
-    toast.info("Added to queue");
-  }, []);
-
-  const handleToggleFavorite = useCallback(async (episode: Episode) => {
-    const isFav = await toggleFavorite(episode.id!);
-    toast.info(isFav ? "Added to favorites" : "Removed from favorites");
-  }, []);
-
-  const handleShuffle = useCallback((showType?: string) => {
-    if (!allEpisodes || allEpisodes.length === 0) return;
-    let pool = allEpisodes;
-    if (showType && showType !== "all") {
-      pool = allEpisodes.filter((ep) => ep.showType === showType);
-    }
-    if (pool.length === 0) {
-      toast.info("No episodes to shuffle");
-      return;
-    }
-    const shuffled = shuffle(pool);
-    const batch = shuffled.slice(0, 20);
-    const store = usePlayerStore.getState();
-    store.enqueueMany(batch);
-    if (batch[0]) {
-      window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: batch[0] }));
-    }
-    const label = showType && showType !== "all"
-      ? showType === "coast" ? "Coast to Coast" : showType === "dreamland" ? "Dreamland" : "Specials"
-      : "All Shows";
-    toast.info(`Shuffling ${batch.length} episodes from ${label}`);
-  }, [allEpisodes]);
-
-  // Listen for shuffle events from the menu bar
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const showType = (e as CustomEvent<string>).detail;
-      handleShuffle(showType);
-    };
-    window.addEventListener("hd:shuffle", handler);
-    return () => window.removeEventListener("hd:shuffle", handler);
-  }, [handleShuffle]);
-
-  const handleCloseDetail = useCallback(() => {
-    setSelectedEpisode(null);
-    // Drop any deep-link param now the panel it opened is closed, so a later
-    // refresh doesn't spring it back open.
-    if (window.location.search) {
-      const params = new URLSearchParams(window.location.search);
-      if (params.has("ep") || params.has("episode")) {
-        params.delete("ep");
-        params.delete("episode");
-        const qs = params.toString();
-        window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
-      }
-    }
-  }, []);
-
-  const handleContextMenu = useCallback((episode: Episode, x: number, y: number) => {
-    const isPlaying = episode.id === currentEpisodeId;
-    const store = usePlayerStore.getState();
-    const admin = useAdminStore.getState().isAdmin;
-
-    const items = [
-      {
-        label: "Play",
-        onClick: () => handlePlay(episode),
-        disabled: isPlaying,
-      },
-      {
-        label: "Play Next",
-        onClick: () => {
-          store.enqueueNext(episode);
-          toast.info(`"${episode.title || episode.fileName}" plays next`);
-        },
-        disabled: isPlaying,
-      },
-      {
-        label: "Add to Queue",
-        onClick: () => {
-          store.enqueue(episode);
-          toast.info(`Added to queue`);
-        },
-      },
-      { label: "", onClick: () => {}, separator: true },
-      {
-        label: episode.favoritedAt ? "Unfavorite" : "Favorite",
-        onClick: () => handleToggleFavorite(episode),
-      },
-      {
-        label: episode.flaggedAt ? "Remove Flag" : "Report Broken",
-        onClick: async () => {
-          const flagged = await toggleFlag(episode.id!);
-          toast[flagged ? "info" : "success"](flagged ? "Episode flagged as broken" : "Flag removed");
-        },
-      },
-      ...((allPlaylists && allPlaylists.length > 0)
-        ? [
-            { label: "", onClick: () => {}, separator: true },
-            ...allPlaylists.map((pl) => ({
-              label: `+ ${pl.name}`,
-              onClick: async () => {
-                await addToPlaylist(pl.id!, [episode.id!]);
-                toast.info(`Added to "${pl.name}"`);
-              },
-            })),
-          ]
-        : []),
-      ...(admin
-        ? [
-            { label: "", onClick: () => {}, separator: true },
-            {
-              label: "Delete",
-              onClick: async () => {
-                if (selectedIds.size > 1 && selectedIds.has(episode.id!)) {
-                  setDeleteOpen(true);
-                } else {
-                  await deleteEpisode(episode.id!);
-                  if (selectedEpisode?.id === episode.id) setSelectedEpisode(null);
-                }
-              },
-              danger: true,
-            },
-          ]
-        : []),
-    ];
-
-    useContextMenuStore.getState().show(x, y, items);
-  }, [currentEpisodeId, handlePlay, handleToggleFavorite, selectedIds, selectedEpisode, allPlaylists]);
-
-  const handleBulkDelete = useCallback(async () => {
-    setDeleting(true);
-    const count = selectedIds.size;
-    try {
-      for (const id of selectedIds) {
-        await deleteEpisode(id);
-      }
-      setSelectedIds(new Set());
-      setSelectedEpisode(null);
-      toast.success(`Deleted ${count} episode${count !== 1 ? "s" : ""}`);
-    } finally {
-      setDeleting(false);
-      setDeleteOpen(false);
-    }
-  }, [selectedIds]);
-
-  // Scroll to focused item on keyboard navigation
-  useEffect(() => {
-    if (focusedIndex < 0) return;
-    const container = document.querySelector('[role="listbox"]')?.parentElement;
-    if (!container) return;
-    const itemH = currentItemHeight();
-    const targetTop = focusedIndex * itemH;
-    const viewTop = container.scrollTop;
-    const viewBottom = viewTop + container.clientHeight;
-    if (targetTop < viewTop || targetTop + itemH > viewBottom) {
-      container.scrollTop = targetTop - container.clientHeight / 2 + itemH / 2;
-    }
-  }, [focusedIndex]);
-
-  // Keyboard navigation for the library list
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
-
-      if (e.code === "ArrowUp" && e.shiftKey) {
-        e.preventDefault();
-        setFocusedIndex((prev) => {
-          const next = Math.max(0, prev - 1);
-          const ep = filtered[next];
-          if (ep) setSelectedEpisode(ep);
-          return next;
-        });
-      } else if (e.code === "ArrowDown" && e.shiftKey) {
-        e.preventDefault();
-        setFocusedIndex((prev) => {
-          const next = Math.min(filtered.length - 1, prev + 1);
-          const ep = filtered[next];
-          if (ep) setSelectedEpisode(ep);
-          return next;
-        });
-      } else if (e.code === "Enter" && selectedEpisode) {
-        e.preventDefault();
-        handlePlay(selectedEpisode);
-      } else if ((e.code === "Delete" || e.code === "Backspace") && useAdminStore.getState().isAdmin) {
-        if (selectedIds.size > 0) {
-          e.preventDefault();
-          setDeleteOpen(true);
-        } else if (selectedEpisode) {
-          e.preventDefault();
-          deleteEpisode(selectedEpisode.id!).then(() => setSelectedEpisode(null));
-        }
-      } else if (e.code === "Escape") {
-        // Dismiss one layer at a time. This used to clear the panel, the
-        // multi-selection, the focus ring *and* all three filters in a single
-        // keystroke, with no undo — so one stray Escape destroyed a carefully
-        // built filter state. Filters are cleared from the chips or the
-        // over-constrained empty state, both of which are explicit.
-        if (selectedEpisode) {
-          setSelectedEpisode(null);
-        } else if (selectedIds.size > 0) {
-          setSelectedIds(new Set());
-        } else {
-          setFocusedIndex(-1);
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [filtered, focusedIndex, selectedEpisode, selectedIds, handlePlay]);
-
-  // Q shortcut: queue currently selected episode
-  useEffect(() => {
-    const handler = () => {
-      if (selectedEpisode) {
-        handleQueue(selectedEpisode);
-      }
-    };
-    window.addEventListener("hd:queue-selected", handler);
-    return () => window.removeEventListener("hd:queue-selected", handler);
-  }, [selectedEpisode, handleQueue]);
-
-  // Detail panel swipe-down-to-close
-  const detailSwipe = useRef({ startY: 0, currentY: 0, swiping: false });
-  const detailRef = useRef<HTMLDivElement>(null);
-
-  const onDetailTouchStart = useCallback((e: React.TouchEvent) => {
-    // Only activate from the top 48px (drag handle area)
-    const rect = detailRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const touchY = e.touches[0].clientY;
-    if (touchY - rect.top > 48) return;
-    detailSwipe.current = { startY: touchY, currentY: touchY, swiping: true };
-  }, []);
-
-  const onDetailTouchMove = useCallback((e: React.TouchEvent) => {
-    const s = detailSwipe.current;
-    if (!s.swiping) return;
-    s.currentY = e.touches[0].clientY;
-    const dy = s.currentY - s.startY;
-    if (dy > 0 && detailRef.current) {
-      detailRef.current.style.transform = `translateY(${dy}px)`;
-      detailRef.current.style.transition = "none";
-    }
-  }, []);
-
-  const onDetailTouchEnd = useCallback(() => {
-    const s = detailSwipe.current;
-    if (!s.swiping) return;
-    s.swiping = false;
-    const dy = s.currentY - s.startY;
-    if (detailRef.current) {
-      detailRef.current.style.transform = "";
-      detailRef.current.style.transition = "transform 0.2s ease-out";
-    }
-    if (dy > 80) {
-      handleCloseDetail();
-    }
-  }, [handleCloseDetail]);
-
-  const [discoveryOpen, setDiscoveryOpen] = useState(false);
-  const [swipeTip, setSwipeTip] = useState(false);
-
-  // Restore the browse panel's last state.
-  useEffect(() => {
-    let cancelled = false;
-    getPreference("facets-open").then((val) => {
-      if (!cancelled && val === "true") setShowFacets(true);
-    });
-    return () => { cancelled = true; };
-  }, []);
-
-  // Sync discovery state from IndexedDB after hydration — default open on first visit
-  useEffect(() => {
-    let cancelled = false;
-    getPreference("explore-collapsed").then((val) => {
-      if (cancelled) return;
-      if (val === null || val === undefined) {
-        // First visit — default open on desktop only, closed on mobile
-        setDiscoveryOpen(window.innerWidth >= 768);
-      } else {
-        setDiscoveryOpen(val !== "true");
-      }
-    });
-    return () => { cancelled = true; };
-  }, []);
-
-  // Show swipe gesture tip once on mobile (persisted in IndexedDB)
-  useEffect(() => {
-    if (!isMobile || !allEpisodes || allEpisodes.length === 0) return;
-    let cancelled = false;
-    getPreference("swipe-hint-dismissed").then((val) => {
-      if (cancelled || val) return;
-      setTimeout(() => { if (!cancelled) setSwipeTip(true); }, 1500);
-    });
-    return () => { cancelled = true; };
-  }, [isMobile, allEpisodes]);
-
-  const toggleDiscovery = useCallback(() => {
-    setDiscoveryOpen((prev) => {
-      const next = !prev;
-      setPreference("explore-collapsed", String(!next));
-      return next;
-    });
-  }, []);
-
-  /**
-   * The selected episode, re-read from the live query on every change.
-   *
-   * `selectedEpisode` is a snapshot taken when the row was clicked, and nothing
-   * refreshed it. Rating an episode wrote to IndexedDB correctly and the list
-   * row updated, but the open detail panel kept rendering the stale object — so
-   * the stars never filled in and the rating looked like it hadn't saved. It
-   * had; closing and reopening the panel showed it.
-   *
-   * Falls back to the snapshot so the panel doesn't blank out if the row is
-   * momentarily missing from the live result (e.g. mid-filter-change).
-   */
-  const selectedEpisodeLive = useMemo(() => {
-    if (!selectedEpisode) return null;
-    return allEpisodes?.find((e) => e.id === selectedEpisode.id) ?? selectedEpisode;
-  }, [allEpisodes, selectedEpisode]);
-
-  const clearAllFilters = useCallback(() => {
-    setShowFilter("all");
+  const { setShowFilter, setGuestFilter, setSeriesFilter } = filters;
+  const onShowTab = useCallback((key: ShowFilter) => {
+    setShowFilter(key);
     setGuestFilter(null);
-    setCategoryFilter(null);
     setSeriesFilter(null);
-    setFavoritesOnly(false);
-  }, []);
-
-  const toggleFacets = useCallback(() => {
-    setShowFacets((prev) => {
-      const next = !prev;
-      setPreference("facets-open", String(next));
-      return next;
-    });
-  }, []);
-
-  const hasActiveFilters = showFilter !== "all" || guestFilter !== null || categoryFilter !== null || seriesFilter !== null || favoritesOnly;
+  }, [setShowFilter, setGuestFilter, setSeriesFilter]);
 
   return (
     <div className="flex flex-col h-full overflow-auto overscroll-contain">
-      {/* Search + Show Type Pills — sticky on mobile so users can refine while scrolling */}
-      <div className="flex flex-col gap-1.5 px-3 py-2 flex-shrink-0 md:flex-row md:items-center md:gap-2 sticky top-0 z-20 bg-midnight/95 backdrop-blur-sm md:static md:bg-transparent md:backdrop-blur-none">
-        <div className="flex items-center gap-1.5 flex-1">
-          <SearchBar
-            ref={searchBarRef}
-            value={search}
-            onChange={setSearch}
-            resultCount={allEpisodes ? filtered.length : undefined}
-            guests={searchGuests}
-            categories={searchCategories}
-            years={searchYears}
-            series={searchSeries}
-            className="flex-1"
-          />
-          {filtered.length > 0 && (
-            <button
-              onClick={() => {
-                const pool = shuffle(filtered);
-                const batch = pool.slice(0, 20);
-                const store = usePlayerStore.getState();
-                store.enqueueMany(batch);
-                if (batch[0]) {
-                  window.dispatchEvent(new CustomEvent("hd:play-episode", { detail: batch[0] }));
-                }
-                toast.info(`Shuffling ${batch.length} from ${filtered.length} episodes`);
-              }}
-              className="hidden md:flex items-center justify-center w-[28px] h-[28px] text-hd-11 text-bevel-dark/85 hover:text-desert-amber cursor-pointer transition-colors-fast flex-shrink-0"
-              title="Shuffle filtered episodes"
-              aria-label="Shuffle filtered episodes"
-            >
-              ⇄
-            </button>
-          )}
-          {/* Browse-by-facet toggle. The sidebar itself already existed but was
-              unreachable: showFacets was initialised false and all three
-              setShowFacets calls passed false, so there was no way to open it. */}
-          <button
-            onClick={toggleFacets}
-            className={cn(
-              "hidden md:flex items-center justify-center w-[28px] h-[28px] text-hd-11 cursor-pointer transition-colors-fast flex-shrink-0",
-              showFacets
-                ? "text-desert-amber bg-desert-amber/15 w98-inset-dark"
-                : "text-bevel-dark/85 hover:text-desert-amber",
-            )}
-            title={showFacets ? "Hide browse panel" : "Browse by guest, category or series"}
-            aria-label="Toggle browse panel"
-            aria-pressed={showFacets}
-          >
-            ☰
-          </button>
-        </div>
-        {allEpisodes && allEpisodes.length > 0 && (
-          <div className="flex items-center gap-1 md:gap-0.5 flex-shrink-0 overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0">
-            {SHOW_TABS.map((tab) => {
-              const count = showCounts.get(tab.key) ?? 0;
-              const isActive = showFilter === tab.key;
-              if (count === 0 && tab.key !== "all") return null;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => {
-                    setShowFilter(tab.key);
-                    setGuestFilter(null);
-                    setSeriesFilter(null);
-                  }}
-                  className={cn(
-                    "px-3 py-1.5 text-hd-13 md:px-2 md:py-0.5 md:text-hd-10 cursor-pointer transition-colors-fast whitespace-nowrap flex-shrink-0",
-                    isActive
-                      ? "bg-title-bar-blue/20 text-desktop-gray w98-inset-dark"
-                      : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/20",
-                  )}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <LibraryToolbar
+        searchBarRef={searchBarRef}
+        search={search}
+        setSearch={setSearch}
+        allEpisodes={allEpisodes}
+        visibleEpisodes={visibleEpisodes}
+        facets={facets}
+        showFacets={panels.showFacets}
+        toggleFacets={panels.toggleFacets}
+        showFilter={showFilter}
+        onShowTab={onShowTab}
+      />
 
-      {/* Active filter indicator + multi-select bar — only when needed */}
-      {(hasActiveFilters || selectedIds.size > 0) && (
-        <div className="px-3 pb-1 flex-shrink-0 flex flex-col gap-1">
-          {hasActiveFilters && (
-            <div className="flex items-center gap-2 text-hd-13 md:text-hd-10">
-              {guestFilter && (
-                <span className="bg-static-green/15 text-static-green px-2 py-1 md:px-1.5 md:py-0.5 flex items-center gap-1">
-                  Guest: {guestFilter}
-                  <button onClick={() => setGuestFilter(null)} className="text-static-green/85 hover:text-static-green active:text-static-green cursor-pointer min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center">x</button>
-                </span>
-              )}
-              {categoryFilter && (
-                <span className="bg-desert-amber/15 text-desert-amber px-2 py-1 md:px-1.5 md:py-0.5 flex items-center gap-1">
-                  {categoryFilter}
-                  <button onClick={() => setCategoryFilter(null)} className="text-desert-amber/85 hover:text-desert-amber active:text-desert-amber cursor-pointer min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center">x</button>
-                </span>
-              )}
-              {seriesFilter && (
-                <span className="bg-title-bar-blue/15 text-signal-blue px-2 py-1 md:px-1.5 md:py-0.5 flex items-center gap-1">
-                  {seriesFilter}
-                  <button onClick={() => setSeriesFilter(null)} className="text-signal-blue hover:text-signal-blue active:text-signal-blue cursor-pointer min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0 flex items-center justify-center">x</button>
-                </span>
-              )}
-              <button
-                onClick={clearAllFilters}
-                className="text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer ml-auto min-h-touch md:min-h-0 flex items-center"
-              >
-                Clear filters
-              </button>
-            </div>
-          )}
-          {selectedIds.size > 0 && (
-            <div className="flex items-center gap-2 text-hd-13 md:text-hd-10 bg-title-bar-blue/10 px-2 py-2 md:py-1 w98-inset-dark">
-              <span className="text-desktop-gray font-bold">{selectedIds.size} selected</span>
-              <button
-                onClick={() => {
-                  const store = usePlayerStore.getState();
-                  const episodes = allEpisodes?.filter((ep) => selectedIds.has(ep.id!)) ?? [];
-                  store.enqueueMany(episodes);
-                  toast.info(`Added ${episodes.length} episodes to queue`);
-                }}
-                className="text-signal-blue hover:text-signal-blue cursor-pointer transition-colors-fast"
-              >
-                Add to Queue
-              </button>
-              {isAdmin && (
-                <button onClick={() => setDeleteOpen(true)} className="text-red-400/60 hover:text-red-400 cursor-pointer transition-colors-fast">Delete</button>
-              )}
-              <button onClick={() => setSelectedIds(new Set())} className="text-bevel-dark hover:text-desktop-gray cursor-pointer transition-colors-fast ml-auto">Deselect</button>
-            </div>
-          )}
-        </div>
-      )}
+      <ActiveFilterBar
+        filters={filters}
+        allEpisodes={allEpisodes}
+        selectedIds={selectedIds}
+        setSelectedIds={setSelectedIds}
+        isAdmin={isAdmin}
+        onRequestBulkDelete={requestBulkDelete}
+      />
 
-      {/* Mood quick filters — derived from actual episode data */}
-      {/* Gated on the *deferred* search value, like the results are. Gating on
-          the raw value collapsed the chrome a frame before the list changed,
-          so typing one character jumped the list ~150px and deleting it
-          jumped back. */}
-      {(!deferredSearch.trim() || deferredSearch === "has:notable") && moodFilters.length > 0 && (
-        <div className="relative flex-shrink-0">
-          <div className="flex items-center gap-1.5 md:gap-1 px-3 pb-1 overflow-x-auto -mx-3 px-3 md:mx-0 [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent)] hover:[mask-image:none] focus-within:[mask-image:none]">
-          {moodFilters.map((mood) => {
-            const isActive =
-              (mood.kind === "category" && categoryFilter === mood.category) ||
-              (mood.kind === "notable" && search === "has:notable") ||
-              (mood.kind === "favorite" && favoritesOnly);
-            return (
-              <button
-                key={mood.label}
-                onClick={() => {
-                  if (isActive) {
-                    setCategoryFilter(null);
-                    setFavoritesOnly(false);
-                    setSearch("");
-                  } else if (mood.kind === "category") {
-                    setCategoryFilter(mood.category!);
-                    setFavoritesOnly(false);
-                    setSearch("");
-                  } else if (mood.kind === "notable") {
-                    setSearch("has:notable");
-                    setCategoryFilter(null);
-                    setFavoritesOnly(false);
-                  } else if (mood.kind === "favorite") {
-                    setFavoritesOnly(true);
-                    setCategoryFilter(null);
-                    setSearch("");
-                  }
-                }}
-                className={cn(
-                  "px-3 py-1.5 md:px-2 md:py-0.5 text-hd-12 md:text-hd-10 whitespace-nowrap flex-shrink-0 cursor-pointer transition-colors-fast",
-                  isActive
-                    ? "bg-desert-amber/15 text-desert-amber w98-inset-dark"
-                    : "text-bevel-dark/85 hover:text-desktop-gray hover:bg-title-bar-blue/10 active:bg-title-bar-blue/15",
-                )}
-              >
-                {mood.label}
-              </button>
-            );
-          })}
-          </div>
-        </div>
-      )}
+      <MoodFilterBar filters={filters} moodFilters={facets.moodFilters} />
 
       {/* Swipe gesture tip — shown once on mobile */}
-      {swipeTip && (
+      {panels.swipeTip && (
         <div className="mx-3 mb-1 px-3 py-2 bg-desert-amber/10 border border-desert-amber/20 rounded flex items-center justify-between gap-2 flex-shrink-0 md:hidden animate-fade-in">
           <span className="text-hd-12 text-desert-amber/85">
-            Swipe cards: {"\u2190"} favorite {"\u00B7"} queue {"\u2192"}
+            Swipe cards: {"←"} favorite {"·"} queue {"→"}
           </span>
           <button
-            onClick={() => { setSwipeTip(false); setPreference("swipe-hint-dismissed", "1"); }}
+            onClick={panels.dismissSwipeTip}
             className="text-hd-12 text-bevel-dark/85 active:text-desktop-gray cursor-pointer min-w-[28px] min-h-[28px] flex items-center justify-center"
           >
             OK
@@ -1141,283 +205,66 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Continue Listening now lives inside the Explore band below — it is
-          discovery content, and as its own always-on band it was one more
-          strip of chrome between the search box and the first episode. */}
+      <SortPresets filters={filters} />
 
-      {/* Sort presets — visible when a non-default sort is active or on hover */}
-      {sortMode !== "date" && (
-        <div className="flex items-center gap-1 px-3 pb-1 flex-shrink-0">
-          <span className="text-hd-10 text-bevel-dark/85 mr-1">Sort:</span>
-          {(["date", "recent", "progress", "rated", "played"] as const).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setSortMode(mode)}
-              className={cn(
-                "px-2 py-0.5 text-hd-10 cursor-pointer transition-colors-fast",
-                sortMode === mode
-                  ? "text-desert-amber bg-desert-amber/10 w98-inset-dark"
-                  : "text-bevel-dark/85 hover:text-desktop-gray",
-              )}
-            >
-              {{ date: "Date", recent: "Recent", progress: "In Progress", rated: "Top Rated", played: "Most Played" }[mode]}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Discovery section — collapsed by default, compact when open */}
+      {/* Discovery section — collapsed by default, compact when expanded */}
       {!deferredSearch.trim() && !hasActiveFilters && (
-        <div className="px-3 flex-shrink-0">
-          <button
-            onClick={toggleDiscovery}
-            className="text-hd-13 md:text-hd-10 text-bevel-dark uppercase tracking-wider px-2 py-2 md:px-1 md:py-0.5 cursor-pointer hover:text-desktop-gray active:text-desktop-gray transition-colors-fast"
-          >
-            {discoveryOpen ? "▾" : "▸"} Explore
-          </button>
-
-          {discoveryOpen && (
-            <div className="flex flex-col gap-1 mt-1 mb-1">
-              <WidgetErrorBoundary name="Continue Listening">
-                <ContinueListening onPlay={handlePlay} />
-              </WidgetErrorBoundary>
-              <div className="flex flex-col md:flex-row gap-2 overflow-hidden max-h-[200px] md:max-h-[100px]">
-                {recentlyPlayed && recentlyPlayed.length > 0 && (
-                  <WidgetErrorBoundary name="Recently Played">
-                    <RecentlyPlayed episodes={recentlyPlayed.slice(0, 4)} onPlay={handlePlay} compact />
-                  </WidgetErrorBoundary>
-                )}
-                <WidgetErrorBoundary name="On This Day">
-                  <OnThisDay onPlay={handlePlay} compact className="md:w-[220px] md:flex-shrink-0" />
-                </WidgetErrorBoundary>
-              </div>
-            </div>
-          )}
-        </div>
+        <ExploreBand
+          expanded={panels.discoveryOpen}
+          onToggle={panels.toggleDiscovery}
+          recentlyPlayed={recentlyPlayed}
+          onPlay={handlePlay}
+        />
       )}
 
       <div className="flex-1 overflow-hidden flex">
         {/* Faceted browsing sidebar — desktop only */}
-        {showFacets && allEpisodes && allEpisodes.length > 0 && (
-          <div className="hidden md:flex w-[180px] flex-shrink-0 overflow-auto border-r border-bevel-dark/20 p-2 flex-col gap-3">
-            {/* Top Guests */}
-            {topGuests.length > 0 && (
-              <div>
-                <div className="text-hd-10 text-desert-amber uppercase tracking-wider mb-1.5 font-bold">
-                  Guests
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  {topGuests.map(([guest, count]) => (
-                    <button
-                      key={guest}
-                      onClick={() => setGuestFilter(guestFilter === guest ? null : guest)}
-                      className={`
-                        text-left px-1.5 py-0.5 text-hd-10 cursor-pointer transition-colors-fast truncate
-                        ${guestFilter === guest
-                          ? "bg-title-bar-blue/20 text-desktop-gray"
-                          : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10"
-                        }
-                      `}
-                    >
-                      {guest}
-                      <span className="ml-1 tabular-nums opacity-50">{count}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Categories */}
-            {categoryCounts.size > 0 && (
-              <div>
-                <div className="text-hd-10 text-desert-amber uppercase tracking-wider mb-1.5 font-bold">
-                  Categories
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  {Array.from(categoryCounts.entries())
-                    .sort((a, b) => b[1] - a[1])
-                    .map(([cat, count]) => (
-                      <button
-                        key={cat}
-                        onClick={() => {
-                          setCategoryFilter(categoryFilter === cat ? null : cat);
-                        }}
-                        className={cn(
-                          "text-left px-1.5 py-0.5 text-hd-10 cursor-pointer transition-colors-fast truncate",
-                          categoryFilter === cat
-                            ? "bg-desert-amber/15 text-desert-amber"
-                            : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10",
-                        )}
-                      >
-                        {cat}
-                        <span className="ml-1 tabular-nums opacity-50">{count}</span>
-                      </button>
-                    ))}
-                </div>
-              </div>
-            )}
-
-            {/* Series */}
-            {seriesCounts.size > 0 && (
-              <div>
-                <div className="text-hd-10 text-desert-amber uppercase tracking-wider mb-1.5 font-bold">
-                  Series
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  {Array.from(seriesCounts.entries())
-                    .filter(([, count]) => count >= 2)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 20)
-                    .map(([series, count]) => (
-                      <button
-                        key={series}
-                        onClick={() => {
-                          setSeriesFilter(seriesFilter === series ? null : series);
-                        }}
-                        className={cn(
-                          "text-left px-1.5 py-0.5 text-hd-10 cursor-pointer transition-colors-fast truncate",
-                          seriesFilter === series
-                            ? "bg-title-bar-blue/20 text-signal-blue"
-                            : "text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10",
-                        )}
-                      >
-                        {series}
-                        <span className="ml-1 tabular-nums opacity-50">{count} parts</span>
-                      </button>
-                    ))}
-                </div>
-              </div>
-            )}
-
-            {/* Top Topics */}
-            {topTopics.length > 0 && (
-              <div>
-                <div className="text-hd-10 text-desert-amber uppercase tracking-wider mb-1.5 font-bold">
-                  Topics
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  {topTopics.map(([topic, count]) => (
-                    <button
-                      key={topic}
-                      onClick={() => {
-                        setSearch(topic);
-                      }}
-                      className="text-left px-1.5 py-0.5 text-hd-10 text-bevel-dark hover:text-desktop-gray hover:bg-title-bar-blue/10 cursor-pointer transition-colors-fast truncate"
-                    >
-                      {topic}
-                      <span className="ml-1 tabular-nums opacity-50">{count}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+        {panels.showFacets && allEpisodes && allEpisodes.length > 0 && (
+          <FacetSidebar
+            topGuests={facets.topGuests}
+            categoryCounts={facets.categoryCounts}
+            seriesCounts={facets.seriesCounts}
+            topTopics={facets.topTopics}
+            guestFilter={guestFilter}
+            setGuestFilter={filters.setGuestFilter}
+            categoryFilter={categoryFilter}
+            setCategoryFilter={filters.setCategoryFilter}
+            seriesFilter={seriesFilter}
+            setSeriesFilter={filters.setSeriesFilter}
+            onTopic={setSearch}
+          />
         )}
 
-        {/* Loading skeleton — also covers the window between Dexie reporting an
-            empty table and the deferred seed landing. */}
-        {(allEpisodes === undefined || (allEpisodes.length === 0 && !seedSettled)) && (
-          <div className="flex-1 p-2 flex flex-col gap-0">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="w98-raised-dark bg-card-surface animate-skeleton p-2.5 md:p-1.5 h-[92px] md:h-[76px]"
-                style={{ animationDelay: `${i * 80}ms` }}
-              >
-                {/* Row 1: date + title */}
-                <div className="flex items-center gap-2">
-                  <div className="h-[10px] bg-bevel-dark/15 rounded-sm w-[72px]" />
-                  <div className="h-[12px] bg-bevel-dark/10 rounded-sm flex-1 max-w-[45%]" />
-                </div>
-                {/* Row 2: guest / show type */}
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="h-[10px] bg-bevel-dark/8 rounded-sm w-[130px]" />
-                  <div className="h-[10px] bg-bevel-dark/8 rounded-sm w-[60px]" />
-                </div>
-                {/* Row 3: duration + tags */}
-                <div className="flex items-center justify-between gap-2 mt-2">
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-[8px] bg-bevel-dark/6 rounded-sm w-[44px]" />
-                    <div className="h-[8px] bg-bevel-dark/6 rounded-sm w-[36px]" />
-                  </div>
-                  <div className="h-[8px] bg-bevel-dark/6 rounded-sm w-[52px]" />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {(allEpisodes === undefined || (allEpisodes.length === 0 && !seedSettled)) && <LibraryListSkeleton />}
 
         {/* Episode list */}
         {allEpisodes !== undefined && (allEpisodes.length > 0 || seedSettled) && (
         <div className="flex-1 overflow-hidden min-w-0">
-          {/* Empty library state */}
           {allEpisodes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center px-8">
-              <div className="text-hd-24 text-desert-amber/30 select-none mb-3">📡</div>
-              <div className="text-hd-13 text-desktop-gray mb-2">No episodes in the library yet.</div>
-              <div className="text-hd-11 text-bevel-dark/85 leading-relaxed max-w-[260px]">
-                The library seeds automatically on first visit. If this persists, try refreshing the page.
-              </div>
-            </div>
-          ) : filtered.length === 0 && !search.trim() && hasActiveFilters ? (
-            /* Over-constrained filters. This used to fall through to
-               TimelineView's own empty state, which reads "No episodes yet —
-               start building your late-night radio archive" — factually wrong
-               for someone who has 1,313 episodes and simply picked two filters
-               that do not intersect, and it offered no way back. */
-            <div className="flex flex-col items-center justify-center py-16 text-center px-8">
-              <div className="text-hd-24 text-desert-amber/30 select-none mb-3">🔍</div>
-              <div className="text-hd-13 text-desktop-gray mb-2">
-                No episodes match these filters.
-              </div>
-              <div className="text-hd-11 text-bevel-dark/85 mb-4 max-w-[280px] leading-relaxed">
-                {[
-                  showFilter !== "all" && SHOW_TABS.find((t) => t.key === showFilter)?.label,
-                  categoryFilter,
-                  seriesFilter,
-                  guestFilter,
-                  favoritesOnly && "Favorites",
-                ].filter(Boolean).join(" · ")}
-              </div>
-              <button
-                onClick={clearAllFilters}
-                className="text-hd-11 text-signal-blue cursor-pointer transition-colors-fast px-3 py-1.5 w98-raised-dark bg-raised-surface"
-              >
-                Clear filters
-              </button>
-            </div>
-          ) : filtered.length === 0 && search.trim() ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center px-8">
-              <div className="text-hd-13 text-desktop-gray mb-2">
-                No episodes matching &ldquo;{search}&rdquo;
-              </div>
-              <div className="text-hd-11 text-bevel-dark mb-4">
-                Try a different search term{isAdmin ? ", or search the archive" : ""}.
-              </div>
-              {!isAdmin && (
-                <button
-                  onClick={() => setSearch("")}
-                  className="text-hd-11 text-signal-blue cursor-pointer transition-colors-fast px-3 py-1.5 w98-raised-dark bg-raised-surface"
-                >
-                  Clear search
-                </button>
-              )}
-              {isAdmin && (
-                <button
-                  onClick={() => router.push(`/search`)}
-                  className="text-hd-11 text-signal-blue hover:text-signal-blue cursor-pointer transition-colors-fast px-3 py-1.5 w98-raised-dark bg-raised-surface"
-                >
-                  Search Archive.org for &ldquo;{search}&rdquo;
-                </button>
-              )}
-            </div>
+            <EmptyLibrary />
+          ) : visibleEpisodes.length === 0 && !search.trim() && hasActiveFilters ? (
+            <NoFilterMatches
+              showFilter={showFilter}
+              categoryFilter={categoryFilter}
+              seriesFilter={seriesFilter}
+              guestFilter={guestFilter}
+              favoritesOnly={favoritesOnly}
+              onClear={filters.clearAllFilters}
+            />
+          ) : visibleEpisodes.length === 0 && search.trim() ? (
+            <NoSearchMatches
+              search={search}
+              isAdmin={isAdmin}
+              onClearSearch={() => setSearch("")}
+              onSearchArchive={() => router.push(`/search`)}
+            />
           ) : (
             <TimelineView
-              episodes={filtered}
+              episodes={visibleEpisodes}
               currentEpisodeId={currentEpisodeId}
-              onEpisodeClick={handleEpisodeClick}
-              onEpisodeDoubleClick={handleDoubleClick}
-              onEpisodeContextMenu={handleContextMenu}
+              onEpisodeClick={selection.handleEpisodeClick}
+              onEpisodeDoubleClick={handlePlay}
+              onEpisodeContextMenu={actions.handleContextMenu}
               onAction={isAdmin ? handleAction : undefined}
               onToggleFavorite={handleToggleFavorite}
               onQueue={handleQueue}
@@ -1450,49 +297,17 @@ export default function LibraryPage() {
 
         {/* Detail panel — mobile: slide-up overlay; desktop: 280px sidebar */}
         {selectedEpisode && (
-          <>
-            {/* Mobile backdrop */}
-            <div
-              className="fixed inset-0 bg-black/50 z-40 md:hidden animate-glass-backdrop"
-              onClick={handleCloseDetail}
-            />
-            <div
-              ref={detailRef}
-              onTouchStart={onDetailTouchStart}
-              onTouchMove={onDetailTouchMove}
-              onTouchEnd={onDetailTouchEnd}
-              className={cn(
-              // Mobile: slide-up overlay from bottom
-              "fixed bottom-0 inset-x-0 z-50 max-h-[80dvh] overflow-auto pb-[var(--safe-bottom)] animate-glass-sheet rounded-t-xl will-change-transform",
-              // Desktop: static sidebar — no fixed/sticky, no transform animation
-              "md:relative md:bottom-auto md:inset-x-auto md:w-[280px] md:flex-shrink-0 md:h-full md:max-h-none md:overflow-auto md:pb-0 md:z-auto md:border-l md:border-bevel-dark/20 md:animate-fade-in md:rounded-none md:will-change-auto",
-            )}>
-              <EpisodeDetail
-                key={selectedEpisode.id}
-                /* The live row, not the click-time snapshot — see
-                   selectedEpisodeLive above. */
-                episode={selectedEpisodeLive ?? selectedEpisode}
-                isPlaying={selectedEpisode.id === currentEpisodeId}
-                onPlay={handlePlay}
-                onClose={handleCloseDetail}
-                onToggleFavorite={handleToggleFavorite}
-                communityPlays={communityCounts.get(communityKey(selectedEpisode) ?? "")}
-                {...(isAdmin
-                  ? {
-                      onDelete: async (ep: Episode) => {
-                        await deleteEpisode(ep.id!);
-                        setSelectedEpisode(null);
-                      },
-                      onEdit: async (id: number, fields: Partial<Episode>) => {
-                        await updateEpisode(id, fields);
-                        const updated = await db.episodes.get(id);
-                        if (updated) setSelectedEpisode(updated);
-                      },
-                    }
-                  : {})}
-              />
-            </div>
-          </>
+          <DetailSheet
+            selectedEpisode={selectedEpisode}
+            selectedEpisodeLive={selection.selectedEpisodeLive}
+            currentEpisodeId={currentEpisodeId}
+            isAdmin={isAdmin}
+            communityPlays={communityCounts.get(communityKey(selectedEpisode) ?? "")}
+            onPlay={handlePlay}
+            onClose={selection.handleCloseDetail}
+            onToggleFavorite={handleToggleFavorite}
+            setSelectedEpisode={setSelectedEpisode}
+          />
         )}
       </div>
 
@@ -1522,7 +337,7 @@ export default function LibraryPage() {
           </div>
           <div className="flex justify-end gap-2">
             <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
-            <Button variant="dark" onClick={handleBulkDelete} disabled={deleting}>
+            <Button variant="dark" onClick={actions.handleBulkDelete} disabled={deleting}>
               {deleting ? "Deleting..." : "Delete"}
             </Button>
           </div>
