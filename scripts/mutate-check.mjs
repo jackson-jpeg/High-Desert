@@ -1069,9 +1069,9 @@ const MUTATIONS = [
     id: "episode-detail-series-order",
     test: "src/lib/library/__tests__/episode-detail.test.ts",
     file: "src/lib/library/episode-detail.ts",
-    find: "const partA = a.aiSeriesPart ?? 999;",
-    replace: "const partA = a.aiSeriesPart ?? 0;",
-    why: "the series list shows parts in part order with unnumbered parts last",
+    find: "return partA - partB || (a.airDate ?? \"\").localeCompare(b.airDate ?? \"\");",
+    replace: "return (a.airDate ?? \"\").localeCompare(b.airDate ?? \"\");",
+    why: "the series list shows parts in part order, which is not always air order",
   },
   {
     id: "episode-detail-share-by-key",
