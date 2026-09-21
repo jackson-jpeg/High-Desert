@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 interface MobileMenuSheetProps {
   open: boolean;
@@ -27,7 +28,6 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
   const openLibrary = useOpenLibraryIntent();
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
-  const sheetRef = useRef<HTMLDivElement>(null);
 
   const hide = useCallback(() => {
     if (closingRef.current) return;
@@ -54,48 +54,10 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
     return () => unlockScroll();
   }, [open]);
 
-  // Escape key closes the sheet
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") hide();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, hide]);
-
-  // Move focus into the sheet and restore it on close. It declared
-  // aria-modal="true" but never moved focus, so a screen-reader user was left
-  // on the "More" tab behind it with no indication anything had opened.
-  useEffect(() => {
-    if (!open) return;
-    const previous = document.activeElement as HTMLElement | null;
-    const raf = requestAnimationFrame(() => {
-      sheetRef.current?.querySelector<HTMLElement>("button:not([disabled])")?.focus();
-    });
-    return () => {
-      cancelAnimationFrame(raf);
-      previous?.focus();
-    };
-  }, [open]);
-
-  // Trap Tab within the sheet while it is open.
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key !== "Tab" || !sheetRef.current) return;
-    const focusable = Array.from(
-      sheetRef.current.querySelectorAll<HTMLElement>("button:not([disabled]), a[href]"),
-    );
-    if (focusable.length === 0) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
-    }
-  }, []);
+  // Focus in on open, Tab wraps, Escape closes, focus back on close — the
+  // shared modal trap (HD-022). Escape used to be a window listener that did
+  // not stop the event, so the page behind handled the same keystroke.
+  const { ref: sheetRef, onKeyDown: handleKeyDown } = useFocusTrap({ active: open, onEscape: hide });
 
   if (!open) return null;
 
@@ -107,6 +69,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
           "fixed inset-0 z-[100] glass-backdrop",
           closing ? "animate-glass-backdrop-out" : "animate-glass-backdrop",
         )}
+        aria-hidden="true"
         onClick={hide}
       />
       {/* Sheet */}

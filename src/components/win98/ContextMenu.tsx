@@ -5,6 +5,7 @@ import { useContextMenuStore, type ContextMenuItem } from "@/stores/context-menu
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils/cn";
 import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 export function ContextMenu() {
   const { open, position, items, hide } = useContextMenuStore();
@@ -35,52 +36,14 @@ function MobileActionSheet({
   items: ContextMenuItem[];
   hide: () => void;
 }) {
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
+  // The shared modal trap (HD-022): focus in, Tab wraps, Escape closes
+  // without reaching the page, focus back on close.
+  const { ref: sheetRef, onKeyDown: handleKeyDown } = useFocusTrap({ active: true, onEscape: hide });
 
   useEffect(() => {
     lockScroll();
-    previousFocusRef.current = document.activeElement as HTMLElement;
-
-    // Move focus into the sheet. Without this a screen-reader user's focus
-    // stayed on the element behind it, with no indication the sheet had opened.
-    requestAnimationFrame(() => {
-      sheetRef.current?.querySelector<HTMLElement>("button:not([disabled])")?.focus();
-    });
-
-    return () => {
-      unlockScroll();
-      previousFocusRef.current?.focus();
-    };
+    return () => unlockScroll();
   }, []);
-
-  // Escape to close + Tab trap, matching the desktop menu below.
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        hide();
-        return;
-      }
-      if (e.key !== "Tab" || !sheetRef.current) return;
-
-      const focusable = Array.from(
-        sheetRef.current.querySelectorAll<HTMLElement>("button:not([disabled])"),
-      );
-      if (focusable.length === 0) return;
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    },
-    [hide],
-  );
 
   // Close on backdrop click
   return (

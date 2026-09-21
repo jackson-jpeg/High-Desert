@@ -8,14 +8,13 @@ import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
 import { TimelineView } from "@/components/library/TimelineView";
 import { Dialog, Button } from "@/components/win98";
-import { GuestProfile } from "@/components/library/GuestProfile";
+import { GuestSheet } from "@/components/library/GuestSheet";
 import { FacetSidebar } from "@/components/library/FacetSidebar";
 import { DetailSheet } from "@/components/library/DetailSheet";
 import { ExploreBand } from "@/components/library/ExploreBand";
 import { LibraryToolbar } from "@/components/library/LibraryToolbar";
 import { ActiveFilterBar, MoodFilterBar, SortPresets } from "@/components/library/LibraryFilterBars";
 import { LibraryListSkeleton, EmptyLibrary, NoFilterMatches, NoSearchMatches, NothingInProgress } from "@/components/library/LibraryListStates";
-import { cn } from "@/lib/utils/cn";
 import { selectLibraryEpisodes, type ShowFilter } from "@/lib/library/filter-episodes";
 import { libraryListState } from "@/lib/library/list-state";
 import { useIsMobile } from "@/hooks/useMediaQuery";
@@ -100,7 +99,7 @@ export default function LibraryPage() {
 
   useLibraryKeyboard({
     visibleEpisodes,
-    focusedIndex: selection.focusedIndex,
+    activeIndex: selection.activeIndex,
     setFocusedIndex,
     selectedEpisode,
     setSelectedEpisode,
@@ -308,6 +307,7 @@ export default function LibraryPage() {
               onQueue={handleQueue}
               selectedEpisodeId={selectedEpisode?.id}
               selectedIds={selectedIds}
+              activeRow={selection.activeIndex}
             />
           )}
         </div>
@@ -315,22 +315,11 @@ export default function LibraryPage() {
 
         {/* Guest Profile panel */}
         {guestProfileName && !selectedEpisode && (
-          <>
-            <div
-              className="fixed inset-0 bg-black/50 z-40 md:hidden animate-glass-backdrop"
-              onClick={() => setGuestProfileName(null)}
-            />
-            <div className={cn(
-              "fixed bottom-0 inset-x-0 z-50 max-h-[80dvh] overflow-auto pb-[var(--safe-bottom)] animate-glass-sheet rounded-t-xl",
-              "md:relative md:bottom-auto md:inset-x-auto md:w-[280px] md:flex-shrink-0 md:h-full md:max-h-none md:overflow-auto md:pb-0 md:z-auto md:border-l md:border-bevel-dark/20 md:animate-fade-in md:rounded-none",
-            )}>
-              <GuestProfile
-                guestName={guestProfileName}
-                onPlay={handlePlay}
-                onClose={() => setGuestProfileName(null)}
-              />
-            </div>
-          </>
+          <GuestSheet
+            guestName={guestProfileName}
+            onPlay={handlePlay}
+            onClose={() => setGuestProfileName(null)}
+          />
         )}
 
         {/* Detail panel — mobile: slide-up overlay; desktop: 280px sidebar */}

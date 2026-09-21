@@ -6,6 +6,8 @@ import type { Episode } from "@/db/schema";
 import { updateEpisode } from "@/services/episodes/management";
 import { EpisodeDetail } from "@/components/library/EpisodeDetail";
 import { cn } from "@/lib/utils/cn";
+import { useIsMobile } from "@/hooks/useMediaQuery";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 /**
  * The episode detail panel: a slide-up sheet with swipe-down-to-close on
@@ -41,9 +43,15 @@ export function DetailSheet({
   /** Opens the library's delete confirmation (HD-011) — never deletes itself. */
   onRequestDelete: (ids: number[]) => void;
 }) {
+  // On a phone the panel is a slide-up sheet over the list, and so a modal
+  // dialog: it had no role and no focus handling (HD-022). On desktop it is a
+  // sidebar beside the list — not modal, and the library's own Escape closes it.
+  const isMobile = useIsMobile();
+  const { ref: detailRef, onKeyDown: trapKeyDown } = useFocusTrap({ active: isMobile, onEscape: onClose });
+  const title = selectedEpisode.title || selectedEpisode.fileName;
+
   // Detail panel swipe-down-to-close
   const detailSwipe = useRef({ startY: 0, currentY: 0, swiping: false });
-  const detailRef = useRef<HTMLDivElement>(null);
 
   const onDetailTouchStart = useCallback((e: React.TouchEvent) => {
     // Only activate from the top 48px (drag handle area)
@@ -52,7 +60,7 @@ export function DetailSheet({
     const touchY = e.touches[0].clientY;
     if (touchY - rect.top > 48) return;
     detailSwipe.current = { startY: touchY, currentY: touchY, swiping: true };
-  }, []);
+  }, [detailRef]);
 
   const onDetailTouchMove = useCallback((e: React.TouchEvent) => {
     const s = detailSwipe.current;
@@ -63,7 +71,7 @@ export function DetailSheet({
       detailRef.current.style.transform = `translateY(${dy}px)`;
       detailRef.current.style.transition = "none";
     }
-  }, []);
+  }, [detailRef]);
 
   const onDetailTouchEnd = useCallback(() => {
     const s = detailSwipe.current;
@@ -77,23 +85,33 @@ export function DetailSheet({
     if (dy > 80) {
       onClose();
     }
-  }, [onClose]);
+  }, [onClose, detailRef]);
 
   return (
     <>
       {/* Mobile backdrop */}
       <div
         className="fixed inset-0 bg-black/50 z-40 md:hidden animate-glass-backdrop"
+        aria-hidden="true"
         onClick={onClose}
       />
       <div
         ref={detailRef}
+        {...(isMobile
+          ? {
+              role: "dialog",
+              "aria-modal": true,
+              "aria-label": `Episode details: ${title}`,
+              tabIndex: -1,
+              onKeyDown: trapKeyDown,
+            }
+          : {})}
         onTouchStart={onDetailTouchStart}
         onTouchMove={onDetailTouchMove}
         onTouchEnd={onDetailTouchEnd}
         className={cn(
         // Mobile: slide-up overlay from bottom
-        "fixed bottom-0 inset-x-0 z-50 max-h-[80dvh] overflow-auto pb-[var(--safe-bottom)] animate-glass-sheet rounded-t-xl will-change-transform",
+        "fixed bottom-0 inset-x-0 z-50 max-h-[80dvh] overflow-auto pb-[var(--safe-bottom)] animate-glass-sheet rounded-t-xl will-change-transform outline-none",
         // Desktop: static sidebar — no fixed/sticky, no transform animation
         "md:relative md:bottom-auto md:inset-x-auto md:w-[280px] md:flex-shrink-0 md:h-full md:max-h-none md:overflow-auto md:pb-0 md:z-auto md:border-l md:border-bevel-dark/20 md:animate-fade-in md:rounded-none md:will-change-auto",
       )}>

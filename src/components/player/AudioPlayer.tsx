@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useSwipeDown } from "@/hooks/useSwipeDown";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
 import { Oscilloscope } from "./Oscilloscope";
 import { PlaybackControls } from "./PlaybackControls";
@@ -53,8 +54,14 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   const [mobileExpanded, setMobileExpanded] = useState(false);
   const [ultraMini, setUltraMini] = useState(false);
   const isMobile = useIsMobile();
-  const mobileExpandedRef = useRef<HTMLDivElement>(null);
   const collapseMobilePlayer = useCallback(() => setMobileExpanded(false), []);
+  // The expanded phone player covers the whole screen, so it is a modal
+  // dialog: the shared trap moves focus in, keeps Tab inside, collapses on
+  // Escape and hands focus back to the mini player (HD-022).
+  const { ref: mobileExpandedRef, onKeyDown: mobileTrapKeyDown } = useFocusTrap({
+    active: isMobile && mobileExpanded,
+    onEscape: collapseMobilePlayer,
+  });
   const { swipeHandlers: mobilePlayerSwipe } = useSwipeDown({
     onDismiss: collapseMobilePlayer,
     targetRef: mobileExpandedRef,
@@ -103,7 +110,14 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   // ─── Mobile expanded overlay ───
   if (isMobile && mobileExpanded) {
     return (
-      <div ref={mobileExpandedRef} className="fixed inset-0 z-50 bg-midnight/90 backdrop-blur-md flex flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)]">
+      <div
+        ref={mobileExpandedRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Now playing"
+        tabIndex={-1}
+        onKeyDown={mobileTrapKeyDown}
+        className="outline-none fixed inset-0 z-50 bg-midnight/90 backdrop-blur-md flex flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)]">
         {errorBanner}
 
         {/* Drag handle for swipe-down-to-dismiss */}

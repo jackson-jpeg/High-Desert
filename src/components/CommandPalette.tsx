@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, useId } from "react";
 import { useRouter } from "next/navigation";
 import { db } from "@/db";
 import { usePlayerStore } from "@/stores/player-store";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils/cn";
 import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
 import { emit } from "@/lib/events";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 interface Result {
   id: string;
@@ -137,11 +138,10 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     };
   }, [open]);
 
-  // Focus input + lock scroll when opened
+  // Lock scroll while open. Focus is the trap's job, below.
   useEffect(() => {
     if (!open) return;
     lockScroll();
-    requestAnimationFrame(() => inputRef.current?.focus());
     return () => unlockScroll();
   }, [open]);
 
@@ -151,6 +151,16 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     setActiveIndex(0);
     onClose();
   }, [onClose]);
+
+  // A real modal (HD-022). It had no dialog role and no trap: Tab walked out
+  // into the page behind it, and its Escape — handled on the input without
+  // stopping propagation — also reached the library's window handler, so one
+  // Escape closed the palette *and* the detail panel under it. The trap
+  // focuses the input on open, keeps Tab inside, stops Escape here, and hands
+  // focus back on close.
+  const trap = useFocusTrap({ active: open, onEscape: close, initialFocus: inputRef });
+  const listId = useId();
+  const optionId = (idx: number) => `${listId}-opt-${idx}`;
 
   // Build actions list (stable refs via router)
   const actions: Result[] = useMemo(() => [
@@ -283,12 +293,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         e.preventDefault();
         if (results[activeIndex]) executeResult(results[activeIndex]);
         break;
-      case "Escape":
-        e.preventDefault();
-        close();
-        break;
     }
-  }, [results, activeIndex, executeResult, close]);
+  }, [results, activeIndex, executeResult]);
 
   if (!open) return null;
 
@@ -304,11 +310,19 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh]" onClick={close}>
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-midnight/60 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-midnight/60 backdrop-blur-sm" aria-hidden="true" />
 
-      {/* Dialog */}
+      {/* Dialog. A combobox (the input) controlling a listbox of results:
+          focus stays in the input, and the active result is announced through
+          aria-activedescendant — the results are options, not tab stops. */}
       <div
-        className="relative w-full max-w-[480px] mx-4 w98-raised-dark bg-raised-surface shadow-2xl flex flex-col overflow-hidden"
+        ref={trap.ref}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
+        tabIndex={-1}
+        onKeyDown={trap.onKeyDown}
+        className="relative w-full max-w-[480px] mx-4 w98-raised-dark bg-raised-surface shadow-2xl flex flex-col overflow-hidden outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search input */}
@@ -321,7 +335,12 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             placeholder="Search episodes, pages, actions..."
             inputMode="search"
             enterKeyHint="go"
+            role="combobox"
             aria-label="Search episodes, pages, and actions"
+            aria-expanded={results.length > 0}
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-activedescendant={results[activeIndex] ? optionId(activeIndex) : undefined}
             className="w-full w98-inset-dark bg-inset-well text-desktop-gray text-hd-16 md:text-hd-12 px-3 py-2 md:py-1.5 outline-none placeholder:text-bevel-dark w98-font"
           />
         </div>
@@ -329,41 +348,47 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         {/* Results */}
         <div className="max-h-[320px] overflow-auto overscroll-contain py-1">
           {results.length === 0 && query.trim() && (
-            <div className="px-3 py-4 text-center text-hd-10 text-bevel-dark/85">
+            <div role="status" className="px-3 py-4 text-center text-hd-10 text-bevel-dark/85">
               No results found
             </div>
           )}
-          {Array.from(groups.entries()).map(([groupName, items]) => (
-            <div key={groupName}>
-              <div className="px-3 py-1 text-hd-8 uppercase tracking-wider text-bevel-dark/85">
-                {groupName}
+          <div id={listId} role="listbox" aria-label="Results">
+            {Array.from(groups.entries()).map(([groupName, items], gi) => (
+              <div key={groupName} role="group" aria-labelledby={`${listId}-g${gi}`}>
+                <div id={`${listId}-g${gi}`} role="presentation" className="px-3 py-1 text-hd-8 uppercase tracking-wider text-bevel-dark/85">
+                  {groupName}
+                </div>
+                {items.map((item) => {
+                  const idx = flatIndex++;
+                  return (
+                    <div
+                      key={item.id}
+                      id={optionId(idx)}
+                      role="option"
+                      aria-selected={idx === activeIndex}
+                      onClick={() => executeResult(item)}
+                      onMouseMove={() => setActiveIndex(idx)}
+                      className={cn(
+                        "w-full text-left px-3 py-2.5 md:py-1.5 min-h-touch md:min-h-0 flex flex-col justify-center cursor-pointer transition-colors-fast",
+                        idx === activeIndex
+                          ? "bg-title-bar-blue/30 text-desktop-gray"
+                          : "text-desktop-gray/85 hover:bg-title-bar-blue/15",
+                      )}
+                    >
+                      <span className="text-hd-12 md:text-hd-11 truncate">{item.label}</span>
+                      {item.subtitle && (
+                        <span className="text-hd-9 text-bevel-dark/85 truncate">{item.subtitle}</span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              {items.map((item) => {
-                const idx = flatIndex++;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => executeResult(item)}
-                    className={cn(
-                      "w-full text-left px-3 py-2.5 md:py-1.5 min-h-touch md:min-h-0 flex flex-col justify-center cursor-pointer transition-colors-fast",
-                      idx === activeIndex
-                        ? "bg-title-bar-blue/30 text-desktop-gray"
-                        : "text-desktop-gray/85 hover:bg-title-bar-blue/15",
-                    )}
-                  >
-                    <span className="text-hd-12 md:text-hd-11 truncate">{item.label}</span>
-                    {item.subtitle && (
-                      <span className="text-hd-9 text-bevel-dark/85 truncate">{item.subtitle}</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Footer hint */}
-        <div className="px-3 py-1.5 border-t border-bevel-dark/15 text-hd-8 text-bevel-dark/85 flex items-center gap-3">
+        <div className="px-3 py-1.5 border-t border-bevel-dark/15 text-hd-8 text-bevel-dark/85 flex items-center gap-3" aria-hidden="true">
           <span>↑↓ navigate</span>
           <span>↵ select</span>
           <span>esc close</span>

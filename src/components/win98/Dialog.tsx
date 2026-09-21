@@ -1,9 +1,10 @@
 "use client";
 
 import { cn } from "@/lib/utils/cn";
-import { ReactNode, useEffect, useId, useRef, useCallback } from "react";
+import { ReactNode, useEffect, useId } from "react";
 import { Window, type WindowProps } from "./Window";
 import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 export interface DialogProps extends Omit<WindowProps, "children"> {
   open: boolean;
@@ -17,8 +18,6 @@ export interface DialogProps extends Omit<WindowProps, "children"> {
   urgent?: boolean;
 }
 
-const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
 export function Dialog({
   open,
   onClose,
@@ -28,68 +27,16 @@ export function Dialog({
   urgent = false,
   ...windowProps
 }: DialogProps) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
+  // Focus in on open, Tab wraps, Escape closes without reaching the page
+  // behind, focus back on close. Shared with every other modal (HD-022).
+  const { ref: dialogRef, onKeyDown: handleKeyDown } = useFocusTrap({ active: open, onEscape: onClose });
 
-  // Store the previously focused element and focus the dialog on open
   useEffect(() => {
     if (!open) return;
-
     lockScroll();
-    previousFocusRef.current = document.activeElement as HTMLElement;
-
-    // Focus first focusable element inside the dialog
-    requestAnimationFrame(() => {
-      if (!dialogRef.current) return;
-      const first = dialogRef.current.querySelector<HTMLElement>(FOCUSABLE);
-      if (first) {
-        first.focus();
-      } else {
-        dialogRef.current.focus();
-      }
-    });
-
-    // Restore focus on close
-    return () => {
-      unlockScroll();
-      previousFocusRef.current?.focus();
-    };
+    return () => unlockScroll();
   }, [open]);
-
-  // Focus trap + Escape to close
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        onClose();
-        return;
-      }
-
-      if (e.key === "Tab" && dialogRef.current) {
-        const focusable = Array.from(
-          dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE),
-        );
-        if (focusable.length === 0) return;
-
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-
-        if (e.shiftKey) {
-          if (document.activeElement === first) {
-            e.preventDefault();
-            last.focus();
-          }
-        } else {
-          if (document.activeElement === last) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      }
-    },
-    [onClose],
-  );
 
   if (!open) return null;
 
