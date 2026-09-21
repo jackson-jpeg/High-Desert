@@ -32,5 +32,5 @@
     ".next-staging/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "node_modules.*", ".next.prev", ".next.failed", ".next-staging"]
 }

@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // deploy.sh's rollback copies and staging build (scripts/deploy.sh).
+    ".next.prev/**",
+    ".next.failed/**",
+    ".next-staging/**",
+    "node_modules.*/**",
   ]),
 ]);
 
