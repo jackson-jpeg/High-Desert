@@ -336,6 +336,30 @@ const MUTATIONS = [
     replace: "  :  # undo the failed deploy",
     why: "a deploy that fails verification must put the previous build back, not leave a broken one live",
   },
+  {
+    id: "csp-no-eval",
+    test: "src/lib/__tests__/security-headers.test.ts",
+    file: "src/lib/csp.ts",
+    find: "`script-src 'self' 'unsafe-inline'${dev ? \" 'unsafe-eval'\" : \"\"}`,",
+    replace: "`script-src 'self' 'unsafe-inline' 'unsafe-eval'`,",
+    why: "production must not ship 'unsafe-eval' (HD-030)",
+  },
+  {
+    id: "image-optimizer-off",
+    test: "src/lib/__tests__/security-headers.test.ts",
+    file: "next.config.ts",
+    find: "  images: { unoptimized: true },",
+    replace: "  images: { unoptimized: false },",
+    why: "/_next/image is the endpoint behind GHSA-2xp9-vwfh-vxw4, and nothing here uses it",
+  },
+  {
+    id: "scanner-metadata-tags",
+    test: "src/services/scanner/__tests__/metadata.test.ts",
+    file: "src/services/scanner/metadata.ts",
+    find: "if (common.title) result.title = common.title;",
+    replace: "if (false) result.title = common.title;",
+    why: "the music-metadata v11 migration still reads tags from a real MP3",
+  },
 ];
 
 const filters = process.argv.slice(2);

@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { contentSecurityPolicy } from "./src/lib/csp";
 
 /**
  * Identifies this build. Baked into the service worker's script URL so each
@@ -84,6 +85,10 @@ const DIST_DIR = process.env.HD_DIST_DIR || ".next";
 
 const nextConfig: NextConfig = {
   distDir: DIST_DIR,
+  // Nothing here uses next/image. Leaving the optimizer on only kept
+  // /_next/image reachable — the endpoint behind GHSA-2xp9-vwfh-vxw4.
+  images: { unoptimized: true },
+  poweredByHeader: false,
   env: {
     NEXT_PUBLIC_BUILD_ID: BUILD_ID,
     NEXT_PUBLIC_CATALOG_COUNT: resolveCatalogCount(),
@@ -102,17 +107,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Content-Security-Policy",
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob:",
-              "font-src 'self'",
-              "connect-src 'self' https://archive.org https://*.archive.org",
-              "media-src 'self' blob: https://archive.org https://*.archive.org",
-              "worker-src 'self' blob:",
-              "frame-ancestors 'self' https://sang3r.com https://www.sang3r.com",
-            ].join("; "),
+            value: contentSecurityPolicy(process.env.NODE_ENV !== "production").join("; "),
           },
         ],
       },

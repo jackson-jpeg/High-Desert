@@ -3,6 +3,26 @@ on: [push, pull_request]
 jobs:
   ci:
     runs-on: ubuntu-latest
+    # A real Postgres, so the stats store is tested against the database it
+    # runs on (query plans, statement_timeout, rollup windows) and so the
+    # browser check below exercises the /api/stats routes instead of a wall
+    # of 503s.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: highdesert_test
+          POSTGRES_PASSWORD: highdesert_test
+          POSTGRES_DB: highdesert_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U highdesert_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://highdesert_test:highdesert_test@127.0.0.1:5432/highdesert_test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -13,6 +33,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Apply schema
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f scripts/schema.sql
       - name: Lint
         run: npm run lint
       - name: Typecheck
@@ -27,3 +49,14 @@ jobs:
         run: npm run test:mutations
       - name: Build
         run: npm run build
+      # The CSP is enforced by the browser, so a policy that blocks something
+      # the app needs passes every step above and ships a page that does
+      # nothing. Load every route in Chromium and fail on any violation or
+      # console error.
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Browser check (CSP and console errors)
+        run: |
+          DATABASE_URL="$TEST_DATABASE_URL" npm start -- -p 3000 > next-start.log 2>&1 &
+          for _ in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:3000/ && break; sleep 1; done
+          npm run check:csp -- http://127.0.0.1:3000 || { echo "--- next start log ---"; cat next-start.log; exit 1; }

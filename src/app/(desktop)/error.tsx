@@ -28,6 +28,9 @@ export default function DesktopError({
               )}
             </div>
             <div className="flex justify-end gap-2">
+              {/* A full page load on purpose: this boundary renders when the client
+                  app has already failed, and the router may be part of what broke. */}
+              {/* eslint-disable-next-line @next/next/no-location-assign-relative-destination */}
               <Button onClick={() => window.location.href = "/library"}>
                 Go to Library
               </Button>

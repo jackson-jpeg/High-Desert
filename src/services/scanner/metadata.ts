@@ -2,12 +2,15 @@
  * metadata.ts
  *
  * Extracts audio metadata (ID3 tags, duration, bitrate, etc.)
- * from File objects using the music-metadata-browser library.
+ * from File objects using music-metadata (v11+). Its package `exports` map
+ * sends browsers to `lib/core.js`, which has `parseBlob` and no Node
+ * dependencies; the old `music-metadata-browser` wrapper is unmaintained and
+ * pinned a vulnerable music-metadata/file-type.
  */
 
 // Dynamically imported to avoid loading ~25KB in the main bundle
 // Only used when admin uses the scanner feature
-type MM = typeof import("music-metadata-browser");
+type MM = typeof import("music-metadata");
 
 export interface AudioMetadata {
   title?: string;
@@ -72,7 +75,7 @@ export async function extractMetadata(file: File): Promise<AudioMetadata> {
   const result: AudioMetadata = {};
 
   try {
-    const mm: MM = await import("music-metadata-browser");
+    const mm: MM = await import("music-metadata");
     const parsed = await mm.parseBlob(file, {
       duration: true,
       skipCovers: true,  // We don't need album art
