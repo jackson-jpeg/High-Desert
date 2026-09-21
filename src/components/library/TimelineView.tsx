@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect, useRef } from "react";
 import type { Episode } from "@/db/schema";
 import { EpisodeCard, EPISODE_GRID_COLS } from "./EpisodeCard";
 import { YearNavigator } from "./YearNavigator";
@@ -27,6 +27,12 @@ interface TimelineViewProps {
   currentEpisodeId?: number;
   selectedEpisodeId?: number;
   selectedIds?: Set<number>;
+  /**
+   * The keyboard's active row (`useLibrarySelection().activeIndex`), or -1.
+   * `aria-activedescendant` points at it, and the list scrolls to keep it
+   * rendered (HD-021).
+   */
+  activeRow?: number;
   onEpisodeClick: (episode: Episode, e: React.MouseEvent) => void;
   onEpisodeDoubleClick?: (episode: Episode) => void;
   onEpisodeContextMenu?: (episode: Episode, x: number, y: number) => void;
@@ -34,6 +40,11 @@ interface TimelineViewProps {
   onToggleFavorite?: (episode: Episode) => void;
   onQueue?: (episode: Episode) => void;
   className?: string;
+}
+
+/** The DOM id of an episode's row, for `aria-activedescendant`. */
+export function optionIdFor(ep: Episode): string {
+  return `episode-option-${ep.id}`;
 }
 
 /** How long the mobile scrubber stays up after the list stops moving. */
@@ -51,6 +62,7 @@ export function TimelineView({
   currentEpisodeId,
   selectedEpisodeId,
   selectedIds,
+  activeRow = -1,
   onEpisodeClick,
   onEpisodeDoubleClick,
   onEpisodeContextMenu,
@@ -107,6 +119,33 @@ export function TimelineView({
     onScroll();
     wakeScrubber();
   }, [onScroll, wakeScrubber]);
+
+  // Keep the active row in view — and so in the DOM. The list is virtualised:
+  // a row scrolled out of the window is not rendered at all, and an
+  // `aria-activedescendant` naming a missing id is announced as nothing.
+  // "Nearest": no movement while the row is already on screen, so a mouse
+  // click never scrolls the list under the pointer. The listbox sits below the
+  // sticky column header inside the scroller; `offsetTop` is that header.
+  const listboxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const listbox = listboxRef.current;
+    const scroller = listbox?.parentElement;
+    if (!listbox || !scroller || activeRow < 0) return;
+    const top = activeRow * ITEM_HEIGHT;
+    const bottom = listbox.offsetTop + top + ITEM_HEIGHT;
+    if (top < scroller.scrollTop) {
+      scroller.scrollTop = top;
+    } else if (bottom > scroller.scrollTop + scroller.clientHeight) {
+      scroller.scrollTop = bottom - scroller.clientHeight;
+    } else {
+      return;
+    }
+    onScroll();
+  }, [activeRow, ITEM_HEIGHT, onScroll]);
+
+  const activeEpisode = activeRow >= 0 ? episodes[activeRow] : undefined;
+  // Only name a row that is actually rendered; see above.
+  const activeRendered = !!activeEpisode && virtualItems.some((v) => v.index === activeRow);
 
   const dateDirection = !seriesFilter && (sortMode === "date" || sortMode === "date-asc") ? sortMode : null;
 
@@ -226,8 +265,21 @@ export function TimelineView({
             <span />
           </div>
 
-          <div className="relative px-2 pb-2" role="listbox" aria-label="Episodes" style={{ height: totalHeight }}>
-            {virtualItems.map(({ item: ep, offsetTop }) => (
+          {/* A focusable single-select listbox (HD-021). Focus stays on the
+              listbox; the active row is announced through
+              aria-activedescendant, so rows need no tab stops of their own.
+              Keys are useLibraryKeyboard's. */}
+          <div
+            ref={listboxRef}
+            className="relative px-2 pb-2 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-signal-blue/60"
+            role="listbox"
+            aria-label="Episodes"
+            tabIndex={0}
+            aria-activedescendant={activeRendered ? optionIdFor(activeEpisode) : undefined}
+            data-episode-listbox=""
+            style={{ height: totalHeight }}
+          >
+            {virtualItems.map(({ item: ep, offsetTop, index }) => (
               <div
                 key={ep.id}
                 className="absolute left-2 right-2"
@@ -244,6 +296,9 @@ export function TimelineView({
                   onToggleFavorite={onToggleFavorite}
                   onQueue={onQueue}
                   communityPlays={communityPlayCounts.get(communityKey(ep) ?? "")}
+                  optionId={optionIdFor(ep)}
+                  setSize={episodes.length}
+                  posInSet={index + 1}
                 />
               </div>
             ))}

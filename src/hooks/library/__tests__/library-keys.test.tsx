@@ -192,23 +192,30 @@ describe("library keyboard — keys a focused control owns", () => {
     expect((await db.episodes.toArray()).map((e) => e.id)).toEqual(ids);
   });
 
-  it("Shift+ArrowDown still moves the selection with a row's star button focused", async () => {
-    // Chromium focuses a button on click, so this is the state right after
-    // favouriting a row with the mouse. A button does nothing with an arrow.
+  it("Shift+ArrowDown still moves the selection after a row's star is clicked", async () => {
+    // The star used to be a <button tabIndex={-1}>, which Chromium focuses on
+    // click — the state right after favouriting a row with the mouse — and
+    // this asserted a focused star did not swallow the arrows. It is no longer
+    // focusable at all (HD-021: a control nested in role="option" is
+    // unreachable to a screen reader, and the detail panel has the real
+    // button), so clicking it cannot take focus from the list.
     await seed();
     const r = await mountAndSelect("Whitley Strieber");
-    const star = r.querySelector<HTMLButtonElement>("button[aria-pressed]")!;
+    const star = r.querySelector<HTMLElement>('[data-row-action="favorite"]')!;
     expect(star).not.toBeNull();
-    star.focus();
-    expect(document.activeElement).toBe(star);
+    expect(star.tagName).not.toBe("BUTTON");
+    expect(star.hasAttribute("tabindex")).toBe(false);
+    const list = container.querySelector<HTMLElement>('[role="listbox"]')!;
+    list.focus();
+    act(() => { star.click(); });
+    await waitFor(() => r.isConnected && star.getAttribute("data-favorited") === "true", "the favourite to land");
+    expect(document.activeElement).toBe(list);
     const ev = new KeyboardEvent("keydown", { key: "ArrowDown", code: "ArrowDown", shiftKey: true, bubbles: true, cancelable: true });
-    act(() => { star.dispatchEvent(ev); });
+    act(() => { list.dispatchEvent(ev); });
     expect(ev.defaultPrevented).toBe(true);
-    // The focus row starts at -1, so the first Shift+ArrowDown opens the
-    // first row on screen — not the one that was clicked.
-    const first = container.querySelector<HTMLElement>('[role="option"]')!;
-    expect(first.getAttribute("aria-label")).not.toMatch(/^Whitley Strieber/);
-    await waitFor(() => first.getAttribute("aria-selected") === "true", "the first row to be selected");
+    // The arrows carry on from the clicked row (HD-021): it used to be the
+    // keyboard's own row, still -1, so this opened the first row on screen.
+    await waitFor(() => row("Men in Black")?.getAttribute("aria-selected") === "true", "the next row to be selected");
     expect(row("Whitley Strieber")!.getAttribute("aria-selected")).toBe("false");
     expect(plays).toEqual([]);
   });

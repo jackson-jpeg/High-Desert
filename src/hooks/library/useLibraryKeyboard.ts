@@ -4,21 +4,38 @@ import { useEffect } from "react";
 import type { Episode } from "@/db/schema";
 import { useAdminStore } from "@/stores/admin-store";
 import { isKeyOwnedByTarget } from "@/lib/utils/key-ownership";
-import { currentItemHeight } from "@/hooks/useTextScale";
+
+/** The episode list: a focusable `role="listbox"` (TimelineView). */
+export const EPISODE_LISTBOX = "[data-episode-listbox]";
 
 /**
- * The library's window-level keyboard handling, moved out of `page.tsx`
- * unchanged (HD-018). Shift+Up/Down moves the focus row and opens it, Enter
- * plays the open episode, Delete/Backspace deletes (admin), Escape dismisses
- * one layer. HD-021 changes this behaviour; this file only gives it a home.
+ * The library's window-level keyboard handling (HD-018, HD-021).
+ *
+ * The episode list is a single-select listbox with selection following
+ * focus: moving the active row opens it in the detail panel.
+ *
+ * - **Up/Down** move the active row when the list has focus. Plain arrows
+ *   anywhere else keep their usual meaning (scrolling, a focused control's
+ *   own arrows), so they are only taken inside the list.
+ * - **Shift+Up/Down** move it from anywhere on the page that does not own
+ *   arrows — the older, page-wide binding, kept.
+ * - **Home/End** jump to the first/last row, in the list.
+ * - **Enter** plays the open episode; **Delete/Backspace** asks to delete it
+ *   (admin); **Escape** dismisses one layer.
+ *
+ * Moves start from `activeIndex` — the selected row where it is now — so the
+ * arrows continue from a row picked with the mouse. TimelineView keeps the
+ * active row rendered and points `aria-activedescendant` at it.
  *
  * HD-011: keys a focused control owns (`isKeyOwnedByTarget`) are left alone —
  * Enter on a button presses the button, not "play" — and Delete/Backspace
  * only ever *requests* a delete; the confirmation dialog does the deleting.
+ * The listbox deliberately owns nothing (key-ownership.ts): its keys are
+ * these.
  */
 export function useLibraryKeyboard({
   visibleEpisodes,
-  focusedIndex,
+  activeIndex,
   setFocusedIndex,
   selectedEpisode,
   setSelectedEpisode,
@@ -29,7 +46,8 @@ export function useLibraryKeyboard({
   onRequestDelete,
 }: {
   visibleEpisodes: Episode[];
-  focusedIndex: number;
+  /** The list's active row (`useLibrarySelection`), or -1. */
+  activeIndex: number;
   setFocusedIndex: React.Dispatch<React.SetStateAction<number>>;
   selectedEpisode: Episode | null;
   setSelectedEpisode: (ep: Episode | null) => void;
@@ -40,41 +58,28 @@ export function useLibraryKeyboard({
   /** Opens the delete confirmation for these ids. Must not delete. */
   onRequestDelete: (ids: number[]) => void;
 }) {
-  // Scroll to focused item on keyboard navigation
   useEffect(() => {
-    if (focusedIndex < 0) return;
-    const container = document.querySelector('[role="listbox"]')?.parentElement;
-    if (!container) return;
-    const itemH = currentItemHeight();
-    const targetTop = focusedIndex * itemH;
-    const viewTop = container.scrollTop;
-    const viewBottom = viewTop + container.clientHeight;
-    if (targetTop < viewTop || targetTop + itemH > viewBottom) {
-      container.scrollTop = targetTop - container.clientHeight / 2 + itemH / 2;
-    }
-  }, [focusedIndex]);
+    const moveTo = (next: number) => {
+      const ep = visibleEpisodes[next];
+      if (!ep) return;
+      setFocusedIndex(next);
+      setSelectedEpisode(ep);
+    };
 
-  // Keyboard navigation for the library list
-  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (isKeyOwnedByTarget(e)) return;
+      const inList = e.target instanceof Element && e.target.closest(EPISODE_LISTBOX) !== null;
+      const last = visibleEpisodes.length - 1;
 
-      if (e.code === "ArrowUp" && e.shiftKey) {
+      if (e.code === "ArrowUp" && (e.shiftKey || inList)) {
         e.preventDefault();
-        setFocusedIndex((prev) => {
-          const next = Math.max(0, prev - 1);
-          const ep = visibleEpisodes[next];
-          if (ep) setSelectedEpisode(ep);
-          return next;
-        });
-      } else if (e.code === "ArrowDown" && e.shiftKey) {
+        moveTo(Math.max(0, activeIndex - 1));
+      } else if (e.code === "ArrowDown" && (e.shiftKey || inList)) {
         e.preventDefault();
-        setFocusedIndex((prev) => {
-          const next = Math.min(visibleEpisodes.length - 1, prev + 1);
-          const ep = visibleEpisodes[next];
-          if (ep) setSelectedEpisode(ep);
-          return next;
-        });
+        moveTo(Math.min(last, activeIndex + 1));
+      } else if ((e.code === "Home" || e.code === "End") && inList) {
+        e.preventDefault();
+        moveTo(e.code === "Home" ? 0 : last);
       } else if (e.code === "Enter" && selectedEpisode) {
         e.preventDefault();
         onPlay(selectedEpisode);
@@ -93,6 +98,8 @@ export function useLibraryKeyboard({
         // built filter state. Filters are cleared from the chips or the
         // over-constrained empty state, both of which are explicit.
         if (selectedEpisode) {
+          // The row stays active; only the selection goes.
+          setFocusedIndex(activeIndex);
           setSelectedEpisode(null);
         } else if (selectedIds.size > 0) {
           setSelectedIds(new Set());
@@ -104,5 +111,5 @@ export function useLibraryKeyboard({
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [visibleEpisodes, focusedIndex, selectedEpisode, selectedIds, onPlay, onRequestBulkDelete, onRequestDelete, setFocusedIndex, setSelectedEpisode, setSelectedIds]);
+  }, [visibleEpisodes, activeIndex, selectedEpisode, selectedIds, onPlay, onRequestBulkDelete, onRequestDelete, setFocusedIndex, setSelectedEpisode, setSelectedIds]);
 }

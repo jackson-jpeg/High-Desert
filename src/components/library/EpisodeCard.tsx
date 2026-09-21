@@ -25,6 +25,13 @@ interface EpisodeCardProps {
   onToggleFavorite?: (episode: Episode) => void;
   onQueue?: (episode: Episode) => void;
   communityPlays?: number;
+  /** DOM id of the option, for the listbox's `aria-activedescendant` (HD-021). */
+  optionId?: string;
+  /** Rows in the whole list and this row's 1-based place in it. The list is
+   *  virtualised, so without these a screen reader counts only the ~30 rows
+   *  that happen to be in the DOM. */
+  setSize?: number;
+  posInSet?: number;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -54,6 +61,9 @@ export const EpisodeCard = memo(function EpisodeCard({
   onToggleFavorite,
   onQueue,
   communityPlays,
+  optionId,
+  setSize,
+  posInSet,
   className,
   style,
 }: EpisodeCardProps) {
@@ -182,15 +192,21 @@ export const EpisodeCard = memo(function EpisodeCard({
     </>
   );
 
-  /* Action controls are real <button>s. The row used to be a <button>
-     containing another <button> (series) plus two role="button" spans
-     (favourite, guest) — invalid HTML, and three tab stops on each of 1,313
-     rows. tabIndex -1 keeps them clickable while the listbox owns keyboard
-     navigation. */
+  /* Row shortcuts — favourite, guest, series — are pointer conveniences, and
+     deliberately not controls. A `role="option"`'s content is presentational:
+     a button inside one is unreachable to a screen reader, and axe reports it
+     as a nested interactive control (HD-021). They were real `<button
+     tabIndex={-1}>`s, which also took focus on click and left the list. Every
+     one of them is in the detail panel that selecting the row opens (a click,
+     or the arrows from the keyboard), where they are real buttons. Here they
+     are plain text with a click handler, never focusable; the star glyph is
+     hidden from the accessibility tree, the guest and series names are read
+     as part of the row. */
   const favButton = onToggleFavorite && (
-    <button
-      type="button"
-      tabIndex={-1}
+    <span
+      aria-hidden="true"
+      data-row-action="favorite"
+      data-favorited={episode.favoritedAt ? "true" : "false"}
       onClick={(e) => {
         e.stopPropagation();
         onToggleFavorite(episode);
@@ -203,11 +219,9 @@ export const EpisodeCard = memo(function EpisodeCard({
           : "text-bevel-dark/85 md:opacity-0 md:group-hover:opacity-100",
       )}
       title={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
-      aria-pressed={!!episode.favoritedAt}
-      aria-label={episode.favoritedAt ? "Remove from favorites" : "Add to favorites"}
     >
       {episode.favoritedAt ? "★" : "☆"}
-    </button>
+    </span>
   );
 
   return (
@@ -220,9 +234,14 @@ export const EpisodeCard = memo(function EpisodeCard({
       onTouchMove={(e) => { longPress.onTouchMove(e); onTouchMoveSwipe(e); }}
       onTouchEnd={(e) => { longPress.onTouchEnd(e); onTouchEndSwipe(); }}
       style={style}
+      id={optionId}
       role="option"
-      tabIndex={-1}
-      aria-selected={isSelected || isPlaying}
+      // Selected means the one row the detail panel is showing — not also the
+      // row that is playing, which set it on two rows at once (HD-021). The
+      // playing row says so in its label.
+      aria-selected={isSelected}
+      aria-setsize={setSize}
+      aria-posinset={posInSet}
       title={episode.aiSummary || undefined}
       aria-label={`${title}${episode.airDate ? `, ${episode.airDate}` : ""}${isPlaying ? " (now playing)" : ""}`}
       className={cn(
@@ -266,29 +285,28 @@ export const EpisodeCard = memo(function EpisodeCard({
         <div className="flex items-baseline gap-2 min-w-0">
           <span className="text-hd-12 text-desktop-gray font-bold truncate">{title}</span>
           {episode.aiSeries && (
-            <button
-              type="button"
-              tabIndex={-1}
+            <span
+              data-row-action="series"
               onClick={filterSeries}
+              title={`Show the ${episode.aiSeries} series`}
               className="text-hd-10 text-signal-blue flex-shrink-0 hidden xl:inline cursor-pointer hover:underline transition-colors-fast"
             >
               {episode.aiSeries}{episode.aiSeriesPart ? ` Pt.${episode.aiSeriesPart}` : ""}
-            </button>
+            </span>
           )}
         </div>
 
         {/* Guest */}
         <div className="min-w-0">
           {episode.guestName ? (
-            <button
-              type="button"
-              tabIndex={-1}
+            <span
+              data-row-action="guest"
               onClick={showGuest}
-              aria-label={`View guest profile: ${episode.guestName}`}
+              title={`View guest profile: ${episode.guestName}`}
               className="text-hd-11 text-static-green/85 truncate max-w-full block text-left hover:text-static-green hover:underline cursor-pointer transition-colors-fast"
             >
               {episode.guestName}
-            </button>
+            </span>
           ) : (
             <span className="text-hd-11 text-static-green/85 truncate block">
               {episode.topic || ""}
@@ -383,15 +401,13 @@ export const EpisodeCard = memo(function EpisodeCard({
 
         <div className="flex items-center justify-between gap-2 mt-0.5">
           {episode.guestName ? (
-            <button
-              type="button"
-              tabIndex={-1}
+            <span
+              data-row-action="guest"
               onClick={showGuest}
-              aria-label={`View guest profile: ${episode.guestName}`}
               className="text-hd-14 text-static-green/90 truncate min-w-0 text-left py-0.5 -my-0.5 cursor-pointer"
             >
               {episode.guestName}
-            </button>
+            </span>
           ) : (
             <span className="text-hd-13 text-static-green/85 truncate min-w-0">
               {episode.topic || " "}
@@ -455,6 +471,9 @@ export const EpisodeCard = memo(function EpisodeCard({
     prev.onToggleFavorite === next.onToggleFavorite &&
     prev.onQueue === next.onQueue &&
     prev.communityPlays === next.communityPlays &&
+    prev.optionId === next.optionId &&
+    prev.setSize === next.setSize &&
+    prev.posInSet === next.posInSet &&
     prev.className === next.className
   );
 });

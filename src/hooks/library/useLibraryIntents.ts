@@ -5,6 +5,7 @@ import type { Episode } from "@/db/schema";
 import type { SortMode } from "@/lib/library/filter-episodes";
 import type { LibraryIntent, ShuffleScope } from "@/lib/library/intents";
 import { currentItemHeight } from "@/hooks/useTextScale";
+import { EPISODE_LISTBOX } from "@/hooks/library/useLibraryKeyboard";
 
 /**
  * Applies library intents (HD-013) — what LibraryIntentReader hands over from
@@ -46,7 +47,7 @@ export function useLibraryIntents({
     if (idx === -1) return;
     setSelectedEpisode(visibleEpisodes[idx]);
     setFocusedIndex(idx);
-    const container = document.querySelector('[role="listbox"]')?.parentElement;
+    const container = document.querySelector(EPISODE_LISTBOX)?.parentElement;
     if (container) {
       const itemH = currentItemHeight();
       container.scrollTop = idx * itemH - container.clientHeight / 2 + itemH / 2;

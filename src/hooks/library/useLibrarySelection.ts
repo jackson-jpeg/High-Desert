@@ -89,6 +89,10 @@ export function useLibrarySelection({
       setSelectedEpisode(episode);
     }
     setLastClickedId(episode.id!);
+    // The clicked row becomes the list's active row, so the arrows carry on
+    // from where the pointer left off rather than from wherever the keyboard
+    // last was (HD-021).
+    setFocusedIndex(visibleEpisodes.findIndex((ep) => ep.id === episode.id));
   }, [visibleEpisodes, lastClickedId]);
 
   const handleCloseDetail = useCallback(() => {
@@ -123,8 +127,25 @@ export function useLibrarySelection({
     return allEpisodes?.find((e) => e.id === selectedEpisode.id) ?? selectedEpisode;
   }, [allEpisodes, selectedEpisode]);
 
+  /**
+   * The list's active row — what `aria-activedescendant` points at and where
+   * the arrows move from (HD-021). Selection follows focus in this list, so it
+   * is the selected episode's row wherever that is *now*: indices shift under
+   * a search or a sort, and an index remembered from before would point at a
+   * different episode. With nothing selected (after Escape, or a multi-select)
+   * it is the keyboard's last row, if that is still in range.
+   */
+  const activeIndex = useMemo(() => {
+    if (selectedEpisode) {
+      const i = visibleEpisodes.findIndex((ep) => ep.id === selectedEpisode.id);
+      if (i !== -1) return i;
+    }
+    return focusedIndex < visibleEpisodes.length ? focusedIndex : -1;
+  }, [selectedEpisode, visibleEpisodes, focusedIndex]);
+
   return {
     selectedEpisode, setSelectedEpisode,
+    activeIndex,
     selectedEpisodeLive,
     selectedIds, setSelectedIds,
     focusedIndex, setFocusedIndex,
