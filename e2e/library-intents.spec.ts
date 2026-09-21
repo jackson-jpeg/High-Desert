@@ -13,6 +13,29 @@
 import { test, expect, type Page } from "@playwright/test";
 import { openLibrary, episodeList, renderedRowCount, waitForListSettled } from "./library";
 
+/**
+ * These specs start playback (a shuffle plays its first show), and a play is
+ * written to the server's permanent log — `play_events` never forgets. The
+ * harness may point at production (playwright.config.ts), and a first run
+ * here left twelve plays in the test database that broke the rollup test. So
+ * every stats write, and the failure report a stalled stream would send, is
+ * answered in the page and never reaches the server.
+ */
+// A service worker's fetches bypass page.route() — with it registered, every
+// play above went straight to the server while the route sat idle. The
+// worker plays no part in what these specs check.
+test.use({ serviceWorkers: "block" });
+
+let intercepted: string[] = [];
+test.beforeEach(async ({ page }) => {
+  intercepted = [];
+  await page.route(/\/api\/(stats\/(play|stop|rate|heartbeat)|playback-event)(\?|$)/, (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    intercepted.push(new URL(route.request().url()).pathname);
+    return route.fulfill({ json: { ok: true } });
+  });
+});
+
 /** Wait until the desktop layout has hydrated (its wrapper carries `data-hydrated`). */
 async function hydrated(page: Page): Promise<void> {
   await expect(page.locator("[data-hydrated]").first()).toBeAttached({ timeout: 30_000 });
@@ -83,6 +106,8 @@ test("Shuffle Coast to Coast from /stats, via the command palette, lands on a sh
   await expect.poll(async () => (await queuedShowTypes(page)).length, { timeout: 15_000 }).toBeGreaterThanOrEqual(20);
   const types = await queuedShowTypes(page);
   expect(new Set(types)).toEqual(new Set(["coast"]));
+  // The shuffle's play was reported — and answered here, not by the server.
+  await expect.poll(() => intercepted.includes("/api/stats/play")).toBe(true);
 });
 
 test("an invalid intent is cleared and does nothing", async ({ page }) => {
