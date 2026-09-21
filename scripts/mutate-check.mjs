@@ -1163,6 +1163,22 @@ const MUTATIONS = [
     replace: "",
     why: "an empty In Progress view told a full library 'No episodes yet'",
   },
+  {
+    id: "cn-hd-font-sizes",
+    test: "src/lib/utils/__tests__/cn.test.ts",
+    file: "src/lib/utils/cn.ts",
+    find: "const merge = extendTailwindMerge(HD_MERGE_CONFIG);",
+    replace: "const merge = extendTailwindMerge({});",
+    why: "plain twMerge read text-hd-* as a colour and dropped the size from 46 cn() calls",
+  },
+  {
+    id: "boot-screen-pointer-events",
+    test: "src/app/__tests__/boot-script.test.ts",
+    file: "src/app/boot-script.ts",
+    find: "el.style.pointerEvents = 'none';",
+    replace: "",
+    why: "the fading boot screen swallowed the first tap for 400ms",
+  },
 ];
 
 const filters = process.argv.slice(2);
