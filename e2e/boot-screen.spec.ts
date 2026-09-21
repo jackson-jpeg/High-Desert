@@ -14,7 +14,7 @@
  * boot script's `display = 'none'` — is held until the test releases it, and
  * the overlay's display is still asserted at each observation.
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("a tap during the boot screen's fade reaches the page", async ({ page }) => {
   await page.addInitScript(() => {
