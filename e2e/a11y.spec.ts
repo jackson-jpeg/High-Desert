@@ -10,8 +10,9 @@
  * layout hydrated, the page's own content rendered, and every finite CSS
  * animation finished. axe measures contrast on what is painted at the instant
  * it runs, and a row caught halfway through `animate-fade-in` reads as a
- * contrast failure it is not. Infinite animations (the on-air pulse) are left
- * running; they never finish and are not text.
+ * contrast failure it is not — and then stayed quiet for a moment, since
+ * some content fades in late on its own timer. Infinite animations (the
+ * on-air pulse) are left running; they never finish and are not text.
  *
  * Anything excluded is excluded here, by selector, with its reason — and
  * listed in docs/a11y-exceptions.md. There is nothing in that list today.
@@ -26,11 +27,18 @@ const EXCLUDED: string[] = [];
 async function settled(page: Page): Promise<void> {
   await expect(page.locator("#app-loading")).toBeHidden({ timeout: 15_000 });
   await expect(page.locator("[data-hydrated]").first()).toBeAttached({ timeout: 30_000 });
+  // Quiet means no finite animation running *and* none starting over the
+  // next 1.5s: some content arrives late on its own timer — the radio's
+  // first-visit hint fades in ~800ms after the station index, and axe caught
+  // it mid-fade once, reporting its amber text at 3.9:1.
   await page.evaluate(async () => {
-    const finite = document
-      .getAnimations()
-      .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity);
-    await Promise.all(finite.map((a) => a.finished.catch(() => undefined)));
+    const running = () =>
+      document.getAnimations().filter((a) => a.playState === "running" && a.effect?.getComputedTiming().iterations !== Infinity);
+    for (let i = 0; i < 10; i++) {
+      await Promise.all(running().map((a) => a.finished.catch(() => undefined)));
+      await new Promise((r) => setTimeout(r, 1500));
+      if (running().length === 0) break;
+    }
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   });
 }
@@ -82,6 +90,10 @@ test("/radio has no serious or critical axe violations", async ({ page }) => {
   await openLibrary(page);
   await page.goto("/radio");
   await expect(page.getByRole("tablist", { name: "Jump to year" })).toBeVisible({ timeout: 45_000 });
+  // A first visit shows the tuning hint, ~800ms after the dial is ready. Wait
+  // for it, so it is scanned every run at full opacity — not sometimes, and
+  // not halfway through its fade-in.
+  await expect(page.getByText(/Drag the dial to tune/).first()).toBeVisible({ timeout: 15_000 });
   await settled(page);
   await scan(page, "/radio");
 });
