@@ -137,6 +137,39 @@ describeDb("stats store (Postgres)", () => {
     }
   });
 
+  it("a play from a client at its session cap is counted as a play but adds no presence (HD-007)", async () => {
+    // Here rather than in presence-cap.db.test.ts because recordPlay writes a
+    // play_events row for today, and the rollup test above counts today's rows
+    // exactly: in a parallel file the two would race.
+    const N = store.SESSIONS_PER_CLIENT;
+    const client = `203.0.113.${process.pid % 200}`;
+    const sids = Array.from({ length: N + 1 }, (_, i) => `${TAG}-cap-${i}`);
+    const ours = async () =>
+      (await q<{ n: number }>("SELECT count(*)::int AS n FROM active_sessions WHERE session_id = ANY($1)", [sids]))[0].n;
+    const events = async () =>
+      (await q<{ n: number }>("SELECT count(*)::int AS n FROM play_events WHERE episode_id = $1", [TAG]))[0].n;
+    try {
+      for (const s of sids.slice(0, N)) await store.recordHeartbeat(s, null, client);
+      expect(await ours()).toBe(N);
+      const before = await events();
+
+      await store.recordPlay(TAG, sids[N], client);
+
+      // Presence did not grow; the play itself still landed.
+      expect(await ours()).toBe(N);
+      expect(await events()).toBe(before + 1);
+      // And an admitted session's play is not refused: it renews.
+      await store.recordPlay(TAG, sids[0], client);
+      expect(await ours()).toBe(N);
+      expect(await events()).toBe(before + 2);
+    } finally {
+      await q("DELETE FROM active_sessions WHERE session_id = ANY($1)", [sids]);
+      for (const t of ["play_events", "recent_plays", "episode_plays", "weekly_plays"]) {
+        await q(`DELETE FROM ${t} WHERE episode_id = $1`, [TAG]);
+      }
+    }
+  });
+
   it("pruneOldWeeks deletes weeks past retention and keeps the current one", async () => {
     const current = store.weekKey();
     await q("INSERT INTO weekly_plays (week, episode_id, plays) VALUES ('2020-W01', $1, 1), ($2, $1, 1)", [TAG, current]);

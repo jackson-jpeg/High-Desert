@@ -86,29 +86,9 @@ describeDb("per-client presence cap (Postgres)", () => {
     expect(await online()).toBe(before + N);
   });
 
-  it("a play from a capped client is counted as a play but does not add presence", async () => {
-    const N = store.SESSIONS_PER_CLIENT;
-    const client = "203.0.113.100";
-    for (let i = 0; i < N; i++) await store.recordHeartbeat(sid("p"), null, client);
-    const before = await online();
-    const { rows: [{ n: eventsBefore }] } = await store
-      .getPool()
-      .query<{ n: number }>("SELECT count(*)::int AS n FROM play_events WHERE episode_id = $1", [TAG]);
-
-    const forged = sid("forged");
-    await store.recordPlay(TAG, forged, client);
-
-    expect(await online()).toBe(before);
-    const { rows: [{ n: eventsAfter }] } = await store
-      .getPool()
-      .query<{ n: number }>("SELECT count(*)::int AS n FROM play_events WHERE episode_id = $1", [TAG]);
-    expect(eventsAfter).toBe(eventsBefore + 1);
-
-    await store.getPool().query("DELETE FROM play_events WHERE episode_id = $1", [TAG]);
-    await store.getPool().query("DELETE FROM recent_plays WHERE episode_id = $1", [TAG]);
-    await store.getPool().query("DELETE FROM episode_plays WHERE episode_id = $1", [TAG]);
-    await store.getPool().query("DELETE FROM weekly_plays WHERE episode_id = $1", [TAG]);
-  });
+  // The recordPlay half of the cap lives in store.db.test.ts: a play writes
+  // today's play_events, and the daily-rollup test there counts exactly those,
+  // so the two must not run in parallel files.
 
   it("stores no address: client_ref is an opaque hash", async () => {
     const s = sid("ref");

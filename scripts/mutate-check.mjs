@@ -296,7 +296,7 @@ const MUTATIONS = [
   },
   {
     id: "presence-cap-play",
-    test: "src/services/stats/__tests__/presence-cap.db.test.ts",
+    test: "src/services/stats/__tests__/store.db.test.ts",
     file: "src/services/stats/store.ts",
     find: '    WHERE ${ADMIT_SESSION("$3", "$4", "$5")}',
     replace: "    WHERE true",
