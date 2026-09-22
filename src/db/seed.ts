@@ -1,6 +1,8 @@
 import { db, getPreference, setPreference } from "./index";
 import { toast } from "@/stores/toast-store";
 import type { Episode } from "./schema";
+import { archiveFileHash } from "./identity";
+import { withSeedLock } from "./seed-lock";
 
 /**
  * Bump to force every user to re-run reconcileLibrary() once.
@@ -12,9 +14,19 @@ const RECONCILED_PREF = "seed-reconciled";
 const TOMBSTONE_PREF = "deleted-hashes";
 const MAX_TOMBSTONES = 2000;
 
-/** Stable identity for a catalog row. Matches what both import paths build. */
+/**
+ * Stable identity for a catalog row. Every shipped row carries its own
+ * `fileHash`; the fallback builds the same canonical key as both import paths
+ * (`./identity.ts`) rather than the file-less `archive:{id}` it once did, which
+ * for this catalog — one collection id shared by every row — would have given
+ * all 1,312 episodes the same key.
+ */
 export function seedFileHash(row: Record<string, unknown>): string {
-  return (row.fileHash as string) ?? `archive:${row.archiveIdentifier ?? row.fileName}`;
+  if (row.fileHash) return row.fileHash as string;
+  return archiveFileHash(
+    (row.archiveIdentifier as string | undefined) ?? "",
+    (row.fileName as string | undefined) ?? "",
+  );
 }
 
 /** Map a raw seed row onto an Episode. Shared by the initial seed and reconcile. */
@@ -50,7 +62,7 @@ export function toEpisodeRow(ep: Record<string, unknown>, now: number): Omit<Epi
   };
 }
 
-async function fetchSeedRows(): Promise<Record<string, unknown>[] | null> {
+export async function fetchSeedRows(): Promise<Record<string, unknown>[] | null> {
   const res = await fetch("/seed/library.json");
   if (!res.ok) return null;
   const data = await res.json();
@@ -64,11 +76,13 @@ async function fetchSeedRows(): Promise<Record<string, unknown>[] | null> {
  * and populate the local IndexedDB. Subsequent visits skip this entirely.
  *
  * Module-level guard prevents React Strict Mode double-invocation race condition.
+ * It is per TAB, which is why it is not the only guard: see `./seed-lock.ts`
+ * for the cross-tab lock and the in-transaction recount below (HD-009).
  */
 let _seedPromise: Promise<boolean> | null = null;
 
 export function seedLibraryIfEmpty(): Promise<boolean> {
-  if (!_seedPromise) _seedPromise = _seedLibraryIfEmpty();
+  if (!_seedPromise) _seedPromise = withSeedLock(_seedLibraryIfEmpty);
   return _seedPromise;
 }
 
@@ -92,7 +106,14 @@ async function _seedLibraryIfEmpty(): Promise<boolean> {
 
     // All-or-nothing: a partial seed would be permanent, because the count>0 guard
     // above stops this from ever running again.
+    let inserted = false;
     await db.transaction("rw", db.episodes, db.playlists, db.userPrefs, async () => {
+      // Re-check under the write lock. The count above was read in a different
+      // transaction, and between it and this one another tab (or a browser
+      // without navigator.locks) may have seeded. IndexedDB serialises rw
+      // transactions over `episodes`, so the answer here cannot go stale
+      // before bulkAdd. Two first-visit tabs used to double the library.
+      if ((await db.episodes.count()) > 0) return;
       await db.episodes.bulkAdd(episodes as Episode[]);
 
       // Restore playlists from seed if present
@@ -121,7 +142,9 @@ async function _seedLibraryIfEmpty(): Promise<boolean> {
       const existing = await db.userPrefs.where("key").equals(RECONCILED_PREF).first();
       if (existing) await db.userPrefs.update(existing.id!, { value: SEED_VERSION });
       else await db.userPrefs.add({ key: RECONCILED_PREF, value: SEED_VERSION });
+      inserted = true;
     });
+    if (!inserted) return false;
 
     toast.success(`Loaded ${episodes.length.toLocaleString()} episodes from catalog`);
     return true;
@@ -164,14 +187,15 @@ export async function addTombstone(fileHash: string): Promise<void> {
   }
 }
 
-/** Clear tombstones (used when the user clears the whole library). */
-export async function clearTombstones(): Promise<void> {
-  try {
-    await setPreference(TOMBSTONE_PREF, "[]");
-    await setPreference(RECONCILED_PREF, "");
-  } catch {
-    // best-effort
-  }
+/**
+ * Reset tombstones and the reconcile marker (used when the user clears the
+ * whole library, so the catalog re-seeds cleanly). Not best-effort: it runs
+ * inside clearLibrary()'s transaction, and a failure must abort the clear
+ * rather than leave tombstones hiding rows from the next seed's reconcile.
+ */
+export async function resetSeedMarkers(): Promise<void> {
+  await setPreference(TOMBSTONE_PREF, "[]");
+  await setPreference(RECONCILED_PREF, "");
 }
 
 /**
@@ -187,8 +211,16 @@ export async function clearTombstones(): Promise<void> {
  *   - Deliberately deleted episodes are remembered as tombstones and stay deleted.
  *
  * Returns the number of episodes restored.
+ *
+ * Holds the cross-tab seed lock (`./seed-lock.ts`) and re-checks what is missing
+ * inside its write transaction, for the same reason the seed does: two tabs
+ * reconciling at once would otherwise both add the same missing rows.
  */
-export async function reconcileLibrary(): Promise<number> {
+export function reconcileLibrary(): Promise<number> {
+  return withSeedLock(_reconcileLibrary);
+}
+
+async function _reconcileLibrary(): Promise<number> {
   try {
     const count = await db.episodes.count();
     if (count === 0) return 0; // fresh install — seeding handles this
@@ -218,10 +250,14 @@ export async function reconcileLibrary(): Promise<number> {
     }
 
     const now = Date.now();
-    const rows = missing.map((r) => toEpisodeRow(r, now));
+    let rows = missing.map((r) => toEpisodeRow(r, now));
 
     await db.transaction("rw", db.episodes, db.userPrefs, async () => {
-      await db.episodes.bulkAdd(rows as Episode[]);
+      // Re-plan against what is there NOW, inside the write transaction — the
+      // scan above was a separate read, and only bulkAdd-of-absent is allowed.
+      const present = new Set((await db.episodes.orderBy("fileHash").uniqueKeys()) as string[]);
+      rows = rows.filter((r) => !present.has(r.fileHash));
+      if (rows.length > 0) await db.episodes.bulkAdd(rows as Episode[]);
       const existing = await db.userPrefs.where("key").equals(RECONCILED_PREF).first();
       if (existing) await db.userPrefs.update(existing.id!, { value: SEED_VERSION });
       else await db.userPrefs.add({ key: RECONCILED_PREF, value: SEED_VERSION });

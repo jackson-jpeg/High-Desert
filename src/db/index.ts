@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { Episode, ScanSession, UserPrefs, Playlist, HistoryEntry, Bookmark } from "./schema";
+import { migrateLegacyScraperKeys } from "./legacy-keys";
 
 export type { Episode, ScanSession, UserPrefs, Playlist, HistoryEntry, Bookmark };
 
@@ -87,6 +88,29 @@ class HighDesertDB extends Dexie {
       history: "++id, episodeId, timestamp",
       bookmarks: "++id, episodeId, position, createdAt",
     });
+
+    // v8: no schema change. Rewrites the file-less `archive:{identifier}` keys
+    // the old catalog scraper wrote to the canonical
+    // `archive:{identifier}:{fileName}`, merging any that collide with an
+    // existing row without dropping user data (HD-025, ./legacy-keys.ts).
+    // Dexie runs this once, and only for databases created before v8.
+    this.version(8).stores({
+      episodes:
+        "++id, fileHash, airDate, guestName, showType, fileName, scanSessionId, createdAt, archiveIdentifier, lastPlayedAt, aiStatus, favoritedAt, flaggedAt, aiCategory, aiSeries, *aiTags",
+      scanSessions: "++id, status, startedAt",
+      userPrefs: "++id, &key",
+      playlists: "++id, name, createdAt",
+      history: "++id, episodeId, timestamp",
+      bookmarks: "++id, episodeId, position, createdAt",
+    }).upgrade((tx) =>
+      migrateLegacyScraperKeys({
+        episodes: tx.table("episodes"),
+        history: tx.table("history"),
+        bookmarks: tx.table("bookmarks"),
+        playlists: tx.table("playlists"),
+        userPrefs: tx.table("userPrefs"),
+      }),
+    );
   }
 }
 

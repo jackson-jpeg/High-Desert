@@ -30,6 +30,7 @@ export async function* scrapeArchiveCatalog(
   signal: AbortSignal,
   onProgress: (update: Partial<ScrapeProgress>) => void,
   resumePage?: number,
+  pageDelayMs = 1000,
 ): AsyncGenerator<ArchiveSearchResult[], void, unknown> {
   let page = resumePage ?? 1;
   let fetched = 0;
@@ -76,8 +77,8 @@ export async function* scrapeArchiveCatalog(
     if (data.items.length === 0) break;
 
     // 1s delay between pages
-    if (page <= totalPages) {
-      await new Promise((r) => setTimeout(r, 1000));
+    if (page <= totalPages && pageDelayMs > 0) {
+      await new Promise((r) => setTimeout(r, pageDelayMs));
     }
   }
 }
