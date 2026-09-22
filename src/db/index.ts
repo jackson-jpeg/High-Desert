@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from "dexie";
+import { installPersistRequest } from "./persist";
 import type { Episode, ScanSession, UserPrefs, Playlist, HistoryEntry, Bookmark } from "./schema";
 
 export type { Episode, ScanSession, UserPrefs, Playlist, HistoryEntry, Bookmark };
@@ -91,6 +92,9 @@ class HighDesertDB extends Dexie {
 }
 
 export const db = new HighDesertDB();
+
+// Ask for persistent storage after the listener's first real write (HD-010).
+installPersistRequest(db);
 
 export async function getPreference(
   key: string
