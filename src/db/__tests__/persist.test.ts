@@ -17,6 +17,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
  * re-imported, so the new instance knows only what is in IndexedDB.
  */
 
+// Seeding the real 1,312-row catalog into fake-indexeddb, several times per
+// file, does not fit vitest's 5s default on a loaded machine — and a test that
+// times out mid-transaction leaves writes landing in the next test's profile,
+// so the first failure spreads. The budget is the machine's, not the code's.
+vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
+
 vi.mock("@/stores/toast-store", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), caller: vi.fn() },
   useToastStore: { getState: () => ({ toasts: [] }) },

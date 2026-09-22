@@ -17,6 +17,12 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
  * Every assertion is on what SURVIVED, and on which episode it is attached to.
  */
 
+// Seeding the real 1,312-row catalog into fake-indexeddb, several times per
+// file, does not fit vitest's 5s default on a loaded machine — and a test that
+// times out mid-transaction leaves writes landing in the next test's profile,
+// so the first failure spreads. The budget is the machine's, not the code's.
+vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
+
 vi.mock("@/stores/toast-store", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), caller: vi.fn() },
   useToastStore: { getState: () => ({ toasts: [] }) },
@@ -39,13 +45,25 @@ const SEED = JSON.parse(
 ) as Record<string, unknown>[];
 const H = SEED.map((r) => r.fileHash as string);
 
-async function freshProfile(order: "catalog" | "reversed" = "catalog"): Promise<void> {
+/**
+ * A profile that has never been used, seeded from the real catalog.
+ *
+ * `rows` is the whole 1,312-row file where the point is the whole catalog, and
+ * a slice of the same file elsewhere — seeding 1,312 rows per test costs more
+ * than it proves when the test is about a malformed envelope. The rows are
+ * always real ones, and `reversed` gives every episode a different id than it
+ * had in the profile it was exported from.
+ */
+async function freshProfile(order: "catalog" | "reversed" = "catalog", rows = SEED): Promise<void> {
   db.close();
   await db.delete();
   await db.open();
-  const rows = order === "catalog" ? SEED : [...SEED].reverse();
-  await db.episodes.bulkAdd(rows.map((r) => toEpisodeRow(r, 1)) as never);
+  const ordered = order === "catalog" ? rows : [...rows].reverse();
+  await db.episodes.bulkAdd(ordered.map((r) => toEpisodeRow(r, 1)) as never);
 }
+
+/** Enough of the catalog for everything `listen()` touches. */
+const SMALL = SEED.slice(0, 70);
 
 async function idOf(hash: string): Promise<number> {
   return (await db.episodes.where("fileHash").equals(hash).first())!.id!;
@@ -109,11 +127,11 @@ function parsed(text: string) {
   return r.data;
 }
 
-beforeEach(async () => {
-  await freshProfile();
-});
-
 describe("export → fresh profile → import", () => {
+  beforeEach(async () => {
+    await freshProfile();
+  });
+
   it("every favourite, rating, flag, position, history entry, bookmark and playlist survives, on the right episode", async () => {
     await listen();
     expect(await snapshot()).toEqual(EXPECTED); // the setup did what it says
@@ -160,11 +178,15 @@ describe("export → fresh profile → import", () => {
 });
 
 describe("import into a profile that already has data keeps both", () => {
+  beforeEach(async () => {
+    await freshProfile("catalog", SMALL);
+  });
+
   it("merges: existing favourites, ratings, history and playlists stay; imported ones are added; conflicts keep the local value", async () => {
     await listen();
     const text = await exportText();
 
-    await freshProfile("reversed");
+    await freshProfile("reversed", SMALL);
     // This profile's own evening.
     await m.toggleFavorite(await idOf(H[50]));
     await m.rateEpisode(await idOf(H[0]), 2); // conflicts with the file's 5
@@ -197,7 +219,7 @@ describe("import into a profile that already has data keeps both", () => {
     const file = parsed(await exportText());
     file.episodes.push({ fileHash: "archive:elsewhere:not-here.mp3", favoritedAt: 5 });
     file.history.push({ fileHash: "archive:elsewhere:not-here.mp3", timestamp: 1, duration: 1 });
-    await freshProfile();
+    await freshProfile("catalog", SMALL);
     const summary = await importUserData(file);
     expect(summary.unmatched).toBe(1);
     expect((await snapshot()).favourites).toEqual(EXPECTED.favourites);
@@ -206,7 +228,7 @@ describe("import into a profile that already has data keeps both", () => {
   it("runs in one transaction: a failure part-way leaves the profile exactly as it was", async () => {
     await listen();
     const text = await exportText();
-    await freshProfile("reversed");
+    await freshProfile("reversed", SMALL);
     await m.toggleFavorite(await idOf(H[50]));
     const before = await snapshot();
 
@@ -222,6 +244,10 @@ describe("import into a profile that already has data keeps both", () => {
 });
 
 describe("a file it should not trust changes nothing", () => {
+  beforeEach(async () => {
+    await freshProfile("catalog", SMALL);
+  });
+
   const good = () => ({
     format: USER_DATA_FORMAT, version: USER_DATA_VERSION, exportedAt: "", prefs: {},
     episodes: [{ fileHash: H[0], favoritedAt: 5 }], history: [], bookmarks: [], playlists: [],
