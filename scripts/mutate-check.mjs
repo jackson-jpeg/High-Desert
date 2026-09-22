@@ -38,6 +38,7 @@ import { spawn } from "node:child_process";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const execFileP = promisify(execFile);
 const ROOT = path.resolve(import.meta.dirname, "..");
@@ -47,7 +48,7 @@ const ROOT = path.resolve(import.meta.dirname, "..");
  * become a no-op or hit the wrong call site as the code moves. That check is
  * enforced below and is the reason these are written as full lines.
  */
-const MUTATIONS = [
+export const MUTATIONS = [
   {
     id: "duration-sanity",
     test: "src/audio/__tests__/duration-sanity.test.ts",
@@ -287,6 +288,86 @@ const MUTATIONS = [
     find: 'if (type !== "error" && typeof window !== "undefined") {',
     replace: 'if (typeof window !== "undefined") {',
     why: "an error must not be mirrored into the one-line status ticker, where the next message scrolls it away",
+  },
+  // player-store's queue arithmetic (HD-015). Its only other mutation
+  // (next-escapes-repeat-one) is observed from src/hooks; these are the
+  // bookkeeping lines a listener feels as "the highlight is on the wrong show".
+  {
+    id: "queue-move-off-by-one",
+    test: "src/stores/__tests__/player-store.test.ts",
+    file: "src/stores/player-store.ts",
+    find: "} else if (fromIndex < queueIndex && toIndex >= queueIndex) {",
+    replace: "} else if (fromIndex < queueIndex && toIndex > queueIndex) {",
+    why: "HD-015: dragging a row from above the current show down onto its slot must shift queueIndex, or the highlight and Next land one row off",
+  },
+  {
+    id: "queue-remove-current",
+    test: "src/stores/__tests__/player-store.test.ts",
+    file: "src/stores/player-store.ts",
+    find: "    if (index < queueIndex) {\n      newIndex = queueIndex - 1;",
+    replace: "    if (index <= queueIndex) {\n      newIndex = queueIndex - 1;",
+    why: "HD-015: removing the playing show points at the one that followed it, not the one before",
+  },
+  // The coverage test's own subject is this file: drop a store's only
+  // mutation and it must notice. Spelled with \u002D so this entry's own text
+  // is not a second occurrence of the anchor.
+  {
+    id: "store-coverage-sees-mutations",
+    test: "src/stores/__tests__/coverage.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: 'file: "src/stores/toast\u002Dstore.ts",',
+    replace: 'file: "src/stores/toast\u002Dstore.ts.unmutated",',
+    why: "HD-042: every store must have a mutation; CLAUDE.md claimed it for player-store when it was false, and nothing checked",
+  },
+  // Route headings (page-has-heading-one).
+  {
+    id: "route-heading-h1",
+    test: "src/app/__tests__/route-headings.test.tsx",
+    file: "src/components/desktop/RouteHeading.tsx",
+    find: '  return <h1 className="sr-only">{children}</h1>;',
+    replace: '  return <div className="sr-only">{children}</div>;',
+    why: "/library, /radio and /stats have no visible title; this is their only h1",
+  },
+  {
+    id: "route-heading-stats-populated",
+    test: "src/app/__tests__/route-headings.test.tsx",
+    file: "src/app/(desktop)/stats/layout.tsx",
+    find: "      <RouteHeading>Station Dashboard</RouteHeading>\n",
+    replace: "",
+    why: "/stats had an h1 only while loading or empty; the populated page had none",
+  },
+  // Filename parsing and the small utils (HD-015 mutation gaps).
+  {
+    id: "scanner-catalog-names",
+    test: "src/services/scanner/__tests__/filename-parser.test.ts",
+    file: "src/services/scanner/filename-parser.ts",
+    find: "  parseCatalogConvention,\n",
+    replace: "",
+    why: "HD-015: every real catalog filename came out with guest \"With  - …\" when scanned from disk",
+  },
+  {
+    id: "community-key-extension",
+    test: "src/lib/utils/__tests__/community-key.test.ts",
+    file: "src/lib/utils/community-key.ts",
+    find: '    .replace(/\\.[^.]+$/, "") // strip extension',
+    replace: '    .replace(/\\..*$/, "") // strip extension',
+    why: "HD-015: a key that drifts from the generated allowlist files every play under an id the server rejects",
+  },
+  {
+    id: "platform-ipad-desktop-mode",
+    test: "src/lib/utils/__tests__/platform.test.ts",
+    file: "src/lib/utils/platform.ts",
+    find: "    (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));",
+    replace: "    false;",
+    why: "HD-015: an iPad asks for the desktop site; without the touch-point check its failures are filed as desktop Safari",
+  },
+  {
+    id: "session-id-per-load",
+    test: "src/lib/utils/__tests__/session-id.test.ts",
+    file: "src/lib/utils/session-id.ts",
+    find: "    ? crypto.randomUUID()",
+    replace: '    ? "00000000-0000-4000-8000-000000000000"',
+    why: "HD-015: presence counts distinct ids — a repeated id makes every tab one listener, and a stable one is a returning-visitor identifier",
   },
   {
     id: "allowlist-gate",
@@ -1342,137 +1423,146 @@ const MUTATIONS = [
   },
 ];
 
-const filters = process.argv.slice(2);
-const selected = filters.length
-  ? MUTATIONS.filter((m) => filters.some((f) => m.id.includes(f) || m.test.includes(f)))
-  : MUTATIONS;
-
-if (selected.length === 0) {
-  console.error(`No mutation matches ${filters.join(", ")}`);
-  process.exit(2);
-}
-
 /**
- * Refuse to run against uncommitted changes in any file we are about to break.
- * The in-memory restore below is the primary safety net; this is the one that
- * survives the process being killed mid-run, because `git checkout --` can then
- * put things back.
+ * Run only when invoked as a script. The list is also imported —
+ * src/stores/__tests__/coverage.test.ts reads it to hold every store to at
+ * least one mutation — and importing it must not start mutating files.
  */
-async function assertClean(files) {
-  const { stdout } = await execFileP("git", ["status", "--porcelain", "--", ...files], {
-    cwd: ROOT,
-  });
-  if (stdout.trim() !== "") {
-    console.error("Refusing to run: uncommitted changes in files this would mutate.\n");
-    console.error(stdout);
-    console.error("Commit or stash first — a crash mid-run would lose them.");
+const IS_MAIN = !!process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+
+if (IS_MAIN) {
+  const filters = process.argv.slice(2);
+  const selected = filters.length
+    ? MUTATIONS.filter((m) => filters.some((f) => m.id.includes(f) || m.test.includes(f)))
+    : MUTATIONS;
+
+  if (selected.length === 0) {
+    console.error(`No mutation matches ${filters.join(", ")}`);
     process.exit(2);
   }
-}
 
-function runVitest(testFile) {
-  return new Promise((resolve) => {
-    const child = spawn(
-      "npx",
-      ["vitest", "run", testFile, "--reporter=dot", "--silent"],
-      { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] },
-    );
-    let out = "";
-    child.stdout.on("data", (d) => (out += d));
-    child.stderr.on("data", (d) => (out += d));
-    child.on("close", (code) => resolve({ code, out }));
-  });
-}
-
-const targets = [...new Set(selected.map((m) => m.file))];
-await assertClean(targets);
-
-/** Every file we have touched, so a signal can put them all back. */
-const originals = new Map();
-
-async function restoreAll() {
-  for (const [file, text] of originals) {
-    await writeFile(path.join(ROOT, file), text, "utf8");
-  }
-  originals.clear();
-}
-
-for (const sig of ["SIGINT", "SIGTERM"]) {
-  process.on(sig, async () => {
-    await restoreAll();
-    console.error(`\n[mutate-check] interrupted — restored ${targets.length} file(s)`);
-    process.exit(130);
-  });
-}
-
-const results = [];
-
-console.log(`\n[mutate-check] ${selected.length} mutation(s)\n`);
-
-for (const m of selected) {
-  // Some tests need a real database. Without one they skip — and a skipped
-  // test observes nothing, so the mutation would "survive" for the wrong
-  // reason. Say so plainly instead; in CI, where the database is provided,
-  // a missing one is a failure rather than a skip.
-  if (m.needs && !process.env[m.needs]) {
-    const verdict = process.env.CI ? "NO-ENV" : "skipped";
-    results.push({ ...m, verdict, detail: `${m.needs} is not set` });
-    console.log(`  ${verdict === "skipped" ? "skip  " : "NO-ENV"} ${m.id.padEnd(24)} needs ${m.needs}`);
-    continue;
-  }
-  const abs = path.join(ROOT, m.file);
-  const original = await readFile(abs, "utf8");
-  const hits = original.split(m.find).length - 1;
-
-  if (hits !== 1) {
-    results.push({ ...m, verdict: "STALE", detail: `found ${hits}x, expected exactly 1` });
-    console.log(`  STALE  ${m.id.padEnd(24)} anchor found ${hits}x in ${m.file}`);
-    continue;
+  /**
+   * Refuse to run against uncommitted changes in any file we are about to break.
+   * The in-memory restore below is the primary safety net; this is the one that
+   * survives the process being killed mid-run, because `git checkout --` can then
+   * put things back.
+   */
+  async function assertClean(files) {
+    const { stdout } = await execFileP("git", ["status", "--porcelain", "--", ...files], {
+      cwd: ROOT,
+    });
+    if (stdout.trim() !== "") {
+      console.error("Refusing to run: uncommitted changes in files this would mutate.\n");
+      console.error(stdout);
+      console.error("Commit or stash first — a crash mid-run would lose them.");
+      process.exit(2);
+    }
   }
 
-  originals.set(m.file, original);
-  try {
-    await writeFile(abs, original.replace(m.find, m.replace), "utf8");
-    const { code } = await runVitest(m.test);
-    const verdict = code === 0 ? "GREEN" : "red";
-    results.push({ ...m, verdict });
+  function runVitest(testFile) {
+    return new Promise((resolve) => {
+      const child = spawn(
+        "npx",
+        ["vitest", "run", testFile, "--reporter=dot", "--silent"],
+        { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] },
+      );
+      let out = "";
+      child.stdout.on("data", (d) => (out += d));
+      child.stderr.on("data", (d) => (out += d));
+      child.on("close", (code) => resolve({ code, out }));
+    });
+  }
+
+  const targets = [...new Set(selected.map((m) => m.file))];
+  await assertClean(targets);
+
+  /** Every file we have touched, so a signal can put them all back. */
+  const originals = new Map();
+
+  async function restoreAll() {
+    for (const [file, text] of originals) {
+      await writeFile(path.join(ROOT, file), text, "utf8");
+    }
+    originals.clear();
+  }
+
+  for (const sig of ["SIGINT", "SIGTERM"]) {
+    process.on(sig, async () => {
+      await restoreAll();
+      console.error(`\n[mutate-check] interrupted — restored ${targets.length} file(s)`);
+      process.exit(130);
+    });
+  }
+
+  const results = [];
+
+  console.log(`\n[mutate-check] ${selected.length} mutation(s)\n`);
+
+  for (const m of selected) {
+    // Some tests need a real database. Without one they skip — and a skipped
+    // test observes nothing, so the mutation would "survive" for the wrong
+    // reason. Say so plainly instead; in CI, where the database is provided,
+    // a missing one is a failure rather than a skip.
+    if (m.needs && !process.env[m.needs]) {
+      const verdict = process.env.CI ? "NO-ENV" : "skipped";
+      results.push({ ...m, verdict, detail: `${m.needs} is not set` });
+      console.log(`  ${verdict === "skipped" ? "skip  " : "NO-ENV"} ${m.id.padEnd(24)} needs ${m.needs}`);
+      continue;
+    }
+    const abs = path.join(ROOT, m.file);
+    const original = await readFile(abs, "utf8");
+    const hits = original.split(m.find).length - 1;
+
+    if (hits !== 1) {
+      results.push({ ...m, verdict: "STALE", detail: `found ${hits}x, expected exactly 1` });
+      console.log(`  STALE  ${m.id.padEnd(24)} anchor found ${hits}x in ${m.file}`);
+      continue;
+    }
+
+    originals.set(m.file, original);
+    try {
+      await writeFile(abs, original.replace(m.find, m.replace), "utf8");
+      const { code } = await runVitest(m.test);
+      const verdict = code === 0 ? "GREEN" : "red";
+      results.push({ ...m, verdict });
+      console.log(
+        `  ${verdict === "red" ? "red   " : "GREEN "} ${m.id.padEnd(24)} ${m.test}`,
+      );
+    } finally {
+      await writeFile(abs, original, "utf8");
+      originals.delete(m.file);
+    }
+  }
+
+  const skipped = results.filter((r) => r.verdict === "skipped");
+  const survivors = results.filter((r) => r.verdict !== "red" && r.verdict !== "skipped");
+  if (skipped.length) {
     console.log(
-      `  ${verdict === "red" ? "red   " : "GREEN "} ${m.id.padEnd(24)} ${m.test}`,
+      `\n[mutate-check] ${skipped.length} mutation(s) NOT CHECKED — their tests need a database.` +
+        `\n  On the VPS: set -a; . /root/.high-desert-test.env; set +a  (CI always runs them)`,
     );
-  } finally {
-    await writeFile(abs, original, "utf8");
-    originals.delete(m.file);
   }
-}
 
-const skipped = results.filter((r) => r.verdict === "skipped");
-const survivors = results.filter((r) => r.verdict !== "red" && r.verdict !== "skipped");
-if (skipped.length) {
-  console.log(
-    `\n[mutate-check] ${skipped.length} mutation(s) NOT CHECKED — their tests need a database.` +
-      `\n  On the VPS: set -a; . /root/.high-desert-test.env; set +a  (CI always runs them)`,
-  );
-}
+  console.log("");
+  if (survivors.length === 0) {
+    console.log(
+      `[mutate-check] all ${results.length - skipped.length} checked mutations went red. Every test observes its subject.\n`,
+    );
+    process.exit(0);
+  }
 
-console.log("");
-if (survivors.length === 0) {
-  console.log(
-    `[mutate-check] all ${results.length - skipped.length} checked mutations went red. Every test observes its subject.\n`,
-  );
-  process.exit(0);
+  console.log("═".repeat(72));
+  console.log(`  ${survivors.length} MUTATION(S) SURVIVED — these tests cannot see their subject`);
+  console.log("═".repeat(72));
+  for (const s of survivors) {
+    console.log(`\n  ${s.id}  [${s.verdict}]`);
+    console.log(`    test      ${s.test}`);
+    console.log(`    mutated   ${s.file}`);
+    console.log(`      -       ${s.find}`);
+    console.log(`      +       ${s.replace}`);
+    console.log(`    guards    ${s.why}`);
+    if (s.detail) console.log(`    note      ${s.detail}`);
+  }
+  console.log("");
+  process.exit(1);
 }
-
-console.log("═".repeat(72));
-console.log(`  ${survivors.length} MUTATION(S) SURVIVED — these tests cannot see their subject`);
-console.log("═".repeat(72));
-for (const s of survivors) {
-  console.log(`\n  ${s.id}  [${s.verdict}]`);
-  console.log(`    test      ${s.test}`);
-  console.log(`    mutated   ${s.file}`);
-  console.log(`      -       ${s.find}`);
-  console.log(`      +       ${s.replace}`);
-  console.log(`    guards    ${s.why}`);
-  if (s.detail) console.log(`    note      ${s.detail}`);
-}
-console.log("");
-process.exit(1);

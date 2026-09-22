@@ -159,8 +159,11 @@ src/
 | `useAdminStore` | `isAdmin` — SHA-256 password gate, persisted in localStorage |
 | `useContextMenuStore` | `open`, `position`, `items[]` |
 
-All nine have tests in `src/stores/__tests__/` and a mutation each in
-`scripts/mutate-check.mjs`.
+All nine have tests in `src/stores/__tests__/` and at least one mutation each in
+`scripts/mutate-check.mjs` — and `src/stores/__tests__/coverage.test.ts`
+*checks* that sentence, reading the stores from disk and the mutation list from
+the script itself. It used to be false for `player-store` (HD-042) and nothing
+noticed. A new store fails CI until it has both.
 
 **`setVolume()` writes `preMuteVolume` on every call with a non-zero value.** Anything that
 changes the volume temporarily must remember the original itself and put it back — reading
