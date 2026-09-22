@@ -37,6 +37,10 @@ const ClearCacheDialog = dynamic(
   () => import("./ClearCacheDialog").then((m) => m.ClearCacheDialog),
   { ssr: false },
 );
+const ImportDataDialog = dynamic(
+  () => import("./ImportDataDialog").then((m) => m.ImportDataDialog),
+  { ssr: false },
+);
 const CommandPalette = dynamic(
   () => import("@/components/CommandPalette").then((m) => m.CommandPalette),
   { ssr: false },
@@ -58,6 +62,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { usePresence } from "@/hooks/usePresence";
 import { useShellMenus } from "@/hooks/useShellMenus";
 import { useTextScalePreference } from "@/hooks/useTextScalePreference";
+import { useUserDataTransfer } from "@/hooks/useUserDataTransfer";
 import { useHdEvent } from "@/lib/events";
 
 interface DesktopShellProps {
@@ -199,6 +204,9 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   // Listen for ? key to toggle shortcuts
   useHdEvent("toggle-shortcuts", () => setShortcutsOpen((prev) => !prev));
 
+  // File > Export / Import My Data, and the mobile sheet's copies (HD-010).
+  const userData = useUserDataTransfer();
+
   const menus = useShellMenus({
     onAbout: handleAbout,
     onShortcuts: handleShortcuts,
@@ -209,6 +217,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     textScale,
     onSetTextScale: setTextScale,
     onInstall: installPrompt ? handleInstall : undefined,
+    onExportData: userData.exportData,
+    onImportData: userData.importData,
   });
 
   return (
@@ -371,6 +381,15 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       )}
       {clearOpen && <ClearLibraryDialog open onClose={() => setClearOpen(false)} />}
       {clearCacheOpen && <ClearCacheDialog open onClose={() => setClearCacheOpen(false)} />}
+      {userData.pending && (
+        <ImportDataDialog
+          fileName={userData.pending.fileName}
+          summary={userData.pending.summary}
+          importing={userData.importing}
+          onConfirm={userData.confirmImport}
+          onClose={userData.cancelImport}
+        />
+      )}
 
       {/* Command palette (Ctrl+K / Cmd+K) */}
       {paletteOpen && <CommandPalette open onClose={() => setPaletteOpen(false)} />}
@@ -395,6 +414,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         presence={presence}
         textScale={textScale}
         onCycleTextScale={cycleTextScale}
+        onExportData={userData.exportData}
+        onImportData={userData.importData}
       />
     </div>
   );

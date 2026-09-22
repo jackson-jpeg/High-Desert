@@ -18,11 +18,14 @@ interface MobileMenuSheetProps {
   onCycleTextScale?: () => void;
   /** Live presence. The desktop status bar carries this; mobile has none. */
   presence?: { online: number; listening: number };
+  /** The desktop File menu's Export / Import My Data (HD-010). */
+  onExportData?: () => void;
+  onImportData?: () => void;
 }
 
 const TEXT_SCALE_LABELS: Record<string, string> = { "1": "Normal", "1.15": "Large", "1.3": "Extra Large" };
 
-export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundOn, onToggleStartupSound, textScale, onCycleTextScale, presence }: MobileMenuSheetProps) {
+export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundOn, onToggleStartupSound, textScale, onCycleTextScale, presence, onExportData, onImportData }: MobileMenuSheetProps) {
   const router = useRouter();
   // Shuffle and sort are URL intents: this sheet opens on every route (HD-013).
   const openLibrary = useOpenLibraryIntent();
@@ -211,6 +214,43 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
                 <span className="w-[24px] text-center text-hd-14 text-desert-amber/85">{"\u{1F50D}"}</span>
                 <span>Archive Search</span>
               </button>
+            </>
+          )}
+
+          {/* Your data. Everything a listener owns is in this browser only —
+              a phone is where storage is most likely to be evicted, so the
+              copy they can keep belongs here as much as on desktop. */}
+          {(onExportData || onImportData) && (
+            <>
+              <div className="h-[1px] bg-white/[0.06] mx-3 my-2" />
+              <div className="px-3 pb-1">
+                <span className="text-hd-11 text-bevel-dark/85 uppercase tracking-wider font-sans">Your Data</span>
+              </div>
+              {onExportData && (
+                <button
+                  onClick={() => {
+                    onExportData();
+                    hide();
+                  }}
+                  className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
+                >
+                  <span className="w-[24px] text-center text-hd-14 text-bevel-dark/85">{"\u2193"}</span>
+                  <span>Export My Data</span>
+                </button>
+              )}
+              {onImportData && (
+                <button
+                  onClick={() => {
+                    // The file picker opens inside this tap; see useUserDataTransfer.
+                    onImportData();
+                    hide();
+                  }}
+                  className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
+                >
+                  <span className="w-[24px] text-center text-hd-14 text-bevel-dark/85">{"\u2191"}</span>
+                  <span>Import My Data</span>
+                </button>
+              )}
             </>
           )}
 

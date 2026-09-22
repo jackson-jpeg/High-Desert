@@ -37,6 +37,8 @@ const actions = {
   onToggleStartupSound: vi.fn(),
   textScale: "1.15" as const,
   onSetTextScale: vi.fn(),
+  onExportData: vi.fn(),
+  onImportData: vi.fn(),
 };
 
 let menus: Menu[];
@@ -125,6 +127,20 @@ describe("useShellMenus", () => {
     expect(actions.onClearLibrary).toHaveBeenCalledTimes(1);
     expect(actions.onClearCache).toHaveBeenCalledTimes(1);
     expect(push).toHaveBeenCalledWith("/search");
+  });
+
+  it("File offers every visitor Export / Import My Data, wired to the shell (HD-010)", () => {
+    mount(false);
+    item("File", "Export My Data...")!.onClick!();
+    item("File", "Import My Data...")!.onClick!();
+    expect(actions.onExportData).toHaveBeenCalledTimes(1);
+    expect(actions.onImportData).toHaveBeenCalledTimes(1);
+  });
+
+  it("admins get the catalog seed export, and no longer the personal-data 'Export Library...' (HD-025)", () => {
+    mount(true);
+    expect(item("Library", "Export Library Seed...")).toBeDefined();
+    expect(item("Library", "Export Library...")).toBeUndefined();
   });
 
   it("checks the text size in effect and sets the one picked", () => {
