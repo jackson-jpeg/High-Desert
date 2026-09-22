@@ -31,9 +31,11 @@ export default function ScannerPage() {
 
   return (
     <div className="h-full overflow-auto overscroll-contain p-4 flex flex-col gap-5 max-w-2xl mx-auto">
-      {/* Section header */}
+      {/* Section header — the page's h1. An h1 inside a flex row lays out
+          exactly as the span it replaced did, and preflight resets its size
+          and weight, so nothing visible changed. */}
       <div className="flex items-center gap-2 px-1">
-        <span className="text-hd-10 text-desert-amber font-bold uppercase tracking-wider">Import Sources</span>
+        <h1 className="text-hd-10 text-desert-amber font-bold uppercase tracking-wider">Import Sources</h1>
         <div className="flex-1 h-[1px] bg-gradient-to-r from-desert-amber/30 to-transparent" />
       </div>
 

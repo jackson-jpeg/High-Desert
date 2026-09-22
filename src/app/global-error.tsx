@@ -56,9 +56,11 @@ export default function GlobalError({
             High Desert — Fatal Error
           </div>
           <div style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            <div style={{ fontSize: 14, color: "#C0C0C0", fontWeight: "bold" }}>
+            {/* The page's h1. No stylesheet here, so no preflight: the
+                margin is zeroed by hand to keep it looking like the div it was. */}
+            <h1 style={{ fontSize: 14, color: "#C0C0C0", fontWeight: "bold", margin: 0 }}>
               The signal dropped out entirely.
-            </div>
+            </h1>
             <div style={{ fontSize: 12, color: "#9AA0AE", lineHeight: 1.5 }}>
               Something failed before the app could start. Reloading usually
               clears it. Your library is stored in this browser and is not

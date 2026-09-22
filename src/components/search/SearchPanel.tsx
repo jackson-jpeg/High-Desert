@@ -183,7 +183,8 @@ export function SearchPanel() {
   return (
     <div className="flex flex-col h-full">
       <div className="p-3 pb-0 flex-shrink-0">
-        <Window title="Search Archive.org" variant="dark">
+        {/* The page's h1: /search draws no other title. */}
+        <Window title="Search Archive.org" variant="dark" headingLevel={1}>
           <div className="p-2 flex flex-col gap-2">
             <form onSubmit={handleSubmit} className="flex gap-2">
               <TextField

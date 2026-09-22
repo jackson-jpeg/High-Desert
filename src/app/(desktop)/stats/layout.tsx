@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { RouteHeading } from "@/components/desktop/RouteHeading";
 
 /*
  * Title is the bare page name: the root layout applies the template
@@ -17,5 +18,10 @@ export const metadata: Metadata = {
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <RouteHeading>Station Dashboard</RouteHeading>
+      {children}
+    </>
+  );
 }

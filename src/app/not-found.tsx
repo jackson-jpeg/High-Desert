@@ -14,9 +14,11 @@ export default function NotFound() {
         <div className="text-hd-48 text-desert-amber/85 font-bold mb-2 w98-font crt-amber">
           404
         </div>
-        <div className="text-hd-13 text-desktop-gray mb-2 w98-font">
+        {/* The page's h1. Preflight zeroes a heading's size, weight and
+            margin, so it renders exactly as the div it replaced. */}
+        <h1 className="text-hd-13 text-desktop-gray mb-2 w98-font">
           Signal Lost
-        </div>
+        </h1>
         <div className="text-hd-11 text-bevel-dark leading-relaxed max-w-[300px] mx-auto mb-2">
           The frequency you&apos;re looking for doesn&apos;t exist on this dial.
         </div>

@@ -117,7 +117,10 @@ export default function WelcomePage() {
         aria-hidden="true"
       />
 
-      <div className="relative z-20 flex flex-col items-center gap-8 px-6 text-center max-w-lg">
+      {/* <main>, not a div: this page renders outside the (desktop) shell, so
+          it had no landmark at all — axe's landmark-one-main and region
+          rules, moderate, and failed once the a11y gate reached moderate. */}
+      <main className="relative z-20 flex flex-col items-center gap-8 px-6 text-center max-w-lg">
         {/* Title */}
         <div>
           <h1 className="text-hd-36 md:text-hd-48 font-bold tracking-[6px] leading-none font-[family-name:var(--font-w95)] text-desert-amber [text-shadow:0_0_20px_rgba(212,168,67,0.4),0_0_40px_rgba(212,168,67,0.15)]">
@@ -164,7 +167,7 @@ export default function WelcomePage() {
         <div className="text-hd-8 mt-4 font-[family-name:var(--font-w95)] text-bevel-dark/85">
           Art Bell &middot; 1945–2018 &middot; From the Kingdom of Nye
         </div>
-      </div>
+      </main>
     </div>
   );
 }

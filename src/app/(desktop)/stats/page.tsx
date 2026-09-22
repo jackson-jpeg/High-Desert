@@ -191,10 +191,14 @@ export default function StatsPage() {
     };
   }, [episodes, history]);
 
+  // The page's h1 is "Station Dashboard" in stats/layout.tsx, present in every
+  // state. These two windows used to be h1s themselves, so the loading and
+  // empty states had a heading the populated page lacked — and with the
+  // layout's, they would have had two.
   if (!stats) {
     return (
       <div className="p-4 flex flex-col gap-4 max-w-5xl mx-auto">
-        <Window title="Station Dashboard" variant="dark" headingLevel={1}>
+        <Window title="Station Dashboard" variant="dark">
           <div className="p-6 text-center min-h-[200px] flex items-center justify-center">
             <div className="animate-dot-1 inline-block text-bevel-dark text-hd-10">Loading station data</div>
           </div>
@@ -206,7 +210,7 @@ export default function StatsPage() {
   if (stats.total === 0) {
     return (
       <div className="p-4 flex flex-col gap-4 max-w-5xl mx-auto">
-        <Window title="Station Dashboard" variant="dark" headingLevel={1}>
+        <Window title="Station Dashboard" variant="dark">
           <div className="p-8 flex flex-col items-center gap-3 text-center">
             {/* Decorative glyph, hidden from assistive technology: no text to read. */}
             {/* eslint-disable-next-line hd/text-opacity-floor */}

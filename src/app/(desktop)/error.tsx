@@ -14,9 +14,12 @@ export default function DesktopError({
       <div className="max-w-[400px] w-full">
         <Window title="Error" variant="dark">
           <div className="p-4 flex flex-col gap-3">
-            <div className="text-hd-12 text-desktop-gray font-bold">
+            {/* The page's h1. This boundary replaces the route segment,
+                layout included, so the route's own RouteHeading is gone and
+                this is the only one. */}
+            <h1 className="text-hd-12 text-desktop-gray font-bold">
               This page encountered an error
-            </div>
+            </h1>
             <div className="w98-inset-dark bg-inset-well p-3">
               <div className="text-hd-10 text-red-400 leading-relaxed font-mono break-all">
                 {error.message || "An unexpected error occurred."}

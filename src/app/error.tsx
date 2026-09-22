@@ -27,9 +27,10 @@ export default function SegmentError({
           </span>
         </div>
         <div className="p-4 flex flex-col gap-3">
-          <div className="text-hd-12 text-desktop-gray font-bold">
+          {/* The page's h1; preflight keeps it looking like the div it was. */}
+          <h1 className="text-hd-12 text-desktop-gray font-bold">
             We&apos;re experiencing technical difficulties
-          </div>
+          </h1>
           <div className="w98-inset-dark bg-inset-well p-3">
             <div className="text-hd-10 text-red-400 leading-relaxed font-mono break-all">
               {error.message || "An unexpected error occurred."}
