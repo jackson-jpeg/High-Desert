@@ -1,13 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { recordRating, removeRating } from "@/services/stats/store";
 import { isKnownEpisodeId } from "@/services/stats/allowlist";
 import { readJsonObject } from "@/lib/utils/json-body";
+import { voterId } from "@/lib/utils/client-key";
 
 const EPISODE_ID_RE = /^[a-zA-Z0-9._-]+$/;
 
+/**
+ * Submit or clear a rating. Body `{ episodeId, rating }` (1–5, or null to
+ * remove). Returns `{ ok: true }`.
+ *
+ * One vote per client per episode, where "client" is the IPv4 address or the
+ * IPv6 /64, and what is stored for it is `voterId()` — an HMAC under
+ * RATING_VOTER_SECRET — never the address (HD-008). `rating_votes` is kept
+ * forever beside episode ids; a raw IP there is a listening history.
+ *
+ * Without the secret the route refuses with 503 rather than falling back to
+ * anything weaker: a plaintext fallback is the bug this replaced, and an
+ * unkeyed hash of an IPv4 address is reversible by enumerating 2^32 of them.
+ */
 export async function POST(request: NextRequest) {
-  const ip = getClientIp(request);
+  const ip = getClientKey(request);
   const rl = rateLimit(`stats-rate:${ip}`, {
     maxRequests: 30,
     windowMs: 60_000,
@@ -21,6 +35,13 @@ export async function POST(request: NextRequest) {
       },
     );
   }
+
+  const secret = process.env.RATING_VOTER_SECRET;
+  if (!secret) {
+    console.error("[stats/rate] RATING_VOTER_SECRET is not set — refusing to record votes");
+    return NextResponse.json({ error: "Ratings unavailable" }, { status: 503 });
+  }
+  const voter = voterId(ip, secret);
 
   const parsed = await readJsonObject(request);
   if (parsed.error) return parsed.error;
@@ -45,7 +66,7 @@ export async function POST(request: NextRequest) {
   // rating === null means "remove rating"
   if (rating === null || rating === undefined) {
     try {
-      await removeRating(episodeId, ip);
+      await removeRating(episodeId, voter);
       return NextResponse.json({ ok: true });
     } catch (err) {
       console.error("[stats/rate] store error:", err);
@@ -61,7 +82,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await recordRating(episodeId, rating, ip);
+    await recordRating(episodeId, rating, voter);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[stats/rate] store error:", err);

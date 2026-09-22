@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { getTraffic, type TrafficRange } from "@/services/stats/store";
 
 const VALID_RANGES = new Set<TrafficRange>(["24h", "7d", "30d"]);
@@ -21,7 +21,7 @@ const VALID_RANGES = new Set<TrafficRange>(["24h", "7d", "30d"]);
  * couple of minutes, so a fresh query per viewer buys nothing.
  */
 export async function GET(request: NextRequest) {
-  const ip = getClientIp(request);
+  const ip = getClientKey(request);
   const rl = rateLimit(`stats-traffic:${ip}`, {
     maxRequests: 30,
     windowMs: 60_000,

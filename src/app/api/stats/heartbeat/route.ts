@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { recordHeartbeat } from "@/services/stats/store";
 import { isKnownEpisodeId } from "@/services/stats/allowlist";
 import { readJsonObject } from "@/lib/utils/json-body";
@@ -18,13 +18,18 @@ const SESSION_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
  * alone, and the listening mark it does not send is left untouched rather than
  * cleared, so a pause does not yank the show off the air.
  *
- * Response shape: `{ ok: true, online, listening }` — the counts are returned
- * so a client can refresh its own display from the same round trip instead of
- * immediately polling /api/stats/active. Document changes here; CLAUDE.md
- * records why response shapes in this directory are worth being careful with.
+ * Response shape: `{ ok: true }` — nothing else. (This comment used to promise
+ * `{ ok, online, listening }`, which the route has never returned; HD-041.)
+ * Document changes here; CLAUDE.md records why response shapes in this
+ * directory are worth being careful with.
+ *
+ * A client (IPv4 address or IPv6 /64) holds at most SESSIONS_PER_CLIENT
+ * sessions in the online count. Past that a new session is accepted with the
+ * same `{ ok: true }` and simply not counted — see the constant in the store
+ * for why that beats a 429.
  */
 export async function POST(request: NextRequest) {
-  const ip = getClientIp(request);
+  const ip = getClientKey(request);
   // One tab beats every 60s. 20/min leaves room for several tabs plus retries
   // while still capping what a single client can write.
   const rl = rateLimit(`stats-heartbeat:${ip}`, {
@@ -64,7 +69,7 @@ export async function POST(request: NextRequest) {
       : null;
 
   try {
-    await recordHeartbeat(sessionId, listeningTo);
+    await recordHeartbeat(sessionId, listeningTo, ip);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[stats/heartbeat] store error:", err);

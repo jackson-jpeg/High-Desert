@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { getRatings } from "@/services/stats/store";
 
 export async function GET(request: NextRequest) {
-  const ip = getClientIp(request);
+  const ip = getClientKey(request);
   const rl = rateLimit(`stats-ratings:${ip}`, {
     maxRequests: 30,
     windowMs: 60_000,

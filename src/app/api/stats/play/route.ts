@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { recordPlay } from "@/services/stats/store";
 import { isKnownEpisodeId } from "@/services/stats/allowlist";
 import { readJsonObject } from "@/lib/utils/json-body";
@@ -7,7 +7,7 @@ import { readJsonObject } from "@/lib/utils/json-body";
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
 
 export async function POST(request: NextRequest) {
-  const ip = getClientIp(request);
+  const ip = getClientKey(request);
   const rl = rateLimit(`stats-play:${ip}`, {
     maxRequests: 60,
     windowMs: 60_000,
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await recordPlay(episodeId, sessionId);
+    await recordPlay(episodeId, sessionId, ip);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[stats/play] store error:", err);

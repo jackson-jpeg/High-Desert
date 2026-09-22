@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 
 const SEARCH_URL = "https://archive.org/advancedsearch.php";
 
@@ -22,7 +22,7 @@ const FIELDS = "identifier,title,date,description,creator,downloads";
 const FETCH_TIMEOUT = 30000;
 
 export async function GET(request: NextRequest) {
-  const ip = getClientIp(request);
+  const ip = getClientKey(request);
   const rl = rateLimit(`scrape:${ip}`, { maxRequests: 30, windowMs: 60_000 });
   if (!rl.allowed) {
     return NextResponse.json({ error: "Rate limited" }, { status: 429 });

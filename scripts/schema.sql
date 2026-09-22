@@ -6,7 +6,7 @@
 --   lb:week:YYYY-WNN     -> weekly_plays
 --   active               -> active_sessions
 --   rt:{id}              -> episode_ratings
---   rt:user:{ip}:{id}    -> rating_votes
+--   rt:user:{ip}:{id}    -> rating_votes (voter is now an HMAC, never the ip)
 --
 -- Apply with:  psql "$DATABASE_URL" -f scripts/schema.sql   (idempotent)
 
@@ -43,6 +43,17 @@ ALTER TABLE active_sessions
 -- API only ever returns per-episode counts.
 ALTER TABLE active_sessions
   ADD COLUMN IF NOT EXISTS episode_id text;
+-- Which client (IPv4 address or IPv6 /64) the session belongs to, as an HMAC
+-- under a salt that exists only in the running process's memory. It exists to
+-- cap how many sessions one client can hold in the online count (HD-007:
+-- session ids are minted client-side, so without a cap "online" was whatever
+-- number a script wanted). Not reversible, not joinable to rating_votes.voter,
+-- and gone with the row five minutes after the tab closes. NULL on rows written
+-- before the column existed; those simply do not count toward anyone's cap.
+ALTER TABLE active_sessions
+  ADD COLUMN IF NOT EXISTS client_ref text;
+CREATE INDEX IF NOT EXISTS active_sessions_client_ref_idx
+  ON active_sessions (client_ref, seen_at);
 CREATE INDEX IF NOT EXISTS active_sessions_seen_at_idx
   ON active_sessions (seen_at);
 CREATE INDEX IF NOT EXISTS active_sessions_listening_at_idx
@@ -90,6 +101,12 @@ CREATE TABLE IF NOT EXISTS episode_ratings (
 
 -- One row per (voter, episode). Makes re-rating idempotent: the aggregate is
 -- adjusted by the delta rather than double-counted.
+--
+-- `voter` is HMAC-SHA256(client bucket, RATING_VOTER_SECRET) as 64 hex — the
+-- bucket being the IPv4 address or the IPv6 /64 (src/lib/utils/client-key.ts).
+-- It held the raw client IP until HD-008; rows from then are converted in place
+-- by scripts/migrate-hash-voters.mjs, once. Kept forever next to episode ids,
+-- which is why it must never be an address.
 CREATE TABLE IF NOT EXISTS rating_votes (
   voter      text     NOT NULL,
   episode_id text     NOT NULL,
