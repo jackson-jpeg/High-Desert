@@ -36,13 +36,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const secret = process.env.RATING_VOTER_SECRET;
-  if (!secret) {
-    console.error("[stats/rate] RATING_VOTER_SECRET is not set — refusing to record votes");
-    return NextResponse.json({ error: "Ratings unavailable" }, { status: 503 });
-  }
-  const voter = voterId(ip, secret);
-
   const parsed = await readJsonObject(request);
   if (parsed.error) return parsed.error;
   const body = parsed.body;
@@ -62,6 +55,15 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
+
+  // After input validation, so a malformed request is still a 400 whether or
+  // not the server is configured; before any write, so nothing is stored.
+  const secret = process.env.RATING_VOTER_SECRET;
+  if (!secret) {
+    console.error("[stats/rate] RATING_VOTER_SECRET is not set — refusing to record votes");
+    return NextResponse.json({ error: "Ratings unavailable" }, { status: 503 });
+  }
+  const voter = voterId(ip, secret);
 
   // rating === null means "remove rating"
   if (rating === null || rating === undefined) {
