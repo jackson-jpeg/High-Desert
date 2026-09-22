@@ -1167,7 +1167,7 @@ const MUTATIONS = [
     file: "src/lib/utils/key-ownership.ts",
     find: "const NAVIGATION_OWNERS = [\n",
     replace: "const NAVIGATION_OWNERS = [\n  \"button\",\n",
-    why: "HD-011: after clicking a row's star (which focuses it) Shift+Arrow must still move the selection",
+    why: "HD-011: Chromium focuses a button on click; Shift+Arrow must still move the list's selection from there",
   },
   // The library rail is a projection of the list (docs/timeline-rail.md).
   {

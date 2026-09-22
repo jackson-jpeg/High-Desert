@@ -220,6 +220,23 @@ describe("library keyboard — keys a focused control owns", () => {
     expect(plays).toEqual([]);
   });
 
+  it("Shift+ArrowDown still moves the selection with a real button focused", async () => {
+    // HD-011's case, kept now that the row's star is no longer a button: a
+    // button does nothing with an arrow, and Chromium focuses one on click —
+    // so after clicking the detail panel's Close, or any toolbar button,
+    // Shift+Arrow must still reach the list.
+    await seed();
+    await mountAndSelect("Whitley Strieber");
+    const btn = container.querySelector<HTMLButtonElement>('button[aria-label="Toggle browse panel"]')!;
+    btn.focus();
+    expect(document.activeElement).toBe(btn);
+    const ev = new KeyboardEvent("keydown", { key: "ArrowDown", code: "ArrowDown", shiftKey: true, bubbles: true, cancelable: true });
+    act(() => { btn.dispatchEvent(ev); });
+    expect(ev.defaultPrevented).toBe(true);
+    await waitFor(() => row("Men in Black")?.getAttribute("aria-selected") === "true", "the next row to be selected");
+    expect(plays).toEqual([]);
+  });
+
   it("keys inside a menu are ignored by the library", async () => {
     const ids = await seed();
     useAdminStore.setState({ isAdmin: true });
