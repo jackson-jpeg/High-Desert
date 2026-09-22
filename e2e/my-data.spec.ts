@@ -43,16 +43,23 @@ function storedPicks(page: Page): Promise<Stored[]> {
   });
 }
 
+/**
+ * The detail panel's favourite toggle. Rows carry their own favourite marker
+ * with the same title (a hover affordance, a `<span>`), so this is the button.
+ */
+const detailFavourite = (page: Page, on: boolean) =>
+  page.locator(`button[title="${on ? "Remove from favorites" : "Add to favorites"}"]:visible`);
+
 /** Open a row's detail, favourite it and give it `stars`, then close it. */
 async function favouriteAndRate(page: Page, index: number, stars: number): Promise<string> {
   const row = episodeList(page).locator('[role="option"]').nth(index);
   const label = (await row.getAttribute("aria-label"))!;
   await row.click();
-  await page.getByTitle("Add to favorites").first().click();
-  await expect(page.getByTitle("Remove from favorites").first()).toBeVisible();
-  await page.getByRole("button", { name: `Rate ${stars} stars` }).first().click();
+  await detailFavourite(page, false).click();
+  await expect(detailFavourite(page, true)).toBeVisible();
+  await page.locator(`button[aria-label="Rate ${stars} stars"]:visible`).click();
   await expect(page.getByText(`${stars}/5`).first()).toBeVisible();
-  await page.getByRole("button", { name: "Close detail" }).first().click();
+  await page.locator('button[aria-label="Close detail"]:visible').click();
   return label;
 }
 
@@ -92,6 +99,7 @@ test("favourites and ratings survive export → cleared site data → import, th
   const before = await storedPicks(page);
   expect(before).toHaveLength(2);
   expect(before.map((e) => e.rating).sort()).toEqual([2, 4]);
+  expect(before.every((e) => e.favoritedAt && e.rating), "each pick is both favourited and rated").toBe(true);
 
   // 2. Export through the menu, capturing the real download.
   const downloadP = page.waitForEvent("download");
@@ -123,6 +131,6 @@ test("favourites and ratings survive export → cleared site data → import, th
   await expect.poll(() => storedPicks(page)).toEqual(before);
   const first = episodeList(page).getByRole("option", { name: picks[0], exact: true });
   await first.click();
-  await expect(page.getByTitle("Remove from favorites").first()).toBeVisible();
+  await expect(detailFavourite(page, true)).toBeVisible();
   await expect(page.getByText("4/5").first()).toBeVisible();
 });
