@@ -5,6 +5,8 @@
  * Handles multiple common naming conventions found across archive collections.
  */
 
+import { KNOWN_SHOW_NAMES, parseArtBellFilename } from "@/services/archive/filename-parser";
+
 export interface ParsedFilename {
   airDate?: string;    // ISO format YYYY-MM-DD
   guestName?: string;
@@ -305,9 +307,39 @@ const parseShortDate: PatternExtractor = (filename) => {
   return result;
 };
 
+/**
+ * Pattern 0: the collection's own naming, which every file in the shipped
+ * catalog uses — "1992-12-12 - Coast to Coast AM with Art Bell - Area 51 -
+ * John Lear.mp3".
+ *
+ * Before this existed those names fell through to parseDateFirst, which
+ * removes "Coast to Coast AM" and "Art Bell" but not the "with" between them
+ * or the separator after, so every one came out with a guest name like
+ * "With  - Area 51 - John Lear". All 1,312 catalog filenames did. Scanning a
+ * local copy of this collection — the obvious thing to scan — filled the
+ * library with that.
+ *
+ * Delegates to the archive.org import's parser, so a file imported from
+ * archive.org and the same file scanned from disk agree on guest and topic.
+ * Only when the show is one that parser recognises by name: an unrecognised
+ * first segment ("1997-01-15 - Richard Hoagland.mp3") is left to the
+ * patterns below. The date still goes through toISODate, which rejects the
+ * catalog's one "1999-12-00".
+ */
+const parseCatalogConvention: PatternExtractor = (filename) => {
+  const parsed = parseArtBellFilename(filename);
+  if (!parsed || !KNOWN_SHOW_NAMES.has(parsed.showName)) return null;
+  const [year, month, day] = parsed.airDate.split("-");
+  const result: ParsedFilename = { airDate: toISODate(year, month, day), showType: parsed.showType };
+  if (parsed.guestName) result.guestName = parsed.guestName;
+  if (parsed.topic) result.topic = parsed.topic;
+  return result;
+};
+
 // ── Ordered pattern list (most specific first) ─────────────────────────
 
 const PATTERN_EXTRACTORS: PatternExtractor[] = [
+  parseCatalogConvention,
   parseCoastToCoast,
   parseDreamland,
   parseArtBellLong,

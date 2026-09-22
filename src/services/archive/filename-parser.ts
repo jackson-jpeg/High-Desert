@@ -28,6 +28,9 @@ const SHOW_PATTERNS: [RegExp, "coast" | "dreamland" | "special", string][] = [
   [/Gabcast/i, "special", "Gabcast"],
 ];
 
+/** The shows this parser recognises by name, as it labels them in `showName`. */
+export const KNOWN_SHOW_NAMES: ReadonlySet<string> = new Set(SHOW_PATTERNS.map(([, , label]) => label));
+
 export function parseArtBellFilename(filename: string): ParsedEpisodeFilename | null {
   // Strip extension
   const name = filename.replace(/\.\w+$/, "");
