@@ -260,7 +260,12 @@ const MUTATIONS = [
     test: "src/lib/utils/__tests__/rate-limit.test.ts",
     file: "src/lib/utils/rate-limit.ts",
     find: "  ensureSweeper();\n",
-    replace: "  ensureSweeper();\n  sweep();\n",
+    // The shape this replaced: a request that finds the last sweep old enough
+    // runs it inline. (An unconditional per-request sweep would also be caught,
+    // but makes the 100k-key flood test quadratic — tens of minutes.)
+    replace:
+      "  ensureSweeper();\n  { const g = globalThis as { __hdSweptAt?: number };\n" +
+      "    if (Date.now() - (g.__hdSweptAt ?? 0) >= SWEEP_INTERVAL_MS) { g.__hdSweptAt = Date.now(); sweep(); } }\n",
     why: "the O(n) sweep must never run inside a request",
   },
   {
