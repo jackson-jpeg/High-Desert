@@ -40,6 +40,7 @@ Each session records what `highdesert-status` printed for `release`.
 | When (UTC) | Release line |
 |---|---|
 | 2026-09-21T16:11Z | `OK release no plays yet since the release (2026-09-21T16:03:19Z); target <3%` |
+| 2026-09-22T14:03Z | `OK release 2.5% of starts failed in the 0.9 of 7 days since 2026-09-21T16:03:19Z (1 failures / 40 plays; target <3%)`. The one failure is a genuine mid-play `stall` 423 s into a show on desktop-chromium, retry skipped for want of a gesture — not a phantom |
 
 ## Android "code=4 MEDIA_ELEMENT_ERROR: Format error"
 
