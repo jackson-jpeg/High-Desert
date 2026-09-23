@@ -632,6 +632,28 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
   it writes to five tables and there is no server backup, so one anchor would leave two of the
   three properties unobserved.
 
+## Keeping the data: persist(), the audio cache, Export / Import (HD-010)
+
+- **`navigator.storage.persist()` is asked once per profile, after the first real write**
+  (`src/db/persist.ts`). Dexie hooks installed from `src/db/index.ts` watch episodes
+  (`favoritedAt`/`rating`/`flaggedAt`/`playbackPosition` changes), bookmark creation and
+  playlist writes; the seed is not counted. The request is recorded as the userPref
+  `storage-persist-requested` and never repeated. A new write path needs nothing — the hook
+  sees it — but a new *kind* of listener data belongs in `USER_EPISODE_FIELDS` or a hook.
+- **The OPFS cache shares a quota with the library** (`src/audio/cache.ts`), and running out
+  evicts the whole origin. Writes are checked against `storage.estimate()`, refused past
+  `CACHE_QUOTA_FRACTION` (0.8), serialized, and removed if they fail midway.
+  `cacheAudioBlob` resolves a `CacheWriteResult` and never rejects. No `estimate()` → refused.
+- **File > Export / Import My Data** (and the mobile sheet) — `src/services/user-data/portable.ts`.
+  Versioned (`format: "high-desert-user-data"`, `version: 1`), keyed by `fileHash`, never the
+  numeric id. Import validates the whole file first, previews counts in a dialog, and merges
+  **add-only** in one rw transaction: local values win conflicts, positions go to the later
+  listen, same-name playlists are extended. A new personal field must be added to both
+  export and `plan()`, with the round-trip test in `__tests__/portable.test.ts`.
+- **The admin "Export Library Seed..." writes a bare array** (`src/db/catalog-export.ts`),
+  the shape `public/seed/library.json` and `src/services/stats/catalog.ts` read, from an
+  allowlist of catalog fields — no favourites, ratings, flags, positions or local files.
+
 ## Pulling an episode from the catalog
 
 Removing a row from `public/seed/library.json` is a three-step change, and skipping any of them

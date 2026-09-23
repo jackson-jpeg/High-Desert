@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Menu } from "@/components/win98";
 import { useAdminStore } from "@/stores/admin-store";
 import { toast } from "@/stores/toast-store";
-import { db } from "@/db";
-import { exportLibrarySeed } from "@/db/seed";
+import { exportLibrarySeed } from "@/db/catalog-export";
 import { TEXT_SCALE_OPTIONS, type TextScaleValue } from "@/hooks/useTextScalePreference";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import type { SortMode } from "@/lib/library/filter-episodes";
@@ -26,43 +25,10 @@ export interface ShellMenuActions {
   onSetTextScale: (value: TextScaleValue) => void;
   /** Present only once the browser has offered a PWA install. */
   onInstall?: () => void;
-}
-
-async function exportLibrary() {
-  const episodes = await db.episodes.toArray();
-  const data = {
-    version: "0.4.0",
-    exportedAt: new Date().toISOString(),
-    episodeCount: episodes.length,
-    episodes: episodes.map((ep) => ({
-      title: ep.title,
-      artist: ep.artist,
-      airDate: ep.airDate,
-      guestName: ep.guestName,
-      showType: ep.showType,
-      topic: ep.topic,
-      description: ep.description,
-      duration: ep.duration,
-      format: ep.format,
-      source: ep.source,
-      sourceUrl: ep.sourceUrl,
-      archiveIdentifier: ep.archiveIdentifier,
-      aiSummary: ep.aiSummary,
-      aiTags: ep.aiTags,
-      aiStatus: ep.aiStatus,
-      playbackPosition: ep.playbackPosition,
-      playCount: ep.playCount,
-      lastPlayedAt: ep.lastPlayedAt,
-    })),
-  };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `high-desert-library-${new Date().toISOString().slice(0, 10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  toast.success(`Exported ${episodes.length} episodes`);
+  /** Download the listener's own data (src/services/user-data/portable.ts). */
+  onExportData: () => void;
+  /** Pick a file, preview what it adds, and merge it in on confirm. */
+  onImportData: () => void;
 }
 
 async function deduplicateLibrary() {
@@ -122,6 +88,7 @@ export function useShellMenus(actions: ShellMenuActions): Menu[] {
   const {
     onAbout, onShortcuts, onClearLibrary, onClearCache,
     startupSoundOn, onToggleStartupSound, textScale, onSetTextScale, onInstall,
+    onExportData, onImportData,
   } = actions;
 
   return [
@@ -132,6 +99,10 @@ export function useShellMenus(actions: ShellMenuActions): Menu[] {
           ? [{ label: "Open Folder...", shortcut: "Ctrl+O", onClick: () => router.push("/scanner") },
              { separator: true as const, label: "" }]
           : []),
+        // Everything a listener owns is in this browser only; this is their copy.
+        { label: "Export My Data...", onClick: onExportData },
+        { label: "Import My Data...", onClick: onImportData },
+        { separator: true, label: "" },
         { label: "Exit", onClick: () => window.close() },
       ],
     },
@@ -164,7 +135,10 @@ export function useShellMenus(actions: ShellMenuActions): Menu[] {
             { label: "Search Archive...", onClick: () => router.push("/search") },
             { label: "Import Catalog...", onClick: () => router.push("/scanner") },
             { separator: true as const, label: "" },
-            { label: "Export Library...", onClick: exportLibrary },
+            // The catalog for public/seed/, without the admin's own listening
+            // (HD-025). The old "Export Library..." wrote an envelope nothing
+            // could read back, with positions and play counts in it; a
+            // listener's own copy is File > Export My Data now.
             { label: "Export Library Seed...", onClick: exportLibrarySeed },
             { separator: true as const, label: "" },
             { label: "Deduplicate Library...", onClick: deduplicateLibrary },
