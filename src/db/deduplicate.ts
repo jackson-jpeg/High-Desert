@@ -1,5 +1,6 @@
 import { db } from "./index";
 import type { Episode } from "./schema";
+import { repointEpisodeRefs } from "./merge";
 
 /**
  * SAFETY RAILS — read before changing anything in this file.
@@ -260,30 +261,23 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
   }
 
   // All-or-nothing: a mid-run failure must not leave episodes deleted but unmerged.
-  await db.transaction("rw", db.episodes, db.history, db.bookmarks, db.playlists, async () => {
+  const now = Date.now();
+  await db.transaction("rw", [db.episodes, db.history, db.bookmarks, db.playlists, db.userPrefs], async () => {
+    const remap = new Map<number, number>();
     for (const { keeper, dupes, update } of plan.groups) {
-      await db.episodes.update(keeper.id!, { ...update, updatedAt: Date.now() });
-
-      const dupeIds = dupes.map((d) => d.id!).filter(Boolean);
-      await db.episodes.bulkDelete(dupeIds);
-
-      // Repoint history/bookmark references at the keeper
-      for (const dupeId of dupeIds) {
-        await db.history.where("episodeId").equals(dupeId).modify({ episodeId: keeper.id! });
-        await db.bookmarks.where("episodeId").equals(dupeId).modify({ episodeId: keeper.id! });
-      }
-
-      // Update playlists that reference deleted episodes
-      const playlists = await db.playlists.toArray();
-      for (const playlist of playlists) {
-        if (dupeIds.some((id) => playlist.episodeIds.includes(id))) {
-          const newIds = playlist.episodeIds
-            .map((id) => (dupeIds.includes(id) ? keeper.id! : id))
-            .filter((id, i, arr) => arr.indexOf(id) === i); // remove duplicates
-          await db.playlists.update(playlist.id!, { episodeIds: newIds });
-        }
-      }
+      await db.episodes.update(keeper.id!, { ...update, updatedAt: now });
+      for (const d of dupes) if (d.id) remap.set(d.id, keeper.id!);
     }
+
+    // Repoint history, bookmarks, playlists and the saved queue at the keepers
+    // BEFORE deleting, via the same code the doubled-library heal uses
+    // (./merge.ts) — so no reference is ever left pointing at a missing row.
+    await repointEpisodeRefs(
+      { episodes: db.episodes, history: db.history, bookmarks: db.bookmarks, playlists: db.playlists, userPrefs: db.userPrefs },
+      remap,
+      now,
+    );
+    await db.episodes.bulkDelete([...remap.keys()]);
   });
 
   return {

@@ -348,3 +348,36 @@ describe("reconcileLibrary must not resurrect a deleted episode", () => {
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 });
+
+describe("deleteEpisode — atomic (HD-025)", () => {
+  it("a failure part-way through leaves everything exactly as it was", async () => {
+    // The bookmarks cascade runs after the tombstone, the row delete and the
+    // history delete. Break it, and all three must roll back: no episode gone
+    // with its references dangling, and — the subtle one — no tombstone for a
+    // show that was never actually deleted, which would hide a catalog row
+    // from reconcile forever.
+    const doomed = await seedEpisode({ fileHash: "archive:coll:doomed.mp3", title: "doomed" });
+    await db.history.add({ episodeId: doomed, timestamp: 1, duration: 60 });
+    await addBookmark(doomed, 120, "the callers start");
+    const plId = (await db.playlists.add({
+      name: "Best of", episodeIds: [doomed], createdAt: 0, updatedAt: 7,
+    })) as number;
+
+    const spy = vi.spyOn(db.bookmarks, "where").mockImplementationOnce(() => {
+      throw new Error("injected mid-delete failure");
+    });
+    try {
+      await expect(deleteEpisode(doomed)).rejects.toThrow("injected mid-delete failure");
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect(await db.episodes.get(doomed)).toMatchObject({ title: "doomed" });
+    expect(await db.history.where("episodeId").equals(doomed).count()).toBe(1);
+    expect(await db.bookmarks.where("episodeId").equals(doomed).count()).toBe(1);
+    expect((await db.playlists.get(plId))!.episodeIds).toEqual([doomed]);
+    expect(await tombstones()).toEqual([]);
+    // The cache is only dropped after a committed delete.
+    expect(removeCachedAudio).not.toHaveBeenCalled();
+  });
+});

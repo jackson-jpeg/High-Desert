@@ -13,6 +13,7 @@ import { db, getPreference, setPreference } from "@/db";
 import type { Episode } from "@/db/schema";
 import { getCachedAudio, cacheAudioBlob } from "@/audio/cache";
 import { seedLibraryIfEmpty, reconcileLibrary } from "@/db/seed";
+import { healDoubledLibrary } from "@/db/heal";
 import { DBErrorBoundary } from "@/components/DBErrorBoundary";
 import { MilestoneDialog } from "@/components/desktop/MilestoneDialog";
 import { playStartupSound } from "@/audio/startup-sound";
@@ -222,7 +223,9 @@ export default function DesktopLayout({
     });
   }, []);
 
-  // On mount, seed the library if empty. Otherwise restore any catalog episodes that
+  // On mount, seed the library if empty. Each step holds the cross-tab "hd-seed"
+  // lock (src/db/seed-lock.ts), so two tabs cannot seed or reconcile at once.
+  // Otherwise restore any catalog episodes that
   // are missing — a previous dedup bug deleted up to 1,312 of 1,313 for some users.
   // Reconcile only ever ADDS rows that don't exist locally, so user data is untouched.
   // Deferred to idle so a large bulkAdd doesn't compete with first paint.
@@ -234,6 +237,12 @@ export default function DesktopLayout({
       seedLibraryIfEmpty()
         .then(async (seeded) => {
           if (seeded || cancelled) return;
+          // Before reconcile: a library doubled by two first-visit tabs
+          // (HD-009) is merged back to one row per catalog episode, keeping
+          // every favourite, rating, play and reference. Exact pairs only —
+          // anything else is refused untouched. See src/db/heal.ts.
+          await healDoubledLibrary();
+          if (cancelled) return;
           const restored = await reconcileLibrary();
           if (restored > 0 && !cancelled) {
             toast.success(`Restored ${restored.toLocaleString()} missing episodes to your library`);

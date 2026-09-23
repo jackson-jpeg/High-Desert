@@ -130,7 +130,7 @@ src/
 │   └── PageTransition.tsx
 ├── db/
 │   ├── schema.ts         # Episode, Playlist, HistoryEntry, Bookmark, ScanSession, UserPrefs
-│   ├── index.ts          # Dexie instance, indexes, migrations (v7), pref helpers
+│   ├── index.ts          # Dexie instance, indexes, migrations (v8), pref helpers
 │   ├── deduplicate.ts    # Duplicate detection and merging
 │   └── seed.ts           # Seeding, reconcile (restores missing episodes), export
 ├── hooks/                # Custom React hooks
@@ -416,7 +416,7 @@ Related: the library's detail panel renders `selectedEpisodeLive`, re-read from 
 live query, not the `useState` snapshot taken when the row was clicked. Writes made from
 inside the panel are otherwise invisible until it is closed and reopened.
 
-## Database (Dexie v7)
+## Database (Dexie v8)
 
 **Primary entity:** `Episode` — identity (id, fileHash), metadata (title, airDate, guestName, showType), audio (duration, bitrate), playback (lastPlayedAt, playbackPosition, playCount), archive source, AI fields (aiSummary, aiTags[], aiCategory, aiSeries, aiNotable, aiStatus), user fields (favoritedAt, rating).
 
@@ -588,13 +588,31 @@ All user data (favorites, ratings, playback positions, history, bookmarks) lives
 visitor's IndexedDB. There is no server backup. A bad write here is unrecoverable.
 
 - **Identity key is `fileHash`** (`archive:{identifier}:{fileName}`) — unique across the catalog,
-  indexed, and built identically by the seeder and both import paths. `archiveIdentifier` is the
-  *collection* id and is the SAME for every episode; never use it alone as an identity.
+  indexed, and built identically by the seeder and both import paths — always through
+  `archiveFileHash()` in `src/db/identity.ts`. `archiveIdentifier` is the
+  *collection* id and is the SAME for every episode; never use it alone as an identity. The catalog
+  scraper once wrote `archive:{identifier}` with no file name; the **v8** Dexie upgrade
+  (`src/db/legacy-keys.ts`) rewrites those rows, merging any that collide with a canonical row
+  without dropping user data.
+- **Seed, heal and reconcile hold the cross-tab `"hd-seed"` Web Lock** (`src/db/seed-lock.ts`) and
+  re-check inside their rw transaction. Two first-visit tabs used to seed 1,312 rows each (HD-009).
+  The lock is not re-entrant — never call one locked function from inside another.
 - **`reconcileLibrary()` is `bulkAdd`-only.** It restores catalog rows missing locally and by
   construction cannot touch an existing row. Keep it that way — never `bulkPut`, never `update`.
 - **No unattended destructive operations against `db.episodes`, ever.** Deduplication is
   user-initiated and confirmed. An automatic dedup once deleted 1,312 of 1,313 episodes for
-  users who had grown their library past a threshold.
+  users who had grown their library past a threshold. **Two narrowly scoped exceptions, each
+  documented at the top of its file and each asserting on what survives:** `healDoubledLibrary()`
+  (`src/db/heal.ts`) acts only when every catalog `fileHash` present appears *exactly twice* — the
+  double-seed signature — and refuses the whole library on anything else (a triple, a lone
+  user-made duplicate); and the v8 legacy-key upgrade merges only rows with the identical
+  canonical key. Both fold the retired row's favourite/rating/plays/flag into the keeper
+  (`absorbUserData`) and repoint history, bookmarks, playlists and the saved queue
+  (`repointEpisodeRefs`, `src/db/merge.ts`) in one transaction before anything is removed. Do not
+  add a third.
+- **Delete and Clear Library are each one rw transaction** over every dependent table
+  (`deleteEpisode`, `clearLibrary` in `src/services/episodes/management.ts`). A failure part-way
+  leaves nothing half-deleted.
 - **`deduplicateEpisodes()` has safety rails** (`MAX_GROUP_SIZE` 20, `MAX_DELETE_RATIO` 25%) and
   aborts rather than throwing. They are not optional — they would have prevented that incident
   independently of the key bug.
