@@ -14,7 +14,7 @@
  * it, "they are back" would pass just as well if the wipe had done nothing.
  */
 import { readFile } from "node:fs/promises";
-import { test, expect, type Page } from "./fixtures";
+import { test, expect, type Page, type Locator } from "./fixtures";
 import { episodeList, openLibrary } from "./library";
 
 interface Stored { fileHash: string; title?: string; favoritedAt?: number; rating?: number }
@@ -50,11 +50,27 @@ function storedPicks(page: Page): Promise<Stored[]> {
 const detailFavourite = (page: Page, on: boolean) =>
   page.locator(`button[title="${on ? "Remove from favorites" : "Add to favorites"}"]:visible`);
 
+/**
+ * Open a row's detail.
+ *
+ * Not a bare `row.click()`: that lands on the row's centre, and a row carries
+ * sub-controls that deliberately swallow the click — the guest name, the series
+ * tag and the favourite star, each marked `[data-row-action]`. On a 1440px
+ * desktop row the guest column sits under the centre point, so clicking there
+ * opened the Guest Profile panel and no detail panel at all, for whichever rows
+ * happen to name a guest. The date cell is the leading cell in both the desktop
+ * grid and the mobile stack and carries no handler of its own, so a click near
+ * the row's top-left corner is the one point that always reaches the row.
+ */
+async function openDetail(row: Locator): Promise<void> {
+  await row.click({ position: { x: 6, y: 6 } });
+}
+
 /** Open a row's detail, favourite it and give it `stars`, then close it. */
 async function favouriteAndRate(page: Page, index: number, stars: number): Promise<string> {
   const row = episodeList(page).locator('[role="option"]').nth(index);
   const label = (await row.getAttribute("aria-label"))!;
-  await row.click();
+  await openDetail(row);
   await detailFavourite(page, false).click();
   await expect(detailFavourite(page, true)).toBeVisible();
   await page.locator(`button[aria-label="Rate ${stars} stars"]:visible`).click();
@@ -130,7 +146,7 @@ test("favourites and ratings survive export → cleared site data → import, th
   // 5. They are back, on the same episodes — in storage and on screen.
   await expect.poll(() => storedPicks(page)).toEqual(before);
   const first = episodeList(page).getByRole("option", { name: picks[0], exact: true });
-  await first.click();
+  await openDetail(first);
   await expect(detailFavourite(page, true)).toBeVisible();
   await expect(page.getByText("4/5").first()).toBeVisible();
 });
