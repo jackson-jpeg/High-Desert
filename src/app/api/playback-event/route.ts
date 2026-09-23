@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { recordPlaybackFailure } from "@/services/stats/store";
 import { isKnownEpisodeId } from "@/services/stats/allowlist";
 import { readJsonObject } from "@/lib/utils/json-body";
@@ -64,7 +64,7 @@ const UA_CLASSES = new Set([
 ]);
 
 export async function POST(request: NextRequest) {
-  const ip = getClientIp(request);
+  const ip = getClientKey(request);
   // Deliberately lower than stats-play's 60: a client that is failing this
   // often has a problem no amount of reporting will diagnose, and one stuck
   // retry loop should not be able to fill the table.

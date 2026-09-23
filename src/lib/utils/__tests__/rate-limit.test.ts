@@ -11,7 +11,8 @@ import { describe, it, expect, vi } from "vitest";
 vi.useFakeTimers();
 vi.setSystemTime(new Date("2026-07-29T00:00:00Z"));
 
-const { rateLimit, getClientIp } = await import("../rate-limit");
+const { rateLimit, getClientIp, getClientKey, rateLimitStats, MAX_KEYS, SWEEP_INTERVAL_MS } =
+  await import("../rate-limit");
 
 /** The store is module-level and never reset, so every test needs its own key. */
 let keySeq = 0;
@@ -131,5 +132,106 @@ describe("getClientIp", () => {
     // append, this returns the client-supplied value and the limiter is
     // bypassable by anyone who sends the header. See CLAUDE.md, deployment.
     expect(getClientIp(req({ "x-forwarded-for": "not-an-ip" }))).toBe("not-an-ip");
+  });
+});
+
+describe("getClientKey — one budget per /64 (HD-007)", () => {
+  it("two addresses in one /64 share a bucket", () => {
+    const route = k("route");
+    const opts = { maxRequests: 2, windowMs: 60_000 };
+    const a = getClientKey(req({ "x-forwarded-for": "2001:db8:aa:1::1" }));
+    const b = getClientKey(req({ "x-forwarded-for": "2001:db8:aa:1:dead:beef:0:7" }));
+    expect(rateLimit(`${route}:${a}`, opts).allowed).toBe(true);
+    expect(rateLimit(`${route}:${a}`, opts).allowed).toBe(true);
+    // A fresh address from the same /64 is the same client, already spent.
+    expect(rateLimit(`${route}:${b}`, opts).allowed).toBe(false);
+  });
+
+  it("different /64s do not", () => {
+    const route = k("route");
+    const opts = { maxRequests: 1, windowMs: 60_000 };
+    const a = getClientKey(req({ "x-forwarded-for": "2001:db8:aa:1::1" }));
+    const b = getClientKey(req({ "x-forwarded-for": "2001:db8:aa:2::1" }));
+    expect(rateLimit(`${route}:${a}`, opts).allowed).toBe(true);
+    expect(rateLimit(`${route}:${b}`, opts).allowed).toBe(true);
+  });
+
+  it("IPv4 stays per address, and a mapped address is that IPv4 client", () => {
+    const route = k("route");
+    const opts = { maxRequests: 1, windowMs: 60_000 };
+    const v4 = getClientKey(req({ "x-forwarded-for": "198.51.100.20" }));
+    const mapped = getClientKey(req({ "x-forwarded-for": "::ffff:198.51.100.20" }));
+    const neighbour = getClientKey(req({ "x-forwarded-for": "198.51.100.21" }));
+    expect(rateLimit(`${route}:${v4}`, opts).allowed).toBe(true);
+    expect(rateLimit(`${route}:${mapped}`, opts).allowed).toBe(false);
+    expect(rateLimit(`${route}:${neighbour}`, opts).allowed).toBe(true);
+  });
+});
+
+describe("rateLimit — bounded under a flood", () => {
+  it("the Map never exceeds MAX_KEYS, and a client limited before the flood is still limited after", () => {
+    const opts = { maxRequests: 3, windowMs: 60_000 };
+    const victim = k("limited-before-flood");
+    for (let i = 0; i < 3; i++) rateLimit(victim, opts);
+    expect(rateLimit(victim, opts).allowed).toBe(false);
+
+    // 100k distinct keys, each one request: the shape of someone cycling
+    // through addresses to be a new client every time.
+    let peak = 0;
+    for (let i = 0; i < 100_000; i++) {
+      rateLimit(`flood-a-${i}`, opts);
+      peak = Math.max(peak, rateLimitStats().size);
+    }
+    expect(peak).toBeLessThanOrEqual(MAX_KEYS);
+    expect(peak).toBe(MAX_KEYS); // actually full, or the bound was never tested
+
+    // Eviction takes entries that are not limiting anyone. The victim's block
+    // survived 100k newcomers, so flooding is not a way to reset a limit.
+    expect(rateLimit(victim, opts).allowed).toBe(false);
+  });
+
+  it("the bound holds even when every entry is blocking — memory wins over memory of the block", () => {
+    // maxRequests 1: every flood key is at its limit after one request, so the
+    // eviction scan finds nothing non-blocking and must fall back.
+    for (let i = 0; i < 30_000; i++) rateLimit(`flood-b-${i}`, { maxRequests: 1, windowMs: 60_000 });
+    expect(rateLimitStats().size).toBeLessThanOrEqual(MAX_KEYS);
+  });
+
+  it("evicting a non-blocking entry forgets its partial count — the documented cost", () => {
+    const opts = { maxRequests: 3, windowMs: 60_000 };
+    const partial = k("partial");
+    rateLimit(partial, opts);
+    rateLimit(partial, opts); // 2 of 3 spent, not blocking
+    for (let i = 0; i < MAX_KEYS; i++) rateLimit(`flood-c-${i}`, opts);
+    // Evicted: it has a fresh budget of 3, not the 1 it had left.
+    expect(rateLimit(partial, opts).remaining).toBe(2);
+  });
+});
+
+describe("rateLimit — the sweep is off the request path", () => {
+  it("no request runs the sweep, however much time passes between them", () => {
+    const before = rateLimitStats().sweeps;
+    const t0 = Date.now();
+    for (let i = 0; i < 50; i++) {
+      // setSystemTime moves the clock without firing timers, so only a sweep
+      // called from inside rateLimit() could run here.
+      vi.setSystemTime(t0 + i * 10 * 60_000);
+      rateLimit(k("no-sweep"), { maxRequests: 5 });
+    }
+    expect(rateLimitStats().sweeps).toBe(before);
+    // The clock is left where it is: winding it back would leave entries
+    // stamped in the future, which no sweep could ever reclaim.
+  });
+
+  it("the interval sweeps, and reclaims entries whose window has passed", () => {
+    rateLimit(k("expires"), { maxRequests: 5, windowMs: 1000 });
+    const before = rateLimitStats();
+    vi.advanceTimersByTime(SWEEP_INTERVAL_MS);
+    const after = rateLimitStats();
+    expect(after.sweeps).toBe(before.sweeps + 1);
+    // Everything above used windows of at most 60s and SWEEP_INTERVAL_MS has
+    // now passed with no traffic, so the sweep leaves nothing behind.
+    expect(after.size).toBeLessThan(before.size);
+    expect(after.size).toBe(0);
   });
 });

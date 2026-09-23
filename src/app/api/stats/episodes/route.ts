@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { getEpisodeCounts } from "@/services/stats/store";
 
 const ID_PATTERN = /^[a-zA-Z0-9._-]+$/;
@@ -7,7 +7,7 @@ const MAX_IDS = 100;
 const MAX_ID_LENGTH = 200;
 
 export async function GET(request: NextRequest) {
-  const ip = getClientIp(request);
+  const ip = getClientKey(request);
   const rl = rateLimit(`stats-episodes:${ip}`, {
     maxRequests: 30,
     windowMs: 60_000,

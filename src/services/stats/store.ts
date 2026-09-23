@@ -10,7 +10,9 @@
  * app is fully usable without this subsystem.
  */
 
-import { Pool } from "pg";
+import { randomBytes } from "node:crypto";
+import { Pool, type PoolClient } from "pg";
+import { HASHED_VOTER_RE, hashClientKey } from "@/lib/utils/client-key";
 
 let _pool: Pool | null = null;
 
@@ -65,6 +67,71 @@ export function weekKey(now = new Date()): string {
 }
 
 const ACTIVE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+/**
+ * How many distinct sessions one client (an IPv4 address, or an IPv6 /64 — see
+ * `clientKey`) may hold in the online count at once.
+ *
+ * A session id is minted client-side per page load, so before this cap anyone
+ * could post heartbeats with fresh ids and make "online" and "on air" any
+ * number they liked (HD-007). Ten covers a household with a tab per person and
+ * a phone each; a school or office behind one NAT with more than that is
+ * under-counted, which is the right way round for a number strangers see.
+ *
+ * Over the cap a new session is *accepted and not counted* rather than refused
+ * with 429: the heartbeat client ignores the response either way, so a 429
+ * would buy nothing but console noise and a retry for the large-NAT case, and
+ * the forger learns nothing useful from a 200. A session that was admitted is
+ * always renewed — the cap is on joining, never on staying.
+ */
+export const SESSIONS_PER_CLIENT = 10;
+/**
+ * Salt for `active_sessions.client_ref`. Random per process and never written
+ * anywhere, so the column cannot be reversed to an address and cannot be joined
+ * to `rating_votes.voter` (which uses a persistent secret). Presence rows live
+ * for five minutes, so a restart costs at most one window in which a client's
+ * old and new refs both count — twice the cap, briefly — and nothing else.
+ */
+const PRESENCE_SALT = randomBytes(32).toString("hex");
+
+function clientRef(key: string): string {
+  return hashClientKey(key, PRESENCE_SALT);
+}
+
+/**
+ * Run `fn` holding a transaction-scoped lock on one client's presence ref.
+ *
+ * The cap is a read-then-insert; two heartbeats from the same client in flight
+ * at once would otherwise both see nine sessions and both insert. Serialising
+ * per client (not globally) costs nothing for anyone else.
+ */
+async function withClientLock<T>(ref: string, fn: (c: PoolClient) => Promise<T>): Promise<T> {
+  const client = await pool().connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [ref]);
+    const out = await fn(client);
+    await client.query("COMMIT");
+    return out;
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * The admission test shared by recordPlay and recordHeartbeat: a session that
+ * already exists is always admitted (it is renewing, not joining); a new one
+ * only while its client holds fewer than SESSIONS_PER_CLIENT live sessions.
+ * `$s` is the session id, `$k` the client ref, `$c` the cap.
+ */
+const ADMIT_SESSION = (s: string, k: string, c: string) => `
+  EXISTS (SELECT 1 FROM active_sessions WHERE session_id = ${s})
+  OR (
+    SELECT count(*) FROM active_sessions
+    WHERE client_ref = ${k} AND seen_at >= now() - interval '${ACTIVE_WINDOW_MS / 1000} seconds'
+  ) < ${c}`;
 const WEEKLY_RETENTION_WEEKS = 3;
 /** How long traffic samples are kept. */
 const SAMPLE_RETENTION_DAYS = 90;
@@ -92,8 +159,13 @@ const ROLLUP_DAYS = 3;
 export async function recordPlay(
   episodeId: string,
   sessionId: string,
+  client: string,
 ): Promise<void> {
-  await pool().query(
+  // The play itself is always counted (it is already rate-limited per client
+  // and allowlisted per episode); only its *presence* is subject to the
+  // per-client session cap, exactly as a heartbeat's is.
+  const ref = clientRef(client);
+  await withClientLock(ref, (c) => c.query(
     `
     WITH p AS (
       INSERT INTO episode_plays (episode_id, plays) VALUES ($1, 1)
@@ -110,13 +182,14 @@ export async function recordPlay(
       -- carrying the session ref until it expires; see scripts/schema.sql.
       INSERT INTO play_events (episode_id, session_ref) VALUES ($1, $3)
     )
-    INSERT INTO active_sessions (session_id, seen_at, listening_at, episode_id)
-    VALUES ($3, now(), now(), $1)
+    INSERT INTO active_sessions (session_id, seen_at, listening_at, episode_id, client_ref)
+    SELECT $3, now(), now(), $1, $4
+    WHERE ${ADMIT_SESSION("$3", "$4", "$5")}
     ON CONFLICT (session_id)
-    DO UPDATE SET seen_at = now(), listening_at = now(), episode_id = $1
+    DO UPDATE SET seen_at = now(), listening_at = now(), episode_id = $1, client_ref = $4
     `,
-    [episodeId, weekKey(), sessionId],
-  );
+    [episodeId, weekKey(), sessionId, ref, SESSIONS_PER_CLIENT],
+  ));
 }
 
 /**
@@ -138,22 +211,26 @@ export async function recordPlay(
  */
 export async function recordHeartbeat(
   sessionId: string,
-  episodeId?: string | null,
+  episodeId: string | null,
+  client: string,
 ): Promise<void> {
-  await pool().query(
+  const ref = clientRef(client);
+  await withClientLock(ref, (c) => c.query(
     `
-    INSERT INTO active_sessions (session_id, seen_at, listening_at, episode_id)
-    VALUES ($1, now(), CASE WHEN $2::text IS NULL THEN NULL ELSE now() END, $2)
+    INSERT INTO active_sessions (session_id, seen_at, listening_at, episode_id, client_ref)
+    SELECT $1, now(), CASE WHEN $2::text IS NULL THEN NULL ELSE now() END, $2, $3
+    WHERE ${ADMIT_SESSION("$1", "$3", "$4")}
     ON CONFLICT (session_id) DO UPDATE SET
       seen_at = now(),
       listening_at = CASE
         WHEN $2::text IS NULL THEN active_sessions.listening_at
         ELSE now()
       END,
-      episode_id = COALESCE($2, active_sessions.episode_id)
+      episode_id = COALESCE($2, active_sessions.episode_id),
+      client_ref = $3
     `,
-    [sessionId, episodeId ?? null],
-  );
+    [sessionId, episodeId ?? null, ref, SESSIONS_PER_CLIENT],
+  ));
 }
 
 /**
@@ -919,6 +996,18 @@ export async function pruneOldWeeks(now = new Date()): Promise<number> {
 // ---------------------------------------------------------------------------
 
 /**
+ * `rating_votes.voter` is an HMAC of the client's bucket (`voterId` in
+ * @/lib/utils/client-key), never an address (HD-008). Refused here as well as
+ * in the route, so no future caller can put a plaintext IP back in the table by
+ * passing the wrong variable: the column is kept forever, next to episode ids.
+ */
+function assertHashedVoter(voter: string): void {
+  if (!HASHED_VOTER_RE.test(voter)) {
+    throw new Error("rating voter must be an HMAC (64 hex), not a client address");
+  }
+}
+
+/**
  * Record or update a rating. Idempotent per voter: re-rating adjusts the
  * aggregate by the delta rather than double-counting.
  *
@@ -931,6 +1020,7 @@ export async function recordRating(
   rating: number,
   userKey: string,
 ): Promise<void> {
+  assertHashedVoter(userKey);
   await pool().query(
     `
     WITH prev AS (
@@ -954,6 +1044,7 @@ export async function removeRating(
   episodeId: string,
   userKey: string,
 ): Promise<void> {
+  assertHashedVoter(userKey);
   await pool().query(
     `
     WITH prev AS (
@@ -1019,6 +1110,9 @@ export interface PlaybackFailureInput {
  */
 const ADVISORY_KINDS = ["empty-media-suspected"];
 
+/** Distinct raw details returned per episode, before the public filter. */
+const STORED_DETAILS_PER_EPISODE = 20;
+
 /**
  * Record a playback failure and prune anything older than 90 days, in one
  * statement — the same shape as recordPlay's rolling prune of recent_plays.
@@ -1061,7 +1155,9 @@ export interface FailureRate {
   uaClasses: Record<string, number>;
   lastAt: string;
   /**
-   * The most recent distinct things the browser said, newest first, capped.
+   * The most recent distinct things the browser said, newest first, capped —
+   * **raw, as posted**. Anyone can post one; never serve these without
+   * `publicDetails()` (src/services/stats/failure-detail.ts, HD-038).
    *
    * `MediaError.code` plus its message on a decode or network failure. Chromium
    * writes a real diagnostic ("DEMUXER_ERROR_COULD_NOT_OPEN: …") and it is the
@@ -1203,9 +1299,10 @@ export async function getFailureRates(
       kinds: r.kinds ?? {},
       uaClasses: r.ua_classes ?? {},
       lastAt: r.last_at.toISOString(),
-      // Three is enough to see whether an episode fails the same way every
-      // time or differently each time, which is the question worth asking.
-      details: (r.details ?? []).slice(0, 3),
+      // Raw and deliberately more than the route shows: /api/stats/failures
+      // filters these to browser-diagnostic shapes (failure-detail.ts) and
+      // then shows three, so junk rows must not have already taken the slots.
+      details: (r.details ?? []).slice(0, STORED_DETAILS_PER_EPISODE),
       skippedRetries: Number(r.skipped_retries),
     };
   });

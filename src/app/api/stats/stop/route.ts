@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { removeActiveSession, clearListening } from "@/services/stats/store";
 import { readJsonObject } from "@/lib/utils/json-body";
 
 export async function POST(request: NextRequest) {
-  const ip = getClientIp(request);
+  const ip = getClientKey(request);
   const rl = rateLimit(`stats-stop:${ip}`, {
     maxRequests: 60,
     windowMs: 60_000,

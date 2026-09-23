@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { getFailureRates, getFailureSummary, getFailureWindow } from "@/services/stats/store";
 import { withEpisodeInfo } from "@/services/stats/catalog";
+import { publicDetails } from "@/services/stats/failure-detail";
 
 /**
  * Which episodes are failing to start, worst first.
@@ -18,7 +19,9 @@ import { withEpisodeInfo } from "@/services/stats/catalog";
  *
  * `details` carries what the browser itself said (`MediaError.code` plus its
  * message). It was being stored and was only readable via psql, which is the
- * condition that let 33 phantom rows sit unexamined for four months.
+ * condition that let 33 phantom rows sit unexamined for four months. It is
+ * also text anyone can POST, so only browser-diagnostic shapes are served
+ * (`publicDetails`, HD-038); the stored row keeps the full message.
  *
  * Ids are resolved to titles here for the same reason /api/stats/export does
  * it: the admin panel is a list of *shows*, and a bare `ultimate-ultimate-art
@@ -32,7 +35,7 @@ import { withEpisodeInfo } from "@/services/stats/catalog";
 const WINDOW_MS = 7 * 86_400_000;
 
 export async function GET(request: NextRequest) {
-  const ip = getClientIp(request);
+  const ip = getClientKey(request);
   const rl = rateLimit(`stats-failures:${ip}`, {
     maxRequests: 30,
     windowMs: 60_000,
@@ -64,7 +67,9 @@ export async function GET(request: NextRequest) {
         ? getFailureWindow(since, new Date(Math.min(since.getTime() + WINDOW_MS, Date.now())))
         : null,
     ]);
-    const entries = await withEpisodeInfo(rows);
+    const entries = await withEpisodeInfo(
+      rows.map((r) => ({ ...r, details: publicDetails(r.details) })),
+    );
     return NextResponse.json(
       { days, summary, entries, ...(window ? { window } : {}) },
       // Short cache: this is a diagnostic view, not a live dashboard, and it

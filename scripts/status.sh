@@ -8,6 +8,8 @@
 #
 #   deploy    the deployed commit (.deploy/deployed) vs HEAD, and HEAD vs origin
 #   service   highdesert.service active, and the installed unit == deploy/highdesert.service
+#   nginx     the installed vhost == deploy/nginx/highdesert.conf (WARN on drift:
+#             the stats write limit and the X-Forwarded-For overwrite live there)
 #   backup    highdesert-backup-status (OK / FAILED / STALE after 36h)
 #   sampler   highdesert-sample.timer active and its last run succeeded recently
 #   failures  7-day failed-start rate from /api/stats/failures vs plays from /api/stats/traffic
@@ -23,7 +25,7 @@
 #
 # Overridable for scripts/__tests__/status.test.ts:
 #   HD_ROOT, HD_API (http://127.0.0.1:3003), HD_SYSTEMCTL, HD_NPM,
-#   HD_BACKUP_STATUS_CMD, HD_INSTALLED_UNIT, HD_SAMPLER_MAX_AGE_S (600)
+#   HD_BACKUP_STATUS_CMD, HD_INSTALLED_UNIT, HD_INSTALLED_VHOST, HD_SAMPLER_MAX_AGE_S (600)
 set -uo pipefail
 
 ROOT="${HD_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -32,6 +34,7 @@ SYSTEMCTL="${HD_SYSTEMCTL:-systemctl}"
 NPM="${HD_NPM:-npm}"
 BACKUP_STATUS_CMD="${HD_BACKUP_STATUS_CMD:-bash $ROOT/scripts/backup-status.sh}"
 INSTALLED_UNIT="${HD_INSTALLED_UNIT:-/etc/systemd/system/highdesert.service}"
+INSTALLED_VHOST="${HD_INSTALLED_VHOST:-/etc/nginx/sites-available/highdesert}"
 SAMPLER_MAX_AGE_S="${HD_SAMPLER_MAX_AGE_S:-600}"
 
 cd "$ROOT" || exit 2
@@ -76,6 +79,19 @@ if [[ "$("$SYSTEMCTL" is-active highdesert 2>/dev/null)" == active ]]; then
   fi
 else
   line FAIL service "highdesert is not active"
+fi
+
+# --- nginx -------------------------------------------------------------------
+# WARN, not FAIL, like the unit: drift is a change someone has not finished
+# applying, not an outage. It is still worth a line, because this file is where
+# the outer rate limit on the stats writes lives (HD-007), and a vhost edited
+# by hand in /etc is exactly the kind of change nothing else would notice.
+if [[ ! -f "$INSTALLED_VHOST" ]]; then
+  line WARN nginx "no vhost at $INSTALLED_VHOST"
+elif cmp -s "$INSTALLED_VHOST" deploy/nginx/highdesert.conf; then
+  line OK nginx "vhost matches deploy/nginx/highdesert.conf"
+else
+  line WARN nginx "$INSTALLED_VHOST differs from deploy/nginx/highdesert.conf"
 fi
 
 # --- backup ------------------------------------------------------------------

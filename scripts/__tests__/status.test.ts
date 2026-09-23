@@ -16,6 +16,7 @@ import type { AddressInfo } from "node:net";
 
 const SCRIPT = path.resolve(__dirname, "../status.sh");
 const UNIT = path.resolve(__dirname, "../../deploy/highdesert.service");
+const VHOST = path.resolve(__dirname, "../../deploy/nginx/highdesert.conf");
 
 interface World {
   timerState: string;
@@ -54,6 +55,8 @@ let server: Server;
 let api: string;
 let world: World;
 let sinceAsked: string | null;
+/** Where the stub "installed" vhost lives; a copy of the repo's unless a test edits it. */
+let installedVhost: string;
 
 function git(...args: string[]): Promise<string> {
   return new Promise((resolve, reject) =>
@@ -119,6 +122,7 @@ async function run(): Promise<{ code: number; out: string }> {
           HD_NPM: path.join(bin, "npm"),
           HD_BACKUP_STATUS_CMD: path.join(bin, "backup-status"),
           HD_INSTALLED_UNIT: path.join(root, "deploy/highdesert.service"),
+          HD_INSTALLED_VHOST: installedVhost,
         },
         timeout: 30_000,
       },
@@ -144,6 +148,10 @@ beforeEach(async () => {
   await mkdir(path.join(root, "docs"));
   await mkdir(path.join(dir, "bin"));
   await copyFile(UNIT, path.join(root, "deploy/highdesert.service"));
+  await mkdir(path.join(root, "deploy/nginx"));
+  await copyFile(VHOST, path.join(root, "deploy/nginx/highdesert.conf"));
+  installedVhost = path.join(dir, "installed-vhost.conf");
+  await copyFile(VHOST, installedVhost);
   await writeFile(path.join(root, ".gitignore"), ".deploy\n");
   await git("init", "-q");
   await git("add", "-A");
@@ -266,6 +274,29 @@ describe("highdesert-status", () => {
     expect(backupLines[0]).toMatch(/^OK/);
     expect(backupLines[1]).toMatch(/^WARN.*off-box \(Mac\) copy skipped: Mac has 300MB free/);
     expect(r.code).toBe(0);
+  });
+
+  describe("nginx line", () => {
+    it("is OK when the installed vhost is the versioned one", async () => {
+      const r = await run();
+      expect(lineFor(r.out, "nginx")).toBe("OK    nginx     vhost matches deploy/nginx/highdesert.conf");
+    });
+
+    it("WARNs — and only WARNs — when the installed vhost has drifted", async () => {
+      // The realistic drift: someone removes the limit by hand in /etc.
+      await writeFile(installedVhost, "server { location / { proxy_pass http://highdesert_app; } }\n");
+      const r = await run();
+      expect(lineFor(r.out, "nginx")).toBe(
+        `WARN  nginx     ${installedVhost} differs from deploy/nginx/highdesert.conf`,
+      );
+      expect(r.code).toBe(0);
+    });
+
+    it("WARNs when there is no installed vhost to compare", async () => {
+      await rm(installedVhost);
+      const r = await run();
+      expect(lineFor(r.out, "nginx")).toMatch(/^WARN .*no vhost at/);
+    });
   });
 
   it("FAILs when the service is down", async () => {

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { getLeaderboard } from "@/services/stats/store";
 
 const VALID_PERIODS = new Set(["alltime", "week"]);
 
 export async function GET(request: NextRequest) {
-  const ip = getClientIp(request);
+  const ip = getClientKey(request);
   const rl = rateLimit(`stats-leaderboard:${ip}`, {
     maxRequests: 30,
     windowMs: 60_000,

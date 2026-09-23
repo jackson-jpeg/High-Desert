@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { getNowPlaying } from "@/services/stats/store";
 
 /**
@@ -20,7 +20,7 @@ import { getNowPlaying } from "@/services/stats/store";
  * no session id at all, so nothing here can be tied back to a visitor.
  */
 export async function GET(request: NextRequest) {
-  const ip = getClientIp(request);
+  const ip = getClientKey(request);
   const rl = rateLimit(`stats-now:${ip}`, {
     maxRequests: 60,
     windowMs: 60_000,
