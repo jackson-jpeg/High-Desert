@@ -14,7 +14,7 @@
  * it, "they are back" would pass just as well if the wipe had done nothing.
  */
 import { readFile } from "node:fs/promises";
-import { test, expect, type Page, type Locator } from "./fixtures";
+import { test, expect, type Page } from "./fixtures";
 import { episodeList, openLibrary } from "./library";
 
 interface Stored { fileHash: string; title?: string; favoritedAt?: number; rating?: number }
@@ -51,38 +51,34 @@ const detailFavourite = (page: Page, on: boolean) =>
   page.locator(`button[title="${on ? "Remove from favorites" : "Add to favorites"}"]:visible`);
 
 /**
- * Open a row's detail.
+ * Open the detail panel on the row at `index`, by keyboard.
  *
- * Not a bare `row.click()`: that lands on the row's centre, and a row carries
- * sub-controls that deliberately swallow the click — the guest name, the series
- * tag and the favourite star, each marked `[data-row-action]`. On a 1440px
- * desktop row the guest column sits under the centre point, so clicking there
- * opened the Guest Profile panel and no detail panel at all, for whichever rows
- * happen to name a guest. The date cell is the leading cell in both the desktop
- * grid and the mobile stack and carries no handler of its own, so a click near
- * the row's top-left corner is the one point that always reaches the row.
+ * Deliberately not a click on the row. A row is a virtualised, 34px-tall strip
+ * carrying sub-controls that stop propagation — the guest name, the series tag,
+ * the favourite star — and clicking it proved to be three different flakes in a
+ * row: the centre of a 1440px row lands on the guest column (which opens the
+ * Guest Profile and closes the detail panel: see `show-guest` in
+ * useLibraryBusListeners), a corner click can land on a row the list recycles
+ * between resolving it and dispatching the event, and retrying the click could
+ * still leave the panel closing under the next action.
  *
- * And not a single click either: the list is virtualised, so opening or closing
- * the panel re-lays the rows out and the node under the pointer can be recycled
- * between the moment Playwright resolves it and the moment the event is
- * dispatched. That click lands on a detached row, raises nothing, and does
- * nothing — the test then waited 90s for a panel that was never going to open.
- * So: click until the panel is actually open, which is the only evidence that
- * the click reached a live row. Re-clicking a row that is already open re-selects
- * the same episode; it does not toggle the panel shut.
+ * Selection follows focus in this listbox (`moveTo` in useLibraryKeyboard sets
+ * the selected episode), so Home + ArrowDown lands on an exact row with no
+ * geometry involved at all. This is how e2e/listbox.spec.ts drives the same
+ * panel, and it does not flake.
  */
-async function openDetail(page: Page, row: Locator): Promise<void> {
-  await expect(async () => {
-    await row.click({ position: { x: 6, y: 6 } });
-    await expect(page.locator('button[aria-label="Close detail"]:visible')).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 30_000 });
+async function openDetail(page: Page, index: number): Promise<void> {
+  await episodeList(page).focus();
+  await page.keyboard.press("Home");
+  for (let i = 0; i < index; i++) await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("button", { name: "Close detail" })).toBeVisible();
 }
 
 /** Open a row's detail, favourite it and give it `stars`, then close it. */
 async function favouriteAndRate(page: Page, index: number, stars: number): Promise<string> {
   const row = episodeList(page).locator('[role="option"]').nth(index);
   const label = (await row.getAttribute("aria-label"))!;
-  await openDetail(page, row);
+  await openDetail(page, index);
   await detailFavourite(page, false).click();
   await expect(detailFavourite(page, true)).toBeVisible();
   await page.locator(`button[aria-label="Rate ${stars} stars"]:visible`).click();
@@ -157,8 +153,11 @@ test("favourites and ratings survive export → cleared site data → import, th
 
   // 5. They are back, on the same episodes — in storage and on screen.
   await expect.poll(() => storedPicks(page)).toEqual(before);
-  const first = episodeList(page).getByRole("option", { name: picks[0], exact: true });
-  await openDetail(page, first);
+  // The sort has not changed, so the first pick is still the first row; assert
+  // that rather than assume it, or "the panel shows a favourite" could be some
+  // other episode's.
+  await expect(episodeList(page).locator('[role="option"]').first()).toHaveAttribute("aria-label", picks[0]);
+  await openDetail(page, 0);
   await expect(detailFavourite(page, true)).toBeVisible();
   await expect(page.getByText("4/5").first()).toBeVisible();
 });
