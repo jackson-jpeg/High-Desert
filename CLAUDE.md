@@ -80,6 +80,7 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/rate` | POST | Submit a rating 1–5 or null. Body `{episodeId, rating}`. Returns `{ok}`. One ballot per client (IPv4 address / IPv6 /64), stored as an HMAC; **503 when `RATING_VOTER_SECRET` is unset** |
 | `/api/stats/episodes` | GET | Play counts for up to **100** ids. Returns **`{counts: {id: n}}`** |
 | `/api/stats/ratings` | GET | Ratings for up to **50** ids. Returns a **bare map** `{id: {avg, count}}` |
+| `/api/stats/community` | GET | Community plays and ratings for the **whole catalog**: **`{episodes: {id: {plays, avg, count}}}`**, only episodes with a play or rating. What "Most played" / "Top rated" sort by and what the list's metric column shows (`src/lib/library/sort-keys.ts`), read through `useCommunityCatalog`. Proxy-cached 60s |
 | `/api/stats/leaderboard` | GET | Top episodes. Returns **`{entries: [{episodeId, plays}]}`** |
 | `/api/stats/active` | GET | **Legacy alias**, read by no surface in the current build. Returns **`{count, online, listening}`** from the same `getPresence()` as `/now` — `count` is a synonym for `listening` |
 | `/api/stats/heartbeat` | POST | Mark a session present. Body `{sessionId, episodeId?}`. Returns `{ok}`. Every open tab posts on a 60s interval. `episodeId` is sent **only while that tab is actually playing** and renews `listening_at` — it is what keeps a show on air for its whole runtime instead of for five minutes after someone pressed play. Omitting it leaves the listening mark alone rather than clearing it, so a pause does not yank the show off the air; the mark decays on its own. Same allowlist gate as `/api/stats/play`, but a bad id drops the mark instead of failing the beat — presence is the primary job. A client past `SESSIONS_PER_CLIENT` new sessions gets the same `{ok}` and is not counted |
@@ -174,6 +175,18 @@ had been overwritten too, muting and unmuting could not recover it either. The a
 simply quiet the next morning with nothing on screen to explain it. `useSleepTimerStore`
 now captures `fadeFrom` once and hands exactly that back — on expiry, and on cancel. A
 timer that expires without ever fading does not touch the volume at all.
+
+## Library sorts — whose numbers, and one of them
+
+`src/lib/library/sort-keys.ts` decides, once, what each numeric sort orders by:
+**"Most played · everyone"** and **"Top rated · everyone"** are community numbers
+(`/api/stats/community`); **"My plays"** and **"My rating"** are this browser's. The
+comparator (`sortEpisodes`), the group buckets (`deriveRailGroups`) and the list's metric
+column (`metricFor`) all read `sortValue` — "Most played" once sorted by local plays, grouped
+by them, and showed community counts, so the rows read 41, 6, 78, 120 under a "Played 2–4
+times (2)" header. **Every group has an inline header** (`list-layout.ts`); row offsets are
+not `index × rowHeight`, so scroll through the list (`scrollListToRow`), never by arithmetic.
+`sort-properties.test.ts` holds every sort monotonic and every header count equal to its rows.
 
 ## Event bus and library intents — read before adding a cross-component signal
 

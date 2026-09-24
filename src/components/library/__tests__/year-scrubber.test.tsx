@@ -15,7 +15,6 @@ vi.mock("@/hooks/useMediaQuery", () => ({
   useIsMobile: () => true,
   useMediaQuery: () => false,
 }));
-vi.mock("@/hooks/useCommunityStats", () => ({ useCommunityStats: () => new Map() }));
 
 class NoopResizeObserver {
   observe() {}
@@ -25,10 +24,15 @@ class NoopResizeObserver {
 globalThis.ResizeObserver ??= NoopResizeObserver as unknown as typeof ResizeObserver;
 
 const { TimelineView, SCRUBBER_IDLE_MS } = await import("@/components/library/TimelineView");
-const { itemHeightFor } = await import("@/hooks/useTextScale");
+const { itemHeightFor, headerHeightFor } = await import("@/hooks/useTextScale");
 const { scrubberIndexAt } = await import("@/lib/library/rail-groups");
 
 const ROW = itemHeightFor(true, 1); // 116 on a phone at 1x
+const HEAD = headerHeightFor(true, 1); // 32: the inline header above each group's first row
+/** Top of row `i` (ten rows a group): rows above, plus a header per group so far. Plain arithmetic, not list-layout. */
+const top = (i: number) => i * ROW + (Math.floor(i / 10) + 1) * HEAD;
+/** Top of the header of the group starting at row `first`. */
+const headerTop = (first: number) => top(first) - HEAD;
 
 /** 10 years × 10 rows. */
 function rows(desc = true): Episode[] {
@@ -110,7 +114,7 @@ describe("YearScrubber", () => {
 
   it("tracks the first visible row, not an overscan row", () => {
     mount(rows());
-    scrollTo(10 * ROW);
+    scrollTo(top(10));
     expect(active()).toEqual(["2009"]);
   });
 
@@ -121,13 +125,13 @@ describe("YearScrubber", () => {
     pointer("pointerdown", 110); // slot 0
     expect(scroller().scrollTop).toBe(0);
     pointer("pointermove", 100 + 3 * 50 + 25); // slot 3 → 2007, first row 30
-    expect(scroller().scrollTop).toBe(30 * ROW);
+    expect(scroller().scrollTop).toBe(headerTop(30));
     expect(host.querySelector('[data-testid="year-scrubber-bubble"]')?.textContent).toBe("2007");
     // Held up while dragging, whatever the idle clock says.
     act(() => vi.advanceTimersByTime(SCRUBBER_IDLE_MS * 3));
     expect(scrubber().dataset.visible).toBe("true");
     pointer("pointermove", 100 + 9 * 50 + 1); // slot 9 → 2001, first row 90
-    expect(scroller().scrollTop).toBe(90 * ROW);
+    expect(scroller().scrollTop).toBe(headerTop(90));
     pointer("pointerup", 100 + 9 * 50 + 1);
     expect(host.querySelector('[data-testid="year-scrubber-bubble"]')).toBeNull();
     act(() => vi.advanceTimersByTime(SCRUBBER_IDLE_MS + 10));

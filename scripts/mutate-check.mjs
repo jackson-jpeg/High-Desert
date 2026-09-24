@@ -1716,9 +1716,9 @@ export const MUTATIONS = [
     id: "rail-click-top",
     test: "src/components/library/__tests__/timeline-rail.test.tsx",
     file: "src/components/library/TimelineView.tsx",
-    find: "(group: RailGroup) => scrollToIndex(group.firstIndex, \"start\"),",
+    find: "(group: RailGroup) => scrollToOffset(layout.headerTop(groups.indexOf(group))),",
     replace: "(group: RailGroup) => scrollToIndex(group.firstIndex),",
-    why: "a rail entry means the start of its group; centring it leaves the previous group active",
+    why: "a rail entry means the start of its group (its header); centring it leaves the previous group active",
   },
   {
     id: "rail-scrubber-hides",
@@ -1898,6 +1898,48 @@ export const MUTATIONS = [
     find: "    if (s.online !== first.online || s.listening !== first.listening) {",
     replace: "    if (false) {",
     why: "the live check must call 8 beside 10 a disagreement, or highdesert-status goes blind to it",
+  },
+  // Part 1B: every sort states whose numbers it uses, and the order, the
+  // groups and the column all use them.
+  {
+    id: "sort-comparator-shuffle",
+    test: "src/lib/library/__tests__/sort-properties.test.ts",
+    file: "src/lib/library/filter-episodes.ts",
+    find: "        sortValue(b, mode, community) - sortValue(a, mode, community) ||",
+    replace: "        Math.sin(a.id ?? 0) - Math.sin(b.id ?? 0) ||",
+    why: "the report: 'Most played' rows reading 41, 6, 78, 120, 27 — in no order",
+  },
+  {
+    id: "rail-plays-local",
+    test: "src/lib/library/__tests__/rail-groups.test.ts",
+    file: "src/lib/library/rail-groups.ts",
+    find: '      const n = sortValue(ep, "played", community);',
+    replace: "      const n = ep.playCount ?? 0;",
+    why: "headers bucketed this browser's plays over rows sorted by the community's",
+  },
+  {
+    id: "rail-count",
+    test: "src/lib/library/__tests__/sort-properties.test.ts",
+    file: "src/lib/library/rail-groups.ts",
+    find: "      last.count++;",
+    replace: "      last.count = Math.min(last.count + 1, 2);",
+    why: "a header counting (2) over a dozen rows",
+  },
+  {
+    id: "layout-header-offset",
+    test: "src/lib/library/__tests__/list-layout.test.ts",
+    file: "src/lib/library/list-layout.ts",
+    find: "  const rowTop = (i: number) => i * rowHeight + headersAbove(i) * hh;",
+    replace: "  const rowTop = (i: number) => i * rowHeight;",
+    why: "rows drawn over their own group headers",
+  },
+  {
+    id: "metric-column-fork",
+    test: "src/components/library/__tests__/list-metric.test.tsx",
+    file: "src/components/library/TimelineView.tsx",
+    find: '                  metric={metricFor(ep, seriesFilter ? "date" : sortMode, community)}',
+    replace: '                  metric={metricFor(ep, "date", community)}',
+    why: "the column showed community plays under a sort by this browser's plays",
   },
 ];
 

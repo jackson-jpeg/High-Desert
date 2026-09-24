@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { act, createElement } from "react";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 /**
@@ -123,12 +123,10 @@ describe("presence: one truth on every surface", () => {
   it("the badge, status bar, mobile sheet, On Air and Signal Traffic all show the /now numbers", async () => {
     act(() => {
       root.render(
-        createElement(
-          DesktopShell,
-          { episodeCount: 1312 },
-          createElement(OnAir),
-          createElement(SignalTraffic),
-        ),
+        <DesktopShell episodeCount={1312}>
+          <OnAir />
+          <SignalTraffic />
+        </DesktopShell>,
       );
     });
     await flush();
@@ -160,7 +158,7 @@ describe("presence: one truth on every surface", () => {
     NOW.online = 1;
     try {
       act(() => {
-        root.render(createElement(DesktopShell, { episodeCount: 1312 }, null));
+        root.render(<DesktopShell episodeCount={1312}>{null}</DesktopShell>);
       });
       await flush();
       expect(host.querySelector('[data-presence="status-bar"]')?.getAttribute("data-online")).toBe("1");

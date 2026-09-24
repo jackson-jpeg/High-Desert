@@ -7,6 +7,7 @@ import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { presenceAttrs, type LivePresence } from "@/services/stats/now-feed";
+import { sortLabel } from "@/lib/library/sort-keys";
 
 interface MobileMenuSheetProps {
   open: boolean;
@@ -151,8 +152,10 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
             ["date-asc", "Date — oldest first", "\u{1F4C5}"],
             ["recent", "Recently played", "\u{1F553}"],
             ["progress", "In progress", "◑"],
-            ["rated", "Top rated", "★"],
-            ["played", "Most played", "▶"],
+            ["played", sortLabel("played"), "▶"],
+            ["rated", sortLabel("rated"), "★"],
+            ["my-plays", sortLabel("my-plays"), "▶"],
+            ["my-rating", sortLabel("my-rating"), "★"],
           ] as const).map(([mode, label, icon]) => (
             <button
               key={mode}

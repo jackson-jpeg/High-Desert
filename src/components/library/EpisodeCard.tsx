@@ -1,5 +1,6 @@
 "use client";
 
+import type { Metric } from "@/lib/library/sort-keys";
 import type { Episode } from "@/db/schema";
 import { cn } from "@/lib/utils/cn";
 import {
@@ -24,7 +25,12 @@ interface EpisodeCardProps {
   onContextMenu?: (episode: Episode, x: number, y: number) => void;
   onToggleFavorite?: (episode: Episode) => void;
   onQueue?: (episode: Episode) => void;
-  communityPlays?: number;
+  /**
+   * The metric column: under "Most played", "Top rated", "My plays" and "My
+   * rating", exactly the number the list is sorted by (sort-keys.ts);
+   * otherwise community plays.
+   */
+  metric?: Metric;
   /** DOM id of the option, for the listbox's `aria-activedescendant` (HD-021). */
   optionId?: string;
   /** Rows in the whole list and this row's 1-based place in it. The list is
@@ -60,7 +66,7 @@ export const EpisodeCard = memo(function EpisodeCard({
   onContextMenu,
   onToggleFavorite,
   onQueue,
-  communityPlays,
+  metric,
   optionId,
   setSize,
   posInSet,
@@ -354,12 +360,13 @@ export const EpisodeCard = memo(function EpisodeCard({
           {sizeLabel}
         </span>
 
-        {/* Community plays */}
+        {/* The sort's own number (or community plays) */}
         <span
           className="hidden lg:block text-hd-10 text-bevel-dark/85 tabular-nums text-right"
-          title={communityPlays ? `Played ${communityPlays} times across all listeners` : undefined}
+          title={metric?.title}
+          data-metric=""
         >
-          {communityPlays ? `▶ ${communityPlays.toLocaleString()}` : ""}
+          {metric?.text ?? ""}
         </span>
 
         {/* Favourite */}
@@ -430,12 +437,9 @@ export const EpisodeCard = memo(function EpisodeCard({
                 {sizeLabel}
               </span>
             )}
-            {communityPlays != null && communityPlays > 0 && (
-              <span
-                className="text-hd-8 text-bevel-dark/85 tabular-nums"
-                title={`Played ${communityPlays} times across all listeners`}
-              >
-                {"▶"} {communityPlays.toLocaleString()}
+            {metric?.text && (
+              <span className="text-hd-8 text-bevel-dark/85 tabular-nums" title={metric.title} data-metric="">
+                {metric.text}
               </span>
             )}
           </div>
@@ -470,7 +474,8 @@ export const EpisodeCard = memo(function EpisodeCard({
     prev.onContextMenu === next.onContextMenu &&
     prev.onToggleFavorite === next.onToggleFavorite &&
     prev.onQueue === next.onQueue &&
-    prev.communityPlays === next.communityPlays &&
+    prev.metric?.text === next.metric?.text &&
+    prev.metric?.title === next.metric?.title &&
     prev.optionId === next.optionId &&
     prev.setSize === next.setSize &&
     prev.posInSet === next.posInSet &&

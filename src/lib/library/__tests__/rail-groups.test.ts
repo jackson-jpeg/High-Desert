@@ -5,11 +5,12 @@ import type { Episode } from "@/db/schema";
 import { sortEpisodes, SORT_MODES, type SortMode } from "@/lib/library/filter-episodes";
 import {
   deriveRailGroups,
-  firstVisibleIndex,
   activeGroupIndex,
   railKind,
   type RailGroup,
 } from "@/lib/library/rail-groups";
+import type { CommunityIndex, CommunityNumbers } from "@/lib/library/sort-keys";
+import { communityKey } from "@/lib/utils/community-key";
 
 /**
  * The rail is a projection of the list (docs/timeline-rail.md). Every case here
@@ -22,7 +23,7 @@ import {
 let nextId = 1;
 function ep(fields: Partial<Episode>): Episode {
   const id = fields.id ?? nextId++;
-  return { fileHash: `archive:coll:${id}.mp3`, fileName: `${id}.mp3`, ...fields, id } as Episode;
+  return { fileHash: `archive:coll:${id}.mp3`, fileName: `${id}.mp3`, archiveIdentifier: "coll", ...fields, id } as Episode;
 }
 
 const keys = (g: RailGroup[]) => g.map((x) => x.key);
@@ -88,16 +89,44 @@ describe("deriveRailGroups — non-chronological sorts", () => {
     expect(firsts(g)).toEqual([0, 1, 3, 4, 5]);
   });
 
-  it("rated → star buckets, 5★ first, unrated last", () => {
-    const rows = sortEpisodes(DESC, "rated", null);
-    const g = deriveRailGroups(rows, "rated");
+  it("my-rating → star buckets of this browser's ratings, 5★ first, unrated last", () => {
+    const rows = sortEpisodes(DESC, "my-rating", null);
+    const g = deriveRailGroups(rows, "my-rating");
     expect(g.map((x) => x.label)).toEqual(["5★", "4★", "2★", "—"]);
     expect(firsts(g)).toEqual([0, 2, 3, 4]);
   });
 
-  it("played → play-count buckets, most first", () => {
-    const rows = sortEpisodes(DESC, "played", null);
-    expect(keys(deriveRailGroups(rows, "played"))).toEqual(["10+", "5-9", "2-4", "1", "0"]);
+  it("my-plays → play-count buckets of this browser's plays, most first", () => {
+    const rows = sortEpisodes(DESC, "my-plays", null);
+    expect(keys(deriveRailGroups(rows, "my-plays"))).toEqual(["10+", "5-9", "2-4", "1", "0"]);
+  });
+
+  // DESC's local numbers disagree with these on purpose: a rail bucketing the
+  // wrong source draws the wrong groups.
+  it("the fixture rows have community keys (else every lookup is zero)", () => {
+    expect(DESC.every((e) => communityKey(e))).toBe(true);
+  });
+  const COMMUNITY: CommunityIndex = new Map<string, CommunityNumbers>([
+    [communityKey(DESC[0])!, { plays: 3, avg: 1.5, count: 2 }],
+    [communityKey(DESC[1])!, { plays: 132, avg: 4.2, count: 5 }],
+    [communityKey(DESC[2])!, { plays: 41, avg: 5, count: 1 }],
+    [communityKey(DESC[3])!, { plays: 7, avg: 0, count: 0 }],
+    [communityKey(DESC[4])!, { plays: 1, avg: 4.9, count: 3 }],
+  ]);
+
+  it("played → community play buckets, from the same numbers the list sorted by", () => {
+    const rows = sortEpisodes(DESC, "played", null, COMMUNITY);
+    const g = deriveRailGroups(rows, "played", null, 0, COMMUNITY);
+    expect(keys(g)).toEqual(["100+", "20-49", "5-9", "2-4", "1", "0"]);
+    expect(g.map((x) => x.count)).toEqual([1, 1, 1, 1, 1, 1]);
+  });
+
+  it("rated → community average buckets (floor), unrated last", () => {
+    const rows = sortEpisodes(DESC, "rated", null, COMMUNITY);
+    const g = deriveRailGroups(rows, "rated", null, 0, COMMUNITY);
+    expect(g.map((x) => x.label)).toEqual(["5★", "4★", "1★", "—"]);
+    // 4.9 and 4.2 are one run: both are "4.0–4.9".
+    expect(g.map((x) => x.count)).toEqual([1, 2, 1, 2]);
   });
 
   it("recent → recency buckets against the given clock, never-played last", () => {
@@ -144,11 +173,19 @@ describe("deriveRailGroups — over the real catalogue", () => {
   // Every mode that has a rail must draw one on the real catalogue: a rail that
   // is empty because the sort's key recurs is correct, but for these modes it
   // would mean the grouping was chosen wrongly.
+  // Community numbers for a deterministic slice of the catalogue, spread across
+  // every play bucket and every star.
+  const community: CommunityIndex = new Map(
+    catalogue
+      .filter((_, i) => i % 7 === 0)
+      .map((e, i) => [communityKey(e)!, { plays: (i * 37) % 160, avg: i % 6 === 0 ? 0 : 1 + ((i * 3) % 40) / 10, count: i % 6 === 0 ? 0 : 1 + (i % 9) }]),
+  );
+
   for (const mode of SORT_MODES.filter((m): m is SortMode => railKind(m) !== null)) {
     it(`${mode}: every group starts exactly where its run starts, top to bottom`, () => {
       const withHistory = catalogue.map((e, i) => (i % 29 === 0 ? { ...e, rating: (i % 5) + 1, playCount: i % 13, lastPlayedAt: 1_000_000 + i } : e));
-      const rows = sortEpisodes(withHistory, mode, null);
-      const g = deriveRailGroups(rows, mode, null, 2_000_000);
+      const rows = sortEpisodes(withHistory, mode, null, community);
+      const g = deriveRailGroups(rows, mode, null, 2_000_000, community);
       expect(g.length, `${mode} should have a rail`).toBeGreaterThan(1);
       // Contiguous and exhaustive: each group begins where the last ended.
       expect(g[0].firstIndex).toBe(0);
@@ -169,18 +206,6 @@ describe("deriveRailGroups — over the real catalogue", () => {
     const asc = keys(deriveRailGroups(sortEpisodes(catalogue, "date-asc", null), "date-asc"));
     expect(asc).toEqual([...desc].reverse());
     expect(asc.length).toBeGreaterThan(10);
-  });
-});
-
-describe("firstVisibleIndex — the first row in view, not an overscan row", () => {
-  it("is floor(scrollTop / itemHeight), clamped to the list", () => {
-    expect(firstVisibleIndex(0, 34, 100)).toBe(0);
-    expect(firstVisibleIndex(33, 34, 100)).toBe(0);
-    expect(firstVisibleIndex(34, 34, 100)).toBe(1);
-    expect(firstVisibleIndex(340, 34, 100)).toBe(10);
-    expect(firstVisibleIndex(1e9, 34, 100)).toBe(99);
-    expect(firstVisibleIndex(-50, 34, 100)).toBe(0);
-    expect(firstVisibleIndex(100, 34, 0)).toBe(0);
   });
 });
 

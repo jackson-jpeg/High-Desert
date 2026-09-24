@@ -1114,6 +1114,46 @@ export async function getRatings(
   return result;
 }
 
+export interface CommunityNumbers {
+  plays: number;
+  /** Mean community rating, two decimals; 0 when unrated. */
+  avg: number;
+  /** Ratings behind `avg`. */
+  count: number;
+}
+
+/**
+ * Community plays and ratings for every episode that has either, in one read.
+ *
+ * The library's "Most played" and "Top rated" sort the whole catalog by these,
+ * so they cannot come from the windowed /api/stats/episodes (100 ids, the rows
+ * on screen): a sort over numbers only a screenful of rows have is not a sort.
+ * ~1,300 rows at most, both tables keyed by episode.
+ */
+export async function getCommunityCatalog(): Promise<Record<string, CommunityNumbers>> {
+  const { rows } = await pool().query<{ episode_id: string; plays: string; sum: string; count: string }>(
+    `
+    SELECT episode_id,
+           COALESCE(p.plays, 0) AS plays,
+           COALESCE(r.sum, 0)   AS sum,
+           COALESCE(r.count, 0) AS count
+    FROM (SELECT episode_id, plays FROM episode_plays WHERE plays > 0) p
+    FULL JOIN (SELECT episode_id, sum, count FROM episode_ratings WHERE count > 0) r
+      USING (episode_id)
+    `,
+  );
+  const out: Record<string, CommunityNumbers> = {};
+  for (const r of rows) {
+    const count = Number(r.count);
+    out[r.episode_id] = {
+      plays: Number(r.plays),
+      avg: count > 0 ? Number((Number(r.sum) / count).toFixed(2)) : 0,
+      count,
+    };
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Playback failures
 // ---------------------------------------------------------------------------

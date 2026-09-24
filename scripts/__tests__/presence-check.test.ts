@@ -1,6 +1,5 @@
 // @vitest-environment node
 import { describe, it, expect } from "vitest";
-// @ts-expect-error — a plain .mjs script with no type declarations
 import { judgeSurfaces } from "../presence-check.mjs";
 
 /**

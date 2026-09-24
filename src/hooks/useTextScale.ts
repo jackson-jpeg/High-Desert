@@ -41,6 +41,14 @@ export function useTextScale(): number {
 export const ITEM_HEIGHT_MOBILE = 116; // mobile stacks date/title/category/guest
 export const ITEM_HEIGHT_DESKTOP = 34; // desktop is a single aligned table row
 
+/** Inline group header height (list-layout.ts): a caption line, not a card. */
+export const HEADER_HEIGHT_MOBILE = 32;
+export const HEADER_HEIGHT_DESKTOP = 26;
+
+export function headerHeightFor(isMobile: boolean, scale: number): number {
+  return Math.round((isMobile ? HEADER_HEIGHT_MOBILE : HEADER_HEIGHT_DESKTOP) * scale);
+}
+
 /** Row height for the current breakpoint and text scale. */
 export function itemHeightFor(isMobile: boolean, scale: number): number {
   return Math.round((isMobile ? ITEM_HEIGHT_MOBILE : ITEM_HEIGHT_DESKTOP) * scale);

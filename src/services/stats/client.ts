@@ -88,29 +88,28 @@ export function reportStopBeacon(sessionId: string): void {
 // Reads — graceful failure with fallback values
 // ---------------------------------------------------------------------------
 
-/** The /api/stats/episodes route rejects more than this many ids per request. */
-const MAX_COUNT_IDS = 100;
+export interface CommunityNumbers {
+  plays: number;
+  /** Mean community rating; 0 when unrated. */
+  avg: number;
+  /** Ratings behind `avg`. */
+  count: number;
+}
 
-export async function fetchEpisodeCounts(
-  ids: string[],
-): Promise<Record<string, number>> {
-  if (ids.length === 0) return {};
+/**
+ * Community plays and ratings for the whole catalog, keyed by community key.
+ * Null when stats are unavailable — distinct from "loaded, and nobody has
+ * played anything", which is an empty object.
+ */
+export async function fetchCommunityCatalog(): Promise<Record<string, CommunityNumbers> | null> {
   try {
-    // Hard cap: the route 400s above its limit, and an over-long query string is
-    // rejected by proxies before it ever gets there.
-    const capped = ids.slice(0, MAX_COUNT_IDS);
-    const res = await fetchWithRetry(
-      `/api/stats/episodes?ids=${capped.map(encodeURIComponent).join(",")}`,
-      undefined,
-      RETRY_OPTS,
-    );
-    if (!res.ok) return {};
-    // Tolerate both `{counts:{...}}` and a bare map — deploys are not atomic, so a
-    // cached client may talk to a newer route or vice versa.
+    const res = await fetchWithRetry("/api/stats/community", undefined, RETRY_OPTS);
+    if (!res.ok) return null;
     const data = await res.json();
-    return data?.counts ?? data ?? {};
+    const episodes = data?.episodes;
+    return episodes && typeof episodes === "object" ? episodes : null;
   } catch {
-    return {};
+    return null;
   }
 }
 

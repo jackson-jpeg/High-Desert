@@ -16,7 +16,6 @@ vi.mock("@/hooks/useMediaQuery", () => ({
   useIsMobile: () => false,
   useMediaQuery: () => false,
 }));
-vi.mock("@/hooks/useCommunityStats", () => ({ useCommunityStats: () => new Map() }));
 
 class NoopResizeObserver {
   observe() {}
@@ -27,9 +26,19 @@ globalThis.ResizeObserver ??= NoopResizeObserver as unknown as typeof ResizeObse
 
 const { TimelineView } = await import("@/components/library/TimelineView");
 const { NothingInProgress } = await import("@/components/library/LibraryListStates");
-const { itemHeightFor } = await import("@/hooks/useTextScale");
+const { itemHeightFor, headerHeightFor } = await import("@/hooks/useTextScale");
 
 const ROW = itemHeightFor(false, 1); // 34 on desktop at 1x
+const HEAD = headerHeightFor(false, 1); // 26: every group has an inline header above its first row
+
+/**
+ * Top of row `i` in `rows()`, whose groups are ten rows each: `i` rows above
+ * it, plus one header for its own group and each group before. Written out as
+ * arithmetic, not by calling list-layout, so a layout bug cannot agree with it.
+ */
+const top = (i: number) => i * ROW + (Math.floor(i / 10) + 1) * HEAD;
+/** Top of the header of the group starting at row `first`. */
+const headerTop = (first: number) => top(first) - HEAD;
 
 /** 10 years × 10 rows, newest first — the default sort's shape. */
 function rows(): Episode[] {
@@ -89,28 +98,56 @@ describe("TimelineView rail", () => {
     expect(active()).toEqual(["2010"]);
     // Row 10 (the first 2009 row) is at the top of the viewport. Rows 5–9,
     // still 2010, are rendered above it as overscan.
-    scrollTo(10 * ROW);
+    scrollTo(top(10));
     expect(active()).toEqual(["2009"]);
-    // One pixel short of row 20: row 19 (2009) is still the first visible.
-    scrollTo(20 * ROW - 1);
+    // One pixel short of 2008's header: row 19 (2009) is still the first visible.
+    scrollTo(headerTop(20) - 1);
     expect(active()).toEqual(["2009"]);
-    scrollTo(20 * ROW);
+    // 2008's header at the top: 2008 is the group in view.
+    scrollTo(headerTop(20));
     expect(active()).toEqual(["2008"]);
   });
 
   it("the sticky header names the same group", () => {
     mount(rows());
-    scrollTo(30 * ROW);
+    scrollTo(top(30));
     expect(host.querySelector('[data-testid="rail-header-group"]')?.getAttribute("data-group")).toBe("2007");
   });
 
-  it("clicking an entry puts that group's first row at the top of the list", () => {
+  it("the sticky header stands down while the group's own inline header is at the top", () => {
+    mount(rows());
+    scrollTo(headerTop(30));
+    expect(host.querySelector('[data-testid="rail-header-group"]')).toBeNull();
+  });
+
+  it("clicking an entry puts that group's header at the top of the list", () => {
     mount(rows());
     const target = entries().find((e) => e.dataset.group === "2006")!;
     act(() => target.click());
-    // 2006 starts at row 40.
-    expect(scroller().scrollTop).toBe(40 * ROW);
+    // 2006 starts at row 40; its header sits directly above it.
+    expect(scroller().scrollTop).toBe(headerTop(40));
     expect(active()).toEqual(["2006"]);
+  });
+
+  it("every group in the rendered window has an inline header, with its row count", () => {
+    mount(rows());
+    // At the top: 2010's header, and — within the window plus overscan — 2009's.
+    const headers = () =>
+      [...host.querySelectorAll<HTMLElement>('[data-testid="group-header"]')].map((h) => ({
+        group: h.dataset.group,
+        count: h.dataset.count,
+        text: h.textContent,
+        top: h.style.top,
+      }));
+    expect(headers()[0]).toEqual({ group: "2010", count: "10", text: "201010 episodes", top: "0px" });
+    scrollTo(headerTop(50));
+    const inView = headers();
+    expect(inView.map((h) => h.group)).toContain("2005");
+    for (const h of inView) {
+      expect(h.count).toBe("10");
+      expect(h.text).toBe(`${h.group}10 episodes`);
+    }
+    expect(inView.find((h) => h.group === "2005")?.top).toBe(`${headerTop(50)}px`);
   });
 
   it("has no rail where the sort has no groups", () => {

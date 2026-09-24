@@ -1,3 +1,4 @@
+import { communityKey } from "@/lib/utils/community-key";
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
@@ -213,11 +214,11 @@ describe("sortEpisodes", () => {
     // Episode 1: 5400 / 10800 = 50%.
     expect(sort("progress")).toEqual([1]);
   });
-  it("rated sorts by rating desc, then airDate desc", () => {
-    expect(sort("rated")).toEqual([1, 2, 3, 4, 5, 6]);
+  it("my-rating sorts by this browser's rating desc, then airDate desc", () => {
+    expect(sort("my-rating")).toEqual([1, 2, 3, 4, 5, 6]);
   });
-  it("played sorts by playCount desc", () => {
-    expect(sort("played").slice(0, 2)).toEqual([1, 2]);
+  it("my-plays sorts by this browser's playCount desc", () => {
+    expect(sort("my-plays").slice(0, 2)).toEqual([1, 2]);
   });
   it("a series filter overrides the sort mode and orders by part, not airDate", () => {
     // Part 1 (id 3) aired *after* part 2 (id 4), so part order and airDate
@@ -238,8 +239,44 @@ describe("sortEpisodes", () => {
   });
   it("is stable: equal keys keep their input order", () => {
     const tied = [ep({ id: 101, playCount: 2 }), ep({ id: 102, playCount: 2 }), ep({ id: 103, playCount: 2 }), ep({ id: 104, playCount: 9 })];
-    expect(sort("played", tied)).toEqual([104, 101, 102, 103]);
-    expect(sort("played", [...tied].reverse())).toEqual([104, 103, 102, 101]);
+    expect(sort("my-plays", tied)).toEqual([104, 101, 102, 103]);
+    expect(sort("my-plays", [...tied].reverse())).toEqual([104, 103, 102, 101]);
+  });
+});
+
+describe("community sorts use the community's numbers, not this browser's", () => {
+  // Local and community order are built to disagree: the local favourite is
+  // the community's least played, so a sort reading the wrong source fails.
+  const rows = [
+    ep({ id: 301, archiveIdentifier: "coll", fileName: "301.mp3", airDate: "1999-03-01", playCount: 50, rating: 5 }),
+    ep({ id: 302, archiveIdentifier: "coll", fileName: "302.mp3", airDate: "1999-02-01", playCount: 1, rating: 1 }),
+    ep({ id: 303, archiveIdentifier: "coll", fileName: "303.mp3", airDate: "1999-01-01", playCount: 10, rating: 3 }),
+  ];
+  // Guard: without a community key every lookup is zero and these would pass
+  // on air-date order alone.
+  it("the fixture rows have community keys", () => {
+    expect(rows.every((e) => communityKey(e))).toBe(true);
+  });
+  const community = new Map([
+    [communityKey(rows[0])!, { plays: 2, avg: 2, count: 4 }],
+    [communityKey(rows[1])!, { plays: 90, avg: 4.5, count: 2 }],
+    [communityKey(rows[2])!, { plays: 30, avg: 4.5, count: 9 }],
+  ]);
+  const order = (mode: SortMode) => sortEpisodes(rows, mode, null, community).map((e) => e.id);
+
+  it("played: community plays, most first", () => {
+    expect(order("played")).toEqual([302, 303, 301]);
+  });
+  it("rated: community average, ties to the one more people rated", () => {
+    expect(order("rated")).toEqual([303, 302, 301]);
+  });
+  it("my-plays and my-rating ignore the community entirely", () => {
+    expect(order("my-plays")).toEqual([301, 303, 302]);
+    expect(order("my-rating")).toEqual([301, 303, 302]);
+  });
+  it("an episode with no community row sorts as zero, not as missing", () => {
+    const lone = ep({ id: 304, archiveIdentifier: "coll", fileName: "304.mp3", airDate: "2000-01-01", playCount: 99 });
+    expect(sortEpisodes([...rows, lone], "played", null, community).map((e) => e.id).at(-1)).toBe(304);
   });
 });
 
