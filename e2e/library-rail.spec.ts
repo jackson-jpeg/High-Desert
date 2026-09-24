@@ -113,11 +113,11 @@ for (const c of CASES) {
   });
 }
 
-/** Where the list must land after choosing `group`: its first row at the very top. */
+/** Where the list must land after choosing `group`: its header at the very top, its first row under it. */
 async function expectGroupAtTop(page: Page, group: string) {
   await expect.poll(async () => (await railActive(page))?.group, { timeout: 3_000 }).toBe(group);
-  const { scrollTop, rowHeight, firstIndex } = await listPosition(page);
-  expect(scrollTop % rowHeight, "a group's first row starts exactly at the top").toBe(0);
+  const { headerAtTop, firstIndex } = await listPosition(page);
+  expect(headerAtTop, "the group's header starts exactly at the top").toBe(group);
   expect(await rowGroupAt(page, firstIndex)).toBe(group);
   if (firstIndex > 0) expect(await rowGroupAt(page, firstIndex - 1), "the row above belongs to the previous group").not.toBe(group);
 }

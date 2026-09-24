@@ -233,18 +233,30 @@ export function TimelineView({
     <div className={cn("flex flex-col h-full", className)}>
       {/* Sticky group header: the group of the first visible row, and in
           date order the direction toggle — the only place the ascending sort
-          is offered on desktop outside the sort presets. */}
-      {((showStickyGroup && activeGroup) || dateDirection) && (
-        <div className="sticky top-0 z-10 bg-midnight/95 backdrop-blur-sm px-4 py-1.5 border-b border-bevel-dark/15 glass-light flex items-center gap-2">
-          {showStickyGroup && activeGroup && (
-            <>
-              <span data-testid="rail-header-group" data-group={activeGroup.key} className="text-hd-13 text-desert-amber/90 font-bold tabular-nums truncate">
+          is offered on desktop outside the sort presets.
+          Its height must not depend on the scroll position. It sits above the
+          scroller, so every pixel it gains is a pixel the scroller loses: when
+          it mounted or grew as the list moved off a group's inline header,
+          "keep the active row in view" had already computed against the
+          taller scroller, and End left the last row 4px below the fold. The
+          label is therefore hidden, never unmounted, while the inline header
+          is showing. */}
+      {(activeGroup || dateDirection) && (
+        <div data-testid="rail-header" className="sticky top-0 z-10 bg-midnight/95 backdrop-blur-sm px-4 py-1.5 border-b border-bevel-dark/15 glass-light flex items-center gap-2">
+          {activeGroup && (
+            <span
+              data-testid="rail-header-group"
+              data-group={activeGroup.key}
+              aria-hidden={showStickyGroup ? undefined : true}
+              className={cn("flex items-center gap-2 min-w-0", !showStickyGroup && "invisible")}
+            >
+              <span className="text-hd-13 text-desert-amber/90 font-bold tabular-nums truncate">
                 {activeGroup.title}
               </span>
               <span className="text-hd-10 text-bevel-dark/85">
                 {activeGroup.count}
               </span>
-            </>
+            </span>
           )}
           {dateDirection && onSortModeChange && (
             <button

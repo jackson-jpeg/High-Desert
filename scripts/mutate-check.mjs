@@ -1803,6 +1803,14 @@ export const MUTATIONS = [
     why: "a rail entry means the start of its group (its header); centring it leaves the previous group active",
   },
   {
+    id: "rail-sticky-stable",
+    test: "src/components/library/__tests__/timeline-rail.test.tsx",
+    file: "src/components/library/TimelineView.tsx",
+    find: "{activeGroup && (",
+    replace: "{showStickyGroup && activeGroup && (",
+    why: "the sticky bar sits above the scroller; content that mounts as the list moves shrinks it after scroll-into-view measured it, and End left the last row off screen",
+  },
+  {
     id: "rail-scrubber-hides",
     test: "src/components/library/__tests__/year-scrubber.test.tsx",
     file: "src/hooks/useWakeFlag.ts",

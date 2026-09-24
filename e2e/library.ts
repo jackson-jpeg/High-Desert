@@ -63,14 +63,16 @@ export async function openLibrary(page: Page): Promise<{ rowCount: number }> {
 }
 
 /**
- * Total rows in the (virtualised) list: its full height over one row slot.
- * Only a window of rows is in the DOM, so counting `option`s would not do.
+ * Total rows in the (virtualised) list, as its rows announce it: every option
+ * carries `aria-setsize`. Only a window of rows is in the DOM, so counting
+ * `option`s would not do — and since the list interleaves group headers, its
+ * height over one row slot no longer counts rows either.
  */
 export function renderedRowCount(page: Page): Promise<number> {
   return episodeList(page).evaluate((lb) => {
-    const slot = lb.firstElementChild as HTMLElement | null;
-    const slotH = slot ? parseFloat(slot.style.height) : 0;
-    return slotH > 0 ? Math.round(parseFloat((lb as HTMLElement).style.height) / slotH) : 0;
+    const sizes = new Set([...lb.querySelectorAll('[role="option"]')].map((o) => o.getAttribute("aria-setsize")));
+    // Rows that disagree about the list's size are a list mid-render: not settled.
+    return sizes.size === 1 ? Number([...sizes][0]) || 0 : 0;
   });
 }
 
@@ -157,16 +159,13 @@ export function groupOfLabel(label: string, grouping: RowGrouping): string {
 export async function listGroupRuns(page: Page, grouping: RowGrouping = "year"): Promise<string[]> {
   const labels = await listScroller(page).evaluate(async (sc) => {
     const lb = sc.querySelector('[role="listbox"]') as HTMLElement;
-    const slotH = parseFloat((lb.firstElementChild as HTMLElement | null)?.style.height ?? "0");
-    if (!(slotH > 0)) return [];
     const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     const byIndex = new Map<number, string>();
     for (let top = 0; ; top += sc.clientHeight) {
       sc.scrollTop = top;
       await frame();
       for (const o of lb.querySelectorAll('[role="option"]')) {
-        const idx = Math.round(parseFloat((o.parentElement as HTMLElement).style.top) / slotH);
-        byIndex.set(idx, o.getAttribute("aria-label") ?? "");
+        byIndex.set(Number(o.getAttribute("aria-posinset")) - 1, o.getAttribute("aria-label") ?? "");
       }
       if (top + sc.clientHeight >= sc.scrollHeight) break;
     }
@@ -187,44 +186,58 @@ export function listYearRuns(page: Page): Promise<string[]> {
   return listGroupRuns(page, "year");
 }
 
-/** Air year of the first row actually in view (not an overscan row above it). */
-export async function firstVisibleRowYear(page: Page): Promise<string | null> {
-  return listScroller(page).evaluate((sc, pattern) => {
-    const lb = sc.querySelector('[role="listbox"]') as HTMLElement;
-    const slotH = parseFloat((lb.firstElementChild as HTMLElement | null)?.style.height ?? "0");
-    if (!(slotH > 0)) return null;
-    const want = Math.floor(sc.scrollTop / slotH);
-    for (const o of lb.querySelectorAll('[role="option"]')) {
-      if (Math.round(parseFloat((o.parentElement as HTMLElement).style.top) / slotH) === want) {
-        return new RegExp(pattern).exec(o.getAttribute("aria-label") ?? "")?.[1] ?? "Unknown";
+/**
+ * The first row actually in view (not an overscan row above it): the row whose
+ * slot reaches furthest up while still ending below the scroller's top edge.
+ * Read from each row's own laid-out slot and `aria-posinset`, because the list
+ * interleaves group headers and a row's index cannot be computed from its offset.
+ */
+export async function firstRowInView(page: Page): Promise<{ index: number; label: string } | null> {
+  return listScroller(page).evaluate((sc) => {
+    let best: { index: number; label: string } | null = null;
+    let bestTop = Infinity;
+    for (const o of sc.querySelectorAll('[role="listbox"] [role="option"]')) {
+      const slot = o.parentElement as HTMLElement;
+      const top = parseFloat(slot.style.top);
+      if (top + parseFloat(slot.style.height) > sc.scrollTop && top < bestTop) {
+        bestTop = top;
+        best = { index: Number(o.getAttribute("aria-posinset")) - 1, label: o.getAttribute("aria-label") ?? "" };
       }
     }
-    return null;
-  }, ROW_YEAR.source);
+    return best;
+  });
+}
+
+/** Air year of the first row actually in view (see `firstRowInView`). */
+export async function firstVisibleRowYear(page: Page): Promise<string | null> {
+  const row = await firstRowInView(page);
+  return row ? (ROW_YEAR.exec(row.label)?.[1] ?? "Unknown") : null;
 }
 
 /** Group key of the row at `index` (it must be rendered — in view or in the overscan). */
 export async function rowGroupAt(page: Page, index: number, grouping: RowGrouping = "year"): Promise<string | null> {
   const label = await listScroller(page).evaluate((sc, idx) => {
-    const lb = sc.querySelector('[role="listbox"]') as HTMLElement;
-    const slotH = parseFloat((lb.firstElementChild as HTMLElement | null)?.style.height ?? "0");
-    for (const o of lb.querySelectorAll('[role="option"]')) {
-      if (Math.round(parseFloat((o.parentElement as HTMLElement).style.top) / slotH) === idx) {
-        return o.getAttribute("aria-label") ?? "";
-      }
-    }
-    return null;
+    const o = sc.querySelector(`[role="listbox"] [role="option"][aria-posinset="${idx + 1}"]`);
+    return o ? (o.getAttribute("aria-label") ?? "") : null;
   }, index);
   return label === null ? null : groupOfLabel(label, grouping);
 }
 
-/** The list's scroll position and row height, and the index of the first row in view. */
-export async function listPosition(page: Page): Promise<{ scrollTop: number; rowHeight: number; firstIndex: number }> {
-  return listScroller(page).evaluate((sc) => {
-    const lb = sc.querySelector('[role="listbox"]') as HTMLElement;
-    const rowHeight = parseFloat((lb.firstElementChild as HTMLElement | null)?.style.height ?? "0");
-    return { scrollTop: sc.scrollTop, rowHeight, firstIndex: Math.floor(sc.scrollTop / rowHeight) };
+/**
+ * The list's scroll position, the index of the first row in view, and the
+ * group header sitting exactly at the top of the viewport (null if none is).
+ */
+export async function listPosition(
+  page: Page,
+): Promise<{ scrollTop: number; firstIndex: number; headerAtTop: string | null }> {
+  const { scrollTop, headerAtTop } = await listScroller(page).evaluate((sc) => {
+    const header = [...sc.querySelectorAll('[data-testid="group-header"]')].find(
+      (h) => Math.abs(parseFloat((h as HTMLElement).style.top) - sc.scrollTop) < 1,
+    );
+    return { scrollTop: sc.scrollTop, headerAtTop: header?.getAttribute("data-group") ?? null };
   });
+  const first = await firstRowInView(page);
+  return { scrollTop, firstIndex: first ? first.index : -1, headerAtTop };
 }
 
 /**

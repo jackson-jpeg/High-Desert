@@ -117,7 +117,36 @@ describe("TimelineView rail", () => {
   it("the sticky header stands down while the group's own inline header is at the top", () => {
     mount(rows());
     scrollTo(headerTop(30));
-    expect(host.querySelector('[data-testid="rail-header-group"]')).toBeNull();
+    const label = host.querySelector('[data-testid="rail-header-group"]')!;
+    expect(label.classList.contains("invisible")).toBe(true);
+    expect(label.getAttribute("aria-hidden")).toBe("true");
+    scrollTo(top(30));
+    expect(label.classList.contains("invisible")).toBe(false);
+    expect(label.hasAttribute("aria-hidden")).toBe(false);
+  });
+
+  // The bar sits above the scroller: anything that mounts or unmounts in it
+  // as the list moves changes the scroller's height after "keep the active
+  // row in view" has measured it, and End left the last row below the fold
+  // (e2e/listbox.spec.ts measures that in Chromium; jsdom has no layout, so
+  // this pins the cause — the bar's content must not depend on scroll).
+  it("the sticky header's content does not change with the scroll position", () => {
+    for (const mode of ["date", "date-asc"] as const) {
+      mount(mode === "date" ? rows() : [...rows()].reverse(), mode);
+      const shape = () => {
+        const bar = host.querySelector('[data-testid="rail-header"]');
+        return bar ? [...bar.querySelectorAll("*")].map((e) => e.tagName).join(",") : null;
+      };
+      const bar = host.querySelector('[data-testid="rail-header"]');
+      const atHeader = shape();
+      expect(atHeader).not.toBeNull();
+      for (const y of [top(3), headerTop(30), top(55), headerTop(90), top(99)]) {
+        scrollTo(y);
+        expect(host.querySelector('[data-testid="rail-header"]')).toBe(bar);
+        expect(shape()).toBe(atHeader);
+      }
+      scrollTo(0);
+    }
   });
 
   it("clicking an entry puts that group's header at the top of the list", () => {
