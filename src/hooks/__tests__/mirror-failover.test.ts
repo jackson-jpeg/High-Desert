@@ -182,8 +182,17 @@ describe("archive.org fails → the mirror", () => {
     expect(reportPlay).toHaveBeenCalledTimes(1);
     Object.defineProperty(element, "currentTime", { value: 4321, writable: true, configurable: true });
 
-    act(() => mediaError(2));
-    await settle();
+    // 72 minutes in — where a mid-show failure actually happens, and far past
+    // the two-minute play de-duplication (shouldCountPlay), which would
+    // otherwise hide a second count made at the failover.
+    const now = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now + 4321_000);
+    try {
+      act(() => mediaError(2));
+      await settle();
+    } finally {
+      clock.mockRestore();
+    }
 
     expect(element.src).toBe(MIRROR);
     expect(seekSpy).toHaveBeenLastCalledWith(4321);
