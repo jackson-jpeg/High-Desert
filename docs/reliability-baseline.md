@@ -1,6 +1,6 @@
 # Reliability baseline — the playback correctness release
 
-**Release deployed:** `2026-09-21T16:03:19Z` (c2d25a8)
+**Release deployed:** `2026-09-24T08:07:11Z` (304d05c)
 
 `highdesert-status` reads the line above and prints a `release` line: the
 failed-start rate over the seven days from that instant
@@ -41,6 +41,7 @@ Each session records what `highdesert-status` printed for `release`.
 |---|---|
 | 2026-09-21T16:11Z | `OK release no plays yet since the release (2026-09-21T16:03:19Z); target <3%` |
 | 2026-09-22T14:03Z | `OK release 2.5% of starts failed in the 0.9 of 7 days since 2026-09-21T16:03:19Z (1 failures / 40 plays; target <3%)`. The one failure is a genuine mid-play `stall` 423 s into a show on desktop-chromium, retry skipped for want of a gesture — not a phantom |
+| 2026-09-24T08:22Z | `WARN release 4.0% of starts failed in the 2.6 of 7 days since 2026-09-21T16:03:19Z (6 failures / 151 plays; target <3%)` — the closing reading for the c2d25a8 release, above target. All six are one-per-episode and five are `ios-safari`: three `stall` and three `play-rejected`, with four recording `retried: false` (no user activation, so the retry was correctly skipped rather than tearing down a live element). No episode failed twice for the same reason and the 7-day rate stayed at 4.8%, under the 5.0% baseline, so this is the iOS activation floor rather than a regression — but it is over 3%, and the target is the target. Next release's line starts from 304d05c |
 
 ## Android "code=4 MEDIA_ELEMENT_ERROR: Format error"
 
