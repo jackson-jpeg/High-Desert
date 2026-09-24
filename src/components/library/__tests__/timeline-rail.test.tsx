@@ -166,6 +166,17 @@ describe("TimelineView rail", () => {
     expect(scroller().scrollTop).toBe(0);
   });
 
+  it("moving the active row down onto a one-row group puts the row's own bottom at the fold", () => {
+    // The real catalog ends in a group of one; End lands on it.
+    const list = [...rows(), { id: 101, fileHash: "archive:c:101.mp3", fileName: "101.mp3", title: "Show 101", airDate: "1999-01-01" } as Episode];
+    mount(list);
+    Object.defineProperty(scroller(), "clientHeight", { configurable: true, value: 340 });
+    mount(list, "date", 100);
+    // Row 100 sits under eleven headers; jsdom lays nothing out, so the
+    // listbox's own offset inside the scroller is 0.
+    expect(scroller().scrollTop).toBe(100 * ROW + 11 * HEAD + ROW - 340);
+  });
+
   it("clicking an entry puts that group's header at the top of the list", () => {
     mount(rows());
     const target = entries().find((e) => e.dataset.group === "2006")!;

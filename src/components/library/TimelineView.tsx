@@ -156,11 +156,14 @@ export function TimelineView({
     const listbox = listboxRef.current;
     const scroller = listbox?.parentElement;
     if (!listbox || !scroller || activeRow < 0) return;
-    // A group's first row comes into view with its header: Home, or arrowing
-    // up into a group, would otherwise stop one header short of the top.
+    // Scrolling up, a group's first row comes into view with its header: Home,
+    // or arrowing up into a group, would otherwise stop one header short of
+    // the top. The bottom edge is always the row's own — a header above it
+    // does not make it taller (End onto a one-row group stopped 26px short).
     const g = groups.findIndex((gr) => gr.firstIndex === activeRow);
-    const top = g >= 0 ? layout.headerTop(g) : layout.rowTop(activeRow);
-    const bottom = listbox.offsetTop + top + ITEM_HEIGHT;
+    const rowTop = layout.rowTop(activeRow);
+    const top = g >= 0 ? layout.headerTop(g) : rowTop;
+    const bottom = listbox.offsetTop + rowTop + ITEM_HEIGHT;
     if (top < scroller.scrollTop) {
       scroller.scrollTop = top;
     } else if (bottom > scroller.scrollTop + scroller.clientHeight) {

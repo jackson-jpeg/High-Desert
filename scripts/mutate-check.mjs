@@ -1811,6 +1811,14 @@ export const MUTATIONS = [
     why: "Home stopped at row 0's own top with the first group's header scrolled away above it",
   },
   {
+    id: "rail-row-bottom-own",
+    test: "src/components/library/__tests__/timeline-rail.test.tsx",
+    file: "src/components/library/TimelineView.tsx",
+    find: "const bottom = listbox.offsetTop + rowTop + ITEM_HEIGHT;",
+    replace: "const bottom = listbox.offsetTop + top + ITEM_HEIGHT;",
+    why: "End onto a one-row group measured the bottom from its header and left the last row 26px below the fold",
+  },
+  {
     id: "rail-sticky-stable",
     test: "src/components/library/__tests__/timeline-rail.test.tsx",
     file: "src/components/library/TimelineView.tsx",
