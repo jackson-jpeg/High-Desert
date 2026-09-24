@@ -38,11 +38,15 @@ const { archiveFileHash } = await import("@/db/identity");
 
 const COLLECTION = "ultimate-art-bell-collection";
 
-/** Three real-shaped Art Bell filenames from one collection. */
+/**
+ * Three filenames in the catalog's real shape — date first, then the show —
+ * which is what `parseArtBellFilename` reads. An invented "Art Bell - … - date"
+ * shape parses to nothing, and the air-date assertion below caught exactly that.
+ */
 const FILES: ArchiveFile[] = [
-  { name: "Art Bell - Coast to Coast AM - 1997-04-07 - Heaven's Gate.mp3", format: "VBR MP3", size: "100", length: "3600" },
-  { name: "Art Bell - Coast to Coast AM - 1997-04-08 - Area 51.mp3", format: "VBR MP3", size: "200", length: "3700" },
-  { name: "Art Bell - Coast to Coast AM - 1997-04-09 - Remote Viewing.mp3", format: "VBR MP3", size: "300", length: "3800" },
+  { name: "1997-04-07 - Coast to Coast AM with Art Bell - Heaven's Gate - Courtney Brown.mp3", format: "VBR MP3", size: "100", length: "3600" },
+  { name: "1997-04-08 - Coast to Coast AM with Art Bell - Area 51 - John Lear.mp3", format: "VBR MP3", size: "200", length: "3700" },
+  { name: "1997-04-09 - Coast to Coast AM with Art Bell - Remote Viewing - Ed Dames.mp3", format: "VBR MP3", size: "300", length: "3800" },
 ];
 
 const info = { identifier: COLLECTION, title: "The collection", description: "", creator: "Art Bell", audioFiles: FILES };
@@ -77,12 +81,27 @@ describe("runCollectionImport — identity", () => {
     expect(rows).toHaveLength(3);
   });
 
-  it("parses the air date and guest out of the filename", async () => {
-    await runCollectionImport(new AbortController().signal, info, sink());
-    const row = await db.episodes.where("fileHash").equals(archiveFileHash(COLLECTION, FILES[0].name)).first();
-    expect(row?.airDate).toBe("1997-04-07");
-    expect(row?.source).toBe("archive");
-    expect(row?.duration).toBe(3600);
+  it("stores what the filename parser found, and falls back to the name when it finds nothing", async () => {
+    // Which segment the parser calls the guest is its own business
+    // (filename-parser.test.ts); what belongs here is that collection import
+    // runs it and keeps the result rather than storing a raw filename.
+    const unparseable = { name: "track03.mp3", format: "VBR MP3", size: "400" };
+    await runCollectionImport(
+      new AbortController().signal,
+      { ...info, audioFiles: [...FILES, unparseable] },
+      sink(),
+    );
+
+    const parsed = await db.episodes.where("fileHash").equals(archiveFileHash(COLLECTION, FILES[0].name)).first();
+    expect(parsed?.airDate).toBe("1997-04-07");
+    expect(parsed?.showType).toBe("coast");
+    expect(parsed?.title).toContain("Coast to Coast AM");
+    expect(parsed?.duration).toBe(3600);
+    expect(parsed?.source).toBe("archive");
+
+    const raw = await db.episodes.where("fileHash").equals(archiveFileHash(COLLECTION, unparseable.name)).first();
+    expect(raw?.title).toBe("track03");
+    expect(raw?.airDate).toBeUndefined();
   });
 });
 
