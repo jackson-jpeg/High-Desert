@@ -1,0 +1,29 @@
+[Unit]
+Description=High Desert — pin the most-played episodes into the mirror cache
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=hdmirror
+Group=hdmirror
+WorkingDirectory=/opt/highdesert-mirror
+ExecStart=/usr/bin/node /opt/highdesert-mirror/warm.mjs
+# DATABASE_URL (read by psql for one aggregate query). systemd reads this as
+# root before dropping to hdmirror; the file stays chmod 600.
+EnvironmentFile=/root/.high-desert.env
+Environment=MIRROR_CACHE_DIR=/var/cache/highdesert-mirror
+Environment=MIRROR_TORRENT_DIR=/var/lib/highdesert-mirror/torrents
+Environment=MIRROR_INDEX=/opt/highdesert-mirror/episodes.json
+Environment=MIRROR_PIN_MAX_GB=15
+Environment=MIRROR_DISK_FLOOR_GB=10
+Environment=MIRROR_WARM_MAX_STEAL=20
+CPUQuota=50%
+IOWeight=10
+Nice=15
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/cache/highdesert-mirror
+SyslogIdentifier=highdesert-mirror-warm

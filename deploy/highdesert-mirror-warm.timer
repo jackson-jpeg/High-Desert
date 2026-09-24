@@ -1,0 +1,12 @@
+[Unit]
+Description=High Desert — nightly mirror warm
+
+[Timer]
+# 04:10 UTC: the quietest hour in the traffic profile, clear of the 17:15
+# repo-bundle and 17:30 backup, and it needs nothing from the Mac.
+OnCalendar=*-*-* 04:10:00 UTC
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target

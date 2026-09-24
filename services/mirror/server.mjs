@@ -1,0 +1,86 @@
+#!/usr/bin/env node
+/**
+ * highdesert-mirror: the gateway on 127.0.0.1:3004, proxied by nginx at
+ * /mirror/. Configuration is environment only (deploy/highdesert-mirror.service):
+ *
+ *   MIRROR_PORT            3004
+ *   MIRROR_CACHE_DIR       /var/cache/highdesert-mirror
+ *   MIRROR_TORRENT_DIR     /var/lib/highdesert-mirror/torrents
+ *   MIRROR_INDEX           ./episodes.json   (data/torrents/episodes.json)
+ *   MIRROR_CACHE_MAX_GB    20    unpinned bytes on disk
+ *   MIRROR_DISK_FLOOR_GB   10    free space never goes below this
+ *   MIRROR_UPLOAD_KBPS     2048  seeding cap (2 MB/s)
+ *   MIRROR_FIRST_BYTE_MS   15000
+ *   MIRROR_TORRENT_PORT    6881  TCP + uTP; MIRROR_DHT_PORT 6882
+ */
+import http from "node:http";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import WebTorrent from "webtorrent";
+import { Cache } from "./lib/cache.mjs";
+import { createGateway } from "./lib/gateway.mjs";
+import { dhtBootstrap } from "./lib/bootstrap.mjs";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const env = (k, d) => process.env[k] ?? d;
+const GB = 1024 ** 3;
+
+const cache = new Cache({
+  root: env("MIRROR_CACHE_DIR", "/var/cache/highdesert-mirror"),
+  maxBytes: Number(env("MIRROR_CACHE_MAX_GB", "20")) * GB,
+  floorBytes: Number(env("MIRROR_DISK_FLOOR_GB", "10")) * GB,
+});
+await cache.load();
+
+const index = JSON.parse(await readFile(env("MIRROR_INDEX", path.join(here, "episodes.json")), "utf8"));
+
+const client = new WebTorrent({
+  uploadLimit: Number(env("MIRROR_UPLOAD_KBPS", "2048")) * 1024,
+  torrentPort: Number(env("MIRROR_TORRENT_PORT", "6881")),
+  dhtPort: Number(env("MIRROR_DHT_PORT", "6882")),
+  // A server: no LAN discovery, no router port-mapping, no WebRTC.
+  lsd: false,
+  natUpnp: false,
+  natPmp: false,
+  webSeeds: true,
+  // IPv4, resolved here: see lib/bootstrap.mjs for why the defaults found nothing.
+  dht: { bootstrap: await dhtBootstrap() },
+});
+client.on("error", (err) => console.error("[mirror] client:", err.message));
+
+const gateway = createGateway({
+  cache,
+  torrentDir: env("MIRROR_TORRENT_DIR", "/var/lib/highdesert-mirror/torrents"),
+  index,
+  client,
+  firstByteMs: Number(env("MIRROR_FIRST_BYTE_MS", "15000")),
+  // x.pe in magnet links: where a torrent client can reach this seeder.
+  publicPeer: env("MIRROR_PUBLIC_PEER", "") || null,
+  log: (m) => console.log(`[mirror] ${m}`),
+});
+
+await gateway.seedPins();
+// Pins change nightly (warm job): re-read them, drop idle torrents, evict.
+setInterval(() => {
+  gateway.seedPins().then(() => gateway.sweep()).catch((err) => console.error("[mirror] sweep:", err.message));
+}, 60_000).unref();
+
+const server = http.createServer((req, res) => {
+  gateway.handle(req, res).catch((err) => {
+    console.error("[mirror] request:", err);
+    if (!res.headersSent) res.writeHead(500, { "content-type": "application/json" });
+    res.end(JSON.stringify({ error: "internal" }));
+  });
+});
+server.listen(Number(env("MIRROR_PORT", "3004")), "127.0.0.1", () => {
+  console.log(`[mirror] listening on 127.0.0.1:${server.address().port}, ${Object.keys(index).length} episodes indexed`);
+});
+
+const shutdown = async () => {
+  server.close();
+  await gateway.close();
+  client.destroy(() => process.exit(0));
+};
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
