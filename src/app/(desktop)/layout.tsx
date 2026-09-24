@@ -13,6 +13,7 @@ import { db, getPreference, setPreference } from "@/db";
 import type { Episode } from "@/db/schema";
 import { getCachedAudio, cacheAudioBlob } from "@/audio/cache";
 import { seedLibraryIfEmpty, reconcileLibrary } from "@/db/seed";
+import { refreshCatalogFlags } from "@/db/catalog-flags";
 import { healDoubledLibrary } from "@/db/heal";
 import { DBErrorBoundary } from "@/components/DBErrorBoundary";
 import { MilestoneDialog } from "@/components/desktop/MilestoneDialog";
@@ -247,6 +248,10 @@ export default function DesktopLayout({
           if (restored > 0 && !cancelled) {
             toast.success(`Restored ${restored.toLocaleString()} missing episodes to your library`);
           }
+          if (cancelled) return;
+          // Catalog flags added after this library was seeded (the curated
+          // notable list). Sets one flag on listed rows, never anything else.
+          await refreshCatalogFlags();
         })
         .catch((err) => { console.warn("[layout] Seed/reconcile failed:", err); })
         .finally(() => {

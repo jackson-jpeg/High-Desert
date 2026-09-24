@@ -85,7 +85,7 @@ export function computeFacets(episodes: Episode[] | undefined): LibraryFacets {
 
   // Dynamic mood filters — only shows categories that actually exist in the library
   const moodFilters: MoodFilter[] = [];
-  if (notableCount > 0) moodFilters.push({ label: "Late Night Classics", kind: "notable" });
+  if (notableCount > 0) moodFilters.push({ label: "Notable", kind: "notable" });
   if (favCount > 0) moodFilters.push({ label: "Favorites", kind: "favorite" });
   // Top categories by episode count (only those with 3+ episodes)
   const topCategories = Array.from(categoryCounts.entries())

@@ -2699,7 +2699,8 @@
       "esp"
     ],
     "aiStatus": "completed",
-    "aiCategory": "Psychology & Consciousness"
+    "aiCategory": "Psychology & Consciousness",
+    "aiNotable": true
   },
   {
     "fileHash": "archive:ultimate-ultimate-art-bell-collection:1995-12-10 - Dreamland with Art Bell - Linda Moulton Howe - Ingo Swann - NASA Scientist & Energy - Dr. Brian O' Leary.mp3",
@@ -4640,7 +4641,8 @@
       "supernatural"
     ],
     "aiStatus": "completed",
-    "aiCategory": "Religion & Spirituality"
+    "aiCategory": "Religion & Spirituality",
+    "aiNotable": true
   },
   {
     "fileHash": "archive:ultimate-ultimate-art-bell-collection:1996-10-23 - Coast to Coast AM with Art Bell - Joyce Riley - Gulf War Syndrome.mp3",
@@ -4832,7 +4834,8 @@
     "aiStatus": "completed",
     "aiCategory": "UFOs & Aliens",
     "aiSeries": "Courtney Brown",
-    "aiSeriesPart": 2
+    "aiSeriesPart": 2,
+    "aiNotable": true
   },
   {
     "fileHash": "archive:ultimate-ultimate-art-bell-collection:1996-11-15 - Coast to Coast AM with Art Bell - Exorcism and Remote Viewing - Malachi Martin & Ed Dames.mp3",
@@ -5656,7 +5659,8 @@
     "aiStatus": "completed",
     "aiCategory": "UFOs & Aliens",
     "aiSeries": "Mel's Hole",
-    "aiSeriesPart": 1
+    "aiSeriesPart": 1,
+    "aiNotable": true
   },
   {
     "fileHash": "archive:ultimate-ultimate-art-bell-collection:1997-02-24 - Coast to Coast AM with Art Bell - Diana Fairechild - Flying Sickness. Mel Waters - Mel's Hole Update.mp3",
@@ -5685,7 +5689,8 @@
     "aiStatus": "completed",
     "aiCategory": "Health & Medicine",
     "aiSeries": "Mel's Hole",
-    "aiSeriesPart": 2
+    "aiSeriesPart": 2,
+    "aiNotable": true
   },
   {
     "fileHash": "archive:ultimate-ultimate-art-bell-collection:1997-02-25 - Coast to Coast AM with Art Bell - Emily Lau - Hong Kong.mp3",
@@ -8532,7 +8537,8 @@
       "government"
     ],
     "aiStatus": "completed",
-    "aiCategory": "Conspiracy & Government"
+    "aiCategory": "Conspiracy & Government",
+    "aiNotable": true
   },
   {
     "fileHash": "archive:ultimate-ultimate-art-bell-collection:1997-09-12 - Coast to Coast AM with Art Bell - James Van Praagh - Psychic Ability and Life After Death.mp3",
@@ -18197,7 +18203,8 @@
       "special"
     ],
     "aiStatus": "completed",
-    "aiCategory": "Science & Physics"
+    "aiCategory": "Science & Physics",
+    "aiNotable": true
   },
   {
     "fileHash": "archive:ultimate-ultimate-art-bell-collection:2001-01-09 - Coast to Coast AM with Art Bell -  Art Bell - Keith Rowland Interview.mp3",
@@ -25532,7 +25539,8 @@
       "millennium"
     ],
     "aiStatus": "completed",
-    "aiCategory": "Prophecy & Predictions"
+    "aiCategory": "Prophecy & Predictions",
+    "aiNotable": true
   },
   {
     "fileHash": "archive:ultimate-ultimate-art-bell-collection:2003-04-18 - Coast to Coast AM with Art Bell - Programmable Matter - Wil McCarthy.mp3",
@@ -35007,7 +35015,8 @@
       "astronomy"
     ],
     "aiStatus": "completed",
-    "aiCategory": "Space & Astronomy"
+    "aiCategory": "Space & Astronomy",
+    "aiNotable": true
   },
   {
     "fileHash": "archive:ultimate-ultimate-art-bell-collection:2013-09-17 - Dark Matter with Art Bell - New Energy - Steven Greer.mp3",

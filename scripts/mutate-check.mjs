@@ -396,6 +396,31 @@ export const MUTATIONS = [
     replace: "if (false) continue;",
     why: "a doubled library whose owner deleted one copy by hand must still heal",
   },
+  // Part 1C: the curated notable list.
+  {
+    id: "notable-seed-row-drop",
+    test: "src/db/__tests__/notable.test.ts",
+    file: "src/db/seed.ts",
+    find: "aiNotable: ep.aiNotable as boolean | undefined,",
+    replace: "aiNotable: undefined,",
+    why: "a first-time visitor's seeded library must carry the notable flag the catalog ships",
+  },
+  {
+    id: "notable-refresh-gate",
+    test: "src/db/__tests__/notable.test.ts",
+    file: "src/db/catalog-flags.ts",
+    find: "if ((await getPreference(NOTABLE_PREF)) === NOTABLE_VERSION) return 0;",
+    replace: "",
+    why: "the unattended refresh runs once per list version — re-running it overrides an admin's unflag",
+  },
+  {
+    id: "notable-refresh-noop",
+    test: "src/db/__tests__/notable.test.ts",
+    file: "src/db/catalog-flags.ts",
+    find: "await db.episodes.update(row.id!, { aiNotable: true });",
+    replace: "await Promise.resolve();",
+    why: "a returning visitor's library, seeded before the list, must actually gain the flag",
+  },
   // HD-025: the catalog scraper.
   {
     id: "scrape-resume-import-progress",
