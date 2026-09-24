@@ -61,16 +61,28 @@ const detailFavourite = (page: Page, on: boolean) =>
  * happen to name a guest. The date cell is the leading cell in both the desktop
  * grid and the mobile stack and carries no handler of its own, so a click near
  * the row's top-left corner is the one point that always reaches the row.
+ *
+ * And not a single click either: the list is virtualised, so opening or closing
+ * the panel re-lays the rows out and the node under the pointer can be recycled
+ * between the moment Playwright resolves it and the moment the event is
+ * dispatched. That click lands on a detached row, raises nothing, and does
+ * nothing — the test then waited 90s for a panel that was never going to open.
+ * So: click until the panel is actually open, which is the only evidence that
+ * the click reached a live row. Re-clicking a row that is already open re-selects
+ * the same episode; it does not toggle the panel shut.
  */
-async function openDetail(row: Locator): Promise<void> {
-  await row.click({ position: { x: 6, y: 6 } });
+async function openDetail(page: Page, row: Locator): Promise<void> {
+  await expect(async () => {
+    await row.click({ position: { x: 6, y: 6 } });
+    await expect(page.locator('button[aria-label="Close detail"]:visible')).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 30_000 });
 }
 
 /** Open a row's detail, favourite it and give it `stars`, then close it. */
 async function favouriteAndRate(page: Page, index: number, stars: number): Promise<string> {
   const row = episodeList(page).locator('[role="option"]').nth(index);
   const label = (await row.getAttribute("aria-label"))!;
-  await openDetail(row);
+  await openDetail(page, row);
   await detailFavourite(page, false).click();
   await expect(detailFavourite(page, true)).toBeVisible();
   await page.locator(`button[aria-label="Rate ${stars} stars"]:visible`).click();
@@ -146,7 +158,7 @@ test("favourites and ratings survive export → cleared site data → import, th
   // 5. They are back, on the same episodes — in storage and on screen.
   await expect.poll(() => storedPicks(page)).toEqual(before);
   const first = episodeList(page).getByRole("option", { name: picks[0], exact: true });
-  await openDetail(first);
+  await openDetail(page, first);
   await expect(detailFavourite(page, true)).toBeVisible();
   await expect(page.getByText("4/5").first()).toBeVisible();
 });
