@@ -86,13 +86,21 @@ describeDb("per-client presence cap (Postgres)", () => {
   });
 
   it("concurrent joins cannot race past the cap", async () => {
+    // Without the lock the race needs two transactions to overlap between
+    // INSERT and COMMIT, which one burst hits only some of the time — a single
+    // round let the mutation survive a CI run. Every round must land exactly
+    // on the cap; with the lock that is certain, without it five clean rounds
+    // in a row are not.
     const N = store.SESSIONS_PER_CLIENT;
+    const ROUNDS = 5;
     const before = await online();
-    await Promise.all(
-      Array.from({ length: N * 3 }, () => store.recordHeartbeat(sid("race"), null, "203.0.113.99")),
-    );
-    expect(await online()).toBe(before + N);
-    expect(await people()).toBe(1);
+    for (let r = 0; r < ROUNDS; r++) {
+      await Promise.all(
+        Array.from({ length: N * 3 }, () => store.recordHeartbeat(sid(`race${r}`), null, `203.0.113.${90 + r}`)),
+      );
+      expect(await online(), `round ${r}`).toBe(before + N * (r + 1));
+    }
+    expect(await people()).toBe(ROUNDS);
   });
 
   // The recordPlay half of the cap lives in store.db.test.ts: a play writes
