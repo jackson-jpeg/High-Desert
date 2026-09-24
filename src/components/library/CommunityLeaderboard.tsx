@@ -9,6 +9,7 @@ import { formatAirDate } from "@/lib/utils/format";
 import { cn } from "@/lib/utils/cn";
 import { communityKey } from "@/lib/utils/community-key";
 import { emit } from "@/lib/events";
+import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 
 type Period = "alltime" | "week";
 
@@ -21,6 +22,7 @@ export function CommunityLeaderboard() {
   const [period, setPeriod] = useState<Period>("alltime");
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const openLibrary = useOpenLibraryIntent();
 
   useEffect(() => {
     let cancelled = false;
@@ -139,6 +141,15 @@ export function CommunityLeaderboard() {
             })}
           </div>
         )}
+        {/* The drill-down lands on the same numbers: the library's "Most
+            played" is community plays, all time — this list's All Time tab. */}
+        <button
+          type="button"
+          onClick={() => openLibrary({ sort: "played" })}
+          className="mt-2 text-hd-9 text-signal-blue hover:underline cursor-pointer"
+        >
+          All episodes, sorted by Most played →
+        </button>
       </div>
     </Window>
   );

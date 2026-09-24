@@ -86,6 +86,9 @@ describe("SignalTraffic", () => {
     expect(text()).toContain("Listening");
     expect(text()).toContain("Peak online");
     expect(text()).toContain("1,234");
+    // Plays all time predates the event log every range total is drawn from;
+    // the page says so rather than leaving the mismatch to look like a bug.
+    expect(text()).toContain("before per-play timestamps began on 28 Jul 2026");
     // Hour profile (24 columns)
     expect(text()).toContain("When the desert is awake");
     expect(host.querySelectorAll('[title*="people on average"]')).toHaveLength(24);

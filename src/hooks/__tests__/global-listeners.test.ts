@@ -289,6 +289,39 @@ describe("globals installed by useAudioPlayer", () => {
     expect(positionWrites()).toHaveLength(1);
   });
 
+  it("measures listened time from the position tick, and a pause breaks the run", async () => {
+    // /stats' "Listened" is this measurement (src/services/episodes/listen-time.ts).
+    // The module is tested alone; this is the wiring — without the tick call
+    // it would accumulate nothing, forever, and every test of it would pass.
+    const { pendingListenSeconds, resetListenTimeForTests } = await import("@/services/episodes/listen-time");
+    resetListenTimeForTests();
+    vi.useFakeTimers();
+    let t = 0;
+    Object.defineProperty(element, "currentTime", { get: () => t, set: (v: number) => { t = v; }, configurable: true });
+    mountBoth();
+    const ep = makeEpisode();
+    act(() => {
+      usePlayerStore.setState({ currentEpisode: ep, queue: [ep], queueIndex: 0, playing: true });
+    });
+    void element.play();
+
+    for (let i = 0; i < 40; i++) {
+      t += 0.25;
+      act(() => { vi.advanceTimersByTime(250); });
+    }
+    // Forty ticks: the first is a baseline, thirty-nine steps of 0.25 s.
+    expect(pendingListenSeconds()).toBeCloseTo(9.75, 6);
+
+    act(() => { usePlayerStore.setState({ playing: false }); });
+    t = 5_000; // seeked while paused
+    act(() => { usePlayerStore.setState({ playing: true }); });
+    for (let i = 0; i < 4; i++) {
+      t += 0.25;
+      act(() => { vi.advanceTimersByTime(250); });
+    }
+    expect(pendingListenSeconds()).toBeCloseTo(9.75 + 0.75, 6);
+  });
+
   it("tears every global down when the last instance unmounts, and rebuilds them", () => {
     // The release path was the same bug twice: one variable held one cleanup for
     // five installs. A hook that cannot be remounted cleanly is a hook that

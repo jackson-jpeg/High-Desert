@@ -128,6 +128,14 @@ export function SignalTraffic() {
           <TrafficStat label="Plays in range" value={traffic.playsInRange.toLocaleString()} color="text-desert-amber" />
           <TrafficStat label="Plays all time" value={traffic.totalPlays.toLocaleString()} color="text-desktop-gray" />
         </div>
+        {/* Plays all time is the per-episode counter, which predates the
+            timestamped event log (play_events starts 2026-07-28). Every range
+            total comes from the log, so no range can add up to it — said here
+            rather than left to look like an error (docs/stats-audit.md). */}
+        <div className="text-hd-caption text-bevel-dark/85">
+          Plays all time includes plays counted before per-play timestamps began on 28 Jul 2026;
+          range totals start there.
+        </div>
 
         {traffic.hourly.length > 0 && <TrafficHourProfile hourly={traffic.hourly} />}
       </div>

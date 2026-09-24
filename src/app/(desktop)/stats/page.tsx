@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
 import { useAdminStore } from "@/stores/admin-store";
@@ -17,7 +16,7 @@ import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
 import { getCacheSize, clearAudioCache } from "@/audio/cache";
 import { toast } from "@/stores/toast-store";
-import { computeStreak } from "@/lib/utils/streak";
+import { computeLibraryStats } from "@/lib/stats/library-stats";
 import { emit } from "@/lib/events";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 
@@ -30,7 +29,6 @@ function formatBytes(bytes: number): string {
 }
 
 export default function StatsPage() {
-  const router = useRouter();
   const openLibrary = useOpenLibraryIntent();
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const episodes = useLiveQuery(() => db.episodes.toArray(), []);
@@ -47,149 +45,12 @@ export default function StatsPage() {
     toast.success("Audio cache cleared");
   }, []);
 
-  const stats = useMemo(() => {
-    if (!episodes) return null;
-
-    const total = episodes.length;
-    const played = episodes.filter((e) => (e.playbackPosition ?? 0) > 0);
-    const completed = episodes.filter(
-      (e) => e.duration && e.playbackPosition && e.playbackPosition / e.duration > 0.9,
-    );
-
-    // Listening time
-    const totalListenedSeconds = played.reduce((sum, e) => sum + (e.playbackPosition ?? 0), 0);
-    const librarySeconds = episodes.reduce((sum, e) => sum + (e.duration ?? 0), 0);
-
-    // Episodes per year
-    const yearCounts = new Map<string, number>();
-    const yearDurations = new Map<string, number>();
-    for (const ep of episodes) {
-      const year = ep.airDate?.slice(0, 4) ?? "Unknown";
-      yearCounts.set(year, (yearCounts.get(year) ?? 0) + 1);
-      yearDurations.set(year, (yearDurations.get(year) ?? 0) + (ep.duration ?? 0));
-    }
-    const years = Array.from(yearCounts.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .filter(([y]) => y !== "Unknown");
-
-    // Top guests
-    const guestCounts = new Map<string, number>();
-    for (const ep of episodes) {
-      if (ep.guestName) {
-        guestCounts.set(ep.guestName, (guestCounts.get(ep.guestName) ?? 0) + 1);
-      }
-    }
-    const topGuests = Array.from(guestCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 20);
-    const maxGuestCount = topGuests[0]?.[1] ?? 1;
-
-    // Show types
-    const showCounts = new Map<string, number>();
-    for (const ep of episodes) {
-      const type = ep.showType ?? "unknown";
-      showCounts.set(type, (showCounts.get(type) ?? 0) + 1);
-    }
-
-    // AI status
-    const aiCompleted = episodes.filter((e) => e.aiStatus === "completed").length;
-    const aiFailed = episodes.filter((e) => e.aiStatus === "failed").length;
-    const aiPending = episodes.filter((e) => e.aiStatus === "pending").length;
-
-    // Source breakdown
-    const archiveCount = episodes.filter((e) => e.source === "archive").length;
-    const localCount = episodes.filter((e) => e.source === "local").length;
-
-    // Tag cloud
-    const tagCounts = new Map<string, number>();
-    for (const ep of episodes) {
-      if (ep.aiTags) {
-        for (const tag of ep.aiTags) {
-          tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
-        }
-      }
-    }
-    const topTags = Array.from(tagCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 50);
-    const maxTagCount = topTags[0]?.[1] ?? 1;
-
-    // Most-listened episodes (by play count)
-    const mostListened = [...episodes]
-      .filter((e) => (e.playCount ?? 0) > 0)
-      .sort((a, b) => (b.playCount ?? 0) - (a.playCount ?? 0))
-      .slice(0, 5);
-
-    // Decade breakdown
-    const decades = new Map<string, number>();
-    for (const [year, count] of yearCounts) {
-      if (year === "Unknown") continue;
-      const decade = year.slice(0, 3) + "0s";
-      decades.set(decade, (decades.get(decade) ?? 0) + count);
-    }
-
-    // Category breakdown
-    const categoryCounts = new Map<string, number>();
-    for (const ep of episodes) {
-      if (ep.aiCategory) {
-        categoryCounts.set(ep.aiCategory, (categoryCounts.get(ep.aiCategory) ?? 0) + 1);
-      }
-    }
-    const topCategories = Array.from(categoryCounts.entries())
-      .sort((a, b) => b[1] - a[1]);
-    const maxCategoryCount = topCategories[0]?.[1] ?? 1;
-
-    // Notable episodes count
-    const notableCount = episodes.filter((e) => e.aiNotable).length;
-
-    // Series count
-    const seriesNames = new Set(episodes.filter((e) => e.aiSeries).map((e) => e.aiSeries!));
-
-    // Ratings stats
-    const rated = episodes.filter((e) => e.rating && e.rating >= 1);
-    const avgRating = rated.length > 0
-      ? rated.reduce((sum, e) => sum + (e.rating ?? 0), 0) / rated.length
-      : 0;
-    const fiveStarCount = episodes.filter((e) => e.rating === 5).length;
-
-    const streak = computeStreak(history);
-    const favoriteCount = episodes.filter((e) => !!e.favoritedAt).length;
-    const flaggedEpisodes = episodes.filter((e) => !!e.flaggedAt);
-
-    return {
-      total,
-      played: played.length,
-      completed: completed.length,
-      totalListenedSeconds,
-      librarySeconds,
-      years,
-      yearDurations,
-      topGuests,
-      maxGuestCount,
-      showCounts,
-      aiCompleted,
-      aiFailed,
-      aiPending,
-      archiveCount,
-      localCount,
-      topTags,
-      maxTagCount,
-      mostListened,
-      decades: Array.from(decades.entries()).sort((a, b) => a[0].localeCompare(b[0])),
-      uniqueGuests: guestCounts.size,
-      uniqueTags: tagCounts.size,
-      topCategories,
-      maxCategoryCount,
-      notableCount,
-      seriesCount: seriesNames.size,
-      avgRating,
-      ratedCount: rated.length,
-      fiveStarCount,
-      streak,
-      favoriteCount,
-      flaggedEpisodes,
-    };
-  }, [episodes, history]);
+  const stats = useMemo(
+    // Both, or neither: with episodes loaded and history not yet, Listened
+    // and Streak rendered 0 for a frame and then jumped.
+    () => (episodes && history ? computeLibraryStats(episodes, history) : null),
+    [episodes, history],
+  );
 
   // The page's h1 is "Station Dashboard" in stats/layout.tsx, present in every
   // state. These two windows used to be h1s themselves, so the loading and
@@ -228,7 +89,7 @@ export default function StatsPage() {
   }
 
   const maxYearCount = Math.max(...stats.years.map(([, c]) => c), 1);
-  const listenedHours = stats.totalListenedSeconds / 3600;
+  const listenedHours = stats.listenedSeconds / 3600;
   const libraryHours = stats.librarySeconds / 3600;
 
   return (
@@ -267,7 +128,7 @@ export default function StatsPage() {
             <HeroStat
               label="Listened"
               value={`${listenedHours.toFixed(1)}h`}
-              sub={`${stats.played.toLocaleString()} ${stats.played === 1 ? 'episode' : 'episodes'}`}
+              sub={`${stats.listenedEpisodes.toLocaleString()} ${stats.listenedEpisodes === 1 ? 'episode' : 'episodes'}`}
               color="text-static-green"
             />
             <HeroStat
@@ -278,6 +139,8 @@ export default function StatsPage() {
             />
             <HeroStat
               label="Avg Rating"
+              onClick={stats.ratedCount > 0 ? () => openLibrary({ sort: "my-rating" }) : undefined}
+              title="Your ratings — open the library sorted by My rating"
               value={stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "\u2014"}
               sub={stats.avgRating === 0 ? "Rate episodes to track your taste." : `${stats.ratedCount} ${stats.ratedCount === 1 ? 'rating' : 'ratings'}`}
               color="text-desert-amber"
@@ -298,8 +161,11 @@ export default function StatsPage() {
       </Window>
 
       {/* \u2500\u2500 The Archive \u2500\u2500
-          Composition of the shipped catalog. Identical for every visitor, and
-          labelled as such: several of these were previously framed as personal
+          Composition of the catalog as this browser holds it. For a visitor on
+          the shipped seed that is the same for everyone; it is not guaranteed
+          to be: reconcile never deletes, so a library seeded before an episode
+          was pulled (docs/broken-episodes.md) still counts it, and admin
+          imports add rows. Several of these were previously framed as personal
           statistics, which they never were. */}
       <Window title="The Archive" variant="dark" headingLevel={2}>
         <div className="p-3">
@@ -313,7 +179,7 @@ export default function StatsPage() {
             <HeroStat
               label="Runtime"
               value={`${libraryHours.toFixed(0)}h`}
-              sub={`${Math.round(libraryHours / 24).toLocaleString()} days of audio`}
+              sub={`\u2248 ${Math.round(stats.librarySeconds / 86_400).toLocaleString()} days of audio`}
               color="text-signal-blue"
             />
             <HeroStat
@@ -348,6 +214,12 @@ export default function StatsPage() {
                       <span className="text-bevel-dark/85 ml-1">{count.toLocaleString()}</span>
                     </span>
                   ))}
+                </div>
+              )}
+
+              {stats.undated > 0 && (
+                <div className="text-hd-9 text-bevel-dark/85 mb-2" data-undated={stats.undated}>
+                  {stats.undated.toLocaleString()} undated {stats.undated === 1 ? "episode is" : "episodes are"} in the total but in no year.
                 </div>
               )}
 
@@ -522,10 +394,11 @@ export default function StatsPage() {
                 <button
                   key={ep.id}
                   onClick={() => {
-                    router.push("/library");
-                    setTimeout(() => {
-                      emit("play-episode", ep);
-                    }, 200);
+                    // The layout hears play-episode on every route, so play
+                    // first and then show it in the library — no timer waiting
+                    // for the page to mount (HD-013).
+                    emit("play-episode", ep);
+                    openLibrary({ scroll: "current" });
                   }}
                   className="flex items-center gap-2 text-left px-2 py-1.5 w98-raised-dark bg-card-surface cursor-pointer hover:bg-title-bar-blue/15 transition-colors-fast"
                 >
@@ -575,15 +448,16 @@ export default function StatsPage() {
           </Window>
         )}
 
-        {/* ── Most Listened ── Top played episodes */}
-        {stats.mostListened.length > 0 && (
-          <Window title="Most Listened" variant="dark" headingLevel={2}>
+        {/* ── My Most Played ── This browser's plays, and it says so. It was
+            "Most Listened", ranked by local playCount but showing progress %,
+            so the number beside each row was not the number it was ranked by
+            and nothing said whose plays they were. */}
+        {stats.myMostPlayed.length > 0 && (
+          <Window title="My Most Played" variant="dark" headingLevel={2}>
             <div className="p-3">
-              <div className="flex flex-col gap-2">
-                {stats.mostListened.map((ep, i) => {
-                  const progress = ep.duration && ep.playbackPosition
-                    ? Math.min(100, Math.round((ep.playbackPosition / ep.duration) * 100))
-                    : 0;
+              <div className="flex flex-col gap-2" data-testid="my-most-played">
+                {stats.myMostPlayed.map((ep, i) => {
+                  const plays = ep.playCount ?? 0;
                   return (
                     <div key={ep.id} className="flex items-start gap-2">
                       <span className="text-hd-8 text-bevel-dark/85 tabular-nums w-[12px] text-right mt-0.5">
@@ -601,20 +475,21 @@ export default function StatsPage() {
                             <span className="text-hd-9 md:text-hd-8 text-static-green/85 truncate">{ep.guestName}</span>
                           )}
                         </div>
-                        <div className="h-[3px] w98-inset-dark bg-inset-well mt-1 overflow-hidden">
-                          <div
-                            className="h-full bg-desert-amber/50"
-                            style={{ width: `${progress}%` }}
-                          />
-                        </div>
                       </div>
-                      <span className="text-hd-8 text-bevel-dark tabular-nums flex-shrink-0 mt-0.5">
-                        {progress}%
+                      <span className="text-hd-8 text-bevel-dark tabular-nums flex-shrink-0 mt-0.5" data-plays={plays}>
+                        {plays} {plays === 1 ? "play" : "plays"}
                       </span>
                     </div>
                   );
                 })}
               </div>
+              <button
+                type="button"
+                onClick={() => openLibrary({ sort: "my-plays" })}
+                className="mt-2 text-hd-9 text-signal-blue hover:underline cursor-pointer"
+              >
+                All, sorted by My plays →
+              </button>
             </div>
           </Window>
         )}
@@ -671,15 +546,27 @@ export default function StatsPage() {
   );
 }
 
-function HeroStat({ label, value, sub, color, className }: {
+function HeroStat({ label, value, sub, color, className, onClick, title }: {
   label: string;
   value: string;
   sub: string;
   color: string;
   className?: string;
+  /** A drill-down: the tile becomes a button. */
+  onClick?: () => void;
+  title?: string;
 }) {
+  const Tag = onClick ? "button" : "div";
   return (
-    <div className={cn("flex flex-col items-center p-2.5 md:p-2 w98-inset-dark bg-inset-well gap-0.5", className)}>
+    <Tag
+      {...(onClick ? { type: "button" as const, onClick, title } : {})}
+      data-stat={label}
+      className={cn(
+        "flex flex-col items-center p-2.5 md:p-2 w98-inset-dark bg-inset-well gap-0.5",
+        onClick && "cursor-pointer hover:bg-title-bar-blue/15",
+        className,
+      )}
+    >
       <div className={cn("text-hd-18 md:text-hd-16 font-bold tabular-nums", color)}>
         {value}
       </div>
@@ -689,6 +576,6 @@ function HeroStat({ label, value, sub, color, className }: {
       <div className="text-hd-8 md:text-hd-7 text-bevel-dark/85 truncate max-w-full text-center">
         {sub}
       </div>
-    </div>
+    </Tag>
   );
 }
