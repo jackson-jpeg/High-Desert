@@ -1,23 +1,12 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { db } from "@/db";
-import { findDuplicateEpisode } from "@/db/deduplicate";
-import { archiveFileHash } from "@/db/identity";
 import { fetchWithRetry } from "@/lib/utils/retry";
-import { getStreamUrl } from "@/services/archive/client";
-import { parseArtBellFilename, isArtBellFilename } from "@/services/archive/filename-parser";
+import { runCollectionImport, type CollectionInfo } from "@/services/archive/collection-import";
 import { toast } from "@/stores/toast-store";
-import type { Episode } from "@/db/schema";
 import type { ArchiveFile } from "@/services/archive/types";
 
-export interface CollectionInfo {
-  identifier: string;
-  title: string;
-  description: string;
-  creator: string;
-  audioFiles: ArchiveFile[];
-}
+export type { CollectionInfo };
 
 export interface CollectionProgress {
   phase: "idle" | "loading" | "importing" | "categorizing" | "done" | "error" | "cancelled";
@@ -41,6 +30,12 @@ const INITIAL_PROGRESS: CollectionProgress = {
   errorMessages: [],
 };
 
+/**
+ * Thin React shell over `runCollectionImport`
+ * (src/services/archive/collection-import.ts), which owns the loop and is tested
+ * against a real database. This file holds only the metadata fetch and the
+ * progress state.
+ */
 export function useCollectionImport() {
   const [info, setInfo] = useState<CollectionInfo | null>(null);
   const [progress, setProgress] = useState<CollectionProgress>(INITIAL_PROGRESS);
@@ -122,82 +117,21 @@ export function useCollectionImport() {
       total: info.audioFiles.length,
     });
 
-    let imported = 0;
-    let duplicates = 0;
-
     try {
-      for (const file of info.audioFiles) {
-        if (controller.signal.aborted) {
-          update({ phase: "cancelled" });
-          return;
-        }
+      const result = await runCollectionImport(controller.signal, info, {
+        updateProgress: update,
+        setPhase: (phase) => update({ phase }),
+        setCurrentFile: (currentFile) => update({ currentFile }),
+        addError,
+      });
 
-        update({ currentFile: file.name });
-
-        try {
-          const fileHash = archiveFileHash(info.identifier, file.name);
-
-          // Deduplicate via findDuplicateEpisode (checks archiveIdentifier + fileHash)
-          const existing = await findDuplicateEpisode({
-            fileHash,
-            archiveIdentifier: `${info.identifier}/${file.name}`,
-          });
-
-          if (existing) {
-            duplicates++;
-            update({ duplicates });
-            continue;
-          }
-
-          // Parse filename for metadata
-          const parsed = isArtBellFilename(file.name)
-            ? parseArtBellFilename(file.name)
-            : null;
-
-          const streamUrl = getStreamUrl(info.identifier, file.name);
-          const duration = file.length ? parseFloat(file.length) : undefined;
-
-          const episode: Omit<Episode, "id"> = {
-            fileHash,
-            filePath: streamUrl,
-            fileName: file.name,
-            fileSize: Number(file.size ?? 0),
-            title: parsed?.title ?? file.name.replace(/\.\w+$/, ""),
-            artist: "Art Bell",
-            airDate: parsed?.airDate,
-            guestName: parsed?.guestName,
-            topic: parsed?.topic,
-            showType: parsed?.showType,
-            description: undefined,
-            duration,
-            format: file.format?.includes("MP3") ? "mp3" : file.format?.toLowerCase() ?? "mp3",
-            source: "archive",
-            sourceUrl: streamUrl,
-            archiveIdentifier: info.identifier,
-            aiStatus: "pending",
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          };
-
-          await db.episodes.add(episode as Episode);
-          imported++;
-          update({ imported });
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          addError(`${file.name}: ${msg}`);
-        }
-      }
-
-      if (controller.signal.aborted) {
-        update({ phase: "cancelled" });
-        toast.info(`Import cancelled — ${imported} episodes imported`);
+      if (result.outcome === "cancelled") {
+        toast.info(`Import cancelled — ${result.imported} episodes imported`);
         return;
       }
-
-      // Episodes import uncategorised — AI categorisation runs offline via
-      // scripts/categorize-library.py and ships in the seed catalog.
-      update({ phase: "done", currentFile: null });
-      toast.success(`Imported ${imported} episodes (${duplicates} duplicates skipped)`);
+      toast.success(
+        `Imported ${result.imported} episodes (${result.duplicates} duplicates skipped)`,
+      );
     } catch (err) {
       if (controller.signal.aborted) {
         update({ phase: "cancelled" });

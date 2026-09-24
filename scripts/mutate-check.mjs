@@ -413,6 +413,42 @@ export const MUTATIONS = [
     replace: "const fileHash = `archive:${item.identifier}`;",
     why: "the scraper must build the same identity key as the seeder and collection import",
   },
+  // Collection import is the other import path — one archive.org item, many
+  // audio files — and it writes to db.episodes with no server backup behind it.
+  // Four anchors rather than the usual one, because its four properties are
+  // independent and a single anchor would leave three of them unobserved.
+  {
+    id: "collection-canonical-key",
+    test: "src/services/archive/__tests__/collection-import.test.ts",
+    file: "src/services/archive/collection-import.ts",
+    find: "const fileHash = archiveFileHash(info.identifier, file.name);",
+    replace: "const fileHash = `archive:${info.identifier}`;",
+    why: "every file in a collection shares the identifier; keying on it alone collapses the collection to one episode",
+  },
+  {
+    id: "collection-skip-existing",
+    test: "src/services/archive/__tests__/collection-import.test.ts",
+    file: "src/services/archive/collection-import.ts",
+    find: "      if (existing) {",
+    replace: "      if (false) {",
+    why: "a file the listener already has must be left exactly as they have it, favourite and rating included",
+  },
+  {
+    id: "collection-error-continues",
+    test: "src/services/archive/__tests__/collection-import.test.ts",
+    file: "src/services/archive/collection-import.ts",
+    find: "      sink.addError(`${file.name}: ${msg}`);",
+    replace: "      throw err;",
+    why: "one unreadable file must cost that file only, not the rest of a long user-initiated import",
+  },
+  {
+    id: "collection-cancel-stops",
+    test: "src/services/archive/__tests__/collection-import.test.ts",
+    file: "src/services/archive/collection-import.ts",
+    find: "    if (signal.aborted) return cancelled();\n    sink.setCurrentFile(file.name);",
+    replace: "    sink.setCurrentFile(file.name);",
+    why: "cancel must stop the loop where it is — the post-loop check alone reports 'cancelled' after importing everything",
+  },
   {
     id: "legacy-key-collision-merge",
     test: "src/db/__tests__/legacy-keys.test.ts",
