@@ -5,7 +5,8 @@ import type { Episode } from "@/db";
 import { Window } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
 import { formatAirDate, formatRelativeTime, getShowLabel } from "@/lib/utils/format";
-import { useNowPlaying } from "@/hooks/useNowPlaying";
+import { useCommunityNow } from "@/hooks/useCommunityNow";
+import { presenceAttrs } from "@/services/stats/now-feed";
 import { useCommunityKeyIndex } from "@/hooks/useCommunityKeyIndex";
 import type { OnAirEntry, RecentPlay } from "@/services/stats/client";
 import { emit } from "@/lib/events";
@@ -121,7 +122,8 @@ function AirRow({
  * documented contract for every /api/stats/* consumer.
  */
 export function OnAir() {
-  const { online, listening, onAir, recent, loading } = useNowPlaying();
+  const now = useCommunityNow();
+  const { online, listening, onAir, recent, loading } = now;
   const hasAnything = online > 0 || onAir.length > 0 || recent.length > 0;
   const index = useCommunityKeyIndex(hasAnything);
 
@@ -156,7 +158,7 @@ export function OnAir() {
             )}
             aria-hidden="true"
           />
-          <span className="text-hd-caption text-desktop-gray">
+          <span className="text-hd-caption text-desktop-gray" {...presenceAttrs("on-air", now)}>
             <strong className="text-static-green tabular-nums font-normal">{online}</strong>
             {online === 1 ? " person is" : " people are"} in the desert
             {listening > 0 && (

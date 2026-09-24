@@ -41,6 +41,7 @@ import {
   setFailureHandler,
 } from "@/audio/playback-watchdog";
 import { assessDuration } from "@/audio/duration-sanity";
+import { noteListenTick, breakListenTick, flushListenSeconds } from "@/services/episodes/listen-time";
 import { emit } from "@/lib/events";
 
 // ── Listening session tracking ──
@@ -49,9 +50,10 @@ import { emit } from "@/lib/events";
 // Its only reader was the umami analytics call, removed when the site dropped
 // third-party scripts, so it had been accumulated and reset on every play,
 // pause, seek and unload while nothing ever read it. Deleted deliberately, as
-// the note left here asked: per-episode listened time is already derived from
-// `playbackPosition` in IndexedDB, and community totals now come from the
-// self-hosted stats service.
+// the note left here asked. (The belief that listened time could be derived
+// from `playbackPosition` was wrong — see src/services/episodes/listen-time.ts,
+// which now measures it from the position tick.) Community totals come from
+// the self-hosted stats service.
 //
 // What remains is the session lifecycle, which is load-bearing: it drives
 // reportStop(), and therefore the community listening count.
@@ -117,6 +119,7 @@ export const POSITION_SAVE_MS = 30_000;
 function savePosition(): void {
   const { position: pos, currentEpisode: ep } = usePlayerStore.getState();
   if (!ep?.id) return;
+  void flushListenSeconds(ep.id);
   db.episodes
     .update(ep.id, {
       playbackPosition: pos,
@@ -602,12 +605,14 @@ export function useAudioPlayer() {
           const audio = getMediaElement();
           if (audio && !audio.paused) {
             usePlayerStore.getState().setPosition(audio.currentTime);
+            noteListenTick(audio.currentTime);
           }
         }, 250);
       };
       const stopTimer = () => {
         window.clearInterval(positionTimerRef.current);
         positionTimerRef.current = 0;
+        breakListenTick();
       };
 
       if (usePlayerStore.getState().playing) start();
@@ -903,6 +908,11 @@ export function useAudioPlayer() {
       sync(s0.playing, s0.currentEpisode?.id);
       const unsub = usePlayerStore.subscribe((s, prev) => {
         if (s.playing === prev.playing && s.currentEpisode?.id === prev.currentEpisode?.id) return;
+        // Changed episode: what was heard belongs to the one that was playing.
+        if (s.currentEpisode?.id !== prev.currentEpisode?.id) {
+          breakListenTick();
+          void flushListenSeconds(prev.currentEpisode?.id);
+        }
         // Paused (the same episode, no longer playing): save now. With a 30 s
         // interval, waiting for the next tick would lose the pause position to
         // anything that ends the page before then.

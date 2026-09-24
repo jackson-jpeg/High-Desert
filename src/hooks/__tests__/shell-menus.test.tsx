@@ -80,9 +80,19 @@ describe("useShellMenus", () => {
   it("View's sort items carry the sort key to the library as a URL intent", () => {
     mount(false);
     item("View", "Sort by Date")!.onClick!();
-    item("View", "Most Played")!.onClick!();
+    // Community sorts say whose numbers they are; personal ones say "My".
+    item("View", "Most played · everyone")!.onClick!();
+    item("View", "Top rated · everyone")!.onClick!();
+    item("View", "My plays")!.onClick!();
+    item("View", "My rating")!.onClick!();
     // On /library itself: replace the history entry, so the intent adds none.
-    expect(replaceState.mock.calls.map((c) => c[2])).toEqual(["/library?sort=date", "/library?sort=played"]);
+    expect(replaceState.mock.calls.map((c) => c[2])).toEqual([
+      "/library?sort=date",
+      "/library?sort=played",
+      "/library?sort=rated",
+      "/library?sort=my-plays",
+      "/library?sort=my-rating",
+    ]);
     expect(push).not.toHaveBeenCalled();
     expect(replace).not.toHaveBeenCalled();
   });

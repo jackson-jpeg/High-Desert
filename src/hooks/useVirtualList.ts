@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { firstVisibleIndex } from "@/lib/library/rail-groups";
+import { buildListLayout, type ListLayout } from "@/lib/library/list-layout";
 
 interface VirtualItem<T> {
   item: T;
@@ -13,6 +13,11 @@ interface UseVirtualListOptions<T> {
   items: T[];
   itemHeight: number;
   overscan?: number;
+  /**
+   * Where rows sit when group headers are interleaved (list-layout.ts). Omit
+   * for a plain list of `itemHeight` rows.
+   */
+  layout?: ListLayout;
 }
 
 interface UseVirtualListReturn<T> {
@@ -25,6 +30,10 @@ interface UseVirtualListReturn<T> {
   totalHeight: number;
   /** Index of the first row in view — excludes the overscan rows rendered above it. */
   visibleStartIndex: number;
+  /** The scroller's current scrollTop, as last read. */
+  scrollTop: number;
+  /** The layout in use — the one to ask for any row's or header's offset. */
+  layout: ListLayout;
   onScroll: () => void;
   /**
    * Scroll row `index` into view. "center" (the default) is for "show me this
@@ -32,13 +41,21 @@ interface UseVirtualListReturn<T> {
    * what a rail entry means by "go to the start of this group".
    */
   scrollToIndex: (index: number, align?: "center" | "start") => void;
+  /** Scroll so that `y` is at the top (e.g. a group header). */
+  scrollToOffset: (y: number) => void;
 }
 
 export function useVirtualList<T>({
   items,
   itemHeight,
   overscan = 5,
+  layout: givenLayout,
 }: UseVirtualListOptions<T>): UseVirtualListReturn<T> {
+  const plainLayout = useMemo(
+    () => buildListLayout(items.length, [], itemHeight, 0),
+    [items.length, itemHeight],
+  );
+  const layout = givenLayout ?? plainLayout;
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(600);
   // The element, as state: an effect keyed on it re-runs when it mounts.
@@ -80,37 +97,52 @@ export function useVirtualList<T>({
     }
   }, []);
 
-  const totalHeight = items.length * itemHeight;
-  const visibleStartIndex = firstVisibleIndex(scrollTop, itemHeight, items.length);
+  const totalHeight = layout.totalHeight;
+  // The first row actually in view — not an overscan row (HD-035). The rows
+  // start directly beneath the sticky column header, whose height cancels.
+  const visibleStartIndex = items.length > 0 ? layout.rowAt(scrollTop) : 0;
 
   const virtualItems = useMemo(() => {
-    const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
-    const endIndex = Math.min(
-      items.length - 1,
-      Math.ceil((scrollTop + containerHeight) / itemHeight) + overscan,
-    );
+    if (items.length === 0) return [];
+    const startIndex = Math.max(0, layout.rowAt(scrollTop) - overscan);
+    const endIndex = Math.min(items.length - 1, layout.rowAt(scrollTop + containerHeight) + overscan);
 
     const result: VirtualItem<T>[] = [];
     for (let i = startIndex; i <= endIndex; i++) {
       result.push({
         item: items[i],
         index: i,
-        offsetTop: i * itemHeight,
+        offsetTop: layout.rowTop(i),
       });
     }
     return result;
-  }, [items, itemHeight, scrollTop, overscan, containerHeight]);
+  }, [items, layout, scrollTop, overscan, containerHeight]);
+
+  const scrollToOffset = useCallback((y: number) => {
+    const el = elRef.current;
+    if (!el) return;
+    el.scrollTop = Math.max(0, y);
+    // Programmatic scrolls fire `scroll` asynchronously; read the position
+    // back now so the window and the rail do not spend a frame on the old one.
+    setScrollTop(el.scrollTop);
+  }, []);
 
   const scrollToIndex = useCallback((index: number, align: "center" | "start" = "center") => {
     const el = elRef.current;
     if (!el) return;
-    el.scrollTop = align === "start"
-      ? Math.max(0, index * itemHeight)
-      : Math.max(0, index * itemHeight - el.clientHeight / 2 + itemHeight / 2);
-    // Programmatic scrolls fire `scroll` asynchronously; read the position
-    // back now so the window and the rail do not spend a frame on the old one.
-    setScrollTop(el.scrollTop);
-  }, [itemHeight]);
+    const top = layout.rowTop(index);
+    scrollToOffset(align === "start" ? top : top - el.clientHeight / 2 + itemHeight / 2);
+  }, [layout, itemHeight, scrollToOffset]);
 
-  return { containerRef, virtualItems, totalHeight, visibleStartIndex, onScroll, scrollToIndex };
+  return {
+    containerRef,
+    virtualItems,
+    totalHeight,
+    visibleStartIndex,
+    scrollTop,
+    layout,
+    onScroll,
+    scrollToIndex,
+    scrollToOffset,
+  };
 }

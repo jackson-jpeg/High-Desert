@@ -1,5 +1,6 @@
 "use client";
 
+import { sortLabel } from "@/lib/library/sort-keys";
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { Menu } from "@/components/win98";
@@ -116,8 +117,10 @@ export function useShellMenus(actions: ShellMenuActions): Menu[] {
         { separator: true, label: "" },
         { label: "Recently Played", onClick: () => sort("recent") },
         { label: "In Progress", onClick: () => sort("progress") },
-        { label: "Top Rated", onClick: () => sort("rated") },
-        { label: "Most Played", onClick: () => sort("played") },
+        { label: sortLabel("played"), onClick: () => sort("played") },
+        { label: sortLabel("rated"), onClick: () => sort("rated") },
+        { label: sortLabel("my-plays"), onClick: () => sort("my-plays") },
+        { label: sortLabel("my-rating"), onClick: () => sort("my-rating") },
         { separator: true, label: "" },
         { label: "Surprise Me — Shuffle All", onClick: () => openLibrary({ shuffle: "all" }) },
         { label: "Shuffle Coast to Coast", onClick: () => openLibrary({ shuffle: "coast" }) },

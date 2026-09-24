@@ -4,8 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Episode } from "@/db/schema";
 import type { SortMode } from "@/lib/library/filter-episodes";
 import type { LibraryIntent, ShuffleScope } from "@/lib/library/intents";
-import { currentItemHeight } from "@/hooks/useTextScale";
-import { EPISODE_LISTBOX } from "@/hooks/library/useLibraryKeyboard";
+import { scrollListToRow } from "@/lib/library/list-scroll";
 
 /**
  * Applies library intents (HD-013) — what LibraryIntentReader hands over from
@@ -47,11 +46,9 @@ export function useLibraryIntents({
     if (idx === -1) return;
     setSelectedEpisode(visibleEpisodes[idx]);
     setFocusedIndex(idx);
-    const container = document.querySelector(EPISODE_LISTBOX)?.parentElement;
-    if (container) {
-      const itemH = currentItemHeight();
-      container.scrollTop = idx * itemH - container.clientHeight / 2 + itemH / 2;
-    }
+    // Through the list's own layout: with group headers between the rows,
+    // a row's offset is not index × row height (list-scroll.ts).
+    scrollListToRow(idx);
   }, [currentEpisodeId, visibleEpisodes, setSelectedEpisode, setFocusedIndex]);
 
   const pending = useRef<{ shuffle?: ShuffleScope; scroll?: boolean }>({});

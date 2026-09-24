@@ -32,6 +32,8 @@ interface World {
   /** The `**Release deployed:**` timestamp in docs/reliability-baseline.md; null writes no doc. */
   releaseAt: string | null;
   release: { failures: number; plays: number; days: number };
+  /** What the stub presence check prints and exits with. */
+  presence: { rc: number; out: string };
 }
 
 const HEALTHY: World = {
@@ -47,6 +49,7 @@ const HEALTHY: World = {
   deployedIsHead: true,
   releaseAt: "2026-09-21T15:50:00Z",
   release: { failures: 4, plays: 200, days: 7 },
+  presence: { rc: 0, out: "surfaces agree in 3 view(s)" },
 };
 
 let dir: string;
@@ -97,6 +100,11 @@ async function run(): Promise<{ code: number; out: string }> {
       : "#!/bin/sh\necho 'DB BACKUP STALE — newest dump is 40h old'\nexit 1\n",
     { mode: 0o755 },
   );
+  await writeFile(
+    path.join(bin, "presence-check"),
+    `#!/bin/sh\necho 'launching chromium'\necho '${world.presence.out}'\nexit ${world.presence.rc}\n`,
+    { mode: 0o755 },
+  );
   const head = await git("rev-parse", "--short", "HEAD");
   const deployed = world.deployedIsHead ? head : await git("rev-parse", "--short", "HEAD~1");
   await writeFile(path.join(root, ".deploy/deployed"), `${deployed} 2026-09-21T14:00:00Z\n`);
@@ -123,6 +131,7 @@ async function run(): Promise<{ code: number; out: string }> {
           HD_BACKUP_STATUS_CMD: path.join(bin, "backup-status"),
           HD_INSTALLED_UNIT: path.join(root, "deploy/highdesert.service"),
           HD_INSTALLED_VHOST: installedVhost,
+          HD_PRESENCE_CMD: path.join(bin, "presence-check"),
         },
         timeout: 30_000,
       },
@@ -139,7 +148,12 @@ function lineFor(out: string, area: string): string {
 }
 
 beforeEach(async () => {
-  world = { ...HEALTHY, audit: { ...HEALTHY.audit }, release: { ...HEALTHY.release } };
+  world = {
+    ...HEALTHY,
+    audit: { ...HEALTHY.audit },
+    release: { ...HEALTHY.release },
+    presence: { ...HEALTHY.presence },
+  };
   sinceAsked = null;
   dir = await mkdtemp(path.join(tmpdir(), "hd-status-"));
   root = path.join(dir, "High-Desert");
@@ -311,5 +325,24 @@ describe("highdesert-status", () => {
     const r = await run();
     expect(lineFor(r.out, "failures")).toMatch(/^WARN.*20\.0%/);
     expect(r.code).toBe(0);
+  });
+
+  it("presence: OK with the check's last line when the surfaces agree", async () => {
+    const r = await run();
+    expect(lineFor(r.out, "presence")).toMatch(/^OK\s+presence\s+surfaces agree in 3 view\(s\)$/);
+  });
+
+  it("presence: FAIL, and a non-zero exit, when the surfaces disagree", async () => {
+    world.presence = { rc: 1, out: "desktop /stats: on-air says 10/5, status-bar says 8/3" };
+    const r = await run();
+    expect(lineFor(r.out, "presence")).toMatch(/^FAIL\s+presence\s+surfaces disagree: desktop \/stats: on-air says 10\/5/);
+    expect(r.code).not.toBe(0);
+  });
+
+  it("presence: WARN, not FAIL, when the check itself cannot run", async () => {
+    world.presence = { rc: 2, out: "could not load playwright" };
+    const r = await run();
+    expect(lineFor(r.out, "presence")).toMatch(/^WARN\s+presence\s+check did not run \(exit 2\): could not load playwright$/);
+    expect(r.out).not.toMatch(/^FAIL/m);
   });
 });

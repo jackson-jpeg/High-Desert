@@ -1,5 +1,6 @@
 "use client";
 
+import { isNumericSort, sortDescription, sortLabel } from "@/lib/library/sort-keys";
 import type { Episode } from "@/db/schema";
 import type { MoodFilter } from "@/lib/library/facets";
 import type { LibraryFilters } from "@/hooks/library/useLibraryFilters";
@@ -142,10 +143,11 @@ export function SortPresets({ filters }: { filters: LibraryFilters }) {
   return (
     <div className="flex items-center gap-1 px-3 pb-1 flex-shrink-0">
       <span className="text-hd-10 text-bevel-dark/85 mr-1">Sort:</span>
-      {(["date", "date-asc", "recent", "progress", "rated", "played"] as const).map((mode) => (
+      {(["date", "date-asc", "recent", "progress", "played", "rated", "my-plays", "my-rating"] as const).map((mode) => (
         <button
           key={mode}
           onClick={() => setSortMode(mode)}
+          title={isNumericSort(mode) ? sortDescription(mode) : undefined}
           className={cn(
             "px-2 py-0.5 text-hd-10 cursor-pointer transition-colors-fast",
             sortMode === mode
@@ -153,7 +155,7 @@ export function SortPresets({ filters }: { filters: LibraryFilters }) {
               : "text-bevel-dark/85 hover:text-desktop-gray",
           )}
         >
-          {{ date: "Newest", "date-asc": "Oldest", recent: "Recent", progress: "In Progress", rated: "Top Rated", played: "Most Played" }[mode]}
+          {isNumericSort(mode) ? sortLabel(mode) : { date: "Newest", "date-asc": "Oldest", recent: "Recent", progress: "In Progress" }[mode]}
         </button>
       ))}
     </div>

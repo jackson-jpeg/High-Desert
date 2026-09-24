@@ -16,7 +16,6 @@ vi.mock("@/hooks/useMediaQuery", () => ({
   useIsMobile: () => false,
   useMediaQuery: () => false,
 }));
-vi.mock("@/hooks/useCommunityStats", () => ({ useCommunityStats: () => new Map() }));
 
 class NoopResizeObserver {
   observe() {}
@@ -27,9 +26,19 @@ globalThis.ResizeObserver ??= NoopResizeObserver as unknown as typeof ResizeObse
 
 const { TimelineView } = await import("@/components/library/TimelineView");
 const { NothingInProgress } = await import("@/components/library/LibraryListStates");
-const { itemHeightFor } = await import("@/hooks/useTextScale");
+const { itemHeightFor, headerHeightFor } = await import("@/hooks/useTextScale");
 
 const ROW = itemHeightFor(false, 1); // 34 on desktop at 1x
+const HEAD = headerHeightFor(false, 1); // 26: every group has an inline header above its first row
+
+/**
+ * Top of row `i` in `rows()`, whose groups are ten rows each: `i` rows above
+ * it, plus one header for its own group and each group before. Written out as
+ * arithmetic, not by calling list-layout, so a layout bug cannot agree with it.
+ */
+const top = (i: number) => i * ROW + (Math.floor(i / 10) + 1) * HEAD;
+/** Top of the header of the group starting at row `first`. */
+const headerTop = (first: number) => top(first) - HEAD;
 
 /** 10 years × 10 rows, newest first — the default sort's shape. */
 function rows(): Episode[] {
@@ -57,9 +66,9 @@ afterEach(() => {
   host.remove();
 });
 
-function mount(episodes: Episode[], sortMode: "date" | "date-asc" | "progress" = "date") {
+function mount(episodes: Episode[], sortMode: "date" | "date-asc" | "progress" = "date", activeRow = -1) {
   act(() => {
-    root.render(createElement(TimelineView, { episodes, sortMode, onEpisodeClick: () => {} }));
+    root.render(createElement(TimelineView, { episodes, sortMode, onEpisodeClick: () => {}, activeRow }));
   });
 }
 
@@ -89,28 +98,113 @@ describe("TimelineView rail", () => {
     expect(active()).toEqual(["2010"]);
     // Row 10 (the first 2009 row) is at the top of the viewport. Rows 5–9,
     // still 2010, are rendered above it as overscan.
-    scrollTo(10 * ROW);
+    scrollTo(top(10));
     expect(active()).toEqual(["2009"]);
-    // One pixel short of row 20: row 19 (2009) is still the first visible.
-    scrollTo(20 * ROW - 1);
+    // One pixel short of 2008's header: row 19 (2009) is still the first visible.
+    scrollTo(headerTop(20) - 1);
     expect(active()).toEqual(["2009"]);
-    scrollTo(20 * ROW);
+    // 2008's header at the top: 2008 is the group in view.
+    scrollTo(headerTop(20));
     expect(active()).toEqual(["2008"]);
   });
 
   it("the sticky header names the same group", () => {
     mount(rows());
-    scrollTo(30 * ROW);
+    scrollTo(top(30));
     expect(host.querySelector('[data-testid="rail-header-group"]')?.getAttribute("data-group")).toBe("2007");
   });
 
-  it("clicking an entry puts that group's first row at the top of the list", () => {
+  it("the sticky header stands down while the group's own inline header is at the top", () => {
+    mount(rows());
+    scrollTo(headerTop(30));
+    const label = host.querySelector('[data-testid="rail-header-group"]')!;
+    expect(label.classList.contains("invisible")).toBe(true);
+    expect(label.getAttribute("aria-hidden")).toBe("true");
+    scrollTo(top(30));
+    expect(label.classList.contains("invisible")).toBe(false);
+    expect(label.hasAttribute("aria-hidden")).toBe(false);
+  });
+
+  // The bar sits above the scroller: anything that mounts or unmounts in it
+  // as the list moves changes the scroller's height after "keep the active
+  // row in view" has measured it, and End left the last row below the fold
+  // (e2e/listbox.spec.ts measures that in Chromium; jsdom has no layout, so
+  // this pins the cause — the bar's content must not depend on scroll).
+  it("the sticky header's content does not change with the scroll position", () => {
+    for (const mode of ["date", "date-asc"] as const) {
+      mount(mode === "date" ? rows() : [...rows()].reverse(), mode);
+      const shape = () => {
+        const bar = host.querySelector('[data-testid="rail-header"]');
+        return bar ? [...bar.querySelectorAll("*")].map((e) => e.tagName).join(",") : null;
+      };
+      const bar = host.querySelector('[data-testid="rail-header"]');
+      const atHeader = shape();
+      expect(atHeader).not.toBeNull();
+      for (const y of [top(3), headerTop(30), top(55), headerTop(90), top(99)]) {
+        scrollTo(y);
+        expect(host.querySelector('[data-testid="rail-header"]')).toBe(bar);
+        expect(shape()).toBe(atHeader);
+      }
+      scrollTo(0);
+    }
+  });
+
+  // Keyboard navigation scrolls the active row into view. Moving up onto a
+  // group's first row must bring its header too — Home used to stop at row 0's
+  // own top, 26px down, with the first group's title scrolled away above it.
+  it("moving the active row up onto a group's first row shows that group's header", () => {
+    const list = rows();
+    mount(list);
+    Object.defineProperty(scroller(), "clientHeight", { configurable: true, value: 340 });
+    mount(list, "date", 99);
+    expect(scroller().scrollTop).toBeGreaterThan(headerTop(90));
+    mount(list, "date", 35); // mid-group: the row itself at the top
+    expect(scroller().scrollTop).toBe(top(35));
+    mount(list, "date", 30); // first of 2007: its header at the top
+    expect(scroller().scrollTop).toBe(headerTop(30));
+    mount(list, "date", 0); // Home
+    expect(scroller().scrollTop).toBe(0);
+  });
+
+  it("moving the active row down onto a one-row group puts the row's own bottom at the fold", () => {
+    // The real catalog ends in a group of one; End lands on it.
+    const list = [...rows(), { id: 101, fileHash: "archive:c:101.mp3", fileName: "101.mp3", title: "Show 101", airDate: "1999-01-01" } as Episode];
+    mount(list);
+    Object.defineProperty(scroller(), "clientHeight", { configurable: true, value: 340 });
+    mount(list, "date", 100);
+    // Row 100 sits under eleven headers; jsdom lays nothing out, so the
+    // listbox's own offset inside the scroller is 0.
+    expect(scroller().scrollTop).toBe(100 * ROW + 11 * HEAD + ROW - 340);
+  });
+
+  it("clicking an entry puts that group's header at the top of the list", () => {
     mount(rows());
     const target = entries().find((e) => e.dataset.group === "2006")!;
     act(() => target.click());
-    // 2006 starts at row 40.
-    expect(scroller().scrollTop).toBe(40 * ROW);
+    // 2006 starts at row 40; its header sits directly above it.
+    expect(scroller().scrollTop).toBe(headerTop(40));
     expect(active()).toEqual(["2006"]);
+  });
+
+  it("every group in the rendered window has an inline header, with its row count", () => {
+    mount(rows());
+    // At the top: 2010's header, and — within the window plus overscan — 2009's.
+    const headers = () =>
+      [...host.querySelectorAll<HTMLElement>('[data-testid="group-header"]')].map((h) => ({
+        group: h.dataset.group,
+        count: h.dataset.count,
+        text: h.textContent,
+        top: h.style.top,
+      }));
+    expect(headers()[0]).toEqual({ group: "2010", count: "10", text: "201010 episodes", top: "0px" });
+    scrollTo(headerTop(50));
+    const inView = headers();
+    expect(inView.map((h) => h.group)).toContain("2005");
+    for (const h of inView) {
+      expect(h.count).toBe("10");
+      expect(h.text).toBe(`${h.group}10 episodes`);
+    }
+    expect(inView.find((h) => h.group === "2005")?.top).toBe(`${headerTop(50)}px`);
   });
 
   it("has no rail where the sort has no groups", () => {

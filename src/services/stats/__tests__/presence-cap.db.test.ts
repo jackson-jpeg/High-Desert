@@ -35,19 +35,25 @@ afterEach(async () => {
 });
 
 /**
- * This file's share of the online count: exactly the rows getPresence() counts
- * (seen inside the active window), restricted to our session ids so another
- * DB test running in parallel cannot move the number. getPresence() itself is
- * called too, so the rows counted are the rows the public API serves.
+ * The sessions this file holds inside the active window — what the cap bounds.
+ * Restricted to our session ids so another DB test running in parallel cannot
+ * move the number.
  */
 async function online(): Promise<number> {
-  const presence = await store.getPresence();
   const { rows } = await store.getPool().query<{ n: number }>(
     "SELECT count(*)::int AS n FROM active_sessions WHERE session_id LIKE $1 AND seen_at >= now() - interval '5 minutes'",
     [`${TAG}-%`],
   );
-  expect(presence.online).toBeGreaterThanOrEqual(rows[0].n);
   return rows[0].n;
+}
+
+/**
+ * The public online count for this file's sessions, through getPresence() —
+ * the number every surface shows. It counts clients, so however many sessions
+ * a client holds, it is one person (presence-clients.db.test.ts).
+ */
+async function people(): Promise<number> {
+  return (await store.getPresence(`${TAG}-`)).online;
 }
 
 describeDb("per-client presence cap (Postgres)", () => {
@@ -63,10 +69,12 @@ describeDb("per-client presence cap (Postgres)", () => {
       await store.recordHeartbeat(s, null, `2001:db8:${TAG.length}:1::/64`);
     }
     expect(await online()).toBe(before + N);
+    expect(await people()).toBe(1);
 
     // A different client is unaffected by the first one's cap.
     await store.recordHeartbeat(sid("b"), null, "198.51.100.77");
     expect(await online()).toBe(before + N + 1);
+    expect(await people()).toBe(2);
 
     // What survives: the N admitted sessions renew; the refused one never appears.
     const { rows } = await store
@@ -78,12 +86,21 @@ describeDb("per-client presence cap (Postgres)", () => {
   });
 
   it("concurrent joins cannot race past the cap", async () => {
+    // Without the lock the race needs two transactions to overlap between
+    // INSERT and COMMIT, which one burst hits only some of the time — a single
+    // round let the mutation survive a CI run. Every round must land exactly
+    // on the cap; with the lock that is certain, without it five clean rounds
+    // in a row are not.
     const N = store.SESSIONS_PER_CLIENT;
+    const ROUNDS = 5;
     const before = await online();
-    await Promise.all(
-      Array.from({ length: N * 3 }, () => store.recordHeartbeat(sid("race"), null, "203.0.113.99")),
-    );
-    expect(await online()).toBe(before + N);
+    for (let r = 0; r < ROUNDS; r++) {
+      await Promise.all(
+        Array.from({ length: N * 3 }, () => store.recordHeartbeat(sid(`race${r}`), null, `203.0.113.${90 + r}`)),
+      );
+      expect(await online(), `round ${r}`).toBe(before + N * (r + 1));
+    }
+    expect(await people()).toBe(ROUNDS);
   });
 
   // The recordPlay half of the cap lives in store.db.test.ts: a play writes

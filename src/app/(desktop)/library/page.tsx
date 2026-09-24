@@ -18,7 +18,8 @@ import { LibraryListSkeleton, EmptyLibrary, NoFilterMatches, NoSearchMatches, No
 import { selectLibraryEpisodes, type ShowFilter } from "@/lib/library/filter-episodes";
 import { libraryListState } from "@/lib/library/list-state";
 import { useIsMobile } from "@/hooks/useMediaQuery";
-import { useCommunityStats } from "@/hooks/useCommunityStats";
+import { useCommunityCatalog } from "@/hooks/useCommunityCatalog";
+import { communityOf } from "@/lib/library/sort-keys";
 import { useLibraryFilters } from "@/hooks/library/useLibraryFilters";
 import { useLibraryFacets } from "@/hooks/library/useLibraryFacets";
 import { useLibrarySelection } from "@/hooks/library/useLibrarySelection";
@@ -29,7 +30,6 @@ import { useLibraryPanels } from "@/hooks/library/useLibraryPanels";
 import { useLibraryIntents } from "@/hooks/library/useLibraryIntents";
 import { useLibrarySearchShortcuts } from "@/hooks/library/useLibrarySearchShortcuts";
 import { LibraryIntentReader } from "@/components/library/LibraryIntentReader";
-import { communityKey } from "@/lib/utils/community-key";
 import { emit } from "@/lib/events";
 
 /**
@@ -82,11 +82,14 @@ export default function LibraryPage() {
    * shift-click ranges, keyboard focus, scroll-to-current, a year rail — reads
    * this array; nothing re-runs the pipeline.
    */
+  // Community plays and ratings for the whole catalog: what "Most played" and
+  // "Top rated" order by, and what the list's metric column shows.
+  const community = useCommunityCatalog();
   const visibleEpisodes = useMemo(
     () => selectLibraryEpisodes(allEpisodes, {
       search: deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, bookmarkedIds,
-    }),
-    [allEpisodes, deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, bookmarkedIds],
+    }, community),
+    [allEpisodes, deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, bookmarkedIds, community],
   );
 
   const selection = useLibrarySelection({ allEpisodes, visibleEpisodes });
@@ -141,13 +144,6 @@ export default function LibraryPage() {
 
   const panels = useLibraryPanels({ isMobile, allEpisodes });
 
-  // TimelineView fetches counts for its own visible window. Here we only need the
-  // one episode open in the detail panel.
-  const detailKeys = useMemo(() => {
-    const key = selectedEpisode ? communityKey(selectedEpisode) : null;
-    return key ? [key] : [];
-  }, [selectedEpisode]);
-  const communityCounts = useCommunityStats(detailKeys);
 
   // Easter egg: Mel's Hole — scroll aggressively past the bottom
   const bottomScrollRef = useRef(0);
@@ -297,6 +293,7 @@ export default function LibraryPage() {
               episodes={visibleEpisodes}
               sortMode={sortMode}
               seriesFilter={seriesFilter}
+              community={community}
               onSortModeChange={filters.setSortMode}
               currentEpisodeId={currentEpisodeId}
               onEpisodeClick={selection.handleEpisodeClick}
@@ -329,7 +326,7 @@ export default function LibraryPage() {
             selectedEpisodeLive={selection.selectedEpisodeLive}
             currentEpisodeId={currentEpisodeId}
             isAdmin={isAdmin}
-            communityPlays={communityCounts.get(communityKey(selectedEpisode) ?? "")}
+            communityPlays={communityOf(selectedEpisode, community).plays || undefined}
             onPlay={handlePlay}
             onClose={selection.handleCloseDetail}
             onToggleFavorite={handleToggleFavorite}

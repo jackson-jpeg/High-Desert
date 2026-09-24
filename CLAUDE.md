@@ -80,10 +80,11 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/rate` | POST | Submit a rating 1–5 or null. Body `{episodeId, rating}`. Returns `{ok}`. One ballot per client (IPv4 address / IPv6 /64), stored as an HMAC; **503 when `RATING_VOTER_SECRET` is unset** |
 | `/api/stats/episodes` | GET | Play counts for up to **100** ids. Returns **`{counts: {id: n}}`** |
 | `/api/stats/ratings` | GET | Ratings for up to **50** ids. Returns a **bare map** `{id: {avg, count}}` |
-| `/api/stats/leaderboard` | GET | Top episodes. Returns **`{entries: [{episodeId, plays}]}`** |
-| `/api/stats/active` | GET | Presence. Returns **`{count, online, listening}`** — `count` is a synonym for `listening`, kept for older clients |
+| `/api/stats/community` | GET | Community plays and ratings for the **whole catalog**: **`{episodes: {id: {plays, avg, count}}}`**, only episodes with a play or rating. What "Most played" / "Top rated" sort by and what the list's metric column shows (`src/lib/library/sort-keys.ts`), read through `useCommunityCatalog`. Proxy-cached 60s |
+| `/api/stats/leaderboard` | GET | Top episodes. **`?period=alltime\|week` is required.** Returns **`{entries: [{episodeId, plays}]}`**. `alltime` is `episode_plays` — the same numbers as `/api/stats/community` and the library's "Most played" |
+| `/api/stats/active` | GET | **Legacy alias**, read by no surface in the current build. Returns **`{count, online, listening}`** from the same `getPresence()` as `/now` — `count` is a synonym for `listening` |
 | `/api/stats/heartbeat` | POST | Mark a session present. Body `{sessionId, episodeId?}`. Returns `{ok}`. Every open tab posts on a 60s interval. `episodeId` is sent **only while that tab is actually playing** and renews `listening_at` — it is what keeps a show on air for its whole runtime instead of for five minutes after someone pressed play. Omitting it leaves the listening mark alone rather than clearing it, so a pause does not yank the show off the air; the mark decays on its own. Same allowlist gate as `/api/stats/play`, but a bad id drops the mark instead of failing the beat — presence is the primary job. A client past `SESSIONS_PER_CLIENT` new sessions gets the same `{ok}` and is not counted |
-| `/api/stats/now` | GET | Presence **plus what is playing**. Returns **`{online, listening, onAir: [{episodeId, listeners}], recent: [{episodeId, at}]}`**. `no-store` — a stale on-air list is worse than none. Aggregate only: no query joins `session_id` to `episode_id`, and `recent_plays` stores no session at all |
+| `/api/stats/now` | GET | **The one presence endpoint.** Presence **plus what is playing**. Returns **`{online, listening, onAir: [{episodeId, listeners}], recent: [{episodeId, at}]}`**. `online` is distinct *clients* (not sessions) with a heartbeat inside 5 min; `listening` is the subset with a playing session; `listeners` is distinct clients per episode. `no-store` — a stale on-air list is worse than none. Aggregate only: no query joins `session_id` to `episode_id`, and `recent_plays` stores no session at all |
 | `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, plays}], peakOnline, peakListening, playsInRange, totalPlays, peakAt, hourly: [{hour, online, listening, plays, samples}]}`**. `hourly` is always a 24-entry, zero-filled, **UTC**-hour profile over the last 30 days and does *not* vary with `range`; the client rotates it into local time. `samples: 0` means *never observed*, which is not the same as "observed, nobody here" — the UI hides the profile until 8 hours have been sampled, or a day-old deployment draws 23 empty columns and looks like a dead site |
 | `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Also prunes `weekly_plays` past 3 weeks. Returns `{ok, online, listening, totalPlays, rolledUp, anonymized, prunedWeeks}` |
 | `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass, detail?}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`network-error`/`decode-error`/`empty-media`/`empty-media-suspected`; `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. `detail` is short (≤200 char) free text: the reported duration on an advisory row, or `MediaError.code` plus its message on a `decode-error`/`network-error`/`empty-media`. That message is a browser pipeline diagnostic (`DEMUXER_ERROR_COULD_NOT_OPEN: …`) and is the **only** way an empty file is distinguishable from an unreachable one on Chromium, which errors on the missing frames rather than reporting a short duration. A `detail` containing `HD-VERIFY` (any case, checked after truncation) is **rejected with 400** — this table is the instrument that decides whether the 5s duration floor is safe to promote, and verification rows have polluted it twice; intercept the POST in the page instead. No session id, no IP. `episodeId` must be in the community-key allowlist |
@@ -174,6 +175,34 @@ had been overwritten too, muting and unmuting could not recover it either. The a
 simply quiet the next morning with nothing on screen to explain it. `useSleepTimerStore`
 now captures `fadeFrom` once and hands exactly that back — on expiry, and on cancel. A
 timer that expires without ever fading does not touch the volume at all.
+
+## Library sorts — whose numbers, and one of them
+
+`src/lib/library/sort-keys.ts` decides, once, what each numeric sort orders by:
+**"Most played · everyone"** and **"Top rated · everyone"** are community numbers
+(`/api/stats/community`); **"My plays"** and **"My rating"** are this browser's. The
+comparator (`sortEpisodes`), the group buckets (`deriveRailGroups`) and the list's metric
+column (`metricFor`) all read `sortValue` — "Most played" once sorted by local plays, grouped
+by them, and showed community counts, so the rows read 41, 6, 78, 120 under a "Played 2–4
+times (2)" header. **Every group has an inline header** (`list-layout.ts`); row offsets are
+not `index × rowHeight`, so scroll through the list (`scrollListToRow`), never by arithmetic.
+`sort-properties.test.ts` holds every sort monotonic and every header count equal to its rows.
+
+## /stats — every number has a test that recomputes it
+
+Local figures come from `computeLibraryStats()` (`src/lib/stats/library-stats.ts`),
+recomputed from raw rows in `src/lib/stats/__tests__/library-stats.test.ts` against the
+real catalog; the page test (`src/app/(desktop)/stats/__tests__/stats-page.test.tsx`)
+holds the page to that function. Findings and fixes: `docs/stats-audit.md`.
+
+- **Listened is time heard**, measured from the 250 ms position tick
+  (`src/services/episodes/listen-time.ts`) and stored as `history.duration`. Never derive
+  it from `playbackPosition` — that is *where you are*, reset to 0 on `ended`.
+- **Personal lists say so.** "My Most Played" is this browser's `playCount`; Community
+  Top 20 is everyone's. Each drills into the library sort that uses its own numbers
+  (`my-plays`, `played`).
+- **"Plays all time" exceeds every range total by design** — the counter predates the
+  `play_events` log (2026-07-28). The page says so.
 
 ## Event bus and library intents — read before adding a cross-component signal
 
@@ -473,6 +502,16 @@ No third-party hosting. Same shape as `sanger-next`.
   `listener_samples`, and the only reason any *history* exists — `active_sessions` is a live
   set that is pruned as it is counted, and `episode_plays` has no timestamps. A timer rather
   than sampling on read, so quiet periods record real zeroes instead of leaving gaps
+- **Presence has one truth.** `getPresence()` is the only computation of online and
+  listening — distinct `client_ref`, not sessions (two tabs are one person) — and
+  `/api/stats/now` the only endpoint any surface reads, through the shared, ref-counted
+  client feed `src/services/stats/now-feed.ts` (`useCommunityNow`). The Stats badge, the
+  status bar, the mobile sheet, On Air and Signal Traffic's "Right now" all render that one
+  snapshot, each tagged with `presenceAttrs()` (`data-presence`, `data-online`,
+  `data-listening`, `data-presence-poll`); `presence-surfaces.test.tsx` holds them equal and
+  `highdesert-status` checks the live site. Never give a surface its own fetch or its own
+  arithmetic — the badge's `online − 1` and a second poll on a second clock once put 7, 8
+  and 10 "online" on one screen. `listener_samples.online` counts clients from 2026-09-24
 - **On air is a renewed mark, not a timestamp of when you pressed play.** `onAir` filters
   `active_sessions` on `listening_at >= now() - 5 min`. `recordPlay` sets that mark once;
   if nothing renews it, every listener drops off the air five minutes in and stays off for
@@ -630,6 +669,13 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
   (`absorbUserData`) and repoint history, bookmarks, playlists and the saved queue
   (`repointEpisodeRefs`, `src/db/merge.ts`) in one transaction before anything is removed. Do not
   add a third.
+- **`refreshCatalogFlags()` (`src/db/catalog-flags.ts`) is an unattended write, not a
+  destructive one.** It sets `aiNotable: true` on the rows listed in `data/notable.json`,
+  once per `NOTABLE_VERSION`, under the seed lock — never unsets it, never touches another
+  field, never adds or removes a row. It exists because `reconcileLibrary()` is bulkAdd-only,
+  so a catalog flag added after a visitor's seed never reaches them otherwise.
+  `src/db/__tests__/notable.test.ts` compares every field of every row before and after.
+  Adding to the list: `data/notable.md`, "Rules for adding one".
 - **Delete and Clear Library are each one rw transaction** over every dependent table
   (`deleteEpisode`, `clearLibrary` in `src/services/episodes/management.ts`). A failure part-way
   leaves nothing half-deleted.

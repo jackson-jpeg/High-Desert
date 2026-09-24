@@ -21,8 +21,14 @@
 
 import type { Episode } from "@/db/schema";
 import type { SortMode } from "@/lib/library/filter-episodes";
+import { NO_COMMUNITY, sortValue, type CommunityIndex } from "@/lib/library/sort-keys";
 
-export type RailKind = "year" | "letter" | "guest-letter" | "rating" | "recency" | "plays";
+/**
+ * "plays" and "rating" bucket the community's numbers; "my-plays" and
+ * "my-rating" this browser's — each exactly the `sortValue` its sort orders by,
+ * so a group's rows are the rows whose number is in the group's range.
+ */
+export type RailKind = "year" | "letter" | "guest-letter" | "rating" | "my-rating" | "recency" | "plays" | "my-plays";
 
 export interface RailGroup {
   /** Stable identity of the group, e.g. "1997", "C", "5". Exposed as `data-group`. */
@@ -61,10 +67,14 @@ export function railKind(sortMode: SortMode, seriesFilter: string | null = null)
       return "guest-letter";
     case "rated":
       return "rating";
+    case "my-rating":
+      return "my-rating";
     case "recent":
       return "recency";
     case "played":
       return "plays";
+    case "my-plays":
+      return "my-plays";
     case "progress":
       return null;
   }
@@ -85,7 +95,18 @@ interface KeyLabel {
   title: string;
 }
 
-function keyFor(ep: Episode, kind: RailKind, now: number): KeyLabel {
+/** Community play buckets, descending. The catalog's top shows run past a hundred. */
+const COMMUNITY_PLAY_BUCKETS: readonly [min: number, key: string, label: string][] = [
+  [100, "100+", "100+"],
+  [50, "50-99", "50–99"],
+  [20, "20-49", "20–49"],
+  [10, "10-19", "10–19"],
+  [5, "5-9", "5–9"],
+  [2, "2-4", "2–4"],
+  [1, "1", "1"],
+];
+
+function keyFor(ep: Episode, kind: RailKind, now: number, community: CommunityIndex): KeyLabel {
   switch (kind) {
     case "year": {
       const y = ep.airDate?.slice(0, 4);
@@ -101,9 +122,21 @@ function keyFor(ep: Episode, kind: RailKind, now: number): KeyLabel {
       return { key: k, label: k, title: k === "#" ? "Guests starting with a digit or symbol" : `Guests starting with ${k}` };
     }
     case "rating": {
-      const r = Math.round(ep.rating ?? 0);
-      if (r <= 0) return { key: "unrated", label: "—", title: "Unrated" };
-      return { key: String(r), label: `${r}★`, title: `Rated ${r} star${r === 1 ? "" : "s"}` };
+      // Floor, not round: the sort is on the average itself, and floor keeps
+      // every bucket a contiguous run of it (4.0–4.99 is "4").
+      const avg = sortValue(ep, "rated", community);
+      const r = Math.floor(avg);
+      if (r <= 0) return { key: "unrated", label: "—", title: "No community ratings" };
+      return {
+        key: String(r),
+        label: `${r}★`,
+        title: r === 5 ? "Community average 5★" : `Community average ${r}.0–${r}.9★`,
+      };
+    }
+    case "my-rating": {
+      const r = Math.round(sortValue(ep, "my-rating", community));
+      if (r <= 0) return { key: "unrated", label: "—", title: "You have not rated these" };
+      return { key: String(r), label: `${r}★`, title: `You rated ${r} star${r === 1 ? "" : "s"}` };
     }
     case "recency": {
       // Buckets are monotonic in lastPlayedAt, which is what "recent" sorts by
@@ -117,12 +150,22 @@ function keyFor(ep: Episode, kind: RailKind, now: number): KeyLabel {
       return { key: "older", label: "Older", title: "Played more than a month ago" };
     }
     case "plays": {
-      const n = ep.playCount ?? 0;
-      if (n >= 10) return { key: "10+", label: "10+", title: "Played 10 or more times" };
-      if (n >= 5) return { key: "5-9", label: "5–9", title: "Played 5–9 times" };
-      if (n >= 2) return { key: "2-4", label: "2–4", title: "Played 2–4 times" };
-      if (n === 1) return { key: "1", label: "1×", title: "Played once" };
-      return { key: "0", label: "0", title: "Never played" };
+      const n = sortValue(ep, "played", community);
+      for (const [min, key, label] of COMMUNITY_PLAY_BUCKETS) {
+        if (n >= min) {
+          const title = key === "1" ? "1 play by listeners" : `${label} plays by listeners`;
+          return { key, label, title };
+        }
+      }
+      return { key: "0", label: "0", title: "No plays yet" };
+    }
+    case "my-plays": {
+      const n = sortValue(ep, "my-plays", community);
+      if (n >= 10) return { key: "10+", label: "10+", title: "You played 10 or more times" };
+      if (n >= 5) return { key: "5-9", label: "5–9", title: "You played 5–9 times" };
+      if (n >= 2) return { key: "2-4", label: "2–4", title: "You played 2–4 times" };
+      if (n === 1) return { key: "1", label: "1×", title: "You played once" };
+      return { key: "0", label: "0", title: "You have not played these" };
     }
   }
 }
@@ -142,6 +185,7 @@ export function deriveRailGroups(
   sortMode: SortMode,
   seriesFilter: string | null = null,
   now: number = Date.now(),
+  community: CommunityIndex = NO_COMMUNITY,
 ): RailGroup[] {
   const kind = railKind(sortMode, seriesFilter);
   if (!kind) return [];
@@ -149,7 +193,7 @@ export function deriveRailGroups(
   const groups: RailGroup[] = [];
   const seen = new Set<string>();
   for (let i = 0; i < rows.length; i++) {
-    const { key, label, title } = keyFor(rows[i], kind, now);
+    const { key, label, title } = keyFor(rows[i], kind, now, community);
     const last = groups[groups.length - 1];
     if (last && last.key === key) {
       last.count++;
@@ -160,23 +204,6 @@ export function deriveRailGroups(
     groups.push({ key, label, title, firstIndex: i, count: 1 });
   }
   return groups.length > 1 ? groups : [];
-}
-
-/**
- * Index of the first row actually in view — not an overscan row.
- *
- * The rows start directly beneath the (sticky) column header, which sits in
- * the same scroller and is pinned over exactly the height it occupies, so the
- * header's height cancels: row `i` is the first visible one while
- * `scrollTop` is in `[i * itemHeight, (i + 1) * itemHeight)`.
- *
- * Reading `virtualItems[0]` instead reported the row `overscan` (5) rows above
- * the screen — five table rows on desktop, ~580px of cards on a phone — and in
- * a list shorter than a screen plus five rows it never left row 0 (HD-035).
- */
-export function firstVisibleIndex(scrollTop: number, itemHeight: number, rowCount: number): number {
-  if (rowCount <= 0 || itemHeight <= 0) return 0;
-  return Math.min(rowCount - 1, Math.max(0, Math.floor(scrollTop / itemHeight)));
 }
 
 /** The group containing row `rowIndex`: the last group starting at or before it. -1 if there are none. */

@@ -9,10 +9,11 @@ import { useWakeFlag } from "@/hooks/useWakeFlag";
 import { useVirtualList } from "@/hooks/useVirtualList";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils/cn";
-import { communityKey } from "@/lib/utils/community-key";
-import { useCommunityStats } from "@/hooks/useCommunityStats";
-import { useTextScale, itemHeightFor } from "@/hooks/useTextScale";
+import { useTextScale, itemHeightFor, headerHeightFor } from "@/hooks/useTextScale";
 import { deriveRailGroups, activeGroupIndex, type RailGroup } from "@/lib/library/rail-groups";
+import { buildListLayout } from "@/lib/library/list-layout";
+import { registerListScroll } from "@/lib/library/list-scroll";
+import { NO_COMMUNITY, metricFor, metricHeader, type CommunityIndex } from "@/lib/library/sort-keys";
 import type { SortMode } from "@/lib/library/filter-episodes";
 
 interface TimelineViewProps {
@@ -22,6 +23,12 @@ interface TimelineViewProps {
   sortMode?: SortMode;
   /** An active series filter overrides `sortMode`'s order (see `sortEpisodes`). */
   seriesFilter?: string | null;
+  /**
+   * The community numbers `episodes` was sorted with. Passed down, not
+   * re-read, so the groups and the metric column use the same snapshot as the
+   * order they describe.
+   */
+  community?: CommunityIndex;
   /** Offered as the newest/oldest toggle in date order. */
   onSortModeChange?: (mode: SortMode) => void;
   currentEpisodeId?: number;
@@ -58,6 +65,7 @@ export function TimelineView({
   episodes,
   sortMode = "date",
   seriesFilter = null,
+  community = NO_COMMUNITY,
   onSortModeChange,
   currentEpisodeId,
   selectedEpisodeId,
@@ -74,31 +82,42 @@ export function TimelineView({
   const isMobile = useIsMobile();
   const textScale = useTextScale();
   const ITEM_HEIGHT = itemHeightFor(isMobile, textScale);
+  const HEADER_HEIGHT = headerHeightFor(isMobile, textScale);
 
-  const { containerRef, virtualItems, totalHeight, visibleStartIndex, onScroll, scrollToIndex } = useVirtualList({
+  // The rail, the sticky header and the inline group headers are projections
+  // of `episodes` — the same array, in the same order, as the rows below
+  // (docs/timeline-rail.md) — bucketed on the same number the list is sorted by.
+  const groups = useMemo(
+    () => deriveRailGroups(episodes, sortMode, seriesFilter, undefined, community),
+    [episodes, sortMode, seriesFilter, community],
+  );
+
+  // Every group gets a header row directly above its first row.
+  const layout = useMemo(
+    () => buildListLayout(episodes.length, groups.map((g) => g.firstIndex), ITEM_HEIGHT, HEADER_HEIGHT),
+    [episodes.length, groups, ITEM_HEIGHT, HEADER_HEIGHT],
+  );
+
+  const { containerRef, virtualItems, totalHeight, visibleStartIndex, scrollTop, onScroll, scrollToIndex, scrollToOffset } = useVirtualList({
     items: episodes,
     itemHeight: ITEM_HEIGHT,
     overscan: 5,
+    layout,
   });
 
-  // Community play counts for the visible window only. Requesting the whole
-  // filtered list (~1,300 ids) blew past the route's 100-id cap and 400'd every
-  // time. The hook debounces and caches, so scrolling doesn't spam the server.
-  const visibleKeys = useMemo(
-    () =>
-      virtualItems
-        .map((v) => communityKey(v.item))
-        .filter((k): k is string => !!k),
-    [virtualItems],
-  );
-  const communityPlayCounts = useCommunityStats(visibleKeys);
+  // Anything outside the list that needs to bring a row into view
+  // (scroll-to-current) goes through the same layout, headers included.
+  useEffect(() => registerListScroll(scrollToIndex), [scrollToIndex]);
 
-  // The rail and the sticky header are projections of `episodes` — the same
-  // array, in the same order, as the rows below (docs/timeline-rail.md).
-  const groups = useMemo(
-    () => deriveRailGroups(episodes, sortMode, seriesFilter),
-    [episodes, sortMode, seriesFilter],
-  );
+  // The headers whose first row is in the rendered window.
+  const renderedHeaders = useMemo(() => {
+    if (virtualItems.length === 0) return [];
+    const lo = virtualItems[0].index;
+    const hi = virtualItems[virtualItems.length - 1].index;
+    return groups
+      .map((g, i) => ({ g, i }))
+      .filter(({ g }) => g.firstIndex >= lo && g.firstIndex <= hi);
+  }, [groups, virtualItems]);
 
   // The first row actually on screen. Not `virtualItems[0]`, which is an
   // overscan row five rows above the viewport (HD-035).
@@ -106,12 +125,18 @@ export function TimelineView({
   const activeIndex = activeGroupIndex(groups, firstRow);
   const activeGroup: RailGroup | null = activeIndex >= 0 ? groups[activeIndex] : null;
 
-  // A rail entry means "the start of this group": its first row goes to the
-  // top of the list, so the entry clicked is the one that becomes active.
+  // A rail entry means "the start of this group": its header goes to the top
+  // of the list, so the entry clicked is the one that becomes active.
   const handleSelect = useCallback(
-    (group: RailGroup) => scrollToIndex(group.firstIndex, "start"),
-    [scrollToIndex],
+    (group: RailGroup) => scrollToOffset(layout.headerTop(groups.indexOf(group))),
+    [scrollToOffset, layout, groups],
   );
+
+  // The sticky header repeats the active group only once its own inline
+  // header has scrolled away — two copies of one title, stacked, read as two
+  // groups.
+  const topSlot = layout.at(scrollTop);
+  const showStickyGroup = !!activeGroup && !(topSlot.kind === "header" && topSlot.group === activeIndex);
 
   // Mobile scrubber: up while the list moves, gone ~1.5s after it stops.
   const [scrubberAwake, wakeScrubber] = useWakeFlag(SCRUBBER_IDLE_MS);
@@ -131,8 +156,14 @@ export function TimelineView({
     const listbox = listboxRef.current;
     const scroller = listbox?.parentElement;
     if (!listbox || !scroller || activeRow < 0) return;
-    const top = activeRow * ITEM_HEIGHT;
-    const bottom = listbox.offsetTop + top + ITEM_HEIGHT;
+    // Scrolling up, a group's first row comes into view with its header: Home,
+    // or arrowing up into a group, would otherwise stop one header short of
+    // the top. The bottom edge is always the row's own — a header above it
+    // does not make it taller (End onto a one-row group stopped 26px short).
+    const g = groups.findIndex((gr) => gr.firstIndex === activeRow);
+    const rowTop = layout.rowTop(activeRow);
+    const top = g >= 0 ? layout.headerTop(g) : rowTop;
+    const bottom = listbox.offsetTop + rowTop + ITEM_HEIGHT;
     if (top < scroller.scrollTop) {
       scroller.scrollTop = top;
     } else if (bottom > scroller.scrollTop + scroller.clientHeight) {
@@ -141,7 +172,7 @@ export function TimelineView({
       return;
     }
     onScroll();
-  }, [activeRow, ITEM_HEIGHT, onScroll]);
+  }, [activeRow, ITEM_HEIGHT, layout, groups, onScroll]);
 
   const activeEpisode = activeRow >= 0 ? episodes[activeRow] : undefined;
   // Only name a row that is actually rendered; see above.
@@ -208,18 +239,30 @@ export function TimelineView({
     <div className={cn("flex flex-col h-full", className)}>
       {/* Sticky group header: the group of the first visible row, and in
           date order the direction toggle — the only place the ascending sort
-          is offered on desktop outside the sort presets. */}
+          is offered on desktop outside the sort presets.
+          Its height must not depend on the scroll position. It sits above the
+          scroller, so every pixel it gains is a pixel the scroller loses: when
+          it mounted or grew as the list moved off a group's inline header,
+          "keep the active row in view" had already computed against the
+          taller scroller, and End left the last row 4px below the fold. The
+          label is therefore hidden, never unmounted, while the inline header
+          is showing. */}
       {(activeGroup || dateDirection) && (
-        <div className="sticky top-0 z-10 bg-midnight/95 backdrop-blur-sm px-4 py-1.5 border-b border-bevel-dark/15 glass-light flex items-center gap-2">
+        <div data-testid="rail-header" className="sticky top-0 z-10 bg-midnight/95 backdrop-blur-sm px-4 py-1.5 border-b border-bevel-dark/15 glass-light flex items-center gap-2">
           {activeGroup && (
-            <>
-              <span data-testid="rail-header-group" data-group={activeGroup.key} className="text-hd-13 text-desert-amber/90 font-bold tabular-nums truncate">
+            <span
+              data-testid="rail-header-group"
+              data-group={activeGroup.key}
+              aria-hidden={showStickyGroup ? undefined : true}
+              className={cn("flex items-center gap-2 min-w-0", !showStickyGroup && "invisible")}
+            >
+              <span className="text-hd-13 text-desert-amber/90 font-bold tabular-nums truncate">
                 {activeGroup.title}
               </span>
               <span className="text-hd-10 text-bevel-dark/85">
                 {activeGroup.count}
               </span>
-            </>
+            </span>
           )}
           {dateDirection && onSortModeChange && (
             <button
@@ -263,7 +306,7 @@ export function TimelineView({
             <span>Show</span>
             <span className="text-right">Length</span>
             <span className="hidden lg:block text-right">Size</span>
-            <span className="hidden lg:block text-right">Plays</span>
+            <span className="hidden lg:block text-right">{metricHeader(seriesFilter ? "date" : sortMode)}</span>
             <span />
           </div>
 
@@ -281,6 +324,22 @@ export function TimelineView({
             data-episode-listbox=""
             style={{ height: totalHeight }}
           >
+            {renderedHeaders.map(({ g, i }) => (
+              <div
+                key={`group-${g.key}`}
+                role="presentation"
+                data-testid="group-header"
+                data-group={g.key}
+                data-count={g.count}
+                className="absolute left-2 right-2 flex items-end gap-2 px-2 pb-1 border-b border-bevel-dark/20"
+                style={{ top: layout.headerTop(i), height: HEADER_HEIGHT }}
+              >
+                <span className="text-hd-caption text-desert-amber/90 font-bold truncate">{g.title}</span>
+                <span className="text-hd-micro text-bevel-dark/85 tabular-nums">
+                  {g.count.toLocaleString()} {g.count === 1 ? "episode" : "episodes"}
+                </span>
+              </div>
+            ))}
             {virtualItems.map(({ item: ep, offsetTop, index }) => (
               <div
                 key={ep.id}
@@ -297,7 +356,7 @@ export function TimelineView({
                   onContextMenu={onEpisodeContextMenu}
                   onToggleFavorite={onToggleFavorite}
                   onQueue={onQueue}
-                  communityPlays={communityPlayCounts.get(communityKey(ep) ?? "")}
+                  metric={metricFor(ep, seriesFilter ? "date" : sortMode, community)}
                   optionId={optionIdFor(ep)}
                   setSize={episodes.length}
                   posInSet={index + 1}

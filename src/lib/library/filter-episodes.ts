@@ -17,17 +17,32 @@
 
 import type { Episode } from "@/db/schema";
 import { parseSearch, type ComparisonOp } from "@/lib/utils/search-parser";
+import {
+  NO_COMMUNITY,
+  isNumericSort,
+  sortTiebreak,
+  sortValue,
+  type CommunityIndex,
+} from "@/lib/library/sort-keys";
 
 /**
  * "date" is newest first (Dexie's order, kept as is); "date-asc" is oldest
  * first. There was no ascending date sort until the rail was made to follow
  * the list (docs/timeline-rail.md) — the only oldest-first listing was a
  * series filter.
+ *
+ * "played" and "rated" are the community's numbers; "my-plays" and "my-rating"
+ * are this browser's. `src/lib/library/sort-keys.ts` is where that is decided,
+ * once, for the order, the group headers and the column.
  */
-export type SortMode = "date" | "date-asc" | "name" | "guest" | "recent" | "progress" | "rated" | "played";
+export type SortMode =
+  | "date" | "date-asc" | "name" | "guest" | "recent" | "progress"
+  | "rated" | "played" | "my-plays" | "my-rating";
 export type ShowFilter = "all" | "coast" | "dreamland" | "special" | "unknown";
 
-export const SORT_MODES: readonly SortMode[] = ["date", "date-asc", "name", "guest", "recent", "progress", "rated", "played"];
+export const SORT_MODES: readonly SortMode[] = [
+  "date", "date-asc", "name", "guest", "recent", "progress", "rated", "played", "my-plays", "my-rating",
+];
 
 export interface LibraryCriteria {
   /** Raw search box text, operators included (see `parseSearch`). */
@@ -187,7 +202,12 @@ export function filterEpisodes(episodes: Episode[], criteria: LibraryCriteria): 
  *     5% and 95% played — and, like every other mode, is ignored under a series
  *     filter.
  */
-export function sortEpisodes(list: Episode[], sortMode: SortMode, seriesFilter: string | null): Episode[] {
+export function sortEpisodes(
+  list: Episode[],
+  sortMode: SortMode,
+  seriesFilter: string | null,
+  community: CommunityIndex = NO_COMMUNITY,
+): Episode[] {
   if (seriesFilter) {
     // When filtering by series, sort by part number (fallback to airDate)
     return [...list].sort((a, b) => {
@@ -221,10 +241,19 @@ export function sortEpisodes(list: Episode[], sortMode: SortMode, seriesFilter: 
     return [...list]
       .filter((ep) => ep.duration && ep.playbackPosition && ep.playbackPosition / ep.duration > 0.05 && ep.playbackPosition / ep.duration < 0.95)
       .sort((a, b) => (b.lastPlayedAt ?? 0) - (a.lastPlayedAt ?? 0));
-  } else if (sortMode === "rated") {
-    return [...list].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || (b.airDate ?? "").localeCompare(a.airDate ?? ""));
-  } else if (sortMode === "played") {
-    return [...list].sort((a, b) => (b.playCount ?? 0) - (a.playCount ?? 0));
+  } else if (isNumericSort(sortMode)) {
+    // Descending on the sort's own number (sort-keys.ts) — the same number
+    // the rail buckets and the column shows — then, for "rated", on how many
+    // people rated it. The rating sorts break remaining ties newest first, as
+    // "rated" always did; the play sorts leave ties in input order (stable).
+    const mode = sortMode;
+    const byDate = mode === "rated" || mode === "my-rating";
+    return [...list].sort(
+      (a, b) =>
+        sortValue(b, mode, community) - sortValue(a, mode, community) ||
+        sortTiebreak(b, mode, community) - sortTiebreak(a, mode, community) ||
+        (byDate ? (b.airDate ?? "").localeCompare(a.airDate ?? "") : 0),
+    );
   }
   // "date" is already the default order from Dexie (airDate desc)
   return list;
@@ -234,7 +263,8 @@ export function sortEpisodes(list: Episode[], sortMode: SortMode, seriesFilter: 
 export function selectLibraryEpisodes(
   episodes: Episode[] | undefined,
   criteria: LibraryCriteria & { sortMode: SortMode },
+  community: CommunityIndex = NO_COMMUNITY,
 ): Episode[] {
   if (!episodes) return [];
-  return sortEpisodes(filterEpisodes(episodes, criteria), criteria.sortMode, criteria.seriesFilter);
+  return sortEpisodes(filterEpisodes(episodes, criteria), criteria.sortMode, criteria.seriesFilter, community);
 }

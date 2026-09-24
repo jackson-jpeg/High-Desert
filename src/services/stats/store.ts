@@ -69,7 +69,12 @@ export function weekKey(now = new Date()): string {
 const ACTIVE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 /**
  * How many distinct sessions one client (an IPv4 address, or an IPv6 /64 — see
- * `clientKey`) may hold in the online count at once.
+ * `clientKey`) may hold in `active_sessions` at once.
+ *
+ * Presence now counts clients, not sessions (getPresence), so a client's extra
+ * sessions no longer inflate "online" by themselves. The cap still bounds how
+ * many rows one client can make the table carry, and keeps the history below
+ * true: when it was written, sessions were what was counted.
  *
  * A session id is minted client-side per page load, so before this cap anyone
  * could post heartbeats with fresh ids and make "online" and "on air" any
@@ -295,34 +300,55 @@ export async function getLeaderboard(
 }
 
 export interface Presence {
-  /** Sessions that have sent a heartbeat inside the active window. */
+  /** Distinct clients with a heartbeat inside the active window. */
   online: number;
-  /** Of those, sessions with a play event inside the window. */
+  /** Of those, the clients with a session that is playing something. */
   listening: number;
 }
 
-/** Who is here right now. Prunes stale sessions as it counts. */
-export async function getPresence(): Promise<Presence> {
+/**
+ * Who a presence row belongs to. `client_ref` is the per-client HMAC; a row
+ * written before that column existed falls back to its own session, so it
+ * still counts once rather than vanishing or merging with a stranger.
+ */
+const PRESENCE_WHO = "COALESCE(client_ref, 'session:' || session_id)";
+
+/**
+ * Who is here right now — the one computation behind every presence number the
+ * site shows. Prunes stale sessions as it counts.
+ *
+ * Counts **clients, not sessions**. A session is one page load, so counting
+ * them made two tabs two people, and a closed tab a second person for up to
+ * five minutes: one screen once read 7, 8 and 10 "online" on three surfaces.
+ * Listening is a subset of online by construction — the same rows, filtered.
+ */
+export async function getPresence(
+  /**
+   * Tests only: count just the sessions whose id starts with this, so a DB
+   * test running in parallel cannot move the number. Same statement either way.
+   */
+  sessionPrefix: string | null = null,
+): Promise<Presence> {
   const cutoff = new Date(Date.now() - ACTIVE_WINDOW_MS);
   const { rows } = await pool().query<{ online: number; listening: number }>(
     `
     WITH pruned AS (
       DELETE FROM active_sessions WHERE seen_at < $1
+    ), live AS (
+      SELECT ${PRESENCE_WHO} AS who,
+             (listening_at >= $1 AND episode_id IS NOT NULL) AS playing
+      FROM active_sessions
+      WHERE seen_at >= $1
+        AND ($2::text IS NULL OR starts_with(session_id, $2))
     )
     SELECT
-      count(*)::int                                        AS online,
-      count(*) FILTER (WHERE listening_at >= $1)::int      AS listening
-    FROM active_sessions
-    WHERE seen_at >= $1
+      count(DISTINCT who)::int                         AS online,
+      count(DISTINCT who) FILTER (WHERE playing)::int  AS listening
+    FROM live
     `,
-    [cutoff],
+    [cutoff, sessionPrefix],
   );
   return { online: rows[0]?.online ?? 0, listening: rows[0]?.listening ?? 0 };
-}
-
-/** Back-compat: the number the UI has always called "listening now". */
-export async function getActiveCount(): Promise<number> {
-  return (await getPresence()).listening;
 }
 
 // ---------------------------------------------------------------------------
@@ -331,7 +357,7 @@ export async function getActiveCount(): Promise<number> {
 
 export interface OnAirEntry {
   episodeId: string;
-  /** Sessions currently playing this episode. */
+  /** Distinct clients currently playing this episode. */
   listeners: number;
 }
 
@@ -367,9 +393,9 @@ export async function getNowPlaying(): Promise<NowPlaying> {
   const [onAirRes, recentRes] = await Promise.all([
     pool().query<{ episode_id: string; listeners: number }>(
       `
-      SELECT episode_id, count(*)::int AS listeners
+      SELECT episode_id, count(DISTINCT ${PRESENCE_WHO})::int AS listeners
       FROM active_sessions
-      WHERE listening_at >= $1 AND episode_id IS NOT NULL
+      WHERE seen_at >= $1 AND listening_at >= $1 AND episode_id IS NOT NULL
       GROUP BY episode_id
       ORDER BY listeners DESC, episode_id
       LIMIT 12
@@ -1086,6 +1112,46 @@ export async function getRatings(
     };
   }
   return result;
+}
+
+export interface CommunityNumbers {
+  plays: number;
+  /** Mean community rating, two decimals; 0 when unrated. */
+  avg: number;
+  /** Ratings behind `avg`. */
+  count: number;
+}
+
+/**
+ * Community plays and ratings for every episode that has either, in one read.
+ *
+ * The library's "Most played" and "Top rated" sort the whole catalog by these,
+ * so they cannot come from the windowed /api/stats/episodes (100 ids, the rows
+ * on screen): a sort over numbers only a screenful of rows have is not a sort.
+ * ~1,300 rows at most, both tables keyed by episode.
+ */
+export async function getCommunityCatalog(): Promise<Record<string, CommunityNumbers>> {
+  const { rows } = await pool().query<{ episode_id: string; plays: string; sum: string; count: string }>(
+    `
+    SELECT episode_id,
+           COALESCE(p.plays, 0) AS plays,
+           COALESCE(r.sum, 0)   AS sum,
+           COALESCE(r.count, 0) AS count
+    FROM (SELECT episode_id, plays FROM episode_plays WHERE plays > 0) p
+    FULL JOIN (SELECT episode_id, sum, count FROM episode_ratings WHERE count > 0) r
+      USING (episode_id)
+    `,
+  );
+  const out: Record<string, CommunityNumbers> = {};
+  for (const r of rows) {
+    const count = Number(r.count);
+    out[r.episode_id] = {
+      plays: Number(r.plays),
+      avg: count > 0 ? Number((Number(r.sum) / count).toFixed(2)) : 0,
+      count,
+    };
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------

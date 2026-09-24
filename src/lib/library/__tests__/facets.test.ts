@@ -46,7 +46,7 @@ function legacyFacets(allEpisodes: Episode[] | undefined) {
     if (!allEpisodes) return [];
     const filters: { label: string; kind: "notable" | "favorite" | "category"; category?: string }[] = [];
     const notableCount = allEpisodes.filter((ep) => !!ep.aiNotable).length;
-    if (notableCount > 0) filters.push({ label: "Late Night Classics", kind: "notable" });
+    if (notableCount > 0) filters.push({ label: "Notable", kind: "notable" });
     const favCount = allEpisodes.filter((ep) => !!ep.favoritedAt).length;
     if (favCount > 0) filters.push({ label: "Favorites", kind: "favorite" });
     const sorted = Array.from(categoryCounts.entries())
@@ -200,7 +200,7 @@ describe("computeFacets — hand-computed", () => {
   });
   it("builds mood chips: notable, favourites, then 3+ categories excluding Other", () => {
     expect(f.moodFilters).toEqual([
-      { label: "Late Night Classics", kind: "notable" },
+      { label: "Notable", kind: "notable" },
       { label: "Favorites", kind: "favorite" },
       { label: "UFOs", kind: "category", category: "UFOs & Aliens" },
     ]);

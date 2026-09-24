@@ -84,7 +84,7 @@ export function SmartPlaylists({ onPlay, className }: SmartPlaylistsProps) {
       result.push({ key: "unlistened", label: "Unlistened", icon: "\u{1F195}", episodes: unlistened });
     }
     if (mostPlayed.length > 0) {
-      result.push({ key: "most-played", label: "Most Played", icon: "\u{1F525}", episodes: mostPlayed });
+      result.push({ key: "most-played", label: "My Most Played", icon: "\u{1F525}", episodes: mostPlayed });
     }
     result.push({ key: "recently-added", label: "Recently Added", icon: "\u{2728}", episodes: recentlyAdded });
     result.push(...decades);
