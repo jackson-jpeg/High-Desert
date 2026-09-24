@@ -116,14 +116,25 @@ describe("validatePlan safety rails", () => {
     if (!check.ok) expect(check.reason).toMatch(/Refusing to deduplicate/);
   });
 
-  it("refuses an oversized group", () => {
-    const many = Array.from({ length: 25 }, (_, i) => ({
-      id: i + 1,
-      archiveIdentifier: "coll",
-      fileName: "same.mp3",
-    })) as Episode[];
-    const check = validatePlan(planDeduplication(many));
+  // The two rails are independent, and this test has to isolate the first one.
+  // It used to be 25 rows that were *all* duplicates — a 96% deletion, which the
+  // ratio rail refuses as well, so the test passed just as happily with the
+  // group-size check removed (the `dedup-rail-group-size` mutation came back
+  // GREEN in CI). Padding with uniques puts the deletion at 11%, inside the
+  // ratio rail, so nothing but the group size can refuse this plan.
+  it("refuses an oversized group, on the group size alone", () => {
+    const eps = [
+      ...Array.from({ length: 25 }, (_, i) => ({ id: i + 1, archiveIdentifier: "coll", fileName: "same.mp3" })),
+      ...Array.from({ length: 200 }, (_, i) => ({ id: 1000 + i, archiveIdentifier: "coll", fileName: `u${i}.mp3` })),
+    ] as Episode[];
+    const plan = planDeduplication(eps);
+    expect(plan.duplicatesToRemove).toBe(24);
+    // Control: this plan is well inside the ratio rail, so that cannot be what refuses it.
+    expect(plan.duplicatesToRemove / plan.totalBefore).toBeLessThan(0.25);
+
+    const check = validatePlan(plan);
     expect(check.ok).toBe(false);
+    if (!check.ok) expect(check.reason).toMatch(/identical episodes/);
   });
 
   it("refuses when more than 25% would be deleted", () => {
