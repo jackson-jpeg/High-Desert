@@ -82,6 +82,22 @@ export const MUTATIONS = [
     why: "THE incident: archiveIdentifier is the collection and is identical for every episode. Keying on it alone deleted 1,312 of 1,313 rows",
   },
   {
+    id: "dedup-rail-group-size",
+    test: "src/db/__tests__/deduplicate.test.ts",
+    file: "src/db/deduplicate.ts",
+    find: "const oversized = plan.groups.find((g) => g.dupes.length + 1 > MAX_GROUP_SIZE);",
+    replace: "const oversized = undefined;",
+    why: "the group-size rail catches a bad dedup key from the other side — 1,313 rows in one group is not 1,313 duplicates. It has to be observed independently of the key",
+  },
+  {
+    id: "dedup-rail-delete-ratio",
+    test: "src/db/__tests__/deduplicate.test.ts",
+    file: "src/db/deduplicate.ts",
+    find: "if (plan.totalBefore > 0 && plan.duplicatesToRemove / plan.totalBefore > MAX_DELETE_RATIO) {",
+    replace: "if (false) {",
+    why: "the second, independent rail: whatever the key does, a plan removing more than a quarter of the library is refused. Either rail alone would have prevented the wipe",
+  },
+  {
     id: "reconcile-tombstones",
     test: "src/db/__tests__/reconcile.test.ts",
     file: "src/db/seed.ts",

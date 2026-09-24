@@ -17,6 +17,16 @@
  * can assert its write was caught — an idle interception would otherwise pass
  * silently (docs/disconnected-checks.md).
  *
+ * 3. **Each test is its own client.** The stats *reads* still reach the server,
+ *    and they are rate limited per client (`src/lib/utils/rate-limit.ts`),
+ *    where a client is the address nginx puts in `X-Forwarded-For`. Nothing
+ *    sets that header in CI, so every request from every parallel worker shared
+ *    the one "unknown" bucket and the suite as a whole blew through
+ *    `/api/stats/ratings`'s 30/min — leaving the detail panel re-rendering
+ *    around a 429 until the test timed out. A distinct address per test is the
+ *    shape production actually has (one visitor, one bucket) and keeps the real
+ *    limiter in the path instead of stubbing the reads out.
+ *
  * `busEventName` is the bus's transport name for a key, from src/lib/events.ts
  * itself. Specs run code in the page, outside the bundle, so they listen by
  * name; importing the name rather than spelling `hd:*` keeps it one definition.
@@ -28,8 +38,24 @@ export const busEventName = hdEventName;
 
 const SERVER_WRITES = /\/api\/(stats\/(play|stop|rate|heartbeat)|playback-event)(\?|$)/;
 
+/**
+ * A private-range address unique to this test within the run. 10/8 has room for
+ * every test a run can produce, and the app only ever uses it as an opaque
+ * bucket key.
+ */
+let clientSeq = 0;
+function nextClientAddress(workerIndex: number): string {
+  const n = (workerIndex << 12) + (clientSeq++ & 0xfff);
+  return `10.${(n >> 16) & 0xff}.${(n >> 8) & 0xff}.${(n & 0xff) || 1}`;
+}
+
 export const test = base.extend<{ serverWrites: string[] }>({
   serviceWorkers: "block",
+  // `provide` is Playwright's `use`; the name is deliberate — react-hooks reads
+  // a bare `use()` inside a function named for the option as a React hook call.
+  extraHTTPHeaders: async ({}, provide, testInfo) => {
+    await provide({ "x-forwarded-for": nextClientAddress(testInfo.workerIndex) });
+  },
   serverWrites: [
     async ({ page }, use) => {
       const seen: string[] = [];
