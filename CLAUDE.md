@@ -653,6 +653,13 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
   (`absorbUserData`) and repoint history, bookmarks, playlists and the saved queue
   (`repointEpisodeRefs`, `src/db/merge.ts`) in one transaction before anything is removed. Do not
   add a third.
+- **`refreshCatalogFlags()` (`src/db/catalog-flags.ts`) is an unattended write, not a
+  destructive one.** It sets `aiNotable: true` on the rows listed in `data/notable.json`,
+  once per `NOTABLE_VERSION`, under the seed lock — never unsets it, never touches another
+  field, never adds or removes a row. It exists because `reconcileLibrary()` is bulkAdd-only,
+  so a catalog flag added after a visitor's seed never reaches them otherwise.
+  `src/db/__tests__/notable.test.ts` compares every field of every row before and after.
+  Adding to the list: `data/notable.md`, "Rules for adding one".
 - **Delete and Clear Library are each one rw transaction** over every dependent table
   (`deleteEpisode`, `clearLibrary` in `src/services/episodes/management.ts`). A failure part-way
   leaves nothing half-deleted.

@@ -11,9 +11,10 @@ import notable from "../../data/notable.json";
  * existing row, which is exactly right for user data and exactly why a catalog
  * flag added later never arrives for anyone who already visited.
  *
- * **Deliberately the narrowest write that could do this** — a third exception
- * to "no unattended writes to db.episodes" alongside `healDoubledLibrary()` and
- * the v8 key upgrade (CLAUDE.md, "Data safety"):
+ * **Deliberately the narrowest write that could do this.** It is not a third
+ * exception to "no unattended destructive operations" (CLAUDE.md, "Data
+ * safety") — it deletes and overwrites nothing a listener made — but it is an
+ * unattended write to db.episodes, so it is held to the same discipline:
  *
  *   - It only ever **sets** `aiNotable: true`, and only on rows whose `fileHash`
  *     is on the curated list. It never clears the flag (an admin may have set
