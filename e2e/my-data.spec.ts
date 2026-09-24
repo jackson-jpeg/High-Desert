@@ -15,7 +15,7 @@
  */
 import { readFile } from "node:fs/promises";
 import { test, expect, type Page } from "./fixtures";
-import { episodeList, openLibrary } from "./library";
+import { episodeList, openLibrary, waitForListSettled } from "./library";
 
 interface Stored { fileHash: string; title?: string; favoritedAt?: number; rating?: number }
 
@@ -65,13 +65,26 @@ const detailFavourite = (page: Page, on: boolean) =>
  * Selection follows focus in this listbox (`moveTo` in useLibraryKeyboard sets
  * the selected episode), so Home + ArrowDown lands on an exact row with no
  * geometry involved at all. This is how e2e/listbox.spec.ts drives the same
- * panel, and it does not flake.
+ * panel, and it does not flake there.
+ *
+ * The retry is the fourth part of the same lesson. On desktop the panel is a
+ * 280px sidebar, so opening or closing it changes the list's width and the
+ * virtual list re-measures and re-renders: the listbox element you just focused
+ * is replaced, focus falls back to `<body>`, and the keys then arrive outside
+ * the list (`inList` in useLibraryKeyboard) and do nothing at all. Every step
+ * here is therefore inside one `toPass` — focus, confirm the focus survived,
+ * press, confirm the panel — so a re-render mid-sequence is retried rather than
+ * silently swallowed. The caller settles the list first.
  */
 async function openDetail(page: Page, index: number): Promise<void> {
-  await episodeList(page).focus();
-  await page.keyboard.press("Home");
-  for (let i = 0; i < index; i++) await page.keyboard.press("ArrowDown");
-  await expect(page.getByRole("button", { name: "Close detail" })).toBeVisible();
+  const list = episodeList(page);
+  await expect(async () => {
+    await list.focus();
+    await expect(list).toBeFocused({ timeout: 1_000 });
+    await page.keyboard.press("Home");
+    for (let i = 0; i < index; i++) await page.keyboard.press("ArrowDown");
+    await expect(page.getByRole("button", { name: "Close detail" })).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 30_000 });
 }
 
 /** Open a row's detail, favourite it and give it `stars`, then close it. */
@@ -84,6 +97,9 @@ async function favouriteAndRate(page: Page, index: number, stars: number): Promi
   await page.locator(`button[aria-label="Rate ${stars} stars"]:visible`).click();
   await expect(page.getByText(`${stars}/5`).first()).toBeVisible();
   await page.locator('button[aria-label="Close detail"]:visible').click();
+  // Closing the sidebar re-measures the virtual list; let it finish before the
+  // next row is opened, or that interaction lands mid-re-render.
+  await waitForListSettled(page);
   return label;
 }
 
