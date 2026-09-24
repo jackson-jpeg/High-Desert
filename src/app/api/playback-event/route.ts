@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
-import { recordPlaybackFailure } from "@/services/stats/store";
+import { recordPlaybackFailure, isPlaySource } from "@/services/stats/store";
 import { isKnownEpisodeId } from "@/services/stats/allowlist";
 import { readJsonObject } from "@/lib/utils/json-body";
 
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
   if (parsed.error) return parsed.error;
   const body = parsed.body;
 
-  const { episodeId, kind, retried, recovered, elapsedMs, uaClass, detail } =
+  const { episodeId, kind, retried, recovered, elapsedMs, uaClass, detail, source } =
     body;
 
   if (typeof episodeId !== "string" || !episodeId) {
@@ -151,6 +151,8 @@ export async function POST(request: NextRequest) {
       elapsedMs: elapsed,
       uaClass: cls,
       detail: det,
+      // Which host failed; unknown values are dropped, not rejected, like uaClass.
+      source: isPlaySource(source) ? source : null,
     });
   } catch (err) {
     // No DATABASE_URL, or Postgres is down. Losing a failure report is not

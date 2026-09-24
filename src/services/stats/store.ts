@@ -158,6 +158,19 @@ const ROLLUP_DAYS = 3;
 // ---------------------------------------------------------------------------
 
 /**
+ * Where a listen's audio came from (src/audio/sources.ts). Recorded on every
+ * play and failure so the archive.org outage fallback can be seen working — or
+ * not. NULL on rows from before it existed, and from clients that do not send
+ * it: unknown, not "archive".
+ */
+export const PLAY_SOURCES = ["archive", "mirror", "cache", "local"] as const;
+export type PlaySource = (typeof PLAY_SOURCES)[number];
+
+export function isPlaySource(v: unknown): v is PlaySource {
+  return typeof v === "string" && (PLAY_SOURCES as readonly string[]).includes(v);
+}
+
+/**
  * Record a play event: bump the episode counter, both leaderboards, and mark
  * the session active. Single statement, so it is atomic.
  */
@@ -165,6 +178,7 @@ export async function recordPlay(
   episodeId: string,
   sessionId: string,
   client: string,
+  source: PlaySource | null = null,
 ): Promise<void> {
   // The play itself is always counted (it is already rate-limited per client
   // and allowlisted per episode); only its *presence* is subject to the
@@ -185,7 +199,7 @@ export async function recordPlay(
     ), ev AS (
       -- The permanent log. Same event as recent_plays, but never pruned and
       -- carrying the session ref until it expires; see scripts/schema.sql.
-      INSERT INTO play_events (episode_id, session_ref) VALUES ($1, $3)
+      INSERT INTO play_events (episode_id, session_ref, source) VALUES ($1, $3, $6)
     )
     INSERT INTO active_sessions (session_id, seen_at, listening_at, episode_id, client_ref)
     SELECT $3, now(), now(), $1, $4
@@ -193,7 +207,7 @@ export async function recordPlay(
     ON CONFLICT (session_id)
     DO UPDATE SET seen_at = now(), listening_at = now(), episode_id = $1, client_ref = $4
     `,
-    [episodeId, weekKey(), sessionId, ref, SESSIONS_PER_CLIENT],
+    [episodeId, weekKey(), sessionId, ref, SESSIONS_PER_CLIENT, source],
   ));
 }
 
@@ -690,6 +704,12 @@ export interface Traffic {
   peakAt: string | null;
   /** 24-hour activity profile, always over the last 30 days regardless of range. */
   hourly: HourBucket[];
+  /**
+   * Plays in the range by the host they came from, from the event log:
+   * `{archive, mirror, cache, local, unknown}`. `unknown` is rows written before
+   * sources were recorded. What highdesert-status reads for "mirror plays, 24h".
+   */
+  playsBySource: Record<string, number>;
 }
 
 const RANGE_CONFIG: Record<TrafficRange, { hours: number; bucketMinutes: number }> = {
@@ -746,11 +766,16 @@ export async function getTraffic(range: TrafficRange): Promise<Traffic> {
     ),
   }));
 
-  const [{ rows: totalRows }, hourly] = await Promise.all([
+  const [{ rows: totalRows }, hourly, { rows: sourceRows }] = await Promise.all([
     pool().query<{ total: string }>(
       `SELECT COALESCE(sum(plays), 0) AS total FROM episode_plays`,
     ),
     getHourlyActivity(),
+    pool().query<{ source: string; n: string }>(
+      `SELECT COALESCE(source, 'unknown') AS source, count(*) AS n
+         FROM play_events WHERE played_at >= $1 GROUP BY 1`,
+      [since],
+    ),
   ]);
 
   const peakOnline = points.reduce((m, p) => Math.max(m, p.online), 0);
@@ -766,6 +791,7 @@ export async function getTraffic(range: TrafficRange): Promise<Traffic> {
     // moment rather than the last time the level happened to be matched.
     peakAt: peakOnline > 0 ? (points.find((p) => p.online === peakOnline)?.t ?? null) : null,
     hourly,
+    playsBySource: Object.fromEntries(sourceRows.map((r) => [r.source, Number(r.n)])),
   };
 }
 
@@ -1167,6 +1193,8 @@ export interface PlaybackFailureInput {
   uaClass: string;
   /** Context for advisory rows; null for real failures. */
   detail?: string | null;
+  /** The host that failed. */
+  source?: PlaySource | null;
 }
 
 /**
@@ -1194,8 +1222,8 @@ export async function recordPlaybackFailure(
       DELETE FROM playback_failures WHERE at < now() - interval '90 days'
     )
     INSERT INTO playback_failures
-      (episode_id, kind, retried, recovered, elapsed_ms, ua_class, detail)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
+      (episode_id, kind, retried, recovered, elapsed_ms, ua_class, detail, source)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     `,
     [
       f.episodeId,
@@ -1205,6 +1233,7 @@ export async function recordPlaybackFailure(
       f.elapsedMs,
       f.uaClass,
       f.detail ?? null,
+      f.source ?? null,
     ],
   );
 }

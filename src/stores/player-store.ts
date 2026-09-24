@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { FailureKind } from "@/audio/playback-watchdog";
+import type { SourceKind } from "@/audio/sources";
 import type { Episode } from "@/db/schema";
 import { toast } from "@/stores/toast-store";
 import { startPositionFor } from "@/audio/play-session";
@@ -56,6 +57,12 @@ export interface PlayerState {
   loadStartedAt: number | null;
   /** Seconds of the current source the browser has buffered, for the scrub bar. */
   bufferedTo: number;
+  /**
+   * Which host the element is playing from (src/audio/sources.ts). Set wherever
+   * a source is assigned — never by loadEpisode, which does not touch the
+   * element. "mirror" is what the VIA MIRROR badge shows.
+   */
+  source: SourceKind | null;
 
   // Actions
   loadEpisode: (episode: Episode, objectUrl: string) => void;
@@ -73,6 +80,7 @@ export interface PlayerState {
   setPlaybackRate: (rate: number) => void;
   setError: (error: string | null) => void;
   setBuffering: (buffering: boolean) => void;
+  setSource: (source: SourceKind | null) => void;
   setLoadState: (loadState: LoadState, failureKind?: FailureKind | null) => void;
   setBufferedTo: (bufferedTo: number) => void;
   toggleMini: () => void;
@@ -130,6 +138,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   failureKind: null as FailureKind | null,
   loadStartedAt: null,
   bufferedTo: 0,
+  source: null as SourceKind | null,
 
   loadEpisode: (episode, objectUrl) => {
     // Revoke the previous object URL — but only if it is genuinely being
@@ -199,6 +208,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setPlaybackRate: (rate) => set({ playbackRate: rate }),
   setError: (error) => set({ error }),
   setBuffering: (buffering) => set({ buffering }),
+  setSource: (source) => set({ source }),
   setLoadState: (loadState, failureKind) =>
     set({
       loadState,
@@ -229,6 +239,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       failureKind: null,
       loadStartedAt: null,
       error: null,
+      source: null,
     });
   },
 

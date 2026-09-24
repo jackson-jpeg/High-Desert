@@ -9,6 +9,7 @@ import { usePlayerStore } from "@/stores/player-store";
 import { db } from "@/db";
 import { computeStreak } from "@/lib/utils/streak";
 import { presenceAttrs, type LivePresence } from "@/services/stats/now-feed";
+import { MirrorBadge } from "@/components/player/MirrorBadge";
 import { emit, useHdEvent } from "@/lib/events";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 
@@ -163,6 +164,7 @@ export function StatusBar({ episodeCount, presence }: StatusBarProps) {
         )}
         <span className="text-bevel-dark">{icon}</span>
         <span className="truncate">{parts.join(" — ")}</span>
+        <MirrorBadge />
       </button>
     );
   })();

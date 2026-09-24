@@ -84,6 +84,7 @@ const clearHealthCache = vi.fn();
 vi.mock("@/services/archive/health", () => ({
   checkArchiveHealth: () => Promise.resolve({ ok: true }),
   clearHealthCache: () => clearHealthCache(),
+  archiveKnownDown: () => false,
 }));
 
 // The watchdog owns retry policy and is covered by its own suite. Here it only
@@ -107,6 +108,7 @@ vi.mock("@/audio/playback-watchdog", () => ({
   noteUnplayable: vi.fn(),
   noteWaiting: vi.fn(),
   setFailureHandler: vi.fn(),
+  setFailoverHandler: vi.fn(),
 }));
 
 const { useAudioPlayer } = await import("@/hooks/useAudioPlayer");
@@ -223,9 +225,11 @@ describe("a listen is reported however it was started", () => {
     // The play report was the one that mattered, but it went missing because
     // the whole start-of-listen block did — one side effect at a time, silently,
     // as playEpisode accumulated them and this path did not. These are the rest:
-    // a stale failure banner outliving the decision to play, a cached
-    // archive.org outage verdict about to be re-tested by a real request, and
-    // queue context. Asserted here so the two paths cannot drift again.
+    // a stale failure banner outliving the decision to play, queue context, and
+    // which host the element is on. (It used to assert the archive.org outage
+    // verdict was cleared here. With the mirror that verdict is what routes a
+    // start away from a dead archive.org, so a start must *keep* it — the
+    // opposite assertion, below.) Asserted here so the two paths cannot drift.
     const api = mountPlayer();
     const ep = makeEpisode({ id: 21 });
 
@@ -243,7 +247,8 @@ describe("a listen is reported however it was started", () => {
 
     const s = usePlayerStore.getState();
     expect(s.error).toBeNull();
-    expect(clearHealthCache).toHaveBeenCalled();
+    expect(clearHealthCache).not.toHaveBeenCalled();
+    expect(s.source).toBe("archive");
     expect(s.currentEpisode?.id).toBe(21);
     expect(s.queueIndex).toBeGreaterThanOrEqual(0);
     expect(s.queue[s.queueIndex].id).toBe(21);

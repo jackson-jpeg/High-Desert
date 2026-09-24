@@ -24,7 +24,8 @@ import type { Episode } from "@/db/schema";
 import { reportPlay, reportStop, reportStopBeacon } from "@/services/stats/client";
 import { SESSION_ID } from "@/lib/utils/session-id";
 import { communityKey } from "@/lib/utils/community-key";
-import { checkArchiveHealth, clearHealthCache } from "@/services/archive/health";
+import { checkArchiveHealth, archiveKnownDown } from "@/services/archive/health";
+import { resolveSources, fallbacksFor, type SourceKind } from "@/audio/sources";
 import {
   armWatchdog,
   describeMediaError,
@@ -39,6 +40,7 @@ import {
   noteUnplayable,
   noteWaiting,
   setFailureHandler,
+  setFailoverHandler,
 } from "@/audio/playback-watchdog";
 import { assessDuration } from "@/audio/duration-sanity";
 import { noteListenTick, breakListenTick, flushListenSeconds } from "@/services/episodes/listen-time";
@@ -103,6 +105,7 @@ type GlobalKey =
   | "position-timer"
   | "media-events"
   | "failure-handler"
+  | "failover-handler"
   | "persist-position"
   | "unload-flush";
 
@@ -193,9 +196,11 @@ function shouldCountPlay(key: string): boolean {
  * Clear what the last attempt left behind and establish queue context.
  *
  * `setError(null)`: a failure banner from a previous show must not outlive the
- * decision to play a new one. `clearHealthCache()`: the archive.org outage
- * verdict is about to be re-tested by an actual request, so the cached one is
- * stale by definition. `loadEpisode`: makes this episode the current one and
+ * decision to play a new one. (It also cleared the archive.org health verdict,
+ * on the theory that the request about to be made would re-test it. With the
+ * mirror, a fresh "down" verdict is what sends this start straight to the
+ * mirror instead, so it must survive; it now expires by itself after 30 s —
+ * src/services/archive/health.ts.) `loadEpisode`: makes this episode the current one and
  * puts it in the queue — the restore path in (desktop)/layout.tsx does this
  * already, but the invariant belongs to starting a listen rather than to one
  * caller happening to have run first.
@@ -203,7 +208,6 @@ function shouldCountPlay(key: string): boolean {
 function openListen(episode: Episode, objectUrl: string): void {
   const store = usePlayerStore.getState();
   store.setError(null);
-  clearHealthCache();
   // Skip when nothing would change: loadEpisode resets position and duration
   // from the episode record, and re-running it mid-listen would throw away a
   // seek. Cheap identity check rather than a flag any caller could forget.
@@ -228,12 +232,16 @@ function armListen(
   audio: HTMLAudioElement,
   startAt: number,
 ): void {
-  usePlayerStore.getState().setLoadState("loading");
+  const { setLoadState, source } = usePlayerStore.getState();
+  setLoadState("loading");
   armWatchdog({
     audio,
     url: audio.src,
     episodeId: episode ? communityKey(episode) : null,
     startAt,
+    source,
+    // Where to go if this host stops delivering: the mirror, behind archive.org.
+    fallbacks: episode ? fallbacksFor(episode, source) : [],
   });
 }
 
@@ -250,7 +258,7 @@ function countListen(episode: Episode, start: number): void {
   const key = communityKey(episode);
   if (!shouldCountPlay(key ?? `local:${episode.fileHash}`)) return;
 
-  if (key) reportPlay(key, _sessionId);
+  if (key) reportPlay(key, _sessionId, usePlayerStore.getState().source);
   if (episode.id) {
     db.episodes
       .update(episode.id, {
@@ -337,6 +345,7 @@ export function useAudioPlayer() {
       notifySourceChanged();
       audio.preload = "none";
       audio.src = episode.sourceUrl;
+      usePlayerStore.getState().setSource("archive");
       // readyState is 0 here, so this is held until loadedmetadata (engine.ts).
       seekEngine(startPositionFor(episode.playbackPosition, episode.duration));
       audio.playbackRate = usePlayerStore.getState().playbackRate;
@@ -358,20 +367,29 @@ export function useAudioPlayer() {
 
       const audio = getAudio();
 
-      // Create object URL from file, or use sourceUrl for archive episodes
+      // Object URL from a file (the OPFS cache, or a scanned local file), else
+      // the first of the episode's hosts: archive.org, or the mirror when
+      // archive.org was seen down within the last 30 s (src/audio/sources.ts).
+      // Synchronous on purpose — nothing may be awaited before play().
       let url: string;
+      let kind: SourceKind;
       let isObjectUrl = false;
       if (file) {
         url = URL.createObjectURL(file);
         isObjectUrl = true;
-      } else if (episode.sourceUrl) {
-        url = episode.sourceUrl;
+        kind = episode.fileHash?.startsWith("archive:") ? "cache" : "local";
       } else {
-        setError("No audio source available. Try re-importing this episode.");
-        return;
+        const first = resolveSources(episode, { archiveDown: archiveKnownDown() })[0];
+        if (!first) {
+          setError("No audio source available. Try re-importing this episode.");
+          return;
+        }
+        url = first.url;
+        kind = first.kind;
       }
 
       openListen(episode, isObjectUrl ? url : "");
+      usePlayerStore.getState().setSource(kind);
       notifySourceChanged();
 
       // Reset before re-assigning: a stale src plus load() is its own source of
@@ -411,6 +429,10 @@ export function useAudioPlayer() {
         // course, not the stream failing.
         if (!isCurrentStart(id)) return;
         if (isAbortError(err)) return;
+        // The element has moved on from the source this play() was for — a
+        // failover to the mirror, or the watchdog's retry. Its rejection is the
+        // old source's, already handled by whatever moved it.
+        if (audio.src !== new URL(url, window.location.href).href) return;
         console.error("[player] Playback failed:", err);
         // Hand it to the watchdog, which owns the one-retry-then-fail policy.
         // Only fall back to the banner if there was no attempt to hand it to.
@@ -749,6 +771,18 @@ export function useAudioPlayer() {
           code === 3 ? "decode-error" : "network-error",
           describeMediaError(audio.error),
         );
+      } else if (
+        (code === 2 || code === 4) &&
+        usePlayerStore.getState().source === "archive" &&
+        usePlayerStore.getState().currentEpisode
+      ) {
+        // Mid-show, archive.org stopped delivering (the outage arriving while
+        // someone listens). Supervise a fresh attempt from here, with the
+        // mirror as its fallback, and report the error into it: failover takes
+        // it from there, and the dialog if that fails too.
+        const ep = usePlayerStore.getState().currentEpisode!;
+        armListen(ep, audio, audio.currentTime);
+        noteError("network-error", describeMediaError(audio.error));
       } else {
         const messages: Record<number, string> = {
           1: "Playback aborted.",
@@ -883,6 +917,45 @@ export function useAudioPlayer() {
       return () => setFailureHandler(() => {});
     });
   }, [setPlaying]);
+
+  // The archive.org outage path: the watchdog decided archive.org has stopped
+  // delivering and hands over the next host (the mirror). Same element — on
+  // iOS the one that was allowed to play is the one likeliest to be allowed
+  // again — same position, resumed if it was playing. The listen is counted
+  // here only if it had not been yet: a failover mid-load interrupts the first
+  // play() with an AbortError before it could count, and a failover mid-show
+  // is the same listen continuing.
+  useEffect(() => {
+    return withGlobals("failover-handler", () => {
+      setFailoverHandler(async (next, { position, wanted }) => {
+        const audio = getAudio();
+        const store = usePlayerStore.getState();
+        const ep = store.currentEpisode;
+        const id = currentStart();
+        store.setSource(next.kind);
+        audio.removeAttribute("src");
+        audio.load();
+        audio.preload = "metadata";
+        audio.src = next.url;
+        seekEngine(position);
+        audio.playbackRate = store.playbackRate;
+        if (!wanted) return true;
+        try {
+          await audio.play();
+        } catch (err) {
+          // Superseded (the listener picked something else) is not a refusal.
+          if (!isCurrentStart(id) || isAbortError(err)) return true;
+          return false;
+        }
+        if (!isCurrentStart(id)) return true;
+        setPlaying(true);
+        resumeContext().catch(() => {});
+        if (ep && !isListenCounted()) countListen(ep, id);
+        return true;
+      });
+      return () => setFailoverHandler(null);
+    });
+  }, [getAudio, setPlaying]);
 
   // Persist playback position: every POSITION_SAVE_MS while playing, and at
   // once on pause. Mount-once for the same reason as the position timer —

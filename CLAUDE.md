@@ -75,7 +75,7 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/archive/scrape` | GET | Proxy for catalog scrape (rate-limited 30/min) |
 | `/api/archive/metadata` | GET | Proxy for item metadata (cached 1hr) |
 | `/api/archive/health` | GET | archive.org reachability probe (cached) |
-| `/api/stats/play` | POST | Record a play. Body `{episodeId, sessionId}`. Returns `{ok}`. `episodeId` must be in the community-key allowlist |
+| `/api/stats/play` | POST | Record a play. Body `{episodeId, sessionId, source?}`. Returns `{ok}`. `episodeId` must be in the community-key allowlist. `source` is where the audio came from — `archive`/`mirror`/`cache`/`local` (`PLAY_SOURCES`); anything else is **400**, absent is stored NULL (*unknown*, never assumed to be archive.org) |
 | `/api/stats/stop` | POST | End playback. Body `{sessionId, keepPresence?}`. `keepPresence: true` clears only the listening mark (the tab is still open); omitting it deletes the session, which is what the unload beacon does. Returns `{ok}` |
 | `/api/stats/rate` | POST | Submit a rating 1–5 or null. Body `{episodeId, rating}`. Returns `{ok}`. One ballot per client (IPv4 address / IPv6 /64), stored as an HMAC; **503 when `RATING_VOTER_SECRET` is unset** |
 | `/api/stats/episodes` | GET | Play counts for up to **100** ids. Returns **`{counts: {id: n}}`** |
@@ -85,9 +85,11 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/active` | GET | **Legacy alias**, read by no surface in the current build. Returns **`{count, online, listening}`** from the same `getPresence()` as `/now` — `count` is a synonym for `listening` |
 | `/api/stats/heartbeat` | POST | Mark a session present. Body `{sessionId, episodeId?}`. Returns `{ok}`. Every open tab posts on a 60s interval. `episodeId` is sent **only while that tab is actually playing** and renews `listening_at` — it is what keeps a show on air for its whole runtime instead of for five minutes after someone pressed play. Omitting it leaves the listening mark alone rather than clearing it, so a pause does not yank the show off the air; the mark decays on its own. Same allowlist gate as `/api/stats/play`, but a bad id drops the mark instead of failing the beat — presence is the primary job. A client past `SESSIONS_PER_CLIENT` new sessions gets the same `{ok}` and is not counted |
 | `/api/stats/now` | GET | **The one presence endpoint.** Presence **plus what is playing**. Returns **`{online, listening, onAir: [{episodeId, listeners}], recent: [{episodeId, at}]}`**. `online` is distinct *clients* (not sessions) with a heartbeat inside 5 min; `listening` is the subset with a playing session; `listeners` is distinct clients per episode. `no-store` — a stale on-air list is worse than none. Aggregate only: no query joins `session_id` to `episode_id`, and `recent_plays` stores no session at all |
-| `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, plays}], peakOnline, peakListening, playsInRange, totalPlays, peakAt, hourly: [{hour, online, listening, plays, samples}]}`**. `hourly` is always a 24-entry, zero-filled, **UTC**-hour profile over the last 30 days and does *not* vary with `range`; the client rotates it into local time. `samples: 0` means *never observed*, which is not the same as "observed, nobody here" — the UI hides the profile until 8 hours have been sampled, or a day-old deployment draws 23 empty columns and looks like a dead site |
+| `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, plays}], peakOnline, peakListening, playsInRange, totalPlays, peakAt, hourly: [{hour, online, listening, plays, samples}]}`**. `hourly` is always a 24-entry, zero-filled, **UTC**-hour profile over the last 30 days and does *not* vary with `range`; the client rotates it into local time. `samples: 0` means *never observed*, which is not the same as "observed, nobody here" — the UI hides the profile until 8 hours have been sampled, or a day-old deployment draws 23 empty columns and looks like a dead site. **`playsBySource: {archive, mirror, …, unknown}`** counts `play_events` in the range by `source` — what `highdesert-status` reads for "mirror plays in 24h" |
 | `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Also prunes `weekly_plays` past 3 weeks. Returns `{ok, online, listening, totalPlays, rolledUp, anonymized, prunedWeeks}` |
-| `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass, detail?}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`network-error`/`decode-error`/`empty-media`/`empty-media-suspected`; `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. `detail` is short (≤200 char) free text: the reported duration on an advisory row, or `MediaError.code` plus its message on a `decode-error`/`network-error`/`empty-media`. That message is a browser pipeline diagnostic (`DEMUXER_ERROR_COULD_NOT_OPEN: …`) and is the **only** way an empty file is distinguishable from an unreachable one on Chromium, which errors on the missing frames rather than reporting a short duration. A `detail` containing `HD-VERIFY` (any case, checked after truncation) is **rejected with 400** — this table is the instrument that decides whether the 5s duration floor is safe to promote, and verification rows have polluted it twice; intercept the POST in the page instead. No session id, no IP. `episodeId` must be in the community-key allowlist |
+| `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass, detail?}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`network-error`/`decode-error`/`empty-media`/`empty-media-suspected`; `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. `detail` is short (≤200 char) free text: the reported duration on an advisory row, or `MediaError.code` plus its message on a `decode-error`/`network-error`/`empty-media`. That message is a browser pipeline diagnostic (`DEMUXER_ERROR_COULD_NOT_OPEN: …`) and is the **only** way an empty file is distinguishable from an unreachable one on Chromium, which errors on the missing frames rather than reporting a short duration. A `detail` containing `HD-VERIFY` (any case, checked after truncation) is **rejected with 400** — this table is the instrument that decides whether the 5s duration floor is safe to promote, and verification rows have polluted it twice; intercept the POST in the page instead. No session id, no IP. `episodeId` must be in the community-key allowlist. Optional `source` as on `/api/stats/play`, but an unknown value is stored NULL rather than refused — losing a failure row costs more than losing its source. A failover row carries the source that *failed* (`archive`) and `recovered: true` once the mirror plays |
+| `/mirror/{fileHash}` | GET | **Not Next.js** — `highdesert-mirror` on 127.0.0.1:3004, proxied by nginx. The episode's MP3 from the outage mirror, with byte ranges: `206` + `Content-Range`, `416` for an unsatisfiable range, **503 JSON** if nothing has delivered a first byte within 15s. See "archive.org outage mirror" |
+| `/mirror/magnet/{fileHash}` | GET | `{magnet}`: the episode's own single-file torrent (trackers, the archive.org webseed as `ws=`, this server as `x.pe=`). The episode sheet's "Magnet link" |
 | `/api/stats/failures` | GET | Which episodes are failing, worst first. `?days=7\|30\|90`. Returns **`{days, summary, entries: [{episodeId, title, failures, recovered, skippedRetries, plays, rate, kinds, uaClasses, details, lastAt}]}`**. Ids resolved to titles from the seed catalog. `details` is the browser's own diagnostics (up to 3 distinct, newest first), **filtered to diagnostic shapes** — the raw text is attacker-controlled (`publicDetails`, HD-038). `skippedRetries` counts retries not attempted for want of a user gesture, excluding `empty-media`, which is never retried by design — it is the instrument for the activation gate. `summary` is site-wide and is deliberately **not** a sum of `entries`, which is capped at 50 episodes. **Excludes advisory kinds** (`ADVISORY_KINDS` in `src/services/stats/store.ts`) — this ranks episodes by how badly they are failing, and a row that never stopped playback would inflate that. Unauthenticated — it is aggregate-only, and the admin gate is presentation, not protection. `?since=<ISO>` adds **`window: {from, to, failures, plays}`**, the fixed 7 days from that instant (cut at now) — how `highdesert-status` holds a release to `docs/reliability-baseline.md` |
 | `/api/stats/export` | GET | **The permanent record, for sang3r.com.** Requires `x-service-token` (`STATS_EXPORT_SECRET`). `?mode=summary\|events\|daily\|episodes`. The only route that returns the event log rather than aggregates, and the only one not reachable from a browser. Episode ids are resolved to titles from the seed catalog. Page `events` with `after=<last id>` — **not** with `since`, which cannot disambiguate two plays sharing a timestamp |
 
@@ -419,6 +421,76 @@ concluded it was their own mistake. Regression test:
   It never cached audio, so `respondWith()` bought nothing while defeating native
   byte-range handling and turning network failures into a body-less 504 that the
   element reports as "source not supported".
+
+## archive.org outage mirror — read before touching `src/audio/sources.ts` or `services/mirror/`
+
+Every show streams from archive.org. When archive.org is down — it has had
+multi-day outages — the site used to be a dead player. There is now a fallback,
+and it is deliberately modest: a bounded cache on this server, not a copy of the
+archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.md`.
+
+- **archive.org's own torrent covers none of the episodes.** Its item torrent
+  (btih `ec92fe3b…`, 2024) holds two metadata files and zero MP3s, and nobody
+  outside seeds anything here (measured against a control that found hundreds of
+  peers). So `scripts/build-torrent-index.mjs --hash` builds **one single-file
+  torrent per episode** from the bytes archive.org serves — 256 KiB pieces, BEP-19
+  `url-list` = the archive.org file URL, so archive.org is the webseed while it is
+  up. Infohashes are deterministic. Output: `data/torrents/episodes.json`
+  (`fileHash → {infohash, length, pieceLength}`, committed) and the `.torrent`
+  files in `/var/lib/highdesert-mirror/torrents` (not committed, 1,312 of them;
+  `deploy-mirror.sh` refuses if any indexed one is missing). Resumable, ≤2 req/s.
+- **The gateway** (`services/mirror/`, its own package — webtorrent; unit
+  `highdesert-mirror`, user `hdmirror`, `/opt/highdesert-mirror`): a file whose
+  `.complete` marker exists is served from disk; otherwise the torrent is added on
+  demand, `createReadStream({start,end})` prioritises the pieces the range needs,
+  and idle torrents are dropped after 5 minutes. The cache
+  (`/var/cache/highdesert-mirror`) evicts least-recently-served first under a
+  20 GB cap **and** a 10 GB disk-free floor — the floor binds first on a 100 GB
+  disk — and never a pinned or in-flight file. Upload capped at 2 MB/s,
+  `CPUQuota=50%`, `IOWeight=20`, `MemoryMax=700M`. Ports 6881/tcp+udp and
+  6882/udp are open in ufw so the pinned shows are actually seeded back.
+- **DHT bootstrap is resolved to IPv4 by us** (`lib/bootstrap.mjs`). The
+  library's own list resolved to IPv6 on this box, which its udp4 socket cannot
+  reach, and it reported "ready" with **zero nodes** — silently, for every hash.
+  Two of its three default routers no longer answer at all.
+- **Warm cache:** `highdesert-mirror-warm.timer` (04:10 UTC) pins the most-played
+  episodes by 90-day `play_events`, whole files only, up to 15 GB, fetched from the
+  archive.org webseed and verified against the piece hashes before the `.complete`
+  marker is written. **It skips itself while hypervisor steal is above 20%** and
+  records why in `warm-status.json`. Pins are exempt from eviction and seeded.
+- **Client failover** (`src/audio/sources.ts`, `playback-watchdog.ts`,
+  `useAudioPlayer.ts`): `resolveSources()` is archive.org then
+  `/mirror/{fileHash}`; only catalog episodes have a mirror. On a watchdog
+  `network-error`, `stall` or `timeout` — **never `play-rejected`**, which is the
+  browser refusing sound, and never decode/empty-media, which are about the bytes —
+  the watchdog calls the failover handler *before* its retry: the **same element**
+  gets the mirror `src`, the position is restored with `seekEngine`, `play()` is
+  re-issued, and **no second listen is counted** (`isListenCounted()`). The
+  failover spends the retry: a mirror that also fails raises the dialog, it does
+  not go back to archive.org. A mid-show media error (code 2/4) on an archive
+  source goes through the same path. If `play()` after the swap is refused (iOS,
+  activation expired) the failure is `play-rejected` and `PlaybackErrorDialog`'s
+  *Try Again* is the gesture — the same rule as the retry.
+- **The health probe's verdicts expire differently** (`src/services/archive/health.ts`):
+  up 5 min, **down 30 s**, and a probe that failed to reach *our* server caches
+  nothing. It used to hold any failure for 5 minutes, and with the mirror that
+  would route every play away from a recovered archive.org. `archiveKnownDown()`
+  is synchronous — the play path must not await before `play()`. While it is
+  true, starts go straight to the mirror.
+- **`source` is recorded everywhere a play or failure is** (player store,
+  `/api/stats/play`, `/api/playback-event`, `play_events.source`,
+  `playback_failures.source`). The UI says so: **VIA MIRROR** (`MirrorBadge`) in the
+  desktop status bar and the mobile player, and a **Magnet link** action in the
+  episode sheet.
+- **Deploy:** `bash scripts/deploy-mirror.sh` — stages `/opt/highdesert-mirror.next`,
+  `npm ci --omit=dev` there, swaps, restarts, installs the units, ufw rules and
+  (with `nginx -t` first) the vhost, then verifies health and a real `206` through
+  `https://highdesert.space/mirror/…`, rolling back on failure. `--rollback`
+  swaps back. The app's `scripts/deploy.sh` does not touch the mirror.
+- **Status:** `highdesert-status` has `steal` (30-min mean; WARN >20%, FAIL >50%),
+  `mirror` (active, health, cache size, pinned, peers, 24h mirror plays) and
+  `warm` (last run; WARN when stale >36h, skipped for steal, or with failed
+  fetches) lines.
 
 ## Dexie: clearing a field
 

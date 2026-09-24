@@ -102,6 +102,7 @@ vi.mock("@/db", () => ({
 vi.mock("@/services/archive/health", () => ({
   checkArchiveHealth: () => Promise.resolve({ ok: true, up: true }),
   clearHealthCache: vi.fn(),
+  archiveKnownDown: () => false,
 }));
 
 vi.mock("@/audio/playback-watchdog", () => ({
@@ -120,6 +121,7 @@ vi.mock("@/audio/playback-watchdog", () => ({
   noteUnplayable: vi.fn(),
   noteWaiting: vi.fn(),
   setFailureHandler: (...a: unknown[]) => setFailureHandler(...a),
+  setFailoverHandler: vi.fn(),
 }));
 
 const { communityKey } = await import("@/lib/utils/community-key");
