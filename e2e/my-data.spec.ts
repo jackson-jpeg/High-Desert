@@ -75,23 +75,50 @@ const detailFavourite = (page: Page, on: boolean) =>
  * here is therefore inside one `toPass` — focus, confirm the focus survived,
  * press, confirm the panel — so a re-render mid-sequence is retried rather than
  * silently swallowed. The caller settles the list first.
+ *
+ * **On a phone the keys cannot work, by design.** There the panel is a modal
+ * sheet with a focus trap (`useFocusTrap({ active: isMobile })` in DetailSheet),
+ * so the moment Home selects the first row the panel opens, focus moves into
+ * the dialog, and every later arrow is owned by that dialog
+ * (`isKeyOwnedByTarget`: anything inside a dialog owns the navigation keys) and
+ * never reaches the list. Asking for row 2 got row 0's panel, already
+ * favourited from the first pick, and the test waited 90s for an "Add to
+ * favorites" that was never going to be there. So a phone taps the row, near
+ * its top-left corner: the mobile card leads with the date, and the guest name
+ * — the one sub-control that swallows a tap — is on its own line below.
  */
-async function openDetail(page: Page, index: number): Promise<void> {
+async function openDetail(page: Page, index: number, isMobile: boolean): Promise<void> {
   const list = episodeList(page);
+  const open = page.getByRole("button", { name: "Close detail" });
+  if (isMobile) {
+    const row = list.locator('[role="option"]').nth(index);
+    await expect(async () => {
+      await row.click({ position: { x: 6, y: 6 } });
+      await expect(open).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+    return;
+  }
   await expect(async () => {
     await list.focus();
     await expect(list).toBeFocused({ timeout: 1_000 });
     await page.keyboard.press("Home");
     for (let i = 0; i < index; i++) await page.keyboard.press("ArrowDown");
-    await expect(page.getByRole("button", { name: "Close detail" })).toBeVisible({ timeout: 2_000 });
+    await expect(open).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 30_000 });
 }
 
 /** Open a row's detail, favourite it and give it `stars`, then close it. */
-async function favouriteAndRate(page: Page, index: number, stars: number): Promise<string> {
+async function favouriteAndRate(page: Page, index: number, stars: number, isMobile: boolean): Promise<string> {
   const row = episodeList(page).locator('[role="option"]').nth(index);
   const label = (await row.getAttribute("aria-label"))!;
-  await openDetail(page, index);
+  await openDetail(page, index, isMobile);
+  // Whichever way it was opened, it must be the row that was asked for. Without
+  // this the phone run silently worked on row 0 twice and spent 90s waiting for
+  // a favourite button that row had already used up.
+  await expect(episodeList(page).locator('[role="option"][aria-selected="true"]')).toHaveAttribute(
+    "aria-label",
+    label,
+  );
   await detailFavourite(page, false).click();
   await expect(detailFavourite(page, true)).toBeVisible();
   await page.locator(`button[aria-label="Rate ${stars} stars"]:visible`).click();
@@ -135,7 +162,7 @@ async function clearSiteData(page: Page): Promise<void> {
 test("favourites and ratings survive export → cleared site data → import, through the menus", async ({ page, isMobile }) => {
   await openLibrary(page);
 
-  const picks = [await favouriteAndRate(page, 0, 4), await favouriteAndRate(page, 2, 2)];
+  const picks = [await favouriteAndRate(page, 0, 4, isMobile), await favouriteAndRate(page, 2, 2, isMobile)];
   const before = await storedPicks(page);
   expect(before).toHaveLength(2);
   expect(before.map((e) => e.rating).sort()).toEqual([2, 4]);
@@ -173,7 +200,7 @@ test("favourites and ratings survive export → cleared site data → import, th
   // that rather than assume it, or "the panel shows a favourite" could be some
   // other episode's.
   await expect(episodeList(page).locator('[role="option"]').first()).toHaveAttribute("aria-label", picks[0]);
-  await openDetail(page, 0);
+  await openDetail(page, 0, isMobile);
   await expect(detailFavourite(page, true)).toBeVisible();
   await expect(page.getByText("4/5").first()).toBeVisible();
 });
