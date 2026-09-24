@@ -156,7 +156,10 @@ export function TimelineView({
     const listbox = listboxRef.current;
     const scroller = listbox?.parentElement;
     if (!listbox || !scroller || activeRow < 0) return;
-    const top = layout.rowTop(activeRow);
+    // A group's first row comes into view with its header: Home, or arrowing
+    // up into a group, would otherwise stop one header short of the top.
+    const g = groups.findIndex((gr) => gr.firstIndex === activeRow);
+    const top = g >= 0 ? layout.headerTop(g) : layout.rowTop(activeRow);
     const bottom = listbox.offsetTop + top + ITEM_HEIGHT;
     if (top < scroller.scrollTop) {
       scroller.scrollTop = top;
@@ -166,7 +169,7 @@ export function TimelineView({
       return;
     }
     onScroll();
-  }, [activeRow, ITEM_HEIGHT, layout, onScroll]);
+  }, [activeRow, ITEM_HEIGHT, layout, groups, onScroll]);
 
   const activeEpisode = activeRow >= 0 ? episodes[activeRow] : undefined;
   // Only name a row that is actually rendered; see above.

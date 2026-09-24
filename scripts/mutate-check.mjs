@@ -1803,6 +1803,14 @@ export const MUTATIONS = [
     why: "a rail entry means the start of its group (its header); centring it leaves the previous group active",
   },
   {
+    id: "rail-row-header-into-view",
+    test: "src/components/library/__tests__/timeline-rail.test.tsx",
+    file: "src/components/library/TimelineView.tsx",
+    find: "const top = g >= 0 ? layout.headerTop(g) : layout.rowTop(activeRow);",
+    replace: "const top = layout.rowTop(activeRow);",
+    why: "Home stopped at row 0's own top with the first group's header scrolled away above it",
+  },
+  {
     id: "rail-sticky-stable",
     test: "src/components/library/__tests__/timeline-rail.test.tsx",
     file: "src/components/library/TimelineView.tsx",

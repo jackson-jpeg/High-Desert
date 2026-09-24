@@ -66,9 +66,9 @@ afterEach(() => {
   host.remove();
 });
 
-function mount(episodes: Episode[], sortMode: "date" | "date-asc" | "progress" = "date") {
+function mount(episodes: Episode[], sortMode: "date" | "date-asc" | "progress" = "date", activeRow = -1) {
   act(() => {
-    root.render(createElement(TimelineView, { episodes, sortMode, onEpisodeClick: () => {} }));
+    root.render(createElement(TimelineView, { episodes, sortMode, onEpisodeClick: () => {}, activeRow }));
   });
 }
 
@@ -147,6 +147,23 @@ describe("TimelineView rail", () => {
       }
       scrollTo(0);
     }
+  });
+
+  // Keyboard navigation scrolls the active row into view. Moving up onto a
+  // group's first row must bring its header too — Home used to stop at row 0's
+  // own top, 26px down, with the first group's title scrolled away above it.
+  it("moving the active row up onto a group's first row shows that group's header", () => {
+    const list = rows();
+    mount(list);
+    Object.defineProperty(scroller(), "clientHeight", { configurable: true, value: 340 });
+    mount(list, "date", 99);
+    expect(scroller().scrollTop).toBeGreaterThan(headerTop(90));
+    mount(list, "date", 35); // mid-group: the row itself at the top
+    expect(scroller().scrollTop).toBe(top(35));
+    mount(list, "date", 30); // first of 2007: its header at the top
+    expect(scroller().scrollTop).toBe(headerTop(30));
+    mount(list, "date", 0); // Home
+    expect(scroller().scrollTop).toBe(0);
   });
 
   it("clicking an entry puts that group's header at the top of the list", () => {
