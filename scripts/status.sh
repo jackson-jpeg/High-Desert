@@ -15,6 +15,9 @@
 #   failures  7-day failed-start rate from /api/stats/failures vs plays from /api/stats/traffic
 #   release   failed-start rate over the 7 days after the release recorded in
 #             docs/reliability-baseline.md (/api/stats/failures?since=), WARN at 3%+
+#   presence  the live site's presence surfaces (Stats badge, status bar, mobile
+#             sheet, On Air, Signal Traffic) show the same numbers within one
+#             poll — scripts/presence-check.mjs in headless Chromium; FAIL if not
 #   audit     npm audit --omit=dev critical + high count
 #
 # The failure rate is reported, not judged: WARN above 10%, never FAIL — it
@@ -25,7 +28,8 @@
 #
 # Overridable for scripts/__tests__/status.test.ts:
 #   HD_ROOT, HD_API (http://127.0.0.1:3003), HD_SYSTEMCTL, HD_NPM,
-#   HD_BACKUP_STATUS_CMD, HD_INSTALLED_UNIT, HD_INSTALLED_VHOST, HD_SAMPLER_MAX_AGE_S (600)
+#   HD_BACKUP_STATUS_CMD, HD_INSTALLED_UNIT, HD_INSTALLED_VHOST, HD_SAMPLER_MAX_AGE_S (600),
+#   HD_PRESENCE_CMD, HD_SITE (https://highdesert.space)
 set -uo pipefail
 
 ROOT="${HD_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -36,6 +40,8 @@ BACKUP_STATUS_CMD="${HD_BACKUP_STATUS_CMD:-bash $ROOT/scripts/backup-status.sh}"
 INSTALLED_UNIT="${HD_INSTALLED_UNIT:-/etc/systemd/system/highdesert.service}"
 INSTALLED_VHOST="${HD_INSTALLED_VHOST:-/etc/nginx/sites-available/highdesert}"
 SAMPLER_MAX_AGE_S="${HD_SAMPLER_MAX_AGE_S:-600}"
+SITE="${HD_SITE:-https://highdesert.space}"
+PRESENCE_CMD="${HD_PRESENCE_CMD:-timeout 120 nice -n 10 node $ROOT/scripts/presence-check.mjs $SITE}"
 
 cd "$ROOT" || exit 2
 
@@ -159,6 +165,19 @@ else
     line "$level" release "${rpct}% of starts failed in the ${wdays} of 7 days since $release_at ($wf failures / $wp plays; target <${RELEASE_TARGET_PCT}%)"
   fi
 fi
+
+# --- presence ----------------------------------------------------------------
+# Exit 0 = the surfaces agree (or nobody else is here to compare), 1 = they
+# disagree, anything else = the check itself could not run, which is a WARN:
+# a missing browser is not evidence that the numbers are wrong.
+presence_out="$($PRESENCE_CMD 2>&1)"
+presence_rc=$?
+presence_msg="$(tail -1 <<<"$presence_out")"
+case "$presence_rc" in
+  0) line OK presence "$presence_msg" ;;
+  1) line FAIL presence "surfaces disagree: $presence_msg" ;;
+  *) line WARN presence "check did not run (exit $presence_rc): ${presence_msg:-no output}" ;;
+esac
 
 # --- audit -------------------------------------------------------------------
 audit_json="$("$NPM" audit --omit=dev --json 2>/dev/null)"

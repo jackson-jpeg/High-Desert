@@ -1891,6 +1891,14 @@ export const MUTATIONS = [
     needs: "TEST_DATABASE_URL",
     why: "counting sessions made two tabs two people and a closed tab a ghost for five minutes",
   },
+  {
+    id: "presence-live-judge",
+    test: "scripts/__tests__/presence-check.test.ts",
+    file: "scripts/presence-check.mjs",
+    find: "    if (s.online !== first.online || s.listening !== first.listening) {",
+    replace: "    if (false) {",
+    why: "the live check must call 8 beside 10 a disagreement, or highdesert-status goes blind to it",
+  },
 ];
 
 /**
