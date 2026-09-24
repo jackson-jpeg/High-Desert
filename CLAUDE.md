@@ -81,7 +81,7 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/episodes` | GET | Play counts for up to **100** ids. Returns **`{counts: {id: n}}`** |
 | `/api/stats/ratings` | GET | Ratings for up to **50** ids. Returns a **bare map** `{id: {avg, count}}` |
 | `/api/stats/community` | GET | Community plays and ratings for the **whole catalog**: **`{episodes: {id: {plays, avg, count}}}`**, only episodes with a play or rating. What "Most played" / "Top rated" sort by and what the list's metric column shows (`src/lib/library/sort-keys.ts`), read through `useCommunityCatalog`. Proxy-cached 60s |
-| `/api/stats/leaderboard` | GET | Top episodes. Returns **`{entries: [{episodeId, plays}]}`** |
+| `/api/stats/leaderboard` | GET | Top episodes. **`?period=alltime\|week` is required.** Returns **`{entries: [{episodeId, plays}]}`**. `alltime` is `episode_plays` — the same numbers as `/api/stats/community` and the library's "Most played" |
 | `/api/stats/active` | GET | **Legacy alias**, read by no surface in the current build. Returns **`{count, online, listening}`** from the same `getPresence()` as `/now` — `count` is a synonym for `listening` |
 | `/api/stats/heartbeat` | POST | Mark a session present. Body `{sessionId, episodeId?}`. Returns `{ok}`. Every open tab posts on a 60s interval. `episodeId` is sent **only while that tab is actually playing** and renews `listening_at` — it is what keeps a show on air for its whole runtime instead of for five minutes after someone pressed play. Omitting it leaves the listening mark alone rather than clearing it, so a pause does not yank the show off the air; the mark decays on its own. Same allowlist gate as `/api/stats/play`, but a bad id drops the mark instead of failing the beat — presence is the primary job. A client past `SESSIONS_PER_CLIENT` new sessions gets the same `{ok}` and is not counted |
 | `/api/stats/now` | GET | **The one presence endpoint.** Presence **plus what is playing**. Returns **`{online, listening, onAir: [{episodeId, listeners}], recent: [{episodeId, at}]}`**. `online` is distinct *clients* (not sessions) with a heartbeat inside 5 min; `listening` is the subset with a playing session; `listeners` is distinct clients per episode. `no-store` — a stale on-air list is worse than none. Aggregate only: no query joins `session_id` to `episode_id`, and `recent_plays` stores no session at all |
@@ -187,6 +187,22 @@ by them, and showed community counts, so the rows read 41, 6, 78, 120 under a "P
 times (2)" header. **Every group has an inline header** (`list-layout.ts`); row offsets are
 not `index × rowHeight`, so scroll through the list (`scrollListToRow`), never by arithmetic.
 `sort-properties.test.ts` holds every sort monotonic and every header count equal to its rows.
+
+## /stats — every number has a test that recomputes it
+
+Local figures come from `computeLibraryStats()` (`src/lib/stats/library-stats.ts`),
+recomputed from raw rows in `src/lib/stats/__tests__/library-stats.test.ts` against the
+real catalog; the page test (`src/app/(desktop)/stats/__tests__/stats-page.test.tsx`)
+holds the page to that function. Findings and fixes: `docs/stats-audit.md`.
+
+- **Listened is time heard**, measured from the 250 ms position tick
+  (`src/services/episodes/listen-time.ts`) and stored as `history.duration`. Never derive
+  it from `playbackPosition` — that is *where you are*, reset to 0 on `ended`.
+- **Personal lists say so.** "My Most Played" is this browser's `playCount`; Community
+  Top 20 is everyone's. Each drills into the library sort that uses its own numbers
+  (`my-plays`, `played`).
+- **"Plays all time" exceeds every range total by design** — the counter predates the
+  `play_events` log (2026-07-28). The page says so.
 
 ## Event bus and library intents — read before adding a cross-component signal
 
