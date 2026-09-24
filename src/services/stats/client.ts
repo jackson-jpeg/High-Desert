@@ -165,43 +165,14 @@ export async function fetchRatings(
   }
 }
 
-export async function fetchActiveCount(): Promise<number> {
-  try {
-    const res = await fetchWithRetry(
-      "/api/stats/active",
-      undefined,
-      RETRY_OPTS,
-    );
-    if (!res.ok) return 0;
-    const data = await res.json();
-    return data.count ?? 0;
-  } catch {
-    return 0;
-  }
-}
-
 export interface Presence {
   online: number;
   listening: number;
 }
 
-/** Who is on the site right now. Falls back to zeroes if stats are down. */
-export async function fetchPresence(): Promise<Presence> {
-  try {
-    const res = await fetchWithRetry("/api/stats/active", undefined, RETRY_OPTS);
-    if (!res.ok) return { online: 0, listening: 0 };
-    const data = await res.json();
-    return {
-      online: data.online ?? data.count ?? 0,
-      listening: data.listening ?? data.count ?? 0,
-    };
-  } catch {
-    return { online: 0, listening: 0 };
-  }
-}
-
 /**
- * Mark this session present. Fire-and-forget, never throws.
+ * Mark this session present. Never rejects: resolves once the beat has landed
+ * (or failed), so the caller can refresh the presence feed after it.
  *
  * `episodeId` is sent only while something is actually playing, and renews the
  * listening mark that puts a show on air. Without it the mark was written once
@@ -210,12 +181,15 @@ export async function fetchPresence(): Promise<Presence> {
 export function reportHeartbeat(
   sessionId: string,
   episodeId?: string | null,
-): void {
-  fetch("/api/stats/heartbeat", {
+): Promise<void> {
+  return fetch("/api/stats/heartbeat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(episodeId ? { sessionId, episodeId } : { sessionId }),
-  }).catch(() => {});
+  }).then(
+    () => {},
+    () => {},
+  );
 }
 
 export interface OnAirEntry {

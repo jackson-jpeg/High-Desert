@@ -1866,6 +1866,31 @@ export const MUTATIONS = [
     replace: "",
     why: "the fading boot screen swallowed the first tap for 400ms",
   },
+  {
+    id: "presence-badge-fork",
+    test: "src/components/__tests__/presence-surfaces.test.tsx",
+    file: "src/components/desktop/DesktopShell.tsx",
+    find: "                  {presence.online}",
+    replace: "                  {presence.online - 1}",
+    why: "the Stats badge showed online − 1: a 7 on the tab beside an 8 in the status bar",
+  },
+  {
+    id: "presence-traffic-fork",
+    test: "src/components/__tests__/presence-surfaces.test.tsx",
+    file: "src/components/library/SignalTraffic.tsx",
+    find: '            <strong className="text-static-green font-normal tabular-nums">{now.online}</strong> online',
+    replace: '            <strong className="text-static-green font-normal tabular-nums">{traffic.points.at(-1)?.online ?? 0}</strong> online',
+    why: "a surface reading the newest sample instead of the shared feed puts a third number on the screen",
+  },
+  {
+    id: "presence-distinct-clients",
+    test: "src/services/stats/__tests__/presence-clients.db.test.ts",
+    file: "src/services/stats/store.ts",
+    find: "      count(DISTINCT who)::int                         AS online,",
+    replace: "      count(*)::int                                    AS online,",
+    needs: "TEST_DATABASE_URL",
+    why: "counting sessions made two tabs two people and a closed tab a ghost for five minutes",
+  },
 ];
 
 /**

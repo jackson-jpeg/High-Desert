@@ -8,7 +8,7 @@ import { StatusBar as Win98StatusBar } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
 import { db } from "@/db";
 import { computeStreak } from "@/lib/utils/streak";
-import type { Presence } from "@/services/stats/client";
+import { presenceAttrs, type LivePresence } from "@/services/stats/now-feed";
 import { emit, useHdEvent } from "@/lib/events";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 
@@ -44,7 +44,7 @@ export function formatClock(now: Date): string {
 
 interface StatusBarProps {
   episodeCount: number;
-  presence: Presence;
+  presence: LivePresence;
 }
 
 /**
@@ -227,6 +227,7 @@ export function StatusBar({ episodeCount, presence }: StatusBarProps) {
                 (presence.listening > 0 ? `, ${presence.listening} listening` : "") +
                 " — click to see what they have on"
               }
+              {...presenceAttrs("status-bar", presence)}
             >
               <span className="w-[6px] h-[6px] rounded-full bg-static-green animate-on-air flex-shrink-0" />
               <span className="tabular-nums">{presence.online} online</span>

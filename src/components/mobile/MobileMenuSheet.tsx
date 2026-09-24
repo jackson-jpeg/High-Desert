@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils/cn";
 import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { presenceAttrs, type LivePresence } from "@/services/stats/now-feed";
 
 interface MobileMenuSheetProps {
   open: boolean;
@@ -17,7 +18,7 @@ interface MobileMenuSheetProps {
   textScale?: "1" | "1.15" | "1.3";
   onCycleTextScale?: () => void;
   /** Live presence. The desktop status bar carries this; mobile has none. */
-  presence?: { online: number; listening: number };
+  presence?: LivePresence;
   /** The desktop File menu's Export / Import My Data (HD-010). */
   onExportData?: () => void;
   onImportData?: () => void;
@@ -104,6 +105,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
                   hide();
                 }}
                 className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
+                {...presenceAttrs("mobile-sheet", presence)}
               >
                 <span className="w-[24px] flex items-center justify-center">
                   <span className="w-[8px] h-[8px] rounded-full bg-static-green animate-on-air" />

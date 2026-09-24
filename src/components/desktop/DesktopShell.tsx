@@ -60,6 +60,7 @@ import { MobileMenuSheet } from "@/components/mobile/MobileMenuSheet";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { useLiveQuery } from "dexie-react-hooks";
 import { usePresence } from "@/hooks/usePresence";
+import { presenceAttrs } from "@/services/stats/now-feed";
 import { useShellMenus } from "@/hooks/useShellMenus";
 import { useTextScalePreference } from "@/hooks/useTextScalePreference";
 import { useUserDataTransfer } from "@/hooks/useUserDataTransfer";
@@ -277,10 +278,11 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           // A live count on the tab is the whole discovery mechanism for the
           // community pages — the status bar indicator is desktop-only and
           // easy to miss, and nobody opens a statistics page speculatively.
-          // Only shown when someone *else* is here: a badge that reads "1"
-          // because you are looking at it is noise.
-          const others = presence.online - 1;
-          const showPresence = path === "/stats" && others > 0 && !isActive;
+          // Only shown when someone else is here too: a badge that reads "1"
+          // because you are looking at it is noise. It shows the same number
+          // as every other presence surface — it used to show online − 1,
+          // which put a 7 on the tab next to an 8 in the status bar.
+          const showPresence = path === "/stats" && presence.online > 1 && !isActive;
           return (
             <button
               key={path}
@@ -306,10 +308,11 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               {showPresence && (
                 <span
                   className="absolute top-1.5 right-[calc(50%-26px)] md:top-0.5 md:right-1 flex items-center gap-[3px] text-hd-micro text-static-green tabular-nums pointer-events-none"
-                  title={`${others} other ${others === 1 ? "person is" : "people are"} here right now`}
+                  title={`${presence.online} people online right now`}
+                  {...presenceAttrs("badge", presence)}
                 >
                   <span className="w-[5px] h-[5px] rounded-full bg-static-green animate-on-air" />
-                  {others}
+                  {presence.online}
                 </span>
               )}
             </button>

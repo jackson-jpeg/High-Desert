@@ -15,6 +15,11 @@ beforeAll(async () => {
   if (!TEST_DATABASE_URL) return;
   process.env.DATABASE_URL = TEST_DATABASE_URL;
   store = await import("../store");
+  // A run killed before its `finally` (the 2026-09-24 lockup did exactly
+  // this) leaves tagged play_events behind, and the rollup test below counts
+  // every play in its window — so a dead run's rows fail every later run.
+  // Sweep this suite's own prefix, never anything else.
+  await store.getPool().query("DELETE FROM play_events WHERE starts_with(episode_id, 'store-db-test-')");
 });
 
 afterAll(async () => {

@@ -19,6 +19,8 @@ import {
   TrafficSummary,
 } from "@/components/library/TrafficSummary";
 import { useTraffic } from "@/components/library/useTraffic";
+import { useCommunityNow } from "@/hooks/useCommunityNow";
+import { presenceAttrs } from "@/services/stats/now-feed";
 
 // The panel. Its parts were split out under HD-018: the geometry and labels
 // are pure (src/lib/library/traffic.ts), the chart, hour profile and summary
@@ -35,6 +37,7 @@ import { useTraffic } from "@/components/library/useTraffic";
 export function SignalTraffic() {
   const [range, setRange] = useState<TrafficRange>("24h");
   const { traffic, loading } = useTraffic(range);
+  const now = useCommunityNow();
 
   if (loading && !traffic) {
     return (
@@ -79,6 +82,18 @@ export function SignalTraffic() {
         {/* The headline in a sentence. A grid of integers makes a reader do the
             interpreting; this states the finding and lets the tiles below back
             it up. */}
+        {/* The current value. Read from the same feed as the status bar and
+            On Air, never from the newest sample: a sample is up to two
+            minutes old and would put a third number on the same screen. */}
+        {!now.loading && (
+          <p className="text-hd-caption text-bevel-dark" {...presenceAttrs("signal-traffic", now)}>
+            Right now:{" "}
+            <strong className="text-static-green font-normal tabular-nums">{now.online}</strong> online
+            {" · "}
+            <strong className="text-signal-blue font-normal tabular-nums">{now.listening}</strong> listening
+          </p>
+        )}
+
         <TrafficSummary traffic={traffic} rangeLabel={rangeLabel} range={range} />
 
         {hasHistory ? (
