@@ -24,11 +24,7 @@ const seekSpy = vi.fn();
 let element: HTMLAudioElement;
 let archiveDown = false;
 /** play() outcomes, in call order; unlisted calls hang (a load that never answers). */
-let plays: Array<"resolve" | "reject-not-allowed" | "hang" | "deferred"> = [];
-/** Rejects the pending "deferred" play() — the test decides when. */
-let rejectDeferred: (err: unknown) => void = () => {};
-/** How many times play() has been called on the element this test. */
-let playCalls = 0;
+let plays: Array<"resolve" | "reject-not-allowed" | "hang"> = [];
 
 vi.mock("@/services/stats/client", () => ({
   reportPlay: (...a: unknown[]) => reportPlay(...a),
@@ -115,12 +111,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   archiveDown = false;
   plays = [];
-  playCalls = 0;
+  let call = 0;
   element = makeMediaElement(() => {
-    const what = plays[playCalls++] ?? "hang";
+    const what = plays[call++] ?? "hang";
     if (what === "resolve") return Promise.resolve();
     if (what === "reject-not-allowed") return Promise.reject(new DOMException("denied", "NotAllowedError"));
-    if (what === "deferred") return new Promise<void>((_, reject) => { rejectDeferred = reject; });
     return new Promise<void>(() => {});
   });
   usePlayerStore.setState({
@@ -227,26 +222,40 @@ describe("archive.org fails → the mirror", () => {
   });
 
   it("archive.org's play() rejecting after the failover moved the element is not charged to the mirror", async () => {
-    // Chromium's order for a dead source: the element fires "error", then the
-    // pending play() rejects with NotSupportedError. The error has already
-    // moved the element to the mirror by the time the rejection lands.
-    plays = ["deferred", "hang"];
+    // The spec's order for a source that fails (media element "dedicated media
+    // source failure steps"): pending play() promises are rejected with
+    // NotSupportedError, then "error" fires — in the same task. The rejection's
+    // handlers run as microtasks afterwards, by which time the error handler
+    // has already moved the element to the mirror. The helper's element models
+    // load() aborting pending plays, so the first play() is taken over here to
+    // reproduce that order exactly.
+    plays = ["hang", "hang"];
+    const helperPlay = element.play.bind(element);
+    let rejectFirst: (err: unknown) => void = () => {};
+    let n = 0;
+    element.play = vi.fn(() => {
+      n++;
+      const p = helperPlay();
+      if (n > 1) return p;
+      p.catch(() => {}); // the helper's own promise: superseded, aborted later
+      return new Promise<void>((_, reject) => {
+        rejectFirst = reject;
+      });
+    });
     act(() => void api().playEpisode(episode()));
-    act(() => mediaError(4));
-    await settle();
-    expect(element.src).toBe(MIRROR);
     await act(async () => {
-      rejectDeferred(new DOMException("The element has no supported sources.", "NotSupportedError"));
+      rejectFirst(new DOMException("The element has no supported sources.", "NotSupportedError"));
+      mediaError(4);
       for (let i = 0; i < 5; i++) await Promise.resolve();
     });
     const s = usePlayerStore.getState();
+    expect(element.src).toBe(MIRROR);
     expect(s.loadState).not.toBe("failed");
     expect(s.error).toBeNull();
-    expect(element.src).toBe(MIRROR);
     expect(reportPlaybackFailure).not.toHaveBeenCalled();
-    // Charged as a play-rejected, it would earn the mirror attempt a retry:
-    // a third play() that tears down the stream the listener is waiting on.
-    expect(playCalls, "archive.org's play(), then the mirror's — nothing else").toBe(2);
+    // Charged as play-rejected, it would either fail the mirror attempt or earn
+    // it a retry: a third play() that tears down the stream being waited on.
+    expect(n, "archive.org's play(), then the mirror's — nothing else").toBe(2);
   });
 
   it("the failover spends the retry: the mirror failing too raises the dialog, not a second archive request", async () => {
