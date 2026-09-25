@@ -185,10 +185,6 @@ export async function removeBookmark(id: number): Promise<void> {
   await db.bookmarks.delete(id);
 }
 
-export async function getBookmarks(episodeId: number) {
-  return db.bookmarks.where("episodeId").equals(episodeId).sortBy("position");
-}
-
 export async function toggleFlag(id: number): Promise<boolean> {
   const episode = await db.episodes.get(id);
   if (!episode) return false;

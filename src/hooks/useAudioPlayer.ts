@@ -7,7 +7,6 @@ import {
   setEngineVolume,
   resumeContext,
   getMediaElement,
-  notifySourceChanged,
   seekEngine,
 } from "@/audio/engine";
 import {
@@ -343,7 +342,6 @@ export function useAudioPlayer() {
       if (audio.src) return; // something is already loaded; don't stomp it
       // A new source is a new start: its listen has not been counted.
       beginStart();
-      notifySourceChanged();
       audio.preload = "none";
       audio.src = episode.sourceUrl;
       usePlayerStore.getState().setSource("archive");
@@ -394,7 +392,6 @@ export function useAudioPlayer() {
 
       openListen(episode, isObjectUrl ? url : "");
       usePlayerStore.getState().setSource(kind);
-      notifySourceChanged();
 
       // Reset before re-assigning: a stale src plus load() is its own source of
       // hangs, and `src = ""` would make the browser fetch the HTML document
