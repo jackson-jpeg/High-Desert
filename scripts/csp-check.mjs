@@ -18,7 +18,7 @@
 import { chromium } from "playwright";
 
 const BASE = (process.argv[2] ?? process.env.CSP_CHECK_URL ?? "http://127.0.0.1:3000").replace(/\/$/, "");
-const ROUTES = ["/", "/library", "/radio", "/stats", "/scanner", "/search"];
+const ROUTES = ["/", "/library", "/live", "/radio", "/stats", "/scanner", "/search"];
 /** How long to let each page run after `load` — long enough for seeding, the first heartbeat and deferred effects. */
 const SETTLE_MS = Number(process.env.CSP_CHECK_SETTLE_MS ?? 4000);
 

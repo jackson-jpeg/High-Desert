@@ -3021,6 +3021,14 @@ export const MUTATIONS = [
     replace: "",
     why: "tapping ON AIR swings the needle to the show's day",
   },
+  {
+    id: "live-warm-pending",
+    test: "src/audio/__tests__/live-warm.test.ts",
+    file: "src/audio/live-controller.ts",
+    find: "    warmPending = true;\n",
+    replace: "",
+    why: "a direct load of /live warms before the layout installs the station; dropped, the screen sits on 'Warming up' for a minute",
+  },
 ];
 
 /**

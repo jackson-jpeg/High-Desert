@@ -337,12 +337,23 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
 // ---------------------------------------------------------------------------
 
 let station: LiveStation | null = null;
+/**
+ * A surface asked for the program before the station was installed. React runs
+ * a child's effects before its parent's, so on a direct load of /live the
+ * screen's warm-up runs before the layout's install — and without this it was
+ * dropped, leaving "Warming up the transmitter…" on screen for a full poll.
+ */
+let warmPending = false;
 
 /** Mounted once, by the desktop layout. Returns the teardown. */
 export function installLiveStation(deps: LiveDeps): () => void {
   const s = createLiveStation(deps);
   station = s;
   const off = s.install();
+  if (warmPending) {
+    warmPending = false;
+    void warmLiveStation();
+  }
   return () => {
     off();
     if (station === s) station = null;
@@ -363,7 +374,10 @@ export function tuneOut(): void {
  * clock ready, so a tap can start at once. Cheap when both are fresh.
  */
 export async function warmLiveStation(): Promise<void> {
-  if (!station) return;
+  if (!station) {
+    warmPending = true;
+    return;
+  }
   const { schedule, clockOffsetMs } = useLiveStore.getState();
   const stale = !schedule || serverNow() - schedule.serverNow > SCHEDULE_POLL_MS;
   await Promise.all([
