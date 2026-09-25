@@ -66,11 +66,27 @@ jobs:
       # console error.
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+      # One origin, the way nginx makes one in production: the app on :3001,
+      # the phone lines (services/live) on :3005, and scripts/live-e2e-stack.mjs
+      # on :3000 routing /live-api/* to the service. Without the service /live
+      # asks Next for /live-api/* and logs its 404s — a composition production
+      # never runs. Secrets are random per run; the admin token is exported so
+      # e2e/live-chat.spec.ts hides what it posts.
       - name: Browser check (CSP and console errors)
         run: |
-          DATABASE_URL="$TEST_DATABASE_URL" npm start -- -p 3000 > next-start.log 2>&1 &
-          for _ in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:3000/ && break; sleep 1; done
-          npm run check:csp -- http://127.0.0.1:3000 || { echo "--- next start log ---"; cat next-start.log; exit 1; }
+          DATABASE_URL="$TEST_DATABASE_URL" npm start -- -H 127.0.0.1 -p 3001 > next-start.log 2>&1 &
+          admin="$(openssl rand -hex 32)"
+          echo "::add-mask::$admin"
+          echo "E2E_LIVE_ADMIN_TOKEN=$admin" >> "$GITHUB_ENV"
+          LIVE_DATABASE_URL="$TEST_DATABASE_URL" CHAT_CLIENT_SECRET="$(openssl rand -hex 32)" LIVE_ADMIN_TOKEN="$admin" \
+            LIVE_PORT=3005 LIVE_HOST=127.0.0.1 LIVE_ORIGINS=http://127.0.0.1:3000 \
+            node services/live/server.mjs > live-start.log 2>&1 &
+          node scripts/live-e2e-stack.mjs --port 3000 --app 3001 --live 3005 > stack.log 2>&1 &
+          for _ in $(seq 1 60); do
+            curl -sf -o /dev/null http://127.0.0.1:3000/ && curl -sf -o /dev/null http://127.0.0.1:3000/live-api/me && break
+            sleep 1
+          done
+          npm run check:csp -- http://127.0.0.1:3000 || { echo "--- next start log ---"; cat next-start.log; echo "--- live ---"; cat live-start.log; exit 1; }
       # The same running build, driven through real user flows: open /library,
       # let it seed, sort, scroll, and check what is on screen (e2e/). The
       # server started above is still up — background processes live until
@@ -80,7 +96,7 @@ jobs:
           E2E_BASE_URL: http://127.0.0.1:3000
         run: |
           curl -sf -o /dev/null "$E2E_BASE_URL/library" || { echo "app not running"; cat next-start.log; exit 1; }
-          npm run test:e2e || { echo "--- next start log ---"; cat next-start.log; exit 1; }
+          npm run test:e2e || { echo "--- next start log ---"; cat next-start.log; echo "--- live ---"; cat live-start.log; exit 1; }
       - name: Upload e2e traces
         if: failure()
         uses: actions/upload-artifact@v4
