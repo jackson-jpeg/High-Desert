@@ -449,6 +449,18 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   disk — and never a pinned or in-flight file. Upload capped at 2 MB/s,
   `CPUQuota=50%`, `IOWeight=20`, `MemoryMax=700M`. Ports 6881/tcp+udp and
   6882/udp are open in ufw so the pinned shows are actually seeded back.
+- **It listens before it seeds, and does not re-verify what it already
+  verified** (`lib/serve.mjs`, `skipVerify` in `ensureTorrent`). The first
+  deploy after a nightly warm awaited seeding 338 pins before `listen()`,
+  re-reading all 15 GB on the way at its memory ceiling; health never answered
+  inside `deploy-mirror.sh`'s window, and the rollback copy started the same
+  way — the mirror was down until this changed. Requests never needed the pins
+  seeded: a complete file is served from disk.
+- **`peers` means distinct outside addresses**, never wires. Each tracker hands
+  our own announce back, so the client dialled itself both ways for every
+  torrent (677 "peers" with 338 pins); our public address is now on the
+  client's blocklist (`lib/client-options.mjs`) and excluded from the count.
+  `wires` in `/mirror/health` is the raw breakdown by type.
 - **DHT bootstrap is resolved to IPv4 by us** (`lib/bootstrap.mjs`). The
   library's own list resolved to IPv6 on this box, which its udp4 socket cannot
   reach, and it reported "ready" with **zero nodes** — silently, for every hash.
