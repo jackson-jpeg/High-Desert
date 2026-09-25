@@ -66,7 +66,11 @@ test("two callers hear each other in under 2 s; a blocked word and a link are re
     const listener = await other.newPage();
     await Promise.all([openLines(page, !!use.isMobile), openLines(listener, !!use.isMobile)]);
 
-    // A call, timed from the POST leaving to the line appearing on the other screen.
+    // A call, timed from the caller pressing Send to the line appearing on the
+    // other screen: both instants are read in the pages, on the one clock this
+    // machine gives both contexts. The harness's own typing and actionability
+    // waits before the press are not delivery (on a busy CI runner they were
+    // most of it).
     const text = `Testing the lines from ${info.project.name}, ${Date.now().toString(36)}`;
     await listener.evaluate((t) => {
       const w = window as unknown as { __seenAt?: number };
@@ -78,21 +82,33 @@ test("two callers hear each other in under 2 s; a blocked word and a link are re
         }
       }).observe(document.body, { childList: true, subtree: true, characterData: true });
     }, text);
-    const sentAt = Date.now();
+    await page.evaluate(() => {
+      const w = window as unknown as { __sentAt?: number };
+      document.addEventListener(
+        "click",
+        (e) => {
+          if ((e.target as Element | null)?.closest('[data-testid="send"]')) w.__sentAt ??= Date.now();
+        },
+        { capture: true },
+      );
+    });
     const res = await call(page, text);
+    const sentAt = await page.evaluate(() => (window as unknown as { __sentAt?: number }).__sentAt ?? null);
+    expect(sentAt, "the Send press was observed").not.toBeNull();
+    const post = res.request().timing();
     expect(res.status(), await res.text()).toBe(201);
     posted.push((await res.json()).id);
     const theirs = listener.getByTestId("live-message").filter({ hasText: text });
     await expect(theirs).toHaveCount(1, { timeout: 5_000 });
     const seenAt = await listener.evaluate(() => (window as unknown as { __seenAt?: number }).__seenAt ?? null);
     expect(seenAt, "the other caller's screen saw the call").not.toBeNull();
-    const ms = seenAt! - sentAt;
+    const ms = seenAt! - sentAt!;
     expect(ms, "delivery to the other caller").toBeLessThan(2_000);
     // It carries the phone-lines furniture: a line and a caller name.
     await expect(theirs.getByTestId("line-label")).not.toBeEmpty();
     await expect(theirs.getByTestId("caller-name")).not.toBeEmpty();
     info.annotations.push({ type: "delivery-ms", description: String(ms) });
-    console.log(`[live-chat] ${info.project.name}: delivered in ${ms} ms`);
+    console.log(`[live-chat] ${info.project.name}: delivered in ${ms} ms (POST answered in ${Math.round(post.responseEnd)} ms)`);
 
     // Past the 3 s per-caller limit, so the refusals below are the filter's.
     await page.waitForTimeout(3_200);
