@@ -6,9 +6,12 @@ import { getNowPlaying } from "@/services/stats/store";
  * What the community is doing right now.
  *
  * Response shape:
- *   { online, listening,
+ *   { online, listening, live,
  *     onAir:  [{ episodeId, listeners }],
  *     recent: [{ episodeId, at }] }
+ *
+ * `live` is the clients, of `online`, tuned in to the live station (a
+ * heartbeat with `live: true` inside the window — `getPresence()`).
  *
  * A superset of /api/stats/active, which is kept for the shell's heartbeat
  * loop — that runs on every route and has no use for the episode lists.
