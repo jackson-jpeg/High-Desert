@@ -1139,8 +1139,8 @@ export const MUTATIONS = [
     id: "start-generation-catch",
     test: "src/hooks/__tests__/play-session.test.ts",
     file: "src/hooks/useAudioPlayer.ts",
-    find: "        if (!isCurrentStart(id)) return;\n        if (isAbortError(err)) return;\n        console.error(\"[player] Playback failed:\", err);",
-    replace: "        if (isAbortError(err)) return;\n        console.error(\"[player] Playback failed:\", err);",
+    find: "        if (!isCurrentStart(id)) return;\n        if (isAbortError(err)) return;\n        // The element has moved on",
+    replace: "        if (isAbortError(err)) return;\n        // The element has moved on",
     why: "HD-003: a superseded start's refusal was charged to the watchdog, which spent a retry tearing down the element for a show the listener had left",
   },
   {
@@ -1163,8 +1163,8 @@ export const MUTATIONS = [
     id: "abort-not-failure",
     test: "src/hooks/__tests__/play-session.test.ts",
     file: "src/hooks/useAudioPlayer.ts",
-    find: "        if (isAbortError(err)) return;\n        console.error(\"[player] Playback failed:\", err);",
-    replace: "        console.error(\"[player] Playback failed:\", err);",
+    find: "        if (isAbortError(err)) return;\n        // The element has moved on",
+    replace: "        // The element has moved on",
     why: "HD-003: an AbortError is load()/pause() interrupting play() — the listener changing course, not a failure",
   },
   {
@@ -2072,6 +2072,14 @@ export const MUTATIONS = [
     find: "if (ep && !isListenCounted()) countListen(ep, id);",
     replace: "if (ep) countListen(ep, id);",
     why: "a failover is the same listen continuing; counting it again inflates plays for exactly the shows archive.org drops",
+  },
+  {
+    id: "mirror-stale-rejection",
+    test: "src/hooks/__tests__/mirror-failover.test.ts",
+    file: "src/hooks/useAudioPlayer.ts",
+    find: "        if (audio.src !== new URL(url, window.location.href).href) return;",
+    replace: "",
+    why: "archive.org's play() refusing after the failover moved the element would be charged to the mirror attempt",
   },
   {
     id: "mirror-known-down-direct",
