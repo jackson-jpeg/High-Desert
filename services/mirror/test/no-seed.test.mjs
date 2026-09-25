@@ -27,8 +27,12 @@ describe("fetch-only mode", () => {
     const cache = stubCache();
     const added = [];
     const client = { add: (...a) => (added.push(a), { on() {}, once() {} }), get: () => null, torrents: [] };
-    const g = createGateway({ cache, torrentDir: "/nonexistent", index: {}, client });
+    const logs = [];
+    // As in the control below, each attempt to seed a pin with no .torrent on
+    // disk is logged — so an empty log means no attempt was made at all.
+    const g = createGateway({ cache, torrentDir: "/nonexistent", index: {}, client, log: (m) => logs.push(m) });
     await g.seedPins({ seed: false });
+    expect(logs.filter((m) => m.startsWith("cannot seed"))).toEqual([]);
     expect(cache.loads).toBe(1);
     expect(cache.pins.size).toBe(2);
     expect(added).toEqual([]);
