@@ -67,11 +67,13 @@ function startStub() {
     const dl = new RegExp(`^/download/${COLL}/(.+)$`).exec(p);
     if (dl) {
       const port = server.address().port;
-      const to = dl[1] === ROGUE_NAME ? `http://127.0.0.2:${port}/evil/${url.pathname.split("/").pop()}` : `http://127.0.0.1:${port}/node/${COLL}/${url.pathname.split("/").pop()}`;
+      // The rogue episode redirects somewhere reachable that is not a storage
+      // node (the follow pattern wants /node/): following it would be observed.
+      const to = `http://127.0.0.1:${port}/${dl[1] === ROGUE_NAME ? "evil" : "node"}/${COLL}/${url.pathname.split("/").pop()}`;
       res.writeHead(302, { location: to });
       return res.end();
     }
-    const node = new RegExp(`^/node/${COLL}/(.+)$`).exec(p);
+    const node = new RegExp(`^/(?:node|evil)/${COLL}/(.+)$`).exec(p);
     const body = node && files.get(node[1]);
     if (!body) {
       res.writeHead(404);
