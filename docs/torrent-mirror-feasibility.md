@@ -108,6 +108,27 @@ These shares are in-sample: the pins are chosen from the same 90 days they are
 scored against, so the true hit rate during a future outage will be somewhat
 lower. The nightly refresh keeps the choice current.
 
+### Chaos run on production (2026-09-25, `e2e/chaos-mirror.spec.ts`)
+
+Headless Chromium against https://highdesert.space, with every archive.org host
+aborted in the page. Stats writes were answered in the page, so nothing reached
+the production database. Three runs; the last one is below, and the earlier
+two were within the same range (331–469 ms pinned, 407–665 ms unpinned).
+
+| Case | What happened | Time to first audio |
+|---|---|---|
+| Pinned show ("September 11th Coverage") | archive.org request aborted → `network-error` → same element moved to `/mirror/…`, `currentTime` advancing, VIA MIRROR shown | 469 ms |
+| Unpinned show ("Woolly Mammoth Discovery", 9 MB) | same path; the gateway filled it from the archive.org webseed on the server side | 665 ms |
+| Next start once archive.org is known down | straight to `/mirror/…`, **no** media request to archive.org | 385 ms |
+
+The unpinned case measures the listener's route to archive.org being broken,
+not a real outage: the server could still reach archive.org. In a real outage
+that show would return 503 after 15 s (see the table above).
+
+Not verified: iOS Safari's activation rules on a real device. The unit test
+covers the rule (a `play()` refused after the swap raises the error dialog,
+whose *Try Again* is a real gesture). No device test was run.
+
 ## 4. Sizing against this box
 
 - **Disk:** 96 GB, 34 GB free. The gateway keeps a 10 GB disk-free floor, which

@@ -32,6 +32,8 @@ interface Probe {
   clickedAt: number;
   sources: string[];
   firstAudioAt: number | null;
+  /** First audible moment per source URL: several shows play through one element. */
+  audioAt: Record<string, number>;
   currentTime: number;
 }
 
@@ -39,19 +41,23 @@ interface Probe {
 async function installProbe(page: Page) {
   await page.addInitScript(() => {
     const w = window as unknown as { __hdChaos: Probe & { el: HTMLMediaElement | null } };
-    w.__hdChaos = { clickedAt: 0, sources: [], firstAudioAt: null, currentTime: 0, el: null };
+    w.__hdChaos = { clickedAt: 0, sources: [], firstAudioAt: null, audioAt: {}, currentTime: 0, el: null };
     const play = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function (this: HTMLMediaElement) {
       const probe = w.__hdChaos;
       if (!probe.el && this.src && !this.src.startsWith("data:")) {
         probe.el = this;
         const note = () => {
-          if (probe.sources[probe.sources.length - 1] !== this.currentSrc) probe.sources.push(this.currentSrc);
+          // load() after removeAttribute("src") fires loadstart with no source.
+          if (this.currentSrc && probe.sources[probe.sources.length - 1] !== this.currentSrc) probe.sources.push(this.currentSrc);
         };
         this.addEventListener("loadstart", note);
         this.addEventListener("timeupdate", () => {
           probe.currentTime = this.currentTime;
-          if (probe.firstAudioAt === null && !this.paused && this.currentTime > 0) probe.firstAudioAt = performance.now();
+          if (!this.paused && this.currentTime > 0) {
+            if (probe.firstAudioAt === null) probe.firstAudioAt = performance.now();
+            probe.audioAt[this.currentSrc] ??= performance.now();
+          }
         });
         note();
       }
@@ -63,19 +69,35 @@ async function installProbe(page: Page) {
 const probe = (page: Page) =>
   page.evaluate(() => {
     const p = (window as unknown as { __hdChaos: Probe }).__hdChaos;
-    return { clickedAt: p.clickedAt, sources: [...p.sources], firstAudioAt: p.firstAudioAt, currentTime: p.currentTime };
+    return { clickedAt: p.clickedAt, sources: [...p.sources], firstAudioAt: p.firstAudioAt, audioAt: { ...p.audioAt }, currentTime: p.currentTime };
   });
 
-async function playTitle(page: Page, title: string) {
-  await page.goto(`/library?q=${encodeURIComponent(title)}`);
+async function playTitle(page: Page, title: string, { reload = true } = {}) {
+  if (reload) {
+    await page.goto(`/library?q=${encodeURIComponent(title)}`);
+  } else {
+    // In the running page: a navigation would reset the health verdict the
+    // test is about.
+    const box = page.getByPlaceholder(/^Search episodes/);
+    await box.fill(title);
+  }
   const row = episodeList(page).locator('[role="option"]').first();
   await expect(row).toBeVisible({ timeout: 30_000 });
   await expect(row).toHaveAttribute("aria-label", new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
-  await row.click();
-  await page.evaluate(() => {
-    (window as unknown as { __hdChaos: Probe }).__hdChaos.clickedAt = performance.now();
-  });
-  await page.keyboard.press("Enter");
+  const mark = () =>
+    page.evaluate(() => {
+      (window as unknown as { __hdChaos: Probe }).__hdChaos.clickedAt = performance.now();
+    });
+  if (reload) {
+    await row.click();
+    await mark();
+    await page.keyboard.press("Enter");
+  } else {
+    // Focus is in the search combobox, which owns Enter; a double-click is
+    // the row's own play gesture.
+    await mark();
+    await row.dblclick();
+  }
 }
 
 for (const [label, title] of [
@@ -133,18 +155,21 @@ test("once archive.org is known down, the next start goes straight to the mirror
   await expect.poll(async () => (await probe(page)).firstAudioAt, { timeout: 45_000 }).not.toBeNull();
 
   const before = { media: media.length, sources: (await probe(page)).sources.length };
-  await page.evaluate(() => {
-    const p = (window as unknown as { __hdChaos: Probe }).__hdChaos;
-    p.firstAudioAt = null;
-  });
-  await playTitle(page, second!);
-  await expect.poll(async () => (await probe(page)).firstAudioAt, { timeout: 45_000 }).not.toBeNull();
+  await playTitle(page, second!, { reload: false });
+  // The second show's own source, and sound from it — the first show keeps
+  // ticking until the element moves, so "any audio" would pass on its own.
+  await expect.poll(async () => (await probe(page)).sources.length, { timeout: 45_000 }).toBeGreaterThan(before.sources);
+  await expect
+    .poll(async () => {
+      const q = await probe(page);
+      return q.audioAt[q.sources[q.sources.length - 1]] ?? null;
+    }, { timeout: 45_000 })
+    .not.toBeNull();
   const p = await probe(page);
   const after = p.sources.slice(before.sources);
-  expect(after.length).toBeGreaterThan(0);
   expect(after.every((s) => s.includes("/mirror/")), `sources after the verdict: ${after.join(", ")}`).toBe(true);
   expect(media.slice(before.media), "no media request to archive.org once it is known down").toEqual([]);
-  const ttfa = Math.round(p.firstAudioAt! - p.clickedAt);
+  const ttfa = Math.round(p.audioAt[after[after.length - 1]] - p.clickedAt);
   info.annotations.push({ type: "time-to-first-audio-ms", description: String(ttfa) });
   console.log(`[chaos] known-down: ${ttfa} ms to first audio, straight to the mirror`);
 });
