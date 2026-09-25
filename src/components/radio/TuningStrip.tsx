@@ -4,19 +4,22 @@ import { useRef, useEffect, useCallback, useState } from "react";
 import { useRadioDialStore } from "@/stores/radio-dial-store";
 import { useTuningGesture } from "@/hooks/useTuningGesture";
 import type { StationIndex } from "@/hooks/useRadioDial";
+import { PALETTE } from "@/lib/palette";
 
-// Canvas can't read Tailwind classes, so these mirror the theme tokens.
+// Canvas can't resolve var(), so these are the concrete palette values
+// (src/lib/palette.ts, held equal to globals.css by no-raw-hex.test.ts). They
+// must stay 6-digit hex: the year/month ticks append an alpha byte below.
 // Coast was --color-title-bar-blue (#000080) — a chrome fill, which as a 1.5px
 // line on the #0F1520 strip was all but invisible. It now uses the same legible
 // blue as --color-signal-blue, and unknown matches the lightened --color-bevel-dark.
-const COLOR_COAST = "#6BA3F0"; // signal-blue
-const COLOR_DREAMLAND = "#4ADE80"; // static-green
-const COLOR_SPECIAL = "#D4A843"; // desert-amber
-const COLOR_UNKNOWN = "#9AA0AE"; // bevel-dark
-const COLOR_YEAR_LABEL = "#D4A843";
-const COLOR_MONTH_TICK = "#9AA0AE";
-const COLOR_NEEDLE = "#FF2020";
-const COLOR_STRIP_BG = "#0F1520";
+const COLOR_COAST = PALETTE.blue; // signal-blue
+const COLOR_DREAMLAND = PALETTE.green; // static-green
+const COLOR_SPECIAL = PALETTE.amber; // desert-amber
+const COLOR_UNKNOWN = PALETTE.muted; // bevel-dark
+const COLOR_YEAR_LABEL = PALETTE.amber;
+const COLOR_MONTH_TICK = PALETTE.muted;
+const COLOR_NEEDLE = PALETTE.needle;
+const COLOR_STRIP_BG = PALETTE.strip;
 
 // Throttle to ~30fps on mobile, 60fps on desktop
 const MOBILE_FRAME_INTERVAL = 1000 / 30;

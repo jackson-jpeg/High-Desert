@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import Dexie from "dexie";
-import type { Episode } from "../schema";
+import type { Episode, StoredEpisode } from "../schema";
 import { planLegacyKeyMigration } from "../legacy-keys";
 
 /**
@@ -28,11 +28,12 @@ const V7 = {
 type DbModule = typeof import("../index");
 let appDb: DbModule["db"] | null = null;
 
-function ep(over: Partial<Episode>): Episode {
+/** A row as a v7 database holds it — position and last-played still on the row. */
+function ep(over: Partial<StoredEpisode>): StoredEpisode {
   return {
     filePath: "", fileName: "", fileSize: 0, source: "archive",
     createdAt: 0, updatedAt: 0, ...over,
-  } as Episode;
+  } as StoredEpisode;
 }
 
 /** Build a v7 database, run `fill`, close it. */
@@ -170,6 +171,13 @@ describe("v8 upgrade — a legacy library", () => {
     expect(JSON.parse(prefs.get("queue-ids")!)).toEqual([ids.canon, ids.lone]);
     expect(prefs.get("last-episode-id")).toBe(String(ids.canon));
     expect(prefs.get("volume")).toBe("0.3");
+
+    // v7 → v9 runs v8's merge and then v9's copy into `progress` (HD-016), in
+    // that order: the merged row's position arrives under its canonical hash,
+    // the legacy twin's (the later listen) winning.
+    expect(await db.progress.toArray()).toEqual([
+      { fileHash: "archive:coast-1998-02-02:coast-1998-02-02.mp3", lastPlayedAt: 900, playbackPosition: 600 },
+    ]);
   });
 });
 
@@ -194,7 +202,7 @@ describe("v8 upgrade — a canonical library", () => {
     });
 
     const db = await upgrade();
-    expect(db.verno).toBe(8);
+    expect(db.verno).toBe(9); // v8's rewrite, then v9's progress copy (HD-016)
     expect(await dump(db)).toEqual(before);
   });
 });

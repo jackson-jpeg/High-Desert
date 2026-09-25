@@ -10,8 +10,15 @@
  * exactly what has been replaced. That also means no Tailwind classes can be
  * relied on and no app component can be imported — if the root layout blew up,
  * the stylesheet and the store may be equally unavailable. Everything here is
- * inline and dependency-free on purpose.
+ * inline and dependency-free on purpose. The one import is `@/lib/palette`,
+ * a module of string constants with no imports of its own — the concrete
+ * colours are needed precisely because globals.css may not have loaded.
  */
+import { PALETTE as P } from "@/lib/palette";
+
+/** Raised Win98 bevel on the dark surfaces: light top-left, dark bottom-right. */
+const BEVEL = `${P.edge} ${P.void} ${P.void} ${P.edge}`;
+
 export default function GlobalError({
   error,
   reset,
@@ -28,8 +35,8 @@ export default function GlobalError({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#0A0E1A",
-          color: "#C0C0C0",
+          background: P.midnight,
+          color: P.chrome,
           fontFamily: '"MS Sans Serif", Arial, sans-serif',
           padding: "2rem",
         }}
@@ -38,15 +45,15 @@ export default function GlobalError({
           style={{
             maxWidth: 420,
             width: "100%",
-            background: "#1A1F33",
+            background: P.raised,
             border: "2px solid",
-            borderColor: "#2A3050 #060810 #060810 #2A3050",
+            borderColor: BEVEL,
           }}
         >
           <div
             style={{
-              background: "linear-gradient(90deg, #000080 0%, #0A246A 55%, #3A6EA5 85%, #A6CAF0 100%)",
-              color: "#FFFFFF",
+              background: `linear-gradient(90deg, ${P.navy} 0%, ${P.select} 55%, ${P.titlebarGlow} 85%, ${P.titlebarSky} 100%)`,
+              color: P.chromeLighter,
               padding: "3px 8px",
               fontWeight: "bold",
               fontSize: 12,
@@ -58,16 +65,16 @@ export default function GlobalError({
           <div style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             {/* The page's h1. No stylesheet here, so no preflight: the
                 margin is zeroed by hand to keep it looking like the div it was. */}
-            <h1 style={{ fontSize: 14, color: "#C0C0C0", fontWeight: "bold", margin: 0 }}>
+            <h1 style={{ fontSize: 14, color: P.chrome, fontWeight: "bold", margin: 0 }}>
               The signal dropped out entirely.
             </h1>
-            <div style={{ fontSize: 12, color: "#9AA0AE", lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, color: P.muted, lineHeight: 1.5 }}>
               Something failed before the app could start. Reloading usually
               clears it. Your library is stored in this browser and is not
               affected.
             </div>
             {error.digest && (
-              <div style={{ fontSize: 11, color: "#9AA0AE", fontFamily: "monospace" }}>
+              <div style={{ fontSize: 11, color: P.muted, fontFamily: "monospace" }}>
                 Error ID: {error.digest}
               </div>
             )}
@@ -75,10 +82,10 @@ export default function GlobalError({
               <button
                 onClick={() => window.location.reload()}
                 style={{
-                  background: "#1A1F33",
-                  color: "#C0C0C0",
+                  background: P.raised,
+                  color: P.chrome,
                   border: "2px solid",
-                  borderColor: "#2A3050 #060810 #060810 #2A3050",
+                  borderColor: BEVEL,
                   padding: "4px 16px",
                   fontSize: 12,
                   cursor: "pointer",
@@ -90,10 +97,10 @@ export default function GlobalError({
               <button
                 onClick={reset}
                 style={{
-                  background: "#1A1F33",
-                  color: "#C0C0C0",
+                  background: P.raised,
+                  color: P.chrome,
                   border: "2px solid",
-                  borderColor: "#2A3050 #060810 #060810 #2A3050",
+                  borderColor: BEVEL,
                   padding: "4px 16px",
                   fontSize: 12,
                   cursor: "pointer",

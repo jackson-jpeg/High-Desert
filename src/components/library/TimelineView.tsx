@@ -11,6 +11,7 @@ import { useIsMobile } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils/cn";
 import { useTextScale, itemHeightFor, headerHeightFor } from "@/hooks/useTextScale";
 import { deriveRailGroups, activeGroupIndex, type RailGroup } from "@/lib/library/rail-groups";
+import { NO_PROGRESS, type ProgressIndex } from "@/stores/progress-store";
 import { buildListLayout } from "@/lib/library/list-layout";
 import { registerListScroll } from "@/lib/library/list-scroll";
 import { NO_COMMUNITY, metricFor, metricHeader, type CommunityIndex } from "@/lib/library/sort-keys";
@@ -29,6 +30,11 @@ interface TimelineViewProps {
    * order they describe.
    */
   community?: CommunityIndex;
+  /**
+   * The progress entries `episodes` was sorted with ("Recently played"
+   * buckets by them). Passed down for the same reason as `community`.
+   */
+  progress?: ProgressIndex;
   /** Offered as the newest/oldest toggle in date order. */
   onSortModeChange?: (mode: SortMode) => void;
   currentEpisodeId?: number;
@@ -66,6 +72,7 @@ export function TimelineView({
   sortMode = "date",
   seriesFilter = null,
   community = NO_COMMUNITY,
+  progress = NO_PROGRESS,
   onSortModeChange,
   currentEpisodeId,
   selectedEpisodeId,
@@ -88,8 +95,8 @@ export function TimelineView({
   // of `episodes` — the same array, in the same order, as the rows below
   // (docs/timeline-rail.md) — bucketed on the same number the list is sorted by.
   const groups = useMemo(
-    () => deriveRailGroups(episodes, sortMode, seriesFilter, undefined, community),
-    [episodes, sortMode, seriesFilter, community],
+    () => deriveRailGroups(episodes, sortMode, seriesFilter, undefined, community, progress),
+    [episodes, sortMode, seriesFilter, community, progress],
   );
 
   // Every group gets a header row directly above its first row.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { Episode } from "@/db/schema";
+import type { Episode, Progress, StoredEpisode } from "@/db/schema";
 import {
   archiveDetailsUrl,
   draftFromEpisode,
@@ -13,6 +13,11 @@ import {
 
 function ep(fields: Partial<Episode> = {}): Episode {
   return { id: 1, fileHash: "archive:c:a.mp3", fileName: "a.mp3", ...fields } as Episode;
+}
+
+/** The episode's entry in the `progress` table (HD-016). */
+function pr(fields: Omit<Progress, "fileHash">): Progress {
+  return { fileHash: "archive:c:a.mp3", ...fields };
 }
 
 describe("edit draft", () => {
@@ -43,32 +48,37 @@ describe("formatPlayStats", () => {
   const DAY = 86_400_000;
 
   it("is empty for an unplayed episode", () => {
-    expect(formatPlayStats(ep(), NOW)).toBe("");
+    expect(formatPlayStats(ep(), undefined, NOW)).toBe("");
   });
 
   it("reads count, recency and progress", () => {
-    expect(formatPlayStats(ep({ playCount: 3, lastPlayedAt: NOW - DAY, duration: 100, playbackPosition: 42 }), NOW))
+    expect(formatPlayStats(ep({ playCount: 3, duration: 100 }), pr({ lastPlayedAt: NOW - DAY, playbackPosition: 42 }), NOW))
       .toBe("Played 3x · yesterday · 42% heard");
-    expect(formatPlayStats(ep({ playCount: 1, lastPlayedAt: NOW - 1000 }), NOW)).toBe("Played 1x · today");
-    expect(formatPlayStats(ep({ playCount: 1, lastPlayedAt: NOW - 3 * DAY }), NOW)).toBe("Played 1x · 3d ago");
+    expect(formatPlayStats(ep({ playCount: 1 }), pr({ lastPlayedAt: NOW - 1000 }), NOW)).toBe("Played 1x · today");
+    expect(formatPlayStats(ep({ playCount: 1 }), pr({ lastPlayedAt: NOW - 3 * DAY }), NOW)).toBe("Played 1x · 3d ago");
   });
 
   it("says completed at the end", () => {
-    expect(formatPlayStats(ep({ playCount: 1, duration: 100, playbackPosition: 100 }), NOW)).toBe("Played 1x · completed");
+    expect(formatPlayStats(ep({ playCount: 1, duration: 100 }), pr({ playbackPosition: 100 }), NOW)).toBe("Played 1x · completed");
+  });
+
+  it("reads the progress entry, never the frozen pre-v9 fields on the row (HD-016)", () => {
+    const row = { ...ep({ playCount: 1, duration: 100 }), playbackPosition: 42, lastPlayedAt: NOW - DAY } as StoredEpisode;
+    expect(formatPlayStats(row, undefined, NOW)).toBe("Played 1x");
   });
 });
 
 describe("playbackProgress", () => {
   it("is null without a position or a duration", () => {
-    expect(playbackProgress(ep({ duration: 100 }))).toBeNull();
-    expect(playbackProgress(ep({ playbackPosition: 10 }))).toBeNull();
-    expect(playbackProgress(ep({ playbackPosition: 10, duration: 0 }))).toBeNull();
+    expect(playbackProgress(ep({ duration: 100 }), undefined)).toBeNull();
+    expect(playbackProgress(ep(), pr({ playbackPosition: 10 }))).toBeNull();
+    expect(playbackProgress(ep({ duration: 0 }), pr({ playbackPosition: 10 }))).toBeNull();
   });
 
   it("caps at 100% and marks past 90% as nearly done", () => {
-    expect(playbackProgress(ep({ playbackPosition: 50, duration: 100 }))).toEqual({ percent: 50, nearlyDone: false });
-    expect(playbackProgress(ep({ playbackPosition: 95, duration: 100 }))).toEqual({ percent: 95, nearlyDone: true });
-    expect(playbackProgress(ep({ playbackPosition: 120, duration: 100 }))!.percent).toBe(100);
+    expect(playbackProgress(ep({ duration: 100 }), pr({ playbackPosition: 50 }))).toEqual({ percent: 50, nearlyDone: false });
+    expect(playbackProgress(ep({ duration: 100 }), pr({ playbackPosition: 95 }))).toEqual({ percent: 95, nearlyDone: true });
+    expect(playbackProgress(ep({ duration: 100 }), pr({ playbackPosition: 120 }))!.percent).toBe(100);
   });
 });
 

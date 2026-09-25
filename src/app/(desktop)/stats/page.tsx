@@ -245,7 +245,7 @@ export default function StatsPage() {
                           style={{
                             width: `${pct}%`,
                             "--i": i,
-                            background: `linear-gradient(90deg, #1E3A8A 0%, ${pct > 60 ? "#1D4ED8" : "#1E3A8A"} 100%)`,
+                            background: `linear-gradient(90deg, var(--hd-chart-coast) 0%, ${pct > 60 ? "var(--hd-chart-coast-hot)" : "var(--hd-chart-coast)"} 100%)`,
                           } as React.CSSProperties}
                         />
                       </div>
@@ -270,10 +270,10 @@ export default function StatsPage() {
             <div className="h-[20px] w98-inset-dark bg-inset-well overflow-hidden flex">
               {(
                 [
-                  ["coast", "#1E3A8A"],
-                  ["dreamland", "#166534"],
-                  ["special", "#92400e"],
-                  ["unknown", "#333B58"],
+                  ["coast", "var(--hd-chart-coast)"],
+                  ["dreamland", "var(--hd-chart-dreamland)"],
+                  ["special", "var(--hd-chart-special)"],
+                  ["unknown", "var(--hd-edge-lit)"],
                 ] as const
               ).map(([key, color]) => {
                 const count = stats.showCounts.get(key) ?? 0;
@@ -302,7 +302,7 @@ export default function StatsPage() {
                 ["coast", "Coast to Coast AM", "bg-title-bar-blue"],
                 ["dreamland", "Dreamland", "bg-green-800"],
                 ["special", "Specials", "bg-amber-800"],
-                ["unknown", "Uncategorized", "bg-[#333B58]"],
+                ["unknown", "Uncategorized", "bg-[color:var(--hd-edge-lit)]"],
               ] as const).map(([key, label, bg]) => {
                 const count = stats.showCounts.get(key) ?? 0;
                 return (

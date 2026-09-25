@@ -15,6 +15,9 @@ import type { Episode } from "@/db/schema";
 
 const { db } = await import("@/db");
 const { EpisodeDetail } = await import("@/components/library/EpisodeDetail");
+const { startProgressSync, progressReady, resetProgressSyncForTests } = await import("@/services/episodes/progress");
+const { useProgressStore } = await import("@/stores/progress-store");
+let stopSync: () => void = () => {};
 
 const EPISODE: Episode = {
   id: 1,
@@ -32,7 +35,6 @@ const EPISODE: Episode = {
   aiCategory: "UFOs & Aliens",
   aiSeries: "Lights",
   aiSeriesPart: 1,
-  playbackPosition: 1800,
   playCount: 2,
   rating: 4,
 } as Episode;
@@ -55,6 +57,14 @@ beforeEach(async () => {
     { ...EPISODE, id: 2, fileHash: "archive:coll:p2.mp3", fileName: "p2.mp3", title: "Phoenix Lights II", aiSeriesPart: 2 } as Episode,
   ]);
   await db.bookmarks.add({ episodeId: 1, position: 600, label: "The sighting", createdAt: 1 });
+  // The saved position lives in the `progress` table (HD-016) and reaches the
+  // panel through the same sync the layout starts.
+  await db.progress.clear();
+  await db.progress.put({ fileHash: EPISODE.fileHash, playbackPosition: 1800 });
+  useProgressStore.getState().reset();
+  resetProgressSyncForTests();
+  stopSync = startProgressSync();
+  await progressReady();
 
   vi.stubGlobal("fetch", vi.fn(async (url: string) => {
     if (String(url).startsWith("/api/stats/ratings")) {
@@ -69,6 +79,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  stopSync();
   act(() => root.unmount());
   host.remove();
   vi.unstubAllGlobals();

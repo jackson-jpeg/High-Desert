@@ -6,7 +6,7 @@
  */
 
 import type { Visualization } from "./types";
-import { PHOSPHOR_GREEN, DESERT_AMBER } from "./types";
+import { PHOSPHOR_GREEN, DESERT_AMBER, PEAK_RED, PEAK_WHITE } from "./types";
 
 let cachedDataArray: Uint8Array<ArrayBuffer> | null = null;
 let cachedBufferLength = 0;
@@ -80,7 +80,7 @@ function drawGauge(
     const isRed = pct > 0.8;
     const innerR = radius - (i % 3 === 0 ? 12 : 7);
 
-    ctx.strokeStyle = isRed ? "#FF3333" : PHOSPHOR_GREEN;
+    ctx.strokeStyle = isRed ? PEAK_RED : PHOSPHOR_GREEN;
     ctx.lineWidth = i % 3 === 0 ? 2 : 1;
     ctx.beginPath();
     ctx.moveTo(
@@ -96,7 +96,7 @@ function drawGauge(
 
   // Needle
   const needleAngle = ARC_START + needleVal * ARC_RANGE;
-  ctx.strokeStyle = "#FFFFFF";
+  ctx.strokeStyle = PEAK_WHITE;
   ctx.lineWidth = 2;
   ctx.shadowColor = DESERT_AMBER;
   ctx.shadowBlur = 6;
@@ -110,7 +110,7 @@ function drawGauge(
   ctx.shadowBlur = 0;
 
   // Pivot dot
-  ctx.fillStyle = "#FFFFFF";
+  ctx.fillStyle = PEAK_WHITE;
   ctx.beginPath();
   ctx.arc(cx, cy, 3, 0, Math.PI * 2);
   ctx.fill();

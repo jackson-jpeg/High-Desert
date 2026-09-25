@@ -35,6 +35,11 @@ const updateEpisode =
   vi.fn<(id: number, changes: Record<string, unknown>) => Promise<number>>(
     () => Promise.resolve(1),
   );
+/** The `progress` table (HD-016): where "last played" is recorded. */
+const upsertProgress =
+  vi.fn<(fileHash: string, changes: Record<string, unknown>) => Promise<boolean>>(
+    () => Promise.resolve(true),
+  );
 
 let element: HTMLAudioElement;
 
@@ -55,7 +60,6 @@ vi.mock("@/audio/engine", async (importOriginal) => {
   getMediaElement: () => element,
   initEngine: vi.fn(),
   setEngineVolume: vi.fn(),
-  notifySourceChanged: vi.fn(),
   getAnalyserNode: () => null,
   resumeContext: () => Promise.resolve(),
     seekEngine: (t: number) => {
@@ -74,6 +78,10 @@ vi.mock("@/db", () => ({
     episodes: {
       update: (id: number, changes: Record<string, unknown>) =>
         updateEpisode(id, changes),
+    },
+    progress: {
+      upsert: (fileHash: string, changes: Record<string, unknown>) =>
+        upsertProgress(fileHash, changes),
     },
     userPrefs: { get: () => Promise.resolve(undefined), put: () => Promise.resolve() },
   },
@@ -113,6 +121,7 @@ vi.mock("@/audio/playback-watchdog", () => ({
 
 const { useAudioPlayer } = await import("@/hooks/useAudioPlayer");
 const { usePlayerStore } = await import("@/stores/player-store");
+const { useProgressStore } = await import("@/stores/progress-store");
 
 /**
  * Distinct per test. The play-count de-duplication window is keyed on the
@@ -122,23 +131,26 @@ const { usePlayerStore } = await import("@/stores/player-store");
  */
 let episodeSeq = 0;
 
-function makeEpisode(over: Partial<Episode> = {}): Episode {
+/** `playbackPosition` goes to the progress mirror (HD-016), by fileHash. */
+function makeEpisode(over: Partial<Episode> & { playbackPosition?: number } = {}): Episode {
+  const { playbackPosition = 615, ...fields } = over;
   episodeSeq += 1;
-  return {
+  const ep = {
     id: 7,
     fileHash: `archive:coll:show-${episodeSeq}.mp3`,
     fileName: `1997-07-2${episodeSeq}_-_Coast_to_Coast_AM.mp3`,
     archiveIdentifier: "ultimate-art-bell-collection",
     title: "Coast to Coast AM — Men in Black",
     sourceUrl: "https://archive.org/download/coll/show.mp3",
-    playbackPosition: 615,
     duration: 10_800,
     playCount: 3,
     showType: "coast",
     createdAt: 0,
     updatedAt: 0,
-    ...over,
+    ...fields,
   } as Episode;
+  useProgressStore.getState().patch(ep.fileHash, { playbackPosition });
+  return ep;
 }
 
 /** A media element jsdom will accept, with the bits it refuses to implement. */
@@ -159,6 +171,8 @@ describe("a listen is reported however it was started", () => {
   beforeEach(() => {
     reportPlay.mockClear();
     updateEpisode.mockClear();
+    upsertProgress.mockClear();
+    useProgressStore.getState().reset();
     clearHealthCache.mockClear();
     watching = false;
     element = makeElement();
@@ -219,6 +233,12 @@ describe("a listen is reported however it was started", () => {
       11,
       expect.objectContaining({ playCount: 4 }),
     );
+    // When it was last played is progress, not the episode row (HD-016).
+    expect(upsertProgress).toHaveBeenCalledWith(
+      ep.fileHash,
+      expect.objectContaining({ lastPlayedAt: expect.any(Number) }),
+    );
+    expect(updateEpisode.mock.calls.some(([, c]) => "lastPlayedAt" in c)).toBe(false);
   });
 
   it("gives the restored player every side effect the library path gets", async () => {

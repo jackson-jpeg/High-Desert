@@ -2,6 +2,7 @@
 
 import type { Episode } from "@/db/schema";
 import { cn } from "@/lib/utils/cn";
+import { useProgressIndex } from "@/stores/progress-store";
 
 interface RecentlyPlayedProps {
   episodes: Episode[];
@@ -11,6 +12,7 @@ interface RecentlyPlayedProps {
 }
 
 export function RecentlyPlayed({ episodes, onPlay, compact, className }: RecentlyPlayedProps) {
+  const progress = useProgressIndex();
   if (episodes.length === 0) return null;
 
   const displayEpisodes = compact ? episodes.slice(0, 4) : episodes;
@@ -29,9 +31,10 @@ export function RecentlyPlayed({ episodes, onPlay, compact, className }: Recentl
         compact ? "pb-0.5" : "pb-1.5 snap-x snap-mandatory md:snap-none",
       )}>
         {displayEpisodes.map((ep) => {
-          const hasProgress = (ep.playbackPosition ?? 0) > 0 && (ep.duration ?? 0) > 0;
+          const position = progress.get(ep.fileHash)?.playbackPosition ?? 0;
+          const hasProgress = position > 0 && (ep.duration ?? 0) > 0;
           const progressPct = hasProgress
-            ? Math.min(100, (ep.playbackPosition! / ep.duration!) * 100)
+            ? Math.min(100, (position / ep.duration!) * 100)
             : 0;
           const isCompleted = hasProgress && progressPct > 90;
 

@@ -149,6 +149,30 @@
   --hd-green-bright: #33FF33;
   --hd-blue: #6BA3F0;      /* legible blue for *text*; --hd-navy is a fill */
   --hd-muted: #9AA0AE;     /* secondary text — see the ramp note in CLAUDE.md */
+  --hd-peak: #FF3333;      /* visualizer clip / over-level */
+  --hd-needle: #FF2020;    /* radio dial needle */
+
+  /* Title bar gradients (the active sweep starts at --hd-navy, --hd-select) */
+  --hd-titlebar-glow: #3A6EA5;
+  --hd-titlebar-sky: #A6CAF0;
+  --hd-titlebar-inactive-end: #B0B0B0; /* inactive sweep, from --hd-chrome-dark */
+  --hd-titlebar-inactive-ink: #1F1F1F; /* text on that sweep: 4.2–7.6:1 */
+
+  /* One-off surfaces */
+  --hd-strip: #0F1520;         /* radio tuning strip */
+  --hd-cassette: #1A1A2E;      /* cassette shell */
+  --hd-splash-core: #0A1628;   /* welcome page radial glow, centre */
+  --hd-splash-mid: #060D1A;    /* …and its middle stop, fading to --hd-ink */
+
+  /* Stats charts: show-type fills, deliberately darker than the text accents */
+  --hd-chart-coast: #1E3A8A;
+  --hd-chart-coast-hot: #1D4ED8;
+  --hd-chart-dreamland: #166534;
+  --hd-chart-special: #92400E;
+
+  /* Easter eggs */
+  --hd-egg-blue: #7EB8FF;
+  --hd-egg-halloween: #FF8C00;
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);

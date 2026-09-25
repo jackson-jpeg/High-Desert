@@ -1,6 +1,7 @@
 "use client";
 
 import { ProgressBar, Button, Window } from "@/components/win98";
+import { useShallow } from "zustand/react/shallow";
 import { useScannerStore } from "@/stores/scanner-store";
 
 interface ScanProgressProps {
@@ -16,7 +17,18 @@ export function ScanProgress({ onCancel }: ScanProgressProps) {
     newEpisodes,
     duplicates,
     errors,
-  } = useScannerStore();
+  } = useScannerStore(
+    // The fields shown, compared shallowly — not the whole store (HD-040).
+    useShallow((s) => ({
+      status: s.status,
+      totalFiles: s.totalFiles,
+      processedFiles: s.processedFiles,
+      currentFile: s.currentFile,
+      newEpisodes: s.newEpisodes,
+      duplicates: s.duplicates,
+      errors: s.errors,
+    })),
+  );
 
   const percent =
     totalFiles > 0 ? Math.round((processedFiles / totalFiles) * 100) : 0;

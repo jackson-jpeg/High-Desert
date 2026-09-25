@@ -16,6 +16,7 @@
  */
 
 import type { Episode } from "@/db/schema";
+import { NO_PROGRESS, type ProgressIndex } from "@/stores/progress-store";
 import { parseSearch, type ComparisonOp } from "@/lib/utils/search-parser";
 import {
   NO_COMMUNITY,
@@ -218,7 +219,12 @@ export function sortEpisodes(
   sortMode: SortMode,
   seriesFilter: string | null,
   community: CommunityIndex = NO_COMMUNITY,
+  progress: ProgressIndex = NO_PROGRESS,
 ): Episode[] {
+  // "recent" and "progress" order by the listener's progress, which lives in
+  // its own table (HD-016) and arrives as `progress`, keyed by fileHash.
+  const playedAt = (ep: Episode) => progress.get(ep.fileHash)?.lastPlayedAt ?? 0;
+  const position = (ep: Episode) => progress.get(ep.fileHash)?.playbackPosition ?? 0;
   if (seriesFilter) {
     // When filtering by series, sort by part number (fallback to airDate)
     return [...list].sort((a, b) => {
@@ -247,11 +253,11 @@ export function sortEpisodes(
       return gA.localeCompare(gB) || (a.airDate ?? "").localeCompare(b.airDate ?? "");
     });
   } else if (sortMode === "recent") {
-    return [...list].sort((a, b) => (b.lastPlayedAt ?? 0) - (a.lastPlayedAt ?? 0));
+    return [...list].sort((a, b) => playedAt(b) - playedAt(a));
   } else if (sortMode === "progress") {
     return [...list]
-      .filter((ep) => ep.duration && ep.playbackPosition && ep.playbackPosition / ep.duration > 0.05 && ep.playbackPosition / ep.duration < 0.95)
-      .sort((a, b) => (b.lastPlayedAt ?? 0) - (a.lastPlayedAt ?? 0));
+      .filter((ep) => ep.duration && position(ep) && position(ep) / ep.duration > 0.05 && position(ep) / ep.duration < 0.95)
+      .sort((a, b) => playedAt(b) - playedAt(a));
   } else if (isNumericSort(sortMode)) {
     // Descending on the sort's own number (sort-keys.ts) — the same number
     // the rail buckets and the column shows — then, for "rated", on how many
@@ -275,7 +281,8 @@ export function selectLibraryEpisodes(
   episodes: Episode[] | undefined,
   criteria: LibraryCriteria & { sortMode: SortMode },
   community: CommunityIndex = NO_COMMUNITY,
+  progress: ProgressIndex = NO_PROGRESS,
 ): Episode[] {
   if (!episodes) return [];
-  return sortEpisodes(filterEpisodes(episodes, criteria), criteria.sortMode, criteria.seriesFilter, community);
+  return sortEpisodes(filterEpisodes(episodes, criteria), criteria.sortMode, criteria.seriesFilter, community, progress);
 }

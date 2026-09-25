@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import type { Episode } from "@/db/schema";
+import type { Episode, Progress } from "@/db/schema";
+import type { ProgressIndex } from "@/stores/progress-store";
 import { sortEpisodes, SORT_MODES, type SortMode } from "@/lib/library/filter-episodes";
 import { deriveRailGroups, railKind } from "@/lib/library/rail-groups";
 import {
@@ -32,13 +33,15 @@ import { prng, randInt } from "@/test-support/prng";
 const NOW = 2_000_000_000_000;
 const DAY = 86_400_000;
 
-function randomLibrary(seed: number): { rows: Episode[]; community: CommunityIndex } {
+function randomLibrary(seed: number): { rows: Episode[]; community: CommunityIndex; progress: ProgressIndex } {
   const rand = prng(seed);
   const n = randInt(rand, 1, 80);
   const titles = ["Area 51", "zeta", "Échos", "#1 Night", "Mel's Hole", "ghosts", "Crop Circles", "Y2K"];
   const guests = ["", "Ed Dames", "linda howe", "Élan", "Art Bell", "#guest"];
   // A random date order first, then Dexie's airDate-desc, which is what the
   // page receives and what "date" keeps.
+  // When each was last played: the `progress` table (HD-016), by fileHash.
+  const progress = new Map<string, Progress>();
   const rows: Episode[] = Array.from({ length: n }, (_, i) => {
     const year = randInt(rand, 1988, 2013);
     const e: Episode = {
@@ -51,10 +54,11 @@ function randomLibrary(seed: number): { rows: Episode[]; community: CommunityInd
       airDate: rand() < 0.05 ? undefined : `${year}-0${randInt(rand, 1, 9)}-1${randInt(rand, 0, 9)}`,
       playCount: rand() < 0.4 ? randInt(rand, 0, 25) : undefined,
       rating: rand() < 0.3 ? randInt(rand, 1, 5) : undefined,
-      lastPlayedAt: rand() < 0.5 ? NOW - randInt(rand, 0, 90) * DAY - randInt(rand, 0, DAY) : undefined,
       createdAt: 0,
       updatedAt: 0,
     } as Episode;
+    const lastPlayedAt = rand() < 0.5 ? NOW - randInt(rand, 0, 90) * DAY - randInt(rand, 0, DAY) : undefined;
+    if (lastPlayedAt !== undefined) progress.set(e.fileHash, { fileHash: e.fileHash, lastPlayedAt });
     return e;
   }).sort((a, b) => (b.airDate ?? "").localeCompare(a.airDate ?? ""));
 
@@ -69,11 +73,11 @@ function randomLibrary(seed: number): { rows: Episode[]; community: CommunityInd
       });
     }
   }
-  return { rows, community };
+  return { rows, community, progress };
 }
 
 /** Each mode's key, and the direction it must never violate. */
-function orderKey(mode: SortMode, e: Episode, community: CommunityIndex): number | string {
+function orderKey(mode: SortMode, e: Episode, community: CommunityIndex, progress: ProgressIndex): number | string {
   if (isNumericSort(mode)) return sortValue(e, mode, community);
   switch (mode) {
     case "date":
@@ -85,7 +89,7 @@ function orderKey(mode: SortMode, e: Episode, community: CommunityIndex): number
       return (e.guestName || "").toLowerCase();
     case "recent":
     case "progress":
-      return e.lastPlayedAt ?? 0;
+      return progress.get(e.fileHash)?.lastPlayedAt ?? 0;
   }
 }
 
@@ -114,13 +118,13 @@ describe("every sort, over random libraries", () => {
   for (const mode of SORT_MODES) {
     it(`${mode}: monotonic on its own key`, () => {
       for (let seed = 1; seed <= 150; seed++) {
-        const { rows, community } = randomLibrary(seed);
-        const out = sortEpisodes(rows, mode, null, community);
+        const { rows, community, progress } = randomLibrary(seed);
+        const out = sortEpisodes(rows, mode, null, community, progress);
         // Rows with no date sit at the end of date-asc by design.
         const dated = mode === "date-asc" ? out.filter((e) => e.airDate) : out;
         for (let i = 1; i < dated.length; i++) {
-          const a = orderKey(mode, dated[i - 1], community);
-          const b = orderKey(mode, dated[i], community);
+          const a = orderKey(mode, dated[i - 1], community, progress);
+          const b = orderKey(mode, dated[i], community, progress);
           expect(inOrder(mode, a, b), `seed ${seed}: ${mode} row ${i - 1} (${a}) then ${i} (${b})`).toBe(true);
         }
       }
@@ -130,9 +134,9 @@ describe("every sort, over random libraries", () => {
   for (const mode of SORT_MODES.filter((m) => railKind(m) !== null)) {
     it(`${mode}: groups tile the list — header counts equal row counts`, () => {
       for (let seed = 1; seed <= 150; seed++) {
-        const { rows, community } = randomLibrary(seed);
-        const out = sortEpisodes(rows, mode, null, community);
-        const groups = deriveRailGroups(out, mode, null, NOW, community);
+        const { rows, community, progress } = randomLibrary(seed);
+        const out = sortEpisodes(rows, mode, null, community, progress);
+        const groups = deriveRailGroups(out, mode, null, NOW, community, progress);
         if (groups.length === 0) continue; // under two groups, or ungroupable: no headers at all
         expect(groups[0].firstIndex, `seed ${seed}`).toBe(0);
         let total = 0;
@@ -141,7 +145,7 @@ describe("every sort, over random libraries", () => {
           // Every row of the run belongs to this group: regroup the run alone
           // with a sentinel of another key after it and it must be one group.
           const run = out.slice(g.firstIndex, g.firstIndex + g.count);
-          const alone = deriveRailGroups([...run, ...out.slice(g.firstIndex + g.count, g.firstIndex + g.count + 1)], mode, null, NOW, community);
+          const alone = deriveRailGroups([...run, ...out.slice(g.firstIndex + g.count, g.firstIndex + g.count + 1)], mode, null, NOW, community, progress);
           if (i < groups.length - 1) expect(alone[0]?.count, `seed ${seed} group ${g.key}`).toBe(g.count);
           total += g.count;
         });

@@ -137,23 +137,6 @@ export async function getCachedAudio(fileHash: string): Promise<Blob | null> {
 }
 
 /**
- * Check if a cached audio entry exists and has non-zero size.
- * Use this for quick validation without reading the full blob.
- */
-export async function isCacheValid(fileHash: string): Promise<boolean> {
-  if (!isOPFSSupported()) return false;
-  try {
-    const dir = await getCacheDir();
-    const key = sanitizeKey(fileHash);
-    const fileHandle = await dir.getFileHandle(key);
-    const file = await fileHandle.getFile();
-    return file.size > 0;
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Pattern for handling stale OPFS blob URLs:
  *
  * When using getCachedAudio() to create a blob URL for an <audio> element,

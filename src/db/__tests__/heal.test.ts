@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import type { Episode } from "../schema";
+import type { Episode, StoredEpisode } from "../schema";
 
 /**
  * The exact-2× heal for libraries already doubled by the seed race (HD-009).
@@ -80,7 +80,7 @@ beforeEach(async () => {
   if (!db.isOpen()) await db.open();
   await Promise.all([
     db.episodes.clear(), db.history.clear(), db.bookmarks.clear(),
-    db.playlists.clear(), db.userPrefs.clear(),
+    db.playlists.clear(), db.userPrefs.clear(), db.progress.clear(),
   ]);
   serveCatalog();
 });
@@ -99,8 +99,14 @@ describe("healDoubledLibrary — a doubled library heals", SLOW, () => {
     await db.episodes.update(a2, { favoritedAt: 500, updatedAt: 2_000 });           // favourite on the twin
     await db.episodes.update(b1, { rating: 2, updatedAt: 2_000 });                  // older rating on keeper…
     await db.episodes.update(b2, { rating: 5, updatedAt: 3_000 });                  // …newer rating on twin
-    await db.episodes.update(c1, { playCount: 2, lastPlayedAt: 10_000, playbackPosition: 100 });
-    await db.episodes.update(c2, { playCount: 3, lastPlayedAt: 20_000, playbackPosition: 900 });
+    // lastPlayedAt / playbackPosition on the rows are the pre-v9 fields: a
+    // library doubled before the `progress` table (HD-016) carries them, and
+    // the merge still folds them (the v8 upgrade relies on it).
+    await db.episodes.update(c1, { playCount: 2, lastPlayedAt: 10_000, playbackPosition: 100 } as Partial<StoredEpisode>);
+    await db.episodes.update(c2, { playCount: 3, lastPlayedAt: 20_000, playbackPosition: 900 } as Partial<StoredEpisode>);
+    // Since v9 the live position is one entry per hash, which both twins
+    // share. The heal must leave it exactly as it was.
+    await db.progress.put({ fileHash: hC, playbackPosition: 950, lastPlayedAt: 30_000 });
     await db.episodes.update(d2, { flaggedAt: 777 });
 
     await db.history.bulkAdd([
@@ -135,8 +141,9 @@ describe("healDoubledLibrary — a doubled library heals", SLOW, () => {
     expect(byHash.get(hA)!.favoritedAt).toBe(500);
     expect(byHash.get(hB)!.rating).toBe(5);
     expect(byHash.get(hC)!.playCount).toBe(5);
-    expect(byHash.get(hC)!.lastPlayedAt).toBe(20_000);
-    expect(byHash.get(hC)!.playbackPosition).toBe(900);
+    expect((byHash.get(hC)! as StoredEpisode).lastPlayedAt).toBe(20_000);
+    expect((byHash.get(hC)! as StoredEpisode).playbackPosition).toBe(900);
+    expect(await db.progress.toArray()).toEqual([{ fileHash: hC, playbackPosition: 950, lastPlayedAt: 30_000 }]);
     expect(byHash.get(hD)!.flaggedAt).toBe(777);
 
     // History: all three rows survive, each on a live row of the same episode.

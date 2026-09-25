@@ -118,3 +118,11 @@ data-safety notes in `CLAUDE.md` — and it is why the runtime guard exists:
 `src/audio/duration-sanity.ts` catches an empty file at playback time and raises
 the error dialog instead of playing silence. Removing an episode from the seed
 stops it reaching new visitors; the guard covers everyone else.
+
+Since 2026-09-25 those visitors are also told. Every pulled `fileHash` is listed
+in `src/lib/library/removed-episodes.ts` (a test holds that list equal to the
+JSON records in this file), and a listed row shows **Unavailable** in the list
+and detail panel, refuses to play with an explanation instead of fetching the
+empty file, and offers **Remove from my library** — the listener's decision,
+through the library's delete confirmation and `deleteEpisode()`. Nothing deletes
+it automatically. **Adding a section here means adding its hash there.**

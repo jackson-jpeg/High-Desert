@@ -1,4 +1,4 @@
-import type { Episode } from "@/db/schema";
+import type { Episode, Progress } from "@/db/schema";
 import { communityKey } from "@/lib/utils/community-key";
 
 /**
@@ -65,20 +65,29 @@ export function draftToFields(draft: EpisodeEditDraft): Partial<Episode> {
 // Playback
 // ---------------------------------------------------------------------------
 
-/** "Played 3x · yesterday · 42% heard" — empty when there is nothing to say. */
-export function formatPlayStats(episode: Episode, now: number = Date.now()): string {
+/**
+ * "Played 3x · yesterday · 42% heard" — empty when there is nothing to say.
+ * `progress` is the episode's entry in the `progress` table (HD-016).
+ */
+export function formatPlayStats(
+  episode: Episode,
+  progress: Progress | undefined,
+  now: number = Date.now(),
+): string {
   const parts: string[] = [];
   if (episode.playCount != null && episode.playCount > 0) {
     parts.push(`Played ${episode.playCount}x`);
   }
-  if (episode.lastPlayedAt != null && episode.lastPlayedAt > 0) {
-    const ago = now - episode.lastPlayedAt;
+  const lastPlayedAt = progress?.lastPlayedAt;
+  if (lastPlayedAt != null && lastPlayedAt > 0) {
+    const ago = now - lastPlayedAt;
     const days = Math.floor(ago / 86400000);
-    const label = days === 0 ? "today" : days === 1 ? "yesterday" : days < 7 ? `${days}d ago` : new Date(episode.lastPlayedAt).toLocaleDateString();
+    const label = days === 0 ? "today" : days === 1 ? "yesterday" : days < 7 ? `${days}d ago` : new Date(lastPlayedAt).toLocaleDateString();
     parts.push(label);
   }
-  if (episode.duration && episode.playbackPosition) {
-    const pct = Math.round((episode.playbackPosition / episode.duration) * 100);
+  const position = progress?.playbackPosition;
+  if (episode.duration && position) {
+    const pct = Math.round((position / episode.duration) * 100);
     if (pct > 0 && pct < 100) parts.push(`${pct}% heard`);
     else if (pct >= 100) parts.push("completed");
   }
@@ -90,8 +99,11 @@ export function formatPlayStats(episode: Episode, now: number = Date.now()): str
  * at 100, and whether that counts as nearly finished (past 90%, drawn green).
  * `null` when there is no position or no known duration to measure it against.
  */
-export function playbackProgress(episode: Episode): { percent: number; nearlyDone: boolean } | null {
-  const pos = episode.playbackPosition;
+export function playbackProgress(
+  episode: Episode,
+  progress: Progress | undefined,
+): { percent: number; nearlyDone: boolean } | null {
+  const pos = progress?.playbackPosition;
   const dur = episode.duration;
   if (pos == null || pos <= 0 || dur == null || dur <= 0) return null;
   return {

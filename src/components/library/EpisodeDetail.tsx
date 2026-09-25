@@ -14,6 +14,7 @@ import { EpisodeRating, useCommunityRating } from "@/components/library/EpisodeR
 import { SeriesPartsList } from "@/components/library/SeriesPartsList";
 import { useSwipeDown } from "@/hooks/useSwipeDown";
 import { cn } from "@/lib/utils/cn";
+import { removedFromCatalog } from "@/lib/library/removed-episodes";
 
 interface EpisodeDetailProps {
   episode: Episode;
@@ -21,6 +22,12 @@ interface EpisodeDetailProps {
   onPlay: (episode: Episode) => void;
   onClose: () => void;
   onDelete?: (episode: Episode) => void;
+  /**
+   * "Remove from my library" for an episode pulled from the catalog. Offered to
+   * every visitor, not only admins — it is their row — and it only *requests*
+   * the removal: the page's confirmation and deleteEpisode() do the rest.
+   */
+  onRemoveUnavailable?: (episode: Episode) => void;
   onEdit?: (id: number, fields: Partial<Episode>) => void;
   onToggleFavorite?: (episode: Episode) => void;
   communityPlays?: number;
@@ -39,11 +46,13 @@ export function EpisodeDetail({
   onPlay,
   onClose,
   onDelete,
+  onRemoveUnavailable,
   onEdit,
   onToggleFavorite,
   communityPlays,
   className,
 }: EpisodeDetailProps) {
+  const removed = removedFromCatalog(episode);
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -111,6 +120,28 @@ export function EpisodeDetail({
           <EpisodeEditForm episode={episode} onSave={handleSave} onCancel={() => setEditing(false)} />
         ) : (
           <>
+            {removed && (
+              <div
+                data-unavailable=""
+                role="note"
+                className="w98-inset-dark bg-inset-well p-2 flex flex-col gap-1.5"
+              >
+                <span className="text-hd-micro text-red-400 uppercase tracking-wide">Unavailable</span>
+                <span className="text-hd-caption text-desktop-gray">
+                  Removed from the catalog. {removed.reason} It stays in your library until you remove it.
+                </span>
+                {onRemoveUnavailable && (
+                  <button
+                    type="button"
+                    onClick={() => onRemoveUnavailable(episode)}
+                    className="self-start text-hd-caption text-desert-amber hover:underline min-h-touch md:min-h-0"
+                  >
+                    Remove from my library
+                  </button>
+                )}
+              </div>
+            )}
+
             <EpisodeOverview episode={episode} communityPlays={communityPlays} />
 
             {/* Bookmarks */}

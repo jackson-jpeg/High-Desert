@@ -12,7 +12,20 @@ export const SEED_VERSION = "2026-07-27-a";
 
 const RECONCILED_PREF = "seed-reconciled";
 const TOMBSTONE_PREF = "deleted-hashes";
+/**
+ * Cap on tombstones for anything that is *not* an archive.org row (local
+ * files). Archive rows are never dropped by it: those are the ones reconcile
+ * and the doubled-library heal consult, and ageing a catalog tombstone out
+ * resurrected a show the listener had deleted (HD-040). They are bounded by
+ * what exists to delete — 1,312 catalog rows plus whatever the visitor
+ * imported — so the list cannot grow without bound either way.
+ */
 const MAX_TOMBSTONES = 2000;
+
+/** Archive-keyed hashes (`archive:{identifier}:{file}`) — never aged out. */
+function isArchiveHash(hash: string): boolean {
+  return hash.startsWith("archive:");
+}
 
 /**
  * Stable identity for a catalog row. Every shipped row carries its own
@@ -179,8 +192,10 @@ export async function addTombstone(fileHash: string): Promise<void> {
     const existing = JSON.parse((await getPreference(TOMBSTONE_PREF)) ?? "[]") as string[];
     if (existing.includes(fileHash)) return;
     existing.push(fileHash);
-    // Keep the most recent entries only
-    const capped = existing.slice(-MAX_TOMBSTONES);
+    // Keep the most recent local-file entries only; every archive entry stays.
+    const local = existing.filter((h) => !isArchiveHash(h));
+    const dropped = new Set(local.slice(0, Math.max(0, local.length - MAX_TOMBSTONES)));
+    const capped = existing.filter((h) => !dropped.has(h));
     await setPreference(TOMBSTONE_PREF, JSON.stringify(capped));
   } catch {
     // Tombstones are best-effort — never block a delete on this

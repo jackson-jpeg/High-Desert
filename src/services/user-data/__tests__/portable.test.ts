@@ -35,6 +35,7 @@ vi.mock("@/audio/cache", () => ({
 const { db, setPreference, getPreference } = await import("@/db");
 const { toEpisodeRow } = await import("@/db/seed");
 const m = await import("@/services/episodes/management");
+const { writeProgress } = await import("@/services/episodes/progress");
 const {
   buildUserDataExport, parseUserData, previewUserDataImport, importUserData, isEmptyImport,
   USER_DATA_FORMAT, USER_DATA_VERSION,
@@ -68,9 +69,6 @@ const SMALL = SEED.slice(0, 70);
 async function idOf(hash: string): Promise<number> {
   return (await db.episodes.where("fileHash").equals(hash).first())!.id!;
 }
-async function ep(hash: string) {
-  return (await db.episodes.where("fileHash").equals(hash).first())!;
-}
 
 /** Everything a listener owns, as {hash → …}: comparable across profiles. */
 async function snapshot() {
@@ -80,7 +78,8 @@ async function snapshot() {
     favourites: eps.filter((e) => e.favoritedAt).map((e) => e.fileHash).sort(),
     ratings: Object.fromEntries(eps.filter((e) => e.rating).map((e) => [e.fileHash, e.rating])),
     flags: eps.filter((e) => e.flaggedAt).map((e) => e.fileHash).sort(),
-    positions: Object.fromEntries(eps.filter((e) => e.playbackPosition).map((e) => [e.fileHash, e.playbackPosition])),
+    // Positions live in the `progress` table (HD-016), keyed by fileHash.
+    positions: Object.fromEntries((await db.progress.toArray()).filter((p) => p.playbackPosition).map((p) => [p.fileHash, p.playbackPosition])),
     history: (await db.history.toArray()).map((h) => `${byId.get(h.episodeId)}@${h.timestamp}`).sort(),
     bookmarks: (await db.bookmarks.toArray()).map((b) => `${byId.get(b.episodeId)}@${b.position}:${b.label}`).sort(),
     playlists: Object.fromEntries((await db.playlists.toArray()).map((p) => [p.name, p.episodeIds.map((id) => byId.get(id))])),
@@ -94,9 +93,9 @@ async function listen(): Promise<void> {
   await m.rateEpisode(await idOf(H[0]), 5);
   await m.rateEpisode(await idOf(H[20]), 3);
   await m.toggleFlag(await idOf(H[30]));
-  // What the player's position timer writes.
-  await db.episodes.update(await idOf(H[10]), { playbackPosition: 4321, lastPlayedAt: 2_000 });
-  await db.episodes.update(await idOf(H[40]), { playbackPosition: 60, lastPlayedAt: 1_000 });
+  // What the player's position timer writes — through its own writer.
+  await writeProgress(H[10], { playbackPosition: 4321, lastPlayedAt: 2_000 });
+  await writeProgress(H[40], { playbackPosition: 60, lastPlayedAt: 1_000 });
   // What the layout writes when a show starts.
   await db.history.add({ episodeId: await idOf(H[10]), timestamp: 1_500, duration: 3600, episodeTitle: SEED[10].title as string });
   await db.history.add({ episodeId: await idOf(H[40]), timestamp: 900, duration: 60 });
@@ -150,7 +149,7 @@ describe("export → fresh profile → import", () => {
 
     expect(await importUserData(data)).toEqual(preview);
     expect(await snapshot()).toEqual(EXPECTED);
-    expect((await ep(H[10])).lastPlayedAt).toBe(2_000);
+    expect((await db.progress.get(H[10]))?.lastPlayedAt).toBe(2_000);
     expect(await getPreference("text-scale")).toBe("1.15");
     expect(await getPreference("queue-ids")).toBeUndefined();
     // Nothing else in the catalog was touched.
@@ -195,7 +194,7 @@ describe("import into a profile that already has data keeps both", () => {
     const late = (await db.playlists.add({ name: "Late night", episodeIds: [await idOf(H[50])], createdAt: 1, updatedAt: 1 })) as number;
     await db.playlists.add({ name: "Other", episodeIds: [await idOf(H[60])], createdAt: 1, updatedAt: 1 });
     // A more recent listen here than the file's.
-    await db.episodes.update(await idOf(H[10]), { playbackPosition: 99, lastPlayedAt: 9_000 });
+    await writeProgress(H[10], { playbackPosition: 99, lastPlayedAt: 9_000 });
     await setPreference("text-scale", "1.3");
 
     await importUserData(parsed(text));

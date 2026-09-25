@@ -1,4 +1,5 @@
 import { useOutageStore, type MirrorManifest } from "@/stores/outage-store";
+import { safeSetItem } from "@/lib/utils/safe-storage";
 
 /**
  * The mirror's playable set (`GET /mirror/manifest`, services/mirror), cached.
@@ -75,11 +76,8 @@ export async function loadManifest({ force = false }: { force?: boolean } = {}):
     const etag = res.headers.get("ETag") ?? undefined;
     const wire: WireManifest = { version: body.version, fileHashes: body.fileHashes, ...(etag ? { etag } : {}) };
     useOutageStore.getState().setManifest(toManifest(wire));
-    try {
-      localStorage.setItem(MANIFEST_STORAGE_KEY, JSON.stringify(wire));
-    } catch {
-      /* quota or blocked storage: the in-memory copy still serves this page */
-    }
+    // Quota or blocked storage: the in-memory copy still serves this page.
+    safeSetItem("local", MANIFEST_STORAGE_KEY, JSON.stringify(wire));
   } catch {
     lastFetchedAt = 0;
   }

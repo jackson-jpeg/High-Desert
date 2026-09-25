@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { planReconcile, seedFileHash, toEpisodeRow } from "../seed";
+import type { StoredEpisode } from "../schema";
 
 /**
  * reconcileLibrary() restores catalog episodes deleted by the dedup bug.
@@ -79,8 +80,8 @@ describe("toEpisodeRow", () => {
     expect(row.createdAt).toBe(1234);
     // Restored rows must not invent playback state
     expect(row.playCount).toBeUndefined();
-    expect(row.playbackPosition).toBeUndefined();
-    expect(row.lastPlayedAt).toBeUndefined();
+    expect((row as StoredEpisode).playbackPosition).toBeUndefined();
+    expect((row as StoredEpisode).lastPlayedAt).toBeUndefined();
   });
 
   it("maps every catalog row without throwing", () => {

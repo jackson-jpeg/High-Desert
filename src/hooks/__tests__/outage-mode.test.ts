@@ -38,6 +38,7 @@ vi.mock("@/audio/engine", () => ({
 vi.mock("@/db", () => ({
   db: {
     episodes: { update: () => Promise.resolve(1) },
+    progress: { upsert: () => Promise.resolve(true) },
     history: { where: () => ({ equals: () => ({ sortBy: () => Promise.resolve([]) }) }), add: () => Promise.resolve(1) },
     transaction: (_m: string, _t: unknown, fn: () => Promise<void>) => fn(),
     userPrefs: { get: () => Promise.resolve(undefined), put: () => Promise.resolve() },

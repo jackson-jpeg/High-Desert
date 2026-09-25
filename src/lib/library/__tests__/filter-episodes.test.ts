@@ -2,7 +2,8 @@ import { communityKey } from "@/lib/utils/community-key";
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import type { Episode } from "@/db/schema";
+import type { Episode, StoredEpisode } from "@/db/schema";
+import type { ProgressIndex } from "@/stores/progress-store";
 import {
   filterEpisodes,
   sortEpisodes,
@@ -43,13 +44,20 @@ const ids = (list: Episode[]) => list.map((e) => e.id);
 
 // airDate descending, as Dexie hands it to the page.
 const LIB: Episode[] = [
-  ep({ id: 1, airDate: "1999-05-01", title: "Area 51 Caller", showType: "coast", guestName: "Richard Hoagland", aiCategory: "UFOs & Aliens", aiTags: ["Mars", "NASA"], duration: 3 * 3600, favoritedAt: 100, rating: 5, playCount: 3, lastPlayedAt: 50, playbackPosition: 5400, aiSummary: "s", topic: "Face on Mars" }),
-  ep({ id: 2, airDate: "1998-10-31", title: "Ghost to Ghost", showType: "special", guestName: "Various", aiCategory: "Paranormal", aiTags: ["ghosts"], duration: 2 * 3600, rating: 3, playCount: 1, lastPlayedAt: 90, aiNotable: true }),
+  ep({ id: 1, airDate: "1999-05-01", title: "Area 51 Caller", showType: "coast", guestName: "Richard Hoagland", aiCategory: "UFOs & Aliens", aiTags: ["Mars", "NASA"], duration: 3 * 3600, favoritedAt: 100, rating: 5, playCount: 3, aiSummary: "s", topic: "Face on Mars" }),
+  ep({ id: 2, airDate: "1998-10-31", title: "Ghost to Ghost", showType: "special", guestName: "Various", aiCategory: "Paranormal", aiTags: ["ghosts"], duration: 2 * 3600, rating: 3, playCount: 1, aiNotable: true }),
   ep({ id: 3, airDate: "1997-03-13", title: "Mel's Hole Part 1", showType: "coast", guestName: "Mel Waters", aiCategory: "Paranormal", aiSeries: "Mel's Hole", aiSeriesPart: 1, duration: 3600, description: "A bottomless pit in Washington" }),
   ep({ id: 4, airDate: "1996-02-24", title: "Mel's Hole Part 2", showType: "coast", guestName: "Mel Waters", aiCategory: "Paranormal", aiSeries: "Mel's Hole", aiSeriesPart: 2, duration: 3600 }),
   ep({ id: 5, airDate: "1995-01-01", title: "Dreamland Hour", showType: "dreamland", guestName: "Linda Moulton Howe", aiCategory: "Earth Changes", duration: 10 * 60 }),
   ep({ id: 6, airDate: "1994-06-06", fileName: "unknown-show.mp3" }),
 ];
+
+// Where the listener is and when they last played — the `progress` table
+// (HD-016), keyed by fileHash, handed to the sorts that order by it.
+const PROGRESS: ProgressIndex = new Map([
+  ["archive:coll:1.mp3", { fileHash: "archive:coll:1.mp3", lastPlayedAt: 50, playbackPosition: 5400 }],
+  ["archive:coll:2.mp3", { fileHash: "archive:coll:2.mp3", lastPlayedAt: 90 }],
+]);
 
 describe("filterEpisodes — empty criteria", () => {
   it("is the identity: same array, same order", () => {
@@ -174,14 +182,15 @@ describe("filterEpisodes — free text", () => {
 });
 
 describe("sortEpisodes", () => {
-  const sort = (mode: SortMode, list = LIB, series: string | null = null) => ids(sortEpisodes(list, mode, series));
+  const sort = (mode: SortMode, list = LIB, series: string | null = null) =>
+    ids(sortEpisodes(list, mode, series, undefined, PROGRESS));
 
   it("date keeps the input order (Dexie's airDate desc) and returns the input", () => {
     expect(sortEpisodes(LIB, "date", null)).toBe(LIB);
   });
   it("never mutates its input", () => {
     const before = ids(LIB);
-    for (const m of ["date-asc", "name", "guest", "recent", "progress", "rated", "played"] as SortMode[]) sortEpisodes(LIB, m, null);
+    for (const m of ["date-asc", "name", "guest", "recent", "progress", "rated", "played"] as SortMode[]) sortEpisodes(LIB, m, null, undefined, PROGRESS);
     sortEpisodes(LIB, "date", "Mel's Hole");
     expect(ids(LIB)).toEqual(before);
   });
@@ -213,6 +222,15 @@ describe("sortEpisodes", () => {
   it("progress keeps only 5%–95% played and sorts by lastPlayedAt", () => {
     // Episode 1: 5400 / 10800 = 50%.
     expect(sort("progress")).toEqual([1]);
+  });
+  it("recent and progress read the progress index, never the frozen pre-v9 fields on a row (HD-016)", () => {
+    // Rows written before v9 still carry the old fields, deliberately stale:
+    // here they claim 3 was played last and is half-way through.
+    const stale = LIB.map((e) =>
+      e.id === 3 ? ({ ...e, lastPlayedAt: 1e12, playbackPosition: 1800 } as StoredEpisode) : e,
+    );
+    expect(ids(sortEpisodes(stale, "recent", null, undefined, PROGRESS)).slice(0, 2)).toEqual([2, 1]);
+    expect(ids(sortEpisodes(stale, "progress", null, undefined, PROGRESS))).toEqual([1]);
   });
   it("my-rating sorts by this browser's rating desc, then airDate desc", () => {
     expect(sort("my-rating")).toEqual([1, 2, 3, 4, 5, 6]);

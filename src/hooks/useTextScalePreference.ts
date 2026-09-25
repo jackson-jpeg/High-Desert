@@ -5,6 +5,7 @@ import { getPreference, setPreference } from "@/db";
 import { toast } from "@/stores/toast-store";
 import { useTextScale } from "@/hooks/useTextScale";
 import { emit } from "@/lib/events";
+import { safeSetItem } from "@/lib/utils/safe-storage";
 
 export type TextScaleValue = "1" | "1.15" | "1.3";
 
@@ -33,7 +34,8 @@ export function toTextScaleValue(scale: number): TextScaleValue {
 export function applyTextScale(value: TextScaleValue): void {
   document.documentElement.style.setProperty("--hd-text-scale", value);
   emit("text-scale");
-  localStorage.setItem("hd-text-scale", value);
+  // Best-effort: without it a reload paints at 1x until Dexie is read.
+  safeSetItem("local", "hd-text-scale", value);
 }
 
 export interface TextScalePreference {

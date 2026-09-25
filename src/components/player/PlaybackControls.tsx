@@ -320,13 +320,13 @@ function VolumeKnob({ volume }: { volume: number }) {
       className="hidden md:block flex-shrink-0"
       aria-hidden="true"
     >
-      <circle cx={cx} cy={cy} r={r} fill="var(--color-bevel-dark, #2a2a2a)" stroke="var(--color-bevel-dark, #333)" strokeWidth={1} />
+      <circle cx={cx} cy={cy} r={r} fill="var(--color-bevel-dark)" stroke="var(--color-bevel-dark)" strokeWidth={1} />
       <line
         x1={cx}
         y1={cy}
         x2={nx}
         y2={ny}
-        stroke="var(--color-desert-amber, #d4a84b)"
+        stroke="var(--color-desert-amber)"
         strokeWidth={1.5}
         strokeLinecap="round"
       />

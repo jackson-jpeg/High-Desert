@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import type { Episode } from "../schema";
+import type { StoredEpisode } from "../schema";
 
 /**
  * The curated notable list (Part 1C): `data/notable.json`, its cited table in
@@ -39,7 +39,8 @@ async function seedPreFlagLibrary(): Promise<void> {
   const rows = catalogRows.map((r, i) => {
     const { aiNotable: _drop, ...rest } = r;
     void _drop;
-    const row = { ...toEpisodeRow(rest, 1_000), lastPlayedAt: 0 } as Episode;
+    // Pre-flag libraries predate the `progress` table too: position on the row.
+    const row = { ...toEpisodeRow(rest, 1_000), lastPlayedAt: 0 } as StoredEpisode;
     // User data on some of the notable rows and some of the others.
     if (i % 7 === 0) row.favoritedAt = 5_000 + i;
     if (i % 11 === 0) row.rating = (i % 5) + 1;

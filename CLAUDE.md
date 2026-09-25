@@ -91,7 +91,7 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/mirror/{fileHash}` | GET | **Not Next.js — nginx alone** (`services/mirror/lib/nginx.mjs`). The episode's MP3: a pinned one off disk, anything else in the catalog filled from archive.org through nginx's slice cache. Byte ranges: `206` + `Content-Range`, `416` for an unsatisfiable range. **404** for anything not in the catalog; **502** when a fill cannot reach archive.org. GET/HEAD only. See "archive.org outage mirror" |
 | `/mirror/manifest` | GET | **Not Next.js** — a static file (`/var/lib/highdesert-mirror/manifest.json`, written atomically by the warm job). What the mirror can play with archive.org gone: **`{version, count, pinned, fileHashes: [...]}`** — every pinned episode whole on disk (`count` = `pinned`). `version` is a digest of the list; the **`ETag` is nginx's**, and `If-None-Match` with it gets a 304. `Cache-Control: max-age=60`. Outage mode's input (`src/services/mirror/manifest.ts`) |
 | `/mirror/magnet/{fileHash}` | GET | Static: **`{infohash, magnet}`** for the episode's own single-file torrent (trackers, the archive.org webseed as `ws=`; no `x.pe` — nothing here seeds). 404 outside the catalog. The episode sheet's "Magnet link" |
-| `/api/stats/failures` | GET | Which episodes are failing, worst first. `?days=7\|30\|90`. Returns **`{days, summary, entries: [{episodeId, title, failures, recovered, skippedRetries, plays, rate, kinds, uaClasses, details, lastAt}]}`**. Ids resolved to titles from the seed catalog. `details` is the browser's own diagnostics (up to 3 distinct, newest first), **filtered to diagnostic shapes** — the raw text is attacker-controlled (`publicDetails`, HD-038). `skippedRetries` counts retries not attempted for want of a user gesture, excluding `empty-media`, which is never retried by design — it is the instrument for the activation gate. `summary` is site-wide and is deliberately **not** a sum of `entries`, which is capped at 50 episodes. **Excludes advisory kinds** (`ADVISORY_KINDS` in `src/services/stats/store.ts`) — this ranks episodes by how badly they are failing, and a row that never stopped playback would inflate that. Unauthenticated — it is aggregate-only, and the admin gate is presentation, not protection. `?since=<ISO>` adds **`window: {from, to, failures, plays}`**, the fixed 7 days from that instant (cut at now) — how `highdesert-status` holds a release to `docs/reliability-baseline.md` |
+| `/api/stats/failures` | GET | Which episodes are failing, worst first. `?days=7\|30\|90`. Returns **`{days, summary, entries: [{episodeId, title, failures, recovered, skippedRetries, plays, rate, kinds, uaClasses, details, lastAt}]}`**. Ids resolved to titles from the seed catalog. `details` is the browser's own diagnostics (up to 3 distinct, newest first), **filtered to diagnostic shapes** — the raw text is attacker-controlled (`publicDetails`, HD-038). `skippedRetries` counts retries not attempted for want of a user gesture, excluding `empty-media`, which is never retried by design — it is the instrument for the activation gate. `summary` is site-wide and is deliberately **not** a sum of `entries`, which is capped at 50 episodes. **Excludes advisory kinds** (`ADVISORY_KINDS` in `src/services/stats/db/failures.ts`) — this ranks episodes by how badly they are failing, and a row that never stopped playback would inflate that. Unauthenticated — it is aggregate-only, and the admin gate is presentation, not protection. `?since=<ISO>` adds **`window: {from, to, failures, plays}`**, the fixed 7 days from that instant (cut at now) — how `highdesert-status` holds a release to `docs/reliability-baseline.md` |
 | `/api/stats/export` | GET | **The permanent record, for sang3r.com.** Requires `x-service-token` (`STATS_EXPORT_SECRET`). `?mode=summary\|events\|daily\|episodes`. The only route that returns the event log rather than aggregates, and the only one not reachable from a browser. Episode ids are resolved to titles from the seed catalog. Page `events` with `after=<last id>` — **not** with `since`, which cannot disambiguate two plays sharing a timestamp |
 
 > Response shapes are inconsistent by history, not design. `src/services/stats/client.ts`
@@ -144,7 +144,8 @@ src/
 │   ├── archive/          # Archive.org client, scraper, filename parser
 │   ├── scanner/          # File scanner, hasher, metadata extractor, filename parser
 │   ├── episodes/         # Episode CRUD, favorites, ratings, bookmarks, playlists
-│   └── stats/            # Community stats client + Postgres queries
+│   └── stats/            # Community stats client + Postgres queries (db/: pool, presence,
+│                         #   plays, ratings, traffic, failures, export; store.ts re-exports)
 ├── stores/               # Zustand stores
 └── styles/               # win98.css, animations.css, crt.css, radio.css
 ```
@@ -163,8 +164,9 @@ src/
 | `useAdminStore` | `isAdmin` — SHA-256 password gate, persisted in localStorage |
 | `useContextMenuStore` | `open`, `position`, `items[]` |
 | `useOutageStore` | `archiveUp` (verdict, null = unknown), `manifest`, `unavailable` — see "Outage mode" |
+| `useProgressStore` | `byHash` (fileHash → `Progress`), `started`, `loaded` — the in-memory mirror of the `progress` table; see "Playback position lives in `progress`" |
 
-All ten have tests in `src/stores/__tests__/` and at least one mutation each in
+All eleven have tests in `src/stores/__tests__/` and at least one mutation each in
 `scripts/mutate-check.mjs` — and `src/stores/__tests__/coverage.test.ts`
 *checks* that sentence, reading the stores from disk and the mutation list from
 the script itself. It used to be false for `player-store` (HD-042) and nothing
@@ -229,6 +231,7 @@ heard. Keys that merely announce something (`HD_NOTIFICATIONS`: `seed-settled`,
 | Key | Emitted by | Heard by |
 |---|---|---|
 | `play-episode` | library, stats, radio, search, palette, player, queue, stores | `(desktop)/layout.tsx` |
+| `episode-unavailable` | `useAudioPlayer`, `(desktop)/layout.tsx` (a pulled episode) | `UnavailableEpisodeDialog` |
 | `scan-preview`, `scan-preview-stop` | `useRadioDial` | `(desktop)/layout.tsx` |
 | `filter-tag`, `filter-category`, `filter-series`, `show-guest` | `EpisodeCard`, `EpisodeDetail` (on /library) | `useLibraryBusListeners` |
 | `easter-egg` | layout keys, library, `SearchBar` | `DesktopShell` |
@@ -302,6 +305,12 @@ write a hex in either. Seven values were previously declared independently in bo
 namespaces, and four dark-bevel hexes appeared as raw literals a dozen times each
 inside `win98.css`.
 
+**No hex anywhere else in `src/`** (HD-036) — `src/lib/__tests__/no-raw-hex.test.ts` fails
+on one, on a `var(--hd-*)` that is not defined, and on palette drift. Where `var()` cannot
+reach — canvas `fillStyle`, `next/og`, `<meta theme-color>`, the boot splash,
+`global-error.tsx` — import `PALETTE` from `src/lib/palette.ts`, a copy the same test holds
+key-for-key equal to globals.css. A new colour is a new `--hd-*` property first.
+
 Use `min-h-touch` / `min-w-touch` (44px, `--spacing-touch`) for tap targets rather than
 a literal. Note the common pairing `min-h-touch md:min-h-0` — the floor is a mobile
 concern, so measure it at a mobile viewport or you will read `0px` and think it broke.
@@ -347,9 +356,12 @@ concluded it was their own mistake. Regression test:
   `playing`; MediaSession play/pause call `resumePlayback`/`pausePlayback` explicitly,
   never a toggle — a headset "pause" must never start audio.
 - **Finished means start over.** `startPositionFor()`: within 30 s of the end or past 95%
-  starts at 0, and `ended` clears `playbackPosition`. Position is saved every 30 s
+  starts at 0, and `ended` clears the saved position. Position is saved every 30 s
   (`POSITION_SAVE_MS`) plus on pause, `visibilitychange` and `pagehide`; the save is
-  caught, never an unhandled rejection.
+  caught, never an unhandled rejection. Saves go to the `progress` table through
+  `writeProgress()`, and every start reads the position synchronously with
+  `positionOf(fileHash)` — never from the episode row (see "Playback position lives in
+  `progress`").
 - **Only the leaves in `PositionReadouts.tsx` subscribe to `position`.** It changes four
   times a second; `AudioPlayer` selecting it re-rendered the whole player per tick.
   `render-pressure.test.tsx` holds that.
@@ -417,11 +429,26 @@ concluded it was their own mistake. Regression test:
   `GlobalKey`; reusing an existing one silently disables one of them.
   Regression test: `src/hooks/__tests__/global-listeners.test.ts`, which mounts the hook
   **twice** — the way production does — and asserts each subsystem installs exactly once.
+- **`useAudioPlayer.ts` is the start/stop/seek surface and the wiring; the rest is in
+  `src/hooks/player/`** (HD-018): `globals.ts` (`withGlobals`, `GlobalKey`),
+  `play-session.ts` (`openListen`/`armListen`/`countListen`, the watchdog's failure and
+  failover handlers — not to be confused with `src/audio/play-session.ts`, the start
+  token), `media-events.ts` (the element listeners), `persistence.ts` (position tick,
+  position saves, unload flush, `POSITION_SAVE_MS`) and `media-session.ts`. Every
+  `withGlobals` call stays in `useAudioPlayer.ts`, one per key, so the keys can be read
+  in one place; the modules export plain `install*()` functions that return their teardown.
 - **The service worker must never see media.** `public/sw.js` returns early for
   `Range` requests, `destination === "audio"`, archive.org hosts and audio extensions.
   It never cached audio, so `respondWith()` bought nothing while defeating native
   byte-range handling and turning network failures into a body-less 504 that the
   element reports as "source not supported".
+- **Offline, an API call gets JSON, never an empty 504** (HD-034). The worker keeps the
+  last good answer of a same-origin `GET /api/stats/*` and serves it only when the network
+  fails; anything else under `/api/` offline is `503 {"error":"offline"}`. **Presence is
+  never cached** — `/api/stats/now`, its alias `/active` (and `/export`) are on
+  `API_NEVER_CACHE`, and a `no-store`/`private` response is never kept: a stale on-air list
+  is worse than none. POSTs and the archive.org proxies are never cached. Tested against
+  the real script in `src/lib/__tests__/service-worker.test.ts`.
 
 ## archive.org outage mirror — read before touching `src/audio/sources.ts` or `services/mirror/`
 
@@ -477,7 +504,7 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   is the static catalog file; the magnet's webseed is archive.org, with no `x.pe`
   (nothing here seeds).
 - **Client failover** (`src/audio/sources.ts`, `playback-watchdog.ts`,
-  `useAudioPlayer.ts`): `resolveSources()` is archive.org then
+  `useAudioPlayer.ts`, `src/hooks/player/play-session.ts`): `resolveSources()` is archive.org then
   `/mirror/{fileHash}`; only catalog episodes have a mirror, and while archive.org
   is known down a show the manifest lacks has none (outage mode, below). On a watchdog
   `network-error`, `stall` or `timeout` — **never `play-rejected`**, which is the
@@ -573,11 +600,53 @@ Related: the library's detail panel renders `selectedEpisodeLive`, re-read from 
 live query, not the `useState` snapshot taken when the row was clicked. Writes made from
 inside the panel are otherwise invisible until it is closed and reopened.
 
-## Database (Dexie v8)
+## Database (Dexie v9)
 
-**Primary entity:** `Episode` — identity (id, fileHash), metadata (title, airDate, guestName, showType), audio (duration, bitrate), playback (lastPlayedAt, playbackPosition, playCount), archive source, AI fields (aiSummary, aiTags[], aiCategory, aiSeries, aiNotable, aiStatus), user fields (favoritedAt, rating).
+**Primary entity:** `Episode` — identity (id, fileHash), metadata (title, airDate, guestName, showType), audio (duration, bitrate), playCount, archive source, AI fields (aiSummary, aiTags[], aiCategory, aiSeries, aiNotable, aiStatus), user fields (favoritedAt, rating).
 
-**Other tables:** `Playlist`, `HistoryEntry`, `Bookmark`, `ScanSession`, `UserPrefs` (key/value).
+**Other tables:** `Progress` (below), `Playlist`, `HistoryEntry`, `Bookmark`, `ScanSession`, `UserPrefs` (key/value).
+
+### Playback position lives in `progress` (v9, HD-016)
+
+`playbackPosition` and `lastPlayedAt` are **not** on the episode row any more. They
+live in `db.progress` (`Progress {fileHash, playbackPosition?, lastPlayedAt?}`, schema
+`"fileHash, lastPlayedAt"`). Every position save used to be a write to `episodes`,
+which re-ran every live query over the whole table — the library list, facets, smart
+playlists, stats — every 30 s of playback and on every pause.
+`src/hooks/library/__tests__/position-save-quiet.test.tsx` drives the real saves against
+the library's real query (`useLibraryEpisodes`) and holds its render count still, with a
+control proving an episodes write does wake it.
+
+- **Keyed by `fileHash`**, not the numeric id: it is what Export/Import travel by, the
+  dedup/heal/legacy-key merges retire ids but never hashes, a doubled library's twins
+  share one entry, and the unload flush can `put` without reading the episode first.
+- **One writer: `writeProgress()`** (`src/services/episodes/progress.ts`) — patches
+  `useProgressStore` synchronously, then upserts the table. The one exception is the
+  unload flush, a raw IndexedDB `put` into `progress` (Dexie cannot run in unload) that
+  patches the store itself.
+- **Reads are synchronous, from `useProgressStore`** (`positionOf`, `useProgress(hash)`,
+  `useProgressIndex()`, `useStartedHashes()`). `playEpisode()` must not await before
+  `play()`, so the start position cannot come from IndexedDB. `startProgressSync()` —
+  started once in `(desktop)/layout.tsx` — keeps the store equal to the table, other tabs
+  included; the restore path awaits `progressReady()`. An entry keeps its object identity
+  until its own numbers change, so a save re-renders the one playing row, not 1,312.
+- **"Recently played" / "Continue listening"** read `recentlyPlayedEpisodes()`, which walks
+  the `progress.lastPlayedAt` index and joins episodes by `fileHash`.
+- **Listened time was never on the episode row** — it is `history.duration`
+  (`src/services/episodes/listen-time.ts`) and stays there.
+- **The v9 upgrade COPIES and leaves the old fields in place**
+  (`src/db/progress-migration.ts`). Stripping them would be a second write to every row
+  of the one table with no server backup, inside an upgrade, for no gain. No code reads
+  them: the `Episode` type no longer has them (`StoredEpisode` names them for the merge
+  code that runs *before* v9), and the episodes' `lastPlayedAt` index is dropped so a
+  stray `where("lastPlayedAt")` throws instead of answering from frozen data. Two rows
+  sharing a hash become one entry by `mergeProgress` (later play wins, with its position).
+  `src/db/__tests__/progress-migration.test.ts` runs v8 → v9 on the real seeded catalog
+  and asserts every value arrives and every row of every table is otherwise unchanged.
+- **Every path that deletes or merges episodes handles `progress` in the same
+  transaction:** `deleteEpisode` (drops the entry unless a twin still has the hash),
+  `clearLibrary`, `deduplicateEpisodes` (moves the later-played copy's entry to the
+  keeper's hash). A new one must too.
 
 **Show types:** `"coast"` | `"dreamland"` | `"special"` | `"unknown"`
 
@@ -595,7 +664,10 @@ admin features are local-only and touch nothing server-side.
 
 - **Desktop:** Windows 98 dark theme — raised/inset bevels, title bars, menu bars, context menus, status bar
 - **Mobile:** Glassmorphism — frosted blur surfaces over animated starfield, bottom tab navigation, swipe gestures
-- **Responsive breakpoint:** 768px (`useIsMobile()` hook)
+- **Responsive breakpoint:** 768px (`useIsMobile()` hook). **It answers desktop on the server and
+  through hydration** (HD-037); a phone flips to mobile right after. It used to be the other
+  way round, so every desktop visit mounted the mobile tree first
+  (`src/hooks/__tests__/is-mobile-hydration.test.tsx`)
 - **Player states:** ultra-mini (28px taskbar), mini (bar), expanded (full panel), mobile mini, mobile expanded (full-screen overlay)
 
 ## Security Headers
@@ -797,6 +869,11 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
   (`absorbUserData`) and repoint history, bookmarks, playlists and the saved queue
   (`repointEpisodeRefs`, `src/db/merge.ts`) in one transaction before anything is removed. Do not
   add a third.
+- **The v9 upgrade (`src/db/progress-migration.ts`) writes only to the new `progress`
+  table.** It copies `playbackPosition`/`lastPlayedAt` off every episode row and leaves the
+  rows exactly as they were — no field stripped, no row rewritten — which the migration test
+  asserts row by row on the real catalog. Keep upgrades over `episodes` additive like this; a
+  cleanup of the frozen fields, if ever wanted, is its own reviewed version.
 - **`refreshCatalogFlags()` (`src/db/catalog-flags.ts`) is an unattended write, not a
   destructive one.** It sets `aiNotable: true` on the rows listed in `data/notable.json`,
   once per `NOTABLE_VERSION`, under the seed lock — never unsets it, never touches another
@@ -830,8 +907,8 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
 
 - **`navigator.storage.persist()` is asked once per profile, after the first real write**
   (`src/db/persist.ts`). Dexie hooks installed from `src/db/index.ts` watch episodes
-  (`favoritedAt`/`rating`/`flaggedAt`/`playbackPosition` changes), bookmark creation and
-  playlist writes; the seed is not counted. The request is recorded as the userPref
+  (`favoritedAt`/`rating`/`flaggedAt` changes), every `progress` write (a saved
+  position), bookmark creation and playlist writes; the seed is not counted. The request is recorded as the userPref
   `storage-persist-requested` and never repeated. A new write path needs nothing — the hook
   sees it — but a new *kind* of listener data belongs in `USER_EPISODE_FIELDS` or a hook.
 - **The OPFS cache shares a quota with the library** (`src/audio/cache.ts`), and running out
@@ -842,7 +919,8 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
   Versioned (`format: "high-desert-user-data"`, `version: 1`), keyed by `fileHash`, never the
   numeric id. Import validates the whole file first, previews counts in a dialog, and merges
   **add-only** in one rw transaction: local values win conflicts, positions go to the later
-  listen, same-name playlists are extended. A new personal field must be added to both
+  listen, same-name playlists are extended. Position and last-played are read from and
+  written to `db.progress`; the file format is unchanged. A new personal field must be added to both
   export and `plan()`, with the round-trip test in `__tests__/portable.test.ts`.
 - **The admin "Export Library Seed..." writes a bare array** (`src/db/catalog-export.ts`),
   the shape `public/seed/library.json` and `src/services/stats/catalog.ts` read, from an
@@ -850,7 +928,7 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
 
 ## Pulling an episode from the catalog
 
-Removing a row from `public/seed/library.json` is a three-step change, and skipping any of them
+Removing a row from `public/seed/library.json` is a four-step change, and skipping any of them
 breaks a test or a route:
 
 1. Remove the object from `public/seed/library.json`.
@@ -859,10 +937,20 @@ breaks a test or a route:
    point of that test.)
 3. Record it in `docs/broken-episodes.md`, with the full original JSON object so it can be
    restored without reconstruction.
+4. Add its `fileHash` to `REMOVED_FROM_CATALOG` (`src/lib/library/removed-episodes.ts`).
+   `removed-episodes.test.ts` holds that list equal to the doc's JSON records and fails if
+   one is back in the catalog.
 
 Existing visitors keep the row: `reconcileLibrary()` is `bulkAdd`-only and never deletes. That is
 deliberate, and it is why the runtime guard below matters — a removal only stops an episode
-reaching *new* visitors.
+reaching *new* visitors. **Nothing removes it for them automatically, and nothing may.** The row
+is *marked* instead: **Unavailable** in the list and the detail panel; a play stops in
+`playEpisode()` before any source is assigned (so no archive.org request, and whatever is playing
+carries on) and raises `UnavailableEpisodeDialog`; and the detail panel and row menu offer
+**Remove from my library** to every visitor, which opens the library's ordinary delete
+confirmation and then `deleteEpisode()` — one transaction, tombstoned. Marked by exact `fileHash`
+from the explicit list, never by "absent from the catalog", so a local file or the visitor's own
+import is never marked. Tests: `unavailable-episode.test.tsx`, `unavailable-play.test.ts`.
 
 ## Is there actually a broadcast in the file?
 

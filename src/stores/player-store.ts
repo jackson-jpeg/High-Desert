@@ -4,6 +4,7 @@ import type { SourceKind } from "@/audio/sources";
 import type { Episode } from "@/db/schema";
 import { toast } from "@/stores/toast-store";
 import { startPositionFor } from "@/audio/play-session";
+import { positionOf } from "@/stores/progress-store";
 import { emit } from "@/lib/events";
 
 export type RepeatMode = "off" | "one" | "all";
@@ -163,7 +164,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       playing: false,
       // A finished show is shown (and played) from the top — see
       // startPositionFor, which the player uses for the same decision.
-      position: startPositionFor(episode.playbackPosition, episode.duration),
+      position: startPositionFor(positionOf(episode.fileHash), episode.duration),
       duration: episode.duration ?? 0,
       buffering: false,
       bufferedTo: 0,

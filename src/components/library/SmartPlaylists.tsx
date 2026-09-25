@@ -5,6 +5,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
 import type { Episode } from "@/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
+import { useStartedHashes } from "@/stores/progress-store";
 import { Window } from "@/components/win98";
 import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
@@ -30,11 +31,15 @@ export function SmartPlaylists({ onPlay, className }: SmartPlaylistsProps) {
     [],
   );
 
+  // Episodes with a saved position (HD-016). The Set keeps its identity until
+  // one starts or finishes, so position saves do not rebuild these lists.
+  const started = useStartedHashes();
+
   const lists = useMemo((): SmartList[] => {
     if (!allEpisodes || allEpisodes.length === 0) return [];
 
     const unlistened = allEpisodes
-      .filter((ep) => !ep.playbackPosition || ep.playbackPosition === 0)
+      .filter((ep) => !started.has(ep.fileHash))
       .slice(0, 50);
 
     const mostPlayed = [...allEpisodes]
@@ -90,7 +95,7 @@ export function SmartPlaylists({ onPlay, className }: SmartPlaylistsProps) {
     result.push(...decades);
 
     return result;
-  }, [allEpisodes]);
+  }, [allEpisodes, started]);
 
   if (lists.length === 0) return null;
 

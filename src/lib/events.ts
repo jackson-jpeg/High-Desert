@@ -31,6 +31,12 @@ import type { EasterEgg } from "@/components/desktop/EasterEggOverlays";
 export interface HdEventMap {
   /** Start an episode. Answered by the desktop layout on every desktop route. */
   "play-episode": Episode;
+  /**
+   * A play was asked of an episode pulled from the catalog
+   * (src/lib/library/removed-episodes.ts). Answered by UnavailableEpisodeDialog,
+   * mounted beside PlaybackErrorDialog in the desktop layout.
+   */
+  "episode-unavailable": Episode;
   /** Radio scan: brief audio snippet of the station just hit, and its end. */
   "scan-preview": Episode;
   "scan-preview-stop": void;

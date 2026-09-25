@@ -2,6 +2,14 @@
  * Fetch with retry for transient failures (5xx, network errors, rate limits).
  */
 
+/**
+ * The longest a `Retry-After` is honoured for (HD-040). The header is the
+ * server's to set, and a proxy or a misconfigured upstream can send an hour;
+ * a listener waiting on a search should be told it failed, not left watching
+ * a spinner. Past this the retry happens at the ceiling.
+ */
+export const MAX_RETRY_AFTER_MS = 30_000;
+
 interface RetryOptions {
   retries?: number;
   delay?: number;
@@ -17,29 +25,29 @@ export async function fetchWithRetry(
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
+    // Timeout: abort if request takes too long
+    const controller = new AbortController();
+    const existingSignal = options?.signal;
+    const onCallerAbort = () => controller.abort();
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
-      // Timeout: abort if request takes too long
-      const controller = new AbortController();
-      const existingSignal = options?.signal;
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      timeoutId = setTimeout(() => controller.abort(), timeout);
 
       // If caller passed their own signal, forward abort
       if (existingSignal) {
         if (existingSignal.aborted) {
-          clearTimeout(timeoutId);
           throw new DOMException("Aborted", "AbortError");
         }
-        existingSignal.addEventListener("abort", () => controller.abort(), { once: true });
+        existingSignal.addEventListener("abort", onCallerAbort, { once: true });
       }
 
       const res = await fetch(url, { ...options, signal: controller.signal });
-      clearTimeout(timeoutId);
 
       // Rate limited — respect Retry-After header, then retry
       if (res.status === 429) {
         const retryAfter = res.headers.get("Retry-After");
         const waitMs = retryAfter
-          ? (parseInt(retryAfter, 10) || 10) * 1000
+          ? Math.min((parseInt(retryAfter, 10) || 10) * 1000, MAX_RETRY_AFTER_MS)
           : delay * Math.pow(backoff, attempt);
         lastError = new Error("Rate limited (429)");
         if (attempt < retries) {
@@ -65,6 +73,13 @@ export async function fetchWithRetry(
       } else {
         lastError = err instanceof Error ? err : new Error(String(err));
       }
+    } finally {
+      // Settled, whichever way: this attempt's timer and its listener on the
+      // caller's signal go with it (HD-040). The listener used to stay, one
+      // per attempt, for as long as the caller kept the signal — a scraper's
+      // lives for the whole catalog walk — each holding a dead controller.
+      clearTimeout(timeoutId);
+      existingSignal?.removeEventListener("abort", onCallerAbort);
     }
 
     if (attempt < retries) {
