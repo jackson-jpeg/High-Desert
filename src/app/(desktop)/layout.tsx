@@ -9,6 +9,8 @@ import { PlaybackErrorDialog } from "@/components/player/PlaybackErrorDialog";
 import { OutageDialog } from "@/components/player/OutageDialog";
 import { useOutageMonitor } from "@/hooks/useOutageMonitor";
 import { admitRequestedStart } from "@/audio/outage-gate";
+import { UnavailableEpisodeDialog } from "@/components/player/UnavailableEpisodeDialog";
+import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
@@ -71,6 +73,13 @@ export default function DesktopLayout({
   // Listen for custom play-episode events from library
   useEffect(() => {
     const handler = async (episode: Episode) => {
+      // A pulled episode is not queued and not started; playEpisode would
+      // refuse it too, this just keeps it out of the queue as well.
+      if (isRemovedFromCatalog(episode)) {
+        emit("episode-unavailable", episode);
+        return;
+      }
+
       // Queued, so manually-played episodes enter the queue — unless
       // archive.org is down and the mirror does not hold this show: refused,
       // with the outage dialog, before it is queued or anything else is
@@ -478,6 +487,7 @@ export default function DesktopLayout({
           announced on pages that render no player chrome. */}
       <PlaybackErrorDialog />
       <OutageDialog />
+      <UnavailableEpisodeDialog />
       </div>
     </DBErrorBoundary>
   );

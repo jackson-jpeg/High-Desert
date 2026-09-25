@@ -229,6 +229,7 @@ heard. Keys that merely announce something (`HD_NOTIFICATIONS`: `seed-settled`,
 | Key | Emitted by | Heard by |
 |---|---|---|
 | `play-episode` | library, stats, radio, search, palette, player, queue, stores | `(desktop)/layout.tsx` |
+| `episode-unavailable` | `useAudioPlayer`, `(desktop)/layout.tsx` (a pulled episode) | `UnavailableEpisodeDialog` |
 | `scan-preview`, `scan-preview-stop` | `useRadioDial` | `(desktop)/layout.tsx` |
 | `filter-tag`, `filter-category`, `filter-series`, `show-guest` | `EpisodeCard`, `EpisodeDetail` (on /library) | `useLibraryBusListeners` |
 | `easter-egg` | layout keys, library, `SearchBar` | `DesktopShell` |
@@ -850,7 +851,7 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
 
 ## Pulling an episode from the catalog
 
-Removing a row from `public/seed/library.json` is a three-step change, and skipping any of them
+Removing a row from `public/seed/library.json` is a four-step change, and skipping any of them
 breaks a test or a route:
 
 1. Remove the object from `public/seed/library.json`.
@@ -859,10 +860,20 @@ breaks a test or a route:
    point of that test.)
 3. Record it in `docs/broken-episodes.md`, with the full original JSON object so it can be
    restored without reconstruction.
+4. Add its `fileHash` to `REMOVED_FROM_CATALOG` (`src/lib/library/removed-episodes.ts`).
+   `removed-episodes.test.ts` holds that list equal to the doc's JSON records and fails if
+   one is back in the catalog.
 
 Existing visitors keep the row: `reconcileLibrary()` is `bulkAdd`-only and never deletes. That is
 deliberate, and it is why the runtime guard below matters — a removal only stops an episode
-reaching *new* visitors.
+reaching *new* visitors. **Nothing removes it for them automatically, and nothing may.** The row
+is *marked* instead: **Unavailable** in the list and the detail panel; a play stops in
+`playEpisode()` before any source is assigned (so no archive.org request, and whatever is playing
+carries on) and raises `UnavailableEpisodeDialog`; and the detail panel and row menu offer
+**Remove from my library** to every visitor, which opens the library's ordinary delete
+confirmation and then `deleteEpisode()` — one transaction, tombstoned. Marked by exact `fileHash`
+from the explicit list, never by "absent from the catalog", so a local file or the visitor's own
+import is never marked. Tests: `unavailable-episode.test.tsx`, `unavailable-play.test.ts`.
 
 ## Is there actually a broadcast in the file?
 
