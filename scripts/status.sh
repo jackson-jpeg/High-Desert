@@ -20,8 +20,14 @@
 #             poll — scripts/presence-check.mjs in headless Chromium; FAIL if not
 #   steal     hypervisor steal, mean of sysstat's samples over the last 30 minutes:
 #             WARN above 20%, FAIL above 50% (the 2026-09-22 episode ran ~90%)
-#   mirror    highdesert-mirror active and answering /mirror/health; cache size,
-#             pinned count, peers, and mirror plays in the last 24h
+#   mirror    the outage mirror as nginx serves it: /mirror/manifest answering with
+#             at least one pin; pinned count and bytes, the fill cache's size, and
+#             mirror plays in the last 24h. WARN if the retired webtorrent gateway
+#             (highdesert-mirror.service) is somehow running again
+#   cpu       every High Desert unit's mean CPU over the last 15 minutes, from
+#             systemd's cgroup accounting sampled each minute by hd-cpu-sample
+#             (/root/vps-tools): FAIL above 10% of a core. The mirror once sat at
+#             47% for days, seeding to nobody, and no line said so
 #   warm      the nightly warm job's last run (warm-status.json): WARN if it is
 #             older than 36h, skipped for steal, or fetched with failures
 #   audit     npm audit --omit=dev critical + high count
@@ -36,7 +42,8 @@
 #   HD_ROOT, HD_API (http://127.0.0.1:3003), HD_SYSTEMCTL, HD_NPM,
 #   HD_BACKUP_STATUS_CMD, HD_INSTALLED_UNIT, HD_INSTALLED_VHOST, HD_SAMPLER_MAX_AGE_S (600),
 #   HD_PRESENCE_CMD, HD_SITE (https://highdesert.space), HD_SAR_CMD (sar -u),
-#   HD_MIRROR (http://127.0.0.1:3004), HD_WARM_STATUS, HD_WARM_MAX_AGE_S (129600)
+#   HD_MIRROR_MANIFEST_URL ($HD_SITE/mirror/manifest), HD_MIRROR_PINS, HD_MIRROR_PROXY_CACHE,
+#   HD_WARM_STATUS, HD_WARM_MAX_AGE_S (129600), HD_CPU_CMD (hd-cpu-sample report --window 900)
 set -uo pipefail
 
 ROOT="${HD_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -50,7 +57,11 @@ SAMPLER_MAX_AGE_S="${HD_SAMPLER_MAX_AGE_S:-600}"
 SITE="${HD_SITE:-https://highdesert.space}"
 PRESENCE_CMD="${HD_PRESENCE_CMD:-timeout 120 nice -n 10 node $ROOT/scripts/presence-check.mjs $SITE}"
 SAR_CMD="${HD_SAR_CMD:-sar -u}"
-MIRROR="${HD_MIRROR:-http://127.0.0.1:3004}"
+MIRROR_MANIFEST_URL="${HD_MIRROR_MANIFEST_URL:-$SITE/mirror/manifest}"
+MIRROR_PINS="${HD_MIRROR_PINS:-/var/lib/highdesert-mirror/pins}"
+MIRROR_PROXY_CACHE="${HD_MIRROR_PROXY_CACHE:-/var/cache/highdesert-mirror/proxy}"
+CPU_CMD="${HD_CPU_CMD:-hd-cpu-sample report --window 900}"
+CPU_MAX_PCT=10
 WARM_STATUS="${HD_WARM_STATUS:-/var/cache/highdesert-mirror/warm-status.json}"
 WARM_MAX_AGE_S="${HD_WARM_MAX_AGE_S:-129600}"
 
@@ -206,20 +217,47 @@ else
 fi
 
 # --- mirror ------------------------------------------------------------------
-# The archive.org outage fallback (services/mirror). Down is a FAIL: while it
-# is down nothing catches a listener when archive.org stops answering.
+# The archive.org outage fallback: nginx serves the pins and fills the rest
+# (services/mirror/lib/nginx.mjs). No manifest, or an empty one, is a FAIL:
+# then nothing catches a listener when archive.org stops answering.
 gb() { awk -v b="${1:-0}" 'BEGIN { printf "%.1f GB", b / 1073741824 }'; }
-if [[ "$("$SYSTEMCTL" is-active highdesert-mirror 2>/dev/null)" != active ]]; then
-  line FAIL mirror "highdesert-mirror is not active — no fallback if archive.org goes down"
+dir_bytes() { du -sb "$1" 2>/dev/null | cut -f1; }
+manifest="$(curl -s --max-time 10 "$MIRROR_MANIFEST_URL" 2>/dev/null)"
+m_count="$(jq -r 'if (.fileHashes | type) == "array" then .fileHashes | length else empty end' <<<"$manifest" 2>/dev/null)"
+if [[ -z "$m_count" ]]; then
+  line FAIL mirror "$MIRROR_MANIFEST_URL did not answer with a manifest — no fallback if archive.org goes down"
+elif (( m_count == 0 )); then
+  line FAIL mirror "the manifest lists no pinned episodes — nothing would play if archive.org went down"
 else
-  health="$(curl -s --max-time 5 "$MIRROR/mirror/health" 2>/dev/null)"
-  if [[ "$(jq -r '.ok // empty' <<<"$health" 2>/dev/null)" != true ]]; then
-    line FAIL mirror "active, but $MIRROR/mirror/health did not answer"
+  mplays="$(curl -s --max-time 10 "$API/api/stats/traffic?range=24h" 2>/dev/null | jq -r '.playsBySource.mirror // 0' 2>/dev/null)"
+  pins_b="$(dir_bytes "$MIRROR_PINS")"
+  fill_b="$(dir_bytes "$MIRROR_PROXY_CACHE")"
+  desc="nginx: $m_count pinned ($(gb "${pins_b:-0}")), fill cache $([[ -n "$fill_b" ]] && gb "$fill_b" || echo '?'),"
+  desc="$desc manifest $(jq -r '.version // "?"' <<<"$manifest"), ${mplays:-?} mirror play(s) in 24h"
+  if [[ "$("$SYSTEMCTL" is-active highdesert-mirror 2>/dev/null)" == active ]]; then
+    line WARN mirror "highdesert-mirror (the retired webtorrent gateway) is running again; $desc"
   else
-    h() { jq -r ".$1 // 0" <<<"$health"; }
-    mplays="$(curl -s --max-time 10 "$API/api/stats/traffic?range=24h" 2>/dev/null | jq -r '.playsBySource.mirror // 0' 2>/dev/null)"
-    line OK mirror "cache $(gb "$(h cacheBytes)") ($(gb "$(h pinnedBytes)") in $(h pinned) pinned)," \
-      "$(h peers) peer(s) on $(h active) torrent(s), ${mplays:-?} mirror play(s) in 24h"
+    line OK mirror "$desc"
+  fi
+fi
+
+# --- cpu ---------------------------------------------------------------------
+# hd-cpu-sample prints "<unit> <percent of one core>" per unit, averaged over
+# the window from its once-a-minute cgroup samples; exit 3 means it does not
+# yet hold a full window. A status run cannot watch 15 minutes itself.
+cpu_out="$($CPU_CMD 2>&1)"
+cpu_rc=$?
+if (( cpu_rc != 0 )); then
+  line WARN cpu "no 15-minute CPU figure (exit $cpu_rc): $(tail -1 <<<"$cpu_out")"
+else
+  over="$(awk -v t="$CPU_MAX_PCT" 'NF >= 2 && $2 + 0 > t { printf "%s%s %.1f%%", sep, $1, $2; sep = ", " }' <<<"$cpu_out")"
+  top="$(awk 'NF >= 2 && ($2 + 0 > m || n == 0) { m = $2 + 0; u = $1; n = 1 } END { if (n) printf "%s %.1f%%", u, m }' <<<"$cpu_out")"
+  if [[ -n "$over" ]]; then
+    line FAIL cpu "over ${CPU_MAX_PCT}% of a core, 15-min mean: $over"
+  elif [[ -z "$top" ]]; then
+    line WARN cpu "hd-cpu-sample reported no units"
+  else
+    line OK cpu "every High Desert unit under ${CPU_MAX_PCT}% of a core over 15 min (highest: $top)"
   fi
 fi
 

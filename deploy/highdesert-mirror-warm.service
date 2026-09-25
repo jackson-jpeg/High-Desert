@@ -1,5 +1,5 @@
 [Unit]
-Description=High Desert — pin the most-played episodes into the mirror cache
+Description=High Desert — pin the most-played episodes for the outage mirror (served by nginx)
 After=network-online.target postgresql.service
 Wants=network-online.target
 
@@ -12,18 +12,25 @@ ExecStart=/usr/bin/node /opt/highdesert-mirror/warm.mjs
 # DATABASE_URL (read by psql for one aggregate query). systemd reads this as
 # root before dropping to hdmirror; the file stays chmod 600.
 EnvironmentFile=/root/.high-desert.env
+Environment=MIRROR_STATE_DIR=/var/lib/highdesert-mirror
 Environment=MIRROR_CACHE_DIR=/var/cache/highdesert-mirror
 Environment=MIRROR_TORRENT_DIR=/var/lib/highdesert-mirror/torrents
 Environment=MIRROR_INDEX=/opt/highdesert-mirror/episodes.json
 Environment=MIRROR_PIN_MAX_GB=15
 Environment=MIRROR_DISK_FLOOR_GB=10
 Environment=MIRROR_WARM_MAX_STEAL=20
-CPUQuota=50%
+# Pins are read by nginx (www-data): files 0644, directories 0755.
+UMask=0022
+# A nightly download and a SHA-1 pass over what changed. It is never urgent,
+# so it gets what nothing else wants: a tenth of a core, the lowest CPU
+# priority and idle-class I/O.
+CPUQuota=10%
+Nice=19
+IOSchedulingClass=idle
 IOWeight=10
-Nice=15
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=/var/cache/highdesert-mirror
+ReadWritePaths=/var/cache/highdesert-mirror /var/lib/highdesert-mirror
 SyslogIdentifier=highdesert-mirror-warm

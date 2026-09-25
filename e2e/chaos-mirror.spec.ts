@@ -2,8 +2,8 @@
  * Chaos: archive.org is unreachable from the listener's browser. Does the show
  * still play, from the mirror, and how long until there is sound?
  *
- * Production only, and only on request — it needs the real mirror
- * (services/mirror) behind nginx, which the CI server does not have:
+ * Production only, and only on request — it needs the real mirror (nginx,
+ * configured by services/mirror/lib/nginx.mjs), which the CI server does not have:
  *
  *   E2E_CHAOS=1 E2E_BASE_URL=https://highdesert.space \
  *   E2E_CHAOS_PINNED="<title of a pinned show>" E2E_CHAOS_UNPINNED="<title of an unpinned show>" \
@@ -11,11 +11,12 @@
  *
  * Every archive.org host is aborted in the page, so the browser sees exactly
  * what an outage looks like to it. The mirror *server* can still reach
- * archive.org, which matters for the unpinned case: there the gateway fills
- * from the archive.org webseed, so this measures "the listener's path to
+ * archive.org, which matters for the unpinned case: there nginx fills it from
+ * archive.org through its cache, so this measures "the listener's path to
  * archive.org is broken", not a true outage. In a true outage an unpinned
- * show has no webseed and — measured, docs/torrent-mirror-feasibility.md — no
- * outside peers, so it would 503 after 15s and raise the error dialog.
+ * show has nowhere to come from (docs/torrent-mirror-feasibility.md), so the
+ * fill fails (502) and the error dialog is raised — and in outage mode it is
+ * refused at the tap, which the last test covers.
  *
  * Stats writes are answered in the page by the fixture, so nothing lands in
  * the production database.
