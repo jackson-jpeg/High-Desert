@@ -8,8 +8,14 @@
  */
 export const BOOT_SCRIPT = `
   (function() {
+    // Storage can throw (blocked, quota). Every access goes through these:
+    // an exception here would abort this whole function before the dismissal
+    // below is installed, leaving the boot screen over the app for good.
+    function readStore(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+    function writeStore(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
     // Text scale — sync read before first paint
-    var scale = localStorage.getItem('hd-text-scale');
+    var scale = readStore('hd-text-scale');
     if (scale) {
       document.documentElement.style.setProperty('--hd-text-scale', scale);
     }
@@ -18,7 +24,7 @@ export const BOOT_SCRIPT = `
     var reduceMotion = window.matchMedia
       && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    var isFirstVisit = !localStorage.getItem('hd-booted') && !reduceMotion;
+    var isFirstVisit = !readStore('hd-booted') && !reduceMotion;
     var bootContainer = document.getElementById('boot-container');
     var quickSplash = document.getElementById('quick-splash');
 
@@ -35,7 +41,7 @@ export const BOOT_SCRIPT = `
     } else if (quickSplash) {
       quickSplash.style.display = 'block';
     }
-    localStorage.setItem('hd-booted', '1');
+    writeStore('hd-booted', '1');
 
     var dismissed = false;
     function dismiss() {

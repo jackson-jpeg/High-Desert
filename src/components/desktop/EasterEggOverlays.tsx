@@ -385,7 +385,7 @@ function GhostToGhostOverlay({ onDismiss, onGhostToggle }: GhostOverlayProps) {
           visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4",
         )}
       >
-        <div className="text-hd-20 md:text-hd-28 tracking-widest" style={{ color: "#7eb8ff" }}>
+        <div className="text-hd-20 md:text-hd-28 tracking-widest" style={{ color: "var(--hd-egg-blue)" }}>
           Ghost to Ghost AM
         </div>
         <div className="text-hd-12 md:text-hd-14 text-desktop-gray/85 mt-2 italic">

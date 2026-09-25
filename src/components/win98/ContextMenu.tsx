@@ -8,7 +8,11 @@ import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 export function ContextMenu() {
-  const { open, position, items, hide } = useContextMenuStore();
+  // Selectors, not the whole store (HD-040): only what this renders.
+  const open = useContextMenuStore((s) => s.open);
+  const position = useContextMenuStore((s) => s.position);
+  const items = useContextMenuStore((s) => s.items);
+  const hide = useContextMenuStore((s) => s.hide);
   const isMobile = useIsMobile();
 
   if (!open) return null;

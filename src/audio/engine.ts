@@ -36,15 +36,6 @@ export function getAnalyserNode(): AnalyserNode | null {
   return analyserNode;
 }
 
-/**
- * Notify the engine that the audio source has changed.
- * With createMediaElementSource the connection persists across src changes,
- * so this is now a no-op but kept for API compatibility.
- */
-export function notifySourceChanged(): void {
-  // No-op — createMediaElementSource persists across src changes
-}
-
 export function getMediaElement(): HTMLAudioElement | null {
   return mediaElement;
 }

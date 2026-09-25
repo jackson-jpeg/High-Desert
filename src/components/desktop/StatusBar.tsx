@@ -197,7 +197,7 @@ export function StatusBar({ episodeCount, presence }: StatusBarProps) {
             <button
               onClick={handleGhostClick}
               className="text-hd-10 cursor-pointer hover:text-desert-amber transition-colors-fast"
-              style={{ color: "#FF8C00" }}
+              style={{ color: "var(--hd-egg-halloween)" }}
               title="Ghost to Ghost AM Collection"
             >
               🎃 Ghost to Ghost

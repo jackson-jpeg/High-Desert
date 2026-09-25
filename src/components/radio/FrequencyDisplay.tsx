@@ -75,7 +75,7 @@ export function FrequencyDisplay({
               className="text-hd-48 font-bold tracking-tight leading-none font-sans"
               style={{
                 fontFamily: "'Space Grotesk', sans-serif",
-                color: "#4ADE80",
+                color: "var(--hd-green)",
                 textShadow: "0 0 30px rgba(74,222,128,0.5), 0 0 60px rgba(74,222,128,0.2), 0 0 100px rgba(74,222,128,0.08)",
               }}
             >

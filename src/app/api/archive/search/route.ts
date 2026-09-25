@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
+import { intParam } from "@/lib/utils/int-param";
 
 export async function GET(request: NextRequest) {
   const ip = getClientKey(request);
@@ -10,11 +11,14 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = request.nextUrl;
   const rawQ = searchParams.get("q") ?? "";
-  const page = parseInt(searchParams.get("page") ?? "1", 10);
-  const rows = Math.min(parseInt(searchParams.get("rows") ?? "30", 10), 100);
+  const page = intParam(searchParams.get("page"), 1, 1, 10_000);
+  const rows = intParam(searchParams.get("rows"), 30, 1, 100);
 
-  // Sanitize: strip special chars, enforce min length
-  const q = rawQ.replace(/['"\\<>]/g, "").trim();
+  // Sanitize: strip special chars, enforce min length. Parentheses too (HD-027):
+  // `q` is wrapped in `(...)` below, so a `)` in it closes that group early and
+  // whatever follows — `x) OR (collection:anything` — is no longer under the
+  // Art Bell filter.
+  const q = rawQ.replace(/['"\\<>()]/g, "").trim();
   if (q.length < 2) {
     return NextResponse.json({ numFound: 0, docs: [] });
   }

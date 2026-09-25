@@ -229,6 +229,7 @@ heard. Keys that merely announce something (`HD_NOTIFICATIONS`: `seed-settled`,
 | Key | Emitted by | Heard by |
 |---|---|---|
 | `play-episode` | library, stats, radio, search, palette, player, queue, stores | `(desktop)/layout.tsx` |
+| `episode-unavailable` | `useAudioPlayer`, `(desktop)/layout.tsx` (a pulled episode) | `UnavailableEpisodeDialog` |
 | `scan-preview`, `scan-preview-stop` | `useRadioDial` | `(desktop)/layout.tsx` |
 | `filter-tag`, `filter-category`, `filter-series`, `show-guest` | `EpisodeCard`, `EpisodeDetail` (on /library) | `useLibraryBusListeners` |
 | `easter-egg` | layout keys, library, `SearchBar` | `DesktopShell` |
@@ -301,6 +302,12 @@ chrome tokens (`--w98-*`, in `src/styles/win98.css`) are both *aliases* over it 
 write a hex in either. Seven values were previously declared independently in both
 namespaces, and four dark-bevel hexes appeared as raw literals a dozen times each
 inside `win98.css`.
+
+**No hex anywhere else in `src/`** (HD-036) — `src/lib/__tests__/no-raw-hex.test.ts` fails
+on one, on a `var(--hd-*)` that is not defined, and on palette drift. Where `var()` cannot
+reach — canvas `fillStyle`, `next/og`, `<meta theme-color>`, the boot splash,
+`global-error.tsx` — import `PALETTE` from `src/lib/palette.ts`, a copy the same test holds
+key-for-key equal to globals.css. A new colour is a new `--hd-*` property first.
 
 Use `min-h-touch` / `min-w-touch` (44px, `--spacing-touch`) for tap targets rather than
 a literal. Note the common pairing `min-h-touch md:min-h-0` — the floor is a mobile
@@ -422,6 +429,13 @@ concluded it was their own mistake. Regression test:
   It never cached audio, so `respondWith()` bought nothing while defeating native
   byte-range handling and turning network failures into a body-less 504 that the
   element reports as "source not supported".
+- **Offline, an API call gets JSON, never an empty 504** (HD-034). The worker keeps the
+  last good answer of a same-origin `GET /api/stats/*` and serves it only when the network
+  fails; anything else under `/api/` offline is `503 {"error":"offline"}`. **Presence is
+  never cached** — `/api/stats/now`, its alias `/active` (and `/export`) are on
+  `API_NEVER_CACHE`, and a `no-store`/`private` response is never kept: a stale on-air list
+  is worse than none. POSTs and the archive.org proxies are never cached. Tested against
+  the real script in `src/lib/__tests__/service-worker.test.ts`.
 
 ## archive.org outage mirror — read before touching `src/audio/sources.ts` or `services/mirror/`
 
@@ -579,7 +593,10 @@ admin features are local-only and touch nothing server-side.
 
 - **Desktop:** Windows 98 dark theme — raised/inset bevels, title bars, menu bars, context menus, status bar
 - **Mobile:** Glassmorphism — frosted blur surfaces over animated starfield, bottom tab navigation, swipe gestures
-- **Responsive breakpoint:** 768px (`useIsMobile()` hook)
+- **Responsive breakpoint:** 768px (`useIsMobile()` hook). **It answers desktop on the server and
+  through hydration** (HD-037); a phone flips to mobile right after. It used to be the other
+  way round, so every desktop visit mounted the mobile tree first
+  (`src/hooks/__tests__/is-mobile-hydration.test.tsx`)
 - **Player states:** ultra-mini (28px taskbar), mini (bar), expanded (full panel), mobile mini, mobile expanded (full-screen overlay)
 
 ## Security Headers
@@ -834,7 +851,7 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
 
 ## Pulling an episode from the catalog
 
-Removing a row from `public/seed/library.json` is a three-step change, and skipping any of them
+Removing a row from `public/seed/library.json` is a four-step change, and skipping any of them
 breaks a test or a route:
 
 1. Remove the object from `public/seed/library.json`.
@@ -843,10 +860,20 @@ breaks a test or a route:
    point of that test.)
 3. Record it in `docs/broken-episodes.md`, with the full original JSON object so it can be
    restored without reconstruction.
+4. Add its `fileHash` to `REMOVED_FROM_CATALOG` (`src/lib/library/removed-episodes.ts`).
+   `removed-episodes.test.ts` holds that list equal to the doc's JSON records and fails if
+   one is back in the catalog.
 
 Existing visitors keep the row: `reconcileLibrary()` is `bulkAdd`-only and never deletes. That is
 deliberate, and it is why the runtime guard below matters — a removal only stops an episode
-reaching *new* visitors.
+reaching *new* visitors. **Nothing removes it for them automatically, and nothing may.** The row
+is *marked* instead: **Unavailable** in the list and the detail panel; a play stops in
+`playEpisode()` before any source is assigned (so no archive.org request, and whatever is playing
+carries on) and raises `UnavailableEpisodeDialog`; and the detail panel and row menu offer
+**Remove from my library** to every visitor, which opens the library's ordinary delete
+confirmation and then `deleteEpisode()` — one transaction, tombstoned. Marked by exact `fileHash`
+from the explicit list, never by "absent from the catalog", so a local file or the visitor's own
+import is never marked. Tests: `unavailable-episode.test.tsx`, `unavailable-play.test.ts`.
 
 ## Is there actually a broadcast in the file?
 

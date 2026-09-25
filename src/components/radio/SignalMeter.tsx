@@ -89,8 +89,8 @@ export function SignalMeter({ signalStrength, className }: SignalMeterProps) {
             <defs>
               <linearGradient id="vuArcGrad" x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0%" stopColor="rgba(74,222,128,0.3)" />
-                <stop offset="60%" stopColor="#4ADE80" />
-                <stop offset="85%" stopColor="#D4A843" />
+                <stop offset="60%" stopColor="var(--hd-green)" />
+                <stop offset="85%" stopColor="var(--hd-amber)" />
                 <stop offset="100%" stopColor="rgba(212,168,67,0.5)" />
               </linearGradient>
             </defs>
@@ -101,7 +101,7 @@ export function SignalMeter({ signalStrength, className }: SignalMeterProps) {
               <>
                 <path d={fillPath} stroke="url(#vuArcGrad)" strokeWidth={4} fill="none" strokeLinecap="round" />
                 {/* Glow layer */}
-                <path d={fillPath} stroke="#4ADE80" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.08} />
+                <path d={fillPath} stroke="var(--hd-green)" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.08} />
               </>
             )}
             {/* Tick marks */}
@@ -116,8 +116,8 @@ export function SignalMeter({ signalStrength, className }: SignalMeterProps) {
             {/* Indicator dot */}
             {signalStrength > 0.01 && (
               <>
-                <circle cx={dotX} cy={dotY} r={8} fill="#4ADE80" opacity={0.15} />
-                <circle cx={dotX} cy={dotY} r={4} fill="#4ADE80" opacity={0.9} />
+                <circle cx={dotX} cy={dotY} r={8} fill="var(--hd-green)" opacity={0.15} />
+                <circle cx={dotX} cy={dotY} r={4} fill="var(--hd-green)" opacity={0.9} />
               </>
             )}
           </svg>
@@ -148,7 +148,7 @@ export function SignalMeter({ signalStrength, className }: SignalMeterProps) {
               key={i}
               className="h-[10px] flex-1 min-w-[6px]"
               style={{
-                backgroundColor: isActive ? "#33FF33" : "rgba(51, 255, 51, 0.08)",
+                backgroundColor: isActive ? "var(--hd-green-bright)" : "rgba(51, 255, 51, 0.08)",
                 boxShadow: isActive ? "0 0 4px rgba(51, 255, 51, 0.3)" : "none",
                 opacity: isActive && isFull ? undefined : isActive ? 0.9 : 1,
                 animation: isActive && isFull ? "signal-pulse 2s ease-in-out infinite" : "none",

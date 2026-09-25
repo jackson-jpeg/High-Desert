@@ -39,7 +39,6 @@ vi.mock("@/audio/engine", async (importOriginal) => {
     getMediaElement: () => element,
     initEngine: vi.fn(),
     setEngineVolume: vi.fn(),
-    notifySourceChanged: vi.fn(),
     getAnalyserNode: () => null,
     resumeContext: () => Promise.resolve(),
     seekEngine: (t: number) => {

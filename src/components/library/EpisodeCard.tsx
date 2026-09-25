@@ -15,6 +15,7 @@ import { useLongPress } from "@/hooks/useLongPress";
 import { MiniWaveform } from "./MiniWaveform";
 import { emit } from "@/lib/events";
 import { useOutageStore, availabilityOf } from "@/stores/outage-store";
+import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
 
 interface EpisodeCardProps {
   episode: Episode;
@@ -157,6 +158,18 @@ export const EpisodeCard = memo(function EpisodeCard({
   }, [episode, onQueue, onToggleFavorite]);
 
   const title = episode.title || episode.fileName;
+  // Pulled from the catalog but still in this visitor's library
+  // (removed-episodes.ts). Only ever the listed rows — never a local file.
+  const removed = isRemovedFromCatalog(episode);
+  const removedBadge = removed && (
+    <span
+      data-unavailable=""
+      className="text-hd-micro text-red-400 border border-red-400/60 px-1 leading-tight flex-shrink-0 uppercase tracking-wide"
+      title="Removed from the catalog — the archive's copy has no audio"
+    >
+      Unavailable
+    </span>
+  );
 
   const showGuest = (e: React.SyntheticEvent) => {
     e.stopPropagation();
@@ -263,7 +276,7 @@ export const EpisodeCard = memo(function EpisodeCard({
       aria-setsize={setSize}
       aria-posinset={posInSet}
       title={episode.aiSummary || undefined}
-      aria-label={`${title}${episode.airDate ? `, ${episode.airDate}` : ""}${isPlaying ? " (now playing)" : ""}${
+      aria-label={`${title}${episode.airDate ? `, ${episode.airDate}` : ""}${removed ? " (unavailable)" : ""}${isPlaying ? " (now playing)" : ""}${
         availability === "mirror" ? ", plays from the mirror" : unavailable ? ", unavailable until archive.org returns" : ""
       }`}
       data-availability={availability}
@@ -311,6 +324,7 @@ export const EpisodeCard = memo(function EpisodeCard({
         {/* Title */}
         <div className="flex items-baseline gap-2 min-w-0">
           <span className={cn("text-hd-12 font-bold truncate", unavailable ? "text-bevel-dark" : "text-desktop-gray")}>{title}</span>
+          {removedBadge}
           {episode.aiSeries && (
             <span
               data-row-action="series"
@@ -418,8 +432,11 @@ export const EpisodeCard = memo(function EpisodeCard({
           </div>
         </div>
 
-        <div className={cn("text-hd-15 font-bold truncate mt-0.5 font-sans leading-tight", unavailable ? "text-bevel-dark" : "text-desktop-gray")}>
-          {title}
+        <div className="flex items-center gap-2 min-w-0 mt-0.5">
+          <div className={cn("text-hd-15 font-bold truncate font-sans leading-tight", unavailable ? "text-bevel-dark" : "text-desktop-gray")}>
+            {title}
+          </div>
+          {removedBadge}
         </div>
         {episode.aiCategory && (
           <span className="text-hd-11 text-desert-amber/85 truncate mt-0.5 block">

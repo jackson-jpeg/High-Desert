@@ -84,7 +84,7 @@ export const Oscilloscope = memo(function Oscilloscope({ className }: Oscillosco
       {/* Visualization name label */}
       <span
         className={cn(
-          "absolute bottom-1 right-2 text-hd-micro text-[#33FF33]/85 pointer-events-none transition-opacity duration-300",
+          "absolute bottom-1 right-2 text-hd-micro text-static-green-bright/85 pointer-events-none transition-opacity duration-300",
           labelVisible ? "opacity-100" : "opacity-0"
         )}
       >

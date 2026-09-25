@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Dialog, Button } from "@/components/win98";
 import { db } from "@/db";
+import { safeSetItem } from "@/lib/utils/safe-storage";
 
 const MILESTONES_HOURS = [2, 10, 100];
 const STORAGE_KEY = "hd-milestones-seen";
@@ -34,7 +35,7 @@ function markMilestoneSeen(hours: number) {
   const seen = getSeenMilestones();
   if (!seen.includes(hours)) {
     seen.push(hours);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(seen));
+    safeSetItem("local", STORAGE_KEY, JSON.stringify(seen));
   }
 }
 

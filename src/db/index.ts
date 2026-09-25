@@ -127,14 +127,25 @@ export async function getPreference(
   return pref?.value;
 }
 
+/**
+ * Upsert one preference, atomically (HD-040). The primary key is `++id`, not
+ * `key`, so a single `put` cannot do it — the read and the write share one rw
+ * transaction instead. They used to be two, so two writers of the same key
+ * (the volume slider, the queue saver) could both read "absent" and both
+ * `add`, and the second failed the `&key` unique index with a ConstraintError.
+ * Inside a caller's transaction that includes `userPrefs` (deleteEpisode,
+ * clearLibrary, the seed) this joins it rather than opening its own.
+ */
 export async function setPreference(
   key: string,
   value: string
 ): Promise<void> {
-  const existing = await db.userPrefs.where("key").equals(key).first();
-  if (existing) {
-    await db.userPrefs.update(existing.id!, { value });
-  } else {
-    await db.userPrefs.add({ key, value });
-  }
+  await db.transaction("rw", db.userPrefs, async () => {
+    const existing = await db.userPrefs.where("key").equals(key).first();
+    if (existing) {
+      await db.userPrefs.update(existing.id!, { value });
+    } else {
+      await db.userPrefs.add({ key, value });
+    }
+  });
 }

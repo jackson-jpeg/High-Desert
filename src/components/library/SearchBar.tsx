@@ -3,6 +3,7 @@
 import { forwardRef, useState, useEffect, useRef, useCallback } from "react";
 import { TextField } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
+import { safeSetItem } from "@/lib/utils/safe-storage";
 import { emit, type HdEventMap } from "@/lib/events";
 
 const RECENT_SEARCHES_KEY = "hd-recent-searches";
@@ -18,7 +19,7 @@ function addRecentSearch(q: string) {
   if (!q.trim()) return;
   const recent = getRecentSearches().filter((s) => s !== q);
   recent.unshift(q);
-  localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recent.slice(0, MAX_RECENT)));
+  safeSetItem("local", RECENT_SEARCHES_KEY, JSON.stringify(recent.slice(0, MAX_RECENT)));
 }
 
 interface Suggestion {

@@ -125,6 +125,7 @@ export function DetailSheet({
           onClose={onClose}
           onToggleFavorite={onToggleFavorite}
           communityPlays={communityPlays}
+          onRemoveUnavailable={(ep: Episode) => onRequestDelete([ep.id!])}
           {...(isAdmin
             ? {
                 onDelete: (ep: Episode) => onRequestDelete([ep.id!]),

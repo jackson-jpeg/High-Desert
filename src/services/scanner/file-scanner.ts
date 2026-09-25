@@ -124,28 +124,6 @@ export async function scanDirectory(): Promise<ScanResult> {
   };
 }
 
-/**
- * Async generator variant of scanDirectory for streaming processing.
- * Opens the directory picker and yields files one at a time.
- *
- * @example
- * for await (const file of scanDirectoryStream()) {
- *   console.log(file.name);
- * }
- */
-export async function* scanDirectoryStream(): AsyncGenerator<File> {
-  if (!supportsDirectoryPicker()) {
-    throw new Error(
-      "File System Access API is not supported in this browser. " +
-      "Use scanFallback() with <input webkitdirectory> instead."
-    );
-  }
-
-  // Safe to assert: supportsDirectoryPicker() guard above ensures this exists.
-  const dirHandle = await window.showDirectoryPicker!({ mode: "read" });
-  yield* walkDirectory(dirHandle);
-}
-
 // ── Fallback: <input webkitdirectory> ──────────────────────────────────
 
 /**
@@ -169,19 +147,4 @@ export function scanFallback(fileList: FileList): File[] {
     }
   }
   return files;
-}
-
-/**
- * Async generator variant of scanFallback for consistent API with
- * the directory picker approach.
- */
-export async function* scanFallbackStream(
-  fileList: FileList
-): AsyncGenerator<File> {
-  for (let i = 0; i < fileList.length; i++) {
-    const file = fileList[i];
-    if (isAudioFile(file.name)) {
-      yield file;
-    }
-  }
 }

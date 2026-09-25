@@ -33,3 +33,34 @@ Majors that could not be upgraded with the suite and every mutation green are
 closed with a one-line reason here, so the decision is findable.
 
 - **eslint 9 → 10** (PR #14, 2026-09-21): `npm run lint` crashes — the `eslint-plugin-react` bundled by `eslint-config-next` 16.3.5 calls `context.getFilename()`, removed in ESLint 10, and it and `eslint-plugin-import`/`jsx-a11y` declare peer ranges ending at `^9`. Retry when `eslint-config-next` supports 10. Dev-only; no advisory against eslint 9.
+
+## HD-043 — the admin password hash ships in the client bundle
+
+Accepted, knowingly. `ADMIN_HASH` in `src/stores/admin-store.ts` is an unsalted
+SHA-256, a public constant in every visitor's JavaScript, so it can be attacked
+offline at GPU speed. That is acceptable **only** because admin mode is a UI gate,
+not a security boundary (CLAUDE.md, "Admin Mode"): anyone can set
+`localStorage['hd-admin']` directly, and every admin feature is local-only and
+touches nothing server-side. Nothing that must actually be protected may ever sit
+behind it. No attempt was made to recover the plaintext.
+
+The real exposure would be the *password* being reused somewhere that is a
+boundary. Checked on 2026-09-25, without printing or storing any secret:
+
+- **The hash (hex, upper/lower case), its base64 and base64url forms**, grepped
+  across `/root` and `/etc` (excluding `node_modules`, `.next*`, `.git`, and the
+  High Desert repo and its worktrees). Hits: only other High Desert worktrees
+  (`/root/hd-*/src/stores/admin-store.ts` and its test) and Claude session
+  transcripts that contain this repo's file. No other project, config or unit.
+- **Compressed archives** — the 90 `*.gz`/`*.tgz`/`*.zip`/`*.dump` files under
+  `/root` and `/etc` under 2 GB, including every tarball in `/root/retired`
+  (OpenClaw, Augie, ecfiler, the agent daemons): decompressed and searched for
+  the hex and base64 forms. 0 hits.
+- **Every value in the chmod-600 env files** — `/root/.*.env` (12 files) and
+  `/etc/sogojet/env*` (13, including the dated backups): 237 values, each hashed
+  with SHA-256 as written, trimmed, unquoted, and split on whitespace/commas, and
+  compared with `ADMIN_HASH`. 0 matches. So the admin password is not any
+  service's secret, token or password on this box.
+
+Revisit if admin mode ever gains a server-side effect — then it needs a real
+server-checked credential, not a better hash.

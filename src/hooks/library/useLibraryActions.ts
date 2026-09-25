@@ -9,6 +9,7 @@ import { toast } from "@/stores/toast-store";
 import { deleteEpisode, toggleFavorite, toggleFlag, addToPlaylist } from "@/services/episodes/management";
 import { shuffle } from "@/lib/utils/shuffle";
 import { emit } from "@/lib/events";
+import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
 
 /**
  * What can be done to an episode from the library: play, queue, favourite,
@@ -129,6 +130,18 @@ export function useLibraryActions({
                 toast.info(`Added to "${pl.name}"`);
               },
             })),
+          ]
+        : []),
+      // A row pulled from the catalog can be removed by anyone — it is theirs,
+      // and it can no longer play. Through the same confirmation as Delete.
+      ...(isRemovedFromCatalog(episode)
+        ? [
+            { label: "", onClick: () => {}, separator: true },
+            {
+              label: "Remove from my library",
+              onClick: () => setPendingDelete([episode.id!]),
+              danger: true,
+            },
           ]
         : []),
       ...(admin

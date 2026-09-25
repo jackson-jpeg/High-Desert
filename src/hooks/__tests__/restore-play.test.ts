@@ -32,10 +32,9 @@ import { onHdEvent } from "@/lib/events";
  * two-line harness — and the cost of the shortcut was exactly what you would
  * expect: the copy fell behind the original, which had since gained a
  * `notifySourceChanged()` call and a `playbackRate` assignment. The suite was
- * green and testing nothing. It mounts the real hook now.
+ * green and testing nothing. It mounts the real hook now. (`notifySourceChanged`
+ * was a no-op in the engine and was removed with its spy-only test, HD-039.)
  */
-
-const notifySourceChanged = vi.fn();
 
 let element: HTMLAudioElement;
 
@@ -55,7 +54,6 @@ vi.mock("@/audio/engine", async (importOriginal) => {
   getMediaElement: () => element,
   initEngine: vi.fn(),
   setEngineVolume: vi.fn(),
-  notifySourceChanged: () => notifySourceChanged(),
   getAnalyserNode: () => null,
   resumeContext: () => Promise.resolve(),
     seekEngine: (t: number) => {
@@ -109,7 +107,6 @@ let player: Mounted<Api>;
 
 describe("restoring the last-played episode", () => {
   beforeEach(() => {
-    notifySourceChanged.mockClear();
     element = makeMediaElement();
     usePlayerStore.setState({
       currentEpisode: null,
@@ -151,17 +148,6 @@ describe("restoring the last-played episode", () => {
     // "metadata" would have every page load pull the head of a show nobody
     // asked for; on a VBR rip with no Xing header that can be most of the file.
     expect(element.preload).toBe("none");
-  });
-
-  it("tells the engine the source changed", () => {
-    // The assertion the hand-written copy was missing. It is a no-op in the
-    // engine today (createMediaElementSource survives a src change), which is
-    // precisely why nobody noticed the copy had dropped it — and why the call
-    // needs a test rather than a reader's good intentions.
-    act(() => {
-      player.api.primeEpisode(makeEpisode());
-    });
-    expect(notifySourceChanged).toHaveBeenCalledTimes(1);
   });
 
   it("carries the listener's playback rate onto the restored element", () => {

@@ -44,45 +44,45 @@ export const CassetteTape = memo(function CassetteTape({ className }: CassetteTa
       aria-hidden="true"
     >
       {/* Body */}
-      <rect x="2" y="2" width="56" height="36" rx="3" fill="#1a1a2e" stroke="#808080" strokeWidth="1" />
-      <rect x="5" y="5" width="50" height="20" rx="2" fill="#0A0E1A" stroke="#808080" strokeWidth="0.5" />
+      <rect x="2" y="2" width="56" height="36" rx="3" fill="var(--hd-cassette)" stroke="var(--hd-chrome-dark)" strokeWidth="1" />
+      <rect x="5" y="5" width="50" height="20" rx="2" fill="var(--hd-midnight)" stroke="var(--hd-chrome-dark)" strokeWidth="0.5" />
 
       {/* Label area */}
-      <rect x="14" y="7" width="32" height="8" rx="1" fill="#1a1a2e" stroke="#D4A843" strokeWidth="0.3" opacity="0.6" />
-      <text x="30" y="13" textAnchor="middle" fill="#D4A843" fontSize="4" fontFamily="monospace" opacity="0.7">
+      <rect x="14" y="7" width="32" height="8" rx="1" fill="var(--hd-cassette)" stroke="var(--hd-amber)" strokeWidth="0.3" opacity="0.6" />
+      <text x="30" y="13" textAnchor="middle" fill="var(--hd-amber)" fontSize="4" fontFamily="monospace" opacity="0.7">
         HIGH DESERT
       </text>
 
       {/* Left reel */}
-      <circle cx="18" cy="20" r="6" fill="none" stroke="#808080" strokeWidth="0.5" />
+      <circle cx="18" cy="20" r="6" fill="none" stroke="var(--hd-chrome-dark)" strokeWidth="0.5" />
       <g style={playing ? {
         animation: `hd-spin ${leftSpeed}s linear infinite`,
         transformOrigin: '18px 20px',
       } : undefined}>
-        <circle cx="18" cy="20" r="4" fill="#0A0E1A" stroke="#D4A843" strokeWidth="0.5" />
-        <line x1="18" y1="16" x2="18" y2="20" stroke="#D4A843" strokeWidth="0.3" opacity="0.5" />
-        <line x1="14.5" y1="21.5" x2="18" y2="20" stroke="#D4A843" strokeWidth="0.3" opacity="0.5" />
-        <line x1="21.5" y1="21.5" x2="18" y2="20" stroke="#D4A843" strokeWidth="0.3" opacity="0.5" />
+        <circle cx="18" cy="20" r="4" fill="var(--hd-midnight)" stroke="var(--hd-amber)" strokeWidth="0.5" />
+        <line x1="18" y1="16" x2="18" y2="20" stroke="var(--hd-amber)" strokeWidth="0.3" opacity="0.5" />
+        <line x1="14.5" y1="21.5" x2="18" y2="20" stroke="var(--hd-amber)" strokeWidth="0.3" opacity="0.5" />
+        <line x1="21.5" y1="21.5" x2="18" y2="20" stroke="var(--hd-amber)" strokeWidth="0.3" opacity="0.5" />
       </g>
 
       {/* Right reel */}
-      <circle cx="42" cy="20" r="6" fill="none" stroke="#808080" strokeWidth="0.5" />
+      <circle cx="42" cy="20" r="6" fill="none" stroke="var(--hd-chrome-dark)" strokeWidth="0.5" />
       <g style={playing ? {
         animation: `hd-spin ${rightSpeed}s linear infinite`,
         transformOrigin: '42px 20px',
       } : undefined}>
-        <circle cx="42" cy="20" r="4" fill="#0A0E1A" stroke="#D4A843" strokeWidth="0.5" />
-        <line x1="42" y1="16" x2="42" y2="20" stroke="#D4A843" strokeWidth="0.3" opacity="0.5" />
-        <line x1="38.5" y1="21.5" x2="42" y2="20" stroke="#D4A843" strokeWidth="0.3" opacity="0.5" />
-        <line x1="45.5" y1="21.5" x2="42" y2="20" stroke="#D4A843" strokeWidth="0.3" opacity="0.5" />
+        <circle cx="42" cy="20" r="4" fill="var(--hd-midnight)" stroke="var(--hd-amber)" strokeWidth="0.5" />
+        <line x1="42" y1="16" x2="42" y2="20" stroke="var(--hd-amber)" strokeWidth="0.3" opacity="0.5" />
+        <line x1="38.5" y1="21.5" x2="42" y2="20" stroke="var(--hd-amber)" strokeWidth="0.3" opacity="0.5" />
+        <line x1="45.5" y1="21.5" x2="42" y2="20" stroke="var(--hd-amber)" strokeWidth="0.3" opacity="0.5" />
       </g>
 
       {/* Tape path */}
-      <path d="M 18 26 Q 30 30 42 26" fill="none" stroke="#808080" strokeWidth="0.4" opacity="0.4" />
+      <path d="M 18 26 Q 30 30 42 26" fill="none" stroke="var(--hd-chrome-dark)" strokeWidth="0.4" opacity="0.4" />
 
       {/* Bottom screws */}
-      <circle cx="10" cy="34" r="1.5" fill="none" stroke="#808080" strokeWidth="0.4" />
-      <circle cx="50" cy="34" r="1.5" fill="none" stroke="#808080" strokeWidth="0.4" />
+      <circle cx="10" cy="34" r="1.5" fill="none" stroke="var(--hd-chrome-dark)" strokeWidth="0.4" />
+      <circle cx="50" cy="34" r="1.5" fill="none" stroke="var(--hd-chrome-dark)" strokeWidth="0.4" />
 
       <style>{`
         @keyframes hd-spin {

@@ -20,7 +20,7 @@ export function ProgressBar({
     <div
       className={cn(
         "w98-progress-well",
-        variant === "dark" && "!bg-inset-well !border-[#0A0E1A] !shadow-[inset_1px_1px_0_#060810]",
+        variant === "dark" && "!bg-inset-well !border-midnight !shadow-[inset_1px_1px_0_var(--hd-void)]",
         className,
       )}
       role="progressbar"

@@ -7,7 +7,6 @@ import {
   setEngineVolume,
   resumeContext,
   getMediaElement,
-  notifySourceChanged,
   seekEngine,
 } from "@/audio/engine";
 import {
@@ -24,6 +23,7 @@ import type { Episode } from "@/db/schema";
 import { reportPlay, reportStop, reportStopBeacon } from "@/services/stats/client";
 import { SESSION_ID } from "@/lib/utils/session-id";
 import { communityKey } from "@/lib/utils/community-key";
+import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
 import { checkArchiveHealth, archiveKnownDown } from "@/services/archive/health";
 import { fallbacksFor, type SourceKind } from "@/audio/sources";
 import { currentStartPlan, refuseIfUnavailable } from "@/audio/outage-gate";
@@ -339,11 +339,13 @@ export function useAudioPlayer() {
   const primeEpisode = useCallback(
     (episode: Episode) => {
       if (!episode.sourceUrl) return;
+      // A pulled episode is never given a source: ▶ then finds no src and goes
+      // through play-episode, which explains instead (removed-episodes.ts).
+      if (isRemovedFromCatalog(episode)) return;
       const audio = getAudio();
       if (audio.src) return; // something is already loaded; don't stomp it
       // A new source is a new start: its listen has not been counted.
       beginStart();
-      notifySourceChanged();
       audio.preload = "none";
       audio.src = episode.sourceUrl;
       usePlayerStore.getState().setSource("archive");
@@ -365,6 +367,15 @@ export function useAudioPlayer() {
       // Superseded before we got here — someone picked another show while the
       // caller was still resolving this one. Touch nothing.
       if (!isCurrentStart(id)) return;
+
+      // Pulled from the catalog: its archive.org file has no audio in it.
+      // Say so, and touch nothing — no source, no request to archive.org, and
+      // whatever is playing now keeps playing. Every start comes through here
+      // (library, queue advance, radio), so this is the one guard that matters.
+      if (isRemovedFromCatalog(episode)) {
+        emit("episode-unavailable", episode);
+        return;
+      }
 
       const audio = getAudio();
 
@@ -394,7 +405,6 @@ export function useAudioPlayer() {
 
       openListen(episode, isObjectUrl ? url : "");
       usePlayerStore.getState().setSource(kind);
-      notifySourceChanged();
 
       // Reset before re-assigning: a stale src plus load() is its own source of
       // hangs, and `src = ""` would make the browser fetch the HTML document
@@ -513,7 +523,6 @@ export function useAudioPlayer() {
       if (plan.kind === "play" && plan.source.kind === "mirror") {
         audio.src = plan.source.url;
         usePlayerStore.getState().setSource("mirror");
-        notifySourceChanged();
         seekEngine(startPositionFor(ep.playbackPosition, ep.duration));
       }
     }

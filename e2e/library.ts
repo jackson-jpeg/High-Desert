@@ -36,12 +36,17 @@ export function listScroller(page: Page): Locator {
  * Also marks the listening milestones as seen. Their dialog is modal and
  * covers the list; a spec that gives the profile listening history would
  * otherwise screenshot and click the dialog instead of the library.
+ *
+ * `expected` overrides the seed's size for a list that is filtered on arrival.
  */
-export async function openLibrary(page: Page): Promise<{ rowCount: number }> {
+export async function openLibrary(page: Page, opts: { expected?: number } = {}): Promise<{ rowCount: number }> {
   const seed = await page.request.get(SEED_URL);
   expect(seed.ok(), `${SEED_URL} must be served`).toBe(true);
-  const expected = ((await seed.json()) as unknown[]).length;
-  expect(expected, "seed catalog must not be empty").toBeGreaterThan(0);
+  const catalog = ((await seed.json()) as unknown[]).length;
+  expect(catalog, "seed catalog must not be empty").toBeGreaterThan(0);
+  // A caller that knows the list is filtered on arrival (outage mode's
+  // "Playable now") names the exact count it must settle at instead.
+  const expected = opts.expected ?? catalog;
 
   await page.addInitScript(() => {
     try {
