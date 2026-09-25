@@ -2512,6 +2512,12 @@ export const MUTATIONS = [
     find: "  if (Number.isFinite(elementDuration) && elementDuration > 0 && elementDuration - currentTime <= EARLY_END_S) {",
     replace: "  if (false) {",
     why: "a file genuinely shorter than catalogued must end, not bounce to the mirror",
+    id: "mirror-no-seed",
+    test: "services/mirror/test/no-seed.test.mjs",
+    file: "services/mirror/lib/gateway.mjs",
+    find: "    if (!seed) return;",
+    replace: "    if (!seed) void 0;",
+    why: "fetch-only mode must add no torrent for the pins: seeding them held the box at a third of its CPU",
   },
   {
     id: "gateway-manifest-complete-only",
