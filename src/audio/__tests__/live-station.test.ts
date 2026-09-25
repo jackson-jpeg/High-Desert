@@ -205,6 +205,7 @@ beforeEach(async () => {
     loadState: "idle",
     error: null,
     volume: 0.6,
+    playbackRate: 1,
   });
   sessionStorage.clear();
   useLiveStore.setState({
@@ -472,6 +473,44 @@ describe("leaving the station", () => {
     await flush(A.end - Date.now() + GAP);
     expect(usePlayerStore.getState().currentEpisode).toBeNull();
     expect(stationId.start).not.toHaveBeenCalled();
+  });
+
+  it("■ Stop in the player leaves the station rather than holding it", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    act(() => player.api.stopPlayback());
+    await flush();
+    expect(useLiveStore.getState()).toMatchObject({ tuned: false, paused: false });
+    expect(sessionStorage.getItem(TUNED_MARK)).toBeNull();
+  });
+
+  it("while live, a seek is refused with a reason instead of being undone ten seconds later", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    streaming();
+    const before = seeks.length;
+    act(() => player.api.seek(playhead() + 30));
+    expect(seeks.length).toBe(before);
+    const { useToastStore } = await import("@/stores/toast-store");
+    expect(useToastStore.getState().toasts.at(-1)?.message).toMatch(/listening live/);
+    // Held, the listener's own seek is theirs again.
+    act(() => player.api.pausePlayback());
+    await flush();
+    act(() => player.api.seek(5));
+    expect(seeks.at(-1)).toBe(5);
+  });
+
+  it("the station plays at 1× whatever speed the listener had set", async () => {
+    usePlayerStore.setState({ playbackRate: 1.5 });
+    act(() => station.tuneIn());
+    await flush();
+    expect(element.playbackRate).toBe(1);
+    // And an ordinary show afterwards gets the listener's speed back.
+    const other = episodeFor(slot("other", 0, 3600));
+    await act(async () => {
+      await player.api.playEpisode(other);
+    });
+    expect(element.playbackRate).toBe(1.5);
   });
 
   it("a library show picked while held paused leaves the station, and plays", async () => {

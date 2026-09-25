@@ -87,10 +87,10 @@ export default function WelcomePage() {
     };
   }, []);
 
-  const handleEnter = () => {
+  const handleEnter = (to: "/library" | "/live" = "/library") => {
     safeSetItem("local", "hd-visited", "1");
     setFadeOut(true);
-    setTimeout(() => router.push("/library"), 500);
+    setTimeout(() => router.push(to), 500);
   };
 
   return (
@@ -157,12 +157,26 @@ export default function WelcomePage() {
         {/* Enter button */}
         <Button
           variant="dark"
-          onClick={handleEnter}
+          onClick={() => handleEnter()}
           disabled={isReturning}
           className="px-10 py-3 tracking-[2px] text-hd-12"
         >
           {isReturning ? "REDIRECTING..." : "ENTER THE ARCHIVE"}
         </Button>
+
+        {/* The live station. Returning visitors skip this page, but a first
+            visit is exactly when nobody knows there is a station at all. */}
+        {!isReturning && (
+          <button
+            type="button"
+            onClick={() => handleEnter("/live")}
+            data-testid="welcome-live"
+            className="flex items-center gap-2 min-h-touch px-3 cursor-pointer text-hd-10 tracking-[2px] font-[family-name:var(--font-w95)] text-desert-amber hover:text-phosphor-amber"
+          >
+            <span className="w-2 h-2 rounded-full bg-static-green animate-on-air" aria-hidden="true" />
+            OR TUNE IN LIVE — THE STATION IS ON THE AIR
+          </button>
+        )}
 
         {/* Footer */}
         <div className="text-hd-8 mt-4 font-[family-name:var(--font-w95)] text-bevel-dark/85">

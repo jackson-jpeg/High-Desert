@@ -71,6 +71,19 @@ export const useLiveStore = create<LiveState>((set, get) => ({
   setDrift: (drift) => set({ drift }),
 }));
 
+/**
+ * Tuned in and not held: the station owns the playhead and the speed. A seek
+ * or a speed change would be undone by the next drift check ten seconds later,
+ * so they are refused with a reason instead of silently reverting.
+ */
+export function liveLocked(): boolean {
+  const { tuned, paused } = useLiveStore.getState();
+  return tuned && !paused;
+}
+
+export const LIVE_LOCKED_MESSAGE =
+  "You're listening live: everyone hears the same second. Leave the station to scrub or change speed.";
+
 /** The server's clock, as best this browser knows it. Local time until the first sync. */
 export function serverNow(now: number = Date.now()): number {
   return now + (useLiveStore.getState().clockOffsetMs ?? 0);

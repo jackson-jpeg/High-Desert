@@ -390,6 +390,11 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
     // Leaving the station: the listener picked another show. Pausing holds it.
     const offPlayer = usePlayerStore.subscribe((s, prev) => {
       if (!live().tuned || transitioning) return;
+      // ■ Stop emptied the player: that is leaving, not a pause to hold.
+      if (!s.currentEpisode && prev.currentEpisode) {
+        tuneOut();
+        return;
+      }
       const { phase, current, paused } = live();
       if (paused) {
         // Held. Anything that starts sound now went around the station's own

@@ -38,7 +38,9 @@ import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
 import { archiveKnownDown } from "@/services/archive/health";
 import type { SourceKind } from "@/audio/sources";
 import { currentStartPlan, refuseIfUnavailable } from "@/audio/outage-gate";
-import { liveStartFor, setLiveStopHandler, takeLiveResume } from "@/audio/live-session";
+import { currentLiveStart, liveStartFor, setLiveStopHandler, takeLiveResume } from "@/audio/live-session";
+import { LIVE_LOCKED_MESSAGE, liveLocked } from "@/stores/live-store";
+import { toast } from "@/stores/toast-store";
 import { disarmWatchdog, isWatching, noteError } from "@/audio/playback-watchdog";
 import { emit } from "@/lib/events";
 import { withGlobals } from "./player/globals";
@@ -208,7 +210,10 @@ export function useAudioPlayer() {
         liveStartFor(episode) ??
         startPositionFor(positionOf(episode.fileHash), episode.duration);
       seekEngine(startAt);
-      audio.playbackRate = usePlayerStore.getState().playbackRate;
+      // The station plays at 1×: at 1.5× the drift check would pull it back
+      // every ten seconds.
+      audio.playbackRate =
+        currentLiveStart()?.fileHash === episode.fileHash ? 1 : usePlayerStore.getState().playbackRate;
 
       armListen(episode, audio, startAt);
 
@@ -359,6 +364,12 @@ export function useAudioPlayer() {
   // Seek to a position in seconds
   const seek = useCallback(
     (seconds: number) => {
+      // Every seek surface — the bar, ±15/+30, the arrow keys, a lock-screen
+      // scrub — comes through here.
+      if (liveLocked()) {
+        toast.info(LIVE_LOCKED_MESSAGE);
+        return;
+      }
       const audio = getAudio();
       // A restored episode has a duration in the store but nothing loaded in
       // the element, so scrubbing was silently dead too. Record the intent —
@@ -432,7 +443,7 @@ export function useAudioPlayer() {
   useEffect(() => {
     const audio = getMediaElement();
     if (audio) {
-      audio.playbackRate = playbackRate;
+      audio.playbackRate = liveLocked() ? 1 : playbackRate;
     }
   }, [playbackRate]);
 

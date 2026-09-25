@@ -313,3 +313,56 @@ test.describe("tuned in", () => {
     expect((await element(page))!.currentTime).toBeGreaterThan(pausedAt + 6);
   });
 });
+
+// ---------------------------------------------------------------------------
+// The first-time listener audit (docs/live-qa.md)
+// ---------------------------------------------------------------------------
+
+test("a first visit can find the station from the welcome page", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("welcome-live").click();
+  await expect(page).toHaveURL(/\/live$/, { timeout: 15_000 });
+  await expect(page.getByTestId("live-tune-in")).toBeVisible({ timeout: 30_000 });
+});
+
+test("nothing in the studio is wider than the screen", async ({ page }) => {
+  await page.goto("/live");
+  await expect(page.getByTestId("live-now")).toBeVisible({ timeout: 30_000 });
+  const over = await page.evaluate(() => {
+    const vw = document.documentElement.clientWidth;
+    return [...document.querySelectorAll<HTMLElement>("main *, [role=main] *, body *")]
+      .filter((el) => el.closest('[data-testid="live-now"], [data-testid="live-listeners"], [data-testid="live-clock"], [data-testid="live-up-next"]'))
+      .map((el) => el.getBoundingClientRect().right - vw)
+      .filter((d) => d > 1).length;
+  });
+  // The count, the clock, the show and what is next are all on screen.
+  expect(over).toBe(0);
+  await expect(page.getByTestId("live-listeners").first()).toBeInViewport();
+});
+
+test("desktop: the call-in box is on screen and the newest call is in view", async ({ page }, info) => {
+  test.skip(!!info.project.use.isMobile, "the phone opens the lines in a sheet");
+  await page.goto("/live");
+  const box = page.getByPlaceholder(/^Call in/);
+  await expect(box).toBeInViewport({ timeout: 30_000 });
+  const calls = page.getByTestId("live-message");
+  await expect(calls.first()).toBeVisible({ timeout: 30_000 });
+  await expect(calls.last()).toBeInViewport();
+});
+
+test.describe("tuned in, the station owns the playhead", () => {
+  test.beforeEach(async ({ page, request }) => {
+    test.skip(!(await archiveReachable(request)), "archive.org is not reachable from this machine");
+    await installProbe(page);
+  });
+
+  test("a seek while live is refused with a reason, not undone ten seconds later", async ({ page }, info) => {
+    test.skip(!!info.project.use.isMobile, "the ±15/+30 buttons are the desktop player's");
+    test.setTimeout(150_000);
+    await tuneIn(page);
+    await page.getByRole("button", { name: "Seek forward 30 seconds" }).first().click();
+    await expect(page.getByText(/You're listening live: everyone hears the same second/).first()).toBeVisible();
+    const [el, st] = [await element(page), await stationOffset(page)];
+    expect(Math.abs(el!.currentTime - st!.offset)).toBeLessThan(3);
+  });
+});

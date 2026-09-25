@@ -273,7 +273,7 @@ describe("LiveChat (desktop)", () => {
     const second = render();
     act(() => second.es().emit("hello", { you, slowMode: slowOff, recent: [], resumed: false, hidden: [] }));
     expect(q(second.host, "live-listeners")!.dataset.live).toBe("7");
-    expect(q(second.host, "live-listeners")!.textContent).toBe("7 listening live");
+    expect(q(second.host, "live-listeners")!.textContent).toBe("7 tuned in live");
     // The chat service is never asked how many people are listening.
     expect(fetchMock.mock.calls.filter(([u]) => String(u).includes("health"))).toEqual([]);
     second.done();

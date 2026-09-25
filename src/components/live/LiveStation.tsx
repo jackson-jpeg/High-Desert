@@ -38,7 +38,10 @@ export function LiveStation() {
       <div
         className={cn(
           "grid gap-3 min-h-full md:h-full",
-          "md:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]",
+          // One column on a phone, and it may shrink: an implicit grid track
+          // is sized to max-content, so the untruncated "Up next" title made
+          // the studio 555 px wide at 390 and clipped the clock and the count.
+          "grid-cols-[minmax(0,1fr)] md:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]",
         )}
       >
         <Window title="High Desert Live — Studio" variant="dark" headingLevel={2} className="flex flex-col min-h-0">
@@ -64,7 +67,12 @@ export function LiveStation() {
           </button>
         ) : (
           <Window title="Phone Lines" variant="dark" headingLevel={2} className="flex flex-col min-h-0">
-            <div className="flex-1 min-h-0 flex flex-col">
+            {/* h-full, not flex-1: the Window's body is a scrolling block,
+                not a flex column. As flex-1 the chat grew to its content, the
+                whole window scrolled instead of the list, and on a 900 px
+                desktop the call-in box started below the fold with the list
+                parked on the oldest call. */}
+            <div className="h-full min-h-0 flex flex-col" data-testid="phone-lines-body">
               <LiveChat />
             </div>
           </Window>
@@ -100,7 +108,7 @@ function Console({ schedule }: { schedule: LiveSchedule }) {
   const next = upcoming(knownSlots(schedule), now)[0] ?? null;
 
   return (
-    <div className="flex flex-col min-h-0 flex-1">
+    <div className="flex flex-col min-h-0 flex-1 md:h-full">
       {/* Top of the console: the sign, the wall clock, who is listening. */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 bg-inset-well border-b border-bevel-dark/20">
         <OnAirLamp lit={!!slot} tuned={tuned} size="lg" />

@@ -70,7 +70,7 @@ function ListenerCount({ live }: { live?: number }) {
   return (
     <span className="flex items-center gap-1 text-hd-caption text-static-green" data-testid="live-listeners" data-live={live}>
       <span className="inline-block h-[8px] w-[8px] rounded-full bg-static-green animate-on-air" aria-hidden="true" />
-      {live} listening live
+      {live} tuned in live
     </span>
   );
 }
