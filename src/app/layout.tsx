@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { BOOT_SCRIPT } from "./boot-script";
+import { PALETTE } from "@/lib/palette";
 import "./globals.css";
 
 const w95fa = localFont({
@@ -15,7 +16,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: "cover",
-  themeColor: "#0A0E1A",
+  themeColor: PALETTE.midnight, // a meta tag: the browser chrome reads it, not CSS
 };
 
 export const metadata: Metadata = {
@@ -107,19 +108,19 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               #app-loading {
-                position: fixed; inset: 0; background: #0A0E1A;
+                position: fixed; inset: 0; background: ${PALETTE.midnight};
                 display: flex; align-items: center; justify-content: center;
                 z-index: 9999; transition: opacity 0.4s ease;
               }
               #app-loading .boot-line {
-                font-family: var(--font-w95, monospace); font-size: 11px; color: #33FF33;
+                font-family: var(--font-w95, monospace); font-size: 11px; color: ${PALETTE.greenBright};
                 text-shadow: 0 0 6px rgba(51,255,51,0.3);
                 opacity: 0; white-space: nowrap;
               }
               #app-loading .boot-line.visible { opacity: 1; }
               #app-loading .boot-title {
                 font-family: var(--font-w95, monospace); font-size: 20px; font-weight: bold;
-                color: #D4A843; letter-spacing: 3px; opacity: 0;
+                color: ${PALETTE.amber}; letter-spacing: 3px; opacity: 0;
                 text-shadow: 0 0 12px rgba(212,168,67,0.4);
               }
               #app-loading .boot-title.visible { opacity: 1; }
@@ -134,12 +135,12 @@ export default function RootLayout({
                 text-align: center;
               }
               #app-loading .quick-splash .title {
-                color: #D4A843; font-family: var(--font-w95, monospace);
+                color: ${PALETTE.amber}; font-family: var(--font-w95, monospace);
                 font-size: 16px; font-weight: bold; letter-spacing: 2px;
                 text-shadow: 0 0 8px rgba(212,168,67,0.3);
               }
               #app-loading .quick-splash .sub {
-                color: #9AA0AE; font-family: var(--font-w95, monospace);
+                color: ${PALETTE.muted}; font-family: var(--font-w95, monospace);
                 font-size: 11px; margin-top: 8px;
               }
             `,

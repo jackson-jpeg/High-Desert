@@ -103,7 +103,7 @@ export default function WelcomePage() {
       {/* Gradient fallback visible while canvas JS loads */}
       <div
         className="fixed inset-0 pointer-events-none"
-        style={{ background: "radial-gradient(ellipse at 50% 40%, #0a1628 0%, #060d1a 50%, #000000 100%)" }}
+        style={{ background: "radial-gradient(ellipse at 50% 40%, var(--hd-splash-core) 0%, var(--hd-splash-mid) 50%, var(--hd-ink) 100%)" }}
         aria-hidden="true"
       />
       <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none" aria-hidden="true" />

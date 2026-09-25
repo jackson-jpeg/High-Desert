@@ -1,4 +1,6 @@
 import { ImageResponse } from "next/og";
+// next/og renders without a stylesheet, so colours must be concrete strings.
+import { PALETTE } from "@/lib/palette";
 
 export const runtime = "edge";
 export const alt = "High Desert — Art Bell Radio Archive";
@@ -16,7 +18,7 @@ export default function OGImage() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "#0A0E1A",
+          backgroundColor: PALETTE.midnight,
           position: "relative",
           overflow: "hidden",
         }}
@@ -56,7 +58,7 @@ export default function OGImage() {
             width: 140,
             height: 140,
             borderRadius: "50%",
-            backgroundColor: "#D4A843",
+            backgroundColor: PALETTE.amber,
             marginBottom: 36,
             boxShadow: "0 0 60px rgba(212, 168, 67, 0.3), 0 0 120px rgba(212, 168, 67, 0.1)",
           }}
@@ -67,7 +69,7 @@ export default function OGImage() {
           style={{
             fontSize: 64,
             fontWeight: 700,
-            color: "#D4A843",
+            color: PALETTE.amber,
             letterSpacing: "0.15em",
             lineHeight: 1,
             marginBottom: 12,

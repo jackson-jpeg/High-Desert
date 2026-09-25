@@ -2443,6 +2443,22 @@ export const MUTATIONS = [
     replace: "    true",
     why: "a stale on-air list is worse than none — presence must never be answered from cache",
   },
+  {
+    id: "no-raw-hex-component",
+    test: "src/lib/__tests__/no-raw-hex.test.ts",
+    file: "src/components/radio/FrequencyDisplay.tsx",
+    find: `                color: "var(--hd-green)",`,
+    replace: `                color: "#4ADE80",`,
+    why: "HD-036: ~130 hand-typed hexes outside globals.css, several re-typing a token's value, silently missed by any retheme",
+  },
+  {
+    id: "no-raw-hex-palette-copy",
+    test: "src/lib/__tests__/no-raw-hex.test.ts",
+    file: "src/lib/palette.ts",
+    find: `  needle: "#FF2020",`,
+    replace: `  needle: "#FF2121",`,
+    why: "HD-036: the concrete copy for canvas/next/og must not drift from globals.css, or it is a second definition",
+  },
 ];
 
 /**

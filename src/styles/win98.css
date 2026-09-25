@@ -114,11 +114,11 @@ button.w98-raised-dark:active:not(:disabled) {
    text at 1.70:1 over the right half of the bar. The light end is now held to
    the last 15%, past where titles truncate, and the text carries a shadow. */
 .w98-titlebar-gradient {
-  background: linear-gradient(90deg, #000080 0%, #0A246A 55%, #3A6EA5 85%, #A6CAF0 100%);
+  background: linear-gradient(90deg, var(--hd-navy) 0%, var(--hd-select) 55%, var(--hd-titlebar-glow) 85%, var(--hd-titlebar-sky) 100%);
 }
 
 .w98-titlebar-inactive-gradient {
-  background: linear-gradient(90deg, #808080 0%, #B0B0B0 100%);
+  background: linear-gradient(90deg, var(--hd-chrome-dark) 0%, var(--hd-titlebar-inactive-end) 100%);
 }
 
 .w98-titlebar-title {
@@ -178,7 +178,7 @@ button.w98-raised-dark:active:not(:disabled) {
 }
 
 .w98-progress-chunk {
-  background: #000080;
+  background: var(--hd-navy);
   height: 100%;
   display: flex;
 }
@@ -186,7 +186,7 @@ button.w98-raised-dark:active:not(:disabled) {
 .w98-progress-segment {
   width: 8px;
   height: 100%;
-  background: #000080;
+  background: var(--hd-navy);
   margin-right: 2px;
 }
 

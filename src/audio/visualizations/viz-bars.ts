@@ -6,7 +6,7 @@
  */
 
 import type { Visualization } from "./types";
-import { PHOSPHOR_GREEN, DESERT_AMBER } from "./types";
+import { PHOSPHOR_GREEN, DESERT_AMBER, PEAK_RED, PEAK_WHITE } from "./types";
 
 const BAR_COUNT = 24;
 
@@ -46,7 +46,7 @@ function getBarValue(
 
 function segmentColor(segY: number, totalSegs: number): string {
   const pct = segY / totalSegs;
-  if (pct > 0.85) return "#FF3333";
+  if (pct > 0.85) return PEAK_RED;
   if (pct > 0.65) return DESERT_AMBER;
   return PHOSPHOR_GREEN;
 }
@@ -93,7 +93,7 @@ export const bars: Visualization = {
 
       if (peakHolds[i] > 0) {
         const py = h - peakHolds[i];
-        ctx.fillStyle = "#FFFFFF";
+        ctx.fillStyle = PEAK_WHITE;
         ctx.fillRect(x, py, barWidth, 2);
       }
     }

@@ -69,7 +69,7 @@ export function TitleBar({
           "w98-font text-hd-13 md:text-hd-11 font-bold truncate flex-1",
           /* Dark text on the inactive bar: #D4D4D4 sat at 1.46–2.66:1 across
              its #808080→#B0B0B0 gradient. #1F1F1F gives 4.2–7.6:1. */
-          active ? "w98-titlebar-title text-white" : "text-[#1F1F1F]",
+          active ? "w98-titlebar-title text-white" : "text-[color:var(--hd-titlebar-inactive-ink)]",
         )}
       >
         {title}

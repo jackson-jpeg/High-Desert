@@ -65,8 +65,8 @@ export function DialControls({
             style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04), 0 2px 8px rgba(0,0,0,0.2)" }}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <rect x="3" y="7" width="10" height="7" rx="1.5" stroke="#D4A843" strokeWidth="1.3" />
-              <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" stroke="#D4A843" strokeWidth="1.3" strokeLinecap="round" />
+              <rect x="3" y="7" width="10" height="7" rx="1.5" stroke="var(--hd-amber)" strokeWidth="1.3" />
+              <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" stroke="var(--hd-amber)" strokeWidth="1.3" strokeLinecap="round" />
             </svg>
             <span className="text-hd-13 font-medium text-desert-amber">Lock</span>
           </button>
@@ -88,7 +88,7 @@ export function DialControls({
             style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04), 0 2px 8px rgba(0,0,0,0.2)" }}
           >
             <svg width="14" height="16" viewBox="0 0 14 16" fill="none">
-              <polygon points="2,1 12,8 2,15" fill={isLocked ? "#4ADE80" : "#808080"} />
+              <polygon points="2,1 12,8 2,15" fill={isLocked ? "var(--hd-green)" : "var(--hd-chrome-dark)"} />
             </svg>
             <span className={cn("text-hd-13 font-medium", isLocked ? "text-static-green" : "text-bevel-dark")}>
               Play
@@ -111,7 +111,7 @@ export function DialControls({
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path
                 d="M3 8h10M10 5l3 3-3 3"
-                stroke={scanning ? "#D4A843" : "rgba(192,192,192,0.5)"}
+                stroke={scanning ? "var(--hd-amber)" : "rgba(192,192,192,0.5)"}
                 strokeWidth="1.3"
                 strokeLinecap="round"
                 strokeLinejoin="round"
