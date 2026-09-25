@@ -219,6 +219,19 @@ describe("Live screen", () => {
     expect(host.querySelector('[data-testid="live-rejoin"]')).toBeNull();
   });
 
+  it("the layout lets each window fit: one shrinkable column on a phone; the chat fills its window", async () => {
+    // Measured for real in e2e/live-qa.spec.ts ("wider than the screen", "the
+    // call-in box is on screen"); jsdom has no layout, so this holds the two
+    // declarations that did it. At 390 an implicit grid track sized to the
+    // "Up next" title made the studio 555 px wide; as flex-1 in a scrolling
+    // Window body, the chat pushed its call-in box below the fold.
+    stationAt(B.start + H + 500);
+    await mount();
+    const grid = q("live-guide").closest('[class*="grid"]')!;
+    expect(grid.className).toMatch(/(^|\s)grid-cols-\[minmax\(0,1fr\)\](\s|$)/);
+    expect(q("phone-lines-body").className).toMatch(/(^|\s)h-full(\s|$)/);
+  });
+
   it("desktop: the phone lines sit beside the console", async () => {
     stationAt(B.start + H + 500);
     await mount();
