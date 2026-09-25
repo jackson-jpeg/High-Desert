@@ -22,6 +22,8 @@ import type { Episode } from "@/db/schema";
 export interface MirrorManifest {
   version: string;
   fileHashes: ReadonlySet<string>;
+  /** The response's ETag, sent back verbatim as If-None-Match (nginx's, not `version`). */
+  etag?: string;
 }
 
 interface OutageState {

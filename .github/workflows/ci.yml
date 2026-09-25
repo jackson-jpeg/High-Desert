@@ -33,11 +33,13 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      # services/mirror is its own package (webtorrent); its tests run in the
-      # same vitest suite and seed a fixture torrent in process.
-      - name: Install mirror dependencies
-        run: npm ci --prefix services/mirror --no-audit --no-fund
-      # services/live (the phone lines) is its own package too (obscenity, pg).
+      # The outage mirror is nginx configuration (services/mirror/lib/nginx.mjs);
+      # services/mirror/test/nginx.test.mjs starts a real nginx from it and
+      # fails in CI if there is none. The runner image ships nginx; this only
+      # installs it if a future image does not.
+      - name: nginx for the mirror's integration test
+        run: command -v nginx >/dev/null || test -x /usr/sbin/nginx || sudo apt-get install -y --no-install-recommends nginx-core
+      # services/live (the phone lines) is its own package (obscenity, pg).
       - name: Install live chat dependencies
         run: npm ci --prefix services/live --no-audit --no-fund
       - name: Apply schema

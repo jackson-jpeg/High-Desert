@@ -2,6 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { renderMirrorNginx, PRODUCTION } from "../../services/mirror/lib/nginx.mjs";
 
 /**
  * deploy/nginx/highdesert.conf is the versioned copy of the production vhost
@@ -104,5 +105,58 @@ describe("nginx vhost — the phone lines (/live-api/)", () => {
 
   it("health is not public", () => {
     expect(location("= /live-api/health")).toMatch(/return\s+404;/);
+  });
+});
+
+describe("nginx vhost — the archive.org outage mirror", () => {
+  const raw = readFileSync(path.resolve(__dirname, "../../deploy/nginx/highdesert.conf"), "utf8");
+  const httpsServer = conf.slice(conf.indexOf("listen 187.77.218.14:443"), conf.indexOf("# HTTP — ACME"));
+  const strip = (t: string) => t.split("\n").map((l) => l.replace(/#.*$/, "")).join("\n");
+  const { http, locations } = renderMirrorNginx();
+  const loc = strip(locations);
+  const httpConf = strip(http);
+
+  it("includes the generated mirror config: http level outside any server, locations inside the HTTPS server", () => {
+    const before = conf.slice(0, conf.indexOf("server {"));
+    expect(before).toMatch(/include\s+\/etc\/nginx\/highdesert-mirror\/http\.conf;/);
+    expect(httpsServer).toMatch(/include\s+\/etc\/nginx\/highdesert-mirror\/locations\.conf;/);
+    expect(raw).not.toMatch(/127\.0\.0\.1:3004/); // the webtorrent gateway is gone
+  });
+
+  it("every mirror location is under /mirror/, so none can take /api/stats/ or the app away", () => {
+    for (const m of loc.matchAll(/location\s+([^{]+)\{/g)) {
+      const spec = m[1].trim().replace(/^"|"$/g, "");
+      if (spec.startsWith("@")) continue;
+      const target = spec.replace(/^(=|\^~|~\*?)\s*"?/, "");
+      expect(target.startsWith("/mirror/") || target.startsWith("^/mirror/"), spec).toBe(true);
+    }
+  });
+
+  it("limits connections per address and never redefines add_header (the server's HSTS must be inherited)", () => {
+    expect(loc).toMatch(/location \^~ \/mirror\/ \{\s*limit_conn hd_mirror \d+;/);
+    expect(httpConf).toMatch(/limit_conn_zone \$binary_remote_addr zone=hd_mirror:/);
+    expect(loc).not.toMatch(/add_header/);
+  });
+
+  it("sends nothing of the listener to archive.org: no client headers, no address", () => {
+    for (const block of [loc.slice(loc.indexOf("location @hd_mirror_fill")), httpConf.slice(httpConf.indexOf("server {"))]) {
+      expect(block).toMatch(/proxy_pass_request_headers off;/);
+      expect(block).not.toMatch(/X-Forwarded-For|X-Real-IP|\$remote_addr/);
+    }
+  });
+
+  it("the fill server listens only on its unix socket, and follows redirects only to archive.org's storage nodes", () => {
+    const listens = [...httpConf.matchAll(/listen\s+([^;]+);/g)].map((m) => m[1]);
+    expect(listens).toEqual([`unix:${PRODUCTION.fillSocket}`]);
+    const follow = new RegExp(PRODUCTION.followPattern);
+    expect(follow.test("https://dn720703.ca.archive.org/0/items/x/y.mp3")).toBe(true);
+    expect(follow.test("https://ia800300.us.archive.org/12/items/x/y.mp3")).toBe(true);
+    expect(follow.test("https://archive.org.evil.example/x")).toBe(false);
+    expect(follow.test("http://ia800300.us.archive.org/x")).toBe(false);
+    expect(httpConf).toMatch(/proxy_ssl_verify on;/);
+  });
+
+  it("the cache is bounded: 20 GB and never under 10 GB free", () => {
+    expect(httpConf).toMatch(/proxy_cache_path \/var\/cache\/highdesert-mirror\/proxy .*max_size=20g min_free=10g/);
   });
 });

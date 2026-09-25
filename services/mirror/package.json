@@ -2,13 +2,9 @@
   "name": "highdesert-mirror",
   "private": true,
   "type": "module",
-  "description": "Same-origin range gateway for High Desert episodes when archive.org is down: a bounded cache, filled by webseed and BitTorrent.",
+  "description": "The archive.org outage mirror's jobs and nginx config: the nightly warm (verified plain-HTTP pins), the one-time migration, and the generated nginx includes and catalog. No runtime process; nginx serves it.",
   "engines": { "node": ">=22" },
   "scripts": {
-    "start": "node server.mjs",
-    "test": "node --test --test-concurrency=1 test/"
-  },
-  "dependencies": {
-    "webtorrent": "3.0.21"
+    "warm": "node warm.mjs"
   }
 }

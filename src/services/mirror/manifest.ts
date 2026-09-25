@@ -6,8 +6,10 @@ import { safeSetItem } from "@/lib/utils/safe-storage";
  *
  * Read when outage mode starts, and kept in localStorage so a page opened
  * during an outage can mark rows and refuse an unplayable start before its own
- * fetch returns. The server's `version` is a digest of the list; the client
- * sends the one it holds as `If-None-Match` and a 304 costs nothing.
+ * fetch returns. The manifest is a static file served by nginx, whose ETag is
+ * its own (mtime and size), not the body's `version`: the client keeps the
+ * ETag it was given and sends it back verbatim as `If-None-Match`, and a 304
+ * costs nothing. `version` (a digest of the list) still identifies the set.
  *
  * Nothing here ever throws or blocks a start: a manifest that cannot be read
  * leaves the store's `manifest` as it was — null means unknown, and an unknown
@@ -24,6 +26,7 @@ let lastFetchedAt = 0;
 interface WireManifest {
   version: string;
   fileHashes: string[];
+  etag?: string;
 }
 
 function isWireManifest(v: unknown): v is WireManifest {
@@ -37,7 +40,7 @@ function isWireManifest(v: unknown): v is WireManifest {
 }
 
 function toManifest(w: WireManifest): MirrorManifest {
-  return { version: w.version, fileHashes: new Set(w.fileHashes) };
+  return { version: w.version, fileHashes: new Set(w.fileHashes), ...(typeof w.etag === "string" ? { etag: w.etag } : {}) };
 }
 
 /** Put the last manifest this browser saw into the store, if there is one. */
@@ -60,7 +63,7 @@ export async function loadManifest({ force = false }: { force?: boolean } = {}):
   const held = useOutageStore.getState().manifest;
   try {
     const res = await fetch(MANIFEST_URL, {
-      headers: held ? { "If-None-Match": `"${held.version}"` } : {},
+      headers: held?.etag ? { "If-None-Match": held.etag } : {},
       signal: AbortSignal.timeout(10_000),
     });
     if (res.status === 304) return;
@@ -70,9 +73,11 @@ export async function loadManifest({ force = false }: { force?: boolean } = {}):
     }
     const body: unknown = await res.json();
     if (!isWireManifest(body)) return;
-    useOutageStore.getState().setManifest(toManifest(body));
+    const etag = res.headers.get("ETag") ?? undefined;
+    const wire: WireManifest = { version: body.version, fileHashes: body.fileHashes, ...(etag ? { etag } : {}) };
+    useOutageStore.getState().setManifest(toManifest(wire));
     // Quota or blocked storage: the in-memory copy still serves this page.
-    safeSetItem("local", MANIFEST_STORAGE_KEY, JSON.stringify({ version: body.version, fileHashes: body.fileHashes }));
+    safeSetItem("local", MANIFEST_STORAGE_KEY, JSON.stringify(wire));
   } catch {
     lastFetchedAt = 0;
   }
