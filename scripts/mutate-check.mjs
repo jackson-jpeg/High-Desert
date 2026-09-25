@@ -629,7 +629,7 @@ export const MUTATIONS = [
   {
     id: "presence-cap",
     test: "src/services/stats/__tests__/presence-cap.db.test.ts",
-    file: "src/services/stats/store.ts",
+    file: "src/services/stats/db/presence.ts",
     find: "  ) < ${c}`;",
     replace: "  ) < ${c} OR true`;",
     needs: "TEST_DATABASE_URL",
@@ -638,7 +638,7 @@ export const MUTATIONS = [
   {
     id: "presence-cap-lock",
     test: "src/services/stats/__tests__/presence-cap.db.test.ts",
-    file: "src/services/stats/store.ts",
+    file: "src/services/stats/db/presence.ts",
     find: '    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [ref]);',
     replace: '    await client.query("SELECT $1::text", [ref]);',
     needs: "TEST_DATABASE_URL",
@@ -647,7 +647,7 @@ export const MUTATIONS = [
   {
     id: "presence-cap-play",
     test: "src/services/stats/__tests__/store.db.test.ts",
-    file: "src/services/stats/store.ts",
+    file: "src/services/stats/db/plays.ts",
     find: '    WHERE ${ADMIT_SESSION("$3", "$4", "$5")}',
     replace: "    WHERE true",
     needs: "TEST_DATABASE_URL",
@@ -692,7 +692,7 @@ export const MUTATIONS = [
   {
     id: "store-voter-guard",
     test: "src/app/api/stats/rate/__tests__/voter-hash.db.test.ts",
-    file: "src/services/stats/store.ts",
+    file: "src/services/stats/db/ratings.ts",
     find: "  if (!HASHED_VOTER_RE.test(voter)) {",
     replace: "  if (false) {",
     needs: "TEST_DATABASE_URL",
@@ -1063,7 +1063,7 @@ export const MUTATIONS = [
   {
     id: "pool-statement-timeout",
     test: "src/services/stats/__tests__/store.db.test.ts",
-    file: "src/services/stats/store.ts",
+    file: "src/services/stats/db/pool.ts",
     find: "    statement_timeout: STATEMENT_TIMEOUT_MS,",
     replace: "    // statement_timeout removed",
     why: "one slow statement must not hold one of eight pool connections indefinitely (HD-031)",
@@ -1072,7 +1072,7 @@ export const MUTATIONS = [
   {
     id: "rollup-plays-index",
     test: "src/services/stats/__tests__/store.db.test.ts",
-    file: "src/services/stats/store.ts",
+    file: "src/services/stats/db/traffic.ts",
     find: "      WHERE played_at >= ((now() AT TIME ZONE 'UTC')::date - ($1::int - 1))::timestamp",
     replace: "      WHERE (played_at AT TIME ZONE 'UTC')::date >= ((now() AT TIME ZONE 'UTC')::date - ($1::int - 1))::timestamp",
     why: "wrapping played_at in an expression makes every rollup seq-scan the never-pruned play_events (HD-020)",
@@ -1081,7 +1081,7 @@ export const MUTATIONS = [
   {
     id: "rollup-samples-index",
     test: "src/services/stats/__tests__/store.db.test.ts",
-    file: "src/services/stats/store.ts",
+    file: "src/services/stats/db/traffic.ts",
     find: "      WHERE sampled_at >= ((now() AT TIME ZONE 'UTC')::date - ($1::int - 1))::timestamp",
     replace: "      WHERE (sampled_at AT TIME ZONE 'UTC')::date >= ((now() AT TIME ZONE 'UTC')::date - ($1::int - 1))::timestamp",
     why: "the same expression-wrapped predicate on listener_samples (HD-020)",
@@ -1546,7 +1546,7 @@ export const MUTATIONS = [
   {
     id: "failure-window-advisory",
     test: "src/services/stats/__tests__/store.db.test.ts",
-    file: "src/services/stats/store.ts",
+    file: "src/services/stats/db/failures.ts",
     find: "               AND NOT (kind = ANY($3)))                AS failures,",
     replace: "               AND $3::text[] IS NOT NULL)               AS failures,",
     needs: "TEST_DATABASE_URL",
@@ -1991,7 +1991,7 @@ export const MUTATIONS = [
   {
     id: "presence-distinct-clients",
     test: "src/services/stats/__tests__/presence-clients.db.test.ts",
-    file: "src/services/stats/store.ts",
+    file: "src/services/stats/db/presence.ts",
     find: "      count(DISTINCT who)::int                         AS online,",
     replace: "      count(*)::int                                    AS online,",
     needs: "TEST_DATABASE_URL",
@@ -2124,11 +2124,30 @@ export const MUTATIONS = [
   {
     id: "play-source-stored",
     test: "src/services/stats/__tests__/store.db.test.ts",
-    file: "src/services/stats/store.ts",
+    file: "src/services/stats/db/plays.ts",
     find: "INSERT INTO play_events (episode_id, session_ref, source) VALUES ($1, $3, $6)",
     replace: "INSERT INTO play_events (episode_id, session_ref, source) VALUES ($1, $3, NULL)",
     needs: "TEST_DATABASE_URL",
     why: "a source the route accepted but the store dropped leaves the mirror invisible in every count",
+  },
+  // HD-018: store.ts is a barrel over src/services/stats/db/. Every route
+  // imports through it, so a name it stops re-exporting must be noticed.
+  {
+    id: "stats-barrel",
+    test: "src/app/api/stats/play/__tests__/source.test.ts",
+    file: "src/services/stats/store.ts",
+    find: "  isPlaySource,\n",
+    replace: "",
+    why: "the barrel is the only path routes import the store by; a dropped re-export is a route calling undefined",
+  },
+  {
+    id: "export-play-events-cursor",
+    test: "src/services/stats/__tests__/export.db.test.ts",
+    file: "src/services/stats/db/export.ts",
+    find: "      AND ($3::bigint      IS NULL OR id        >  $3)",
+    replace: "      AND ($3::bigint      IS NULL OR id        >= $3)",
+    needs: "TEST_DATABASE_URL",
+    why: "sang3r.com pages the permanent log by id; an inclusive cursor repeats the boundary row and double-counts a play",
   },
   {
     id: "gateway-range-start",
