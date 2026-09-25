@@ -7,6 +7,7 @@ import { useCommunityNow } from "@/hooks/useCommunityNow";
 import { SESSION_ID } from "@/lib/utils/session-id";
 import { usePlayerStore } from "@/stores/player-store";
 import { communityKey } from "@/lib/utils/community-key";
+import { useLiveStore } from "@/stores/live-store";
 
 const HEARTBEAT_MS = 60_000;
 
@@ -21,6 +22,18 @@ export function nowListeningTo(): string | null {
   const { currentEpisode, playing } = usePlayerStore.getState();
   if (!playing || !currentEpisode) return null;
   return communityKey(currentEpisode);
+}
+
+/**
+ * Is this tab tuned in to the live station, for the heartbeat? Tuned and
+ * playing, or in the station ID between two shows (nothing is playing for
+ * those eight seconds, and a beat landing in them must not drop the listener
+ * from the live count for a whole minute).
+ */
+export function tunedInLive(): boolean {
+  const { tuned, phase } = useLiveStore.getState();
+  if (!tuned) return false;
+  return phase === "station-id" || usePlayerStore.getState().playing;
 }
 
 /**
@@ -44,7 +57,7 @@ export function usePresence(): LivePresence {
   const { online, listening, poll } = useCommunityNow();
 
   useEffect(() => {
-    const beat = () => reportHeartbeat(SESSION_ID, nowListeningTo());
+    const beat = () => reportHeartbeat(SESSION_ID, nowListeningTo(), tunedInLive());
 
     void beat().then(() => refreshNow());
     const id = setInterval(beat, HEARTBEAT_MS);
@@ -56,9 +69,16 @@ export function usePresence(): LivePresence {
     };
     document.addEventListener("visibilitychange", onVisible);
 
+    // Tuning in or out moves the live count; say so now rather than at the
+    // next beat, up to a minute later, and refresh the feed once it lands.
+    const offLive = useLiveStore.subscribe((s, prev) => {
+      if (s.tuned !== prev.tuned) void beat().then(() => refreshNow());
+    });
+
     return () => {
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
+      offLive();
     };
   }, []);
 

@@ -32,6 +32,7 @@ export interface NowSnapshot extends NowPlaying {
 const INITIAL: NowSnapshot = {
   online: 0,
   listening: 0,
+  live: 0,
   onAir: [],
   recent: [],
   loading: true,
@@ -115,18 +116,20 @@ export interface LivePresence {
   poll: number;
 }
 
-export type PresenceSurface = "badge" | "status-bar" | "mobile-sheet" | "on-air" | "signal-traffic";
+export type PresenceSurface = "badge" | "status-bar" | "mobile-sheet" | "on-air" | "signal-traffic" | "live";
 
 /**
  * The attributes every presence surface renders on the element that shows the
  * number. `highdesert-status` reads them from the live site and FAILs if two
  * surfaces on one page show different numbers for the same poll.
  */
-export function presenceAttrs(surface: PresenceSurface, p: LivePresence) {
+export function presenceAttrs(surface: PresenceSurface, p: LivePresence & { live?: number }) {
   return {
     "data-presence": surface,
     "data-online": p.online,
     "data-listening": p.listening,
+    // The Live screen also shows how many are tuned in; the other surfaces do not.
+    ...(p.live !== undefined ? { "data-live": p.live } : {}),
     "data-presence-poll": p.poll,
   };
 }

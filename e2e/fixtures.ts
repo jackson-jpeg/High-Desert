@@ -49,6 +49,24 @@ function nextClientAddress(workerIndex: number): string {
   return `10.${(n >> 16) & 0xff}.${(n >> 8) & 0xff}.${(n & 0xff) || 1}`;
 }
 
+/**
+ * Answer every stats write in `page` in the page itself, recording each in
+ * `seen`. The `serverWrites` fixture does this for the test's own page; a spec
+ * that opens a second context (e2e/live.spec.ts) calls it for that one too.
+ */
+export async function answerServerWrites(page: import("@playwright/test").Page, seen: string[]): Promise<void> {
+  await page.route(SERVER_WRITES, (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    seen.push(new URL(route.request().url()).pathname);
+    return route.fulfill({ json: { ok: true } });
+  });
+}
+
+/** A fresh, distinct client address for a second context in the same test. */
+export function anotherClientAddress(workerIndex: number): string {
+  return nextClientAddress(workerIndex);
+}
+
 export const test = base.extend<{ serverWrites: string[] }>({
   serviceWorkers: "block",
   // `provide` is Playwright's `use`; the name is deliberate — react-hooks reads
@@ -59,11 +77,7 @@ export const test = base.extend<{ serverWrites: string[] }>({
   serverWrites: [
     async ({ page }, use) => {
       const seen: string[] = [];
-      await page.route(SERVER_WRITES, (route) => {
-        if (route.request().method() !== "POST") return route.fallback();
-        seen.push(new URL(route.request().url()).pathname);
-        return route.fulfill({ json: { ok: true } });
-      });
+      await answerServerWrites(page, seen);
       await use(seen);
     },
     { auto: true },

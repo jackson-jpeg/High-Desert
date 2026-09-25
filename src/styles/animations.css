@@ -154,6 +154,18 @@
   animation: on-air-pulse 2.5s ease-in-out infinite;
 }
 
+/* The live station's ON AIR lamp: the glow breathes while you are tuned in.
+   Only the glow — the sign's text stays at full strength (the ramp note in
+   CLAUDE.md), which is why this is not animate-on-air, an opacity pulse. */
+@keyframes on-air-lamp {
+  0%, 100% { box-shadow: 0 0 6px var(--hd-needle); }
+  50% { box-shadow: 0 0 22px var(--hd-needle); }
+}
+
+.animate-on-air-lamp {
+  animation: on-air-lamp 2.4s ease-in-out infinite;
+}
+
 /* Signal bars animation */
 @keyframes signal-bar {
   0%, 100% { opacity: 0.25; }
@@ -227,6 +239,7 @@
   .animate-pulse,
   .animate-dot-1,
   .animate-on-air,
+  .animate-on-air-lamp,
   .animate-pulse-glow,
   .animate-skeleton,
   .animate-signal-1,

@@ -15,6 +15,8 @@ import { SignalMeter } from "./SignalMeter";
 import { DialControls } from "./DialControls";
 import { RadioShortcuts } from "./RadioShortcuts";
 import { YearTabs } from "./YearTabs";
+import { LiveDialLamp, airDateDayIndex } from "./LiveDialLamp";
+import { useOnAirSlot } from "@/hooks/useLiveStation";
 import type { Episode } from "@/db/schema";
 import { emit } from "@/lib/events";
 
@@ -47,6 +49,10 @@ export function RadioDial({ episodes }: RadioDialProps) {
     jumpToYear,
     cycleSubStation,
   } = useRadioDial(episodes);
+
+  // The live station's show, and where it sits on the dial.
+  const onAirSlot = useOnAirSlot();
+  const onAirDay = index ? airDateDayIndex(onAirSlot?.airDate, index.earliest) : null;
 
   const { ensureInitialized } = useRadioStatic({
     signalStrength,
@@ -253,6 +259,11 @@ export function RadioDial({ episodes }: RadioDialProps) {
         {/* Year quick-jump */}
         <div className="flex-shrink-0 mx-5 mt-3">{yearBar}</div>
 
+        {/* The live station's ON AIR lamp */}
+        <div className="flex-shrink-0 mx-5 mt-2">
+          <LiveDialLamp slot={onAirSlot} earliest={index.earliest} />
+        </div>
+
         {/* First-visit hint */}
         {radioHint && (
           <div className="mx-5 mt-2 px-3 py-2 bg-desert-amber/10 border border-desert-amber/20 rounded flex items-center justify-between gap-2 flex-shrink-0 animate-fade-in">
@@ -270,7 +281,7 @@ export function RadioDial({ episodes }: RadioDialProps) {
 
         {/* Tuning Strip */}
         <div className="flex-1 mx-4 my-1 min-h-[140px]">
-          <TuningStrip index={index} className="rounded-lg" />
+          <TuningStrip index={index} onAirDay={onAirDay} className="rounded-lg" />
         </div>
 
         {/* Signal + Controls */}
@@ -338,7 +349,7 @@ export function RadioDial({ episodes }: RadioDialProps) {
             fraction of it — floated in a large empty field of strip background. */}
         <div className="h-[200px] flex-shrink-0 flex gap-1">
           <div className="flex-1 w98-inset-dark rounded">
-            <TuningStrip index={index} className="rounded" />
+            <TuningStrip index={index} onAirDay={onAirDay} className="rounded" />
           </div>
           {/* Zoom controls */}
           <div className="flex flex-col items-center justify-center gap-1 w-[20px]">
@@ -364,6 +375,7 @@ export function RadioDial({ episodes }: RadioDialProps) {
             onLockNearest={lockToNearest}
             className="flex-1"
           />
+          <LiveDialLamp slot={onAirSlot} earliest={index.earliest} className="max-w-[16rem] flex-shrink" />
           <SignalMeter
             signalStrength={signalStrength}
             className="w-[120px] flex-shrink-0"

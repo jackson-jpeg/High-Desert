@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { SilentEventSource } from "@/test-support/event-source";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
@@ -53,8 +54,10 @@ const { DesktopShell } = await import("@/components/desktop/DesktopShell");
 const { OnAir } = await import("@/components/library/OnAir");
 const { SignalTraffic } = await import("@/components/library/SignalTraffic");
 const { resetNowFeedForTests } = await import("@/services/stats/now-feed");
+const { LiveStation } = await import("@/components/live/LiveStation");
+const { useLiveStore } = await import("@/stores/live-store");
 
-const NOW = { online: 8, listening: 3, onAir: [{ episodeId: "coll--show", listeners: 3 }], recent: [] };
+const NOW = { online: 8, listening: 3, live: 2, onAir: [{ episodeId: "coll--show", listeners: 3 }], recent: [] };
 const LEGACY_ACTIVE = { count: 2, online: 7, listening: 2 };
 const LATEST_SAMPLE = { online: 10, listening: 5 };
 
@@ -90,6 +93,7 @@ async function flush() {
 
 beforeEach(() => {
   resetNowFeedForTests();
+  vi.stubGlobal("EventSource", SilentEventSource);
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
@@ -151,6 +155,43 @@ describe("presence: one truth on every surface", () => {
       const shown = numbersIn(s);
       // The badge shows online only; every other surface shows both.
       expect(shown, name!).toEqual(name === "badge" ? [8] : [8, 3]);
+    }
+  });
+
+  it("the Live screen's count is the same snapshot, on the same poll, with its own live figure", async () => {
+    const at = Date.now();
+    const slot = {
+      fileHash: "archive:coll:show.mp3", episodeId: "coll--show", title: "Show", airDate: "1997-07-28",
+      guestName: null, showType: "coast", duration: 3600, sourceUrl: null, kind: "on-this-date" as const,
+      start: at - 60_000, end: at + 3_540_000,
+    };
+    useLiveStore.setState({
+      schedule: {
+        day: "2026-09-25", tz: "America/Los_Angeles", serverNow: at, stationIdSec: 8,
+        now: { slot, startedAt: slot.start, offsetSec: 60, endsAt: slot.end },
+        upNext: [], rest: [], guide: [slot], outage: false,
+      },
+    });
+    try {
+      act(() => {
+        root.render(
+          <DesktopShell episodeCount={1312}>
+            <LiveStation />
+          </DesktopShell>,
+        );
+      });
+      await flush();
+      const live = host.querySelector('[data-presence="live"]');
+      const bar = host.querySelector('[data-presence="status-bar"]');
+      expect(live).not.toBeNull();
+      expect(live!.getAttribute("data-presence-poll")).toBe(bar!.getAttribute("data-presence-poll"));
+      expect(live!.getAttribute("data-online")).toBe("8");
+      expect(live!.getAttribute("data-listening")).toBe("3");
+      expect(live!.getAttribute("data-live")).toBe("2");
+      // What a listener reads: 2 tuned in live, 8 online.
+      expect(numbersIn(live!)).toEqual([2, 8]);
+    } finally {
+      useLiveStore.setState({ schedule: null });
     }
   });
 

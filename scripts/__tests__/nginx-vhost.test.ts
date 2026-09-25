@@ -82,6 +82,32 @@ describe("nginx vhost — stats write limit", () => {
   });
 });
 
+describe("nginx vhost — the phone lines (/live-api/)", () => {
+  it("proxies /live-api/ to the chat service on loopback, path unchanged, with its own POST limit", () => {
+    const body = location("^~ /live-api/");
+    expect(body).not.toBeNull();
+    // No URI part after the port: nginx passes /live-api/... through as is.
+    expect(body!).toMatch(/proxy_pass\s+http:\/\/127\.0\.0\.1:3005;/);
+    expect(body!).toMatch(/limit_req\s+zone=hd_live_write\s+burst=\d+\s+nodelay;/);
+    const map = /map\s+\$request_method\s+\$hd_live_write_key\s*\{([^}]*)\}/.exec(conf);
+    expect(map![1]).toMatch(/POST\s+\$binary_remote_addr;/);
+    expect(map![1]).toMatch(/default\s+"";/);
+  });
+
+  it("the stream is unbuffered, long-lived, and capped per address", () => {
+    const body = location("= /live-api/stream");
+    expect(body).not.toBeNull();
+    expect(body!).toMatch(/proxy_pass\s+http:\/\/127\.0\.0\.1:3005;/);
+    expect(body!).toMatch(/proxy_buffering\s+off;/);
+    expect(body!).toMatch(/proxy_read_timeout\s+1h;/);
+    expect(body!).toMatch(/limit_conn\s+hd_live_streams\s+\d+;/);
+  });
+
+  it("health is not public", () => {
+    expect(location("= /live-api/health")).toMatch(/return\s+404;/);
+  });
+});
+
 describe("nginx vhost — the archive.org outage mirror", () => {
   const raw = readFileSync(path.resolve(__dirname, "../../deploy/nginx/highdesert.conf"), "utf8");
   const httpsServer = conf.slice(conf.indexOf("listen 187.77.218.14:443"), conf.indexOf("# HTTP — ACME"));

@@ -16,6 +16,7 @@ npm run test                  # Vitest
 npm run test:mutations        # does each test actually observe its subject?
 npm run check:csp -- <url>    # every route in Chromium: CSP violations / console errors
 E2E_BASE_URL=<url> npm run test:e2e   # Playwright, desktop + mobile projects
+# e2e/live.spec.ts: a LOCAL build on the e2e database (schema applied), never production — see its header
 ```
 
 **e2e specs import `test` from `e2e/fixtures.ts`, never from `@playwright/test`** (ESLint
@@ -64,6 +65,7 @@ before adding a test, and add a mutation alongside it.
 | `/scanner` | Local file scanner + archive.org catalog scraper (admin) |
 | `/search` | Archive.org search and import (admin) |
 | `/stats` | Listening statistics |
+| `/live` | High Desert Live — the 24/7 station: now playing, time left, up next, the day's log, the live count, the phone lines (chat). See "Live station" |
 
 All primary pages share `(desktop)/layout.tsx` — the master client component that initializes the audio player, handles global keyboard shortcuts, seeds the library on first visit, and persists playback state.
 
@@ -83,14 +85,20 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/community` | GET | Community plays and ratings for the **whole catalog**: **`{episodes: {id: {plays, avg, count}}}`**, only episodes with a play or rating. What "Most played" / "Top rated" sort by and what the list's metric column shows (`src/lib/library/sort-keys.ts`), read through `useCommunityCatalog`. Proxy-cached 60s |
 | `/api/stats/leaderboard` | GET | Top episodes. **`?period=alltime\|week` is required.** Returns **`{entries: [{episodeId, plays}]}`**. `alltime` is `episode_plays` — the same numbers as `/api/stats/community` and the library's "Most played" |
 | `/api/stats/active` | GET | **Legacy alias**, read by no surface in the current build. Returns **`{count, online, listening}`** from the same `getPresence()` as `/now` — `count` is a synonym for `listening` |
-| `/api/stats/heartbeat` | POST | Mark a session present. Body `{sessionId, episodeId?}`. Returns `{ok}`. Every open tab posts on a 60s interval. `episodeId` is sent **only while that tab is actually playing** and renews `listening_at` — it is what keeps a show on air for its whole runtime instead of for five minutes after someone pressed play. Omitting it leaves the listening mark alone rather than clearing it, so a pause does not yank the show off the air; the mark decays on its own. Same allowlist gate as `/api/stats/play`, but a bad id drops the mark instead of failing the beat — presence is the primary job. A client past `SESSIONS_PER_CLIENT` new sessions gets the same `{ok}` and is not counted |
-| `/api/stats/now` | GET | **The one presence endpoint.** Presence **plus what is playing**. Returns **`{online, listening, onAir: [{episodeId, listeners}], recent: [{episodeId, at}]}`**. `online` is distinct *clients* (not sessions) with a heartbeat inside 5 min; `listening` is the subset with a playing session; `listeners` is distinct clients per episode. `no-store` — a stale on-air list is worse than none. Aggregate only: no query joins `session_id` to `episode_id`, and `recent_plays` stores no session at all |
+| `/api/stats/heartbeat` | POST | Mark a session present. Body `{sessionId, episodeId?, live?}`. `live: true` (only a literal true) sets `active_sessions.live_at` — sent while tuned in to the live station and playing, or in its station ID; any beat without it clears the mark at once. Returns `{ok}`. Every open tab posts on a 60s interval. `episodeId` is sent **only while that tab is actually playing** and renews `listening_at` — it is what keeps a show on air for its whole runtime instead of for five minutes after someone pressed play. Omitting it leaves the listening mark alone rather than clearing it, so a pause does not yank the show off the air; the mark decays on its own. Same allowlist gate as `/api/stats/play`, but a bad id drops the mark instead of failing the beat — presence is the primary job. A client past `SESSIONS_PER_CLIENT` new sessions gets the same `{ok}` and is not counted |
+| `/api/stats/now` | GET | **The one presence endpoint.** Presence **plus what is playing**. Returns **`{online, listening, live, onAir: [{episodeId, listeners}], recent: [{episodeId, at}]}`**. `online` is distinct *clients* (not sessions) with a heartbeat inside 5 min; `listening` is the subset with a playing session; `live` the subset tuned in to the live station (`live_at` inside the window); `listeners` is distinct clients per episode. `no-store` — a stale on-air list is worse than none. Aggregate only: no query joins `session_id` to `episode_id`, and `recent_plays` stores no session at all |
 | `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, plays}], peakOnline, peakListening, playsInRange, totalPlays, peakAt, hourly: [{hour, online, listening, plays, samples}]}`**. `hourly` is always a 24-entry, zero-filled, **UTC**-hour profile over the last 30 days and does *not* vary with `range`; the client rotates it into local time. `samples: 0` means *never observed*, which is not the same as "observed, nobody here" — the UI hides the profile until 8 hours have been sampled, or a day-old deployment draws 23 empty columns and looks like a dead site. **`playsBySource: {archive, mirror, …, unknown}`** counts `play_events` in the range by `source` — what `highdesert-status` reads for "mirror plays in 24h" |
-| `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Also prunes `weekly_plays` past 3 weeks. Returns `{ok, online, listening, totalPlays, rolledUp, anonymized, prunedWeeks}` |
+| `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Also prunes `weekly_plays` past 3 weeks. Returns `{ok, online, listening, live, totalPlays, rolledUp, anonymized, prunedWeeks}` (`live` is reported, not sampled — `listener_samples` has no column for it) |
 | `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass, detail?}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`network-error`/`decode-error`/`empty-media`/`empty-media-suspected`; `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. `detail` is short (≤200 char) free text: the reported duration on an advisory row, or `MediaError.code` plus its message on a `decode-error`/`network-error`/`empty-media`. That message is a browser pipeline diagnostic (`DEMUXER_ERROR_COULD_NOT_OPEN: …`) and is the **only** way an empty file is distinguishable from an unreachable one on Chromium, which errors on the missing frames rather than reporting a short duration. A `detail` containing `HD-VERIFY` (any case, checked after truncation) is **rejected with 400** — this table is the instrument that decides whether the 5s duration floor is safe to promote, and verification rows have polluted it twice; intercept the POST in the page instead. No session id, no IP. `episodeId` must be in the community-key allowlist. Optional `source` as on `/api/stats/play`, but an unknown value is stored NULL rather than refused — losing a failure row costs more than losing its source. A failover row carries the source that *failed* (`archive`) and `recovered: true` once the mirror plays |
+| `/api/live/schedule` | GET | **The live station's program.** Returns **`{day, tz: "America/Los_Angeles", serverNow, stationIdSec: 8, now, upNext: [Slot, Slot], rest: [Slot], guide: [Slot], outage}`**. `now` is `{slot, startedAt, offsetSec, endsAt}` (a show: start and offset into it) or `{stationId: true, endsAt}` (the gap between shows). `Slot` is `{fileHash, episodeId, title, airDate, guestName, showType, duration, sourceUrl, kind: "on-this-date"\|"fan-favorite"\|"outage-swap", start, end, replaces?}`, times epoch ms. `upNext` reaches into tomorrow during the day's last show; `rest` is the rest of *today* after it; `guide` is all of today, past included. `outage: true` when archive.org is down and the swap was applied. `no-store`, 30/min, **503** without a database |
+| `/api/live/time` | GET | The server clock for the client's time sync: **`{now}`** (epoch ms). `no-store`, 60/min. The client takes 5 samples and keeps the one with the smallest round trip |
 | `/mirror/{fileHash}` | GET | **Not Next.js — nginx alone** (`services/mirror/lib/nginx.mjs`). The episode's MP3: a pinned one off disk, anything else in the catalog filled from archive.org through nginx's slice cache. Byte ranges: `206` + `Content-Range`, `416` for an unsatisfiable range. **404** for anything not in the catalog; **502** when a fill cannot reach archive.org. GET/HEAD only. See "archive.org outage mirror" |
 | `/mirror/manifest` | GET | **Not Next.js** — a static file (`/var/lib/highdesert-mirror/manifest.json`, written atomically by the warm job). What the mirror can play with archive.org gone: **`{version, count, pinned, fileHashes: [...]}`** — every pinned episode whole on disk (`count` = `pinned`). `version` is a digest of the list; the **`ETag` is nginx's**, and `If-None-Match` with it gets a 304. `Cache-Control: max-age=60`. Outage mode's input (`src/services/mirror/manifest.ts`) |
 | `/mirror/magnet/{fileHash}` | GET | Static: **`{infohash, magnet}`** for the episode's own single-file torrent (trackers, the archive.org webseed as `ws=`; no `x.pe` — nothing here seeds). 404 outside the catalog. The episode sheet's "Magnet link" |
+| `/live-api/stream` | GET | **Not Next.js** — `highdesert-live` on 127.0.0.1:3005, the phone lines (`docs/live-chat.md`). SSE: `hello {you: {name, line, admin}, slowMode, recent, resumed, hidden}`, then `message {id, at, name, line, body}` (SSE `id:` = message id), `hide {ids}`, `slow`, `rename {ids, name}`. `Last-Event-ID` resumes. nginx: buffering off, `limit_conn` 8 per client |
+| `/live-api/messages` | POST | **Not Next.js.** `{body}` → **201** `{id, at, name, line, body}` (body as stored — mild profanity masked). **400** `{error: "rejected", reason, message}`, **429** `{error: "rate", retryAfter, slowMode}`, **403** muted/banned. Every `/live-api` POST needs `Content-Type: application/json` (415) and a highdesert.space `Origin` (403) |
+| `/live-api/name`, `/live-api/report`, `/live-api/me` | POST/POST/GET | **Not Next.js.** Rename `{name}` → `{name, line, nextChangeInS}` / 409 taken / 429; report `{messageId}` → `{ok, hidden}`; me → `{name, line, admin, mutedUntil, nextNameChangeInS, slowMode}` |
+| `/live-api/admin/*` | POST | **Not Next.js.** `hide`, `mute`, `ban`, `slow`, `clear-name`, `verify` (the deploy's round trip), `signin` `{nonce}`, `signout`; GET `signin-page`. Cookie or `Authorization: Bearer $LIVE_ADMIN_TOKEN`, else **401** `{error: "admin-only"}`. `/live-api/health` is loopback only (nginx 404s it) |
 | `/api/stats/failures` | GET | Which episodes are failing, worst first. `?days=7\|30\|90`. Returns **`{days, summary, entries: [{episodeId, title, failures, recovered, skippedRetries, plays, rate, kinds, uaClasses, details, lastAt}]}`**. Ids resolved to titles from the seed catalog. `details` is the browser's own diagnostics (up to 3 distinct, newest first), **filtered to diagnostic shapes** — the raw text is attacker-controlled (`publicDetails`, HD-038). `skippedRetries` counts retries not attempted for want of a user gesture, excluding `empty-media`, which is never retried by design — it is the instrument for the activation gate. `summary` is site-wide and is deliberately **not** a sum of `entries`, which is capped at 50 episodes. **Excludes advisory kinds** (`ADVISORY_KINDS` in `src/services/stats/db/failures.ts`) — this ranks episodes by how badly they are failing, and a row that never stopped playback would inflate that. Unauthenticated — it is aggregate-only, and the admin gate is presentation, not protection. `?since=<ISO>` adds **`window: {from, to, failures, plays}`**, the fixed 7 days from that instant (cut at now) — how `highdesert-status` holds a release to `docs/reliability-baseline.md` |
 | `/api/stats/export` | GET | **The permanent record, for sang3r.com.** Requires `x-service-token` (`STATS_EXPORT_SECRET`). `?mode=summary\|events\|daily\|episodes`. The only route that returns the event log rather than aggregates, and the only one not reachable from a browser. Episode ids are resolved to titles from the seed catalog. Page `events` with `after=<last id>` — **not** with `since`, which cannot disambiguate two plays sharing a timestamp |
 
@@ -164,9 +172,10 @@ src/
 | `useAdminStore` | `isAdmin` — SHA-256 password gate, persisted in localStorage |
 | `useContextMenuStore` | `open`, `position`, `items[]` |
 | `useOutageStore` | `archiveUp` (verdict, null = unknown), `manifest`, `unavailable` — see "Outage mode" |
+| `useLiveStore` | `tuned`, `phase` (`off`/`show`/`station-id`), `current` slot, `clockOffsetMs`/`clockRttMs`, `schedule`, `drift` — see "Live station" |
 | `useProgressStore` | `byHash` (fileHash → `Progress`), `started`, `loaded` — the in-memory mirror of the `progress` table; see "Playback position lives in `progress`" |
 
-All eleven have tests in `src/stores/__tests__/` and at least one mutation each in
+All twelve have tests in `src/stores/__tests__/` and at least one mutation each in
 `scripts/mutate-check.mjs` — and `src/stores/__tests__/coverage.test.ts`
 *checks* that sentence, reading the stores from disk and the mutation list from
 the script itself. It used to be false for `player-store` (HD-042) and nothing
@@ -574,6 +583,130 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   15-minute mean from cgroup accounting, sampled each minute by `hd-cpu-sample.timer`
   in `/root/vps-tools`; FAIL above 10% of a core) and `warm` (last run; WARN when
   stale >36h, skipped for steal, or with failed fetches) lines.
+
+## Live station — read before touching `src/lib/live/`, `src/audio/live-*` or `/api/live/*`
+
+High Desert Live is one 24/7 station everyone hears at the same second. The
+server publishes a program; every tuned-in client plays the same slot at the
+same offset, computed from a synced clock.
+
+- **The day** (`buildDay` in `src/lib/live/schedule.ts`, pure) runs midnight to
+  midnight **Pacific** — 23 h and 25 h on the DST dates (`pacificDayBounds`).
+  Every airable episode whose air date is today's month-day, any year, **oldest
+  first** (29 Feb folds onto 28 Feb in non-leap years), then fan favorites by
+  community plays (`episode_plays`), skipping any that aired in the previous
+  **14 days**. Ties break on `fileHash`, so the program is a function of the
+  date and the inputs. Slots are end to end with an **8 s station ID** between
+  each; the last is **cut at midnight** and the next day starts at its own
+  midnight. A catalog too small to fill a day relaxes the repeat rule rather
+  than leave dead air.
+- **Frozen, not recomputed.** `frozenDay()` (`src/services/live/days.ts`)
+  builds a day once, under `pg_advisory_xact_lock`, and stores it in
+  `live_days (day, program jsonb)` — together with any missing days of its
+  14-day window, so its history never shifts. A frozen day never changes when
+  plays move; the returned program is the stored jsonb (`INSERT … RETURNING`),
+  so the first answer is byte-identical to every later one. The program also keeps
+  the top-200 `ranking` it was built from, for the outage swap.
+- **Outage swap at read time**, never frozen (`applyOutageSwap`). While
+  archive.org is down (`archiveVerdictPrompt`, the same memo as
+  `/api/archive/health`), slots the mirror manifest (`LIVE_MIRROR_MANIFEST_URL`,
+  default `https://highdesert.space/mirror/manifest`, memoised 60 s, last good
+  kept) cannot play are replaced by playable ones — frozen ranking first,
+  preferring one at least as long as the slot. **Slot times never move**: a
+  shorter substitute ends early and the station ID fills the rest; a longer one
+  is cut at the slot's end. A manifest that cannot be read leaves the day unswapped.
+- **Synced playback** (`src/audio/live-controller.ts`). Clock: 5 samples of
+  `/api/live/time`, keep the **min-RTT** one (`src/lib/live/time-sync.ts`);
+  `serverNow()` in `useLiveStore`. Tune in plays at once on the known clock
+  through the ordinary play path — `playEpisode()` asks `liveStartFor()` for
+  the start position (station offset computed at the moment `src` is
+  assigned), so the engine, watchdog and mirror failover are the same ones.
+  Drift is checked every 10 s and corrected by one seek past **2 s**; a stall
+  (`waiting` then `playing`) and returning to the tab resync at once. At a
+  slot's end (or the file's own `ended`, via `takeLiveEnded`) the station ID
+  plays the radio static (`src/audio/station-id.ts`, capped at 8 s) until the
+  next slot starts. Picking another show, or pausing, tunes out.
+- **One listen per airing.** `claimLiveListen()` counts a slot once per client
+  (keyed by slot start + file), so resyncs, stalls, failover and re-tuning never
+  count again; the next show counts once.
+- **Presence has one more figure, not another function.** A tuned-in tab's
+  heartbeat carries `live: true` → `active_sessions.live_at` →
+  `getPresence().live` → `/api/stats/now` `live`. The Live screen reads it from
+  the shared feed like every other surface (`data-presence="live"`, with `data-live`).
+- **UI.** `/live` (`src/components/live/LiveStation.tsx`): ON AIR sign, station
+  clock (PT), now playing with time left, up next, the day's log
+  (`ProgramGuide`, past/now/future), the live count, and the phone lines —
+  `LiveChat` (the phone lines, below) beside the console on desktop,
+  in a `visualViewport`-sized sheet on mobile (`LiveChatSheet`, keyboard-safe on
+  iOS). The radio dial shows an ON AIR lamp (`LiveDialLamp`) that tunes in and
+  swings the needle to the show's day; the strip marks it (`TuningStrip`, `onAirDay`).
+- **Tests**: `src/lib/live/__tests__/`, `src/audio/__tests__/live-station.test.ts`
+  (the real `useAudioPlayer`: two clients within 1 s, stall resync, no double
+  count), `src/services/live/__tests__/live-days.db.test.ts` (freeze, window,
+  concurrent freeze), `presence-clients.db.test.ts` (`live`), the UI tests in
+  `src/components/live/__tests__/`, and `e2e/live.spec.ts` (two browser
+  contexts within 2 s — run against a local build on the e2e database, the
+  command is in its header). Mutations: the `live-*` ids in `scripts/mutate-check.mjs`.
+## Live chat — the phone lines (read before touching `services/live/` or `src/components/live/`)
+
+The chat beside Live Broadcast. Its own unit, **`highdesert-live`**, runs as
+user `hdlive` from `/opt/highdesert-live` on 127.0.0.1:3005. It carries SSE
+down and JSON POST up, and keeps its state in seven `live_*` tables in the
+`highdesert` database. It connects as its own role, `highdesert_live`. A web
+deploy never drops a chat stream. The full account is in `docs/live-chat.md`.
+
+- **The listener count is not the chat's.** `<LiveChat />` shows
+  `useCommunityNow().live` from the one presence function. The service's
+  `clients` is an operational number for `highdesert-status` only.
+- **No address is stored.** `client_ref` is an HMAC of the app's own
+  `clientKey()` under `CHAT_CLIENT_SECRET`. The implementation is shared
+  through the symlink `services/live/lib/shared/client-key.ts →
+  src/lib/utils/client-key.ts`, and deploy copies it with `-L`. Every
+  `client_ref` column has a CHECK that it is 64 hex characters.
+  `X-Forwarded-For` is trusted only from loopback.
+- **Moderation is server-side and free.** `obscenity` plus
+  `data/chat-blocklist.txt`, which the owner extends: `mask:`, `allow:`,
+  `b64:`, `*wildcards*`.
+  - Mild profanity is masked; slurs, threats, hate and sexual terms are
+    blocked.
+  - Links, emails and phone numbers are refused.
+  - Limits: 280 characters, 1 message per 3 s, duplicate and flood checks,
+    and auto slow mode at 20 messages in 30 s.
+  - 3 reports from distinct clients hide a message and mute the sender for
+    10 min.
+  - Names go through the same filter, are unique among active callers, and
+    change at most once per 10 min.
+  - **Every catalogue title must pass unchanged** (`filter.test.mjs`). Fix a
+    false positive with `allow:`, never by weakening a transformer.
+  - **Test fixtures hold no slurs in plain text.** They are base64, and the
+    variants are derived at test time.
+- **Ship a blocklist change without a restart:** commit it, then run
+  `bash scripts/deploy-live.sh --blocklist`, which parses the file, installs
+  it and sends SIGHUP.
+- **Admin is a server-checked credential.** `LIVE_ADMIN_TOKEN` lives in
+  `/root/.high-desert-live.env` (chmod 600). `bash scripts/live-setup.sh --link`
+  mints a single-use sign-in link (24 h, stored hashed) and copies it to the
+  Mac's `~/Downloads`. The link sets an HttpOnly, Secure, SameSite=Strict
+  HMAC cookie. The UI only reflects `admin: true`; the server checks every
+  action.
+- **The 10% rule.** `highdesert-status`'s `live` line FAILs above 10% of one
+  core, judged on hd-cpu-sample's 15-minute cgroup mean. The service's own
+  average from `/live-api/health` is the fallback while the ring is young.
+  `CPUQuota=25%` is only a safety net. A load test of 200 callers measured
+  3.0%, with 0 deliveries lost (`services/live/scripts/load.mjs`).
+- **The load-test header `x-live-test-client`** works only with
+  `LIVE_LOAD_TEST=1` and only from loopback. The unit never sets it, and
+  `deploy-live.sh` refuses an env file that does.
+- **Deploy** (never `npm install` here):
+  1. `bash scripts/live-setup.sh` (once);
+  2. `bash scripts/deploy-live.sh` — stages, runs `npm ci`, `pg_dump`, applies
+     the schema, installs the unit, swaps, installs the nginx locations
+     (`nginx -t` first), then verifies health, an SSE hello through nginx and
+     a POST round trip, rolling back on failure;
+  3. `bash scripts/live-setup.sh --link`.
+
+  `--verify-only` and `--rollback` exist. `scripts/deploy.sh` does not touch
+  the chat.
 
 ## Dexie: clearing a field
 
