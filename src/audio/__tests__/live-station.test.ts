@@ -163,6 +163,16 @@ const episodes = new Map<string, Episode>();
 
 function makeElement(): HTMLAudioElement {
   const el = makeMediaElement(vi.fn(() => Promise.resolve()));
+  // What the player last asked for. jsdom's own playbackRate is reset by its
+  // load algorithm, which hid whether the player set 1× or the listener's rate.
+  let rate = 1;
+  Object.defineProperty(el, "playbackRate", {
+    get: () => rate,
+    set: (v: number) => {
+      rate = v;
+    },
+    configurable: true,
+  });
   Object.defineProperty(el, "currentTime", {
     get: playhead,
     set: (v: number) => {
