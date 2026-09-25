@@ -2147,6 +2147,22 @@ export const MUTATIONS = [
     why: "an IPv6 bootstrap address on a udp4 socket left the DHT at zero nodes, silently",
   },
   {
+    id: "mirror-listen-before-seed",
+    test: "services/mirror/test/startup.test.mjs",
+    file: "services/mirror/lib/serve.mjs",
+    find: "  const listening = new Promise((resolve) => server.listen(port, host, resolve));",
+    replace: "  const listening = Promise.resolve(gateway.seedPins()).then(() => new Promise((resolve) => server.listen(port, host, resolve)));",
+    why: "seeding 338 pins before listen() kept health silent through the deploy's window; deploy and rollback both left the mirror down",
+  },
+  {
+    id: "mirror-skip-verify-complete",
+    test: "services/mirror/test/startup.test.mjs",
+    file: "services/mirror/lib/gateway.mjs",
+    find: "    const skipVerify = await cache.isComplete(infohash);",
+    replace: "    const skipVerify = false;",
+    why: "re-verifying every pin on start re-read 15 GB and held the unit at its memory ceiling",
+  },
+  {
     id: "gateway-lru-order",
     test: "services/mirror/test/gateway.test.mjs",
     file: "services/mirror/lib/cache.mjs",

@@ -54,11 +54,16 @@ export function createGateway({
       return have;
     }
     const buf = await readFile(path.join(torrentDir, `${infohash}.torrent`));
+    // A complete file was verified against the piece hashes when it was
+    // written (warm.mjs, or the client's own download). Re-verifying on add
+    // re-read all 15 GB of pins at every start and held the unit at its
+    // memory ceiling for minutes.
+    const skipVerify = await cache.isComplete(infohash);
     const slot = { torrent: null, lastUse: Date.now(), streams: 0, pinned };
     active.set(infohash, slot);
     cache.busy.add(infohash);
     slot.torrent = await new Promise((resolve, reject) => {
-      const t = client.add(buf, { path: cache.dir(infohash) });
+      const t = client.add(buf, { path: cache.dir(infohash), skipVerify });
       t.once("error", reject);
       t.once("ready", () => resolve(t));
     }).catch((err) => {
