@@ -2419,6 +2419,30 @@ export const MUTATIONS = [
     replace: "  if (false) {",
     why: "HD-027: the one archive.org proxy anyone could drive at full speed",
   },
+  {
+    id: "sw-api-cache-write",
+    test: "src/lib/__tests__/service-worker.test.ts",
+    file: "public/sw.js",
+    find: "      if (cacheable && cacheableApiResponse(response)) {",
+    replace: "      if (false) {",
+    why: "HD-034: the API fallback read a cache nothing ever wrote to, so offline stats never had an entry",
+  },
+  {
+    id: "sw-api-offline-json",
+    test: "src/lib/__tests__/service-worker.test.ts",
+    file: "public/sw.js",
+    find: "    .then((r) => r || API_OFFLINE_RESPONSE());",
+    replace: "    .then((r) => r || OFFLINE_RESPONSE());",
+    why: "HD-034: a body-less 504 made every caller's res.json() throw on top of the failure",
+  },
+  {
+    id: "sw-presence-never-cached",
+    test: "src/lib/__tests__/service-worker.test.ts",
+    file: "public/sw.js",
+    find: "    !API_NEVER_CACHE.has(url.pathname)",
+    replace: "    true",
+    why: "a stale on-air list is worse than none — presence must never be answered from cache",
+  },
 ];
 
 /**

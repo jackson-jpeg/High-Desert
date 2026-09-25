@@ -422,6 +422,13 @@ concluded it was their own mistake. Regression test:
   It never cached audio, so `respondWith()` bought nothing while defeating native
   byte-range handling and turning network failures into a body-less 504 that the
   element reports as "source not supported".
+- **Offline, an API call gets JSON, never an empty 504** (HD-034). The worker keeps the
+  last good answer of a same-origin `GET /api/stats/*` and serves it only when the network
+  fails; anything else under `/api/` offline is `503 {"error":"offline"}`. **Presence is
+  never cached** — `/api/stats/now`, its alias `/active` (and `/export`) are on
+  `API_NEVER_CACHE`, and a `no-store`/`private` response is never kept: a stale on-air list
+  is worse than none. POSTs and the archive.org proxies are never cached. Tested against
+  the real script in `src/lib/__tests__/service-worker.test.ts`.
 
 ## archive.org outage mirror — read before touching `src/audio/sources.ts` or `services/mirror/`
 

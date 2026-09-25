@@ -28,6 +28,53 @@ const STATIC_ASSETS = [
 const OFFLINE_RESPONSE = () =>
   new Response("", { status: 504, statusText: "Offline" });
 
+/**
+ * What an API call gets when the network is gone and there is nothing cached
+ * for it (HD-034). A body-less 504 made every caller's `res.json()` throw on
+ * top of the failure it was already handling; this is the shape the stats
+ * routes themselves answer when their database is missing, which the client
+ * already degrades on (src/services/stats/client.ts).
+ */
+const API_OFFLINE_RESPONSE = () =>
+  new Response(JSON.stringify({ error: "offline" }), {
+    status: 503,
+    statusText: "Offline",
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+  });
+
+/**
+ * Stats reads that must never be answered from cache. Presence is live by
+ * definition — a stale on-air list is worse than none, which is why
+ * /api/stats/now is sent `no-store` — and `active` is its legacy alias. Export
+ * carries a service token and is not a browser route at all. The no-store
+ * check in `cacheableApiResponse` would catch `now` on its own; it is listed
+ * anyway so the rule does not depend on a header someone might change.
+ */
+const API_NEVER_CACHE = new Set(["/api/stats/now", "/api/stats/active", "/api/stats/export"]);
+
+/**
+ * May this API request be answered from cache when offline? Only same-origin
+ * GETs of the aggregate stats reads — play counts, ratings, community,
+ * leaderboard, traffic, failures. Everything else under /api/ is either a
+ * write (POST), live (presence) or a proxy onto archive.org, whose answer is
+ * meaningless without the network anyway.
+ */
+function isCacheableApiRequest(request, url) {
+  return (
+    request.method === "GET" &&
+    url.origin === self.location.origin &&
+    url.pathname.startsWith("/api/stats/") &&
+    !API_NEVER_CACHE.has(url.pathname)
+  );
+}
+
+/** A response the server did not forbid us to keep. */
+function cacheableApiResponse(response) {
+  if (!response.ok) return false;
+  const cc = (response.headers.get("Cache-Control") || "").toLowerCase();
+  return !cc.includes("no-store") && !cc.includes("private");
+}
+
 // Install: pre-cache app shell. Individual failures must not fail the install.
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -82,6 +129,25 @@ function networkFirst(request) {
     .then((r) => r || OFFLINE_RESPONSE());
 }
 
+/**
+ * API routes: always the network. The last good answer of a cacheable stats
+ * read is kept, and served only when the network fails. The fallback used to
+ * read a cache nothing ever wrote to, so it never had an entry.
+ */
+function apiNetworkFirst(request, url) {
+  const cacheable = isCacheableApiRequest(request, url);
+  return fetch(request)
+    .then((response) => {
+      if (cacheable && cacheableApiResponse(response)) {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+      }
+      return response;
+    })
+    .catch(() => (cacheable ? caches.match(request) : undefined))
+    .then((r) => r || API_OFFLINE_RESPONSE());
+}
+
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
@@ -111,9 +177,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // API routes: always network-first, fall back to cache only if offline
+  // API routes: network-first; offline gets the cached stats read or a JSON 503
   if (url.pathname.startsWith("/api/")) {
-    event.respondWith(networkFirst(event.request));
+    event.respondWith(apiNetworkFirst(event.request, url));
     return;
   }
 
