@@ -22,6 +22,7 @@ import { reportPlay, reportStop } from "@/services/stats/client";
 import { SESSION_ID } from "@/lib/utils/session-id";
 import { communityKey } from "@/lib/utils/community-key";
 import { fallbacksFor } from "@/audio/sources";
+import { claimLiveListen } from "@/audio/live-session";
 import {
   armWatchdog,
   setFailureHandler,
@@ -157,6 +158,10 @@ export function countListen(episode: Episode, start: number): void {
   // This source's listen is counted, whatever the de-duplication below decides:
   // a pause/seek/resume of it is the same listen continuing.
   markListenCounted(start);
+  // A live airing counts once per client, however many times it is tuned in
+  // to: re-tuning to the same show an hour in is still the one listen. The
+  // next show is a new airing and counts once too (src/audio/live-session.ts).
+  if (claimLiveListen(episode) === false) return;
   const key = communityKey(episode);
   if (!shouldCountPlay(key ?? `local:${episode.fileHash}`)) return;
 

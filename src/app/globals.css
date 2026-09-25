@@ -28,6 +28,9 @@
   --color-static-green: var(--hd-green);
   --color-static-green-bright: var(--hd-green-bright);
   --color-phosphor-amber: var(--hd-amber-phosphor);
+  /* The live station's ON AIR lamp: the dial needle's red, lit. A fill and a
+     glow — never small text on the dark surfaces. */
+  --color-on-air: var(--hd-needle);
   --color-card-surface: var(--hd-card);
   --color-inset-well: var(--hd-well);
   --color-raised-surface: var(--hd-raised);

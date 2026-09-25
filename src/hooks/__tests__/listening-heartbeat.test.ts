@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { nowListeningTo } from "@/hooks/usePresence";
+import { nowListeningTo, tunedInLive } from "@/hooks/usePresence";
+import { useLiveStore } from "@/stores/live-store";
 import { reportHeartbeat } from "@/services/stats/client";
 import { usePlayerStore } from "@/stores/player-store";
 import type { Episode } from "@/db/schema";
@@ -70,6 +71,41 @@ describe("what the heartbeat says this tab is listening to", () => {
   });
 });
 
+describe("whether the heartbeat says this tab is tuned in live", () => {
+  beforeEach(() => {
+    usePlayerStore.setState({ currentEpisode: makeEpisode(), playing: false });
+    useLiveStore.setState({ tuned: false, phase: "off", current: null });
+  });
+  afterEach(() => {
+    useLiveStore.setState({ tuned: false, phase: "off", current: null });
+  });
+
+  it("tuned in and playing: live", () => {
+    useLiveStore.setState({ tuned: true, phase: "show" });
+    usePlayerStore.setState({ playing: true });
+    expect(tunedInLive()).toBe(true);
+  });
+
+  it("in the station ID between shows, when nothing is playing: still live", () => {
+    // The eight seconds of static between two shows must not drop a listener
+    // from the live count for the minute until the next beat.
+    useLiveStore.setState({ tuned: true, phase: "station-id" });
+    usePlayerStore.setState({ playing: false });
+    expect(tunedInLive()).toBe(true);
+  });
+
+  it("tuned in but paused (or stalled out): not live", () => {
+    useLiveStore.setState({ tuned: true, phase: "show" });
+    usePlayerStore.setState({ playing: false });
+    expect(tunedInLive()).toBe(false);
+  });
+
+  it("playing an ordinary show, not tuned in: not live", () => {
+    usePlayerStore.setState({ playing: true });
+    expect(tunedInLive()).toBe(false);
+  });
+});
+
 describe("reportHeartbeat", () => {
   let sent: { url: string; body: unknown }[];
 
@@ -100,6 +136,17 @@ describe("reportHeartbeat", () => {
     // off the air mid-broadcast.
     reportHeartbeat("session-abcdefgh", null);
     expect(sent[0].body).toEqual({ sessionId: "session-abcdefgh" });
+  });
+
+  it("says live only when tuned in, and omits the key otherwise", () => {
+    reportHeartbeat("session-abcdefgh", "coll--some-show", true);
+    expect(sent[0].body).toEqual({
+      sessionId: "session-abcdefgh",
+      episodeId: "coll--some-show",
+      live: true,
+    });
+    reportHeartbeat("session-abcdefgh", "coll--some-show", false);
+    expect(sent[1].body).toEqual({ sessionId: "session-abcdefgh", episodeId: "coll--some-show" });
   });
 
   it("still works for a caller that passes no episode at all", () => {

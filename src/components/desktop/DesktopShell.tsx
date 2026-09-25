@@ -76,6 +76,7 @@ interface DesktopShellProps {
 
 const NAV_ITEMS = [
   { label: "Library", path: "/library" },
+  { label: "Live", path: "/live" },
   { label: "Radio", path: "/radio" },
   { label: "Scanner", path: "/scanner" },
   { label: "Search", path: "/search" },

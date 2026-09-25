@@ -38,6 +38,7 @@ import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
 import { archiveKnownDown } from "@/services/archive/health";
 import type { SourceKind } from "@/audio/sources";
 import { currentStartPlan, refuseIfUnavailable } from "@/audio/outage-gate";
+import { liveStartFor } from "@/audio/live-session";
 import { disarmWatchdog, isWatching, noteError } from "@/audio/playback-watchdog";
 import { emit } from "@/lib/events";
 import { withGlobals } from "./player/globals";
@@ -201,7 +202,11 @@ export function useAudioPlayer() {
       // Back up from whatever primeEpisode left it at — we want this one.
       audio.preload = "metadata";
       audio.src = url;
-      const startAt = startPositionFor(positionOf(episode.fileHash), episode.duration);
+      // The live station's show starts where the station is, computed now —
+      // the instant the source is assigned — not where this listener left it.
+      const startAt =
+        liveStartFor(episode) ??
+        startPositionFor(positionOf(episode.fileHash), episode.duration);
       seekEngine(startAt);
       audio.playbackRate = usePlayerStore.getState().playbackRate;
 

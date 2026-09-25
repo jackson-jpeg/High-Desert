@@ -184,11 +184,17 @@ export interface Presence {
 export function reportHeartbeat(
   sessionId: string,
   episodeId?: string | null,
+  /** Tuned in to the live station. Sent only when true; its absence clears the mark. */
+  live = false,
 ): Promise<void> {
   return fetch("/api/stats/heartbeat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(episodeId ? { sessionId, episodeId } : { sessionId }),
+    body: JSON.stringify({
+      sessionId,
+      ...(episodeId ? { episodeId } : {}),
+      ...(live ? { live: true } : {}),
+    }),
   }).then(
     () => {},
     () => {},
@@ -206,11 +212,13 @@ export interface RecentPlay {
 }
 
 export interface NowPlaying extends Presence {
+  /** Of `online`, the clients tuned in to the live station. */
+  live: number;
   onAir: OnAirEntry[];
   recent: RecentPlay[];
 }
 
-const EMPTY_NOW: NowPlaying = { online: 0, listening: 0, onAir: [], recent: [] };
+const EMPTY_NOW: NowPlaying = { online: 0, listening: 0, live: 0, onAir: [], recent: [] };
 
 /**
  * Presence plus what is playing. Falls back to empty — with DATABASE_URL unset
@@ -228,6 +236,8 @@ export async function fetchNowPlaying(): Promise<NowPlaying> {
     return {
       online: data?.online ?? 0,
       listening: data?.listening ?? 0,
+      // Absent from a server that predates the live station: nobody tuned in.
+      live: typeof data?.live === "number" ? data.live : 0,
       onAir: Array.isArray(data?.onAir) ? data.onAir : [],
       recent: Array.isArray(data?.recent) ? data.recent : [],
     };
