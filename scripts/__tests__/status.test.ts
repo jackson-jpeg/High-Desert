@@ -48,6 +48,8 @@ interface World {
   cpu: { rc: number; out: string };
   /** warm-status.json, with `ageH` turned into its `at`; null writes no file. */
   warm: { ageH: number; outcome: string; pinned: number; bytes: number; fetched: number; failed: number; steal?: number } | null;
+  /** peakOnline / peakListening /api/stats/traffic answers per range; a missing range answers no peaks. */
+  peaks: Partial<Record<"24h" | "7d" | "30d", { online: number; listening: number }>>;
   liveActive: string;
   /** /live-api/health's body; null answers 502. */
   liveHealth: Record<string, unknown> | null;
@@ -76,6 +78,7 @@ const HEALTHY: World = {
   mirrorPlays24h: 7,
   cpu: { rc: 0, out: "highdesert 3.2\nhighdesert-live 3.1\nhighdesert-sample 0.4\nhighdesert-mirror-warm 0.0\nhighdesert-backup 0.0" },
   warm: { ageH: 5, outcome: "ok", pinned: 120, bytes: 14 * 2 ** 30, fetched: 4, failed: 0 },
+  peaks: { "24h": { online: 4, listening: 2 }, "7d": { online: 9, listening: 5 }, "30d": { online: 9, listening: 6 } },
   liveActive: "active",
   liveHealth: { ok: true, clients: 42, messagesLastHour: 17, slowMode: false, cpu: { pct: 2.5, windowS: 900 } },
 };
@@ -263,7 +266,14 @@ beforeEach(async () => {
       res.end(JSON.stringify({ summary: { failures: world.failures } }));
     } else if (req.url?.startsWith("/api/stats/traffic")) {
       const range = new URL(req.url, "http://x").searchParams.get("range");
-      res.end(JSON.stringify({ playsInRange: world.plays, playsBySource: range === "24h" ? { archive: 40, mirror: world.mirrorPlays24h } : {} }));
+      const peak = world.peaks[range as "24h" | "7d" | "30d"];
+      res.end(
+        JSON.stringify({
+          playsInRange: world.plays,
+          playsBySource: range === "24h" ? { archive: 40, mirror: world.mirrorPlays24h } : {},
+          ...(peak ? { peakOnline: peak.online, peakListening: peak.listening } : {}),
+        }),
+      );
     } else if (req.url === "/live-api/health") {
       if (!world.liveHealth) res.statusCode = 502;
       res.end(JSON.stringify(world.liveHealth ?? {}));
@@ -295,6 +305,39 @@ describe("highdesert-status", () => {
     expect(r.out).not.toMatch(/^FAIL/m);
     expect(lineFor(r.out, "failures")).toContain("5.0% of starts failed in 7 days (15 failures / 300 plays)");
     expect(r.code).toBe(0);
+  });
+
+  describe("peaks line", () => {
+    it("is OK when the peaks nest, and says what they are", async () => {
+      const r = await run();
+      expect(lineFor(r.out, "peaks")).toBe(
+        "OK    peaks     nested: online 4 / 9 / 9, listening 2 / 5 / 6 (24h / 7d / 30d)",
+      );
+    });
+
+    // One case per ordering: each of the four comparisons must be able to fail
+    // the line on its own. The 2026-09-25 numbers (14 / 12 / 10 online) broke two.
+    const violations: [string, World["peaks"]][] = [
+      ["30d online below 7d", { "24h": { online: 4, listening: 2 }, "7d": { online: 9, listening: 5 }, "30d": { online: 8, listening: 6 } }],
+      ["7d online below 24h", { "24h": { online: 10, listening: 2 }, "7d": { online: 9, listening: 5 }, "30d": { online: 11, listening: 6 } }],
+      ["30d listening below 7d", { "24h": { online: 4, listening: 2 }, "7d": { online: 9, listening: 5 }, "30d": { online: 9, listening: 4 } }],
+      ["7d listening below 24h", { "24h": { online: 4, listening: 6 }, "7d": { online: 9, listening: 5 }, "30d": { online: 9, listening: 7 } }],
+    ];
+    for (const [name, peaks] of violations) {
+      it(`FAILs when ${name}`, async () => {
+        world.peaks = peaks;
+        const r = await run();
+        expect(lineFor(r.out, "peaks")).toMatch(/^FAIL\s+peaks\s+a longer window reports a lower peak/);
+        expect(r.code).not.toBe(0);
+      });
+    }
+
+    it("FAILs when a range's peaks cannot be read", async () => {
+      world.peaks = { "24h": { online: 4, listening: 2 }, "7d": { online: 9, listening: 5 } };
+      const r = await run();
+      expect(lineFor(r.out, "peaks")).toMatch(/^FAIL\s+peaks\s+could not read/);
+      expect(r.code).not.toBe(0);
+    });
   });
 
   describe("release line", () => {

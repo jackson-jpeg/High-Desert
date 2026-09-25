@@ -168,6 +168,9 @@ export const ROLLUP_TRAFFIC_SQL = `
         (sampled_at AT TIME ZONE 'UTC')::date AS day,
         max(online)                           AS peak_online,
         max(listening)                        AS peak_listening,
+        -- The first sample that reached the day's peak: "when", kept past
+        -- the 90-day sample prune along with "how many".
+        (array_agg(sampled_at ORDER BY online DESC, sampled_at))[1] AS peak_at,
         round(avg(online), 2)                 AS avg_online,
         round(avg(listening), 2)              AS avg_listening,
         count(*)::int                         AS samples
@@ -186,12 +189,13 @@ export const ROLLUP_TRAFFIC_SQL = `
       GROUP BY 1
     )
     INSERT INTO traffic_daily AS td
-      (day, peak_online, peak_listening, avg_online, avg_listening,
+      (day, peak_online, peak_listening, peak_at, avg_online, avg_listening,
        plays, sessions, samples)
     SELECT
       days.day,
       COALESCE(s.peak_online, 0),
       COALESCE(s.peak_listening, 0),
+      s.peak_at,
       COALESCE(s.avg_online, 0),
       COALESCE(s.avg_listening, 0),
       COALESCE(p.plays, 0),
@@ -209,6 +213,7 @@ export const ROLLUP_TRAFFIC_SQL = `
     ON CONFLICT (day) DO UPDATE SET
       peak_online    = EXCLUDED.peak_online,
       peak_listening = EXCLUDED.peak_listening,
+      peak_at        = EXCLUDED.peak_at,
       avg_online     = EXCLUDED.avg_online,
       avg_listening  = EXCLUDED.avg_listening,
       -- Plays for a past day only ever grow, so taking the larger value is
@@ -265,8 +270,16 @@ export type TrafficRange = "24h" | "7d" | "30d";
 export interface TrafficPoint {
   /** Bucket start, ISO 8601. */
   t: string;
+  /** Mean of the bucket's samples — a level, drawn as the fainter line. */
   online: number;
   listening: number;
+  /**
+   * Highest single sample in the bucket. What the chart's main lines draw, so
+   * a short spike stays visible however wide the bucket: a two-minute burst
+   * of 40 averages to ~6 over 15 minutes and ~1 over six hours.
+   */
+  onlineMax: number;
+  listeningMax: number;
   /** Plays that happened during this bucket. */
   plays: number;
 }
@@ -274,11 +287,17 @@ export interface TrafficPoint {
 export interface Traffic {
   range: TrafficRange;
   points: TrafficPoint[];
+  /**
+   * Highest single raw sample in the window — never the highest *bucket*.
+   * Buckets hold means, and wider buckets flatten more, so taking the peak
+   * from them made the 30-day peak read lower than the 24-hour one (10 vs 14
+   * on 2026-09-25). Raw samples are kept 90 days, longer than any range.
+   */
   peakOnline: number;
   peakListening: number;
   playsInRange: number;
   totalPlays: number;
-  /** Bucket start of the busiest point, ISO 8601. Null when there is no data. */
+  /** Time of the first raw sample that reached peakOnline, ISO 8601. Null when there is no data. */
   peakAt: string | null;
   /** 24-hour activity profile, always over the last 30 days regardless of range. */
   hourly: HourBucket[];
@@ -299,9 +318,10 @@ const RANGE_CONFIG: Record<TrafficRange, { hours: number; bucketMinutes: number 
 /**
  * Bucketed traffic over the requested window.
  *
- * Presence is averaged within a bucket (it is a gauge — a level, not a count),
- * while plays are a counter, so they are derived from the difference between
- * the first and last cumulative total in each bucket.
+ * Presence is a gauge: each bucket carries both its mean (the level) and its
+ * max (the spike), and the range's peaks come from the raw samples directly.
+ * Plays are a counter, so they are derived from the difference between the
+ * first and last cumulative total in each bucket.
  */
 export async function getTraffic(range: TrafficRange): Promise<Traffic> {
   const { hours, bucketMinutes } = RANGE_CONFIG[range];
@@ -311,6 +331,8 @@ export async function getTraffic(range: TrafficRange): Promise<Traffic> {
     bucket: Date;
     online: string;
     listening: string;
+    online_max: number;
+    listening_max: number;
     first_total: string;
     last_total: string;
   }>(
@@ -321,6 +343,8 @@ export async function getTraffic(range: TrafficRange): Promise<Traffic> {
       ) AS bucket,
       round(avg(online))::int    AS online,
       round(avg(listening))::int AS listening,
+      max(online)                AS online_max,
+      max(listening)             AS listening_max,
       min(total_plays)           AS first_total,
       max(total_plays)           AS last_total
     FROM listener_samples
@@ -335,6 +359,8 @@ export async function getTraffic(range: TrafficRange): Promise<Traffic> {
     t: new Date(r.bucket).toISOString(),
     online: Number(r.online),
     listening: Number(r.listening),
+    onlineMax: Number(r.online_max),
+    listeningMax: Number(r.listening_max),
     // Plays are cumulative, so a bucket's own plays are its rise. Compare
     // against the previous bucket's close, not its own open, or every play
     // that lands between two buckets is dropped.
@@ -344,7 +370,7 @@ export async function getTraffic(range: TrafficRange): Promise<Traffic> {
     ),
   }));
 
-  const [{ rows: totalRows }, hourly, { rows: sourceRows }] = await Promise.all([
+  const [{ rows: totalRows }, hourly, { rows: sourceRows }, { rows: peakRows }] = await Promise.all([
     pool().query<{ total: string }>(
       `SELECT COALESCE(sum(plays), 0) AS total FROM episode_plays`,
     ),
@@ -354,20 +380,32 @@ export async function getTraffic(range: TrafficRange): Promise<Traffic> {
          FROM play_events WHERE played_at >= $1 GROUP BY 1`,
       [since],
     ),
+    // The peaks, from the raw samples — its own query rather than a fold over
+    // the buckets above, so what the headline says cannot drift with however
+    // the chart happens to be bucketed.
+    pool().query<{ peak_online: number | null; peak_listening: number | null; peak_at: Date | null }>(
+      `SELECT
+         (SELECT max(online)    FROM listener_samples WHERE sampled_at >= $1) AS peak_online,
+         (SELECT max(listening) FROM listener_samples WHERE sampled_at >= $1) AS peak_listening,
+         (SELECT sampled_at FROM listener_samples WHERE sampled_at >= $1
+           ORDER BY online DESC, sampled_at LIMIT 1)                          AS peak_at`,
+      [since],
+    ),
   ]);
 
-  const peakOnline = points.reduce((m, p) => Math.max(m, p.online), 0);
+  const peakOnline = Number(peakRows[0]?.peak_online ?? 0);
+  const peakAtRaw = peakRows[0]?.peak_at;
 
   return {
     range,
     points,
     peakOnline,
-    peakListening: points.reduce((m, p) => Math.max(m, p.listening), 0),
+    peakListening: Number(peakRows[0]?.peak_listening ?? 0),
     playsInRange: points.reduce((s, p) => s + p.plays, 0),
     totalPlays: Number(totalRows[0]?.total ?? 0),
-    // The first bucket that hit the peak, so "busiest at 3:15 AM" names a real
-    // moment rather than the last time the level happened to be matched.
-    peakAt: peakOnline > 0 ? (points.find((p) => p.online === peakOnline)?.t ?? null) : null,
+    // The first sample that hit the peak, so "busiest at 3:15 AM" names a real
+    // moment rather than the start of the bucket it fell in.
+    peakAt: peakOnline > 0 && peakAtRaw ? new Date(peakAtRaw).toISOString() : null,
     hourly,
     playsBySource: Object.fromEntries(sourceRows.map((r) => [r.source, Number(r.n)])),
   };

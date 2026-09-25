@@ -66,6 +66,15 @@ export function TrafficChart({
 
   return (
     <div className="flex flex-col gap-1">
+      {/* The top of the scale, in its own row above the plot. It used to sit
+          inside the plot's top-left corner, where the first point lands
+          whenever the window opens on its busiest bucket (the 30-day view
+          did): the label covered the data. Outside the plot it cannot, at any
+          text size. */}
+      <div className="flex items-baseline justify-between text-hd-micro text-bevel-dark/85 tabular-nums select-none" aria-hidden="true">
+        <span data-testid="traffic-scale-top">{geo.peakPresence}</span>
+        <span>busiest moment per {range === "24h" ? "15 min" : range === "7d" ? "2 h" : "6 h"}</span>
+      </div>
       <div
         ref={wrapRef}
         tabIndex={0}
@@ -131,8 +140,31 @@ export function TrafficChart({
           )}
 
           <path d={geo.area} fill="var(--hd-green)" fillOpacity={0.12} />
+          {/* The means, faint and dashed behind the maxima: the level people
+              sat at, as opposed to the busiest moment. */}
+          <path
+            d={geo.listeningAvg}
+            fill="none"
+            stroke="var(--hd-blue)"
+            strokeOpacity={0.45}
+            strokeWidth={1}
+            strokeDasharray="3 3"
+            vectorEffect="non-scaling-stroke"
+            data-series="listening-avg"
+          />
+          <path
+            d={geo.onlineAvg}
+            fill="none"
+            stroke="var(--hd-green)"
+            strokeOpacity={0.45}
+            strokeWidth={1}
+            strokeDasharray="3 3"
+            vectorEffect="non-scaling-stroke"
+            data-series="online-avg"
+          />
           <path
             d={geo.listening}
+            data-series="listening-max"
             fill="none"
             stroke="var(--hd-blue)"
             strokeWidth={1.5}
@@ -140,6 +172,7 @@ export function TrafficChart({
           />
           <path
             d={geo.online}
+            data-series="online-max"
             fill="none"
             stroke="var(--hd-green)"
             strokeWidth={2}
@@ -162,15 +195,15 @@ export function TrafficChart({
                   viewBox; r is in the stretched space, hence the ellipse. */}
               <ellipse
                 cx={geo.x(cursor)}
-                cy={geo.yPresence(active.online)}
+                cy={geo.yPresence(active.onlineMax)}
                 rx={W / 260}
                 ry={3}
                 fill="var(--hd-green)"
               />
-              {active.listening > 0 && (
+              {active.listeningMax > 0 && (
                 <ellipse
                   cx={geo.x(cursor)}
-                  cy={geo.yPresence(active.listening)}
+                  cy={geo.yPresence(active.listeningMax)}
                   rx={W / 260}
                   ry={3}
                   fill="var(--hd-blue)"
@@ -197,10 +230,10 @@ export function TrafficChart({
               {formatStamp(activeDate, range)}
             </span>
             <span className="text-hd-micro text-static-green tabular-nums">
-              {active.online} online
+              {active.onlineMax} online at most · {active.online} avg
             </span>
             <span className="text-hd-micro text-signal-blue tabular-nums">
-              {active.listening} listening
+              {active.listeningMax} listening at most · {active.listening} avg
             </span>
             <span className="text-hd-micro text-desert-amber tabular-nums">
               {active.plays} {active.plays === 1 ? "play" : "plays"}
@@ -208,10 +241,6 @@ export function TrafficChart({
           </div>
         )}
 
-        {/* Peak value, pinned to the top-left so the axis needs no gutter */}
-        <span className="absolute top-1 left-1.5 text-hd-micro text-bevel-dark/85 tabular-nums pointer-events-none">
-          {geo.peakPresence}
-        </span>
       </div>
 
       {/* Time axis, in HTML for the same reason as the tooltip */}
@@ -242,7 +271,7 @@ export function TrafficChart({
           has to be announced somewhere a screen reader will pick it up. */}
       <span className="sr-only" aria-live="polite">
         {active && activeDate
-          ? `${formatStamp(activeDate, range)}: ${active.online} online, ${active.listening} listening, ${active.plays} plays`
+          ? `${formatStamp(activeDate, range)}: at most ${active.onlineMax} online (${active.online} on average), at most ${active.listeningMax} listening, ${active.plays} plays`
           : ""}
       </span>
     </div>

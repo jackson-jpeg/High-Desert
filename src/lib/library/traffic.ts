@@ -77,8 +77,12 @@ export interface TrafficGeometry {
   yPresence: (v: number) => number;
   peakPresence: number;
   peakPlays: number;
+  /** Each bucket's highest sample: the main lines, so spikes survive any zoom. */
   online: string;
   listening: string;
+  /** Each bucket's mean: fainter lines behind the maxima. */
+  onlineAvg: string;
+  listeningAvg: string;
   area: string;
   nightBands: { x: number; w: number }[];
   ticks: { i: number; label: string }[];
@@ -98,19 +102,20 @@ export function buildGeometry(points: TrafficPoint[], range: TrafficRange): Traf
   // digits; plays is a counter that can spike to dozens in one bucket. Sharing
   // one axis — as this chart used to — pinned the presence lines flat against
   // the floor on exactly the days worth looking at.
-  const peakPresence = Math.max(1, ...points.map((p) => Math.max(p.online, p.listening)));
+  // The scale covers the maxima, which are always >= the means.
+  const peakPresence = Math.max(1, ...points.map((p) => Math.max(p.onlineMax, p.listeningMax)));
   const peakPlays = Math.max(1, ...points.map((p) => p.plays));
 
   const stepX = W / (points.length - 1);
   const x = (i: number) => i * stepX;
   const yPresence = (v: number) => H - PAD_Y - (v / peakPresence) * (H - PAD_Y * 2);
 
-  const line = (key: "online" | "listening") =>
+  const line = (key: "onlineMax" | "listeningMax" | "online" | "listening") =>
     points
       .map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${yPresence(p[key]).toFixed(1)}`)
       .join(" ");
 
-  const online = line("online");
+  const online = line("onlineMax");
   const area = `${online} L${W},${H} L0,${H} Z`;
 
   // Contiguous runs of night buckets, merged into single rects so the shading
@@ -149,7 +154,9 @@ export function buildGeometry(points: TrafficPoint[], range: TrafficRange): Traf
     peakPresence,
     peakPlays,
     online,
-    listening: line("listening"),
+    listening: line("listeningMax"),
+    onlineAvg: line("online"),
+    listeningAvg: line("listening"),
     area,
     nightBands,
     ticks,

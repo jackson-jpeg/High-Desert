@@ -94,6 +94,31 @@ describe("SignalTraffic", () => {
     expect(host.querySelectorAll('[title*="people on average"]')).toHaveLength(24);
   });
 
+  it("draws each bucket's busiest moment as the main line, and its mean dashed", async () => {
+    // A bucket whose mean is 2 but whose busiest sample was 9: the scale and
+    // the main line follow the 9, the dashed line the 2.
+    fetchMock.mockImplementation(async (url: string) => {
+      const m = /\/api\/stats\/traffic\?range=(\w+)/.exec(String(url));
+      if (!m) return new Response("{}", { status: 404 });
+      const t = traffic(m[1]);
+      t.points = t.points.map((p, i) => ({ ...p, online: 2, onlineMax: i === 5 ? 9 : 2, listeningMax: 1 }));
+      return new Response(JSON.stringify(t), { status: 200 });
+    });
+    act(() => root.render(createElement(SignalTraffic)));
+    await flush();
+    expect(host.querySelector('[data-testid="traffic-scale-top"]')?.textContent).toBe("9");
+    const chart = host.querySelector('[role="img"]')!;
+    expect(chart.getAttribute("aria-label")).toContain("Peak 9 concurrent visitors");
+    // Scale-top label is outside the plot, so it can never cover a point.
+    expect(chart.contains(host.querySelector('[data-testid="traffic-scale-top"]'))).toBe(false);
+    const d = (s: string) => chart.querySelector(`path[data-series="${s}"]`)?.getAttribute("d") ?? "";
+    const yAt = (path: string, i: number) => Number(path.split(" ")[i].slice(1).split(",")[1]);
+    // The max line reaches the top of the plot at the burst; the mean stays low.
+    expect(yAt(d("online-max"), 5)).toBeLessThan(yAt(d("online-avg"), 5));
+    expect(d("online-avg")).not.toBe("");
+    expect(chart.querySelector('path[data-series="online-avg"]')?.getAttribute("stroke-dasharray")).toBe("3 3");
+  });
+
   it("refetches when the range changes", async () => {
     act(() => root.render(createElement(SignalTraffic)));
     await flush();

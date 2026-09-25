@@ -248,8 +248,12 @@ export async function fetchNowPlaying(): Promise<NowPlaying> {
 
 export interface TrafficPoint {
   t: string;
+  /** The bucket's mean — the level. */
   online: number;
   listening: number;
+  /** The bucket's highest sample — the spike. What the chart's main lines draw. */
+  onlineMax: number;
+  listeningMax: number;
   plays: number;
 }
 
@@ -291,7 +295,15 @@ export async function fetchTraffic(
     // crash on their absence.
     return {
       ...data,
-      points: Array.isArray(data?.points) ? data.points : [],
+      // A server from before per-bucket maxima sends only the means; draw
+      // those as the max rather than a flat zero line.
+      points: Array.isArray(data?.points)
+        ? data.points.map((p: TrafficPoint) => ({
+            ...p,
+            onlineMax: typeof p.onlineMax === "number" ? p.onlineMax : p.online,
+            listeningMax: typeof p.listeningMax === "number" ? p.listeningMax : p.listening,
+          }))
+        : [],
       hourly: Array.isArray(data?.hourly) ? data.hourly : [],
       peakAt: data?.peakAt ?? null,
     } as Traffic;

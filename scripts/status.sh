@@ -13,6 +13,8 @@
 #   backup    highdesert-backup-status (OK / FAILED / STALE after 36h)
 #   sampler   highdesert-sample.timer active and its last run succeeded recently
 #   failures  7-day failed-start rate from /api/stats/failures vs plays from /api/stats/traffic
+#   peaks     Signal Traffic's peaks nest: peak(30d) >= peak(7d) >= peak(24h) for online
+#             and listening, from /api/stats/traffic; FAIL if a longer window reads lower
 #   release   failed-start rate over the 7 days after the release recorded in
 #             docs/reliability-baseline.md (/api/stats/failures?since=), WARN at 3%+
 #   presence  the live site's presence surfaces (Stats badge, status bar, mobile
@@ -170,6 +172,28 @@ else
   level=OK
   awk -v x="$pct" 'BEGIN { exit !(x > 10) }' && level=WARN
   line "$level" failures "${pct}% of starts failed in 7 days ($failures failures / $plays plays)"
+fi
+
+# --- peaks -------------------------------------------------------------------
+# Signal Traffic's peaks must nest: each window contains the shorter ones, so
+# peak(30d) >= peak(7d) >= peak(24h), for online and for listening. On
+# 2026-09-25 they read 14 / 12 / 10 online because each was the highest
+# *averaged* bucket and wider buckets flatten more. A FAIL here means the
+# peaks are again coming from something other than the raw samples.
+t24_json="$(curl -s --max-time 10 "$API/api/stats/traffic?range=24h" 2>/dev/null)"
+t30_json="$(curl -s --max-time 10 "$API/api/stats/traffic?range=30d" 2>/dev/null)"
+pk() { jq -r ".$2 // empty" <<<"$1" 2>/dev/null; }
+o24="$(pk "$t24_json" peakOnline)"; o7="$(pk "$traffic_json" peakOnline)"; o30="$(pk "$t30_json" peakOnline)"
+l24="$(pk "$t24_json" peakListening)"; l7="$(pk "$traffic_json" peakListening)"; l30="$(pk "$t30_json" peakListening)"
+if [[ -z "$o24" || -z "$o7" || -z "$o30" || -z "$l24" || -z "$l7" || -z "$l30" ]]; then
+  line FAIL peaks "could not read peakOnline/peakListening for 24h, 7d and 30d from $API/api/stats/traffic"
+else
+  desc="online $o24 / $o7 / $o30, listening $l24 / $l7 / $l30 (24h / 7d / 30d)"
+  if (( o30 < o7 || o7 < o24 || l30 < l7 || l7 < l24 )); then
+    line FAIL peaks "a longer window reports a lower peak than a shorter one it contains: $desc"
+  else
+    line OK peaks "nested: $desc"
+  fi
 fi
 
 # --- release -----------------------------------------------------------------

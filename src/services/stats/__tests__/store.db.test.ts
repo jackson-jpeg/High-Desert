@@ -1,5 +1,7 @@
 // @vitest-environment node
 import { beforeAll, afterAll, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { TEST_DATABASE_URL, describeDb } from "@/test-support/test-db";
 
 /**
@@ -201,6 +203,119 @@ describeDb("stats store (Postgres)", () => {
       for (const t of ["play_events", "recent_plays", "episode_plays", "weekly_plays"]) {
         await q(`DELETE FROM ${t} WHERE episode_id = $1`, [TAG]);
       }
+    }
+  });
+
+  // Here, in this file, for the same reason as the tests above: the rollup
+  // test counts today's listener_samples exactly, and files run in parallel.
+  it("peaks are the raw samples' maxima, in every range, at the raw sample's time", async () => {
+    // One two-minute spike three hours ago over a steady trickle. The sampler
+    // writes whole minutes; +3µs keeps these off any real sample's key.
+    const [{ spike }] = await q<{ spike: Date }>(
+      "SELECT date_trunc('minute', now()) - interval '3 hours' AS spike",
+    );
+    const spikeMs = new Date(spike).getTime();
+    const at = (ms: number) => new Date(ms).toISOString();
+    const rows: [string, number, number][] = [];
+    for (let m = -180; m <= 180; m += 2) {
+      const ms = spikeMs + m * 60_000;
+      if (ms > Date.now()) break;
+      rows.push(m === 0 ? [at(ms), 40, 25] : [at(ms), 1, 0]);
+    }
+    const cleanup = async () => {
+      await q(
+        "DELETE FROM listener_samples WHERE sampled_at IN (SELECT unnest($1::timestamptz[]) + interval '3 microseconds')",
+        [rows.map((r) => r[0])],
+      );
+      await q("DELETE FROM traffic_daily WHERE day = ($1::timestamptz AT TIME ZONE 'UTC')::date", [at(spikeMs)]);
+    };
+    await cleanup();
+    try {
+      // One play between each pair of samples: the cumulative counter rises
+      // by exactly rows.length - 1 across the window, whatever the bucketing.
+      for (const [i, [t, online, listening]] of rows.entries()) {
+        await q(
+          "INSERT INTO listener_samples (sampled_at, online, listening, total_plays) VALUES ($1::timestamptz + interval '3 microseconds', $2, $3, $4)",
+          [t, online, listening, 1000 + i],
+        );
+      }
+      const t24 = await store.getTraffic("24h");
+      const t7 = await store.getTraffic("7d");
+      const t30 = await store.getTraffic("30d");
+
+      // Every window contains the spike, so every window's peak is the spike.
+      // An average of the spike's bucket reads ~6 over 15 minutes and ~1 over
+      // two hours: the wider the bucket, the lower the "peak".
+      for (const t of [t24, t7, t30]) {
+        expect({ range: t.range, online: t.peakOnline, listening: t.peakListening }).toEqual({
+          range: t.range,
+          online: 40,
+          listening: 25,
+        });
+        // "Busiest at" names the sample, not the start of whichever bucket held it.
+        expect(t.peakAt, t.range).toBe(at(spikeMs));
+        // The chart draws each bucket's max, so the spike is on it at every zoom.
+        expect(Math.max(...t.points.map((p) => p.onlineMax)), t.range).toBe(40);
+        expect(Math.max(...t.points.map((p) => p.listeningMax)), t.range).toBe(25);
+        // Plays in range, recomputed from the raw counter rather than the points.
+        expect(t.playsInRange, t.range).toBe(rows.length - 1);
+      }
+      // The invariant, stated as the mandate states it.
+      expect(t30.peakOnline).toBeGreaterThanOrEqual(t7.peakOnline);
+      expect(t7.peakOnline).toBeGreaterThanOrEqual(t24.peakOnline);
+      expect(t30.peakListening).toBeGreaterThanOrEqual(t7.peakListening);
+      expect(t7.peakListening).toBeGreaterThanOrEqual(t24.peakListening);
+
+      // The permanent daily rollup keeps the busiest instant too, so the
+      // "when" survives the 90-day sample prune.
+      await store.rollUpTraffic();
+      const [daily] = await q<{ peak_online: number; peak_listening: number; peak_at: Date | null }>(
+        "SELECT peak_online, peak_listening, peak_at FROM traffic_daily WHERE day = ($1::timestamptz AT TIME ZONE 'UTC')::date",
+        [at(spikeMs)],
+      );
+      expect(daily.peak_online).toBe(40);
+      expect(daily.peak_listening).toBe(25);
+      expect(daily.peak_at && new Date(daily.peak_at).toISOString()).toBe(at(spikeMs));
+    } finally {
+      await cleanup();
+    }
+  });
+
+  it("backfill-traffic-peaks.sql fills peak_at from the raw samples, and only where they still hold the peak", async () => {
+    // Two old days, outside the rollup's window. Day A still has the sample
+    // that made its peak; day B's peak sample has been pruned, so the best raw
+    // sample left (3) is not the stored peak (7) and must not lend it a time.
+    const [{ a, b }] = await q<{ a: string; b: string }>(
+      "SELECT to_char(((now() AT TIME ZONE 'UTC')::date - 20), 'YYYY-MM-DD') AS a, to_char(((now() AT TIME ZONE 'UTC')::date - 21), 'YYYY-MM-DD') AS b",
+    );
+    const samples: [string, number][] = [
+      [`${a}T01:00:00.000Z`, 2],
+      [`${a}T03:10:00.000Z`, 6],
+      [`${a}T05:00:00.000Z`, 6], // ties the peak later: the first one is the answer
+      [`${b}T04:00:00.000Z`, 3],
+    ];
+    const cleanup = async () => {
+      await q("DELETE FROM listener_samples WHERE sampled_at IN (SELECT unnest($1::timestamptz[]) + interval '5 microseconds')", [samples.map((x) => x[0])]);
+      await q("DELETE FROM traffic_daily WHERE day IN ($1::date, $2::date)", [a, b]);
+    };
+    await cleanup();
+    try {
+      for (const [t, online] of samples) {
+        await q("INSERT INTO listener_samples (sampled_at, online, listening, total_plays) VALUES ($1::timestamptz + interval '5 microseconds', $2, 0, 0)", [t, online]);
+      }
+      await q("INSERT INTO traffic_daily (day, peak_online, samples) VALUES ($1::date, 6, 3), ($2::date, 7, 1)", [a, b]);
+      const sql = readFileSync(path.resolve(__dirname, "../../../../scripts/backfill-traffic-peaks.sql"), "utf8");
+      await q(sql);
+      await q(sql); // idempotent
+      const rows = await q<{ day: string; peak_at: Date | null }>(
+        "SELECT to_char(day, 'YYYY-MM-DD') AS day, peak_at FROM traffic_daily WHERE day IN ($1::date, $2::date) ORDER BY day",
+        [a, b],
+      );
+      const byDay = Object.fromEntries(rows.map((r) => [r.day, r.peak_at ? new Date(r.peak_at).toISOString() : null]));
+      expect(byDay[a]).toBe(`${a}T03:10:00.000Z`);
+      expect(byDay[b]).toBeNull();
+    } finally {
+      await cleanup();
     }
   });
 
