@@ -176,6 +176,12 @@ CREATE TABLE IF NOT EXISTS traffic_daily (
   sessions       int    NOT NULL DEFAULT 0,
   samples        int    NOT NULL DEFAULT 0
 );
+-- The instant of the day's peak_online: the first sample that reached it. The
+-- peaks were always maxima; "when" was only ever answerable from the raw
+-- samples, which are pruned at 90 days. NULL for days rolled up before this
+-- column (scripts/backfill-traffic-peaks.sql fills those that still have
+-- samples) and for days with no sample at all.
+ALTER TABLE traffic_daily ADD COLUMN IF NOT EXISTS peak_at timestamptz;
 
 -- Playback failures.
 --
