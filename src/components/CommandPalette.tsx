@@ -21,6 +21,7 @@ interface Result {
 
 const ROUTES: Result[] = [
   { id: "nav-library", group: "Go to", label: "Library", action: () => {} },
+  { id: "nav-live", group: "Go to", label: "High Desert Live", action: () => {} },
   { id: "nav-radio", group: "Go to", label: "Radio Dial", action: () => {} },
   { id: "nav-stats", group: "Go to", label: "Statistics", action: () => {} },
   { id: "nav-scanner", group: "Go to", label: "Scanner", action: () => {} },
@@ -29,6 +30,7 @@ const ROUTES: Result[] = [
 
 const ROUTE_PATHS: Record<string, string> = {
   "nav-library": "/library",
+  "nav-live": "/live",
   "nav-radio": "/radio",
   "nav-stats": "/stats",
   "nav-scanner": "/scanner",

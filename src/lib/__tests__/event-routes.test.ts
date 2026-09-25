@@ -194,7 +194,7 @@ describe("hd:* events and the routes they fire on (HD-019, HD-013)", () => {
   it("sees the app: every route, and the bus's known sites", () => {
     // Guards against a scanner that silently found nothing — an empty scan
     // would pass the real assertion below vacuously.
-    expect([...ROUTES.keys()].sort()).toEqual(["/", "/library", "/radio", "/scanner", "/search", "/stats"]);
+    expect([...ROUTES.keys()].sort()).toEqual(["/", "/library", "/live", "/radio", "/scanner", "/search", "/stats"]);
     expect(allEmits.length).toBeGreaterThan(20);
     const layout = path.join(APP, "(desktop)/layout.tsx");
     expect(allListens.some((s) => s.key === "play-episode" && s.file === layout)).toBe(true);

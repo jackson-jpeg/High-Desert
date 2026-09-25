@@ -20,6 +20,8 @@ const COLOR_YEAR_LABEL = PALETTE.amber;
 const COLOR_MONTH_TICK = PALETTE.muted;
 const COLOR_NEEDLE = PALETTE.needle;
 const COLOR_STRIP_BG = PALETTE.strip;
+// The live station's marker: the needle's red, as a lamp.
+const COLOR_ON_AIR = PALETTE.needle;
 
 // Throttle to ~30fps on mobile, 60fps on desktop
 const MOBILE_FRAME_INTERVAL = 1000 / 30;
@@ -39,11 +41,18 @@ function getShowColor(showType: string): string {
 
 interface TuningStripProps {
   index: StationIndex;
+  /** Day index of the show the live station has on the air, marked with a lamp. */
+  onAirDay?: number | null;
   className?: string;
 }
 
-export function TuningStrip({ index, className }: TuningStripProps) {
+export function TuningStrip({ index, onAirDay = null, className }: TuningStripProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Read by the frame loop; a prop change must not restart the loop.
+  const onAirDayRef = useRef<number | null>(onAirDay);
+  useEffect(() => {
+    onAirDayRef.current = onAirDay;
+  }, [onAirDay]);
   const position = useRadioDialStore((s) => s.position);
   const zoom = useRadioDialStore((s) => s.zoom);
 
@@ -239,6 +248,32 @@ export function TuningStrip({ index, className }: TuningStripProps) {
         }
 
         ctx.globalAlpha = 1;
+      }
+
+      // --- The live station: an ON AIR lamp over the show on the air ---
+      const liveDay = onAirDayRef.current;
+      if (liveDay !== null) {
+        const x = centerX + (liveDay - pos) * pxPerDay;
+        if (x >= -10 && x <= w + 10) {
+          ctx.save();
+          ctx.strokeStyle = COLOR_ON_AIR;
+          ctx.globalAlpha = 0.55;
+          ctx.lineWidth = 1;
+          ctx.setLineDash?.([2, 3]);
+          ctx.beginPath();
+          ctx.moveTo(x, tickAreaTop + 8);
+          ctx.lineTo(x, tickAreaBottom);
+          ctx.stroke();
+          ctx.setLineDash?.([]);
+          ctx.globalAlpha = 1;
+          ctx.shadowColor = COLOR_ON_AIR;
+          ctx.shadowBlur = noMotion ? 8 : 9 + Math.sin(time * 0.004) * 4;
+          ctx.fillStyle = COLOR_ON_AIR;
+          ctx.beginPath();
+          ctx.arc(x, tickAreaTop + 3, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
       }
 
       // --- Center needle ---

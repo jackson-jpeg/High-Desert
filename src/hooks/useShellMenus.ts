@@ -126,6 +126,7 @@ export function useShellMenus(actions: ShellMenuActions): Menu[] {
         { label: "Shuffle Coast to Coast", onClick: () => openLibrary({ shuffle: "coast" }) },
         { label: "Shuffle Dreamland", onClick: () => openLibrary({ shuffle: "dreamland" }) },
         { separator: true, label: "" },
+        { label: "Live Station", onClick: () => router.push("/live") },
         { label: "Radio Dial", onClick: () => router.push("/radio") },
         { label: "Statistics", onClick: () => router.push("/stats") },
       ],
