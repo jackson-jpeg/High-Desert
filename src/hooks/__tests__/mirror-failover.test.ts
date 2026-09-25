@@ -24,7 +24,9 @@ const seekSpy = vi.fn();
 let element: HTMLAudioElement;
 let archiveDown = false;
 /** play() outcomes, in call order; unlisted calls hang (a load that never answers). */
-let plays: Array<"resolve" | "reject-not-allowed" | "hang"> = [];
+let plays: Array<"resolve" | "reject-not-allowed" | "hang" | "deferred"> = [];
+/** Rejects the pending "deferred" play() — the test decides when. */
+let rejectDeferred: (err: unknown) => void = () => {};
 
 vi.mock("@/services/stats/client", () => ({
   reportPlay: (...a: unknown[]) => reportPlay(...a),
@@ -116,6 +118,7 @@ beforeEach(() => {
     const what = plays[call++] ?? "hang";
     if (what === "resolve") return Promise.resolve();
     if (what === "reject-not-allowed") return Promise.reject(new DOMException("denied", "NotAllowedError"));
+    if (what === "deferred") return new Promise<void>((_, reject) => { rejectDeferred = reject; });
     return new Promise<void>(() => {});
   });
   usePlayerStore.setState({
@@ -219,6 +222,26 @@ describe("archive.org fails → the mirror", () => {
     expect(s.loadState).toBe("failed");
     expect(s.failureKind).toBe("play-rejected");
     expect(reportPlay).not.toHaveBeenCalled();
+  });
+
+  it("archive.org's play() rejecting after the failover moved the element is not charged to the mirror", async () => {
+    // Chromium's order for a dead source: the element fires "error", then the
+    // pending play() rejects with NotSupportedError. The error has already
+    // moved the element to the mirror by the time the rejection lands.
+    plays = ["deferred", "hang"];
+    act(() => void api().playEpisode(episode()));
+    act(() => mediaError(4));
+    await settle();
+    expect(element.src).toBe(MIRROR);
+    await act(async () => {
+      rejectDeferred(new DOMException("The element has no supported sources.", "NotSupportedError"));
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+    });
+    const s = usePlayerStore.getState();
+    expect(s.loadState).not.toBe("failed");
+    expect(s.error).toBeNull();
+    expect(element.src).toBe(MIRROR);
+    expect(reportPlaybackFailure).not.toHaveBeenCalled();
   });
 
   it("the failover spends the retry: the mirror failing too raises the dialog, not a second archive request", async () => {
