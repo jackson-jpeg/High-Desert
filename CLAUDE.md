@@ -88,9 +88,9 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, plays}], peakOnline, peakListening, playsInRange, totalPlays, peakAt, hourly: [{hour, online, listening, plays, samples}]}`**. `hourly` is always a 24-entry, zero-filled, **UTC**-hour profile over the last 30 days and does *not* vary with `range`; the client rotates it into local time. `samples: 0` means *never observed*, which is not the same as "observed, nobody here" — the UI hides the profile until 8 hours have been sampled, or a day-old deployment draws 23 empty columns and looks like a dead site. **`playsBySource: {archive, mirror, …, unknown}`** counts `play_events` in the range by `source` — what `highdesert-status` reads for "mirror plays in 24h" |
 | `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Also prunes `weekly_plays` past 3 weeks. Returns `{ok, online, listening, totalPlays, rolledUp, anonymized, prunedWeeks}` |
 | `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass, detail?}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`network-error`/`decode-error`/`empty-media`/`empty-media-suspected`; `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. `detail` is short (≤200 char) free text: the reported duration on an advisory row, or `MediaError.code` plus its message on a `decode-error`/`network-error`/`empty-media`. That message is a browser pipeline diagnostic (`DEMUXER_ERROR_COULD_NOT_OPEN: …`) and is the **only** way an empty file is distinguishable from an unreachable one on Chromium, which errors on the missing frames rather than reporting a short duration. A `detail` containing `HD-VERIFY` (any case, checked after truncation) is **rejected with 400** — this table is the instrument that decides whether the 5s duration floor is safe to promote, and verification rows have polluted it twice; intercept the POST in the page instead. No session id, no IP. `episodeId` must be in the community-key allowlist. Optional `source` as on `/api/stats/play`, but an unknown value is stored NULL rather than refused — losing a failure row costs more than losing its source. A failover row carries the source that *failed* (`archive`) and `recovered: true` once the mirror plays |
-| `/mirror/{fileHash}` | GET | **Not Next.js** — `highdesert-mirror` on 127.0.0.1:3004, proxied by nginx. The episode's MP3 from the outage mirror, with byte ranges: `206` + `Content-Range`, `416` for an unsatisfiable range, **503 JSON** if nothing has delivered a first byte within 15s. See "archive.org outage mirror" |
-| `/mirror/manifest` | GET | **Not Next.js** (the gateway). What the mirror can play with archive.org gone: **`{version, count, pinned, fileHashes: [...]}`** — every episode complete on disk, pinned or kept by the LRU. `version` is a digest of the list and the `ETag`; `If-None-Match` gets a 304. Memoised 60 s. Outage mode's input (`src/services/mirror/manifest.ts`) |
-| `/mirror/magnet/{fileHash}` | GET | `{magnet}`: the episode's own single-file torrent (trackers, the archive.org webseed as `ws=`, this server as `x.pe=`). The episode sheet's "Magnet link" |
+| `/mirror/{fileHash}` | GET | **Not Next.js — nginx alone** (`services/mirror/lib/nginx.mjs`). The episode's MP3: a pinned one off disk, anything else in the catalog filled from archive.org through nginx's slice cache. Byte ranges: `206` + `Content-Range`, `416` for an unsatisfiable range. **404** for anything not in the catalog; **502** when a fill cannot reach archive.org. GET/HEAD only. See "archive.org outage mirror" |
+| `/mirror/manifest` | GET | **Not Next.js** — a static file (`/var/lib/highdesert-mirror/manifest.json`, written atomically by the warm job). What the mirror can play with archive.org gone: **`{version, count, pinned, fileHashes: [...]}`** — every pinned episode whole on disk (`count` = `pinned`). `version` is a digest of the list; the **`ETag` is nginx's**, and `If-None-Match` with it gets a 304. `Cache-Control: max-age=60`. Outage mode's input (`src/services/mirror/manifest.ts`) |
+| `/mirror/magnet/{fileHash}` | GET | Static: **`{infohash, magnet}`** for the episode's own single-file torrent (trackers, the archive.org webseed as `ws=`; no `x.pe` — nothing here seeds). 404 outside the catalog. The episode sheet's "Magnet link" |
 | `/api/stats/failures` | GET | Which episodes are failing, worst first. `?days=7\|30\|90`. Returns **`{days, summary, entries: [{episodeId, title, failures, recovered, skippedRetries, plays, rate, kinds, uaClasses, details, lastAt}]}`**. Ids resolved to titles from the seed catalog. `details` is the browser's own diagnostics (up to 3 distinct, newest first), **filtered to diagnostic shapes** — the raw text is attacker-controlled (`publicDetails`, HD-038). `skippedRetries` counts retries not attempted for want of a user gesture, excluding `empty-media`, which is never retried by design — it is the instrument for the activation gate. `summary` is site-wide and is deliberately **not** a sum of `entries`, which is capped at 50 episodes. **Excludes advisory kinds** (`ADVISORY_KINDS` in `src/services/stats/db/failures.ts`) — this ranks episodes by how badly they are failing, and a row that never stopped playback would inflate that. Unauthenticated — it is aggregate-only, and the admin gate is presentation, not protection. `?since=<ISO>` adds **`window: {from, to, failures, plays}`**, the fixed 7 days from that instant (cut at now) — how `highdesert-status` holds a release to `docs/reliability-baseline.md` |
 | `/api/stats/export` | GET | **The permanent record, for sang3r.com.** Requires `x-service-token` (`STATS_EXPORT_SECRET`). `?mode=summary\|events\|daily\|episodes`. The only route that returns the event log rather than aggregates, and the only one not reachable from a browser. Episode ids are resolved to titles from the seed catalog. Page `events` with `after=<last id>` — **not** with `since`, which cannot disambiguate two plays sharing a timestamp |
 
@@ -467,37 +467,42 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   (`fileHash → {infohash, length, pieceLength}`, committed) and the `.torrent`
   files in `/var/lib/highdesert-mirror/torrents` (not committed, 1,312 of them;
   `deploy-mirror.sh` refuses if any indexed one is missing). Resumable, ≤2 req/s.
-- **The gateway** (`services/mirror/`, its own package — webtorrent; unit
-  `highdesert-mirror`, user `hdmirror`, `/opt/highdesert-mirror`): a file whose
-  `.complete` marker exists is served from disk; otherwise the torrent is added on
-  demand, `createReadStream({start,end})` prioritises the pieces the range needs,
-  and idle torrents are dropped after 5 minutes. The cache
-  (`/var/cache/highdesert-mirror`) evicts least-recently-served first under a
-  20 GB cap **and** a 10 GB disk-free floor — the floor binds first on a 100 GB
-  disk — and never a pinned or in-flight file. Upload capped at 2 MB/s,
-  `CPUQuota=50%`, `IOWeight=20`, `MemoryMax=700M`. Ports 6881/tcp+udp and
-  6882/udp are open in ufw so the pinned shows are actually seeded back.
-- **It listens before it seeds, and does not re-verify what it already
-  verified** (`lib/serve.mjs`, `skipVerify` in `ensureTorrent`). The first
-  deploy after a nightly warm awaited seeding 338 pins before `listen()`,
-  re-reading all 15 GB on the way at its memory ceiling; health never answered
-  inside `deploy-mirror.sh`'s window, and the rollback copy started the same
-  way — the mirror was down until this changed. Requests never needed the pins
-  seeded: a complete file is served from disk.
-- **`peers` means distinct outside addresses**, never wires. Each tracker hands
-  our own announce back, so the client dialled itself both ways for every
-  torrent (677 "peers" with 338 pins); our public address is now on the
-  client's blocklist (`lib/client-options.mjs`) and excluded from the count.
-  `wires` in `/mirror/health` is the raw breakdown by type.
-- **DHT bootstrap is resolved to IPv4 by us** (`lib/bootstrap.mjs`). The
-  library's own list resolved to IPv6 on this box, which its udp4 socket cannot
-  reach, and it reported "ready" with **zero nodes** — silently, for every hash.
-  Two of its three default routers no longer answer at all.
-- **Warm cache:** `highdesert-mirror-warm.timer` (04:10 UTC) pins the most-played
-  episodes by 90-day `play_events`, whole files only, up to 15 GB, fetched from the
-  archive.org webseed and verified against the piece hashes before the `.complete`
-  marker is written. **It skips itself while hypervisor steal is above 20%** and
-  records why in `warm-status.json`. Pins are exempt from eviction and seeded.
+- **There is no mirror process: nginx is the mirror** (since 2026-09-25). The
+  webtorrent gateway held ~47% of a core seeding to a swarm with no one in it and
+  was removed — why, and how to bring it back, in
+  `docs/torrent-mirror-feasibility.md` §6. `services/mirror/lib/nginx.mjs` renders
+  two includes, installed to `/etc/nginx/highdesert-mirror/` by
+  `deploy-mirror.sh` and pulled into the vhost:
+  - **Pinned** `/mirror/{fileHash}` is `/var/lib/highdesert-mirror/pins/{fileHash}`
+    served straight off disk (nginx's own 206/416, no app CPU).
+  - **Unpinned** is filled from archive.org through `proxy_cache`
+    (`/var/cache/highdesert-mirror/proxy`, 1 MiB `slice`s keyed `$uri$slice_range`,
+    `max_size=20g`, `min_free=10g`). The fill goes through a second server on a unix
+    socket that rewrites to `/download/{identifier}/{file}` and follows the 302 to
+    the storage node — only to `*.archive.org` over verified TLS. Two hops because an
+    `error_page` redirect clears a slice subrequest's context. Nothing of the listener
+    goes upstream (`proxy_pass_request_headers off` on both hops). With archive.org
+    down the fill has no source and fails; outage mode refuses those at the tap.
+  - **The allowlist is a directory**, `/var/lib/highdesert-mirror/catalog/{fileHash}`,
+    one file per catalog episode (its magnet JSON, generated by `build-static.mjs`).
+    Not a `map`: 200-byte keys need `map_hash_bucket_size`, which
+    `conf.d/sogojet-prerender-map.conf` has already fixed by declaring a map first
+    — a later one is a "duplicate" error that takes down every site's config.
+  - `test/nginx.test.mjs` starts a **real nginx** from the rendered text against a
+    stub archive.org (302 included) and asserts "from disk" and "from cache" as *no
+    request reached the stub*. It fails in CI if nginx is missing.
+- **Warm cache:** `highdesert-mirror-warm.timer` (04:10 UTC, `CPUQuota=10%`,
+  `Nice=19`, idle I/O) pins the most-played episodes by 90-day `play_events`, whole
+  files only, up to 15 GB: a plain HTTP download into `/var/lib/highdesert-mirror/tmp`,
+  **verified against the `.torrent`'s piece SHA-1s**, then renamed into `pins/` — a
+  name in `pins/` is always a whole, verified episode. Episodes that fell out of the
+  top are unpinned first, never on an empty play list. It rewrites
+  `/var/lib/highdesert-mirror/manifest.json` **atomically** (temp + rename: nginx may
+  be mid-send). **It skips itself while hypervisor steal is above 20%** and records
+  why in `/var/cache/highdesert-mirror/warm-status.json`.
+- **The torrents stay, as verification and magnets.** `/mirror/magnet/{fileHash}`
+  is the static catalog file; the magnet's webseed is archive.org, with no `x.pe`
+  (nothing here seeds).
 - **Client failover** (`src/audio/sources.ts`, `playback-watchdog.ts`,
   `useAudioPlayer.ts`, `src/hooks/player/play-session.ts`): `resolveSources()` is archive.org then
   `/mirror/{fileHash}`; only catalog episodes have a mirror, and while archive.org
@@ -524,11 +529,16 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   `playback_failures.source`). The UI says so: **VIA MIRROR** (`MirrorBadge`) in the
   desktop status bar and the mobile player, and a **Magnet link** action in the
   episode sheet.
-- **Deploy:** `bash scripts/deploy-mirror.sh` — stages `/opt/highdesert-mirror.next`,
-  `npm ci --omit=dev` there, swaps, restarts, installs the units, ufw rules and
-  (with `nginx -t` first) the vhost, then verifies health and a real `206` through
-  `https://highdesert.space/mirror/…`, rolling back on failure. `--rollback`
-  swaps back. The app's `scripts/deploy.sh` does not touch the mirror.
+- **Deploy:** `bash scripts/deploy-mirror.sh` — stages `/opt/highdesert-mirror.next`
+  (no dependencies), generates the catalog directory and the nginx includes, runs
+  the idempotent migration (`migrate.mjs`: the gateway's verified files renamed into
+  `pins/`, nothing re-downloaded, nothing it cannot place removed), installs includes
+  + vhost with `nginx -t` first, installs the warm units, removes the old
+  `highdesert-mirror` unit and the torrent ufw ports, then runs `verify.mjs` through
+  `https://highdesert.space` (manifest 200 + 304, pinned 206 + 416, an unpinned fill,
+  a magnet, a 404), rolling back on failure — to the torrent gateway if that is what
+  `/opt/highdesert-mirror.prev` holds (`migrate.mjs --reverse`). The app's
+  `scripts/deploy.sh` does not touch the mirror.
 - **Outage mode** (`src/stores/outage-store.ts`, `src/audio/outage-gate.ts`). When
   the health probe says archive.org is down, the app says so and stops pretending
   every show can play: a banner (**"archive.org is down. Playing from the High
@@ -540,7 +550,7 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   shows it holds (same guest, then category, then year: `suggestPlayable`). All
   three start paths go through it: the play-episode handler (before it queues,
   `admitRequestedStart`), `playEpisode()` and a restored show's first ▶. It used
-  to wait out the gateway's 15 s first-byte budget and fail anyway.
+  to wait out the (since removed) gateway's 15 s first-byte budget and fail anyway.
   - **One verdict, everywhere.** `archiveKnownDown()` is the store's verdict —
     held until a probe says otherwise — not "a fresh down": a start must agree
     with the banner on screen. `useOutageMonitor` (mounted once in the layout)
@@ -551,13 +561,19 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
     start goes to the mirror to find out. The manifest is read the moment outage
     mode begins and kept in localStorage, so a page loaded mid-outage marks rows
     before its own fetch returns.
+  - **The manifest's ETag is nginx's** (mtime-size), not its `version`. The client
+    stores the response's `ETag` and sends it back **verbatim** as `If-None-Match`
+    (`src/services/mirror/manifest.ts`); sending `"version"` never matches.
   - **Local files are never marked or refused** — they never needed archive.org.
   - Tests start from `archiveUpFixture` / `archiveDownFixture`
     (`src/test-support/outage.ts`); `e2e/chaos-mirror.spec.ts` runs it on production.
 - **Status:** `highdesert-status` has `steal` (30-min mean; WARN >20%, FAIL >50%),
-  `mirror` (active, health, cache size, pinned, peers, 24h mirror plays) and
-  `warm` (last run; WARN when stale >36h, skipped for steal, or with failed
-  fetches) lines.
+  `mirror` (the manifest answering through the site with ≥1 pin — FAIL otherwise;
+  pinned count and bytes, fill-cache size, 24h mirror plays; WARN if the retired
+  `highdesert-mirror` unit is running again), `cpu` (every High Desert unit's
+  15-minute mean from cgroup accounting, sampled each minute by `hd-cpu-sample.timer`
+  in `/root/vps-tools`; FAIL above 10% of a core) and `warm` (last run; WARN when
+  stale >36h, skipped for steal, or with failed fetches) lines.
 
 ## Dexie: clearing a field
 

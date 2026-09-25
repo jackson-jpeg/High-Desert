@@ -90,8 +90,8 @@ mutation `mirror-dht-ipv4`. After the fix: 149–171 DHT nodes and 539 control p
 
 | archive.org state | Pinned show (warm cache) | Unpinned show |
 |---|---|---|
-| Up, but the listener cannot reach it | plays from our disk | the gateway fills it from the archive.org webseed, via this server, and it plays |
-| **Actually down** | **plays from our disk** | no webseed and no peers: 503 after 15 s, then `PlaybackErrorDialog` |
+| Up, but the listener cannot reach it | plays from our disk | filled from archive.org via this server, and it plays (since §6: nginx's cache, not the gateway) |
+| **Actually down** | **plays from our disk** | no source at all: the fill fails, then `PlaybackErrorDialog` — and in outage mode it is refused at the tap |
 
 The warm cache is therefore the product. How much it covers, using the last 90
 days of `play_events` (2,262 plays over 741 episodes, since 2026-07-28 when the
@@ -139,7 +139,8 @@ whose *Try Again* is a real gesture). No device test was run.
   which it will not be with no outside peers. Serving listeners goes through
   nginx: 25 plays/day at ~46 MB is about 1.2 GB/day even if every play used the
   mirror.
-- **CPU:** `CPUQuota=50%`, `IOWeight=20`, `Nice=5` on the gateway. The warm job
+- **CPU:** *(superseded by §6: there is no gateway; the warm job runs at
+  `CPUQuota=10%`, `Nice=19`, idle I/O.)* `CPUQuota=50%`, `IOWeight=20`, `Nice=5` on the gateway. The warm job
   skips itself when hypervisor steal is over 20%, because the 2026-09-22 episode
   ran near 90%. `highdesert-status` reports steal (WARN >20%, FAIL >50%).
 
@@ -149,5 +150,71 @@ whose *Try Again* is a real gesture). No device test was run.
   its webseeds would be a second source for everything. `build-torrent-index.mjs`
   re-reads the item torrent each run and would report `inATorrent > 0`.
 - **Community seeders.** The magnet link in each episode sheet carries our
-  deterministic infohash and `x.pe` hint. Anyone who seeds those files joins the
-  same swarm, and the gateway would find them through the DHT and trackers.
+  deterministic infohash (and, until §6, an `x.pe` hint). Anyone who seeds those
+  files joins the same swarm. Since §6 nothing here would find them; §6 says how
+  to bring the client back if that swarm ever exists.
+
+## 6. Torrent client removed (2026-09-25)
+
+**Why.** The gateway (`highdesert-mirror.service`, webtorrent on
+127.0.0.1:3004) seeded the 338 pinned episodes back to a swarm that, per §2,
+has no one in it. Measured with `pidstat` on the unit: **46.8% of a core**
+sustained while seeding, **1.5%** with seeding switched off (`MIRROR_SEED=0`,
+the stop-gap deployed the same morning). A third of a two-vCPU box, spent
+announcing files nobody asks for, on the box that also serves five live
+sites. With no outside peers, BitTorrent brought nothing the mirror used:
+every byte it ever served came from our disk or from the archive.org webseed.
+
+**What replaced it.** No process at all. nginx does the whole job, from
+configuration rendered by `services/mirror/lib/nginx.mjs`:
+
+| Request | Served by |
+|---|---|
+| `/mirror/{fileHash}`, pinned | `/var/lib/highdesert-mirror/pins/{fileHash}`, straight off disk; nginx's own 206 / 416 |
+| `/mirror/{fileHash}`, not pinned | `proxy_cache` in `/var/cache/highdesert-mirror/proxy` (1 MiB slices, 20 GB, 10 GB `min_free`), filled from `archive.org/download/…` through a unix-socket server that follows the 302 to the storage node |
+| `/mirror/{fileHash}`, not in the catalog | 404 — `/var/lib/highdesert-mirror/catalog/{fileHash}` must exist |
+| `/mirror/manifest` | `/var/lib/highdesert-mirror/manifest.json`, written atomically by the warm job |
+| `/mirror/magnet/{fileHash}` | `/var/lib/highdesert-mirror/catalog/{fileHash}` (static JSON) |
+
+The nightly warm job is a plain HTTP download from archive.org, still
+verified piece by piece against the episode's `.torrent` before it is renamed
+into `pins/`. The torrents stay: they are the verification, and the magnet
+links still work — with archive.org as the webseed, any client can fetch.
+
+The one-time move of the gateway's 339 verified files is
+`services/mirror/migrate.mjs` (renames on the same filesystem; nothing
+re-downloaded). What an outage looks like is unchanged: pinned shows play,
+unpinned ones do not (the fill needs archive.org), and outage mode refuses
+those at the tap.
+
+**Bringing the torrent client back** — only if a real swarm appears, i.e. the
+§2 measurement run again finds outside seeders on our infohashes (the tool,
+`services/mirror/measure-peers.mjs`, is in the same commit as the gateway):
+
+1. Restore the code from the parent of the removal commit. The removal is
+   `1ddc13a` on branch `mirror/nginx` (on `main`, find it with
+   `git log --diff-filter=D --format='%h %s' -- services/mirror/server.mjs`):
+   `git checkout 1ddc13a~1 -- services/mirror deploy/highdesert-mirror.service scripts/deploy-mirror.sh deploy/nginx/highdesert.conf deploy/highdesert-mirror-warm.service`.
+   That brings back `server.mjs`, the gateway/cache/serve/client-options/
+   bootstrap/range libs, `measure-peers.mjs`, the `webtorrent` dependency and
+   lock, the unit, and the deploy script that installs them — and their tests
+   (`services/mirror/test/{gateway,startup,no-seed,bootstrap,manifest}.test.mjs`)
+   and mutations (`git show 1ddc13a -- scripts/mutate-check.mjs`).
+2. Before deploying, move the pins back to where the gateway reads them:
+   `runuser -u hdmirror -- env MIRROR_CACHE_DIR=/var/cache/highdesert-mirror MIRROR_STATE_DIR=/var/lib/highdesert-mirror MIRROR_INDEX=/opt/highdesert-mirror/episodes.json node /opt/highdesert-mirror/migrate.mjs --reverse`
+   (`data/<infohash>/<file>` + `.complete`, and `pins.json`).
+3. The unit is `highdesert-mirror.service` (user `hdmirror`, 127.0.0.1:3004,
+   `CPUQuota=50%`, `MemoryMax=700M`). Seeding is `MIRROR_SEED=1` — the only
+   reason to bring it back; leave it `0` and there is no reason to.
+4. Inbound torrent ports in ufw: `6881/tcp`, `6881/udp` (uTP), `6882/udp` (DHT).
+   The old `deploy-mirror.sh` opens them.
+5. The vhost's `/mirror/` goes back to `proxy_pass http://127.0.0.1:3004`
+   (restored with the file in step 1); remove the
+   `/etc/nginx/highdesert-mirror/` includes.
+6. `highdesert-status`'s `mirror` line read `/mirror/health` on 3004 and
+   counted peers; restore it from the same commit (`scripts/status.sh`), and
+   keep the `cpu` line — it is what would catch the 47% again.
+
+Within one deploy of the removal, `bash scripts/deploy-mirror.sh --rollback`
+does steps 2–5 automatically (it keeps the gateway's copy in
+`/opt/highdesert-mirror.prev`).
