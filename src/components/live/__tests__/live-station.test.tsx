@@ -22,7 +22,7 @@ import type { LiveSchedule, ProgramSlot } from "@/lib/live/schedule";
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
 const mobile = vi.hoisted(() => ({ value: false }));
-const controller = vi.hoisted(() => ({ tuneIn: vi.fn(), tuneOut: vi.fn() }));
+const controller = vi.hoisted(() => ({ tuneIn: vi.fn(), leaveStation: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -36,7 +36,7 @@ vi.mock("@/hooks/useMediaQuery", () => ({
 vi.mock("@/audio/live-controller", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/audio/live-controller")>()),
   tuneIn: controller.tuneIn,
-  tuneOut: controller.tuneOut,
+  leaveStation: controller.leaveStation,
 }));
 
 const { LiveStation } = await import("@/components/live/LiveStation");
@@ -114,7 +114,7 @@ async function mount() {
 beforeEach(() => {
   mobile.value = false;
   controller.tuneIn.mockClear();
-  controller.tuneOut.mockClear();
+  controller.leaveStation.mockClear();
   resetNowFeedForTests();
   useLiveStore.setState({ tuned: false, phase: "off", current: null, schedule: null, clockOffsetMs: null, drift: null });
   vi.stubGlobal("EventSource", SilentEventSource);
@@ -136,7 +136,7 @@ afterEach(() => {
   host.remove();
   vi.unstubAllGlobals();
   resetNowFeedForTests();
-  useLiveStore.setState({ tuned: false, phase: "off", current: null, schedule: null, clockOffsetMs: null });
+  useLiveStore.setState({ tuned: false, paused: false, phase: "off", current: null, schedule: null, clockOffsetMs: null });
 });
 
 describe("Live screen", () => {
@@ -155,6 +155,23 @@ describe("Live screen", () => {
     expect(rows[1].getAttribute("aria-current")).toBe("true");
     expect(rows[1].textContent).toContain("Show 2");
     expect(host.querySelector('[data-on-air="lit"]')).not.toBeNull();
+  });
+
+  it("the heading is the episode; the show it belongs to goes in the kicker", async () => {
+    // Every catalog title leads with the show, so "Coast to Coast AM - …" was
+    // the studio's heading for every Coast broadcast.
+    const at = B.start + H;
+    const titled = { ...B, title: "Coast to Coast AM - September 11th Coverage" };
+    useLiveStore.setState({
+      clockOffsetMs: at - Date.now(),
+      clockRttMs: 20,
+      schedule: { ...schedule(at), guide: [A, titled, C, D] },
+    });
+    await mount();
+    const heading = q("live-now-title");
+    expect(heading.tagName).toBe("H2");
+    expect(heading.textContent).toBe("September 11th Coverage");
+    expect(q("live-now-show").textContent).toBe("Now playing · Coast to Coast AM");
   });
 
   it("a station break between shows: no title of a show, a countdown to the next", async () => {
@@ -187,7 +204,19 @@ describe("Live screen", () => {
     expect(host.querySelector('[data-testid="live-tune-in"]')).toBeNull();
     const leave = [...host.querySelectorAll("button")].find((b) => b.textContent === "Leave the station");
     act(() => leave!.click());
-    expect(controller.tuneOut).toHaveBeenCalledTimes(1);
+    // Leaving, not just tuning out: it is the call that stops the player.
+    expect(controller.leaveStation).toHaveBeenCalledTimes(1);
+  });
+
+  it("held paused: the studio says so, and offers to rejoin as well as to leave", async () => {
+    stationAt(B.start + H + 500);
+    await mount();
+    act(() => useLiveStore.setState({ tuned: true, paused: true, phase: "show", current: B }));
+    expect(q("live-status").textContent).toMatch(/^Paused/);
+    act(() => q("live-rejoin").click());
+    expect(controller.tuneIn).toHaveBeenCalledTimes(1);
+    act(() => useLiveStore.setState({ paused: false }));
+    expect(host.querySelector('[data-testid="live-rejoin"]')).toBeNull();
   });
 
   it("desktop: the phone lines sit beside the console", async () => {

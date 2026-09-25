@@ -25,14 +25,15 @@ export function nowListeningTo(): string | null {
 }
 
 /**
- * Is this tab tuned in to the live station, for the heartbeat? Tuned and
- * playing, or in the station ID between two shows (nothing is playing for
- * those eight seconds, and a beat landing in them must not drop the listener
- * from the live count for a whole minute).
+ * Is this tab tuned in to the live station, for the heartbeat? Its playing
+ * source is the station: tuned and playing, or in the station ID between two
+ * shows (nothing is playing for those eight seconds, and a beat landing in
+ * them must not drop the listener from the live count for a whole minute).
+ * Held paused is not live.
  */
 export function tunedInLive(): boolean {
-  const { tuned, phase } = useLiveStore.getState();
-  if (!tuned) return false;
+  const { tuned, paused, phase } = useLiveStore.getState();
+  if (!tuned || paused) return false;
   return phase === "station-id" || usePlayerStore.getState().playing;
 }
 
@@ -69,16 +70,28 @@ export function usePresence(): LivePresence {
     };
     document.addEventListener("visibilitychange", onVisible);
 
-    // Tuning in or out moves the live count; say so now rather than at the
-    // next beat, up to a minute later, and refresh the feed once it lands.
-    const offLive = useLiveStore.subscribe((s, prev) => {
-      if (s.tuned !== prev.tuned) void beat().then(() => refreshNow());
+    // Anything that moves this tab in or out of the live count — tuning in,
+    // leaving, pausing, resuming, a reload's first ▶ — is said now rather than
+    // at the next beat, up to a minute later, and the feed refreshed once it
+    // lands. Decided by `tunedInLive()` itself, so no path can move the count
+    // without a beat: the pause that held the station used to wait a minute.
+    let lastLive = tunedInLive();
+    const onChange = () => {
+      const nowLive = tunedInLive();
+      if (nowLive === lastLive) return;
+      lastLive = nowLive;
+      void beat().then(() => refreshNow());
+    };
+    const offLive = useLiveStore.subscribe(onChange);
+    const offPlayer = usePlayerStore.subscribe((s, prev) => {
+      if (s.playing !== prev.playing) onChange();
     });
 
     return () => {
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
       offLive();
+      offPlayer();
     };
   }, []);
 

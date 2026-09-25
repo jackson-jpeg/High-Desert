@@ -292,3 +292,16 @@ describe("outage swap", () => {
     expect(applyOutageSwap(program, all, byHash)).toBe(program);
   });
 });
+
+describe("splitShowTitle", () => {
+  it("splits at the first ' - ' only; a title without one is all episode", async () => {
+    const { splitShowTitle } = await import("@/lib/live/format");
+    expect(splitShowTitle("Coast to Coast AM - Area 51 - Part 2")).toEqual({
+      show: "Coast to Coast AM",
+      episode: "Area 51 - Part 2",
+    });
+    expect(splitShowTitle("Dreamland")).toEqual({ show: null, episode: "Dreamland" });
+    expect(splitShowTitle(" - leading")).toEqual({ show: null, episode: " - leading" });
+    expect(splitShowTitle("trailing - ")).toEqual({ show: null, episode: "trailing - " });
+  });
+});

@@ -69,6 +69,32 @@ describeDb("messages", () => {
     resumed.close();
   });
 
+  it("a caller's line reads the same everywhere: hello, their post, the broadcast, the replay, the resume", async () => {
+    // A listener saw their own messages replayed as "5" after a reload, under
+    // a header that said "Line 6": history carried the stored index.
+    const caller = newCaller();
+    const own = await live.stream({ ip: caller });
+    const label = (await own.next("hello")).data.you.line;
+    expect(label).toMatch(/\D/);
+    tick(POST_INTERVAL_MS);
+    const before = await live.post("/live-api/messages", { body: unique("before") }, { ip: caller });
+    tick(POST_INTERVAL_MS);
+    const r = await live.post("/live-api/messages", { body: unique("labelled") }, { ip: caller });
+    expect(r.json.line).toBe(label);
+    expect((await own.next("message", (d) => d.id === r.json.id)).data.line).toBe(label);
+    own.close();
+
+    const reload = await live.stream({ ip: caller });
+    const replay = (await reload.next("hello")).data.recent.find((m) => m.id === r.json.id);
+    expect(replay?.line).toBe(label);
+    reload.close();
+
+    const resume = await live.stream({ ip: caller, headers: { "last-event-id": String(before.json.id) } });
+    const caught = (await resume.next("hello")).data.recent.find((m) => m.id === r.json.id);
+    expect(caught?.line).toBe(label);
+    resume.close();
+  });
+
   it("the stream sends a heartbeat comment", async () => {
     const quick = await startLive({ heartbeatMs: 100 });
     try {

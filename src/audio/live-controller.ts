@@ -26,17 +26,38 @@
  * to the station ID, capped at `STATION_ID_SEC` of static and silence after —
  * the next show still starts on the minute it is scheduled.
  *
+ * ## Pausing
+ *
+ * Pausing does not leave the station. It holds it: still tuned, the show
+ * still in the player, the program timers stopped so nothing starts behind a
+ * paused player. ▶ (any resume — the bottom player, a headset) goes back to
+ * where the station is *now*: the same show at the live second if it is still
+ * on, otherwise whatever is. It used to tune out, which dropped the listener
+ * from the live count and turned the next ▶ into an ordinary resume from the
+ * paused second.
+ *
+ * A reload keeps the hold. The tab's `sessionStorage` remembers that it was
+ * tuned, and the station comes back held: the layout restores the show to the
+ * player as it always does, and ▶ lands on the live second.
+ *
  * ## Leaving
  *
- * Picking any other show, or pausing, leaves the station. A failure does not:
- * the dialog explains it, and the station tries again with the next show.
+ * "Leave the station" stops the player outright — audio off, the show cleared
+ * from the bottom player and from what a reload restores. Picking any other
+ * show also leaves, and that show plays. A failure does not: the dialog
+ * explains it, and the station tries again with the next show.
  */
 
 import type { Episode } from "@/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
 import { serverNow, useLiveStore } from "@/stores/live-store";
 import { engineState, onEngineEvent, pauseEngine, seekEngine } from "@/audio/engine";
-import { setLiveEndedHandler, setLiveStart } from "@/audio/live-session";
+import {
+  setLiveEndedHandler,
+  setLiveResumeHandler,
+  setLiveStart,
+  stopPlayerForLive,
+} from "@/audio/live-session";
 import {
   STATION_ID_SEC,
   knownSlots,
@@ -45,6 +66,7 @@ import {
   type ProgramSlot,
 } from "@/lib/live/schedule";
 import { syncClock } from "@/lib/live/time-sync";
+import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/utils/safe-storage";
 
 /** Drift beyond this, in seconds, is corrected with a seek. The owner's number. */
 export const DRIFT_LIMIT_SEC = 2;
@@ -55,6 +77,18 @@ export const SCHEDULE_POLL_MS = 60_000;
 export const CLOCK_STALE_MS = 5 * 60_000;
 /** After a failed schedule read with nothing to play, try again after this. */
 const SCHEDULE_RETRY_MS = 30_000;
+/** sessionStorage: this tab is tuned in (held or playing). Survives a reload, not the tab. */
+export const TUNED_MARK = "hd-live-tuned";
+
+// Storage blocked: a reload simply forgets, as it did before.
+function markTuned(on: boolean) {
+  if (on) safeSetItem("session", TUNED_MARK, "1");
+  else safeRemoveItem("session", TUNED_MARK);
+}
+
+function wasTuned(): boolean {
+  return safeGetItem("session", TUNED_MARK) === "1";
+}
 
 export interface StationIdPlayer {
   prepare(): void;
@@ -70,6 +104,11 @@ export interface LiveDeps {
   startEpisode(episode: Episode): void;
   /** The Episode to play for a slot — synchronously; tuning in is inside a tap. */
   resolveEpisode(slot: ProgramSlot): Episode;
+  /**
+   * Leaving: stop the player and forget the show, so neither the bottom player
+   * nor a reload brings it back. Defaults to the player's own stop.
+   */
+  leavePlayer?(): void;
   stationId: StationIdPlayer;
   /** Local clock. Tests replace it. */
   now?(): number;
@@ -96,6 +135,8 @@ export function slotKey(slot: Pick<ProgramSlot, "start" | "fileHash">): string {
 export interface LiveStation {
   tuneIn(): void;
   tuneOut(): void;
+  /** "Leave the station": tune out and stop the player. */
+  leave(): void;
   /** Compare the element with the station and correct past the limit. */
   resync(): void;
   refreshSchedule(): Promise<LiveSchedule | null>;
@@ -250,6 +291,7 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
   function tuneIn() {
     deps.stationId.prepare();
     live().setTuned(true);
+    markTuned(true);
     startLoops();
     go();
     // Tuning in plays at once on whatever clock is known — it has to, inside
@@ -260,6 +302,7 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
   function tuneOut() {
     if (!live().tuned) return;
     live().setTuned(false);
+    markTuned(false);
     setLiveStart(null);
     clearTimers();
     clearInterval(driftTimer);
@@ -268,11 +311,65 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
     deps.stationId.release();
   }
 
+  function leave() {
+    const was = live().tuned;
+    tuneOut();
+    if (!was) return;
+    transition(() => (deps.leavePlayer ?? stopPlayerForLive)());
+  }
+
+  /** The listener paused: stay in the station, but start nothing behind them. */
+  function hold() {
+    live().setPaused(true);
+    clearTimers();
+    deps.stationId.stop();
+  }
+
+  /**
+   * ▶ on a held station. True when the station has taken the start over (a
+   * different show is on now, or nothing is known of the one in the player);
+   * false after moving the playhead to the live second, for the player to
+   * resume the element as usual.
+   */
+  function resumeHeld(): boolean {
+    if (!live().tuned || !live().paused) return false;
+    live().setPaused(false);
+    startLoops();
+    const cur = live().current;
+    const t = sNow();
+    const p = usePlayerStore.getState();
+    const st = engineState();
+    if (
+      live().phase === "show" &&
+      cur &&
+      t < cur.end &&
+      p.currentEpisode?.fileHash === cur.fileHash &&
+      st &&
+      !st.hasError
+    ) {
+      seekEngine(stationOffsetSec(cur, t));
+      at(cur.end, () => afterShow(cur));
+      return false;
+    }
+    go();
+    return true;
+  }
+
+  /** A reload of a tab that was tuned in: come back held, ready for ▶. */
+  function restoreHeld() {
+    if (live().tuned || !wasTuned()) return;
+    live().setTuned(true);
+    live().setPaused(true);
+    void refreshSchedule();
+    if (now() - lastClockSync > CLOCK_STALE_MS) void refreshClock();
+  }
+
   function install(): () => void {
     setLiveEndedHandler(() => {
       const cur = live().current;
       if (cur) afterShow(cur);
     });
+    setLiveResumeHandler(resumeHeld);
 
     const offWaiting = onEngineEvent("waiting", () => {
       stalled = true;
@@ -290,10 +387,19 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
     };
     document.addEventListener("visibilitychange", onVisibility);
 
-    // Leaving the station: the listener picked another show, or paused.
+    // Leaving the station: the listener picked another show. Pausing holds it.
     const offPlayer = usePlayerStore.subscribe((s, prev) => {
       if (!live().tuned || transitioning) return;
-      const { phase, current } = live();
+      const { phase, current, paused } = live();
+      if (paused) {
+        // Held. Anything that starts sound now went around the station's own
+        // resume (which clears the hold first): the listener picked a show.
+        const swapped =
+          !!current && !!s.currentEpisode && s.currentEpisode !== prev.currentEpisode &&
+          s.currentEpisode.fileHash !== current.fileHash;
+        if (swapped || (s.playing && !prev.playing)) tuneOut();
+        return;
+      }
       if (phase === "show" && current) {
         if (s.currentEpisode && s.currentEpisode.fileHash !== current.fileHash) {
           tuneOut();
@@ -310,7 +416,7 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
             // `!st.paused`: a new start is under way on the element (a
             // load() between two sources can clear `playing` for a moment).
             if (p.playing || p.loadState === "failed" || !st || !st.paused || st.ended || st.hasError) return;
-            tuneOut();
+            hold();
           });
         }
       } else if (phase === "station-id" && s.playing && !prev.playing) {
@@ -319,17 +425,24 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
       }
     });
 
+    restoreHeld();
+
     return () => {
       setLiveEndedHandler(null);
+      setLiveResumeHandler(null);
       offWaiting();
       offPlaying();
       document.removeEventListener("visibilitychange", onVisibility);
       offPlayer();
+      // Uninstalling is not the listener leaving: keep the tab's mark, or a
+      // remount (StrictMode's, a layout re-key) would forget it was tuned.
+      const keep = wasTuned();
       tuneOut();
+      if (keep) markTuned(true);
     };
   }
 
-  return { tuneIn, tuneOut, resync, refreshSchedule, refreshClock, install };
+  return { tuneIn, tuneOut, leave, resync, refreshSchedule, refreshClock, install };
 }
 
 // ---------------------------------------------------------------------------
@@ -367,6 +480,11 @@ export function tuneIn(): void {
 
 export function tuneOut(): void {
   station?.tuneOut();
+}
+
+/** "Leave the station": tune out, stop the audio, clear the player. */
+export function leaveStation(): void {
+  station?.leave();
 }
 
 /**

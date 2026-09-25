@@ -285,10 +285,9 @@ export function createLiveApp({
     const name = await ensureName(ref);
     const msg = await store.insertMessage({ clientRef: ref, name, line: lineFor(ref), body: verdict.text });
     const turnedSlow = limits.record(ref, key);
-    const out = { ...msg, line: LINES[msg.line] };
-    hub.broadcast("message", out, msg.id);
+    hub.broadcast("message", msg, msg.id);
     if (turnedSlow) announceSlowIfChanged();
-    sendJson(res, 201, out);
+    sendJson(res, 201, msg);
   }
 
   async function postName(req, res) {

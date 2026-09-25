@@ -1,6 +1,9 @@
 import type { Episode } from "@/db/schema";
-import { db } from "@/db";
-import { emit } from "@/lib/events";
+import { db, deletePreference } from "@/db";
+import { LAST_EPISODE_PREF } from "@/db/merge";
+import { stopPlayerForLive } from "@/audio/live-session";
+import { emit, onHdEvent } from "@/lib/events";
+import { usePlayerStore } from "@/stores/player-store";
 import { installLiveStation } from "@/audio/live-controller";
 import {
   prepareStationId,
@@ -37,9 +40,29 @@ async function prefetch(schedule: LiveSchedule): Promise<void> {
   if (hashes.length === 0) return;
   try {
     const found = await db.episodes.where("fileHash").anyOf(hashes).toArray();
-    for (const ep of found) rows.set(ep.fileHash, ep);
+    for (const ep of found) {
+      rows.set(ep.fileHash, ep);
+      adoptRow(ep);
+    }
   } catch {
     /* no IndexedDB: slots stand in for rows */
+  }
+}
+
+/**
+ * The player is on a slot-made stand-in for `row`'s show: hand it the real row.
+ *
+ * A first-time listener tunes in before the library has finished seeding, so
+ * the show on the air has no row yet and plays from its slot. That episode has
+ * no id, and an episode without one is never saved as `last-episode-id` nor
+ * written to history — a reload came back to an empty player, with nothing
+ * for ▶ to resume. Same show, same file: only the object changes, so nothing
+ * restarts and the station does not read it as the listener picking a show.
+ */
+function adoptRow(row: Episode): void {
+  const cur = usePlayerStore.getState().currentEpisode;
+  if (cur && cur.id == null && cur.fileHash === row.fileHash && row.id != null) {
+    usePlayerStore.setState({ currentEpisode: row });
   }
 }
 
@@ -82,6 +105,13 @@ export function installBrowserLiveStation(): () => void {
     fetchServerNow,
     startEpisode: (episode) => emit("play-episode", episode),
     resolveEpisode: (slot) => rows.get(slot.fileHash) ?? episodeFromSlot(slot),
+    // Leaving clears the show from the player and from what a reload restores:
+    // the layout re-primes `last-episode-id` on every load, so without this
+    // the station's show came back in the bottom player after a refresh.
+    leavePlayer: () => {
+      stopPlayerForLive();
+      void deletePreference(LAST_EPISODE_PREF).catch(() => {});
+    },
     stationId: {
       prepare: prepareStationId,
       start: startStationId,
@@ -94,8 +124,14 @@ export function installBrowserLiveStation(): () => void {
   const offPrefetch = useLiveStore.subscribe((s, prev) => {
     if (s.schedule && s.schedule !== prev.schedule) void prefetch(s.schedule);
   });
+  // The library seeds after the first schedule on a first visit: read again.
+  const offSeed = onHdEvent("seed-settled", () => {
+    const s = useLiveStore.getState().schedule;
+    if (s) void prefetch(s);
+  });
   return () => {
     offPrefetch();
+    offSeed();
     offStation();
   };
 }

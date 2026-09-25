@@ -15,6 +15,10 @@
  *                   again; the next show counts once (`claimLiveListen`)
  *   the end         a live show ending does not advance the queue — the station
  *                   decides what comes next (`takeLiveEnded`)
+ *   resuming        ▶ on a station held paused goes back to where the station
+ *                   is *now*, not where it was paused (`takeLiveResume`)
+ *   leaving         "Leave the station" stops the player outright
+ *                   (`stopPlayerForLive`)
  *
  * No React, no store: the player calls in synchronously on its hot path.
  */
@@ -34,6 +38,8 @@ let live: LiveStart | null = null;
 const counted = new Set<string>();
 const COUNTED_MAX = 64;
 let endedHandler: (() => void) | null = null;
+let resumeHandler: (() => boolean) | null = null;
+let stopHandler: (() => void) | null = null;
 
 /** Tune the player to an airing, or (null) out of live mode. */
 export function setLiveStart(next: LiveStart | null): void {
@@ -90,10 +96,37 @@ export function takeLiveEnded(episode: Pick<Episode, "fileHash"> | null): boolea
   return true;
 }
 
+/** The live controller's resume handler. */
+export function setLiveResumeHandler(fn: (() => boolean) | null): void {
+  resumeHandler = fn;
+}
+
+/**
+ * The listener asked to resume (▶, a headset "play"). Called synchronously at
+ * the top of `resumePlayback`, inside the gesture. Returns true when the
+ * station took the start over — the caller must then do nothing more. False
+ * means resume the element as usual; if the station was holding paused it has
+ * already moved the playhead to the live second.
+ */
+export function takeLiveResume(): boolean {
+  return resumeHandler ? resumeHandler() : false;
+}
+
+/** The player's own stop (element torn down, store cleared), for leaving the station. */
+export function setLiveStopHandler(fn: (() => void) | null): void {
+  stopHandler = fn;
+}
+
+export function stopPlayerForLive(): void {
+  stopHandler?.();
+}
+
 export const __testing = {
   reset() {
     live = null;
     counted.clear();
     endedHandler = null;
+    resumeHandler = null;
+    stopHandler = null;
   },
 };

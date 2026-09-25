@@ -38,7 +38,8 @@ export type GlobalKey =
   | "failure-handler"
   | "failover-handler"
   | "persist-position"
-  | "unload-flush";
+  | "unload-flush"
+  | "live-stop";
 
 export function withGlobals(key: GlobalKey, install: () => () => void): () => void {
   const next = (globalRefs.get(key) ?? 0) + 1;

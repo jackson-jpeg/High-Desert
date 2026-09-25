@@ -38,7 +38,7 @@ import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
 import { archiveKnownDown } from "@/services/archive/health";
 import type { SourceKind } from "@/audio/sources";
 import { currentStartPlan, refuseIfUnavailable } from "@/audio/outage-gate";
-import { liveStartFor } from "@/audio/live-session";
+import { liveStartFor, setLiveStopHandler, takeLiveResume } from "@/audio/live-session";
 import { disarmWatchdog, isWatching, noteError } from "@/audio/playback-watchdog";
 import { emit } from "@/lib/events";
 import { withGlobals } from "./player/globals";
@@ -276,6 +276,10 @@ export function useAudioPlayer() {
 
   /** Play or resume, unconditionally. MediaSession's `play` action. */
   const resumePlayback = useCallback(async () => {
+    // A live station held paused decides where ▶ goes: back to the live second
+    // (then on through here), or to whatever show is on now (then not here).
+    // First, and synchronous — this is inside the gesture.
+    if (takeLiveResume()) return;
     const audio = getAudio();
 
     // No source, but an episode is loaded — this is the restored-episode case.
@@ -463,6 +467,16 @@ export function useAudioPlayer() {
 
   // Flush position + listen time on page unload.
   useEffect(() => withGlobals("unload-flush", installUnloadFlush), []);
+
+  // "Leave the station" stops the player the way the player stops itself.
+  useEffect(
+    () =>
+      withGlobals("live-stop", () => {
+        setLiveStopHandler(stopPlayback);
+        return () => setLiveStopHandler(null);
+      }),
+    [stopPlayback],
+  );
 
   useMediaSession({
     currentEpisode,

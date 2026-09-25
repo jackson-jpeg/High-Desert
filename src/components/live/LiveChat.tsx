@@ -96,7 +96,9 @@ function LinesHeader({ chat, live, variant }: { chat: Chat; live?: number; varia
         <div className="flex flex-wrap items-center gap-2 text-hd-caption text-bevel-dark">
           <span>
             You&rsquo;re <span className="text-signal-blue font-bold" data-testid="you-name">{chat.you.name}</span> on{" "}
-            <span className="text-phosphor-amber">{chat.you.line}</span>
+            <span className="text-phosphor-amber" data-testid="you-line">
+              {chat.you.line}
+            </span>
           </span>
           <InlineButton variant={variant} onClick={() => setEditing(true)} testId="change-name">
             Change name
@@ -122,6 +124,19 @@ function AdminSlowToggle({ chat }: { chat: Chat }) {
   );
 }
 
+/**
+ * Why a name cannot be saved, as the listener should read it — or
+ * "unchanged", or null when it is worth asking the server (which has the
+ * filter, uniqueness and the 10-minute rule, and says why in its own words).
+ */
+export function nameProblem(value: string, current: string): string | null | "unchanged" {
+  const n = charCount(value);
+  if (value.trim() === current.trim()) return "unchanged";
+  if (n === 0) return "Type a name first.";
+  if (n > MAX_NAME) return `Names can be at most ${MAX_NAME} characters.`;
+  return null;
+}
+
 function NameEditor({ chat, variant, onDone }: { chat: Chat; variant: Variant; onDone: () => void }) {
   const [value, setValue] = useState(chat.you?.name ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -131,6 +146,18 @@ function NameEditor({ chat, variant, onDone }: { chat: Chat; variant: Variant; o
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (busy) return;
+    // Checked here, and said, rather than by disabling Save: a disabled Save
+    // with only a small "33/32" beside it was a button that did nothing.
+    const local = nameProblem(value, chat.you?.name ?? "");
+    if (local === "unchanged") {
+      onDone();
+      return;
+    }
+    if (local) {
+      setError(local);
+      return;
+    }
     setBusy(true);
     const r = await chat.rename(value);
     setBusy(false);
@@ -154,7 +181,7 @@ function NameEditor({ chat, variant, onDone }: { chat: Chat; variant: Variant; o
           autoComplete="off"
           className={inputClass(variant)}
         />
-        <InlineButton variant={variant} type="submit" disabled={busy || charCount(value) > MAX_NAME} testId="save-name">
+        <InlineButton variant={variant} type="submit" disabled={busy} testId="save-name">
           Save
         </InlineButton>
         <InlineButton variant={variant} onClick={onDone}>
@@ -328,7 +355,10 @@ function Composer({
             setText(e.target.value);
             if (!wait) setError(null);
           }}
-          placeholder={chat.you ? `Call in as ${chat.you.name}` : "Call in"}
+          // Never the caller's name: a name can be 32 characters, and "Call in
+          // as Short-Wave Listener in Hawthorn" was cut off at 390 wide and on
+          // desktop. The name is in the header right above.
+          placeholder="Call in…"
           aria-label="Your call"
           aria-invalid={over || undefined}
           enterKeyHint="send"

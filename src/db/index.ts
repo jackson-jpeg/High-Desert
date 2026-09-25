@@ -153,6 +153,11 @@ export async function getPreference(
   return pref?.value;
 }
 
+/** Remove one preference. Absent is fine. */
+export async function deletePreference(key: string): Promise<void> {
+  await db.userPrefs.where("key").equals(key).delete();
+}
+
 /**
  * Upsert one preference, atomically (HD-040). The primary key is `++id`, not
  * `key`, so a single `put` cannot do it — the read and the write share one rw

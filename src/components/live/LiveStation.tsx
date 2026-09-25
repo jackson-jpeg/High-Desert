@@ -4,11 +4,11 @@ import { useState } from "react";
 import { Window } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
-import { formatCountdown, formatStationTime } from "@/lib/live/format";
+import { formatCountdown, formatStationTime, splitShowTitle } from "@/lib/live/format";
 import { upcoming, knownSlots, type LiveSchedule, type ProgramSlot } from "@/lib/live/schedule";
 import { useLiveStore } from "@/stores/live-store";
 import { usePlayerStore } from "@/stores/player-store";
-import { tuneIn, tuneOut } from "@/audio/live-controller";
+import { leaveStation, tuneIn } from "@/audio/live-controller";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { onAirAt, useLiveSchedule, useStationClock } from "@/hooks/useLiveStation";
 import { useCommunityNow } from "@/hooks/useCommunityNow";
@@ -93,6 +93,7 @@ function Console({ schedule }: { schedule: LiveSchedule }) {
   const now = useStationClock(1000);
   const tuned = useLiveStore((s) => s.tuned);
   const phase = useLiveStore((s) => s.phase);
+  const held = useLiveStore((s) => s.tuned && s.paused);
   const playing = usePlayerStore((s) => s.playing);
   const on = onAirAt(schedule, now);
   const slot = on && "slot" in on ? on.slot : null;
@@ -126,13 +127,27 @@ function Console({ schedule }: { schedule: LiveSchedule }) {
 
         <div className="flex flex-wrap items-center gap-3">
           {tuned ? (
-            <button
-              type="button"
-              onClick={() => tuneOut()}
-              className="w98-raised-dark bg-raised-surface text-desktop-gray w98-font text-hd-body px-4 min-h-touch md:min-h-0 md:py-1.5 cursor-pointer"
-            >
-              Leave the station
-            </button>
+            <>
+              {held && (
+                // Tuning in again is exactly "rejoin": the play path starts the
+                // show that is on at the station's second, and the hold clears.
+                <button
+                  type="button"
+                  onClick={() => tuneIn()}
+                  data-testid="live-rejoin"
+                  className="w98-raised-dark bg-raised-surface text-desert-amber w98-font text-hd-title px-5 min-h-touch md:min-h-0 md:py-1.5 cursor-pointer"
+                >
+                  Rejoin live
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => leaveStation()}
+                className="w98-raised-dark bg-raised-surface text-desktop-gray w98-font text-hd-body px-4 min-h-touch md:min-h-0 md:py-1.5 cursor-pointer"
+              >
+                Leave the station
+              </button>
+            </>
           ) : (
             <button
               type="button"
@@ -143,10 +158,12 @@ function Console({ schedule }: { schedule: LiveSchedule }) {
               Tune in
             </button>
           )}
-          <VuMeter live={tuned && (playing || phase === "station-id")} />
-          <span className="text-hd-caption text-bevel-dark">
+          <VuMeter live={tuned && !held && (playing || phase === "station-id")} />
+          <span className="text-hd-caption text-bevel-dark" data-testid="live-status">
             {tuned
-              ? phase === "station-id"
+              ? held
+                ? "Paused. The station carries on; rejoin to hear where it is now."
+                : phase === "station-id"
                 ? "Station identification…"
                 : "You're listening live, with everyone else."
               : "Everyone tuned in hears the same second."}
@@ -171,14 +188,15 @@ function NowPlaying({ slot, now }: { slot: ProgramSlot; now: number }) {
   const length = (slot.end - slot.start) / 1000;
   const left = Math.max(0, (slot.end - now) / 1000);
   const pct = length > 0 ? Math.min(100, (elapsed / length) * 100) : 0;
+  const { show, episode } = splitShowTitle(slot.title);
   return (
     <div className="flex flex-col gap-1.5" data-testid="live-now">
-      <span className="text-hd-micro uppercase tracking-[0.2em] text-static-green">
-        Now playing · {KIND_LABEL[slot.kind]}
+      <span className="text-hd-micro uppercase tracking-[0.2em] text-static-green" data-testid="live-now-show">
+        Now playing · {show ?? KIND_LABEL[slot.kind]}
       </span>
-      <span data-testid="live-now-title" className="text-hd-h3 md:text-hd-h2 text-desktop-gray leading-tight">
-        {slot.title}
-      </span>
+      <h2 data-testid="live-now-title" className="text-hd-h3 md:text-hd-h2 text-desktop-gray leading-tight">
+        {episode}
+      </h2>
       <span className="text-hd-body text-bevel-dark">
         {[slot.guestName, slot.airDate ? `Originally aired ${formatAirDate(slot.airDate)}` : null]
           .filter(Boolean)
@@ -211,9 +229,9 @@ function StationBreak({ until, now }: { until: number; now: number }) {
   return (
     <div className="flex flex-col gap-1" data-testid="live-now">
       <span className="text-hd-micro uppercase tracking-[0.2em] text-static-green">Station break</span>
-      <span data-testid="live-now-title" className="text-hd-h3 text-desktop-gray">
+      <h2 data-testid="live-now-title" className="text-hd-h3 text-desktop-gray">
         You&apos;re listening to High Desert
-      </span>
+      </h2>
       <span className="text-hd-caption tabular-nums text-desert-amber" data-testid="live-time-left">
         Next show in {formatCountdown((until - now) / 1000)}
       </span>
