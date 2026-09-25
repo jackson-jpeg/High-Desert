@@ -302,6 +302,12 @@ write a hex in either. Seven values were previously declared independently in bo
 namespaces, and four dark-bevel hexes appeared as raw literals a dozen times each
 inside `win98.css`.
 
+**No hex anywhere else in `src/`** (HD-036) — `src/lib/__tests__/no-raw-hex.test.ts` fails
+on one, on a `var(--hd-*)` that is not defined, and on palette drift. Where `var()` cannot
+reach — canvas `fillStyle`, `next/og`, `<meta theme-color>`, the boot splash,
+`global-error.tsx` — import `PALETTE` from `src/lib/palette.ts`, a copy the same test holds
+key-for-key equal to globals.css. A new colour is a new `--hd-*` property first.
+
 Use `min-h-touch` / `min-w-touch` (44px, `--spacing-touch`) for tap targets rather than
 a literal. Note the common pairing `min-h-touch md:min-h-0` — the floor is a mobile
 concern, so measure it at a mobile viewport or you will read `0px` and think it broke.
@@ -586,7 +592,10 @@ admin features are local-only and touch nothing server-side.
 
 - **Desktop:** Windows 98 dark theme — raised/inset bevels, title bars, menu bars, context menus, status bar
 - **Mobile:** Glassmorphism — frosted blur surfaces over animated starfield, bottom tab navigation, swipe gestures
-- **Responsive breakpoint:** 768px (`useIsMobile()` hook)
+- **Responsive breakpoint:** 768px (`useIsMobile()` hook). **It answers desktop on the server and
+  through hydration** (HD-037); a phone flips to mobile right after. It used to be the other
+  way round, so every desktop visit mounted the mobile tree first
+  (`src/hooks/__tests__/is-mobile-hydration.test.tsx`)
 - **Player states:** ultra-mini (28px taskbar), mini (bar), expanded (full panel), mobile mini, mobile expanded (full-screen overlay)
 
 ## Security Headers
