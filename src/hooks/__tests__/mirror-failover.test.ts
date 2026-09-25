@@ -27,6 +27,8 @@ let archiveDown = false;
 let plays: Array<"resolve" | "reject-not-allowed" | "hang" | "deferred"> = [];
 /** Rejects the pending "deferred" play() — the test decides when. */
 let rejectDeferred: (err: unknown) => void = () => {};
+/** How many times play() has been called on the element this test. */
+let playCalls = 0;
 
 vi.mock("@/services/stats/client", () => ({
   reportPlay: (...a: unknown[]) => reportPlay(...a),
@@ -113,9 +115,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   archiveDown = false;
   plays = [];
-  let call = 0;
+  playCalls = 0;
   element = makeMediaElement(() => {
-    const what = plays[call++] ?? "hang";
+    const what = plays[playCalls++] ?? "hang";
     if (what === "resolve") return Promise.resolve();
     if (what === "reject-not-allowed") return Promise.reject(new DOMException("denied", "NotAllowedError"));
     if (what === "deferred") return new Promise<void>((_, reject) => { rejectDeferred = reject; });
@@ -242,6 +244,9 @@ describe("archive.org fails → the mirror", () => {
     expect(s.error).toBeNull();
     expect(element.src).toBe(MIRROR);
     expect(reportPlaybackFailure).not.toHaveBeenCalled();
+    // Charged as a play-rejected, it would earn the mirror attempt a retry:
+    // a third play() that tears down the stream the listener is waiting on.
+    expect(playCalls, "archive.org's play(), then the mirror's — nothing else").toBe(2);
   });
 
   it("the failover spends the retry: the mirror failing too raises the dialog, not a second archive request", async () => {
