@@ -43,7 +43,9 @@ describe("the welcome page", () => {
   it("offers the live station to a first-time visitor, and takes them there", () => {
     act(() => root.render(createElement(WelcomePage)));
     const live = host.querySelector<HTMLButtonElement>('[data-testid="welcome-live"]');
-    expect(live?.textContent).toMatch(/TUNE IN LIVE/);
+    expect(live?.textContent).toBe("Or tune in live. The station is on the air.");
+    // No em dashes in user-facing copy (/root/CLAUDE.md).
+    expect(host.textContent).not.toMatch(/\u2014/);
     act(() => live!.click());
     act(() => vi.advanceTimersByTime(600));
     expect(push).toHaveBeenCalledWith("/live");

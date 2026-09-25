@@ -138,7 +138,7 @@ export default function WelcomePage() {
         {/* Description */}
         <p className="text-hd-11 md:text-hd-12 leading-relaxed max-w-sm font-[family-name:var(--font-w95)] text-bevel-dark">
           Stream thousands of episodes from the golden age of late-night talk radio.
-          Coast to Coast AM, Dreamland, and rare specials — all from Art Bell&apos;s
+          Coast to Coast AM, Dreamland, and rare specials, all from Art Bell&apos;s
           legendary studio in Pahrump, Nevada.
         </p>
 
@@ -174,7 +174,7 @@ export default function WelcomePage() {
             className="flex items-center gap-2 min-h-touch px-3 cursor-pointer text-hd-10 tracking-[2px] font-[family-name:var(--font-w95)] text-desert-amber hover:text-phosphor-amber"
           >
             <span className="w-2 h-2 rounded-full bg-static-green animate-on-air" aria-hidden="true" />
-            OR TUNE IN LIVE — THE STATION IS ON THE AIR
+            Or tune in live. The station is on the air.
           </button>
         )}
 

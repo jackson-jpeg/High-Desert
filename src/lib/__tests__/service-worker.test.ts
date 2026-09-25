@@ -31,8 +31,9 @@ class FakeCache {
   async add() {}
 }
 
-function loadWorker() {
+function loadWorker(buildId = "test") {
   const listeners = new Map<string, Listener>();
+  const lifecycle = { skipWaiting: 0, claim: 0 };
   const store = new Map<string, FakeCache>();
   let network: (req: Request) => Promise<Response> = async () => new Response("");
   const fetched: string[] = [];
@@ -58,10 +59,17 @@ function loadWorker() {
   };
 
   const self = {
-    location: new URL(`${ORIGIN}/sw.js?v=test`),
+    location: new URL(`${ORIGIN}/sw.js?v=${buildId}`),
     addEventListener: (type: string, fn: Listener) => listeners.set(type, fn),
-    skipWaiting: () => {},
-    clients: { claim: async () => {}, matchAll: async () => [] },
+    skipWaiting: () => {
+      lifecycle.skipWaiting += 1;
+    },
+    clients: {
+      claim: async () => {
+        lifecycle.claim += 1;
+      },
+      matchAll: async () => [],
+    },
     registration: { unregister: async () => true },
   };
 
@@ -83,8 +91,14 @@ function loadWorker() {
   vm.runInContext(SW_SOURCE, context);
 
   /** Dispatch a fetch event. `undefined` means the worker did not respondWith. */
-  async function dispatch(url: string, init: RequestInit = {}): Promise<Response | undefined> {
+  async function dispatch(
+    url: string,
+    init: RequestInit = {},
+    mode?: "navigate",
+  ): Promise<Response | undefined> {
     const request = new Request(new URL(url, ORIGIN), init);
+    // undici refuses to construct a navigate-mode Request; the worker only reads it.
+    if (mode) Object.defineProperty(request, "mode", { value: mode });
     let responded: Promise<Response> | undefined;
     listeners.get("fetch")!({ request, respondWith: (p: Promise<Response>) => (responded = p) });
     const res = await responded;
@@ -93,8 +107,18 @@ function loadWorker() {
     return res;
   }
 
+  /** Run a lifecycle event (install/activate) to the end of its waitUntil. */
+  async function lifecycleEvent(type: "install" | "activate") {
+    let waited: Promise<unknown> | undefined;
+    listeners.get(type)!({ waitUntil: (p: Promise<unknown>) => (waited = p) });
+    await waited;
+  }
+
   return {
     dispatch,
+    lifecycleEvent,
+    lifecycle,
+    caches,
     fetched,
     online(fn: (req: Request) => Response | Promise<Response>) {
       network = async (req) => fn(req);
@@ -196,5 +220,41 @@ describe("service worker — media is never touched", () => {
     sw.offline();
     expect(await sw.dispatch(url, init as RequestInit)).toBeUndefined();
     expect(sw.fetched).toEqual([]);
+  });
+});
+
+describe("service worker — a deploy reaches returning visitors on their next load", () => {
+  // A PWA that keeps serving the build it first cached leaves people on it
+  // until every tab is closed. Three properties together mean the next
+  // navigation or reload after a deploy runs the new build.
+
+  it("a new worker activates at once and takes over open pages", async () => {
+    const next = loadWorker("new-build");
+    await next.lifecycleEvent("install");
+    expect(next.lifecycle.skipWaiting).toBe(1);
+    await next.lifecycleEvent("activate");
+    expect(next.lifecycle.claim).toBe(1);
+  });
+
+  it("activating purges every other build's cache and keeps its own", async () => {
+    const next = loadWorker("new-build");
+    await next.caches.open("hd-shell-old-build");
+    await next.caches.open("hd-shell-new-build");
+    await next.lifecycleEvent("activate");
+    expect(await next.caches.keys()).toEqual(["hd-shell-new-build"]);
+  });
+
+  it("online, a navigation gets the server's new HTML, never the cached old page", async () => {
+    await (await sw.caches.open("hd-shell-test")).put(`${ORIGIN}/library`, new Response("old build"));
+    sw.online(() => new Response("new build"));
+    const res = await sw.dispatch("/library", {}, "navigate");
+    expect(await res!.text()).toBe("new build");
+  });
+
+  it("offline, a navigation falls back to the cached page (the control)", async () => {
+    await (await sw.caches.open("hd-shell-test")).put(`${ORIGIN}/library`, new Response("old build"));
+    sw.offline();
+    const res = await sw.dispatch("/library", {}, "navigate");
+    expect(await res!.text()).toBe("old build");
   });
 });
