@@ -42,7 +42,16 @@ interface World {
   mirrorPlays24h: number;
   /** warm-status.json, with `ageH` turned into its `at`; null writes no file. */
   warm: { ageH: number; outcome: string; pinned: number; bytes: number; fetched: number; failed: number; steal?: number } | null;
+  liveActive: string;
+  /** /live-api/health's body; null answers 502. */
+  liveHealth: Record<string, unknown> | null;
+  /** How far the unit's CPUUsageNSec advances between the two readings; null prints "[not set]". */
+  liveNsecStep: number | null;
 }
+
+/** The status line's cgroup window in tests: 50 ms, so a step of 2.5e6 ns reads 5.0%. */
+const LIVE_WINDOW_S = 0.05;
+const nsecFor = (pct: number) => Math.round((pct / 100) * LIVE_WINDOW_S * 1e9);
 
 const HEALTHY: World = {
   timerState: "active",
@@ -64,6 +73,9 @@ const HEALTHY: World = {
   mirrorHealth: { ok: true, cacheBytes: 16 * 2 ** 30, pinnedBytes: 14 * 2 ** 30, pinned: 120, peers: 3, active: 2 },
   mirrorPlays24h: 7,
   warm: { ageH: 5, outcome: "ok", pinned: 120, bytes: 14 * 2 ** 30, fetched: 4, failed: 0 },
+  liveActive: "active",
+  liveHealth: { ok: true, clients: 42, messagesLastHour: 17, slowMode: false, cpu: { pct: 2.5, windowS: 900 } },
+  liveNsecStep: nsecFor(3),
 };
 
 let dir: string;
@@ -96,6 +108,10 @@ async function run(): Promise<{ code: number; out: string }> {
       `case "$*" in`,
       `  "is-active highdesert") echo "${world.serviceActive}";;`,
       `  "is-active highdesert-mirror") echo "${world.mirrorActive}";;`,
+      `  "is-active highdesert-live") echo "${world.liveActive}";;`,
+      world.liveNsecStep === null
+        ? `  "show -p CPUUsageNSec --value highdesert-live") echo "[not set]";;`
+        : `  "show -p CPUUsageNSec --value highdesert-live") n=$(cat "${path.join(bin, "nsec")}"); echo "$n"; echo $((n + ${world.liveNsecStep})) > "${path.join(bin, "nsec")}";;`,
       `  *"highdesert-sample.timer -p ActiveState"*) echo "${world.timerState}";;`,
       `  *"highdesert-sample.timer -p LastTriggerUSec"*) echo "${lastTrigger}";;`,
       `  *"highdesert-sample.service -p Result"*) echo "${world.sampleResult}";;`,
@@ -103,6 +119,7 @@ async function run(): Promise<{ code: number; out: string }> {
     ].join("\n"),
     { mode: 0o755 },
   );
+  await writeFile(path.join(bin, "nsec"), "123456789000\n");
   await writeFile(
     path.join(bin, "npm"),
     `#!/bin/sh\necho '${JSON.stringify({ metadata: { vulnerabilities: { ...world.audit, moderate: 0, low: 0 } } })}'\n`,
@@ -167,6 +184,8 @@ async function run(): Promise<{ code: number; out: string }> {
           HD_SAR_CMD: path.join(bin, "sar"),
           HD_MIRROR: api,
           HD_WARM_STATUS: warmFile,
+          HD_LIVE: api,
+          HD_LIVE_CPU_WINDOW_S: String(LIVE_WINDOW_S),
         },
         timeout: 30_000,
       },
@@ -191,6 +210,7 @@ beforeEach(async () => {
     steal: [...HEALTHY.steal],
     mirrorHealth: { ...HEALTHY.mirrorHealth },
     warm: { ...HEALTHY.warm! },
+    liveHealth: { ...HEALTHY.liveHealth },
   };
   sinceAsked = null;
   dir = await mkdtemp(path.join(tmpdir(), "hd-status-"));
@@ -232,6 +252,9 @@ beforeEach(async () => {
     } else if (req.url?.startsWith("/api/stats/traffic")) {
       const range = new URL(req.url, "http://x").searchParams.get("range");
       res.end(JSON.stringify({ playsInRange: world.plays, playsBySource: range === "24h" ? { archive: 40, mirror: world.mirrorPlays24h } : {} }));
+    } else if (req.url === "/live-api/health") {
+      if (!world.liveHealth) res.statusCode = 502;
+      res.end(JSON.stringify(world.liveHealth ?? {}));
     } else if (req.url === "/mirror/health") {
       if (!world.mirrorHealth) res.statusCode = 502;
       res.end(JSON.stringify(world.mirrorHealth ?? {}));
@@ -431,6 +454,58 @@ describe("highdesert-status", () => {
     it("warm: WARNs when it has never run", async () => {
       world.warm = null;
       expect(lineFor((await run()).out, "warm")).toMatch(/^WARN\s+warm\s+no .* never run/);
+    });
+  });
+
+  describe("live line (the phone lines and the 10% rule)", () => {
+    it("reports callers, messages, and both CPU witnesses", async () => {
+      const r = await run();
+      expect(lineFor(r.out, "live")).toMatch(
+        /^OK\s+live\s+42 caller\(s\) connected, 17 message\(s\) in the last hour; CPU 2\.5% \(15 min\) \/ 3\.0% \(0\.05s cgroup\) of one core, limit 10%$/,
+      );
+      expect(r.code).toBe(0);
+    });
+    it("says when slow mode is on", async () => {
+      world.liveHealth = { ...world.liveHealth, slowMode: true };
+      expect(lineFor((await run()).out, "live")).toMatch(/^OK\s+live\s+.*in the last hour, slow mode on;/);
+    });
+    it("FAILs, and exits non-zero, when the 15-minute average is over 10%", async () => {
+      world.liveHealth = { ...world.liveHealth, cpu: { pct: 10.4, windowS: 900 } };
+      const r = await run();
+      expect(lineFor(r.out, "live")).toMatch(/^FAIL\s+live\s+OVER THE 10% RULE: .*CPU 10\.4% \(15 min\)/);
+      expect(r.code).toBe(1);
+    });
+    it("is OK at exactly 10%", async () => {
+      world.liveHealth = { ...world.liveHealth, cpu: { pct: 10, windowS: 900 } };
+      expect(lineFor((await run()).out, "live")).toMatch(/^OK\s+live\s+/);
+    });
+    it("only WARNs on a cgroup spike while the average is within the rule", async () => {
+      world.liveNsecStep = nsecFor(40);
+      const r = await run();
+      expect(lineFor(r.out, "live")).toMatch(/^WARN\s+live\s+cgroup spike above 10%.*\/ 40\.0% \(0\.05s cgroup\)/);
+      expect(r.code).toBe(0);
+    });
+    it("judges the cgroup reading when the service is too new to have an average", async () => {
+      world.liveHealth = { ...world.liveHealth, cpu: null };
+      world.liveNsecStep = nsecFor(12);
+      const r = await run();
+      expect(lineFor(r.out, "live")).toMatch(/^FAIL\s+live\s+OVER THE 10% RULE \(no 15-minute average yet\): .*CPU \?% \(15 min\) \/ 12\.0%/);
+      expect(r.code).toBe(1);
+    });
+    it("WARNs, never reports 0%, when neither witness has a number", async () => {
+      world.liveHealth = { ...world.liveHealth, cpu: null };
+      world.liveNsecStep = null;
+      expect(lineFor((await run()).out, "live")).toMatch(/^WARN\s+live\s+CPU not measurable yet/);
+    });
+    it("FAILs when the service is down", async () => {
+      world.liveActive = "inactive";
+      const r = await run();
+      expect(lineFor(r.out, "live")).toMatch(/^FAIL\s+live\s+highdesert-live is not active/);
+      expect(r.code).toBe(1);
+    });
+    it("FAILs when the service is up but health does not answer", async () => {
+      world.liveHealth = null;
+      expect(lineFor((await run()).out, "live")).toMatch(/^FAIL\s+live\s+active, but .*did not answer/);
     });
   });
 

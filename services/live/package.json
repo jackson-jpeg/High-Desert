@@ -1,0 +1,14 @@
+{
+  "name": "highdesert-live",
+  "private": true,
+  "type": "module",
+  "description": "High Desert live chat: the phone lines. SSE downstream, POST upstream, Postgres storage, server-side moderation.",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "obscenity": "0.4.6",
+    "pg": "8.22.0"
+  }
+}

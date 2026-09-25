@@ -91,6 +91,10 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/mirror/{fileHash}` | GET | **Not Next.js** — `highdesert-mirror` on 127.0.0.1:3004, proxied by nginx. The episode's MP3 from the outage mirror, with byte ranges: `206` + `Content-Range`, `416` for an unsatisfiable range, **503 JSON** if nothing has delivered a first byte within 15s. See "archive.org outage mirror" |
 | `/mirror/manifest` | GET | **Not Next.js** (the gateway). What the mirror can play with archive.org gone: **`{version, count, pinned, fileHashes: [...]}`** — every episode complete on disk, pinned or kept by the LRU. `version` is a digest of the list and the `ETag`; `If-None-Match` gets a 304. Memoised 60 s. Outage mode's input (`src/services/mirror/manifest.ts`) |
 | `/mirror/magnet/{fileHash}` | GET | `{magnet}`: the episode's own single-file torrent (trackers, the archive.org webseed as `ws=`, this server as `x.pe=`). The episode sheet's "Magnet link" |
+| `/live-api/stream` | GET | **Not Next.js** — `highdesert-live` on 127.0.0.1:3005, the phone lines (`docs/live-chat.md`). SSE: `hello {you: {name, line, admin}, slowMode, recent, resumed, hidden}`, then `message {id, at, name, line, body}` (SSE `id:` = message id), `hide {ids}`, `slow`, `rename {ids, name}`. `Last-Event-ID` resumes. nginx: buffering off, `limit_conn` 8 per client |
+| `/live-api/messages` | POST | **Not Next.js.** `{body}` → **201** `{id, at, name, line, body}` (body as stored — mild profanity masked). **400** `{error: "rejected", reason, message}`, **429** `{error: "rate", retryAfter, slowMode}`, **403** muted/banned. Every `/live-api` POST needs `Content-Type: application/json` (415) and a highdesert.space `Origin` (403) |
+| `/live-api/name`, `/live-api/report`, `/live-api/me` | POST/POST/GET | **Not Next.js.** Rename `{name}` → `{name, line, nextChangeInS}` / 409 taken / 429; report `{messageId}` → `{ok, hidden}`; me → `{name, line, admin, mutedUntil, nextNameChangeInS, slowMode}` |
+| `/live-api/admin/*` | POST | **Not Next.js.** `hide`, `mute`, `ban`, `slow`, `clear-name`, `verify` (the deploy's round trip), `signin` `{nonce}`, `signout`; GET `signin-page`. Cookie or `Authorization: Bearer $LIVE_ADMIN_TOKEN`, else **401** `{error: "admin-only"}`. `/live-api/health` is loopback only (nginx 404s it) |
 | `/api/stats/failures` | GET | Which episodes are failing, worst first. `?days=7\|30\|90`. Returns **`{days, summary, entries: [{episodeId, title, failures, recovered, skippedRetries, plays, rate, kinds, uaClasses, details, lastAt}]}`**. Ids resolved to titles from the seed catalog. `details` is the browser's own diagnostics (up to 3 distinct, newest first), **filtered to diagnostic shapes** — the raw text is attacker-controlled (`publicDetails`, HD-038). `skippedRetries` counts retries not attempted for want of a user gesture, excluding `empty-media`, which is never retried by design — it is the instrument for the activation gate. `summary` is site-wide and is deliberately **not** a sum of `entries`, which is capped at 50 episodes. **Excludes advisory kinds** (`ADVISORY_KINDS` in `src/services/stats/db/failures.ts`) — this ranks episodes by how badly they are failing, and a row that never stopped playback would inflate that. Unauthenticated — it is aggregate-only, and the admin gate is presentation, not protection. `?since=<ISO>` adds **`window: {from, to, failures, plays}`**, the fixed 7 days from that instant (cut at now) — how `highdesert-status` holds a release to `docs/reliability-baseline.md` |
 | `/api/stats/export` | GET | **The permanent record, for sang3r.com.** Requires `x-service-token` (`STATS_EXPORT_SECRET`). `?mode=summary\|events\|daily\|episodes`. The only route that returns the event log rather than aggregates, and the only one not reachable from a browser. Episode ids are resolved to titles from the seed catalog. Page `events` with `after=<last id>` — **not** with `since`, which cannot disambiguate two plays sharing a timestamp |
 
@@ -558,6 +562,66 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   `mirror` (active, health, cache size, pinned, peers, 24h mirror plays) and
   `warm` (last run; WARN when stale >36h, skipped for steal, or with failed
   fetches) lines.
+
+## Live chat — the phone lines (read before touching `services/live/` or `src/components/live/`)
+
+The chat beside Live Broadcast. Its own unit, **`highdesert-live`**, runs as
+user `hdlive` from `/opt/highdesert-live` on 127.0.0.1:3005. It carries SSE
+down and JSON POST up, and keeps its state in seven `live_*` tables in the
+`highdesert` database. It connects as its own role, `highdesert_live`. A web
+deploy never drops a chat stream. The full account is in `docs/live-chat.md`.
+
+- **The listener count is not the chat's.** `<LiveChat />` shows
+  `useCommunityNow().live` from the one presence function. The service's
+  `clients` is an operational number for `highdesert-status` only.
+- **No address is stored.** `client_ref` is an HMAC of the app's own
+  `clientKey()` under `CHAT_CLIENT_SECRET`. The implementation is shared
+  through the symlink `services/live/lib/shared/client-key.ts →
+  src/lib/utils/client-key.ts`, and deploy copies it with `-L`. Every
+  `client_ref` column has a CHECK that it is 64 hex characters.
+  `X-Forwarded-For` is trusted only from loopback.
+- **Moderation is server-side and free.** `obscenity` plus
+  `data/chat-blocklist.txt`, which the owner extends: `mask:`, `allow:`,
+  `b64:`, `*wildcards*`.
+  - Mild profanity is masked; slurs, threats, hate and sexual terms are
+    blocked.
+  - Links, emails and phone numbers are refused.
+  - Limits: 280 characters, 1 message per 3 s, duplicate and flood checks,
+    and auto slow mode at 20 messages in 30 s.
+  - 3 reports from distinct clients hide a message and mute the sender for
+    10 min.
+  - Names go through the same filter, are unique among active callers, and
+    change at most once per 10 min.
+  - **Every catalogue title must pass unchanged** (`filter.test.mjs`). Fix a
+    false positive with `allow:`, never by weakening a transformer.
+  - **Test fixtures hold no slurs in plain text.** They are base64, and the
+    variants are derived at test time.
+- **Ship a blocklist change without a restart:** commit it, then run
+  `bash scripts/deploy-live.sh --blocklist`, which parses the file, installs
+  it and sends SIGHUP.
+- **Admin is a server-checked credential.** `LIVE_ADMIN_TOKEN` lives in
+  `/root/.high-desert-live.env` (chmod 600). `bash scripts/live-setup.sh --link`
+  mints a single-use sign-in link (24 h, stored hashed) and copies it to the
+  Mac's `~/Downloads`. The link sets an HttpOnly, Secure, SameSite=Strict
+  HMAC cookie. The UI only reflects `admin: true`; the server checks every
+  action.
+- **The 10% rule.** `highdesert-status`'s `live` line FAILs above 10% of one
+  core, judged on the 15-minute average with a cgroup reading beside it.
+  `CPUQuota=25%` is only a safety net. A load test of 200 callers measured
+  3.0%, with 0 deliveries lost (`services/live/scripts/load.mjs`).
+- **The load-test header `x-live-test-client`** works only with
+  `LIVE_LOAD_TEST=1` and only from loopback. The unit never sets it, and
+  `deploy-live.sh` refuses an env file that does.
+- **Deploy** (never `npm install` here):
+  1. `bash scripts/live-setup.sh` (once);
+  2. `bash scripts/deploy-live.sh` — stages, runs `npm ci`, `pg_dump`, applies
+     the schema, installs the unit, swaps, installs the nginx locations
+     (`nginx -t` first), then verifies health, an SSE hello through nginx and
+     a POST round trip, rolling back on failure;
+  3. `bash scripts/live-setup.sh --link`.
+
+  `--verify-only` and `--rollback` exist. `scripts/deploy.sh` does not touch
+  the chat.
 
 ## Dexie: clearing a field
 

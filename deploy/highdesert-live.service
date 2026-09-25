@@ -1,0 +1,62 @@
+[Unit]
+Description=High Desert — the phone lines: live chat (SSE + POST, 127.0.0.1:3005)
+Documentation=file:///opt/highdesert-live/docs/live-chat.md
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Its own unit so a web deploy (scripts/deploy.sh restarts highdesert.service)
+# never drops a single chat stream. Its own user, like highdesert-mirror: the
+# code lives in /opt, so nothing needs root (scripts/deploy-live.sh creates it).
+User=hdlive
+Group=hdlive
+WorkingDirectory=/opt/highdesert-live
+ExecStart=/usr/bin/node /opt/highdesert-live/server.mjs
+# Blocklist changes: `bash scripts/deploy-live.sh --blocklist` copies the file
+# and reloads — no restart, no dropped streams.
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+Environment=LIVE_PORT=3005
+Environment=LIVE_HOST=127.0.0.1
+Environment=LIVE_BLOCKLIST=/opt/highdesert-live/chat-blocklist.txt
+Environment=LIVE_ORIGINS=https://highdesert.space,https://www.highdesert.space
+# LIVE_DATABASE_URL, CHAT_CLIENT_SECRET, LIVE_ADMIN_TOKEN. chmod 600, owned by
+# root, read by systemd before it drops to hdlive; created by
+# scripts/live-setup.sh. Never inlined here, never committed.
+# LIVE_LOAD_TEST is deliberately never set in this unit.
+EnvironmentFile=/root/.high-desert-live.env
+
+# The 10% rule: no High Desert background service may sustain more than 10%
+# of one core. highdesert-status measures it (15-minute average) and FAILs
+# above that. This quota is only a safety net above the rule, set high enough
+# that the measurement stays honest (a quota at 10% would hide an overrun as
+# throttling instead of reporting it). 200 simulated callers measured 2-3%.
+CPUQuota=25%
+MemoryMax=300M
+MemoryHigh=250M
+Nice=5
+IOWeight=20
+LimitNOFILE=8192
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+# Writes nothing to disk at all: every byte of state is in Postgres.
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=highdesert-live
+
+[Install]
+WantedBy=multi-user.target

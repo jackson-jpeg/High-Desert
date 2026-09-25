@@ -1,0 +1,62 @@
+{
+  "_readme": "Every string here is base64 so the repository never holds a slur in plain text. test/filter.test.mjs decodes them and derives the evasion variants (leet, spacing, punctuation, repeats, homoglyphs, fullwidth, zero-width, case) itself.",
+  "block": [
+    "bmlnZ2Vy",
+    "ZmFn",
+    "a2lrZQ==",
+    "Y2hpbms=",
+    "cmV0YXJk",
+    "ZHlrZQ==",
+    "dHJhbm55",
+    "Y3VudA==",
+    "d2hvcmU=",
+    "c2x1dA==",
+    "cHVzc3k=",
+    "Y29jaw==",
+    "Ymxvd2pvYg==",
+    "cmFwZQ==",
+    "cGVuaXM=",
+    "dmFnaW5h",
+    "cG9ybg==",
+    "c3BpYw==",
+    "d2V0YmFjaw==",
+    "Z29vaw==",
+    "ZmFnZ290"
+  ],
+  "mask": [
+    "ZnVjaw==",
+    "c2hpdA==",
+    "Yml0Y2g=",
+    "YmFzdGFyZA==",
+    "YXNzaG9sZQ==",
+    "ZGljaw=="
+  ],
+  "threats": [
+    "a2lsbCB5b3Vyc2VsZg==",
+    "aSdsbCBraWxsIHlvdQ==",
+    "a3lz",
+    "aSBrbm93IHdoZXJlIHlvdSBsaXZl",
+    "aGVpbCBoaXRsZXI="
+  ],
+  "sentencesBlock": [
+    "eW91IGFyZSBhIG5pZ2dlcg==",
+    "d2hhdCBhIGZhZ2dvdCBsb2w=",
+    "anVzdCBraWxsIHlvdXJzZWxmIGFscmVhZHk=",
+    "c2VuZCBtZSBwb3Ju",
+    "Z28gYmFjayB5b3Ugc3BpYw=="
+  ],
+  "sentencesMask": [
+    {
+      "in": "d2hhdCB0aGUgZnVjayB3YXMgdGhhdA==",
+      "out": "d2hhdCB0aGUgKioqKiB3YXMgdGhhdA=="
+    },
+    {
+      "in": "dGhhdCBpcyBidWxsc2hpdA==",
+      "out": "dGhhdCBpcyAqKioqKioqKg=="
+    },
+    {
+      "in": "aG9seSBzaGl0IGFydA==",
+      "out": "aG9seSAqKioqIGFydA=="
+    }
+  ]
+}

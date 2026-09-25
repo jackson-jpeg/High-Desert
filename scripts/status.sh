@@ -24,6 +24,9 @@
 #             pinned count, peers, and mirror plays in the last 24h
 #   warm      the nightly warm job's last run (warm-status.json): WARN if it is
 #             older than 36h, skipped for steal, or fetched with failures
+#   live      highdesert-live (the phone lines) active and answering /live-api/health;
+#             connected callers, messages in the last hour, and its CPU against
+#             the 10% rule — FAIL above 10% of one core (15-minute average)
 #   audit     npm audit --omit=dev critical + high count
 #
 # The failure rate is reported, not judged: WARN above 10%, never FAIL — it
@@ -36,7 +39,8 @@
 #   HD_ROOT, HD_API (http://127.0.0.1:3003), HD_SYSTEMCTL, HD_NPM,
 #   HD_BACKUP_STATUS_CMD, HD_INSTALLED_UNIT, HD_INSTALLED_VHOST, HD_SAMPLER_MAX_AGE_S (600),
 #   HD_PRESENCE_CMD, HD_SITE (https://highdesert.space), HD_SAR_CMD (sar -u),
-#   HD_MIRROR (http://127.0.0.1:3004), HD_WARM_STATUS, HD_WARM_MAX_AGE_S (129600)
+#   HD_MIRROR (http://127.0.0.1:3004), HD_WARM_STATUS, HD_WARM_MAX_AGE_S (129600),
+#   HD_LIVE (http://127.0.0.1:3005), HD_LIVE_CPU_WINDOW_S (5)
 set -uo pipefail
 
 ROOT="${HD_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -53,6 +57,8 @@ SAR_CMD="${HD_SAR_CMD:-sar -u}"
 MIRROR="${HD_MIRROR:-http://127.0.0.1:3004}"
 WARM_STATUS="${HD_WARM_STATUS:-/var/cache/highdesert-mirror/warm-status.json}"
 WARM_MAX_AGE_S="${HD_WARM_MAX_AGE_S:-129600}"
+LIVE="${HD_LIVE:-http://127.0.0.1:3005}"
+LIVE_CPU_WINDOW_S="${HD_LIVE_CPU_WINDOW_S:-5}"
 
 cd "$ROOT" || exit 2
 
@@ -245,6 +251,56 @@ else
     line OK warm "last run $w_at ($w_out): $w_desc"
   fi
 fi
+
+# --- live (BEGIN highdesert-live) ------------------------------------------
+# The phone lines (services/live). Down is a FAIL. So is breaking the 10% rule:
+# no High Desert background service may sustain more than 10% of one core.
+# Two witnesses: the service's own 15-minute average (process.cpuUsage, from
+# /live-api/health) is what is judged; a short reading of the unit's cgroup
+# (CPUUsageNSec, the kernel's accounting) is reported beside it, and judged
+# only while the service is too new to have an average. A cgroup spike over
+# 10% with a calm average is a WARN, not a FAIL.
+live_status() {
+  if [[ "$("$SYSTEMCTL" is-active highdesert-live 2>/dev/null)" != active ]]; then
+    line FAIL live "highdesert-live is not active — the phone lines are down"
+    return
+  fi
+  local health
+  health="$(curl -s --max-time 5 "$LIVE/live-api/health" 2>/dev/null)"
+  if [[ "$(jq -r '.ok // empty' <<<"$health" 2>/dev/null)" != true ]]; then
+    line FAIL live "active, but $LIVE/live-api/health did not answer"
+    return
+  fi
+  local clients msgs slow avg n0 n1 sample desc
+  clients="$(jq -r '.clients // 0' <<<"$health")"
+  msgs="$(jq -r '.messagesLastHour // 0' <<<"$health")"
+  slow="$(jq -r '.slowMode // false' <<<"$health")"
+  avg="$(jq -r '.cpu.pct // empty' <<<"$health")"
+  n0="$("$SYSTEMCTL" show -p CPUUsageNSec --value highdesert-live 2>/dev/null)"
+  sleep "$LIVE_CPU_WINDOW_S"
+  n1="$("$SYSTEMCTL" show -p CPUUsageNSec --value highdesert-live 2>/dev/null)"
+  sample=""
+  if [[ "$n0" =~ ^[0-9]+$ && "$n1" =~ ^[0-9]+$ ]]; then
+    sample="$(awk -v a="$n0" -v b="$n1" -v w="$LIVE_CPU_WINDOW_S" 'BEGIN { printf "%.1f", (b - a) / 1e9 / w * 100 }')"
+  fi
+  over() { awk -v x="$1" 'BEGIN { exit !(x > 10) }'; }
+  desc="$clients caller(s) connected, $msgs message(s) in the last hour"
+  [[ "$slow" == true ]] && desc="$desc, slow mode on"
+  desc="$desc; CPU ${avg:-?}% (15 min) / ${sample:-?}% (${LIVE_CPU_WINDOW_S}s cgroup) of one core, limit 10%"
+  if [[ -n "$avg" ]] && over "$avg"; then
+    line FAIL live "OVER THE 10% RULE: $desc"
+  elif [[ -z "$avg" && -n "$sample" ]] && over "$sample"; then
+    line FAIL live "OVER THE 10% RULE (no 15-minute average yet): $desc"
+  elif [[ -n "$sample" ]] && over "$sample"; then
+    line WARN live "cgroup spike above 10%, average within the rule: $desc"
+  elif [[ -z "$avg" && -z "$sample" ]]; then
+    line WARN live "CPU not measurable yet (no average, no cgroup reading): $desc"
+  else
+    line OK live "$desc"
+  fi
+}
+live_status
+# --- live (END highdesert-live) --------------------------------------------
 
 # --- audit -------------------------------------------------------------------
 audit_json="$("$NPM" audit --omit=dev --json 2>/dev/null)"
