@@ -10,7 +10,7 @@ import http from "node:http";
  * the mirror down. Requests never needed the pins seeded: a complete file is
  * served from disk.
  */
-export function startServer({ gateway, port, host = "127.0.0.1", log = () => {} }) {
+export function startServer({ gateway, port, host = "127.0.0.1", log = () => {}, seed = true }) {
   const server = http.createServer((req, res) => {
     gateway.handle(req, res).catch((err) => {
       log(`request: ${err?.stack ?? err}`);
@@ -19,6 +19,6 @@ export function startServer({ gateway, port, host = "127.0.0.1", log = () => {} 
     });
   });
   const listening = new Promise((resolve) => server.listen(port, host, resolve));
-  const seeding = listening.then(() => gateway.seedPins()).catch((err) => log(`seeding: ${err?.message ?? err}`));
+  const seeding = listening.then(() => gateway.seedPins({ seed })).catch((err) => log(`seeding: ${err?.message ?? err}`));
   return { server, listening, seeding };
 }

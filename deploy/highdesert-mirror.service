@@ -31,6 +31,8 @@ Environment=MIRROR_FIRST_BYTE_MS=15000
 Environment=MIRROR_TORRENT_PORT=6881
 Environment=MIRROR_DHT_PORT=6882
 Environment=MIRROR_PUBLIC_PEER=187.77.218.14:6881
+# Fetch-only: no seeding, no DHT, no trackers (2026-09-25; CPU).
+Environment=MIRROR_SEED=0
 
 # A background service on a two-vCPU box that also serves five live sites:
 # it may never take a whole core, and it yields disk to everything else.
