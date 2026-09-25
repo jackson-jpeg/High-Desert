@@ -25,7 +25,7 @@ WHERE sampled_at >= ((now() AT TIME ZONE 'UTC')::date - ($1::int - 1))::timestam
 ```
 
 The statement is now exported as `ROLLUP_TRAFFIC_SQL` from
-`src/services/stats/store.ts`, so the test and this document EXPLAIN the exact
+`src/services/stats/db/traffic.ts` (re-exported by `src/services/stats/store.ts`), so the test and this document EXPLAIN the exact
 text that production runs.
 
 ### Measured on production, 2026-09-21
