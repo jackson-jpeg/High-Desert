@@ -100,8 +100,14 @@ export function createGateway({
     return cache.evict();
   }
 
-  async function seedPins() {
+  /**
+   * Re-read the pins (they protect files from eviction) and, unless `seed` is
+   * false, add each complete one to the client so it is seeded. With seeding
+   * off a pinned file is still served from disk; it just is not announced.
+   */
+  async function seedPins({ seed = true } = {}) {
     await cache.loadPins();
+    if (!seed) return;
     for (const ih of cache.pins) {
       if (!(await cache.isComplete(ih))) continue;
       try {

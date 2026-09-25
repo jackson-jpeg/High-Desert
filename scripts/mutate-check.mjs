@@ -2372,6 +2372,14 @@ export const MUTATIONS = [
     why: "the dialog offers the same guest first",
   },
   {
+    id: "mirror-no-seed",
+    test: "services/mirror/test/no-seed.test.mjs",
+    file: "services/mirror/lib/gateway.mjs",
+    find: "    if (!seed) return;",
+    replace: "    if (!seed) void 0;",
+    why: "fetch-only mode must add no torrent for the pins: seeding them held the box at a third of its CPU",
+  },
+  {
     id: "gateway-manifest-complete-only",
     test: "services/mirror/test/manifest.test.mjs",
     file: "services/mirror/lib/gateway.mjs",

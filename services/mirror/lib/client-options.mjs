@@ -12,7 +12,11 @@ export async function clientOptions(env, { bootstrap = dhtBootstrap } = {}) {
   const get = (k, d) => env[k] ?? d;
   const publicPeer = get("MIRROR_PUBLIC_PEER", "") || null;
   const selfHost = publicPeer ? publicPeer.replace(/:\d+$/, "") : null;
+  // MIRROR_SEED=0: fetch-only. No DHT, no trackers, so nothing is announced;
+  // an on-demand fill still reads from the archive.org webseed.
+  const seed = get("MIRROR_SEED", "1") !== "0";
   return {
+    ...(seed ? {} : { dht: false, tracker: false }),
     uploadLimit: Number(get("MIRROR_UPLOAD_KBPS", "2048")) * 1024,
     torrentPort: Number(get("MIRROR_TORRENT_PORT", "6881")),
     dhtPort: Number(get("MIRROR_DHT_PORT", "6882")),
@@ -22,7 +26,7 @@ export async function clientOptions(env, { bootstrap = dhtBootstrap } = {}) {
     natPmp: false,
     webSeeds: true,
     // IPv4, resolved here: see bootstrap.mjs for why the defaults found nothing.
-    dht: { bootstrap: await bootstrap() },
+    ...(seed ? { dht: { bootstrap: await bootstrap() } } : {}),
     ...(selfHost ? { blocklist: [selfHost] } : {}),
   };
 }

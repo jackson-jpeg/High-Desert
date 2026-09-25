@@ -50,7 +50,12 @@ const gateway = createGateway({
 });
 
 // Listen first; the pins are seeded in the background (lib/serve.mjs).
+// MIRROR_SEED=0 (the unit's setting since 2026-09-25): serve and fill, never
+// seed — seeding 338 pins to a swarm with no outside peers held the box at a
+// third of its CPU.
+const seed = env("MIRROR_SEED", "1") !== "0";
 const { server, listening, seeding } = startServer({
+  seed,
   gateway,
   port: Number(env("MIRROR_PORT", "3004")),
   log: (m) => console.error(`[mirror] ${m}`),
@@ -63,7 +68,7 @@ seeding.then(() => console.log(`[mirror] seeding ${gateway.stats().active} torre
 // Not before the startup seeding has finished, or two passes add the same pins.
 setInterval(() => {
   seeding
-    .then(() => gateway.seedPins())
+    .then(() => gateway.seedPins({ seed }))
     .then(() => gateway.sweep())
     .catch((err) => console.error("[mirror] sweep:", err.message));
 }, 60_000).unref();
