@@ -52,7 +52,8 @@ const { clearHealthCache } = await import("@/services/archive/health");
 
 type Api = ReturnType<typeof useAudioPlayer>;
 let instances: Mounted<Api>[] = [];
-const fetchSpy = vi.fn((..._a: unknown[]) => new Promise<Response>(() => {}));
+// Never answers. Its argument is kept for mirrorRequests() to read.
+const fetchSpy = vi.fn((url: unknown) => (void url, new Promise<Response>(() => {})));
 
 const COLL = "ultimate-ultimate-art-bell-collection";
 let seq = 0;

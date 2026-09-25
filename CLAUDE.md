@@ -74,7 +74,7 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/archive/search` | GET | Proxy to archive.org advanced search (rate-limited 30/min) |
 | `/api/archive/scrape` | GET | Proxy for catalog scrape (rate-limited 30/min) |
 | `/api/archive/metadata` | GET | Proxy for item metadata (cached 1hr) |
-| `/api/archive/health` | GET | archive.org reachability probe (cached) |
+| `/api/archive/health` | GET | archive.org reachability probe. Returns **`{up, status, checkedAt}`**. One upstream HEAD is shared by every caller for 60 s (up) / 10 s (down), and concurrent callers share the one in flight — every tab polls it (`useOutageMonitor`) |
 | `/api/stats/play` | POST | Record a play. Body `{episodeId, sessionId, source?}`. Returns `{ok}`. `episodeId` must be in the community-key allowlist. `source` is where the audio came from — `archive`/`mirror`/`cache`/`local` (`PLAY_SOURCES`); anything else is **400**, absent is stored NULL (*unknown*, never assumed to be archive.org) |
 | `/api/stats/stop` | POST | End playback. Body `{sessionId, keepPresence?}`. `keepPresence: true` clears only the listening mark (the tab is still open); omitting it deletes the session, which is what the unload beacon does. Returns `{ok}` |
 | `/api/stats/rate` | POST | Submit a rating 1–5 or null. Body `{episodeId, rating}`. Returns `{ok}`. One ballot per client (IPv4 address / IPv6 /64), stored as an HMAC; **503 when `RATING_VOTER_SECRET` is unset** |
@@ -89,6 +89,7 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Also prunes `weekly_plays` past 3 weeks. Returns `{ok, online, listening, totalPlays, rolledUp, anonymized, prunedWeeks}` |
 | `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass, detail?}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`network-error`/`decode-error`/`empty-media`/`empty-media-suspected`; `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. `detail` is short (≤200 char) free text: the reported duration on an advisory row, or `MediaError.code` plus its message on a `decode-error`/`network-error`/`empty-media`. That message is a browser pipeline diagnostic (`DEMUXER_ERROR_COULD_NOT_OPEN: …`) and is the **only** way an empty file is distinguishable from an unreachable one on Chromium, which errors on the missing frames rather than reporting a short duration. A `detail` containing `HD-VERIFY` (any case, checked after truncation) is **rejected with 400** — this table is the instrument that decides whether the 5s duration floor is safe to promote, and verification rows have polluted it twice; intercept the POST in the page instead. No session id, no IP. `episodeId` must be in the community-key allowlist. Optional `source` as on `/api/stats/play`, but an unknown value is stored NULL rather than refused — losing a failure row costs more than losing its source. A failover row carries the source that *failed* (`archive`) and `recovered: true` once the mirror plays |
 | `/mirror/{fileHash}` | GET | **Not Next.js** — `highdesert-mirror` on 127.0.0.1:3004, proxied by nginx. The episode's MP3 from the outage mirror, with byte ranges: `206` + `Content-Range`, `416` for an unsatisfiable range, **503 JSON** if nothing has delivered a first byte within 15s. See "archive.org outage mirror" |
+| `/mirror/manifest` | GET | **Not Next.js** (the gateway). What the mirror can play with archive.org gone: **`{version, count, pinned, fileHashes: [...]}`** — every episode complete on disk, pinned or kept by the LRU. `version` is a digest of the list and the `ETag`; `If-None-Match` gets a 304. Memoised 60 s. Outage mode's input (`src/services/mirror/manifest.ts`) |
 | `/mirror/magnet/{fileHash}` | GET | `{magnet}`: the episode's own single-file torrent (trackers, the archive.org webseed as `ws=`, this server as `x.pe=`). The episode sheet's "Magnet link" |
 | `/api/stats/failures` | GET | Which episodes are failing, worst first. `?days=7\|30\|90`. Returns **`{days, summary, entries: [{episodeId, title, failures, recovered, skippedRetries, plays, rate, kinds, uaClasses, details, lastAt}]}`**. Ids resolved to titles from the seed catalog. `details` is the browser's own diagnostics (up to 3 distinct, newest first), **filtered to diagnostic shapes** — the raw text is attacker-controlled (`publicDetails`, HD-038). `skippedRetries` counts retries not attempted for want of a user gesture, excluding `empty-media`, which is never retried by design — it is the instrument for the activation gate. `summary` is site-wide and is deliberately **not** a sum of `entries`, which is capped at 50 episodes. **Excludes advisory kinds** (`ADVISORY_KINDS` in `src/services/stats/store.ts`) — this ranks episodes by how badly they are failing, and a row that never stopped playback would inflate that. Unauthenticated — it is aggregate-only, and the admin gate is presentation, not protection. `?since=<ISO>` adds **`window: {from, to, failures, plays}`**, the fixed 7 days from that instant (cut at now) — how `highdesert-status` holds a release to `docs/reliability-baseline.md` |
 | `/api/stats/export` | GET | **The permanent record, for sang3r.com.** Requires `x-service-token` (`STATS_EXPORT_SECRET`). `?mode=summary\|events\|daily\|episodes`. The only route that returns the event log rather than aggregates, and the only one not reachable from a browser. Episode ids are resolved to titles from the seed catalog. Page `events` with `after=<last id>` — **not** with `since`, which cannot disambiguate two plays sharing a timestamp |
@@ -161,8 +162,9 @@ src/
 | `useToastStore` | `toasts[]` — also exports module-level `toast.success/error/info/caller()` |
 | `useAdminStore` | `isAdmin` — SHA-256 password gate, persisted in localStorage |
 | `useContextMenuStore` | `open`, `position`, `items[]` |
+| `useOutageStore` | `archiveUp` (verdict, null = unknown), `manifest`, `unavailable` — see "Outage mode" |
 
-All nine have tests in `src/stores/__tests__/` and at least one mutation each in
+All ten have tests in `src/stores/__tests__/` and at least one mutation each in
 `scripts/mutate-check.mjs` — and `src/stores/__tests__/coverage.test.ts`
 *checks* that sentence, reading the stores from disk and the mutation list from
 the script itself. It used to be false for `player-store` (HD-042) and nothing
@@ -222,7 +224,7 @@ the key as a string literal.
 its layouts, and fails when a key is emitted on a route where nothing listens. That is
 HD-013: "Shuffle Coast" in the palette on `/stats` fired an event only the library page
 heard. Keys that merely announce something (`HD_NOTIFICATIONS`: `seed-settled`,
-`text-scale`, `archive-status`, `status-message`) are exempt.
+`text-scale`, `status-message`) are exempt.
 
 | Key | Emitted by | Heard by |
 |---|---|---|
@@ -235,7 +237,6 @@ heard. Keys that merely announce something (`HD_NOTIFICATIONS`: `seed-settled`,
 | `toggle-ultra-mini` | `StatusBar` | `AudioPlayer` |
 | `seed-settled` | layout | library (notification) |
 | `text-scale` | `applyTextScale` | `useTextScale` (notification) |
-| `archive-status` | `useAudioPlayer` | `OfflineIndicator` (notification) |
 | `status-message` | `toast-store` | `StatusBar` (notification) |
 
 **Library intents are URLs, not events** (`src/lib/library/intents.ts`):
@@ -472,7 +473,8 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   records why in `warm-status.json`. Pins are exempt from eviction and seeded.
 - **Client failover** (`src/audio/sources.ts`, `playback-watchdog.ts`,
   `useAudioPlayer.ts`): `resolveSources()` is archive.org then
-  `/mirror/{fileHash}`; only catalog episodes have a mirror. On a watchdog
+  `/mirror/{fileHash}`; only catalog episodes have a mirror, and while archive.org
+  is known down a show the manifest lacks has none (outage mode, below). On a watchdog
   `network-error`, `stall` or `timeout` — **never `play-rejected`**, which is the
   browser refusing sound, and never decode/empty-media, which are about the bytes —
   the watchdog calls the failover handler *before* its retry: the **same element**
@@ -483,12 +485,13 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   source goes through the same path. If `play()` after the swap is refused (iOS,
   activation expired) the failure is `play-rejected` and `PlaybackErrorDialog`'s
   *Try Again* is the gesture — the same rule as the retry.
-- **The health probe's verdicts expire differently** (`src/services/archive/health.ts`):
-  up 5 min, **down 30 s**, and a probe that failed to reach *our* server caches
-  nothing. It used to hold any failure for 5 minutes, and with the mirror that
-  would route every play away from a recovered archive.org. `archiveKnownDown()`
-  is synchronous — the play path must not await before `play()`. While it is
-  true, starts go straight to the mirror.
+- **The health probe's verdicts are re-probed on different clocks** (`src/services/archive/health.ts`):
+  up after 5 min, **down after 30 s**, and a probe that failed to reach *our* server
+  is not a verdict at all. It used to hold any failure for 5 minutes, and with the
+  mirror that would route every play away from a recovered archive.org. Verdicts are
+  published to `useOutageStore`; `archiveKnownDown()` reads it and is synchronous —
+  the play path must not await before `play()`. While it is true, starts go
+  straight to the mirror, or are refused (outage mode, below).
 - **`source` is recorded everywhere a play or failure is** (player store,
   `/api/stats/play`, `/api/playback-event`, `play_events.source`,
   `playback_failures.source`). The UI says so: **VIA MIRROR** (`MirrorBadge`) in the
@@ -499,6 +502,31 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   (with `nginx -t` first) the vhost, then verifies health and a real `206` through
   `https://highdesert.space/mirror/…`, rolling back on failure. `--rollback`
   swaps back. The app's `scripts/deploy.sh` does not touch the mirror.
+- **Outage mode** (`src/stores/outage-store.ts`, `src/audio/outage-gate.ts`). When
+  the health probe says archive.org is down, the app says so and stops pretending
+  every show can play: a banner (**"archive.org is down. Playing from the High
+  Desert mirror."**), a **MIRROR** mark on rows the manifest lists, the rest
+  dimmed (greyscale and a lower text tier — never opacity), and a **"Playable
+  now"** filter that turns on for the outage and off after it. A start the
+  mirror cannot serve is **refused at the tap** by `refuseIfUnavailable()` —
+  synchronously, from the manifest in memory — and `OutageDialog` offers three
+  shows it holds (same guest, then category, then year: `suggestPlayable`). All
+  three start paths go through it: the play-episode handler (before it queues,
+  `admitRequestedStart`), `playEpisode()` and a restored show's first ▶. It used
+  to wait out the gateway's 15 s first-byte budget and fail anyway.
+  - **One verdict, everywhere.** `archiveKnownDown()` is the store's verdict —
+    held until a probe says otherwise — not "a fresh down": a start must agree
+    with the banner on screen. `useOutageMonitor` (mounted once in the layout)
+    keeps it current: a probe on load, every 30 s while down, every 5 min while
+    up, and on returning to a hidden tab. The banner and dimming clear when a
+    probe says up — there is no timer.
+  - **A null manifest is "unknown", never "empty".** Down with no manifest, a
+    start goes to the mirror to find out. The manifest is read the moment outage
+    mode begins and kept in localStorage, so a page loaded mid-outage marks rows
+    before its own fetch returns.
+  - **Local files are never marked or refused** — they never needed archive.org.
+  - Tests start from `archiveUpFixture` / `archiveDownFixture`
+    (`src/test-support/outage.ts`); `e2e/chaos-mirror.spec.ts` runs it on production.
 - **Status:** `highdesert-status` has `steal` (30-min mean; WARN >20%, FAIL >50%),
   `mirror` (active, health, cache size, pinned, peers, 24h mirror plays) and
   `warm` (last run; WARN when stale >36h, skipped for steal, or with failed
