@@ -501,6 +501,9 @@ describe("pausing holds the station", () => {
     const pausedAt = playhead();
 
     await flush(45_000);
+    // A paused element sits where it stopped; the fake playhead has to be
+    // told, or it "advances" through the pause and a resume looks like a jump.
+    setPlayhead(pausedAt);
     await act(async () => {
       await player.api.resumePlayback();
     });
