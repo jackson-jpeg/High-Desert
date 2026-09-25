@@ -2567,8 +2567,8 @@ export const MUTATIONS = [
     id: "unavailable-card-badge",
     test: "src/components/library/__tests__/unavailable-episode.test.tsx",
     file: "src/components/library/EpisodeCard.tsx",
-    find: "  const unavailable = isRemovedFromCatalog(episode);",
-    replace: "  const unavailable = false;",
+    find: "  const removed = isRemovedFromCatalog(episode);",
+    replace: "  const removed = false;",
     why: "the list row is where a returning visitor meets the pulled episode",
   },
   {
