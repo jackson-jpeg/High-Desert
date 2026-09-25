@@ -25,6 +25,7 @@ import {
   noteWaiting,
 } from "@/audio/playback-watchdog";
 import { assessDuration } from "@/audio/duration-sanity";
+import { endedEarly } from "@/audio/ended-early";
 import { armListen, flushListenTime } from "./play-session";
 
 export interface MediaEventActions {
@@ -71,12 +72,36 @@ export function installMediaEvents(
         stage: "ended",
       }) !== "ok";
 
-    flushListenTime("ended");
-
     if (unplayable) {
+      flushListenTime("ended");
       failUnplayable();
       return;
     }
+
+    // iOS Safari reports a dropped connection mid-show as `ended` (no error)
+    // well short of the end (src/audio/ended-early.ts). That is a source
+    // failure: resume on the mirror where the listener was, keep the saved
+    // position, and leave the queue alone. The listen is still going, so its
+    // time is not flushed.
+    const current = usePlayerStore.getState().currentEpisode;
+    if (
+      current &&
+      usePlayerStore.getState().source !== "local" &&
+      endedEarly({
+        currentTime: audio.currentTime,
+        elementDuration: audio.duration,
+        catalogDuration: current.duration ?? null,
+        hasError: audio.error != null,
+      })
+    ) {
+      const at = audio.currentTime;
+      armListen(current, audio, at);
+      noteError("network-error", `ended-early at=${Math.round(at)} of=${Math.round(current.duration ?? 0)}`);
+      void checkArchiveHealth();
+      return;
+    }
+
+    flushListenTime("ended");
 
     const state = usePlayerStore.getState();
 

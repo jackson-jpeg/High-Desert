@@ -2498,6 +2498,22 @@ export const MUTATIONS = [
     why: "the dialog offers the same guest first",
   },
   {
+    id: "ended-early-fails-over",
+    test: "src/hooks/__tests__/mirror-failover.test.ts",
+    file: "src/hooks/player/media-events.ts",
+    find: "      endedEarly({",
+    replace: "      false && endedEarly({",
+    why: "iOS Safari reports a dropped connection as `ended`: taken at its word the listener loses their place and the queue moves on",
+  },
+  {
+    id: "ended-early-element-guard",
+    test: "src/audio/__tests__/ended-early.test.ts",
+    file: "src/audio/ended-early.ts",
+    find: "  if (Number.isFinite(elementDuration) && elementDuration > 0 && elementDuration - currentTime <= EARLY_END_S) {",
+    replace: "  if (false) {",
+    why: "a file genuinely shorter than catalogued must end, not bounce to the mirror",
+  },
+  {
     id: "gateway-manifest-complete-only",
     test: "services/mirror/test/manifest.test.mjs",
     file: "services/mirror/lib/gateway.mjs",
