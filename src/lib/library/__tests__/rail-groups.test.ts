@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import type { Episode } from "@/db/schema";
+import type { ProgressIndex } from "@/stores/progress-store";
 import { sortEpisodes, SORT_MODES, type SortMode } from "@/lib/library/filter-episodes";
 import {
   deriveRailGroups,
@@ -132,15 +133,14 @@ describe("deriveRailGroups — non-chronological sorts", () => {
   it("recent → recency buckets against the given clock, never-played last", () => {
     const now = 100 * 86_400_000;
     const day = 86_400_000;
-    const list = [
-      ep({ airDate: "1999-01-01", lastPlayedAt: now - 3 * day }),
-      ep({ airDate: "1998-01-01", lastPlayedAt: now - 60 * day }),
-      ep({ airDate: "1997-01-01" }),
-      ep({ airDate: "1996-01-01", lastPlayedAt: now - 1000 }),
-      ep({ airDate: "1995-01-01", lastPlayedAt: now - 10 * day }),
-    ];
-    const rows = sortEpisodes(list, "recent", null);
-    const g = deriveRailGroups(rows, "recent", null, now);
+    const played = [now - 3 * day, now - 60 * day, undefined, now - 1000, now - 10 * day];
+    const list = ["1999", "1998", "1997", "1996", "1995"].map((y) => ep({ airDate: `${y}-01-01` }));
+    // When each was last played lives in the `progress` table (HD-016).
+    const progress: ProgressIndex = new Map(
+      list.flatMap((e, i) => (played[i] ? [[e.fileHash, { fileHash: e.fileHash, lastPlayedAt: played[i] }] as const] : [])),
+    );
+    const rows = sortEpisodes(list, "recent", null, undefined, progress);
+    const g = deriveRailGroups(rows, "recent", null, now, undefined, progress);
     expect(keys(g)).toEqual(["day", "week", "month", "older", "never"]);
     expect(firsts(g)).toEqual([0, 1, 2, 3, 4]);
   });
@@ -183,9 +183,13 @@ describe("deriveRailGroups — over the real catalogue", () => {
 
   for (const mode of SORT_MODES.filter((m): m is SortMode => railKind(m) !== null)) {
     it(`${mode}: every group starts exactly where its run starts, top to bottom`, () => {
-      const withHistory = catalogue.map((e, i) => (i % 29 === 0 ? { ...e, rating: (i % 5) + 1, playCount: i % 13, lastPlayedAt: 1_000_000 + i } : e));
-      const rows = sortEpisodes(withHistory, mode, null, community);
-      const g = deriveRailGroups(rows, mode, null, 2_000_000, community);
+      const withHistory = catalogue.map((e, i) => (i % 29 === 0 ? { ...e, rating: (i % 5) + 1, playCount: i % 13 } : e));
+      // When those were last played: the `progress` table (HD-016).
+      const progress: ProgressIndex = new Map(
+        catalogue.flatMap((e, i) => (i % 29 === 0 ? [[e.fileHash, { fileHash: e.fileHash, lastPlayedAt: 1_000_000 + i }] as const] : [])),
+      );
+      const rows = sortEpisodes(withHistory, mode, null, community, progress);
+      const g = deriveRailGroups(rows, mode, null, 2_000_000, community, progress);
       expect(g.length, `${mode} should have a rail`).toBeGreaterThan(1);
       // Contiguous and exhaustive: each group begins where the last ended.
       expect(g[0].firstIndex).toBe(0);

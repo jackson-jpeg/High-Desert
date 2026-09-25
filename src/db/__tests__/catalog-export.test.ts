@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import type { StoredEpisode } from "@/db/schema";
 
 /**
  * The admin catalog export must write something the server can read, and
@@ -49,6 +50,9 @@ beforeEach(async () => {
   // The admin has been listening.
   const rows = await db.episodes.orderBy("id").limit(5).toArray();
   for (const [i, ep] of rows.entries()) {
+    // playbackPosition / lastPlayedAt: the pre-v9 fields, which rows written
+    // before the `progress` table (HD-016) still carry, frozen. They are
+    // personal all the same and must not leak either.
     await db.episodes.update(ep.id!, {
       favoritedAt: now - i,
       rating: (i % 5) + 1,
@@ -56,7 +60,7 @@ beforeEach(async () => {
       playbackPosition: 1234 + i,
       lastPlayedAt: now,
       playCount: 7,
-    });
+    } as Partial<StoredEpisode>);
   }
   // And scanned a file off their own disk.
   await db.episodes.add({

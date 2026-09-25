@@ -47,6 +47,7 @@ type Loaded = {
   db: typeof import("@/db").db;
   management: typeof import("@/services/episodes/management");
   seed: typeof import("@/db/seed");
+  progress: typeof import("@/services/episodes/progress");
 };
 
 let open: Loaded["db"][] = [];
@@ -57,9 +58,10 @@ async function load(): Promise<Loaded> {
   const { db } = await import("@/db");
   const management = await import("@/services/episodes/management");
   const seed = await import("@/db/seed");
+  const progress = await import("@/services/episodes/progress");
   if (!db.isOpen()) await db.open();
   open.push(db);
-  return { db, management, seed };
+  return { db, management, seed, progress };
 }
 
 /** Let the post-commit request (a `complete` callback, then a pref read) run. */
@@ -79,7 +81,7 @@ beforeEach(async () => {
   const { db } = await load();
   await Promise.all([
     db.episodes.clear(), db.history.clear(), db.bookmarks.clear(),
-    db.playlists.clear(), db.userPrefs.clear(),
+    db.playlists.clear(), db.userPrefs.clear(), db.progress.clear(),
   ]);
   // Clearing playlists is itself a playlist write and asks; let that land,
   // then forget it, so each test starts from a profile that has never asked.
@@ -96,13 +98,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function seeded(): Promise<Loaded & { firstId: number }> {
+async function seeded(): Promise<Loaded & { firstId: number; firstHash: string }> {
   const l = await load();
   serveSeed(SEED);
   expect(await l.seed.seedLibraryIfEmpty()).toBe(true);
   await settle();
   const first = await l.db.episodes.orderBy("id").first();
-  return { ...l, firstId: first!.id! };
+  return { ...l, firstId: first!.id!, firstHash: first!.fileHash };
 }
 
 describe("persist() is requested after the first real write", () => {
@@ -131,7 +133,7 @@ describe("persist() is requested after the first real write", () => {
   });
 
   it("is not requested again by a second write, a different kind of write, or a reload", async () => {
-    const { management, firstId } = await seeded();
+    const { management, firstId, firstHash } = await seeded();
     await management.toggleFavorite(firstId);
     await settle();
     await management.rateEpisode(firstId, 4);
@@ -142,7 +144,7 @@ describe("persist() is requested after the first real write", () => {
     // Reload: a new instance has no memory of the request except the pref.
     const again = await load();
     await again.management.rateEpisode(firstId, 5);
-    await again.db.episodes.update(firstId, { playbackPosition: 900 });
+    await again.progress.writeProgress(firstHash, { playbackPosition: 900 });
     await settle();
     expect(persist).toHaveBeenCalledTimes(1);
     expect((await again.db.episodes.get(firstId))?.rating).toBe(5);
@@ -151,13 +153,30 @@ describe("persist() is requested after the first real write", () => {
   it.each([
     ["a rating", (l: Loaded, id: number) => l.management.rateEpisode(id, 3)],
     ["a bookmark", (l: Loaded, id: number) => l.management.addBookmark(id, 12, "here")],
-    ["a saved playback position", (l: Loaded, id: number) => l.db.episodes.update(id, { playbackPosition: 321, lastPlayedAt: Date.now() })],
+    // The player's own writer, into the `progress` table (HD-016).
+    ["a saved playback position", (l: Loaded & { firstHash: string }) => l.progress.writeProgress(l.firstHash, { playbackPosition: 321, lastPlayedAt: Date.now() })],
     ["a new playlist", (l: Loaded) => l.db.playlists.add({ name: "Mine", episodeIds: [], createdAt: 0, updatedAt: 0 })],
   ])("is requested by %s as the first write", async (_label, write) => {
     const l = await seeded();
     await write(l, l.firstId);
     await settle();
     expect(persist).toHaveBeenCalledTimes(1);
+  });
+
+  it("is requested by a position save that updates an existing progress entry", async () => {
+    // A profile whose progress row predates the request (its pref was lost —
+    // cleared site data that kept IndexedDB, or a pre-HD-010 profile).
+    const l = await seeded();
+    await l.db.progress.put({ fileHash: l.firstHash, playbackPosition: 10, lastPlayedAt: 1 });
+    await settle();
+    await l.db.userPrefs.clear();
+    persist.mockClear();
+
+    const again = await load();
+    await again.progress.writeProgress(l.firstHash, { playbackPosition: 20 });
+    await settle();
+    expect(persist).toHaveBeenCalledTimes(1);
+    expect(await again.db.progress.get(l.firstHash)).toEqual({ fileHash: l.firstHash, playbackPosition: 20, lastPlayedAt: 1 });
   });
 
   it("is not requested by a write that is not the listener's (a resolved sourceUrl)", async () => {

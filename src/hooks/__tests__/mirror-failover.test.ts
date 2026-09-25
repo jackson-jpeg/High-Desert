@@ -47,6 +47,7 @@ vi.mock("@/audio/engine", () => ({
 vi.mock("@/db", () => ({
   db: {
     episodes: { update: () => Promise.resolve(1) },
+    progress: { upsert: () => Promise.resolve(true) },
     history: { where: () => ({ equals: () => ({ sortBy: () => Promise.resolve([]) }) }), add: () => Promise.resolve(1) },
     transaction: (_m: string, _t: unknown, fn: () => Promise<void>) => fn(),
     userPrefs: { get: () => Promise.resolve(undefined), put: () => Promise.resolve() },
@@ -60,6 +61,7 @@ vi.mock("@/services/archive/health", () => ({
 
 const { useAudioPlayer } = await import("@/hooks/useAudioPlayer");
 const { usePlayerStore } = await import("@/stores/player-store");
+const { useProgressStore, positionOf } = await import("@/stores/progress-store");
 const { disarmWatchdog } = await import("@/audio/playback-watchdog");
 
 type Api = ReturnType<typeof useAudioPlayer>;
@@ -77,6 +79,8 @@ function episode(over: Partial<Episode> = {}): Episode {
   const fileName = `1997-09-11 - Coast to Coast AM - Area 51 (${seq}).mp3`;
   FILE_HASH = `archive:ultimate-ultimate-art-bell-collection:${fileName}`;
   MIRROR = `${window.location.origin}/mirror/${encodeURIComponent(FILE_HASH)}`;
+  // Saved 600 s in — in the progress mirror (HD-016), by fileHash.
+  useProgressStore.getState().patch(FILE_HASH, { playbackPosition: 600 });
   return {
     id: 7 + seq,
     fileHash: FILE_HASH,
@@ -85,7 +89,6 @@ function episode(over: Partial<Episode> = {}): Episode {
     title: "Area 51",
     sourceUrl: ARCHIVE,
     duration: 10_800,
-    playbackPosition: 600,
     createdAt: 0,
     updatedAt: 0,
     ...over,
@@ -197,6 +200,69 @@ describe("archive.org fails → the mirror", () => {
     expect(seekSpy).toHaveBeenLastCalledWith(4321);
     expect(usePlayerStore.getState().playing).toBe(true);
     expect(reportPlay).toHaveBeenCalledTimes(1);
+  });
+
+  describe("an `ended` far short of the catalogued end (iOS Safari's dropped connection)", () => {
+    /** Playing from archive.org, 72 minutes into a three-hour show. */
+    async function playingAt(t: number, elementDuration: number) {
+      plays = ["resolve", "resolve"];
+      // `next` first: episode() points MIRROR/FILE_HASH at the last one made.
+      const next = episode();
+      const ep = episode();
+      await act(async () => {
+        await api().playEpisode(ep);
+      });
+      usePlayerStore.setState({ queue: [ep, next], queueIndex: 0 });
+      setReadyState(element, 4);
+      act(() => element.dispatchEvent(new Event("canplay")));
+      Object.defineProperty(element, "currentTime", { value: t, writable: true, configurable: true });
+      Object.defineProperty(element, "duration", { value: elementDuration, configurable: true });
+      Object.defineProperty(element, "error", { value: null, configurable: true });
+      return { ep, next };
+    }
+
+    it("resumes on the mirror at the same position, keeps the show, and does not advance the queue", async () => {
+      // What the simulator recorded: stalled, pause, ended — no error — at
+      // 10,000 s of a 10,800 s broadcast whose element knows it is longer.
+      const { ep } = await playingAt(10_000, 10_800);
+      const now = Date.now();
+      const clock = vi.spyOn(Date, "now").mockReturnValue(now + 600_000);
+      try {
+        act(() => element.dispatchEvent(new Event("ended")));
+        await settle();
+      } finally {
+        clock.mockRestore();
+      }
+      expect(element.src).toBe(MIRROR);
+      expect(seekSpy).toHaveBeenLastCalledWith(10_000);
+      expect(usePlayerStore.getState().currentEpisode?.fileHash).toBe(ep.fileHash);
+      expect(usePlayerStore.getState().queueIndex).toBe(0);
+      expect(usePlayerStore.getState().playing).toBe(true);
+      // Not "finished": the saved position was not reset to the top.
+      expect(positionOf(ep.fileHash)).not.toBe(0);
+      expect(reportPlay).toHaveBeenCalledTimes(1);
+    });
+
+    it("control: an `ended` at the real end advances the queue as always", async () => {
+      const { ep } = await playingAt(10_795, 10_800);
+      act(() => element.dispatchEvent(new Event("ended")));
+      await settle();
+      expect(element.src).not.toBe(MIRROR);
+      // The queue moved on (playTrack hands the next show to the layout's
+      // play-episode handler, not mounted here) and the finished show starts
+      // from the top next time.
+      expect(usePlayerStore.getState().queueIndex).toBe(1);
+      expect(positionOf(ep.fileHash)).toBe(0);
+    });
+
+    it("control: a file the element itself says has ended is not sent to the mirror", async () => {
+      // The element's own duration agrees it is at its end: a short file, which
+      // duration-sanity owns — not a dropped connection.
+      await playingAt(9_000, 9_010);
+      act(() => element.dispatchEvent(new Event("ended")));
+      await settle();
+      expect(element.src).not.toBe(MIRROR);
+    });
   });
 
   it("when the health probe says archive.org is down, the start goes straight to the mirror", async () => {

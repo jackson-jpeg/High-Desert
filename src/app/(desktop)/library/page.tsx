@@ -4,6 +4,7 @@ import { Suspense, useState, useMemo, useCallback, useEffect, useRef } from "rea
 import { useLiveQuery } from "dexie-react-hooks";
 import { useRouter } from "next/navigation";
 import { db } from "@/db";
+import { useLibraryEpisodes } from "@/hooks/library/useLibraryEpisodes";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
 import { TimelineView } from "@/components/library/TimelineView";
@@ -19,6 +20,8 @@ import { selectLibraryEpisodes, type ShowFilter } from "@/lib/library/filter-epi
 import { libraryListState } from "@/lib/library/list-state";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { useCommunityCatalog } from "@/hooks/useCommunityCatalog";
+import { useProgressIndex } from "@/stores/progress-store";
+import { recentlyPlayedEpisodes } from "@/services/episodes/progress";
 import { communityOf } from "@/lib/library/sort-keys";
 import { useLibraryFilters } from "@/hooks/library/useLibraryFilters";
 import { useLibraryFacets } from "@/hooks/library/useLibraryFacets";
@@ -50,13 +53,12 @@ export default function LibraryPage() {
   const isMobile = useIsMobile();
   const searchBarRef = useRef<HTMLInputElement>(null);
 
-  const allEpisodes = useLiveQuery(
-    () => db.episodes.orderBy("airDate").reverse().toArray(),
-    [],
-  );
+  const allEpisodes = useLibraryEpisodes();
 
+  // From the `progress` table (HD-016): position saves wake this small query,
+  // never the full-table one above.
   const recentlyPlayed = useLiveQuery(
-    () => db.episodes.where("lastPlayedAt").above(0).sortBy("lastPlayedAt").then((eps) => eps.reverse().slice(0, 5)),
+    () => recentlyPlayedEpisodes(5).then((rows) => rows.map((r) => r.episode)),
     [],
   );
 
@@ -85,12 +87,16 @@ export default function LibraryPage() {
   // Community plays and ratings for the whole catalog: what "Most played" and
   // "Top rated" order by, and what the list's metric column shows.
   const community = useCommunityCatalog();
+  // The listener's progress, for the two sorts that order by it — and only for
+  // those: any other sort gets a constant, so a position save (every 30 s while
+  // playing) does not re-run the pipeline over the whole library (HD-016).
+  const progress = useProgressIndex(sortMode === "recent" || sortMode === "progress");
   const visibleEpisodes = useMemo(
     () => selectLibraryEpisodes(allEpisodes, {
       search: deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, bookmarkedIds,
       playableOnly: playableSet,
-    }, community),
-    [allEpisodes, deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, bookmarkedIds, playableSet, community],
+    }, community, progress),
+    [allEpisodes, deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, bookmarkedIds, playableSet, community, progress],
   );
 
   const selection = useLibrarySelection({ allEpisodes, visibleEpisodes });
@@ -298,6 +304,7 @@ export default function LibraryPage() {
               sortMode={sortMode}
               seriesFilter={seriesFilter}
               community={community}
+              progress={progress}
               onSortModeChange={filters.setSortMode}
               currentEpisodeId={currentEpisodeId}
               onEpisodeClick={selection.handleEpisodeClick}

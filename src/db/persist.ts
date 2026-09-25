@@ -17,7 +17,7 @@
  *
  * "Meaningful write" is observed with Dexie table hooks on the database
  * itself rather than by calling this from each write site. The sites are
- * scattered (management.ts, the player's position timer and unload save,
+ * scattered (management.ts, the player's position saves (the `progress` table),
  * the queue panel, the dedup merge, import), and a list of call sites is the
  * kind of check that goes quiet when a new write path is added without it.
  * A hook sees every write to the table, whoever makes it.
@@ -31,8 +31,12 @@ export const PERSIST_REQUESTED_PREF = "storage-persist-requested";
  * Episode fields a listener changes by acting. A put that changes none of
  * these (the layout persisting a resolved `sourceUrl`, an admin metadata edit)
  * is not the listener's data.
+ *
+ * `playbackPosition` is no longer one of them: since v9 it lives in the
+ * `progress` table (HD-016), which is watched below — every write there is
+ * the listener's.
  */
-const USER_EPISODE_FIELDS = ["favoritedAt", "rating", "flaggedAt", "playbackPosition"] as const;
+const USER_EPISODE_FIELDS = ["favoritedAt", "rating", "flaggedAt"] as const;
 
 // Minimal structural view of the database, so this module does not import
 // `@/db` (which imports this one to install the hooks).
@@ -45,6 +49,7 @@ interface HookableDb {
   episodes: Table;
   bookmarks: Table;
   playlists: Table;
+  progress: Table;
 }
 
 let _db: HookableDb | null = null;
@@ -121,6 +126,12 @@ export function installPersistRequest(db: HookableDb): void {
   });
 
   db.bookmarks.hook("creating", (_key, _obj, trans) => afterCommit(trans));
+
+  // Where the listener is in a show (HD-016). Nothing but a listen, a seek
+  // save, an import or a merge of the listener's own rows writes here — the
+  // seed never does — so every write counts.
+  db.progress.hook("creating", (_key, _obj, trans) => afterCommit(trans));
+  db.progress.hook("updating", (_mods, _key, _obj, trans) => afterCommit(trans));
 
   // A playlist created in a transaction that is also writing episodes is the
   // seed's (`seedLibraryIfEmpty` restores playlists shipped in a v2 envelope),

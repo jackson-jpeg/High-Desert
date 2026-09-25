@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/db";
+import { recentlyPlayedEpisodes } from "@/services/episodes/progress";
 import type { Episode } from "@/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
 import { cn } from "@/lib/utils/cn";
@@ -21,18 +21,14 @@ export function ContinueListening({ onPlay, className }: ContinueListeningProps)
     if (playing) setDismissed(true); // eslint-disable-line react-hooks/set-state-in-effect -- latch: once playing, stay dismissed
   }, [playing]);
 
-  // Get in-progress episodes: >10% and <90% progress, sorted by lastPlayedAt desc
+  // Get in-progress episodes: >10% and <90% progress, sorted by lastPlayedAt
+  // desc. Read from the `progress` table (HD-016), joined to the episode rows.
   const inProgress = useLiveQuery(async () => {
-    const eps = await db.episodes
-      .where("lastPlayedAt")
-      .above(0)
-      .reverse()
-      .sortBy("lastPlayedAt");
-
-    return eps
-      .filter((ep) => {
-        if (!ep.duration || !ep.playbackPosition) return false;
-        const pct = ep.playbackPosition / ep.duration;
+    const played = await recentlyPlayedEpisodes();
+    return played
+      .filter(({ episode: ep, progress }) => {
+        if (!ep.duration || !progress.playbackPosition) return false;
+        const pct = progress.playbackPosition / ep.duration;
         return pct > 0.1 && pct < 0.9;
       })
       .slice(0, 5); // fetch up to 5, display limited by CSS
@@ -56,9 +52,9 @@ export function ContinueListening({ onPlay, className }: ContinueListeningProps)
         </div>
 
         <div className="flex gap-2 overflow-x-auto scroll-fade-x">
-          {inProgress.slice(0, 3).map((ep, i) => {
-            const pct = ep.duration && ep.playbackPosition
-              ? Math.round((ep.playbackPosition / ep.duration) * 100)
+          {inProgress.slice(0, 3).map(({ episode: ep, progress }, i) => {
+            const pct = ep.duration && progress.playbackPosition
+              ? Math.round((progress.playbackPosition / ep.duration) * 100)
               : 0;
             return (
               <button

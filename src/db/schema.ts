@@ -24,9 +24,9 @@ export interface Episode {
   sampleRate?: number;
   format?: string;       // "mp3", "wma", "wav", etc.
 
-  // Playback
-  lastPlayedAt?: number;  // Unix timestamp
-  playbackPosition?: number; // Seconds
+  // Playback. Where the listener is (`playbackPosition`) and when they last
+  // played it (`lastPlayedAt`) are NOT here: they live in the `progress` table,
+  // keyed by fileHash (HD-016) — see `Progress` below.
   playCount?: number;
 
   // Archive.org
@@ -98,3 +98,38 @@ export interface UserPrefs {
   key: string;
   value: string;
 }
+
+/**
+ * Where the listener is in one episode — the `progress` table (Dexie v9, HD-016).
+ *
+ * These two fields used to live on the episode row, so the player's position
+ * save (every 30 s while playing, and on every pause and page hide) woke every
+ * live query over `db.episodes`: the library list, its facets, smart playlists,
+ * the stats page. A table of their own means a save wakes only what reads
+ * progress.
+ *
+ * Keyed by `fileHash`, the episode's identity (src/db/identity.ts): it is what
+ * Export/Import already travel by, it is unchanged by the dedup / heal /
+ * legacy-key merges that retire numeric ids, and two rows of a doubled library
+ * (HD-009) share one position instead of splitting it.
+ */
+export interface Progress {
+  fileHash: string;
+  playbackPosition?: number; // Seconds
+  lastPlayedAt?: number;     // Unix timestamp (ms)
+}
+
+/**
+ * The pre-v9 fields as they still sit on episode rows written before the
+ * `progress` table existed. The v9 upgrade copies them into `progress` and
+ * leaves them in place (src/db/progress-migration.ts explains why); nothing
+ * reads them after that except the v8 legacy-key merge, which runs *before*
+ * the copy in the same upgrade chain and must carry them across.
+ */
+export interface LegacyPlaybackFields {
+  playbackPosition?: number;
+  lastPlayedAt?: number;
+}
+
+/** An episode row as it may exist on disk: the current shape plus the frozen pre-v9 fields. */
+export type StoredEpisode = Episode & LegacyPlaybackFields;

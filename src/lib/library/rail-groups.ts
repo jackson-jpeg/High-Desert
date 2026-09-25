@@ -22,6 +22,7 @@
 import type { Episode } from "@/db/schema";
 import type { SortMode } from "@/lib/library/filter-episodes";
 import { NO_COMMUNITY, sortValue, type CommunityIndex } from "@/lib/library/sort-keys";
+import { NO_PROGRESS, type ProgressIndex } from "@/stores/progress-store";
 
 /**
  * "plays" and "rating" bucket the community's numbers; "my-plays" and
@@ -106,7 +107,13 @@ const COMMUNITY_PLAY_BUCKETS: readonly [min: number, key: string, label: string]
   [1, "1", "1"],
 ];
 
-function keyFor(ep: Episode, kind: RailKind, now: number, community: CommunityIndex): KeyLabel {
+function keyFor(
+  ep: Episode,
+  kind: RailKind,
+  now: number,
+  community: CommunityIndex,
+  progress: ProgressIndex,
+): KeyLabel {
   switch (kind) {
     case "year": {
       const y = ep.airDate?.slice(0, 4);
@@ -140,8 +147,9 @@ function keyFor(ep: Episode, kind: RailKind, now: number, community: CommunityIn
     }
     case "recency": {
       // Buckets are monotonic in lastPlayedAt, which is what "recent" sorts by
-      // (descending), so each bucket is one run.
-      const at = ep.lastPlayedAt ?? 0;
+      // (descending), so each bucket is one run. From the progress table
+      // (HD-016) — the same index the sort read.
+      const at = progress.get(ep.fileHash)?.lastPlayedAt ?? 0;
       if (at <= 0) return { key: "never", label: "Never", title: "Never played" };
       const age = now - at;
       if (age < DAY_MS) return { key: "day", label: "Today", title: "Played in the last 24 hours" };
@@ -186,6 +194,7 @@ export function deriveRailGroups(
   seriesFilter: string | null = null,
   now: number = Date.now(),
   community: CommunityIndex = NO_COMMUNITY,
+  progress: ProgressIndex = NO_PROGRESS,
 ): RailGroup[] {
   const kind = railKind(sortMode, seriesFilter);
   if (!kind) return [];
@@ -193,7 +202,7 @@ export function deriveRailGroups(
   const groups: RailGroup[] = [];
   const seen = new Set<string>();
   for (let i = 0; i < rows.length; i++) {
-    const { key, label, title } = keyFor(rows[i], kind, now, community);
+    const { key, label, title } = keyFor(rows[i], kind, now, community, progress);
     const last = groups[groups.length - 1];
     if (last && last.key === key) {
       last.count++;

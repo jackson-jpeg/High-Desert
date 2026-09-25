@@ -1,9 +1,10 @@
 import Dexie, { type EntityTable } from "dexie";
 import { installPersistRequest } from "./persist";
-import type { Episode, ScanSession, UserPrefs, Playlist, HistoryEntry, Bookmark } from "./schema";
+import type { Episode, ScanSession, UserPrefs, Playlist, HistoryEntry, Bookmark, Progress } from "./schema";
 import { migrateLegacyScraperKeys } from "./legacy-keys";
+import { copyLegacyProgress } from "./progress-migration";
 
-export type { Episode, ScanSession, UserPrefs, Playlist, HistoryEntry, Bookmark };
+export type { Episode, ScanSession, UserPrefs, Playlist, HistoryEntry, Bookmark, Progress };
 
 class HighDesertDB extends Dexie {
   episodes!: EntityTable<Episode, "id">;
@@ -12,6 +13,7 @@ class HighDesertDB extends Dexie {
   playlists!: EntityTable<Playlist, "id">;
   history!: EntityTable<HistoryEntry, "id">;
   bookmarks!: EntityTable<Bookmark, "id">;
+  progress!: EntityTable<Progress, "fileHash">;
 
   constructor() {
     super("HighDesertDB");
@@ -112,6 +114,30 @@ class HighDesertDB extends Dexie {
         userPrefs: tx.table("userPrefs"),
       }),
     );
+
+    // v9 (HD-016): playback position and last-played move to their own table,
+    // so the player's position saves — every 30 s while playing, and on every
+    // pause and page hide — stop waking every live query over `episodes`.
+    //
+    // Keyed by `fileHash`, the episode's identity, not the numeric id: that is
+    // what Export/Import travel by, the dedup/heal/legacy-key merges retire ids
+    // but not hashes, and the unload flush can write it without reading the
+    // episode row first. `lastPlayedAt` is indexed for "Recently played".
+    //
+    // The upgrade COPIES; the old fields stay on the episode rows, untouched
+    // (./progress-migration.ts says why). The episodes' `lastPlayedAt` index is
+    // dropped — no row changes — so a leftover query against it fails loudly
+    // instead of reading positions frozen at the upgrade.
+    this.version(9).stores({
+      episodes:
+        "++id, fileHash, airDate, guestName, showType, fileName, scanSessionId, createdAt, archiveIdentifier, aiStatus, favoritedAt, flaggedAt, aiCategory, aiSeries, *aiTags",
+      scanSessions: "++id, status, startedAt",
+      userPrefs: "++id, &key",
+      playlists: "++id, name, createdAt",
+      history: "++id, episodeId, timestamp",
+      bookmarks: "++id, episodeId, position, createdAt",
+      progress: "fileHash, lastPlayedAt",
+    }).upgrade((tx) => copyLegacyProgress(tx.table("episodes"), tx.table("progress")));
   }
 }
 
