@@ -6,8 +6,12 @@
  * configured by services/mirror/lib/nginx.mjs), which the CI server does not have:
  *
  *   E2E_CHAOS=1 E2E_BASE_URL=https://highdesert.space \
- *   E2E_CHAOS_PINNED="<title of a pinned show>" E2E_CHAOS_UNPINNED="<title of an unpinned show>" \
+ *   E2E_CHAOS_PINNED="Coast to Coast AM - September 11th Coverage" \
+ *   E2E_CHAOS_UNPINNED="Coast to Coast AM - Woolly Mammoth Discovery" \
  *   npx playwright test e2e/chaos-mirror.spec.ts --project=desktop
+ *
+ * Each value is the start of the row's accessible name, which leads with the
+ * show ("Coast to Coast AM - "), not the bare episode title.
  *
  * Every archive.org host is aborted in the page, so the browser sees exactly
  * what an outage looks like to it. The mirror *server* can still reach
