@@ -332,6 +332,9 @@ describe("HD-004: a finished show starts from the top", () => {
     upsertProgress.mockClear();
     act(() => {
       usePlayerStore.getState().setPosition(10_799);
+      // A real end: the element's playhead is there too (an `ended` far short
+      // of it is a dropped connection — src/audio/ended-early.ts).
+      element.currentTime = 10_799;
       element.dispatchEvent(new Event("ended"));
     });
     const cleared = upsertProgress.mock.calls.filter(

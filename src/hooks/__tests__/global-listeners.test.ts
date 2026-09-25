@@ -244,6 +244,9 @@ describe("globals installed by useAudioPlayer", () => {
         value: 10_800,
         configurable: true,
       });
+      // A real end: the playhead is at the duration (an `ended` far short of
+      // it is a dropped connection — src/audio/ended-early.ts).
+      element.currentTime = 10_800;
       usePlayerStore.getState().setDuration(10_800);
       element.dispatchEvent(new Event("ended"));
     });
@@ -372,6 +375,7 @@ describe("globals installed by useAudioPlayer", () => {
           value: 10_800,
           configurable: true,
         });
+        element.currentTime = 10_800; // a real end (see above)
         element.dispatchEvent(new Event("ended"));
       });
 
