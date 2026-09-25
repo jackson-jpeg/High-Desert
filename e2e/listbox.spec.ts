@@ -35,10 +35,15 @@ test("click a row, then the arrows walk the list; the active row is always rende
   const { rowCount } = await openLibrary(page);
   const list = episodeList(page);
   const first = list.locator('[role="option"]').first();
+  // Read now, not at the end: a locator re-resolves, and once the list has
+  // been to End and back its first option *in DOM order* is whichever row the
+  // virtualiser happened to reuse — not necessarily row 1.
+  const firstLabel = await first.getAttribute("aria-label");
+  expect(await first.getAttribute("aria-posinset")).toBe("1");
   await first.click();
   // A click on a row focuses the listbox: rows are not tab stops.
   await expect(list).toBeFocused();
-  await expect.poll(async () => (await activeRow(page))?.label).toBe(await first.getAttribute("aria-label"));
+  await expect.poll(async () => (await activeRow(page))?.label).toBe(firstLabel);
 
   for (let i = 0; i < 40; i++) await page.keyboard.press("ArrowDown");
   const after = await activeRow(page);
@@ -55,7 +60,8 @@ test("click a row, then the arrows walk the list; the active row is always rende
   expect(await listScroller(page).evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 
   await page.keyboard.press("Home");
-  await expect.poll(async () => (await activeRow(page))?.label).toBe(await first.getAttribute("aria-label"));
+  await expect.poll(async () => (await activeRow(page))?.label).toBe(firstLabel);
+  expect(await page.locator(`#${await list.getAttribute("aria-activedescendant")}`).getAttribute("aria-posinset")).toBe("1");
   expect(await listScroller(page).evaluate((el) => el.scrollTop)).toBe(0);
 });
 
