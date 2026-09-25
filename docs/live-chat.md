@@ -70,7 +70,7 @@ and return **401** `{error: "admin-only"}` without either.
 
 | Event | Data |
 |---|---|
-| `hello` | `{you: {name, line, admin}, slowMode, recent: [msg…], resumed, hidden: [id…]}`. `recent` is the newest 50, oldest first. On a resume it is everything after the given id, up to 200 |
+| `hello` | `{you: {name, line, admin}, slowMode, recent: [msg…], resumed, hidden: [id…]}`. `recent` is the newest 50, oldest first. On a resume it is everything after the given id, up to 200. **Every `line` in every shape is the label** ("Line 6"), never the stored index — `publicMessage()` maps it once, for the broadcast, the POST answer, `recent` and the resume alike. History once carried the raw index, so a reload showed a caller's own calls as "5" under "Line 6" |
 | `message` | `{id, at, name, line, body}`. The SSE `id:` is the message id |
 | `hide` | `{ids}` |
 | `slow` | `{on, until, intervalMs, forced}` |

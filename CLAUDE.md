@@ -625,7 +625,20 @@ same offset, computed from a synced clock.
   (`waiting` then `playing`) and returning to the tab resync at once. At a
   slot's end (or the file's own `ended`, via `takeLiveEnded`) the station ID
   plays the radio static (`src/audio/station-id.ts`, capped at 8 s) until the
-  next slot starts. Picking another show, or pausing, tunes out.
+  next slot starts.
+- **Pause holds, Leave leaves** (`docs/live-qa.md`). Pausing keeps the tab
+  tuned with `paused: true` and stops the program timers, so nothing starts
+  behind a paused player; any resume goes through `takeLiveResume()` at the top
+  of `resumePlayback` and lands on the **live second** (or the show on now).
+  A reload comes back held (`sessionStorage` `hd-live-tuned`). **Leave the
+  station** (`leaveStation()`) tunes out *and* stops the player and deletes
+  `last-episode-id`; picking another show or ■ Stop also tunes out. While tuned
+  and not held the station owns the playhead and the speed: `seek()` and the
+  speed button are refused with a toast (`liveLocked()`), and the station plays
+  at 1×. Held paused is **not** live for the heartbeat, and the heartbeat beats
+  whenever `tunedInLive()` flips. On a first visit the station plays a
+  slot-made episode (no id) until the seed settles, then adopts the library row
+  (`adoptRow`), which is what makes `last-episode-id` and history exist.
 - **One listen per airing.** `claimLiveListen()` counts a slot once per client
   (keyed by slot start + file), so resyncs, stalls, failover and re-tuning never
   count again; the next show counts once.
@@ -644,7 +657,9 @@ same offset, computed from a synced clock.
   (the real `useAudioPlayer`: two clients within 1 s, stall resync, no double
   count), `src/services/live/__tests__/live-days.db.test.ts` (freeze, window,
   concurrent freeze), `presence-clients.db.test.ts` (`live`), the UI tests in
-  `src/components/live/__tests__/`, and `e2e/live.spec.ts` (two browser
+  `src/components/live/__tests__/`, `e2e/live-qa.spec.ts` (what a real
+  listener did: rename, lines, pause/resume/leave/refresh, the live count, at
+  390 and on desktop), and `e2e/live.spec.ts` (two browser
   contexts within 2 s — run against a local build on the e2e database, the
   command is in its header). Mutations: the `live-*` ids in `scripts/mutate-check.mjs`.
 ## Live chat — the phone lines (read before touching `services/live/` or `src/components/live/`)
