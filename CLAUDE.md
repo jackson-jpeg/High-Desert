@@ -606,7 +606,8 @@ deploy never drops a chat stream. The full account is in `docs/live-chat.md`.
   HMAC cookie. The UI only reflects `admin: true`; the server checks every
   action.
 - **The 10% rule.** `highdesert-status`'s `live` line FAILs above 10% of one
-  core, judged on the 15-minute average with a cgroup reading beside it.
+  core, judged on hd-cpu-sample's 15-minute cgroup mean. The service's own
+  average from `/live-api/health` is the fallback while the ring is young.
   `CPUQuota=25%` is only a safety net. A load test of 200 callers measured
   3.0%, with 0 deliveries lost (`services/live/scripts/load.mjs`).
 - **The load-test header `x-live-test-client`** works only with

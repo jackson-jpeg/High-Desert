@@ -3,10 +3,10 @@
  * 15 minutes. Read from process.cpuUsage() — the kernel's accounting for this
  * process, not an estimate — sampled once a minute, so it costs nothing.
  *
- * highdesert-status reads it from /live-api/health and holds it to the 10%
- * rule (no High Desert background service may sustain more than 10% of a
- * core). The status line also takes its own 5-second reading from the unit's
- * cgroup, so this number is never the only witness.
+ * The 10% rule (no High Desert background service may sustain more than 10%
+ * of a core) is judged by highdesert-status on hd-cpu-sample's cgroup ring;
+ * this is the fallback it reads from /live-api/health while that ring is
+ * too young to cover 15 minutes, and a second witness for anyone debugging.
  */
 
 export function createCpuSampler({ everyMs = 60_000, windowMs = 15 * 60_000, cpu = () => process.cpuUsage(), clock = () => performance.now() } = {}) {

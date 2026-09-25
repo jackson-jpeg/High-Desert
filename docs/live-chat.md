@@ -219,15 +219,16 @@ server says `admin: true`, and the server checks every action anyway.
 ## The 10% rule and the load test
 
 No High Desert background service may sustain more than 10% of one core.
-`highdesert-status`'s `live` line judges the service's own 15-minute average
-from `/live-api/health`. That number comes from `process.cpuUsage()`, the
-kernel's accounting for the process. The line also reports a 5-second
-reading from the unit's cgroup (`CPUUsageNSec`) and uses it when the service
-is too new to have an average.
+`highdesert-status`'s `live` line judges highdesert-live's 15-minute mean from
+`hd-cpu-sample report` (vps-tools). That is a timer that samples each High
+Desert unit's cgroup `usage_usec` every minute into a ring, and it is the same
+source as the status `cpu` line.
 
-- **FAIL** when the average is above 10%, or when there is no average yet
-  and the cgroup reading is above 10%.
-- **WARN** when only a cgroup spike is above 10%.
+- While the ring does not span the window (report exits 3), or has no row for
+  the unit yet, the line judges the service's own 15-minute
+  `process.cpuUsage()` average from `/live-api/health` instead, and says so.
+- **FAIL** above 10% of one core.
+- **WARN** when neither source has a number yet.
 
 `CPUQuota=25%` in the unit is a safety net and does not enforce the rule. A
 quota at 10% would hide an overrun as throttling instead of reporting it.
