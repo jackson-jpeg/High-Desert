@@ -18,10 +18,15 @@ import {
  */
 
 function pt(hourLocal: number, v: Partial<TrafficPoint> = {}, day = 10): TrafficPoint {
+  const online = v.online ?? 0;
+  const listening = v.listening ?? 0;
   return {
     t: new Date(2026, 8, day, hourLocal, 0, 0).toISOString(),
-    online: 0,
-    listening: 0,
+    online,
+    listening,
+    // A bucket whose samples were all equal: max = mean, unless a test says otherwise.
+    onlineMax: online,
+    listeningMax: listening,
     plays: 0,
     ...v,
   };
@@ -51,6 +56,26 @@ describe("buildGeometry", () => {
     // The peak presence point reaches the top padding, not a tenth of the way up.
     expect(geo.yPresence(2)).toBeCloseTo(CHART_PAD_Y);
     expect(geo.yPresence(0)).toBeCloseTo(CHART_H - CHART_PAD_Y);
+  });
+
+  it("draws each bucket's max as the main line and its mean as the fainter one", () => {
+    // A two-minute burst of 10 in a bucket whose mean is 1. Drawing the mean
+    // (as the chart did) put the busiest moment of the day at 1.
+    const pts = series(12, 3, (i) => ({
+      online: 1,
+      onlineMax: i === 1 ? 10 : 1,
+      listening: 0,
+      listeningMax: i === 1 ? 6 : 0,
+    }));
+    const geo = buildGeometry(pts, "24h")!;
+    expect(geo.peakPresence).toBe(10);
+    const at = (d: string, i: number) => d.split(" ")[i].slice(1).split(",").map(Number)[1];
+    expect(at(geo.online, 1)).toBeCloseTo(geo.yPresence(10), 1);
+    expect(at(geo.listening, 1)).toBeCloseTo(geo.yPresence(6), 1);
+    expect(at(geo.onlineAvg, 1)).toBeCloseTo(geo.yPresence(1), 1);
+    expect(at(geo.listeningAvg, 1)).toBeCloseTo(geo.yPresence(0), 1);
+    // The shaded area sits under the max line, not the mean.
+    expect(geo.area.startsWith(geo.online)).toBe(true);
   });
 
   it("never divides by a zero peak", () => {
@@ -89,6 +114,8 @@ describe("buildGeometry", () => {
       t: new Date(base + i * 15 * 60_000).toISOString(),
       online: 1,
       listening: 0,
+      onlineMax: 1,
+      listeningMax: 0,
       plays: 0,
     }));
     const labels = buildGeometry(pts, "24h")!.ticks.map((t) => t.label);

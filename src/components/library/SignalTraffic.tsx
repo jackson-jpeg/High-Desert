@@ -103,6 +103,7 @@ export function SignalTraffic() {
               <TrafficLegend color="var(--hd-green)" label="Online" />
               <TrafficLegend color="var(--hd-blue)" label="Listening" />
               <TrafficLegend color="var(--hd-amber)" label="Plays" block />
+              <span className="text-hd-micro text-bevel-dark/85">dashed = average</span>
               {/* Only explain the shading when some of it is on screen —
                   a legend for an absent band reads as a rendering fault. */}
               {traffic.points.some((p) => isNight(new Date(p.t))) && (

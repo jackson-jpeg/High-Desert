@@ -11,7 +11,9 @@ that test red.
 | Card | Source | Test that recomputes it |
 |---|---|---|
 | On Air, Signal Traffic "Right now", tab badge, status bar, mobile sheet | `getPresence()` via `/api/stats/now`, one shared 20 s feed | `presence-surfaces.test.tsx`, `presence-clients.db.test.ts`, live `scripts/presence-check.mjs` |
-| Signal Traffic chart, peaks, plays in range, hour profile | `/api/stats/traffic` (`listener_samples`, `play_events`) | `signal-traffic.test.tsx`, `store.db.test.ts` |
+| Signal Traffic peaks, busiest at, plays in range | `/api/stats/traffic`: raw `listener_samples` (90 days), `traffic_daily.peak_*` past that | `store.db.test.ts` (seeded raw samples; see finding 12) |
+| Signal Traffic chart lines, scale label | the same, bucketed: per-bucket max and mean | `traffic.test.ts` (geometry), `signal-traffic.test.tsx` (render), `e2e/signal-traffic.spec.ts` (label position) |
+| Signal Traffic hour profile | `getHourlyActivity()` — an average by design | `store.db.test.ts` |
 | Plays all time | `sum(episode_plays)` | `signal-traffic.test.tsx` (the era note) |
 | Community Top 20 | `/api/stats/leaderboard?period=` (`episode_plays` / `weekly_plays`) | `community-leaderboard.test.tsx` |
 | Your Listening: Listened, Favorites, Avg Rating, Streak | Dexie `history`, `episodes` → `computeLibraryStats()` | `library-stats.test.ts`, `stats-page.test.tsx`, `listen-time.test.ts` |
@@ -32,7 +34,9 @@ All hold, and `library-stats.test.ts` now asserts each against the shipped seed:
   `src/lib/library/__tests__/sort-properties.test.ts` (150 random libraries × every sort).
 
 Server figures matched Postgres at audit time: 24 h plays in range 88 = sum of chart points =
-`play_events` in 24 h = `recent_plays`; 7 d 349 = 349; peaks equal the maxima of the points;
+`play_events` in 24 h = `recent_plays`; 7 d 349 = 349; ~~peaks equal the maxima of the points~~
+(**that check was circular** — the peaks *were* the maxima of the points, by construction, and
+the points were averages; see finding 12);
 Plays all time 7,422 = `sum(episode_plays)`; the all-time leaderboard is `episode_plays`
 in order.
 
@@ -78,9 +82,69 @@ in order.
 11. **No test recomputed any /stats card — fixed.** The page's 130-line `useMemo` is now
     `computeLibraryStats()`; see the table above.
 
+12. **Signal Traffic peaks shrank as the window grew — fixed** (2026-09-25, branch
+    `stats/peaks`). `peakOnline`/`peakListening` were the maximum of the chart's *averaged*
+    buckets (15 min for 24 h, 2 h for 7 d, 6 h for 30 d), so a wider bucket flattened the same
+    spike further and the 30-day peak read lower than the 24-hour one it contains. Production,
+    read-only, at 2026-09-25 ~21:00 UTC:
+
+    | 24 h / 7 d / 30 d | online | listening |
+    |---|---|---|
+    | max of averaged buckets (what shipped) | 14 / 12 / 10 | 8 / 6 / 5 |
+    | max of raw 2-minute samples | 15 / 19 / 19 | 8 / 8 / 8 |
+
+    ```sql
+    -- raw:     SELECT max(online), max(listening) FROM listener_samples WHERE sampled_at >= now() - interval '7 days';
+    -- shipped: SELECT max(o), max(l) FROM (SELECT round(avg(online)) o, round(avg(listening)) l FROM listener_samples
+    --          WHERE sampled_at >= now() - interval '7 days' GROUP BY floor(extract(epoch FROM sampled_at) / 7200)) b;
+    ```
+
+    The raw 7-day peak, 19 at 2026-09-21 18:35 UTC, predates client counting (2026-09-24) and so
+    counts sessions; it is still what the table says. "Busiest at" was the start of the busiest
+    *bucket*, not a moment. **Now:** peaks and `peakAt` are their own query over the raw
+    samples (`listener_samples` is kept 90 days, covering every range); each point carries
+    `onlineMax`/`listeningMax` beside the mean; `traffic_daily`, which already kept
+    `peak_online`/`peak_listening`, gains `peak_at` (`scripts/schema.sql`, idempotent) so the
+    "when" outlives the sample prune, filled for past days by
+    `scripts/backfill-traffic-peaks.sql` (idempotent; writes a day only while its raw maximum
+    still equals the stored peak). The chart draws the maxima as its lines and the means dashed
+    and faint. `highdesert-status` has a `peaks` line that FAILs unless
+    peak(30 d) ≥ peak(7 d) ≥ peak(24 h) for online and listening.
+13. **The 30-day chart's "10" covered its first point — fixed.** The scale label sat absolutely
+    positioned at the plot's top-left, which is where the first point lands whenever a window
+    opens on its busiest bucket. Measured on production (fixture traffic, first point = peak):
+    desktop first point (116, 544), label box x 122–132, y 542–557; at 390 wide point (35, 499),
+    label 41–51 × 498–513 — the digits sat on the line. The label now has its own row above the
+    plot; `e2e/signal-traffic.spec.ts` measures label and point on desktop and mobile.
+
+## Recompute sweep — is any check circular? (2026-09-25)
+
+Each test in the Sources table was read for the pattern in finding 12: an expectation derived
+from the chart's points or from the function under test rather than from raw rows or an
+independent fixture.
+
+| Test | Verdict |
+|---|---|
+| `library-stats.test.ts` | **Independent.** Recomputes every figure by filtering the shipped seed rows directly (`seed.filter(...)`), never through `computeLibraryStats`. |
+| `stats-page.test.tsx` | **Independent.** Fixed fixture constants (3.5 h, 2 episodes, 7 / 3 / 1); holds the page to `computeLibraryStats`, whose arithmetic the test above proves. |
+| `listen-time.test.ts` | **Independent.** Fixture ticks against constant expected seconds. |
+| `community-leaderboard.test.tsx` | **Independent.** Fixture plays (132, 41, …) asserted as rendered. |
+| `presence-surfaces.test.tsx` | **Independent.** One fixture snapshot; asserts every surface renders its constants. |
+| `presence-clients.db.test.ts` | **Independent.** Seeds sessions and asserts constant client counts. |
+| `scripts/presence-check.mjs` | A consistency check (surfaces agree on the live site), not a recompute; listed as such. |
+| `signal-traffic.test.tsx` | **Was mislabelled** as recomputing the peaks — it renders fixture props. Its role is now the render (max line above mean, label outside the plot); the recompute moved to `store.db.test.ts`. |
+| `store.db.test.ts` traffic | **Was circular, fixed.** Nothing recomputed the peaks from raw rows, and the audit's own "peaks equal the maxima of the points" compared the function with itself. Now seeds raw samples (a 40/25 spike in a 1/0 trickle) and expects 40/25 and the spike's time in all three ranges, the nesting invariant, and `traffic_daily`'s `peak_*` after rollup. |
+| `store.db.test.ts` plays in range | **Was unrecomputed, fixed.** Only the audit-time 88 = 88, which summed the same points. The seeded counter rises by one per sample, so `playsInRange` must equal `rows − 1` in every range. |
+
 ## Mutations added
 
 `notable-seed-row-drop`, `notable-refresh-gate`, `notable-refresh-noop`,
 `stats-listened-positions`, `stats-decade-sum`, `stats-page-listened-fork`,
 `stats-my-plays-drill`, `stats-leaderboard-drill`, `listen-time-tick-wire`,
 `listen-time-seek` — plus Part 1A's `presence-*` and Part 1B's sort/rail/layout set.
+
+Findings 12–13: `traffic-peak-from-points`, `traffic-peak-listening-raw`,
+`traffic-peak-at-sample`, `traffic-bucket-max`, `traffic-rollup-peak-at`,
+`traffic-backfill-guard`, `traffic-client-max-fallback`, `traffic-geometry-max-line`,
+`traffic-geometry-listening-max`, `traffic-scale-from-max`, `traffic-scale-label-in-plot`,
+`status-peaks-online-30-7`, `status-peaks-listening-7-24`.
