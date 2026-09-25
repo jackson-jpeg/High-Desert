@@ -13,14 +13,14 @@
  *   MIRROR_FIRST_BYTE_MS   15000
  *   MIRROR_TORRENT_PORT    6881  TCP + uTP; MIRROR_DHT_PORT 6882
  */
-import http from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import WebTorrent from "webtorrent";
 import { Cache } from "./lib/cache.mjs";
 import { createGateway } from "./lib/gateway.mjs";
-import { dhtBootstrap } from "./lib/bootstrap.mjs";
+import { clientOptions } from "./lib/client-options.mjs";
+import { startServer } from "./lib/serve.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const env = (k, d) => process.env[k] ?? d;
@@ -35,18 +35,7 @@ await cache.load();
 
 const index = JSON.parse(await readFile(env("MIRROR_INDEX", path.join(here, "episodes.json")), "utf8"));
 
-const client = new WebTorrent({
-  uploadLimit: Number(env("MIRROR_UPLOAD_KBPS", "2048")) * 1024,
-  torrentPort: Number(env("MIRROR_TORRENT_PORT", "6881")),
-  dhtPort: Number(env("MIRROR_DHT_PORT", "6882")),
-  // A server: no LAN discovery, no router port-mapping, no WebRTC.
-  lsd: false,
-  natUpnp: false,
-  natPmp: false,
-  webSeeds: true,
-  // IPv4, resolved here: see lib/bootstrap.mjs for why the defaults found nothing.
-  dht: { bootstrap: await dhtBootstrap() },
-});
+const client = new WebTorrent(await clientOptions(process.env));
 client.on("error", (err) => console.error("[mirror] client:", err.message));
 
 const gateway = createGateway({
@@ -60,22 +49,24 @@ const gateway = createGateway({
   log: (m) => console.log(`[mirror] ${m}`),
 });
 
-await gateway.seedPins();
-// Pins change nightly (warm job): re-read them, drop idle torrents, evict.
-setInterval(() => {
-  gateway.seedPins().then(() => gateway.sweep()).catch((err) => console.error("[mirror] sweep:", err.message));
-}, 60_000).unref();
+// Listen first; the pins are seeded in the background (lib/serve.mjs).
+const { server, listening, seeding } = startServer({
+  gateway,
+  port: Number(env("MIRROR_PORT", "3004")),
+  log: (m) => console.error(`[mirror] ${m}`),
+});
+await listening;
+console.log(`[mirror] listening on 127.0.0.1:${server.address().port}, ${Object.keys(index).length} episodes indexed`);
+seeding.then(() => console.log(`[mirror] seeding ${gateway.stats().active} torrent(s)`));
 
-const server = http.createServer((req, res) => {
-  gateway.handle(req, res).catch((err) => {
-    console.error("[mirror] request:", err);
-    if (!res.headersSent) res.writeHead(500, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: "internal" }));
-  });
-});
-server.listen(Number(env("MIRROR_PORT", "3004")), "127.0.0.1", () => {
-  console.log(`[mirror] listening on 127.0.0.1:${server.address().port}, ${Object.keys(index).length} episodes indexed`);
-});
+// Pins change nightly (warm job): re-read them, drop idle torrents, evict.
+// Not before the startup seeding has finished, or two passes add the same pins.
+setInterval(() => {
+  seeding
+    .then(() => gateway.seedPins())
+    .then(() => gateway.sweep())
+    .catch((err) => console.error("[mirror] sweep:", err.message));
+}, 60_000).unref();
 
 const shutdown = async () => {
   server.close();

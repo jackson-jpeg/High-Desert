@@ -47,3 +47,18 @@ describe("dhtBootstrap", () => {
     expect(got).toEqual(["192.0.2.10:6881"]);
   });
 });
+
+describe("clientOptions", () => {
+  it("blocks our own public address, so the client does not dial itself for every torrent", async () => {
+    const { clientOptions } = await import("../lib/client-options.mjs");
+    const o = await clientOptions({ MIRROR_PUBLIC_PEER: "203.0.113.7:6881", MIRROR_UPLOAD_KBPS: "2048" }, { bootstrap: async () => ["192.0.2.10:6881"] });
+    expect(o.blocklist).toEqual(["203.0.113.7"]);
+    expect(o.uploadLimit).toBe(2048 * 1024);
+    expect(o.dht.bootstrap).toEqual(["192.0.2.10:6881"]);
+  });
+  it("blocks nothing when no public address is configured", async () => {
+    const { clientOptions } = await import("../lib/client-options.mjs");
+    const o = await clientOptions({}, { bootstrap: async () => [] });
+    expect(o.blocklist).toBeUndefined();
+  });
+});
