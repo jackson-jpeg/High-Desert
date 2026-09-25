@@ -32,6 +32,11 @@ const server = http.createServer((req, res) => {
     res.end("upstream unavailable");
   });
   req.pipe(up);
-  req.on("close", () => up.destroy());
+  // Tear the upstream down when the *browser* goes away (an SSE tab closing).
+  // Not on req "close": Node emits that as soon as a GET's empty body has been
+  // read, which destroyed every upstream before it answered.
+  res.on("close", () => {
+    if (!res.writableFinished) up.destroy();
+  });
 });
 server.listen(PORT, "127.0.0.1", () => console.log(`[live-e2e-stack] http://127.0.0.1:${PORT} → app :${APP}, /live-api → :${LIVE}`));

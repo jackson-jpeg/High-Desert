@@ -16,7 +16,7 @@ import { test, expect, anotherClientAddress } from "./fixtures";
  *   set -a; . /root/.high-desert-e2e.env; set +a
  *   psql "$E2E_DATABASE_URL" -f scripts/schema.sql -f services/live/schema.sql
  *   DATABASE_URL="$E2E_DATABASE_URL" npx next start -H 127.0.0.1 -p 3013 &
- *   LIVE_DATABASE_URL="$E2E_DATABASE_URL" CHAT_CLIENT_SECRET=e2e LIVE_PORT=3015 \
+ *   LIVE_DATABASE_URL="$E2E_DATABASE_URL" CHAT_CLIENT_SECRET=$(openssl rand -hex 32) LIVE_PORT=3015 \
  *     LIVE_ORIGINS=http://127.0.0.1:3014 node services/live/server.mjs &
  *   node scripts/live-e2e-stack.mjs --port 3014 --app 3013 --live 3015 &
  *   E2E_BASE_URL=http://127.0.0.1:3014 npx playwright test e2e/live-chat.spec.ts
@@ -27,11 +27,12 @@ import { test, expect, anotherClientAddress } from "./fixtures";
 
 const BLOCKED = Buffer.from("dGhyZWF0ZW4gdG8ga2lsbCB5b3U=", "base64").toString("utf8");
 
-async function openLines(page: Page) {
+async function openLines(page: Page, mobile: boolean) {
   await page.goto("/live");
-  const composer = page.getByTestId("composer");
-  if (!(await composer.isVisible().catch(() => false))) {
-    // On a phone the lines are in a sheet behind a button.
+  if (mobile) {
+    // On a phone the lines are in a sheet behind a button. Decided by the
+    // project, not by looking: the page renders the desktop layout through
+    // hydration (HD-037), so the composer is briefly visible on a phone too.
     await page.getByRole("button", { name: /phone lines/i }).first().click();
   }
   await expect(page.getByPlaceholder(/^Call in/)).toBeVisible({ timeout: 30_000 });
@@ -63,7 +64,7 @@ test("two callers hear each other in under 2 s; a blocked word and a link are re
   const posted: number[] = [];
   try {
     const listener = await other.newPage();
-    await Promise.all([openLines(page), openLines(listener)]);
+    await Promise.all([openLines(page, !!use.isMobile), openLines(listener, !!use.isMobile)]);
 
     // A call, timed from the POST leaving to the line appearing on the other screen.
     const text = `Testing the lines from ${info.project.name}, ${Date.now().toString(36)}`;
