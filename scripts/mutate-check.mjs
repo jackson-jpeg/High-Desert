@@ -2163,6 +2163,14 @@ export const MUTATIONS = [
     why: "re-verifying every pin on start re-read 15 GB and held the unit at its memory ceiling",
   },
   {
+    id: "mirror-peers-exclude-self",
+    test: "services/mirror/test/startup.test.mjs",
+    file: "services/mirror/lib/gateway.mjs",
+    find: "        if (host && !selfHosts.has(host)) outside.add(host);",
+    replace: "        outside.add(`${w.type}:${host}:${outside.size}`);",
+    why: "highdesert-status reported 677 peers on a swarm with no outside holders",
+  },
+  {
     id: "gateway-lru-order",
     test: "services/mirror/test/gateway.test.mjs",
     file: "services/mirror/lib/cache.mjs",

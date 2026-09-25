@@ -111,12 +111,30 @@ export function createGateway({
     for (const [ih, slot] of active) if (slot.pinned && !cache.pins.has(ih)) slot.pinned = false;
   }
 
+  // Our own addresses. Each torrent's tracker hands back our own announce, so
+  // the client dials itself; counting those wires reported 677 "peers" on a
+  // swarm measured to have none (docs/torrent-mirror-feasibility.md) — the
+  // bulk of them were not outside peers.
+  const selfHosts = new Set(["127.0.0.1", "::1", publicPeer ? publicPeer.replace(/:\d+$/, "") : null].filter(Boolean));
+  const bareHost = (a) => (a ?? "").replace(/^::ffff:/, "");
+
+  /**
+   * `peers` is distinct outside addresses on non-webseed wires — people, not
+   * connections, and never ourselves. `wires` is the raw count by type, for
+   * diagnosis.
+   */
   function stats() {
-    let peers = 0;
+    const outside = new Set();
+    const wires = {};
     for (const { torrent } of active.values()) {
-      for (const w of torrent?.wires ?? []) if (w.type !== "webSeed") peers++;
+      for (const w of torrent?.wires ?? []) {
+        wires[w.type] = (wires[w.type] ?? 0) + 1;
+        if (w.type === "webSeed") continue;
+        const host = bareHost(w.remoteAddress);
+        if (host && !selfHosts.has(host)) outside.add(host);
+      }
     }
-    return { active: active.size, pinned: cache.pins.size, peers, ...counters };
+    return { active: active.size, pinned: cache.pins.size, peers: outside.size, wires, ...counters };
   }
 
   async function handle(req, res) {
