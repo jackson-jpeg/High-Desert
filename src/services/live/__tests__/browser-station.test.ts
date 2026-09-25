@@ -9,7 +9,9 @@ import type { LiveSchedule, ProgramSlot } from "@/lib/live/schedule";
  * it. The database is the only thing replaced; the stores are real.
  */
 
-const held = vi.hoisted(() => ({ rows: [] as Episode[] }));
+const held = vi.hoisted(() => ({ rows: [] as Episode[], deps: null as null | { leavePlayer?: () => void } }));
+const prefs = vi.hoisted(() => ({ deleted: [] as string[] }));
+const stopped = vi.hoisted(() => ({ n: 0 }));
 
 vi.mock("@/db", () => ({
   db: {
@@ -21,9 +23,18 @@ vi.mock("@/db", () => ({
       }),
     },
   },
-  deletePreference: vi.fn(() => Promise.resolve()),
+  deletePreference: (key: string) => {
+    prefs.deleted.push(key);
+    return Promise.resolve();
+  },
 }));
-vi.mock("@/audio/live-controller", () => ({ installLiveStation: () => () => {} }));
+vi.mock("@/audio/live-controller", () => ({
+  installLiveStation: (deps: { leavePlayer?: () => void }) => {
+    held.deps = deps;
+    return () => {};
+  },
+}));
+vi.mock("@/audio/live-session", () => ({ stopPlayerForLive: () => void (stopped.n += 1) }));
 vi.mock("@/audio/station-id", () => ({
   prepareStationId: vi.fn(),
   releaseStationId: vi.fn(),
@@ -67,6 +78,8 @@ const flush = () => new Promise((r) => setTimeout(r, 0));
 
 beforeEach(() => {
   held.rows = [];
+  prefs.deleted = [];
+  stopped.n = 0;
   useLiveStore.setState({ schedule: null });
   usePlayerStore.setState({ currentEpisode: null });
 });
@@ -97,6 +110,19 @@ describe("the station's show gets the library's own row", () => {
     try {
       await flush();
       expect(usePlayerStore.getState().currentEpisode).toBe(other);
+    } finally {
+      stop();
+    }
+  });
+});
+
+describe("leaving the station", () => {
+  it("stops the player and forgets the show a reload would restore", () => {
+    const stop = installBrowserLiveStation();
+    try {
+      held.deps!.leavePlayer!();
+      expect(stopped.n).toBe(1);
+      expect(prefs.deleted).toEqual(["last-episode-id"]);
     } finally {
       stop();
     }

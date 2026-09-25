@@ -74,10 +74,10 @@ describe("what the heartbeat says this tab is listening to", () => {
 describe("whether the heartbeat says this tab is tuned in live", () => {
   beforeEach(() => {
     usePlayerStore.setState({ currentEpisode: makeEpisode(), playing: false });
-    useLiveStore.setState({ tuned: false, phase: "off", current: null });
+    useLiveStore.setState({ tuned: false, paused: false, phase: "off", current: null });
   });
   afterEach(() => {
-    useLiveStore.setState({ tuned: false, phase: "off", current: null });
+    useLiveStore.setState({ tuned: false, paused: false, phase: "off", current: null });
   });
 
   it("tuned in and playing: live", () => {
@@ -97,6 +97,13 @@ describe("whether the heartbeat says this tab is tuned in live", () => {
   it("tuned in but paused (or stalled out): not live", () => {
     useLiveStore.setState({ tuned: true, phase: "show" });
     usePlayerStore.setState({ playing: false });
+    expect(tunedInLive()).toBe(false);
+  });
+
+  it("held paused, even in the station ID: not live", () => {
+    // Held means the listener stopped listening; the station ID's exemption
+    // is for the eight seconds between shows, not for a paused station.
+    useLiveStore.setState({ tuned: true, paused: true, phase: "station-id" });
     expect(tunedInLive()).toBe(false);
   });
 
