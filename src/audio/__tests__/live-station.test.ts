@@ -511,7 +511,10 @@ describe("leaving the station", () => {
   });
 
   it("the station plays at 1× whatever speed the listener had set", async () => {
-    usePlayerStore.setState({ playbackRate: 1.5 });
+    // Set, and applied, well before tuning in — as a listener's saved speed is.
+    act(() => usePlayerStore.setState({ playbackRate: 1.5 }));
+    await flush();
+    expect(element.playbackRate).toBe(1.5);
     act(() => station.tuneIn());
     await flush();
     expect(element.playbackRate).toBe(1);
