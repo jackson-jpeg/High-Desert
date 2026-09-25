@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { SilentEventSource } from "@/test-support/event-source";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
@@ -92,6 +93,7 @@ async function flush() {
 
 beforeEach(() => {
   resetNowFeedForTests();
+  vi.stubGlobal("EventSource", SilentEventSource);
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {

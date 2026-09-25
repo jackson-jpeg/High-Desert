@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { SilentEventSource } from "@/test-support/event-source";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { LiveSchedule, ProgramSlot } from "@/lib/live/schedule";
@@ -116,6 +117,7 @@ beforeEach(() => {
   controller.tuneOut.mockClear();
   resetNowFeedForTests();
   useLiveStore.setState({ tuned: false, phase: "off", current: null, schedule: null, clockOffsetMs: null, drift: null });
+  vi.stubGlobal("EventSource", SilentEventSource);
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
@@ -191,12 +193,14 @@ describe("Live screen", () => {
   it("desktop: the phone lines sit beside the console", async () => {
     stationAt(B.start + H + 500);
     await mount();
-    const slot = q("live-chat-slot");
+    const slot = q("phone-lines");
     const guide = q("live-guide");
     expect(host.querySelector('[data-testid="live-chat-sheet"]')).toBeNull();
     // Beside, not inside: the chat is not in the studio window.
     expect(guide.closest('[class*="grid"]')!.contains(slot)).toBe(true);
     expect(guide.parentElement!.contains(slot)).toBe(false);
+    // And the phone lines are really in it: the chat opened its stream.
+    expect(SilentEventSource.opened.some((u) => u.includes("/live-api/stream"))).toBe(true);
   });
 
   it("mobile: the phone lines are a sheet sized from the visual viewport", async () => {
@@ -208,11 +212,11 @@ describe("Live screen", () => {
     try {
       stationAt(B.start + H + 500);
       await mount();
-      expect(host.querySelector('[data-testid="live-chat-slot"]')).toBeNull();
+      expect(host.querySelector('[data-testid="phone-lines"]')).toBeNull();
       const call = [...host.querySelectorAll("button")].find((b) => b.textContent?.includes("Phone lines are open"));
       act(() => call!.click());
       const sheet = q("live-chat-sheet");
-      expect(sheet.querySelector('[data-testid="live-chat-slot"]')).not.toBeNull();
+      expect(sheet.querySelector('[data-testid="phone-lines"]')).not.toBeNull();
       // The keyboard covers 300px of an 800px layout viewport: the sheet
       // sits on top of it and takes 85% of what is left.
       expect(sheet.style.bottom).toBe("300px");
