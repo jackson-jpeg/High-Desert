@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 import WebTorrent from "webtorrent";
 import { Cache } from "./lib/cache.mjs";
 import { createGateway } from "./lib/gateway.mjs";
-import { dhtBootstrap } from "./lib/bootstrap.mjs";
+import { clientOptions } from "./lib/client-options.mjs";
 import { startServer } from "./lib/serve.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -35,18 +35,7 @@ await cache.load();
 
 const index = JSON.parse(await readFile(env("MIRROR_INDEX", path.join(here, "episodes.json")), "utf8"));
 
-const client = new WebTorrent({
-  uploadLimit: Number(env("MIRROR_UPLOAD_KBPS", "2048")) * 1024,
-  torrentPort: Number(env("MIRROR_TORRENT_PORT", "6881")),
-  dhtPort: Number(env("MIRROR_DHT_PORT", "6882")),
-  // A server: no LAN discovery, no router port-mapping, no WebRTC.
-  lsd: false,
-  natUpnp: false,
-  natPmp: false,
-  webSeeds: true,
-  // IPv4, resolved here: see lib/bootstrap.mjs for why the defaults found nothing.
-  dht: { bootstrap: await dhtBootstrap() },
-});
+const client = new WebTorrent(await clientOptions(process.env));
 client.on("error", (err) => console.error("[mirror] client:", err.message));
 
 const gateway = createGateway({

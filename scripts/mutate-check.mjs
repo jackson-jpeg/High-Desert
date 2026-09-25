@@ -2171,6 +2171,14 @@ export const MUTATIONS = [
     why: "highdesert-status reported 677 peers on a swarm with no outside holders",
   },
   {
+    id: "mirror-block-self",
+    test: "services/mirror/test/bootstrap.test.mjs",
+    file: "services/mirror/lib/client-options.mjs",
+    find: "    ...(selfHost ? { blocklist: [selfHost] } : {}),",
+    replace: "",
+    why: "without it the client held a uTP connection to itself both ways for every seeded torrent (677 with 338 pins)",
+  },
+  {
     id: "gateway-lru-order",
     test: "services/mirror/test/gateway.test.mjs",
     file: "services/mirror/lib/cache.mjs",
