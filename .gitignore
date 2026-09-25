@@ -3,6 +3,7 @@
 # dependencies
 /node_modules
 /services/mirror/node_modules
+/services/live/node_modules
 /.pnp
 .pnp.*
 .yarn/*

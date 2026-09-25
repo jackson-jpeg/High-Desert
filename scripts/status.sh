@@ -24,6 +24,9 @@
 #             pinned count, peers, and mirror plays in the last 24h
 #   warm      the nightly warm job's last run (warm-status.json): WARN if it is
 #             older than 36h, skipped for steal, or fetched with failures
+#   live      highdesert-live (the phone lines) active and answering /live-api/health;
+#             connected callers, messages in the last hour, and its 15-minute
+#             CPU (hd-cpu-sample) against the 10% rule — FAIL above 10% of a core
 #   audit     npm audit --omit=dev critical + high count
 #
 # The failure rate is reported, not judged: WARN above 10%, never FAIL — it
@@ -36,7 +39,8 @@
 #   HD_ROOT, HD_API (http://127.0.0.1:3003), HD_SYSTEMCTL, HD_NPM,
 #   HD_BACKUP_STATUS_CMD, HD_INSTALLED_UNIT, HD_INSTALLED_VHOST, HD_SAMPLER_MAX_AGE_S (600),
 #   HD_PRESENCE_CMD, HD_SITE (https://highdesert.space), HD_SAR_CMD (sar -u),
-#   HD_MIRROR (http://127.0.0.1:3004), HD_WARM_STATUS, HD_WARM_MAX_AGE_S (129600)
+#   HD_MIRROR (http://127.0.0.1:3004), HD_WARM_STATUS, HD_WARM_MAX_AGE_S (129600),
+#   HD_LIVE (http://127.0.0.1:3005), HD_CPU_CMD (hd-cpu-sample report --window 900)
 set -uo pipefail
 
 ROOT="${HD_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -53,6 +57,9 @@ SAR_CMD="${HD_SAR_CMD:-sar -u}"
 MIRROR="${HD_MIRROR:-http://127.0.0.1:3004}"
 WARM_STATUS="${HD_WARM_STATUS:-/var/cache/highdesert-mirror/warm-status.json}"
 WARM_MAX_AGE_S="${HD_WARM_MAX_AGE_S:-129600}"
+LIVE="${HD_LIVE:-http://127.0.0.1:3005}"
+# Same default as the `cpu` line's HD_CPU_CMD; its own name so the two lines merge cleanly.
+LIVE_CPU_CMD="${HD_CPU_CMD:-hd-cpu-sample report --window 900}"
 
 cd "$ROOT" || exit 2
 
@@ -245,6 +252,54 @@ else
     line OK warm "last run $w_at ($w_out): $w_desc"
   fi
 fi
+
+# --- live (BEGIN highdesert-live) ------------------------------------------
+# The phone lines (services/live). Down is a FAIL. So is breaking the 10% rule:
+# no High Desert background service may sustain more than 10% of one core over
+# 15 minutes. The figure is hd-cpu-sample's (vps-tools: a timer samples each
+# unit's cgroup usage_usec every minute into a ring; `report` averages it), the
+# same source as the `cpu` line. Until the ring spans the window (a fresh
+# install, the timer stopped) or while it has no row for the unit (started
+# inside the window), the service's own 15-minute process.cpuUsage average from
+# /live-api/health is judged instead, and the line says which it used.
+live_status() {
+  if [[ "$("$SYSTEMCTL" is-active highdesert-live 2>/dev/null)" != active ]]; then
+    line FAIL live "highdesert-live is not active — the phone lines are down"
+    return
+  fi
+  local health
+  health="$(curl -s --max-time 5 "$LIVE/live-api/health" 2>/dev/null)"
+  if [[ "$(jq -r '.ok // empty' <<<"$health" 2>/dev/null)" != true ]]; then
+    line FAIL live "active, but $LIVE/live-api/health did not answer"
+    return
+  fi
+  local clients msgs slow report rc pct src desc
+  clients="$(jq -r '.clients // 0' <<<"$health")"
+  msgs="$(jq -r '.messagesLastHour // 0' <<<"$health")"
+  slow="$(jq -r '.slowMode // false' <<<"$health")"
+  report="$($LIVE_CPU_CMD 2>/dev/null)"
+  rc=$?
+  pct=""
+  if (( rc == 0 )); then
+    pct="$(awk '$1 == "highdesert-live" { print $2; exit }' <<<"$report")"
+    src="hd-cpu-sample"
+  fi
+  if [[ -z "$pct" ]]; then
+    pct="$(jq -r '.cpu.pct // empty' <<<"$health")"
+    src="the service's own average; hd-cpu-sample has no 15-min figure for it yet"
+  fi
+  desc="$clients caller(s) connected, $msgs message(s) in the last hour"
+  [[ "$slow" == true ]] && desc="$desc, slow mode on"
+  if [[ -z "$pct" ]]; then
+    line WARN live "$desc; CPU not measurable yet (no hd-cpu-sample figure, service under a minute old)"
+  elif awk -v x="$pct" 'BEGIN { exit !(x > 10) }'; then
+    line FAIL live "OVER THE 10% RULE: CPU ${pct}% of one core over 15 min ($src); $desc"
+  else
+    line OK live "$desc; CPU ${pct}% of one core over 15 min ($src), limit 10%"
+  fi
+}
+live_status
+# --- live (END highdesert-live) --------------------------------------------
 
 # --- audit -------------------------------------------------------------------
 audit_json="$("$NPM" audit --omit=dev --json 2>/dev/null)"

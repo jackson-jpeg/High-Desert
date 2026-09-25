@@ -37,8 +37,13 @@ jobs:
       # same vitest suite and seed a fixture torrent in process.
       - name: Install mirror dependencies
         run: npm ci --prefix services/mirror --no-audit --no-fund
+      # services/live (the phone lines) is its own package too (obscenity, pg).
+      - name: Install live chat dependencies
+        run: npm ci --prefix services/live --no-audit --no-fund
       - name: Apply schema
-        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f scripts/schema.sql
+        run: |
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f scripts/schema.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f services/live/schema.sql
       - name: Lint
         run: npm run lint
       - name: Typecheck
