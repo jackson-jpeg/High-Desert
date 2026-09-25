@@ -2459,6 +2459,14 @@ export const MUTATIONS = [
     replace: `  needle: "#FF2121",`,
     why: "HD-036: the concrete copy for canvas/next/og must not drift from globals.css, or it is a second definition",
   },
+  {
+    id: "is-mobile-server-desktop",
+    test: "src/hooks/__tests__/is-mobile-hydration.test.tsx",
+    file: "src/hooks/useMediaQuery.ts",
+    find: `  return !useMediaQuery("(min-width: 768px)", true);`,
+    replace: `  return !useMediaQuery("(min-width: 768px)");`,
+    why: "HD-037: a false server snapshot made useIsMobile() true through hydration — every desktop visit rendered the mobile tree first",
+  },
 ];
 
 /**
