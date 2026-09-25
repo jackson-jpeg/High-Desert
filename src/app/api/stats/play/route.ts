@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
-import { recordPlay } from "@/services/stats/store";
+import { recordPlay, isPlaySource } from "@/services/stats/store";
 import { isKnownEpisodeId } from "@/services/stats/allowlist";
 import { readJsonObject } from "@/lib/utils/json-body";
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   if (parsed.error) return parsed.error;
   const body = parsed.body;
 
-  const { episodeId, sessionId } = body;
+  const { episodeId, sessionId, source } = body;
 
   if (
     typeof episodeId !== "string" ||
@@ -56,8 +56,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Optional: older clients do not send it, and that is "unknown", not an error.
+  if (source !== undefined && !isPlaySource(source)) {
+    return NextResponse.json({ error: "Invalid source" }, { status: 400 });
+  }
+
   try {
-    await recordPlay(episodeId, sessionId, ip);
+    await recordPlay(episodeId, sessionId, ip, source ?? null);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[stats/play] store error:", err);

@@ -18,6 +18,12 @@
 #   presence  the live site's presence surfaces (Stats badge, status bar, mobile
 #             sheet, On Air, Signal Traffic) show the same numbers within one
 #             poll — scripts/presence-check.mjs in headless Chromium; FAIL if not
+#   steal     hypervisor steal, mean of sysstat's samples over the last 30 minutes:
+#             WARN above 20%, FAIL above 50% (the 2026-09-22 episode ran ~90%)
+#   mirror    highdesert-mirror active and answering /mirror/health; cache size,
+#             pinned count, peers, and mirror plays in the last 24h
+#   warm      the nightly warm job's last run (warm-status.json): WARN if it is
+#             older than 36h, skipped for steal, or fetched with failures
 #   audit     npm audit --omit=dev critical + high count
 #
 # The failure rate is reported, not judged: WARN above 10%, never FAIL — it
@@ -29,7 +35,8 @@
 # Overridable for scripts/__tests__/status.test.ts:
 #   HD_ROOT, HD_API (http://127.0.0.1:3003), HD_SYSTEMCTL, HD_NPM,
 #   HD_BACKUP_STATUS_CMD, HD_INSTALLED_UNIT, HD_INSTALLED_VHOST, HD_SAMPLER_MAX_AGE_S (600),
-#   HD_PRESENCE_CMD, HD_SITE (https://highdesert.space)
+#   HD_PRESENCE_CMD, HD_SITE (https://highdesert.space), HD_SAR_CMD (sar -u),
+#   HD_MIRROR (http://127.0.0.1:3004), HD_WARM_STATUS, HD_WARM_MAX_AGE_S (129600)
 set -uo pipefail
 
 ROOT="${HD_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -42,6 +49,10 @@ INSTALLED_VHOST="${HD_INSTALLED_VHOST:-/etc/nginx/sites-available/highdesert}"
 SAMPLER_MAX_AGE_S="${HD_SAMPLER_MAX_AGE_S:-600}"
 SITE="${HD_SITE:-https://highdesert.space}"
 PRESENCE_CMD="${HD_PRESENCE_CMD:-timeout 120 nice -n 10 node $ROOT/scripts/presence-check.mjs $SITE}"
+SAR_CMD="${HD_SAR_CMD:-sar -u}"
+MIRROR="${HD_MIRROR:-http://127.0.0.1:3004}"
+WARM_STATUS="${HD_WARM_STATUS:-/var/cache/highdesert-mirror/warm-status.json}"
+WARM_MAX_AGE_S="${HD_WARM_MAX_AGE_S:-129600}"
 
 cd "$ROOT" || exit 2
 
@@ -178,6 +189,62 @@ case "$presence_rc" in
   1) line FAIL presence "surfaces disagree: $presence_msg" ;;
   *) line WARN presence "check did not run (exit $presence_rc): ${presence_msg:-no output}" ;;
 esac
+
+# --- steal -------------------------------------------------------------------
+# The same source and arithmetic as vps-cpu-alert and the warm job's own gate
+# (services/mirror/lib/steal.mjs): the last three 10-minute samples.
+steal="$(LC_ALL=C $SAR_CMD 2>/dev/null | awk '$2 == "all" && $1 ~ /^[0-9][0-9]:[0-9][0-9]/ && NF >= 8 { v[n++] = $7 }
+  END { if (n == 0) exit; k = n < 3 ? n : 3; for (i = n - k; i < n; i++) t += v[i]; printf "%.1f", t / k }')"
+if [[ -z "$steal" ]]; then
+  line WARN steal "no sysstat samples today — cannot measure hypervisor steal"
+elif awk -v x="$steal" 'BEGIN { exit !(x > 50) }'; then
+  line FAIL steal "${steal}% hypervisor steal over 30 min (FAIL above 50%)"
+elif awk -v x="$steal" 'BEGIN { exit !(x > 20) }'; then
+  line WARN steal "${steal}% hypervisor steal over 30 min (WARN above 20%; the warm job skips itself)"
+else
+  line OK steal "${steal}% hypervisor steal over 30 min"
+fi
+
+# --- mirror ------------------------------------------------------------------
+# The archive.org outage fallback (services/mirror). Down is a FAIL: while it
+# is down nothing catches a listener when archive.org stops answering.
+gb() { awk -v b="${1:-0}" 'BEGIN { printf "%.1f GB", b / 1073741824 }'; }
+if [[ "$("$SYSTEMCTL" is-active highdesert-mirror 2>/dev/null)" != active ]]; then
+  line FAIL mirror "highdesert-mirror is not active — no fallback if archive.org goes down"
+else
+  health="$(curl -s --max-time 5 "$MIRROR/mirror/health" 2>/dev/null)"
+  if [[ "$(jq -r '.ok // empty' <<<"$health" 2>/dev/null)" != true ]]; then
+    line FAIL mirror "active, but $MIRROR/mirror/health did not answer"
+  else
+    h() { jq -r ".$1 // 0" <<<"$health"; }
+    mplays="$(curl -s --max-time 10 "$API/api/stats/traffic?range=24h" 2>/dev/null | jq -r '.playsBySource.mirror // 0' 2>/dev/null)"
+    line OK mirror "cache $(gb "$(h cacheBytes)") ($(gb "$(h pinnedBytes)") in $(h pinned) pinned)," \
+      "$(h peers) peer(s) on $(h active) torrent(s), ${mplays:-?} mirror play(s) in 24h"
+  fi
+fi
+
+# --- warm --------------------------------------------------------------------
+if [[ ! -f "$WARM_STATUS" ]]; then
+  line WARN warm "no $WARM_STATUS — the warm job has never run"
+else
+  w_at="$(jq -r '.at // empty' "$WARM_STATUS" 2>/dev/null)"
+  w_out="$(jq -r '.outcome // empty' "$WARM_STATUS" 2>/dev/null)"
+  w() { jq -r ".$1 // 0" "$WARM_STATUS" 2>/dev/null; }
+  w_failed="$(w failed)"
+  w_desc="$(w pinned) pinned ($(gb "$(w bytes)")), $(w fetched) fetched, $w_failed failed"
+  w_age=$(( $(date +%s) - $(date -d "$w_at" +%s 2>/dev/null || echo 0) ))
+  if [[ -z "$w_at" ]]; then
+    line WARN warm "$WARM_STATUS is unreadable"
+  elif (( w_age > WARM_MAX_AGE_S )); then
+    line WARN warm "STALE: last run $w_at ($(( w_age / 3600 ))h ago; runs nightly)"
+  elif [[ "$w_out" == skipped-steal ]]; then
+    line WARN warm "last run $w_at skipped itself: steal $(w steal)% over 20%"
+  elif (( w_failed > 0 )); then
+    line WARN warm "last run $w_at ($w_out): $w_desc"
+  else
+    line OK warm "last run $w_at ($w_out): $w_desc"
+  fi
+fi
 
 # --- audit -------------------------------------------------------------------
 audit_json="$("$NPM" audit --omit=dev --json 2>/dev/null)"

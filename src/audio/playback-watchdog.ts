@@ -21,6 +21,7 @@
 
 import { reportPlaybackFailure } from "@/services/stats/client";
 import { uaClass } from "@/lib/utils/platform";
+import { isFailoverKind, type PlaySource, type SourceKind } from "@/audio/sources";
 
 /**
  * How long we will wait with no evidence of life at all.
@@ -69,6 +70,17 @@ interface Attempt {
   episodeId: string | null;
   /** Where playback should resume from, in seconds. */
   startAt: number;
+  /** Which host `url` is (src/audio/sources.ts); recorded with every report. */
+  source: SourceKind | null;
+  /**
+   * Hosts still to try when this one stops delivering — the mirror, behind
+   * archive.org. Consumed by failover, which runs *before* the silent retry:
+   * a retry re-asks the host that just failed, which during an outage is the
+   * one request certain not to help.
+   */
+  fallbacks: PlaySource[];
+  /** What made this attempt leave its first source, for the eventual report. */
+  failedOver: { from: SourceKind | null; kind: FailureKind } | null;
   startedAt: number;
   retried: boolean;
   /** Set once the attempt has resolved, so late events are ignored. */
@@ -127,6 +139,20 @@ export function setFailureHandler(handler: FailHandler): void {
   onFail = handler;
 }
 
+/**
+ * Moves the element to another source: same element, same position, resumed
+ * if it was playing. Installed by useAudioPlayer, which owns the element and
+ * the listen count. Resolves false when `play()` was refused — on iOS a call
+ * from a timer may be, even on an element that was already playing — and the
+ * attempt then ends in the error dialog, whose Try Again is a real gesture.
+ */
+type FailoverHandler = (next: PlaySource, opts: { position: number; wanted: boolean }) => Promise<boolean>;
+let onFailover: FailoverHandler | null = null;
+
+export function setFailoverHandler(handler: FailoverHandler | null): void {
+  onFailover = handler;
+}
+
 function clearTimers() {
   window.clearTimeout(loadTimer);
   window.clearTimeout(stallTimer);
@@ -167,7 +193,8 @@ function isAudiblyPlaying(attempt: Attempt): boolean {
  */
 function standDownIfPlaying(attempt: Attempt): boolean {
   if (!isAudiblyPlaying(attempt)) return false;
-  if (attempt.retried) report("timeout", attempt, true);
+  if (attempt.failedOver) report(attempt.failedOver.kind, attempt, true);
+  else if (attempt.retried) report("timeout", attempt, true);
   attempt.settled = true;
   clearTimers();
   if (current === attempt) current = null;
@@ -183,6 +210,7 @@ function resetLoadDeadline(attempt: Attempt) {
   loadTimer = window.setTimeout(() => {
     if (attempt.settled) return;
     if (standDownIfPlaying(attempt)) return;
+    if (failover("timeout", attempt)) return;
     if (!attempt.retried) retry("timeout", attempt);
     else giveUp("timeout", attempt);
   }, LOAD_TIMEOUT_MS);
@@ -213,6 +241,15 @@ function report(kind: FailureKind, attempt: Attempt, recovered: boolean) {
   // unwired should be impossible — which is exactly why it is worth asserting
   // rather than assuming.
   if (!wired()) return;
+  // A failover is reported as the failure that caused it, against the source
+  // that failed — recovered if the next source played. A failure *after* a
+  // failover is the last source's, noting what came before.
+  const f = attempt.failedOver;
+  const detail = f && kind === f.kind && recovered
+    ? `failover=${attempt.source}${attempt.detail ? ` ${attempt.detail}` : ""}`
+    : f
+      ? `after ${f.from} ${f.kind}${attempt.detail ? ` ${attempt.detail}` : ""}`
+      : attempt.detail;
   reportPlaybackFailure({
     episodeId: attempt.episodeId,
     kind,
@@ -220,7 +257,8 @@ function report(kind: FailureKind, attempt: Attempt, recovered: boolean) {
     recovered,
     elapsedMs: Math.round(performance.now() - attempt.startedAt),
     uaClass: uaClass(),
-    ...(attempt.detail ? { detail: attempt.detail } : {}),
+    source: (f && kind === f.kind && recovered ? f.from : attempt.source) ?? undefined,
+    ...(detail ? { detail: shortDetail(detail)! } : {}),
   });
 }
 
@@ -317,6 +355,45 @@ function giveUp(kind: FailureKind, attempt: Attempt) {
   onFail(kind);
 }
 
+/**
+ * Leave a host that has stopped delivering for the next one — the archive.org
+ * outage path. Returns false when there is nowhere to go (then the ordinary
+ * retry policy applies).
+ *
+ * Only for kinds that say "this host is not delivering" (`isFailoverKind`):
+ * never `play-rejected`, which is the browser refusing sound, not the host
+ * failing. The failover spends the attempt's retry: if the mirror fails too,
+ * the next failure gives up and raises the dialog rather than re-asking.
+ */
+function failover(kind: FailureKind, attempt: Attempt): boolean {
+  if (!isFailoverKind(kind) || !onFailover || attempt.fallbacks.length === 0) return false;
+  const next = attempt.fallbacks.shift()!;
+  const { audio } = attempt;
+  const wanted = audio.paused === false;
+  // Where the listener is: mid-load that is the start position (a seek is held
+  // until metadata, so currentTime may still read 0); later, wherever they got to.
+  const position = Math.max(audio.currentTime || 0, attempt.startAt);
+
+  attempt.failedOver = { from: attempt.source, kind };
+  attempt.source = next.kind;
+  attempt.url = next.url;
+  attempt.startAt = position;
+  attempt.retried = true;
+  clearTimers();
+  attempt.startedAt = performance.now();
+  resetLoadDeadline(attempt);
+
+  onFailover({ ...next }, { position, wanted }).then(
+    (ok) => {
+      if (!ok && !attempt.settled) giveUp("play-rejected", attempt);
+    },
+    () => {
+      if (!attempt.settled) giveUp("play-rejected", attempt);
+    },
+  );
+  return true;
+}
+
 function retry(kind: FailureKind, attempt: Attempt) {
   const { audio } = attempt;
   // Whether the listener had asked for sound before we reset the element. A
@@ -368,6 +445,8 @@ export function armWatchdog(opts: {
   url: string;
   episodeId: string | null;
   startAt: number;
+  source?: SourceKind | null;
+  fallbacks?: PlaySource[];
 }): void {
   clearTimers();
   // Whatever was being watched has been replaced. Settle it, so a retry of it
@@ -391,6 +470,9 @@ export function armWatchdog(opts: {
 
   const attempt: Attempt = {
     ...opts,
+    source: opts.source ?? null,
+    fallbacks: [...(opts.fallbacks ?? [])],
+    failedOver: null,
     startedAt: performance.now(),
     retried: false,
     settled: false,
@@ -405,8 +487,10 @@ export function armWatchdog(opts: {
 export function noteReady(): void {
   if (current) {
     // A retry that worked is still worth knowing about: it means this episode
-    // is slow or flaky even though the listener never saw a problem.
-    if (current.retried) report("timeout", current, true);
+    // is slow or flaky even though the listener never saw a problem. A
+    // failover that worked is reported as what drove it off its first host.
+    if (current.failedOver) report(current.failedOver.kind, current, true);
+    else if (current.retried) report("timeout", current, true);
     current.settled = true;
   }
   clearTimers();
@@ -421,6 +505,7 @@ export function noteWaiting(): void {
   stallTimer = window.setTimeout(() => {
     if (attempt.settled) return;
     if (standDownIfPlaying(attempt)) return;
+    if (failover("stall", attempt)) return;
     if (!attempt.retried) retry("stall", attempt);
     else giveUp("stall", attempt);
   }, STALL_TIMEOUT_MS);
@@ -447,6 +532,7 @@ export function noteError(kind: FailureKind, detail?: string | null): void {
   // Kept even if the retry rescues it and the eventual report is a recovery —
   // "what did it say the first time" is the useful half of a flaky episode.
   attempt.detail = shortDetail(detail) ?? attempt.detail;
+  if (failover(kind, attempt)) return;
   if (!attempt.retried) retry(kind, attempt);
   else giveUp(kind, attempt);
 }
@@ -464,6 +550,11 @@ export function noteUnplayable(kind: FailureKind, detail?: string | null): void 
   if (!attempt || attempt.settled) return;
   attempt.detail = shortDetail(detail) ?? attempt.detail;
   giveUp(kind, attempt);
+}
+
+/** The source the outstanding attempt is on, or null. */
+export function watchedSource(): SourceKind | null {
+  return current && !current.settled ? current.source : null;
 }
 
 /** Whether a load attempt is outstanding — used to decide if an error is ours. */

@@ -8,6 +8,7 @@ import { toggleFlag } from "@/services/episodes/management";
 import { cn } from "@/lib/utils/cn";
 import { archiveDetailsUrl } from "@/lib/library/episode-detail";
 import { EpisodeShareButton } from "@/components/library/EpisodeShareButton";
+import { mirrorUrl } from "@/audio/sources";
 
 const manageClass = "text-hd-body md:text-hd-caption cursor-pointer transition-colors-fast min-h-touch md:min-h-0 flex items-center";
 
@@ -93,6 +94,7 @@ export function EpisodeManageBar({
         </a>
       )}
       <EpisodeShareButton episode={episode} />
+      {mirrorUrl(episode) && <MagnetLink episode={episode} />}
       <button
         onClick={async () => {
           const flagged = await toggleFlag(episode.id!);
@@ -129,5 +131,37 @@ export function EpisodeManageBar({
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * The episode's torrent, for a BitTorrent client: the same bytes as
+ * archive.org, webseeded from it, and seeded by this site's mirror for the
+ * most-played shows (services/mirror). Built by the gateway on request —
+ * shipping every infohash in the page would cost every visitor ~200 KB for a
+ * link few will use. Opens the listener's torrent client and copies the link,
+ * since a browser with no handler for magnet: does nothing visible at all.
+ */
+export function MagnetLink({ episode }: { episode: Episode }) {
+  return (
+    <button
+      onClick={async () => {
+        try {
+          const res = await fetch(`/mirror/magnet/${encodeURIComponent(episode.fileHash)}`);
+          if (!res.ok) throw new Error(String(res.status));
+          const { magnet } = (await res.json()) as { magnet: string };
+          navigator.clipboard?.writeText(magnet).catch(() => {});
+          toast.success("Magnet link copied");
+          window.location.assign(magnet);
+        } catch {
+          toast.error("The magnet link isn't available right now.");
+        }
+      }}
+      className={cn(manageClass, "text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray")}
+      title="Open this episode's torrent in a BitTorrent client"
+      data-testid="magnet-link"
+    >
+      Magnet
+    </button>
   );
 }

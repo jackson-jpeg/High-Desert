@@ -144,6 +144,10 @@ CREATE TABLE IF NOT EXISTS play_events (
   played_at   timestamptz NOT NULL DEFAULT now(),
   session_ref text
 );
+-- Which host the audio came from: archive | mirror | cache | local
+-- (src/audio/sources.ts). Added with the archive.org outage mirror; rows from
+-- before it are NULL — unknown, deliberately not back-filled as "archive".
+ALTER TABLE play_events ADD COLUMN IF NOT EXISTS source text;
 CREATE INDEX IF NOT EXISTS play_events_played_at_idx
   ON play_events (played_at DESC);
 CREATE INDEX IF NOT EXISTS play_events_episode_idx
@@ -203,6 +207,8 @@ CREATE TABLE IF NOT EXISTS playback_failures (
   ua_class   text        NOT NULL DEFAULT 'other',
   at         timestamptz NOT NULL DEFAULT now()
 );
+-- The host that failed (see play_events.source). NULL on older rows.
+ALTER TABLE playback_failures ADD COLUMN IF NOT EXISTS source text;
 -- Free-text context, only ever written for advisory kinds. Today that is
 -- empty-media-suspected, which carries the duration `loadedmetadata` claimed so
 -- the five-second floor can be judged against real traffic before it is given

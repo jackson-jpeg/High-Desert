@@ -175,6 +175,35 @@ describeDb("stats store (Postgres)", () => {
     }
   });
 
+  it("a play records where its audio came from, and traffic counts plays by source", async () => {
+    // Here for the same reason as the test above: recordPlay writes today's
+    // play_events, which the rollup test counts exactly.
+    const client = `198.51.100.${process.pid % 200}`;
+    const sid = `${TAG}-src`;
+    const bySource = async () => (await store.getTraffic("24h")).playsBySource;
+    try {
+      const before = await bySource();
+      await store.recordPlay(TAG, sid, client, "mirror");
+      await store.recordPlay(TAG, sid, client, "mirror");
+      await store.recordPlay(TAG, sid, client, "archive");
+      await store.recordPlay(TAG, sid, client);
+      const rows = await q<{ source: string | null }>(
+        "SELECT source FROM play_events WHERE episode_id = $1 ORDER BY id",
+        [TAG],
+      );
+      // Not sent is NULL — unknown, never assumed to be archive.org.
+      expect(rows.map((r) => r.source)).toEqual(["mirror", "mirror", "archive", null]);
+      const after = await bySource();
+      expect((after.mirror ?? 0) - (before.mirror ?? 0)).toBe(2);
+      expect((after.archive ?? 0) - (before.archive ?? 0)).toBe(1);
+    } finally {
+      await q("DELETE FROM active_sessions WHERE session_id = $1", [sid]);
+      for (const t of ["play_events", "recent_plays", "episode_plays", "weekly_plays"]) {
+        await q(`DELETE FROM ${t} WHERE episode_id = $1`, [TAG]);
+      }
+    }
+  });
+
   it("pruneOldWeeks deletes weeks past retention and keeps the current one", async () => {
     const current = store.weekKey();
     await q("INSERT INTO weekly_plays (week, episode_id, plays) VALUES ('2020-W01', $1, 1), ($2, $1, 1)", [TAG, current]);

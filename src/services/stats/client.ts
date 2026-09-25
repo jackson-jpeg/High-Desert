@@ -1,5 +1,6 @@
 import { fetchWithRetry } from "@/lib/utils/retry";
 import type { FailureKind } from "@/audio/playback-watchdog";
+import type { SourceKind } from "@/audio/sources";
 
 const RETRY_OPTS = { retries: 1, timeout: 5000 } as const;
 
@@ -7,11 +8,12 @@ const RETRY_OPTS = { retries: 1, timeout: 5000 } as const;
 // Writes — fire-and-forget, never throw
 // ---------------------------------------------------------------------------
 
-export function reportPlay(episodeId: string, sessionId: string): void {
+/** `source`: which host the listen is coming from (src/audio/sources.ts). */
+export function reportPlay(episodeId: string, sessionId: string, source?: SourceKind | null): void {
   fetch("/api/stats/play", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ episodeId, sessionId }),
+    body: JSON.stringify({ episodeId, sessionId, ...(source ? { source } : {}) }),
   }).catch(() => {});
 }
 
@@ -48,6 +50,8 @@ export interface PlaybackFailure {
    * else and would have poisoned the failures view's timing column.
    */
   detail?: string;
+  /** The host that failed (src/audio/sources.ts). */
+  source?: SourceKind;
 }
 
 /**

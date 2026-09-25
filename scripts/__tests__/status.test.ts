@@ -34,6 +34,14 @@ interface World {
   release: { failures: number; plays: number; days: number };
   /** What the stub presence check prints and exits with. */
   presence: { rc: number; out: string };
+  /** %steal of each sysstat sample today, oldest first; [] prints no samples. */
+  steal: number[];
+  mirrorActive: string;
+  /** /mirror/health's body; null answers 502. */
+  mirrorHealth: Record<string, unknown> | null;
+  mirrorPlays24h: number;
+  /** warm-status.json, with `ageH` turned into its `at`; null writes no file. */
+  warm: { ageH: number; outcome: string; pinned: number; bytes: number; fetched: number; failed: number; steal?: number } | null;
 }
 
 const HEALTHY: World = {
@@ -50,6 +58,12 @@ const HEALTHY: World = {
   releaseAt: "2026-09-21T15:50:00Z",
   release: { failures: 4, plays: 200, days: 7 },
   presence: { rc: 0, out: "surfaces agree in 3 view(s)" },
+  // The oldest sample is high on purpose: only the last three (30 min) count.
+  steal: [90, 4, 5, 6],
+  mirrorActive: "active",
+  mirrorHealth: { ok: true, cacheBytes: 16 * 2 ** 30, pinnedBytes: 14 * 2 ** 30, pinned: 120, peers: 3, active: 2 },
+  mirrorPlays24h: 7,
+  warm: { ageH: 5, outcome: "ok", pinned: 120, bytes: 14 * 2 ** 30, fetched: 4, failed: 0 },
 };
 
 let dir: string;
@@ -81,6 +95,7 @@ async function run(): Promise<{ code: number; out: string }> {
       "#!/bin/sh",
       `case "$*" in`,
       `  "is-active highdesert") echo "${world.serviceActive}";;`,
+      `  "is-active highdesert-mirror") echo "${world.mirrorActive}";;`,
       `  *"highdesert-sample.timer -p ActiveState"*) echo "${world.timerState}";;`,
       `  *"highdesert-sample.timer -p LastTriggerUSec"*) echo "${lastTrigger}";;`,
       `  *"highdesert-sample.service -p Result"*) echo "${world.sampleResult}";;`,
@@ -105,6 +120,23 @@ async function run(): Promise<{ code: number; out: string }> {
     `#!/bin/sh\necho 'launching chromium'\necho '${world.presence.out}'\nexit ${world.presence.rc}\n`,
     { mode: 0o755 },
   );
+  // sar -u's shape: a header, one row per sample, an Average row (not a sample).
+  const sar = [
+    "Linux 6.8.0 (vps)  09/24/2026  _x86_64_  (2 CPU)",
+    "",
+    "00:00:01        CPU     %user     %nice   %system   %iowait    %steal     %idle",
+    ...world.steal.map((st, i) => `0${i}:00:01        all      5.00      0.00      2.00      0.10  ${st.toFixed(2).padStart(8)}     80.00`),
+    ...(world.steal.length ? ["Average:        all      5.00      0.00      2.00      0.10     99.00     80.00"] : []),
+  ].join("\n");
+  await writeFile(path.join(bin, "sar.txt"), sar + "\n");
+  await writeFile(path.join(bin, "sar"), `#!/bin/sh\ncat "${path.join(bin, "sar.txt")}"\n`, { mode: 0o755 });
+  const warmFile = path.join(dir, "warm-status.json");
+  if (world.warm) {
+    const { ageH, ...rest } = world.warm;
+    await writeFile(warmFile, JSON.stringify({ at: new Date(Date.now() - ageH * 3_600_000).toISOString(), ...rest }));
+  } else {
+    await rm(warmFile, { force: true });
+  }
   const head = await git("rev-parse", "--short", "HEAD");
   const deployed = world.deployedIsHead ? head : await git("rev-parse", "--short", "HEAD~1");
   await writeFile(path.join(root, ".deploy/deployed"), `${deployed} 2026-09-21T14:00:00Z\n`);
@@ -132,6 +164,9 @@ async function run(): Promise<{ code: number; out: string }> {
           HD_INSTALLED_UNIT: path.join(root, "deploy/highdesert.service"),
           HD_INSTALLED_VHOST: installedVhost,
           HD_PRESENCE_CMD: path.join(bin, "presence-check"),
+          HD_SAR_CMD: path.join(bin, "sar"),
+          HD_MIRROR: api,
+          HD_WARM_STATUS: warmFile,
         },
         timeout: 30_000,
       },
@@ -153,6 +188,9 @@ beforeEach(async () => {
     audit: { ...HEALTHY.audit },
     release: { ...HEALTHY.release },
     presence: { ...HEALTHY.presence },
+    steal: [...HEALTHY.steal],
+    mirrorHealth: { ...HEALTHY.mirrorHealth },
+    warm: { ...HEALTHY.warm! },
   };
   sinceAsked = null;
   dir = await mkdtemp(path.join(tmpdir(), "hd-status-"));
@@ -192,7 +230,11 @@ beforeEach(async () => {
       }
       res.end(JSON.stringify({ summary: { failures: world.failures } }));
     } else if (req.url?.startsWith("/api/stats/traffic")) {
-      res.end(JSON.stringify({ playsInRange: world.plays }));
+      const range = new URL(req.url, "http://x").searchParams.get("range");
+      res.end(JSON.stringify({ playsInRange: world.plays, playsBySource: range === "24h" ? { archive: 40, mirror: world.mirrorPlays24h } : {} }));
+    } else if (req.url === "/mirror/health") {
+      if (!world.mirrorHealth) res.statusCode = 502;
+      res.end(JSON.stringify(world.mirrorHealth ?? {}));
     } else {
       res.statusCode = 404;
       res.end("{}");
@@ -325,6 +367,71 @@ describe("highdesert-status", () => {
     const r = await run();
     expect(lineFor(r.out, "failures")).toMatch(/^WARN.*20\.0%/);
     expect(r.code).toBe(0);
+  });
+
+  describe("steal line", () => {
+    it("is the mean of the last three samples, not the day's Average row or older samples", async () => {
+      const r = await run();
+      expect(lineFor(r.out, "steal")).toMatch(/^OK\s+steal\s+5\.0% hypervisor steal over 30 min/);
+    });
+    it("WARNs above 20%", async () => {
+      world.steal = [0, 20, 22, 24];
+      const r = await run();
+      expect(lineFor(r.out, "steal")).toMatch(/^WARN\s+steal\s+22\.0%/);
+      expect(r.code).toBe(0);
+    });
+    it("is still OK at exactly 20%", async () => {
+      world.steal = [20, 20, 20];
+      expect(lineFor((await run()).out, "steal")).toMatch(/^OK\s+steal\s+20\.0%/);
+    });
+    it("FAILs above 50%, and exits non-zero", async () => {
+      world.steal = [51, 51, 51];
+      const r = await run();
+      expect(lineFor(r.out, "steal")).toMatch(/^FAIL\s+steal\s+51\.0%/);
+      expect(r.code).toBe(1);
+    });
+    it("WARNs — does not report 0% — when sysstat has no samples", async () => {
+      world.steal = [];
+      expect(lineFor((await run()).out, "steal")).toMatch(/^WARN\s+steal\s+no sysstat samples/);
+    });
+  });
+
+  describe("mirror and warm lines", () => {
+    it("reports cache, pins, peers and 24h mirror plays", async () => {
+      const r = await run();
+      expect(lineFor(r.out, "mirror")).toMatch(
+        /^OK\s+mirror\s+cache 16\.0 GB \(14\.0 GB in 120 pinned\), 3 peer\(s\) on 2 torrent\(s\), 7 mirror play\(s\) in 24h$/,
+      );
+      expect(lineFor(r.out, "warm")).toMatch(/^OK\s+warm\s+last run .* \(ok\): 120 pinned \(14\.0 GB\), 4 fetched, 0 failed$/);
+    });
+    it("FAILs when the mirror service is down", async () => {
+      world.mirrorActive = "inactive";
+      const r = await run();
+      expect(lineFor(r.out, "mirror")).toMatch(/^FAIL\s+mirror\s+highdesert-mirror is not active/);
+      expect(r.code).toBe(1);
+    });
+    it("FAILs when the service is up but health does not answer", async () => {
+      world.mirrorHealth = null;
+      expect(lineFor((await run()).out, "mirror")).toMatch(/^FAIL\s+mirror\s+active, but .*did not answer/);
+    });
+    it("warm: WARNs STALE past 36h — a job that never ran cannot report its own absence", async () => {
+      world.warm!.ageH = 37;
+      const r = await run();
+      expect(lineFor(r.out, "warm")).toMatch(/^WARN\s+warm\s+STALE: .*\(37h ago/);
+      expect(r.code).toBe(0);
+    });
+    it("warm: WARNs when it skipped itself for steal", async () => {
+      world.warm = { ...world.warm!, outcome: "skipped-steal", steal: 34.5 };
+      expect(lineFor((await run()).out, "warm")).toMatch(/^WARN\s+warm\s+.*skipped itself: steal 34\.5%/);
+    });
+    it("warm: WARNs when any fetch failed", async () => {
+      world.warm!.failed = 2;
+      expect(lineFor((await run()).out, "warm")).toMatch(/^WARN\s+warm\s+.*2 failed$/);
+    });
+    it("warm: WARNs when it has never run", async () => {
+      world.warm = null;
+      expect(lineFor((await run()).out, "warm")).toMatch(/^WARN\s+warm\s+no .* never run/);
+    });
   });
 
   it("presence: OK with the check's last line when the surfaces agree", async () => {

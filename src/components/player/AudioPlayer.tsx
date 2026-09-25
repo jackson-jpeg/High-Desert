@@ -18,6 +18,7 @@ import { Button } from "@/components/win98";
 import { formatTime, formatAirDate } from "@/lib/utils/format";
 import { PositionTime, SeekRange, ProgressFill, BufferedFill } from "./PositionReadouts";
 import { emit, useHdEvent } from "@/lib/events";
+import { MirrorBadge } from "./MirrorBadge";
 
 interface AudioPlayerProps {
   className?: string;
@@ -137,7 +138,10 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           >
             {"\u25BC"}
           </button>
-          <span className="text-hd-12 text-bevel-dark/85 font-sans tracking-wide uppercase">Now Playing</span>
+          <span className="flex items-center gap-2">
+            <span className="text-hd-12 text-bevel-dark/85 font-sans tracking-wide uppercase">Now Playing</span>
+            <MirrorBadge />
+          </span>
           <button
             onClick={() => setShowQueue(!showQueue)}
             className={cn(
@@ -270,6 +274,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           >
             <NowPlaying className="pointer-events-none" />
           </button>
+          <MirrorBadge />
           {/* Play/Pause */}
           <Button variant="dark" size="sm" onClick={togglePlay} aria-label={buffering ? "Buffering" : playing ? "Pause" : "Play"}>
             {buffering ? "\u29D7" : playing ? "\u275A\u275A" : "\u25B6"}

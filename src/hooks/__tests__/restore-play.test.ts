@@ -82,6 +82,7 @@ vi.mock("@/db", () => ({
 vi.mock("@/services/archive/health", () => ({
   checkArchiveHealth: () => Promise.resolve({ ok: true, up: true }),
   clearHealthCache: vi.fn(),
+  archiveKnownDown: () => false,
 }));
 
 const { useAudioPlayer } = await import("@/hooks/useAudioPlayer");

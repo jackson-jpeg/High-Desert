@@ -20,7 +20,8 @@ import { NextRequest } from "next/server";
 
 const recordPlaybackFailure = vi.fn(() => Promise.resolve());
 
-vi.mock("@/services/stats/store", () => ({
+vi.mock("@/services/stats/store", async () => ({
+  isPlaySource: (await vi.importActual<typeof import("@/services/stats/store")>("@/services/stats/store")).isPlaySource,
   recordPlaybackFailure: (...a: unknown[]) => recordPlaybackFailure(...(a as [])),
 }));
 
