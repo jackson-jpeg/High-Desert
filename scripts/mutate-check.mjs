@@ -2387,6 +2387,38 @@ export const MUTATIONS = [
     replace: "",
     why: "every polling tab would be its own HEAD to archive.org, each hanging 8 s during an outage",
   },
+  {
+    id: "archive-search-parens",
+    test: "src/app/api/archive/__tests__/proxy-params.test.ts",
+    file: "src/app/api/archive/search/route.ts",
+    find: `  const q = rawQ.replace(/['"\\\\<>()]/g, "").trim();`,
+    replace: `  const q = rawQ.replace(/['"\\\\<>]/g, "").trim();`,
+    why: "HD-027: a `)` in q closed the route's own group, and what followed was no longer under the Art Bell filter",
+  },
+  {
+    id: "int-param-nan",
+    test: "src/app/api/archive/__tests__/proxy-params.test.ts",
+    file: "src/lib/utils/int-param.ts",
+    find: "  if (!Number.isFinite(n)) return fallback;",
+    replace: "",
+    why: "HD-027: NaN survives Math.min/Math.max, so ?rows=abc went upstream as rows=NaN",
+  },
+  {
+    id: "archive-scrape-rows-floor",
+    test: "src/app/api/archive/__tests__/proxy-params.test.ts",
+    file: "src/app/api/archive/scrape/route.ts",
+    find: `  const rows = intParam(searchParams.get("rows"), 100, 1, 200);`,
+    replace: `  const rows = intParam(searchParams.get("rows"), 100, 0, 200);`,
+    why: "HD-027: rows=0 made totalPages Infinity",
+  },
+  {
+    id: "archive-metadata-rate-limit",
+    test: "src/app/api/archive/__tests__/proxy-params.test.ts",
+    file: "src/app/api/archive/metadata/route.ts",
+    find: "  if (!rl.allowed) {",
+    replace: "  if (false) {",
+    why: "HD-027: the one archive.org proxy anyone could drive at full speed",
+  },
 ];
 
 /**

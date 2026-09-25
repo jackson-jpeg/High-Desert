@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
+import { intParam } from "@/lib/utils/int-param";
 
 const SEARCH_URL = "https://archive.org/advancedsearch.php";
 
@@ -29,8 +30,9 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = request.nextUrl;
-  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
-  const rows = Math.min(parseInt(searchParams.get("rows") ?? "100", 10), 200);
+  const page = intParam(searchParams.get("page"), 1, 1, 10_000);
+  // rows ≥ 1: totalPages divides by it, and `?rows=0` used to answer Infinity.
+  const rows = intParam(searchParams.get("rows"), 100, 1, 200);
 
   const params = new URLSearchParams({
     q: QUERY,
