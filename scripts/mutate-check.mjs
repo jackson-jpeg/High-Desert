@@ -3518,6 +3518,31 @@ export const MUTATIONS = [
     replace: "",
     why: "a direct load of /live warms before the layout installs the station; dropped, the screen sits on 'Warming up' for a minute",
   },
+  // highdesert-status's live line (the phone lines, docs/live-chat.md on live/chat).
+  {
+    id: "live-status-cpu-fail",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: "  elif awk -v x=\"$pct\" 'BEGIN { exit !(x > 10) }'; then",
+    replace: "  elif false; then",
+    why: "the 10% rule FAILs highdesert-status",
+  },
+  {
+    id: "live-status-own-row",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: "pct=\"$(awk '$1 == \"highdesert-live\" { print $2; exit }' <<<\"$report\")\"",
+    replace: "pct=\"$(awk 'NR == 1 { print $2; exit }' <<<\"$report\")\"",
+    why: "the live line judges highdesert-live's row of hd-cpu-sample, not another unit's",
+  },
+  {
+    id: "live-status-fallback",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: "    pct=\"$(jq -r '.cpu.pct // empty' <<<\"$health\")\"",
+    replace: "    pct=\"\"",
+    why: "while the ring is young the service's own average is judged",
+  },
 ];
 
 /**
