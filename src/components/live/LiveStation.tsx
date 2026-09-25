@@ -50,7 +50,9 @@ export function LiveStation() {
             type="button"
             onClick={() => setLinesOpen(true)}
             className={cn(
-              "w98-raised-dark bg-raised-surface min-h-touch px-4 flex items-center justify-between gap-3 cursor-pointer",
+              // First on a phone: below the studio it sat under the tab bar,
+              // where nobody would find the phone lines.
+              "order-first w98-raised-dark bg-raised-surface min-h-touch px-4 flex items-center justify-between gap-3 cursor-pointer",
               "w98-font text-hd-body text-desktop-gray",
             )}
           >
