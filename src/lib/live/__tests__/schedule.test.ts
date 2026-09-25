@@ -122,15 +122,18 @@ describe("the program is a function of the date", () => {
 
 describe("on this date", () => {
   it("every episode aired on today's month and day, any year, oldest first, before any favorite", () => {
+    // Names sort the other way from air dates, so file-hash order (the
+    // tie-break) cannot pass for date order.
     const catalog = [
-      row("1998-09-25-b", "1998-09-25"),
+      row("b-1998", "1998-09-25"),
       row("fav", "1995-01-01"),
-      row("1993-09-25", "1993-09-25"),
-      row("1998-09-25-a", "1998-09-25"),
+      row("zz-1993", "1993-09-25"),
+      row("a-1998", "1998-09-25"),
       row("not-today", "1996-09-24"),
     ];
     const p = buildDay("2026-09-25", { catalog, plays: plays([[catalog[1], 99]]) }, []);
-    expect(p.slots.slice(0, 3).map((s) => s.title)).toEqual(["1993-09-25", "1998-09-25-a", "1998-09-25-b"]);
+    // Oldest first; the two 1998 broadcasts tie on date and fall back to hash.
+    expect(p.slots.slice(0, 3).map((s) => s.title)).toEqual(["zz-1993", "a-1998", "b-1998"]);
     expect(p.slots.slice(0, 3).every((s) => s.kind === "on-this-date")).toBe(true);
     expect(p.slots[3].kind).toBe("fan-favorite");
     expect(p.slots[3].title).toBe("fav");
