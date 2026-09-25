@@ -33,7 +33,7 @@
  */
 import { db } from "@/db";
 import { requestPersistentStorage } from "@/db/persist";
-import type { Episode, HistoryEntry, Bookmark, Playlist } from "@/db/schema";
+import type { Episode, HistoryEntry, Bookmark, Playlist, Progress } from "@/db/schema";
 
 export const USER_DATA_FORMAT = "high-desert-user-data";
 export const USER_DATA_VERSION = 1;
@@ -98,21 +98,25 @@ export interface UserDataFile {
 
 // ─── Export ────────────────────────────────────────────────────────────────
 
-function hasPersonalData(ep: Episode): boolean {
-  return !!(ep.favoritedAt || ep.rating || ep.flaggedAt || (ep.playbackPosition ?? 0) > 0 || (ep.lastPlayedAt ?? 0) > 0 || (ep.playCount ?? 0) > 0);
+function hasPersonalData(ep: Episode, progress: Progress | undefined): boolean {
+  return !!(ep.favoritedAt || ep.rating || ep.flaggedAt || (progress?.playbackPosition ?? 0) > 0 || (progress?.lastPlayedAt ?? 0) > 0 || (ep.playCount ?? 0) > 0);
 }
 
 /** Read the visitor's own data into the portable shape, in one consistent snapshot. */
 export async function buildUserDataExport(now: Date = new Date()): Promise<UserDataFile> {
-  return db.transaction("r", [db.episodes, db.history, db.bookmarks, db.playlists, db.userPrefs], async () => {
-    const [episodes, history, bookmarks, playlists, prefs] = await Promise.all([
+  return db.transaction("r", [db.episodes, db.history, db.bookmarks, db.playlists, db.userPrefs, db.progress], async () => {
+    const [episodes, history, bookmarks, playlists, prefs, progressRows] = await Promise.all([
       db.episodes.toArray(),
       db.history.toArray(),
       db.bookmarks.toArray(),
       db.playlists.toArray(),
       db.userPrefs.where("key").anyOf([...PORTABLE_PREFS]).toArray(),
+      db.progress.toArray(),
     ]);
     const hashOf = new Map(episodes.map((ep) => [ep.id!, ep.fileHash]));
+    // Position and last-played live in `progress` since v9 (HD-016). The file
+    // format is unchanged: they still travel on the episode's row.
+    const progressOf = new Map(progressRows.map((p) => [p.fileHash, p]));
 
     const out: UserDataFile = {
       format: USER_DATA_FORMAT,
@@ -126,13 +130,14 @@ export async function buildUserDataExport(now: Date = new Date()): Promise<UserD
     };
 
     for (const ep of episodes) {
-      if (!ep.fileHash || !hasPersonalData(ep)) continue;
+      const progress = progressOf.get(ep.fileHash);
+      if (!ep.fileHash || !hasPersonalData(ep, progress)) continue;
       const row: ExportedEpisode = { fileHash: ep.fileHash };
       if (ep.favoritedAt) row.favoritedAt = ep.favoritedAt;
       if (ep.rating) row.rating = ep.rating;
       if (ep.flaggedAt) row.flaggedAt = ep.flaggedAt;
-      if ((ep.playbackPosition ?? 0) > 0) row.playbackPosition = ep.playbackPosition;
-      if ((ep.lastPlayedAt ?? 0) > 0) row.lastPlayedAt = ep.lastPlayedAt;
+      if ((progress?.playbackPosition ?? 0) > 0) row.playbackPosition = progress!.playbackPosition;
+      if ((progress?.lastPlayedAt ?? 0) > 0) row.lastPlayedAt = progress!.lastPlayedAt;
       if ((ep.playCount ?? 0) > 0) row.playCount = ep.playCount;
       out.episodes.push(row);
     }
@@ -328,6 +333,8 @@ export interface ImportSummary {
 interface Plan {
   summary: ImportSummary;
   episodeChanges: Map<number, Partial<Episode>>;
+  /** Progress entries to merge, by fileHash (the `progress` table, HD-016). */
+  progressChanges: Map<string, Omit<Progress, "fileHash">>;
   newHistory: Omit<HistoryEntry, "id">[];
   newBookmarks: Omit<Bookmark, "id">[];
   newPlaylists: Omit<Playlist, "id">[];
@@ -335,7 +342,7 @@ interface Plan {
   newPrefs: { key: string; value: string }[];
 }
 
-const TABLES = () => [db.episodes, db.history, db.bookmarks, db.playlists, db.userPrefs];
+const TABLES = () => [db.episodes, db.history, db.bookmarks, db.playlists, db.userPrefs, db.progress];
 
 /** Read the profile and work out the merge. Must run inside a transaction over TABLES. */
 async function plan(data: UserDataFile): Promise<Plan> {
@@ -364,7 +371,13 @@ async function plan(data: UserDataFile): Promise<Plan> {
     return ep?.id;
   };
 
+  // This profile's progress for the matched episodes (HD-016: its own table).
+  const localProgress = new Map(
+    (await db.progress.where("fileHash").anyOf([...byHash.keys()]).toArray()).map((p) => [p.fileHash, p]),
+  );
+
   const episodeChanges = new Map<number, Partial<Episode>>();
+  const progressChanges = new Map<string, Omit<Progress, "fileHash">>();
   for (const incoming of data.episodes) {
     const ep = byHash.get(incoming.fileHash);
     if (!ep) { unmatched.add(incoming.fileHash); continue; }
@@ -373,18 +386,21 @@ async function plan(data: UserDataFile): Promise<Plan> {
     if (incoming.rating && !ep.rating) { change.rating = incoming.rating; summary.ratings++; }
     if (incoming.flaggedAt && !ep.flaggedAt) { change.flaggedAt = incoming.flaggedAt; summary.flags++; }
     // Position and last-played travel together: the position belongs to that listen.
-    if ((incoming.lastPlayedAt ?? 0) > (ep.lastPlayedAt ?? 0)) {
-      change.lastPlayedAt = incoming.lastPlayedAt;
-      if (incoming.playbackPosition !== undefined && incoming.playbackPosition !== ep.playbackPosition) {
-        change.playbackPosition = incoming.playbackPosition;
+    const mine = localProgress.get(ep.fileHash);
+    const progress: Omit<Progress, "fileHash"> = {};
+    if ((incoming.lastPlayedAt ?? 0) > (mine?.lastPlayedAt ?? 0)) {
+      progress.lastPlayedAt = incoming.lastPlayedAt;
+      if (incoming.playbackPosition !== undefined && incoming.playbackPosition !== mine?.playbackPosition) {
+        progress.playbackPosition = incoming.playbackPosition;
         summary.positions++;
       }
-    } else if (!ep.playbackPosition && (incoming.playbackPosition ?? 0) > 0) {
-      change.playbackPosition = incoming.playbackPosition;
+    } else if (!mine?.playbackPosition && (incoming.playbackPosition ?? 0) > 0) {
+      progress.playbackPosition = incoming.playbackPosition;
       summary.positions++;
     }
     if ((incoming.playCount ?? 0) > (ep.playCount ?? 0)) change.playCount = incoming.playCount;
     if (Object.keys(change).length > 0) episodeChanges.set(ep.id!, change);
+    if (Object.keys(progress).length > 0) progressChanges.set(ep.fileHash, progress);
   }
 
   const newHistory: Omit<HistoryEntry, "id">[] = [];
@@ -447,7 +463,7 @@ async function plan(data: UserDataFile): Promise<Plan> {
   summary.prefs = newPrefs.length;
   summary.unmatched = unmatched.size;
 
-  return { summary, episodeChanges, newHistory, newBookmarks, newPlaylists, extendPlaylists, newPrefs };
+  return { summary, episodeChanges, progressChanges, newHistory, newBookmarks, newPlaylists, extendPlaylists, newPrefs };
 }
 
 /** Count what importing `data` would change, without changing anything. */
@@ -472,6 +488,9 @@ export async function importUserData(data: UserDataFile): Promise<ImportSummary>
     const now = Date.now();
     for (const [id, change] of p.episodeChanges) {
       await db.episodes.update(id, { ...change, updatedAt: now });
+    }
+    for (const [fileHash, change] of p.progressChanges) {
+      await db.progress.upsert(fileHash, change);
     }
     if (p.newHistory.length) await db.history.bulkAdd(p.newHistory as HistoryEntry[]);
     if (p.newBookmarks.length) await db.bookmarks.bulkAdd(p.newBookmarks as Bookmark[]);

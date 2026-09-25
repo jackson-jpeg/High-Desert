@@ -13,6 +13,8 @@ import { UnavailableEpisodeDialog } from "@/components/player/UnavailableEpisode
 import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { usePlayerStore } from "@/stores/player-store";
+import { positionOf } from "@/stores/progress-store";
+import { progressReady, startProgressSync } from "@/services/episodes/progress";
 import { useAdminStore } from "@/stores/admin-store";
 import { db, getPreference, setPreference } from "@/db";
 import type { Episode } from "@/db/schema";
@@ -335,6 +337,10 @@ export default function DesktopLayout({
     };
   }, []);
 
+  // Keep the in-memory progress mirror equal to the `progress` table, for the
+  // life of the page. The player reads start positions from it synchronously.
+  useEffect(() => startProgressSync(), []);
+
   // On mount, restore queue and silently load last-played episode into player
   useEffect(() => {
     Promise.all([
@@ -368,9 +374,12 @@ export default function DesktopLayout({
         const id = parseInt(lastIdStr, 10);
         if (!isNaN(id)) {
           const ep = await db.episodes.get(id);
-          if (ep) {
+          // The saved position is in the progress mirror (HD-016); this path
+          // is not behind a gesture, so it can wait for the first read.
+          await progressReady();
+          if (ep && !usePlayerStore.getState().currentEpisode) {
             usePlayerStore.getState().loadEpisode(ep, "");
-            usePlayerStore.getState().setPosition(ep.playbackPosition ?? 0);
+            usePlayerStore.getState().setPosition(positionOf(ep.fileHash) ?? 0);
             usePlayerStore.getState().setDuration(ep.duration ?? 0);
             // Point the element at it too. loadEpisode only touches the store,
             // so without this the restored player rendered a live ▶ over an

@@ -70,6 +70,7 @@ vi.mock("@/audio/engine", async (importOriginal) => {
 vi.mock("@/db", () => ({
   db: {
     episodes: { update: () => Promise.resolve(1) },
+    progress: { upsert: () => Promise.resolve(true) },
     userPrefs: {
       get: () => Promise.resolve(undefined),
       put: () => Promise.resolve(),
@@ -85,15 +86,17 @@ vi.mock("@/services/archive/health", () => ({
 
 const { useAudioPlayer } = await import("@/hooks/useAudioPlayer");
 const { usePlayerStore } = await import("@/stores/player-store");
+const { useProgressStore, positionOf } = await import("@/stores/progress-store");
 
+/** The saved position (615 s) is in the progress mirror (HD-016), by fileHash. */
 function makeEpisode(over: Partial<Episode> = {}): Episode {
+  useProgressStore.getState().patch("archive:coll:show.mp3", { playbackPosition: 615 });
   return {
     id: 7,
     fileHash: "archive:coll:show.mp3",
     fileName: "show.mp3",
     title: "Coast to Coast AM — Area 51",
     sourceUrl: "https://archive.org/download/coll/show.mp3",
-    playbackPosition: 615,
     duration: 10_800,
     showType: "coast",
     createdAt: 0,
@@ -107,6 +110,7 @@ let player: Mounted<Api>;
 
 describe("restoring the last-played episode", () => {
   beforeEach(() => {
+    useProgressStore.getState().reset();
     element = makeMediaElement();
     usePlayerStore.setState({
       currentEpisode: null,
@@ -132,7 +136,7 @@ describe("restoring the last-played episode", () => {
     // What the layout's restore effect does.
     act(() => {
       usePlayerStore.getState().loadEpisode(ep, "");
-      usePlayerStore.getState().setPosition(ep.playbackPosition ?? 0);
+      usePlayerStore.getState().setPosition(positionOf(ep.fileHash) ?? 0);
       usePlayerStore.getState().setDuration(ep.duration ?? 0);
       player.api.primeEpisode(ep);
     });

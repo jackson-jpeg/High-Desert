@@ -1,6 +1,11 @@
 import { db } from "./index";
-import type { Episode } from "./schema";
+import type { Episode, Progress } from "./schema";
 import { repointEpisodeRefs } from "./merge";
+import { mergeProgress } from "./progress-migration";
+
+/** Progress entries by fileHash (the `progress` table, HD-016). */
+type ProgressLookup = ReadonlyMap<string, Progress>;
+const NO_PROGRESS: ProgressLookup = new Map();
 
 /**
  * SAFETY RAILS — read before changing anything in this file.
@@ -57,7 +62,7 @@ export function dedupKey(ep: Episode): string {
 /**
  * Score an episode by metadata richness. Higher = more complete.
  */
-function metadataScore(ep: Episode): number {
+function metadataScore(ep: Episode, progress: ProgressLookup): number {
   let score = 0;
   if (ep.title) score += 1;
   if (ep.airDate) score += 2;
@@ -67,7 +72,7 @@ function metadataScore(ep: Episode): number {
   if (ep.aiTags?.length) score += 1;
   if (ep.aiStatus === "completed") score += 3;
   if (ep.playCount && ep.playCount > 0) score += 5;
-  if (ep.playbackPosition && ep.playbackPosition > 0) score += 2;
+  if ((progress.get(ep.fileHash)?.playbackPosition ?? 0) > 0) score += 2;
   if (ep.favoritedAt) score += 3;
   if (ep.rating) score += 2;
   if (ep.duration) score += 1;
@@ -78,6 +83,11 @@ export interface DedupGroup {
   keeper: Episode;
   dupes: Episode[];
   update: Partial<Episode>;
+  /**
+   * The keeper's progress after the merge — the entry played last among the
+   * group's, by `mergeProgress` — or undefined if none of them had any.
+   */
+  progress?: Progress;
 }
 
 export interface DedupPlan {
@@ -99,7 +109,10 @@ export interface DeduplicateResult {
  * Compute what deduplication *would* do, without touching the database.
  * Pure — safe to unit test against the real seed catalog.
  */
-export function planDeduplication(allEpisodes: Episode[]): DedupPlan {
+export function planDeduplication(
+  allEpisodes: Episode[],
+  progress: ProgressLookup = NO_PROGRESS,
+): DedupPlan {
   const groups = new Map<string, Episode[]>();
 
   for (const ep of allEpisodes) {
@@ -118,22 +131,23 @@ export function planDeduplication(allEpisodes: Episode[]): DedupPlan {
     if (group.length <= 1) continue;
 
     // Sort by metadata score descending — keep the best one
-    const sorted = [...group].sort((a, b) => metadataScore(b) - metadataScore(a));
+    const sorted = [...group].sort((a, b) => metadataScore(b, progress) - metadataScore(a, progress));
     const keeper = { ...sorted[0] };
     const dupes = sorted.slice(1);
 
-    // Merge playback data from duplicates
+    // Merge playback data from duplicates. Position and last-played are in
+    // the progress table, keyed by fileHash (HD-016): the keeper takes the
+    // entry of the most recently played version, under its own hash.
     let totalPlayCount = keeper.playCount ?? 0;
-    let latestPlayed = keeper.lastPlayedAt ?? 0;
-    let bestPosition = keeper.playbackPosition ?? 0;
     let bestDuration = keeper.duration ?? 0;
+    const keeperProgress = progress.get(keeper.fileHash);
+    let mergedProgress: Progress | undefined = keeperProgress && { ...keeperProgress, fileHash: keeper.fileHash };
 
     for (const dupe of dupes) {
       totalPlayCount += dupe.playCount ?? 0;
-      if ((dupe.lastPlayedAt ?? 0) > latestPlayed) {
-        latestPlayed = dupe.lastPlayedAt!;
-        // Use the position from the most recently played version
-        bestPosition = dupe.playbackPosition ?? bestPosition;
+      const dupeProgress = progress.get(dupe.fileHash);
+      if (dupeProgress) {
+        mergedProgress = mergeProgress(mergedProgress, { ...dupeProgress, fileHash: keeper.fileHash });
       }
       if ((dupe.duration ?? 0) > bestDuration) {
         bestDuration = dupe.duration!;
@@ -169,8 +183,6 @@ export function planDeduplication(allEpisodes: Episode[]): DedupPlan {
       dupes,
       update: {
         playCount: totalPlayCount,
-        lastPlayedAt: latestPlayed || undefined,
-        playbackPosition: bestPosition,
         duration: bestDuration || keeper.duration,
         favoritedAt: keeper.favoritedAt,
         rating: keeper.rating,
@@ -187,6 +199,7 @@ export function planDeduplication(allEpisodes: Episode[]): DedupPlan {
         description: keeper.description,
         sourceUrl: keeper.sourceUrl,
       },
+      progress: mergedProgress,
     });
     duplicatesToRemove += dupes.length;
   }
@@ -231,7 +244,11 @@ export function validatePlan(plan: DedupPlan): { ok: true } | { ok: false; reaso
  * what would happen before asking them to confirm.
  */
 export async function previewDeduplication(): Promise<DedupPlan> {
-  return planDeduplication(await db.episodes.toArray());
+  return planDeduplication(await db.episodes.toArray(), await readProgress());
+}
+
+async function readProgress(): Promise<ProgressLookup> {
+  return new Map((await db.progress.toArray()).map((p) => [p.fileHash, p]));
 }
 
 /**
@@ -242,7 +259,7 @@ export async function previewDeduplication(): Promise<DedupPlan> {
  * Aborts (without deleting anything) if the plan trips a safety rail.
  */
 export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
-  const plan = planDeduplication(await db.episodes.toArray());
+  const plan = planDeduplication(await db.episodes.toArray(), await readProgress());
 
   const check = validatePlan(plan);
   if (!check.ok) {
@@ -262,11 +279,16 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
 
   // All-or-nothing: a mid-run failure must not leave episodes deleted but unmerged.
   const now = Date.now();
-  await db.transaction("rw", [db.episodes, db.history, db.bookmarks, db.playlists, db.userPrefs], async () => {
+  await db.transaction("rw", [db.episodes, db.history, db.bookmarks, db.playlists, db.userPrefs, db.progress], async () => {
     const remap = new Map<number, number>();
-    for (const { keeper, dupes, update } of plan.groups) {
+    const retiredHashes = new Set<string>();
+    for (const { keeper, dupes, update, progress } of plan.groups) {
       await db.episodes.update(keeper.id!, { ...update, updatedAt: now });
-      for (const d of dupes) if (d.id) remap.set(d.id, keeper.id!);
+      if (progress) await db.progress.put(progress);
+      for (const d of dupes) {
+        if (d.id) remap.set(d.id, keeper.id!);
+        if (d.fileHash && d.fileHash !== keeper.fileHash) retiredHashes.add(d.fileHash);
+      }
     }
 
     // Repoint history, bookmarks, playlists and the saved queue at the keepers
@@ -278,6 +300,14 @@ export async function deduplicateEpisodes(): Promise<DeduplicateResult> {
       now,
     );
     await db.episodes.bulkDelete([...remap.keys()]);
+
+    // A retired row's progress now lives on its keeper's hash. Drop the old
+    // entry — unless some row that is staying still has that hash.
+    for (const hash of retiredHashes) {
+      if ((await db.episodes.where("fileHash").equals(hash).count()) === 0) {
+        await db.progress.delete(hash);
+      }
+    }
   });
 
   return {

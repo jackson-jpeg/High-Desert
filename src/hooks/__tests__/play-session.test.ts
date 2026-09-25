@@ -22,6 +22,10 @@ const reportPlaybackFailure = vi.fn<(row: Record<string, unknown>) => void>();
 const updateEpisode = vi.fn<(id: number, changes: Record<string, unknown>) => Promise<number>>(
   () => Promise.resolve(1),
 );
+/** Writes to the `progress` table (HD-016): where every position save goes. */
+const upsertProgress = vi.fn<(fileHash: string, changes: Record<string, unknown>) => Promise<boolean>>(
+  () => Promise.resolve(true),
+);
 
 let element: HTMLAudioElement;
 
@@ -57,6 +61,9 @@ vi.mock("@/db", () => ({
     episodes: {
       update: (id: number, changes: Record<string, unknown>) => updateEpisode(id, changes),
     },
+    progress: {
+      upsert: (fileHash: string, changes: Record<string, unknown>) => upsertProgress(fileHash, changes),
+    },
     userPrefs: { get: () => Promise.resolve(undefined), put: () => Promise.resolve() },
   },
 }));
@@ -69,6 +76,7 @@ vi.mock("@/services/archive/health", () => ({
 
 const { useAudioPlayer, POSITION_SAVE_MS } = await import("@/hooks/useAudioPlayer");
 const { usePlayerStore } = await import("@/stores/player-store");
+const { useProgressStore, positionOf } = await import("@/stores/progress-store");
 const { beginStart } = await import("@/audio/play-session");
 const { disarmWatchdog } = await import("@/audio/playback-watchdog");
 const { communityKey } = await import("@/lib/utils/community-key");
@@ -76,23 +84,29 @@ const { communityKey } = await import("@/lib/utils/community-key");
 type Api = ReturnType<typeof useAudioPlayer>;
 
 let seq = 0;
-function makeEpisode(over: Partial<Episode> = {}): Episode {
+/**
+ * `playbackPosition` is the saved position, which lives in the progress
+ * mirror (HD-016) rather than on the episode: it is put there, by fileHash.
+ */
+function makeEpisode(over: Partial<Episode> & { playbackPosition?: number } = {}): Episode {
+  const { playbackPosition, ...fields } = over;
   seq += 1;
-  return {
+  const ep = {
     id: 500 + seq,
     fileHash: `archive:coll:session-${seq}.mp3`,
     fileName: `1996-01-${String(seq).padStart(2, "0")} - Coast to Coast AM.mp3`,
     archiveIdentifier: "ultimate-art-bell-collection",
     title: `Show ${seq}`,
     sourceUrl: `https://archive.org/download/coll/session-${seq}.mp3`,
-    playbackPosition: 0,
     duration: 10_800,
     playCount: 0,
     showType: "coast",
     createdAt: 0,
     updatedAt: 0,
-    ...over,
+    ...fields,
   } as Episode;
+  if (playbackPosition !== undefined) useProgressStore.getState().patch(ep.fileHash, { playbackPosition });
+  return ep;
 }
 
 /** play() calls, in order, each settled by the test. */
@@ -130,6 +144,8 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
   updateEpisode.mockImplementation(() => Promise.resolve(1));
+  upsertProgress.mockImplementation(() => Promise.resolve(true));
+  useProgressStore.getState().reset();
   element = controllableElement();
   usePlayerStore.setState({
     currentEpisode: null,
@@ -313,17 +329,17 @@ describe("HD-004: a finished show starts from the top", () => {
       await p;
     });
     setDuration(element, 10_800);
-    updateEpisode.mockClear();
+    upsertProgress.mockClear();
     act(() => {
       usePlayerStore.getState().setPosition(10_799);
       element.dispatchEvent(new Event("ended"));
     });
-    const cleared = updateEpisode.mock.calls.filter(
-      ([id, c]) => id === ep.id && c.playbackPosition === 0,
+    const cleared = upsertProgress.mock.calls.filter(
+      ([hash, c]) => hash === ep.fileHash && c.playbackPosition === 0,
     );
     expect(cleared).toHaveLength(1);
     expect(usePlayerStore.getState().position).toBe(0);
-    expect(usePlayerStore.getState().currentEpisode?.playbackPosition).toBe(0);
+    expect(positionOf(ep.fileHash)).toBe(0);
   });
 });
 
@@ -490,7 +506,7 @@ describe("HD-032: explicit lock-screen handlers, a safe save, immutable updates"
     await act(async () => {
       await p;
     });
-    updateEpisode.mockImplementation(() => Promise.reject(new Error("QuotaExceededError")));
+    upsertProgress.mockImplementation(() => Promise.reject(new Error("QuotaExceededError")));
     act(() => {
       vi.advanceTimersByTime(POSITION_SAVE_MS);
     });
@@ -509,24 +525,27 @@ describe("HD-032: explicit lock-screen handlers, a safe save, immutable updates"
     await act(async () => {
       await p;
     });
+    upsertProgress.mockClear();
     updateEpisode.mockClear();
     act(() => {
       usePlayerStore.getState().setPosition(777);
       player.api.pausePlayback();
     });
-    expect(updateEpisode).toHaveBeenCalledWith(ep.id, expect.objectContaining({ playbackPosition: 777 }));
+    expect(upsertProgress).toHaveBeenCalledWith(ep.fileHash, expect.objectContaining({ playbackPosition: 777 }));
+    // And never to the episode row, whose writes wake every library query (HD-016).
+    expect(updateEpisode).not.toHaveBeenCalled();
   });
 
-  it("scrubbing a not-yet-loaded show replaces the store's episode instead of writing into it", () => {
+  it("scrubbing a not-yet-loaded show replaces the saved-position entry instead of writing into it", () => {
     const ep = makeEpisode({ playbackPosition: 10 });
     act(() => {
       usePlayerStore.getState().loadEpisode(ep, "");
     });
-    const before = usePlayerStore.getState().currentEpisode!;
+    const before = useProgressStore.getState().byHash.get(ep.fileHash)!;
     act(() => {
       player.api.seek(3000);
     });
-    const after = usePlayerStore.getState().currentEpisode!;
+    const after = useProgressStore.getState().byHash.get(ep.fileHash)!;
     expect(after).not.toBe(before);
     expect(after.playbackPosition).toBe(3000);
     expect(before.playbackPosition).toBe(10);

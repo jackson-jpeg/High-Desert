@@ -33,6 +33,7 @@ async function fill() {
   await db.history.add({ episodeId: a, timestamp: 1, duration: 1 });
   await db.bookmarks.add({ episodeId: a, position: 1, label: "x", createdAt: 1 });
   await db.playlists.add({ name: "p", episodeIds: [a], createdAt: 0, updatedAt: 0 });
+  await db.progress.put({ fileHash: "archive:coll:a.mp3", playbackPosition: 60, lastPlayedAt: 1 });
   await db.userPrefs.bulkAdd([
     { key: "queue-ids", value: JSON.stringify([a]) },
     { key: "queue-index", value: "0" },
@@ -51,6 +52,7 @@ async function counts() {
     history: await db.history.count(),
     bookmarks: await db.bookmarks.count(),
     playlists: await db.playlists.count(),
+    progress: await db.progress.count(),
   };
 }
 
@@ -64,7 +66,7 @@ describe("clearLibrary", () => {
     await fill();
     await clearLibrary();
 
-    expect(await counts()).toEqual({ episodes: 0, scanSessions: 0, history: 0, bookmarks: 0, playlists: 0 });
+    expect(await counts()).toEqual({ episodes: 0, scanSessions: 0, history: 0, bookmarks: 0, playlists: 0, progress: 0 });
     const p = await prefs();
     expect(p["queue-ids"]).toBeUndefined();
     expect(p["queue-index"]).toBeUndefined();

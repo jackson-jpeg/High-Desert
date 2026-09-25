@@ -94,6 +94,23 @@ describe("planDeduplication", () => {
     expect(plan.groups[0].update.playCount).toBe(5);
     expect(plan.groups[0].update.favoritedAt).toBe(99);
   });
+
+  it("carries the most recently played copy's progress onto the keeper's hash (HD-016)", () => {
+    const dupes = [
+      { id: 1, fileHash: "archive:coll:a.mp3", archiveIdentifier: "coll", fileName: "a.mp3", title: "A", airDate: "1997-01-01" },
+      { id: 2, fileHash: "archive:coll", archiveIdentifier: "coll", fileName: "a.mp3" },
+    ] as Episode[];
+    const progress = new Map([
+      ["archive:coll:a.mp3", { fileHash: "archive:coll:a.mp3", playbackPosition: 100, lastPlayedAt: 10 }],
+      ["archive:coll", { fileHash: "archive:coll", playbackPosition: 900, lastPlayedAt: 20 }],
+    ]);
+    const plan = planDeduplication(dupes, progress);
+    expect(plan.groups[0].keeper.id).toBe(1);
+    expect(plan.groups[0].progress).toEqual({ fileHash: "archive:coll:a.mp3", playbackPosition: 900, lastPlayedAt: 20 });
+    // The episode row's update carries no position: it is not stored there.
+    expect(plan.groups[0].update).not.toHaveProperty("playbackPosition");
+    expect(plan.groups[0].update).not.toHaveProperty("lastPlayedAt");
+  });
 });
 
 describe("validatePlan safety rails", () => {

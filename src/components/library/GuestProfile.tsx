@@ -5,6 +5,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
 import type { Episode } from "@/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
+import { useProgressIndex } from "@/stores/progress-store";
 import { useSwipeDown } from "@/hooks/useSwipeDown";
 import { Button } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
@@ -21,6 +22,7 @@ interface GuestProfileProps {
 
 export function GuestProfile({ guestName, onPlay, onClose, className }: GuestProfileProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const progress = useProgressIndex();
   const { swipeHandlers: dragHandlers } = useSwipeDown({
     onDismiss: onClose,
     targetRef: panelRef,
@@ -139,9 +141,10 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
         {episodes && episodes.length > 0 && (
           <div className="flex flex-col gap-1 border-t border-bevel-dark/15 pt-2">
             {episodes.map((ep) => {
-              const hasProgress = (ep.playbackPosition ?? 0) > 0 && (ep.duration ?? 0) > 0;
+              const position = progress.get(ep.fileHash)?.playbackPosition ?? 0;
+              const hasProgress = position > 0 && (ep.duration ?? 0) > 0;
               const progressPct = hasProgress
-                ? Math.min(100, (ep.playbackPosition! / ep.duration!) * 100)
+                ? Math.min(100, (position / ep.duration!) * 100)
                 : 0;
               return (
                 <button

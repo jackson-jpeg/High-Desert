@@ -110,6 +110,7 @@ beforeEach(async () => {
     db.bookmarks.clear(),
     db.playlists.clear(),
     db.userPrefs.clear(),
+    db.progress.clear(),
   ]);
   usePlayerStore.getState().stop();
 });
@@ -153,6 +154,38 @@ describe("deleteEpisode — the cascade", () => {
 
     const pl = await db.playlists.get(plId);
     expect(pl!.episodeIds).toEqual([keeper]);
+  });
+
+  it("deletes that episode's saved progress (HD-016) — and only that episode's", async () => {
+    const doomed = await seedEpisode({ fileHash: "archive:coll:doomed.mp3" });
+    await seedEpisode({ fileHash: "archive:coll:keeper.mp3" });
+    await db.progress.bulkPut([
+      { fileHash: "archive:coll:doomed.mp3", playbackPosition: 600, lastPlayedAt: 1 },
+      { fileHash: "archive:coll:keeper.mp3", playbackPosition: 900, lastPlayedAt: 2 },
+    ]);
+
+    await deleteEpisode(doomed);
+
+    expect(await db.progress.toArray()).toEqual([
+      { fileHash: "archive:coll:keeper.mp3", playbackPosition: 900, lastPlayedAt: 2 },
+    ]);
+  });
+
+  it("keeps the progress of a hash another row still holds — a doubled library's twin", async () => {
+    // Progress is keyed by fileHash, which both rows of a doubled library
+    // (HD-009) share. Deleting one must not take the other's position with it.
+    const hash = "archive:coll:twin.mp3";
+    const one = await seedEpisode({ fileHash: hash });
+    const two = await seedEpisode({ fileHash: hash });
+    await db.progress.put({ fileHash: hash, playbackPosition: 1234, lastPlayedAt: 5 });
+
+    await deleteEpisode(one);
+    expect(await db.episodes.get(two)).toBeDefined();
+    expect(await db.progress.get(hash)).toEqual({ fileHash: hash, playbackPosition: 1234, lastPlayedAt: 5 });
+
+    // Control: once the last row holding it goes, so does the entry.
+    await deleteEpisode(two);
+    expect(await db.progress.get(hash)).toBeUndefined();
   });
 
   it("touches a playlist only when it actually contained the episode", async () => {
@@ -362,6 +395,7 @@ describe("deleteEpisode — atomic (HD-025)", () => {
     const plId = (await db.playlists.add({
       name: "Best of", episodeIds: [doomed], createdAt: 0, updatedAt: 7,
     })) as number;
+    await db.progress.put({ fileHash: "archive:coll:doomed.mp3", playbackPosition: 600, lastPlayedAt: 1 });
 
     const spy = vi.spyOn(db.bookmarks, "where").mockImplementationOnce(() => {
       throw new Error("injected mid-delete failure");
@@ -376,6 +410,9 @@ describe("deleteEpisode — atomic (HD-025)", () => {
     expect(await db.history.where("episodeId").equals(doomed).count()).toBe(1);
     expect(await db.bookmarks.where("episodeId").equals(doomed).count()).toBe(1);
     expect((await db.playlists.get(plId))!.episodeIds).toEqual([doomed]);
+    expect(await db.progress.get("archive:coll:doomed.mp3")).toEqual({
+      fileHash: "archive:coll:doomed.mp3", playbackPosition: 600, lastPlayedAt: 1,
+    });
     expect(await tombstones()).toEqual([]);
     // The cache is only dropped after a committed delete.
     expect(removeCachedAudio).not.toHaveBeenCalled();

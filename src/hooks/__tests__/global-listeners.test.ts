@@ -45,6 +45,8 @@ const reportPlay = vi.fn();
 const reportStop = vi.fn();
 const reportStopBeacon = vi.fn();
 const updateEpisode = vi.fn(() => Promise.resolve(1));
+/** The `progress` table (HD-016), where every position save goes. */
+const upsertProgress = vi.fn(() => Promise.resolve(true));
 const setFailureHandler = vi.fn();
 const noteReady = vi.fn();
 const noteProgress = vi.fn();
@@ -90,6 +92,9 @@ vi.mock("@/db", () => ({
   db: {
     episodes: {
       update: (...a: unknown[]) => updateEpisode(...(a as [])),
+    },
+    progress: {
+      upsert: (...a: unknown[]) => upsertProgress(...(a as [])),
     },
     userPrefs: {
       get: () => Promise.resolve(undefined),
@@ -271,13 +276,15 @@ describe("globals installed by useAudioPlayer", () => {
       });
     });
 
+    upsertProgress.mockClear();
+    updateEpisode.mockClear();
     const positionWrites = () =>
-      updateEpisode.mock.calls.filter(
-        (c) => (c as unknown as [number, Record<string, unknown>])[1]
+      upsertProgress.mock.calls.filter(
+        (c) => (c as unknown as [string, Record<string, unknown>])[1]
           ?.playbackPosition !== undefined,
       );
 
-    // Every write re-runs full-table live queries (HD-016): not every 5 s any more.
+    // Every write re-runs the progress readers (HD-016): not every 5 s any more.
     act(() => {
       vi.advanceTimersByTime(5000);
     });
@@ -288,6 +295,8 @@ describe("globals installed by useAudioPlayer", () => {
     });
     // One write — two mounted instances must not mean two intervals.
     expect(positionWrites()).toHaveLength(1);
+    // To the progress table, never the episode row.
+    expect(updateEpisode).not.toHaveBeenCalled();
   });
 
   it("measures listened time from the position tick, and a pause breaks the run", async () => {

@@ -46,20 +46,16 @@ export function MilestoneDialog() {
     let cancelled = false;
 
     const check = async () => {
-      // `playbackPosition` is not an index — see the stores() declarations in
-      // src/db/index.ts. This was `.where("playbackPosition").above(0)`, which
-      // Dexie rejects with `SchemaError`, so the promise rejected unhandled
-      // three seconds after every single page load and no milestone was ever
-      // shown. The feature has never once fired.
+      // `playbackPosition` is not an index. This was once
+      // `.where("playbackPosition").above(0)`, which Dexie rejects with
+      // `SchemaError`, so the promise rejected unhandled three seconds after
+      // every single page load and no milestone was ever shown.
       //
-      // filter() is a full scan rather than an index range, which is fine here:
-      // it runs once, on a timer, over ~1,300 rows. Adding the index instead
-      // would mean a schema version bump, and src/db/ changes carry real risk.
-      const episodes = await db.episodes
-        .filter((e) => (e.playbackPosition ?? 0) > 0)
-        .toArray();
-      const totalSeconds = episodes.reduce(
-        (sum, e) => sum + (e.playbackPosition ?? 0),
+      // Positions live in the `progress` table since v9 (HD-016), which holds
+      // only episodes that have one — a full read of it is small.
+      const entries = await db.progress.toArray();
+      const totalSeconds = entries.reduce(
+        (sum, p) => sum + Math.max(0, p.playbackPosition ?? 0),
         0
       );
       const totalHours = totalSeconds / 3600;

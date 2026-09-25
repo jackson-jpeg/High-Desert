@@ -47,6 +47,7 @@ vi.mock("@/audio/engine", () => ({
 vi.mock("@/db", () => ({
   db: {
     episodes: { update: () => Promise.resolve(1) },
+    progress: { upsert: () => Promise.resolve(true) },
     history: { where: () => ({ equals: () => ({ sortBy: () => Promise.resolve([]) }) }), add: () => Promise.resolve(1) },
     transaction: (_m: string, _t: unknown, fn: () => Promise<void>) => fn(),
     userPrefs: { get: () => Promise.resolve(undefined), put: () => Promise.resolve() },
@@ -60,6 +61,7 @@ vi.mock("@/services/archive/health", () => ({
 
 const { useAudioPlayer } = await import("@/hooks/useAudioPlayer");
 const { usePlayerStore } = await import("@/stores/player-store");
+const { useProgressStore } = await import("@/stores/progress-store");
 const { disarmWatchdog } = await import("@/audio/playback-watchdog");
 
 type Api = ReturnType<typeof useAudioPlayer>;
@@ -77,6 +79,8 @@ function episode(over: Partial<Episode> = {}): Episode {
   const fileName = `1997-09-11 - Coast to Coast AM - Area 51 (${seq}).mp3`;
   FILE_HASH = `archive:ultimate-ultimate-art-bell-collection:${fileName}`;
   MIRROR = `${window.location.origin}/mirror/${encodeURIComponent(FILE_HASH)}`;
+  // Saved 600 s in — in the progress mirror (HD-016), by fileHash.
+  useProgressStore.getState().patch(FILE_HASH, { playbackPosition: 600 });
   return {
     id: 7 + seq,
     fileHash: FILE_HASH,
@@ -85,7 +89,6 @@ function episode(over: Partial<Episode> = {}): Episode {
     title: "Area 51",
     sourceUrl: ARCHIVE,
     duration: 10_800,
-    playbackPosition: 600,
     createdAt: 0,
     updatedAt: 0,
     ...over,

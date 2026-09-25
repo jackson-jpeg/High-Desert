@@ -15,6 +15,7 @@ import { useLongPress } from "@/hooks/useLongPress";
 import { MiniWaveform } from "./MiniWaveform";
 import { emit } from "@/lib/events";
 import { useOutageStore, availabilityOf } from "@/stores/outage-store";
+import { useProgress } from "@/stores/progress-store";
 import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
 
 interface EpisodeCardProps {
@@ -90,9 +91,12 @@ export const EpisodeCard = memo(function EpisodeCard({
           ? "border-l-2 border-l-desert-amber/50"
           : "";
 
-  const hasProgress = (episode.playbackPosition ?? 0) > 0 && (episode.duration ?? 0) > 0;
+  // Its own entry in the progress mirror (HD-016): a position save re-renders
+  // the row that is playing, not every row in the list.
+  const position = useProgress(episode.fileHash)?.playbackPosition ?? 0;
+  const hasProgress = position > 0 && (episode.duration ?? 0) > 0;
   const progressPct = hasProgress
-    ? Math.min(100, ((episode.playbackPosition! / episode.duration!) * 100))
+    ? Math.min(100, ((position / episode.duration!) * 100))
     : 0;
   const isCompleted = hasProgress && progressPct > 90;
 

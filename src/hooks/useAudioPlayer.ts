@@ -17,6 +17,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { usePlayerStore } from "@/stores/player-store";
+import { positionOf, useProgressStore } from "@/stores/progress-store";
 import {
   initEngine,
   setEngineVolume,
@@ -134,7 +135,7 @@ export function useAudioPlayer() {
       audio.src = episode.sourceUrl;
       usePlayerStore.getState().setSource("archive");
       // readyState is 0 here, so this is held until loadedmetadata (engine.ts).
-      seekEngine(startPositionFor(episode.playbackPosition, episode.duration));
+      seekEngine(startPositionFor(positionOf(episode.fileHash), episode.duration));
       audio.playbackRate = usePlayerStore.getState().playbackRate;
     },
     [getAudio],
@@ -200,7 +201,7 @@ export function useAudioPlayer() {
       // Back up from whatever primeEpisode left it at — we want this one.
       audio.preload = "metadata";
       audio.src = url;
-      const startAt = startPositionFor(episode.playbackPosition, episode.duration);
+      const startAt = startPositionFor(positionOf(episode.fileHash), episode.duration);
       seekEngine(startAt);
       audio.playbackRate = usePlayerStore.getState().playbackRate;
 
@@ -307,7 +308,7 @@ export function useAudioPlayer() {
       if (plan.kind === "play" && plan.source.kind === "mirror") {
         audio.src = plan.source.url;
         usePlayerStore.getState().setSource("mirror");
-        seekEngine(startPositionFor(ep.playbackPosition, ep.duration));
+        seekEngine(startPositionFor(positionOf(ep.fileHash), ep.duration));
       }
     }
 
@@ -352,16 +353,17 @@ export function useAudioPlayer() {
       const audio = getAudio();
       // A restored episode has a duration in the store but nothing loaded in
       // the element, so scrubbing was silently dead too. Record the intent —
-      // playEpisode seeks to playbackPosition when it loads.
+      // playEpisode seeks to the saved position when it loads. In memory, as
+      // it always was: the progress mirror (HD-016), not the database.
       if (!audio.src) {
         const { currentEpisode: ep, duration: storeDuration } =
           usePlayerStore.getState();
         if (ep && storeDuration > 0) {
           const clamped = Math.max(0, Math.min(seconds, storeDuration));
-          // A new object, not a write into the one the store holds: mutating
+          // A new entry, not a write into the one the store holds: mutating
           // it in place changed state without a set(), so nothing subscribed
-          // to currentEpisode could see it (HD-032).
-          usePlayerStore.getState().patchCurrentEpisode({ playbackPosition: clamped });
+          // could see it (HD-032).
+          useProgressStore.getState().patch(ep.fileHash, { playbackPosition: clamped });
           setPosition(clamped);
         }
         return;

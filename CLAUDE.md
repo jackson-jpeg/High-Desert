@@ -164,8 +164,9 @@ src/
 | `useAdminStore` | `isAdmin` — SHA-256 password gate, persisted in localStorage |
 | `useContextMenuStore` | `open`, `position`, `items[]` |
 | `useOutageStore` | `archiveUp` (verdict, null = unknown), `manifest`, `unavailable` — see "Outage mode" |
+| `useProgressStore` | `byHash` (fileHash → `Progress`), `started`, `loaded` — the in-memory mirror of the `progress` table; see "Playback position lives in `progress`" |
 
-All ten have tests in `src/stores/__tests__/` and at least one mutation each in
+All eleven have tests in `src/stores/__tests__/` and at least one mutation each in
 `scripts/mutate-check.mjs` — and `src/stores/__tests__/coverage.test.ts`
 *checks* that sentence, reading the stores from disk and the mutation list from
 the script itself. It used to be false for `player-store` (HD-042) and nothing
@@ -355,9 +356,12 @@ concluded it was their own mistake. Regression test:
   `playing`; MediaSession play/pause call `resumePlayback`/`pausePlayback` explicitly,
   never a toggle — a headset "pause" must never start audio.
 - **Finished means start over.** `startPositionFor()`: within 30 s of the end or past 95%
-  starts at 0, and `ended` clears `playbackPosition`. Position is saved every 30 s
+  starts at 0, and `ended` clears the saved position. Position is saved every 30 s
   (`POSITION_SAVE_MS`) plus on pause, `visibilitychange` and `pagehide`; the save is
-  caught, never an unhandled rejection.
+  caught, never an unhandled rejection. Saves go to the `progress` table through
+  `writeProgress()`, and every start reads the position synchronously with
+  `positionOf(fileHash)` — never from the episode row (see "Playback position lives in
+  `progress`").
 - **Only the leaves in `PositionReadouts.tsx` subscribe to `position`.** It changes four
   times a second; `AudioPlayer` selecting it re-rendered the whole player per tick.
   `render-pressure.test.tsx` holds that.
@@ -580,11 +584,53 @@ Related: the library's detail panel renders `selectedEpisodeLive`, re-read from 
 live query, not the `useState` snapshot taken when the row was clicked. Writes made from
 inside the panel are otherwise invisible until it is closed and reopened.
 
-## Database (Dexie v8)
+## Database (Dexie v9)
 
-**Primary entity:** `Episode` — identity (id, fileHash), metadata (title, airDate, guestName, showType), audio (duration, bitrate), playback (lastPlayedAt, playbackPosition, playCount), archive source, AI fields (aiSummary, aiTags[], aiCategory, aiSeries, aiNotable, aiStatus), user fields (favoritedAt, rating).
+**Primary entity:** `Episode` — identity (id, fileHash), metadata (title, airDate, guestName, showType), audio (duration, bitrate), playCount, archive source, AI fields (aiSummary, aiTags[], aiCategory, aiSeries, aiNotable, aiStatus), user fields (favoritedAt, rating).
 
-**Other tables:** `Playlist`, `HistoryEntry`, `Bookmark`, `ScanSession`, `UserPrefs` (key/value).
+**Other tables:** `Progress` (below), `Playlist`, `HistoryEntry`, `Bookmark`, `ScanSession`, `UserPrefs` (key/value).
+
+### Playback position lives in `progress` (v9, HD-016)
+
+`playbackPosition` and `lastPlayedAt` are **not** on the episode row any more. They
+live in `db.progress` (`Progress {fileHash, playbackPosition?, lastPlayedAt?}`, schema
+`"fileHash, lastPlayedAt"`). Every position save used to be a write to `episodes`,
+which re-ran every live query over the whole table — the library list, facets, smart
+playlists, stats — every 30 s of playback and on every pause.
+`src/hooks/library/__tests__/position-save-quiet.test.tsx` drives the real saves against
+the library's real query (`useLibraryEpisodes`) and holds its render count still, with a
+control proving an episodes write does wake it.
+
+- **Keyed by `fileHash`**, not the numeric id: it is what Export/Import travel by, the
+  dedup/heal/legacy-key merges retire ids but never hashes, a doubled library's twins
+  share one entry, and the unload flush can `put` without reading the episode first.
+- **One writer: `writeProgress()`** (`src/services/episodes/progress.ts`) — patches
+  `useProgressStore` synchronously, then upserts the table. The one exception is the
+  unload flush, a raw IndexedDB `put` into `progress` (Dexie cannot run in unload) that
+  patches the store itself.
+- **Reads are synchronous, from `useProgressStore`** (`positionOf`, `useProgress(hash)`,
+  `useProgressIndex()`, `useStartedHashes()`). `playEpisode()` must not await before
+  `play()`, so the start position cannot come from IndexedDB. `startProgressSync()` —
+  started once in `(desktop)/layout.tsx` — keeps the store equal to the table, other tabs
+  included; the restore path awaits `progressReady()`. An entry keeps its object identity
+  until its own numbers change, so a save re-renders the one playing row, not 1,312.
+- **"Recently played" / "Continue listening"** read `recentlyPlayedEpisodes()`, which walks
+  the `progress.lastPlayedAt` index and joins episodes by `fileHash`.
+- **Listened time was never on the episode row** — it is `history.duration`
+  (`src/services/episodes/listen-time.ts`) and stays there.
+- **The v9 upgrade COPIES and leaves the old fields in place**
+  (`src/db/progress-migration.ts`). Stripping them would be a second write to every row
+  of the one table with no server backup, inside an upgrade, for no gain. No code reads
+  them: the `Episode` type no longer has them (`StoredEpisode` names them for the merge
+  code that runs *before* v9), and the episodes' `lastPlayedAt` index is dropped so a
+  stray `where("lastPlayedAt")` throws instead of answering from frozen data. Two rows
+  sharing a hash become one entry by `mergeProgress` (later play wins, with its position).
+  `src/db/__tests__/progress-migration.test.ts` runs v8 → v9 on the real seeded catalog
+  and asserts every value arrives and every row of every table is otherwise unchanged.
+- **Every path that deletes or merges episodes handles `progress` in the same
+  transaction:** `deleteEpisode` (drops the entry unless a twin still has the hash),
+  `clearLibrary`, `deduplicateEpisodes` (moves the later-played copy's entry to the
+  keeper's hash). A new one must too.
 
 **Show types:** `"coast"` | `"dreamland"` | `"special"` | `"unknown"`
 
@@ -807,6 +853,11 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
   (`absorbUserData`) and repoint history, bookmarks, playlists and the saved queue
   (`repointEpisodeRefs`, `src/db/merge.ts`) in one transaction before anything is removed. Do not
   add a third.
+- **The v9 upgrade (`src/db/progress-migration.ts`) writes only to the new `progress`
+  table.** It copies `playbackPosition`/`lastPlayedAt` off every episode row and leaves the
+  rows exactly as they were — no field stripped, no row rewritten — which the migration test
+  asserts row by row on the real catalog. Keep upgrades over `episodes` additive like this; a
+  cleanup of the frozen fields, if ever wanted, is its own reviewed version.
 - **`refreshCatalogFlags()` (`src/db/catalog-flags.ts`) is an unattended write, not a
   destructive one.** It sets `aiNotable: true` on the rows listed in `data/notable.json`,
   once per `NOTABLE_VERSION`, under the seed lock — never unsets it, never touches another
@@ -840,8 +891,8 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
 
 - **`navigator.storage.persist()` is asked once per profile, after the first real write**
   (`src/db/persist.ts`). Dexie hooks installed from `src/db/index.ts` watch episodes
-  (`favoritedAt`/`rating`/`flaggedAt`/`playbackPosition` changes), bookmark creation and
-  playlist writes; the seed is not counted. The request is recorded as the userPref
+  (`favoritedAt`/`rating`/`flaggedAt` changes), every `progress` write (a saved
+  position), bookmark creation and playlist writes; the seed is not counted. The request is recorded as the userPref
   `storage-persist-requested` and never repeated. A new write path needs nothing — the hook
   sees it — but a new *kind* of listener data belongs in `USER_EPISODE_FIELDS` or a hook.
 - **The OPFS cache shares a quota with the library** (`src/audio/cache.ts`), and running out
@@ -852,7 +903,8 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
   Versioned (`format: "high-desert-user-data"`, `version: 1`), keyed by `fileHash`, never the
   numeric id. Import validates the whole file first, previews counts in a dialog, and merges
   **add-only** in one rw transaction: local values win conflicts, positions go to the later
-  listen, same-name playlists are extended. A new personal field must be added to both
+  listen, same-name playlists are extended. Position and last-played are read from and
+  written to `db.progress`; the file format is unchanged. A new personal field must be added to both
   export and `plan()`, with the round-trip test in `__tests__/portable.test.ts`.
 - **The admin "Export Library Seed..." writes a bare array** (`src/db/catalog-export.ts`),
   the shape `public/seed/library.json` and `src/services/stats/catalog.ts` read, from an

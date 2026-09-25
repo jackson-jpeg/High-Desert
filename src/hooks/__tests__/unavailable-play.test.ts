@@ -43,6 +43,7 @@ vi.mock("@/audio/engine", async (importOriginal) => {
 vi.mock("@/db", () => ({
   db: {
     episodes: { update: () => Promise.resolve(1) },
+    progress: { upsert: () => Promise.resolve(true) },
     userPrefs: { get: () => Promise.resolve(undefined), put: () => Promise.resolve() },
   },
 }));

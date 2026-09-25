@@ -9,7 +9,7 @@
 
 import { usePlayerStore } from "@/stores/player-store";
 import { seekEngine } from "@/audio/engine";
-import { db } from "@/db";
+import { writeProgress } from "@/services/episodes/progress";
 import { communityKey } from "@/lib/utils/community-key";
 import { checkArchiveHealth } from "@/services/archive/health";
 import {
@@ -88,9 +88,9 @@ export function installMediaEvents(
     const finished = state.currentEpisode;
     state.setPosition(0);
     if (finished?.id) {
-      state.patchCurrentEpisode({ playbackPosition: 0 });
-      db.episodes
-        .update(finished.id, { playbackPosition: 0, updatedAt: Date.now() })
+      // `progress`, not the episode row (HD-016). writeProgress updates the
+      // in-memory mirror synchronously, before the pause save can read it.
+      writeProgress(finished.fileHash, { playbackPosition: 0 })
         .catch((err) => {
           console.warn("[player] Failed to clear finished position:", err);
         });

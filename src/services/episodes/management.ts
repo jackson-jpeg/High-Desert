@@ -29,12 +29,18 @@ export async function deleteEpisode(id: number): Promise<void> {
   // its history, bookmarks and playlist slots pointing at nothing — or, worse,
   // a tombstone for a show that was never actually deleted, which would hide a
   // catalog row from reconcile forever. Now it is all of it or none of it.
-  await db.transaction("rw", [db.episodes, db.history, db.bookmarks, db.playlists, db.userPrefs], async () => {
+  await db.transaction("rw", [db.episodes, db.history, db.bookmarks, db.playlists, db.userPrefs, db.progress], async () => {
     // Remember the deletion so reconcileLibrary() won't restore it later
     await addTombstone(episode.fileHash);
 
     // Delete from Dexie
     await db.episodes.delete(id);
+
+    // Its progress (HD-016) is keyed by fileHash, which a twin row of a
+    // doubled library shares: drop it only if no row still holds the hash.
+    if ((await db.episodes.where("fileHash").equals(episode.fileHash).count()) === 0) {
+      await db.progress.delete(episode.fileHash);
+    }
 
     // Cascade: remove related history and bookmarks
     await db.history.where("episodeId").equals(id).delete();
@@ -92,8 +98,9 @@ export async function clearLibrary(): Promise<void> {
   // change; stop it first so nothing is written back pointing at a cleared row.
   usePlayerStore.getState().stop();
 
-  await db.transaction("rw", [db.episodes, db.scanSessions, db.history, db.bookmarks, db.playlists, db.userPrefs], async () => {
+  await db.transaction("rw", [db.episodes, db.scanSessions, db.history, db.bookmarks, db.playlists, db.userPrefs, db.progress], async () => {
     await db.episodes.clear();
+    await db.progress.clear();
     await db.scanSessions.clear();
     await db.history.clear();
     await db.bookmarks.clear();

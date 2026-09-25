@@ -16,6 +16,7 @@ import {
   markListenCounted,
 } from "@/audio/play-session";
 import { db } from "@/db";
+import { writeProgress } from "@/services/episodes/progress";
 import type { Episode } from "@/db/schema";
 import { reportPlay, reportStop } from "@/services/stats/client";
 import { SESSION_ID } from "@/lib/utils/session-id";
@@ -161,15 +162,20 @@ export function countListen(episode: Episode, start: number): void {
 
   if (key) reportPlay(key, PLAYER_SESSION_ID, usePlayerStore.getState().source);
   if (episode.id) {
+    const now = Date.now();
+    // The play count is the episode's (once per listen); when it was last
+    // played is progress, which the position saves keep current (HD-016).
     db.episodes
       .update(episode.id, {
         playCount: (episode.playCount ?? 0) + 1,
-        lastPlayedAt: Date.now(),
-        updatedAt: Date.now(),
+        updatedAt: now,
       })
       .catch((err) => {
         console.warn("[player] Failed to update play count:", err);
       });
+    writeProgress(episode.fileHash, { lastPlayedAt: now }).catch((err) => {
+      console.warn("[player] Failed to record last played:", err);
+    });
   }
 }
 

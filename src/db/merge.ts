@@ -1,5 +1,5 @@
 import type { EntityTable } from "dexie";
-import type { Episode, HistoryEntry, Bookmark, Playlist, UserPrefs } from "./schema";
+import type { Episode, HistoryEntry, Bookmark, Playlist, UserPrefs, StoredEpisode } from "./schema";
 
 /**
  * Folding one episode row into another that has the SAME identity, without
@@ -55,12 +55,17 @@ function earliest(a?: number, b?: number): number | undefined {
  *     picked by the library list on some visits and the keeper on others is
  *     exactly how a doubled library splits them.
  *   - lastPlayedAt: the later. playbackPosition: from the row played last, so
- *     "resume" resumes where they actually stopped.
+ *     "resume" resumes where they actually stopped. These two are the pre-v9
+ *     fields (`StoredEpisode`): since v9 progress lives in the `progress`
+ *     table, keyed by fileHash, which twins of the same hash already share.
+ *     They are still merged here because the v8 legacy-key upgrade runs this
+ *     *before* the v9 upgrade copies them (./progress-migration.ts) — drop
+ *     them here and a database jumping from v7 would lose the twin's position.
  *   - catalog metadata: gaps on the keeper are filled from the twin, never
  *     overwritten.
  */
-export function absorbUserData(keeper: Episode, twin: Episode): Partial<Episode> {
-  const out: Partial<Episode> = {};
+export function absorbUserData(keeper: StoredEpisode, twin: StoredEpisode): Partial<StoredEpisode> {
+  const out: Partial<StoredEpisode> = {};
 
   const fav = earliest(keeper.favoritedAt, twin.favoritedAt);
   if (fav !== undefined) out.favoritedAt = fav;
