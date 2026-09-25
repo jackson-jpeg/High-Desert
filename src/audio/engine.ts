@@ -43,7 +43,14 @@ export function getMediaElement(): HTMLAudioElement | null {
 export function initEngine(audio: HTMLAudioElement): void {
   if (mediaElement === audio) return;
 
+  const previous = mediaElement;
   mediaElement = audio;
+  for (const [type, fns] of engineListeners) {
+    for (const fn of fns) {
+      previous?.removeEventListener(type, fn);
+      audio.addEventListener(type, fn);
+    }
+  }
   pendingSeek = null;
   audio.addEventListener("loadedmetadata", () => {
     if (mediaElement !== audio || pendingSeek === null) return;
@@ -111,6 +118,49 @@ export function seekEngine(t: number): number {
   pendingSeek = null;
   audio.currentTime = clampToDuration(audio, t);
   return audio.currentTime;
+}
+
+/**
+ * What the element is doing, read-only. For the live station, which has to
+ * compare where the listener is with where the station is (drift) without
+ * reaching for the element itself. Null before there is an element.
+ */
+export interface EngineState {
+  currentTime: number;
+  paused: boolean;
+  ended: boolean;
+  readyState: number;
+  hasError: boolean;
+}
+
+export function engineState(): EngineState | null {
+  const a = mediaElement;
+  if (!a) return null;
+  return {
+    currentTime: a.currentTime,
+    paused: a.paused,
+    ended: a.ended,
+    readyState: a.readyState,
+    hasError: a.error != null,
+  };
+}
+
+type EngineEvent = "waiting" | "playing" | "seeked";
+const engineListeners = new Map<EngineEvent, Set<() => void>>();
+
+/**
+ * Listen for one of the element's events. Survives the element being created
+ * after the call (it is made lazily by the player hook). Returns the unsubscribe.
+ */
+export function onEngineEvent(type: EngineEvent, fn: () => void): () => void {
+  let fns = engineListeners.get(type);
+  if (!fns) engineListeners.set(type, (fns = new Set()));
+  fns.add(fn);
+  mediaElement?.addEventListener(type, fn);
+  return () => {
+    fns!.delete(fn);
+    mediaElement?.removeEventListener(type, fn);
+  };
 }
 
 /**

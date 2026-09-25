@@ -106,12 +106,20 @@ export async function recordHeartbeat(
   sessionId: string,
   episodeId: string | null,
   client: string,
+  /**
+   * This tab is tuned in to the live station (and playing, or in the station
+   * ID between shows). Unlike the listening mark, a beat without it *clears*
+   * it: leaving the station is a decision, not a pause, and the Live screen's
+   * count should drop within one beat of it rather than five minutes.
+   */
+  live = false,
 ): Promise<void> {
   const ref = clientRef(client);
   await withClientLock(ref, (c) => c.query(
     `
-    INSERT INTO active_sessions (session_id, seen_at, listening_at, episode_id, client_ref)
-    SELECT $1, now(), CASE WHEN $2::text IS NULL THEN NULL ELSE now() END, $2, $3
+    INSERT INTO active_sessions (session_id, seen_at, listening_at, episode_id, client_ref, live_at)
+    SELECT $1, now(), CASE WHEN $2::text IS NULL THEN NULL ELSE now() END, $2, $3,
+           CASE WHEN $5::boolean THEN now() ELSE NULL END
     WHERE ${ADMIT_SESSION("$1", "$3", "$4")}
     ON CONFLICT (session_id) DO UPDATE SET
       seen_at = now(),
@@ -120,9 +128,10 @@ export async function recordHeartbeat(
         ELSE now()
       END,
       episode_id = COALESCE($2, active_sessions.episode_id),
-      client_ref = $3
+      client_ref = $3,
+      live_at = CASE WHEN $5::boolean THEN now() ELSE NULL END
     `,
-    [sessionId, episodeId ?? null, ref, SESSIONS_PER_CLIENT],
+    [sessionId, episodeId ?? null, ref, SESSIONS_PER_CLIENT, live],
   ));
 }
 
@@ -133,7 +142,7 @@ export async function recordHeartbeat(
  */
 export async function clearListening(sessionId: string): Promise<void> {
   await pool().query(
-    `UPDATE active_sessions SET listening_at = NULL, episode_id = NULL WHERE session_id = $1`,
+    `UPDATE active_sessions SET listening_at = NULL, episode_id = NULL, live_at = NULL WHERE session_id = $1`,
     [sessionId],
   );
 }
@@ -154,6 +163,8 @@ export interface Presence {
   online: number;
   /** Of those, the clients with a session that is playing something. */
   listening: number;
+  /** Of those, the clients tuned in to the live station. */
+  live: number;
 }
 
 /**
@@ -180,25 +191,31 @@ export async function getPresence(
   sessionPrefix: string | null = null,
 ): Promise<Presence> {
   const cutoff = new Date(Date.now() - ACTIVE_WINDOW_MS);
-  const { rows } = await pool().query<{ online: number; listening: number }>(
+  const { rows } = await pool().query<{ online: number; listening: number; live: number }>(
     `
     WITH pruned AS (
       DELETE FROM active_sessions WHERE seen_at < $1
-    ), live AS (
+    ), here AS (
       SELECT ${PRESENCE_WHO} AS who,
-             (listening_at >= $1 AND episode_id IS NOT NULL) AS playing
+             (listening_at >= $1 AND episode_id IS NOT NULL) AS playing,
+             (live_at >= $1) AS tuned
       FROM active_sessions
       WHERE seen_at >= $1
         AND ($2::text IS NULL OR starts_with(session_id, $2))
     )
     SELECT
       count(DISTINCT who)::int                         AS online,
-      count(DISTINCT who) FILTER (WHERE playing)::int  AS listening
-    FROM live
+      count(DISTINCT who) FILTER (WHERE playing)::int  AS listening,
+      count(DISTINCT who) FILTER (WHERE tuned)::int    AS live
+    FROM here
     `,
     [cutoff, sessionPrefix],
   );
-  return { online: rows[0]?.online ?? 0, listening: rows[0]?.listening ?? 0 };
+  return {
+    online: rows[0]?.online ?? 0,
+    listening: rows[0]?.listening ?? 0,
+    live: rows[0]?.live ?? 0,
+  };
 }
 
 // ---------------------------------------------------------------------------

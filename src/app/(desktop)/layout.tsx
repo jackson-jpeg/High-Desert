@@ -8,6 +8,7 @@ import { AudioPlayer } from "@/components/player/AudioPlayer";
 import { PlaybackErrorDialog } from "@/components/player/PlaybackErrorDialog";
 import { OutageDialog } from "@/components/player/OutageDialog";
 import { useOutageMonitor } from "@/hooks/useOutageMonitor";
+import { installBrowserLiveStation } from "@/services/live/browser-station";
 import { admitRequestedStart } from "@/audio/outage-gate";
 import { UnavailableEpisodeDialog } from "@/components/player/UnavailableEpisodeDialog";
 import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
@@ -47,6 +48,10 @@ export default function DesktopLayout({
 
   // archive.org's health and the mirror's manifest: outage mode's inputs.
   useOutageMonitor();
+
+  // The live station follows the listener across routes, so it lives here,
+  // once, beside the play-episode handler it starts shows through.
+  useEffect(() => installBrowserLiveStation(), []);
 
   // Restore persisted admin state after mount (not during render — see admin-store),
   // then handle ?viewer URL param (logout only — login requires password)

@@ -41,10 +41,10 @@ afterEach(async () => {
 describeDb("presence counts clients (Postgres)", () => {
   it("three tabs from one household are one person online", async () => {
     for (let i = 0; i < 3; i++) await store.recordHeartbeat(sid("home"), null, "198.51.100.20");
-    expect(await presence()).toEqual({ online: 1, listening: 0 });
+    expect(await presence()).toEqual({ online: 1, listening: 0, live: 0 });
 
     await store.recordHeartbeat(sid("other"), null, "203.0.113.20");
-    expect(await presence()).toEqual({ online: 2, listening: 0 });
+    expect(await presence()).toEqual({ online: 2, listening: 0, live: 0 });
   });
 
   it("listening is the clients with a playing session, and never exceeds online", async () => {
@@ -59,15 +59,55 @@ describeDb("presence counts clients (Postgres)", () => {
     await store.recordHeartbeat(sid("c"), null, "192.0.2.30");
 
     const p = await presence();
-    expect(p).toEqual({ online: 3, listening: 2 });
+    expect(p).toEqual({ online: 3, listening: 2, live: 0 });
     expect(p.listening).toBeLessThanOrEqual(p.online);
+  });
+
+  it("live is the clients tuned in to the station — the same function, window and identity", async () => {
+    // Household A: two tabs, one tuned in live.
+    await store.recordHeartbeat(sid("la"), null, "198.51.100.50");
+    await store.recordHeartbeat(sid("la"), "coll--live-show", "198.51.100.50", true);
+    // Household B: tuned in on two tabs — one person, not two.
+    await store.recordHeartbeat(sid("lb"), "coll--live-show", "203.0.113.50", true);
+    await store.recordHeartbeat(sid("lb"), "coll--live-show", "203.0.113.50", true);
+    // Household C: playing something else, not tuned in.
+    await store.recordHeartbeat(sid("lc"), "coll--other", "192.0.2.50");
+
+    const p = await presence();
+    expect(p).toEqual({ online: 3, listening: 3, live: 2 });
+    expect(p.live).toBeLessThanOrEqual(p.online);
+  });
+
+  it("a beat without the live flag leaves the station at once; stopping clears it too", async () => {
+    const a = sid("leave");
+    await store.recordHeartbeat(a, "coll--live-show", "198.51.100.60", true);
+    expect((await presence()).live).toBe(1);
+    // Untuned but still playing (picked a show from the library).
+    await store.recordHeartbeat(a, "coll--other", "198.51.100.60");
+    expect(await presence()).toEqual({ online: 1, listening: 1, live: 0 });
+
+    const b = sid("stop-live");
+    await store.recordHeartbeat(b, "coll--live-show", "203.0.113.60", true);
+    expect((await presence()).live).toBe(1);
+    await store.clearListening(b);
+    expect((await presence()).live).toBe(0);
+  });
+
+  it("a stale live mark falls out of the window like everything else", async () => {
+    const s = sid("stale");
+    await store.recordHeartbeat(s, "coll--live-show", "192.0.2.70", true);
+    await store.getPool().query(
+      "UPDATE active_sessions SET live_at = now() - interval '6 minutes' WHERE session_id = $1",
+      [s],
+    );
+    expect(await presence()).toEqual({ online: 1, listening: 1, live: 0 });
   });
 
   it("a stopped session stops counting as listening but stays online", async () => {
     const s = sid("stop");
     await store.recordHeartbeat(s, "coll--c-show", "192.0.2.40");
-    expect(await presence()).toEqual({ online: 1, listening: 1 });
+    expect(await presence()).toEqual({ online: 1, listening: 1, live: 0 });
     await store.clearListening(s);
-    expect(await presence()).toEqual({ online: 1, listening: 0 });
+    expect(await presence()).toEqual({ online: 1, listening: 0, live: 0 });
   });
 });

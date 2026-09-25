@@ -27,6 +27,7 @@ import {
 import { assessDuration } from "@/audio/duration-sanity";
 import { endedEarly } from "@/audio/ended-early";
 import { armListen, flushListenTime } from "./play-session";
+import { takeLiveEnded } from "@/audio/live-session";
 
 export interface MediaEventActions {
   setPlaying: (p: boolean) => void;
@@ -100,6 +101,11 @@ export function installMediaEvents(
       void checkArchiveHealth();
       return;
     }
+
+    // The live station's show is over: the station decides what comes next
+    // (station ID, then the next slot). The queue is left alone, and the
+    // listening mark stays — the listener is still listening, to the station.
+    if (takeLiveEnded(current)) return;
 
     flushListenTime("ended");
 

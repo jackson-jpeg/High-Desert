@@ -11,7 +11,11 @@ const SESSION_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
  * what makes the "online" figure mean "people on the site" rather than "people
  * who happened to press play in the last five minutes".
  *
- * Body: `{ sessionId, episodeId? }`. `episodeId` is present only while that tab
+ * Body: `{ sessionId, episodeId?, live? }`. `live: true` means this tab is tuned
+ * in to the live station (sent only while tuned and playing, or in the station
+ * ID between shows); any other beat clears the live mark — see recordHeartbeat.
+ * It is what `live` in /api/stats/now counts.
+ * `episodeId` is present only while that tab
  * is actually playing, and renews the listening mark — it is what keeps a show
  * on air for its whole runtime rather than for the five minutes after someone
  * pressed play. Optional by design: a tab that is merely open sends the session
@@ -50,7 +54,7 @@ export async function POST(request: NextRequest) {
   if (parsed.error) return parsed.error;
   const body = parsed.body;
 
-  const { sessionId, episodeId } = body;
+  const { sessionId, episodeId, live } = body;
 
   if (typeof sessionId !== "string" || !SESSION_ID_RE.test(sessionId)) {
     return NextResponse.json(
@@ -69,7 +73,7 @@ export async function POST(request: NextRequest) {
       : null;
 
   try {
-    await recordHeartbeat(sessionId, listeningTo, ip);
+    await recordHeartbeat(sessionId, listeningTo, ip, live === true);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[stats/heartbeat] store error:", err);

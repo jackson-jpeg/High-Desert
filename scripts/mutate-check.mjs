@@ -2524,8 +2524,8 @@ export const MUTATIONS = [
   {
     id: "health-route-memo",
     test: "src/app/api/archive/health/__tests__/memo.test.ts",
-    file: "src/app/api/archive/health/route.ts",
-    find: "  if (memo && Date.now() - memo.checkedAt < (memo.up ? UP_MEMO_MS : DOWN_MEMO_MS)) return memo;",
+    file: "src/services/archive/server-verdict.ts",
+    find: "  if (s.memo && Date.now() - s.memo.checkedAt < (s.memo.up ? UP_MEMO_MS : DOWN_MEMO_MS)) return s.memo;",
     replace: "",
     why: "every polling tab would be its own HEAD to archive.org, each hanging 8 s during an outage",
   },

@@ -221,3 +221,26 @@ CREATE INDEX IF NOT EXISTS playback_failures_at_idx
   ON playback_failures (at DESC);
 CREATE INDEX IF NOT EXISTS playback_failures_episode_idx
   ON playback_failures (episode_id, at DESC);
+
+-- ---------------------------------------------------------------------------
+-- The live station (src/lib/live/schedule.ts, src/services/live/days.ts)
+-- ---------------------------------------------------------------------------
+
+-- Tuned in to the live station: set by the heartbeat while this tab is tuned
+-- and playing (or in the station ID between shows), NULL on a beat that says
+-- it is not. getPresence() counts distinct clients with it inside the active
+-- window as `live` — the same function, the same window, the same client
+-- identity as `online` and `listening`, so the three can never disagree.
+ALTER TABLE active_sessions
+  ADD COLUMN IF NOT EXISTS live_at timestamptz;
+
+-- One row per station day (Pacific), frozen the first time it is asked for.
+-- A day's program depends on community plays, which move constantly; frozen,
+-- every restart and every process serves the same program, and the 14-day
+-- repeat rule reads what actually aired. Generated under an advisory lock
+-- (frozenDay) and never updated. Tens of KB a day; kept.
+CREATE TABLE IF NOT EXISTS live_days (
+  day        date        PRIMARY KEY,
+  program    jsonb       NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
