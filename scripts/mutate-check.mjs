@@ -2498,6 +2498,14 @@ export const MUTATIONS = [
     why: "the dialog offers the same guest first",
   },
   {
+    id: "live-threat-verb-you",
+    test: "services/live/test/filter.test.mjs",
+    file: "data/chat-blocklist.txt",
+    find: "strangle you",
+    replace: "strangle yo",
+    why: "a threat is a harm verb aimed at you however it is introduced; a phrase list that misses one lets it on the air",
+  },
+  {
     id: "ended-early-fails-over",
     test: "src/hooks/__tests__/mirror-failover.test.ts",
     file: "src/hooks/player/media-events.ts",

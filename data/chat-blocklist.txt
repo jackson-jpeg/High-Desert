@@ -43,6 +43,22 @@ i'm going to hurt you
 gonna hurt you
 i know where you live
 i will find you
+# A threat is a harm verb aimed at "you", however it is introduced ("i will",
+# "gonna", "threaten to", "want to"): the phrase alone is enough.
+kill you
+to kill you
+murder you
+to murder you
+strangle you
+choke you
+beat you to death
+burn your house
+burn you
+hurt you
+rape you
+behead you
+shoot you dead
+put a bullet in
 shoot you
 stab you
 shoot up the school
