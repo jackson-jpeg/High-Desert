@@ -62,7 +62,10 @@ async function catalogPicks(baseURL: string) {
   const unpinned = usable.filter((r) => !held.has(r.fileHash)).map((r) => r.title!);
   expect(pinned.length, "need two pinned shows with unique titles").toBeGreaterThanOrEqual(2);
   expect(unpinned.length, "need an unpinned show with a unique title").toBeGreaterThanOrEqual(1);
-  return { pinned: pinned.slice(0, 2), unpinned: unpinned[0] };
+  // What "Playable now" lists on arrival in outage mode: every catalog show
+  // the mirror holds, unique title or not.
+  const playable = seed.filter((r) => held.has(r.fileHash)).length;
+  return { pinned: pinned.slice(0, 2), unpinned: unpinned[0], playable };
 }
 
 interface Probe {
@@ -74,13 +77,15 @@ interface Probe {
   currentTime: number;
   /** When the outage dialog first appeared. */
   dialogAt: number | null;
+  /** The last dblclick's own event time: the gesture as the page received it. */
+  dblclickAt: number | null;
 }
 
 /** Hold on to the player's element — a detached `new Audio()`, never in the DOM — from its first play(). */
 async function installProbe(page: Page) {
   await page.addInitScript(() => {
     const w = window as unknown as { __hdChaos: Probe & { el: HTMLMediaElement | null } };
-    w.__hdChaos = { clickedAt: 0, sources: [], firstAudioAt: null, audioAt: {}, currentTime: 0, el: null, dialogAt: null };
+    w.__hdChaos = { clickedAt: 0, sources: [], firstAudioAt: null, audioAt: {}, currentTime: 0, el: null, dialogAt: null, dblclickAt: null };
     // When the outage dialog first appears, to the millisecond, in page time —
     // the same clock as clickedAt, so the wait is measured without Playwright's
     // own polling in it.
@@ -89,6 +94,8 @@ async function installProbe(page: Page) {
         w.__hdChaos.dialogAt = performance.now();
       }
     }).observe(document, { childList: true, subtree: true });
+    // Capture phase, so this runs before the row's own handler.
+    document.addEventListener("dblclick", (e) => (w.__hdChaos.dblclickAt = e.timeStamp), true);
     const play = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function (this: HTMLMediaElement) {
       const probe = w.__hdChaos;
@@ -116,7 +123,7 @@ async function installProbe(page: Page) {
 const probe = (page: Page) =>
   page.evaluate(() => {
     const p = (window as unknown as { __hdChaos: Probe }).__hdChaos;
-    return { clickedAt: p.clickedAt, sources: [...p.sources], firstAudioAt: p.firstAudioAt, audioAt: { ...p.audioAt }, currentTime: p.currentTime, dialogAt: p.dialogAt };
+    return { clickedAt: p.clickedAt, sources: [...p.sources], firstAudioAt: p.firstAudioAt, audioAt: { ...p.audioAt }, currentTime: p.currentTime, dialogAt: p.dialogAt, dblclickAt: p.dblclickAt };
   });
 
 async function playTitle(page: Page, title: string, { reload = true } = {}) {
@@ -186,7 +193,7 @@ test("once archive.org is known down, the next start goes straight to the mirror
   // load), so neither start may send the element to archive.org at all. Both
   // shows are pinned: an unpinned one is refused outright in outage mode —
   // that is the next test.
-  const { pinned } = await catalogPicks(baseURL!);
+  const { pinned, playable } = await catalogPicks(baseURL!);
   const [first, second] = pinned;
   test.setTimeout(120_000);
   const media: string[] = [];
@@ -196,7 +203,7 @@ test("once archive.org is known down, the next start goes straight to the mirror
   });
   await page.route("**/api/archive/health", (route) => route.fulfill({ json: { up: false } }));
   await installProbe(page);
-  await openLibrary(page);
+  await openLibrary(page, { expected: playable });
   await playTitle(page, first!);
   await expect.poll(async () => (await probe(page)).firstAudioAt, { timeout: 45_000 }).not.toBeNull();
 
@@ -221,7 +228,7 @@ test("once archive.org is known down, the next start goes straight to the mirror
 });
 
 test("outage mode: banner, marks, Playable now; an unpinned start is refused in under a second; a pinned one plays", async ({ page, baseURL }, info) => {
-  const { pinned, unpinned } = await catalogPicks(baseURL!);
+  const { pinned, unpinned, playable } = await catalogPicks(baseURL!);
   test.setTimeout(120_000);
   const media: string[] = [];
   await page.route(ARCHIVE, (route) => {
@@ -230,7 +237,7 @@ test("outage mode: banner, marks, Playable now; an unpinned start is refused in 
   });
   await page.route("**/api/archive/health", (route) => route.fulfill({ json: { up: false } }));
   await installProbe(page);
-  await openLibrary(page);
+  await openLibrary(page, { expected: playable });
 
   // The banner, in its words; "Playable now" on; pinned rows marked.
   await expect(page.getByTestId("outage-banner")).toContainText("archive.org is down. Playing from the High Desert mirror.");
@@ -257,7 +264,13 @@ test("outage mode: banner, marks, Playable now; an unpinned start is refused in 
   const dialog = page.getByTestId("outage-dialog");
   await expect(dialog).toBeVisible();
   const p = await probe(page);
-  const refusedMs = Math.round(p.dialogAt! - p.clickedAt);
+  // From the gesture as the page received it to the dialog in the DOM, both on
+  // the page's clock: Playwright's own actionability round-trips before it
+  // dispatches the dblclick are not the site's latency. The wall-clock figure
+  // from before the call is logged alongside.
+  const refusedMs = Math.round(p.dialogAt! - p.dblclickAt!);
+  const refusedWallMs = Math.round(p.dialogAt! - p.clickedAt);
+  expect(p.dblclickAt, "the dblclick reached the page").not.toBeNull();
   expect(refusedMs, "the refusal must not wait on the network").toBeLessThan(1000);
   expect(p.sources.length, "no source was assigned for it").toBe(sourcesBefore);
   expect(media.slice(mediaBefore)).toEqual([]);
@@ -284,5 +297,5 @@ test("outage mode: banner, marks, Playable now; an unpinned start is refused in 
   expect(media, "no media request to archive.org in outage mode").toEqual([]);
 
   info.annotations.push({ type: "refused-in-ms", description: String(refusedMs) });
-  console.log(`[chaos] outage mode: unpinned refused in ${refusedMs} ms; suggestion playing ${suggestionTtfa} ms after the refused tap; pinned "${pinned[0]}" plays`);
+  console.log(`[chaos] outage mode: unpinned refused in ${refusedMs} ms (${refusedWallMs} ms including the harness); suggestion playing ${suggestionTtfa} ms after the refused tap; pinned "${pinned[0]}" plays`);
 });
