@@ -13,7 +13,7 @@ import { FacetSidebar } from "@/components/library/FacetSidebar";
 import { DetailSheet } from "@/components/library/DetailSheet";
 import { ExploreBand } from "@/components/library/ExploreBand";
 import { LibraryToolbar } from "@/components/library/LibraryToolbar";
-import { ActiveFilterBar, MoodFilterBar, SortPresets } from "@/components/library/LibraryFilterBars";
+import { ActiveFilterBar, MoodFilterBar, PlayableNowBar, SortPresets } from "@/components/library/LibraryFilterBars";
 import { LibraryListSkeleton, EmptyLibrary, NoFilterMatches, NoSearchMatches, NothingInProgress } from "@/components/library/LibraryListStates";
 import { selectLibraryEpisodes, type ShowFilter } from "@/lib/library/filter-episodes";
 import { libraryListState } from "@/lib/library/list-state";
@@ -40,7 +40,7 @@ import { emit } from "@/lib/events";
 export default function LibraryPage() {
   const router = useRouter();
   const filters = useLibraryFilters();
-  const { search, setSearch, deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, hasActiveFilters } = filters;
+  const { search, setSearch, deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, playableSet, hasActiveFilters } = filters;
   // Seeding is deferred to idle in the desktop layout, so an empty table is
   // ambiguous until it reports back. Until then, keep showing the skeleton.
   const [seedSettled, setSeedSettled] = useState(false);
@@ -88,8 +88,9 @@ export default function LibraryPage() {
   const visibleEpisodes = useMemo(
     () => selectLibraryEpisodes(allEpisodes, {
       search: deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, bookmarkedIds,
+      playableOnly: playableSet,
     }, community),
-    [allEpisodes, deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, bookmarkedIds, community],
+    [allEpisodes, deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, bookmarkedIds, playableSet, community],
   );
 
   const selection = useLibrarySelection({ allEpisodes, visibleEpisodes });
@@ -213,6 +214,8 @@ export default function LibraryPage() {
         onRequestBulkDelete={requestBulkDelete}
       />
 
+      <PlayableNowBar filters={filters} />
+
       <MoodFilterBar filters={filters} moodFilters={facets.moodFilters} />
 
       {/* Swipe gesture tip — shown once on mobile */}
@@ -279,6 +282,7 @@ export default function LibraryPage() {
               seriesFilter={seriesFilter}
               guestFilter={guestFilter}
               favoritesOnly={favoritesOnly}
+              playableOnly={playableSet !== null}
               onClear={filters.clearAllFilters}
             />
           ) : listState === "no-search-matches" ? (

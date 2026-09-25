@@ -25,7 +25,8 @@ import { reportPlay, reportStop, reportStopBeacon } from "@/services/stats/clien
 import { SESSION_ID } from "@/lib/utils/session-id";
 import { communityKey } from "@/lib/utils/community-key";
 import { checkArchiveHealth, archiveKnownDown } from "@/services/archive/health";
-import { resolveSources, fallbacksFor, type SourceKind } from "@/audio/sources";
+import { fallbacksFor, type SourceKind } from "@/audio/sources";
+import { currentStartPlan, refuseIfUnavailable } from "@/audio/outage-gate";
 import {
   armWatchdog,
   describeMediaError,
@@ -368,8 +369,10 @@ export function useAudioPlayer() {
       const audio = getAudio();
 
       // Object URL from a file (the OPFS cache, or a scanned local file), else
-      // the first of the episode's hosts: archive.org, or the mirror when
-      // archive.org was seen down within the last 30 s (src/audio/sources.ts).
+      // the first of the episode's hosts: archive.org, or the mirror while
+      // archive.org is down (src/audio/sources.ts) — or, if the mirror's
+      // manifest says it does not hold this show either, nothing: refuse now,
+      // with the outage dialog, rather than after a 15 s wait for a 503.
       // Synchronous on purpose — nothing may be awaited before play().
       let url: string;
       let kind: SourceKind;
@@ -379,13 +382,14 @@ export function useAudioPlayer() {
         isObjectUrl = true;
         kind = episode.fileHash?.startsWith("archive:") ? "cache" : "local";
       } else {
-        const first = resolveSources(episode, { archiveDown: archiveKnownDown() })[0];
-        if (!first) {
+        if (refuseIfUnavailable(episode)) return;
+        const plan = currentStartPlan(episode);
+        if (plan.kind !== "play") {
           setError("No audio source available. Try re-importing this episode.");
           return;
         }
-        url = first.url;
-        kind = first.kind;
+        url = plan.source.url;
+        kind = plan.source.kind;
       }
 
       openListen(episode, isObjectUrl ? url : "");
@@ -498,6 +502,21 @@ export function useAudioPlayer() {
     // paused drops readyState below HAVE_FUTURE_DATA, so the old test counted
     // pause-scrub-resume as a brand new listen (HD-024).
     const firstPlay = !isListenCounted() && !isWatching();
+
+    // A restored show was primed with its archive.org URL. If archive.org has
+    // gone down since, send this first play where the start plan says — the
+    // mirror, or the outage dialog for a show the mirror does not hold —
+    // exactly as a fresh start from the library would be (both start paths).
+    if (firstPlay && ep && usePlayerStore.getState().source === "archive" && archiveKnownDown()) {
+      if (refuseIfUnavailable(ep)) return;
+      const plan = currentStartPlan(ep);
+      if (plan.kind === "play" && plan.source.kind === "mirror") {
+        audio.src = plan.source.url;
+        usePlayerStore.getState().setSource("mirror");
+        notifySourceChanged();
+        seekEngine(startPositionFor(ep.playbackPosition, ep.duration));
+      }
+    }
 
     if (firstPlay) {
       // Undo primeEpisode's "none" so the element actually buffers ahead.
@@ -793,14 +812,11 @@ export function useAudioPlayer() {
         setError(messages[code ?? 0] ?? "An unknown playback error occurred.");
       }
 
-      // On network/source errors, check if archive.org itself is down
-      if (code === 2 || code === 4) {
-        checkArchiveHealth().then(({ up }) => {
-          if (!up) {
-            emit("archive-status", { up: false });
-          }
-        });
-      }
+      // On network/source errors, check if archive.org itself is down. A
+      // verdict is published to the outage store, which is what turns on the
+      // banner, the row marks and the fast fail (useOutageMonitor keeps it
+      // current after that).
+      if (code === 2 || code === 4) void checkArchiveHealth();
     };
 
     // Sync store when iOS/lock screen controls trigger play/pause directly

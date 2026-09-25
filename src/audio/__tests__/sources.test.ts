@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveSources, fallbacksFor, isFailoverKind, mirrorUrl } from "@/audio/sources";
+import { resolveSources, fallbacksFor, isFailoverKind, mirrorUrl, planStart } from "@/audio/sources";
 import type { FailureKind } from "@/audio/playback-watchdog";
 
 const ep = {
@@ -41,4 +41,31 @@ describe("isFailoverKind", () => {
     ["empty-media", false],
     ["empty-media-suspected", false],
   ])("%s → %s", (k, want) => expect(isFailoverKind(k)).toBe(want));
+});
+
+describe("planStart", () => {
+  const pinned = new Set([ep.fileHash]);
+  const other = { ...ep, fileHash: "archive:coll:1998-01-01 Other.mp3" };
+
+  it("up: archive.org, whatever the manifest says", () => {
+    expect(planStart(other, { archiveDown: false, playable: pinned })).toEqual({
+      kind: "play",
+      source: { kind: "archive", url: ep.sourceUrl },
+    });
+  });
+  it("down: the mirror for a show it holds", () => {
+    expect(planStart(ep, { archiveDown: true, playable: pinned })).toEqual({
+      kind: "play",
+      source: { kind: "mirror", url: mirrorUrl(ep) },
+    });
+  });
+  it("down: unavailable for a show it does not hold", () => {
+    expect(planStart(other, { archiveDown: true, playable: pinned })).toEqual({ kind: "unavailable" });
+  });
+  it("down with no manifest: try the mirror, never refuse on a guess", () => {
+    expect(planStart(other, { archiveDown: true, playable: null })).toMatchObject({ kind: "play", source: { kind: "mirror" } });
+  });
+  it("no source at all is 'none', not 'unavailable'", () => {
+    expect(planStart({ fileHash: "md5:abc", sourceUrl: undefined }, { archiveDown: true, playable: pinned })).toEqual({ kind: "none" });
+  });
 });

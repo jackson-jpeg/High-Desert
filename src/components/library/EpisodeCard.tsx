@@ -14,6 +14,7 @@ import { useRef, useCallback, memo } from "react";
 import { useLongPress } from "@/hooks/useLongPress";
 import { MiniWaveform } from "./MiniWaveform";
 import { emit } from "@/lib/events";
+import { useOutageStore, availabilityOf } from "@/stores/outage-store";
 
 interface EpisodeCardProps {
   episode: Episode;
@@ -74,6 +75,10 @@ export const EpisodeCard = memo(function EpisodeCard({
   style,
 }: EpisodeCardProps) {
   const showLabel = getShowLabel(episode.showType);
+  // Outage mode (src/stores/outage-store.ts): a primitive, so a row re-renders
+  // only when its own standing changes — not on every store update.
+  const availability = useOutageStore((s) => availabilityOf(s, episode.fileHash));
+  const unavailable = availability === "unavailable";
 
   const showAccent =
     episode.showType === "coast"
@@ -165,6 +170,15 @@ export const EpisodeCard = memo(function EpisodeCard({
   /* Status glyphs, shared by both layouts. */
   const indicators = (
     <>
+      {availability === "mirror" && (
+        <span
+          data-availability-mark=""
+          className="text-hd-micro font-bold text-signal-blue border border-signal-blue/60 px-0.5 leading-none flex-shrink-0"
+          title="archive.org is down — this one plays from the High Desert mirror"
+        >
+          MIRROR
+        </span>
+      )}
       {isPlaying && (
         <span className="w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air flex-shrink-0" />
       )}
@@ -249,7 +263,10 @@ export const EpisodeCard = memo(function EpisodeCard({
       aria-setsize={setSize}
       aria-posinset={posInSet}
       title={episode.aiSummary || undefined}
-      aria-label={`${title}${episode.airDate ? `, ${episode.airDate}` : ""}${isPlaying ? " (now playing)" : ""}`}
+      aria-label={`${title}${episode.airDate ? `, ${episode.airDate}` : ""}${isPlaying ? " (now playing)" : ""}${
+        availability === "mirror" ? ", plays from the mirror" : unavailable ? ", unavailable until archive.org returns" : ""
+      }`}
+      data-availability={availability}
       className={cn(
         "w-full h-full text-left w98-raised-dark bg-card-surface relative group glass-light",
         "p-2.5 md:px-2 md:py-0 md:flex md:items-center",
@@ -262,6 +279,10 @@ export const EpisodeCard = memo(function EpisodeCard({
         isPlaying && "ring-1 ring-static-green/40 bg-title-bar-blue/10 glass-glow-green",
         isSelected && !isPlaying && "bg-highlight-blue/20",
         isMultiSelected && "bg-highlight-blue/30 ring-1 ring-highlight-blue/40",
+        // Dimmed by colour, not opacity: greyscale takes the amber and green
+        // accents out, and the title drops a tier on the text ramp. Opacity
+        // would take the text below AA (see "Three-tier text ramp").
+        unavailable && "grayscale",
         className,
       )}
     >
@@ -289,7 +310,7 @@ export const EpisodeCard = memo(function EpisodeCard({
 
         {/* Title */}
         <div className="flex items-baseline gap-2 min-w-0">
-          <span className="text-hd-12 text-desktop-gray font-bold truncate">{title}</span>
+          <span className={cn("text-hd-12 font-bold truncate", unavailable ? "text-bevel-dark" : "text-desktop-gray")}>{title}</span>
           {episode.aiSeries && (
             <span
               data-row-action="series"
@@ -397,7 +418,7 @@ export const EpisodeCard = memo(function EpisodeCard({
           </div>
         </div>
 
-        <div className="text-hd-15 text-desktop-gray font-bold truncate mt-0.5 font-sans leading-tight">
+        <div className={cn("text-hd-15 font-bold truncate mt-0.5 font-sans leading-tight", unavailable ? "text-bevel-dark" : "text-desktop-gray")}>
           {title}
         </div>
         {episode.aiCategory && (

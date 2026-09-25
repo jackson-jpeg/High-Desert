@@ -136,6 +136,37 @@ export function MoodFilterBar({ filters, moodFilters }: { filters: LibraryFilter
   );
 }
 
+/**
+ * "Playable now" — only while archive.org is down and the mirror's manifest is
+ * known. On by default for the outage (useLibraryFilters); a toggle, so the
+ * listener can still browse everything, dimmed.
+ */
+export function PlayableNowBar({ filters }: { filters: LibraryFilters }) {
+  const { outage, playableOnly, setPlayableOnly, playableCount } = filters;
+  if (!outage || playableCount === 0) return null;
+  return (
+    <div className="flex items-center gap-2 px-3 pb-1 flex-shrink-0 text-hd-12 md:text-hd-10">
+      <button
+        type="button"
+        aria-pressed={playableOnly}
+        data-testid="playable-now"
+        onClick={() => setPlayableOnly(!playableOnly)}
+        className={cn(
+          "px-3 py-1.5 md:px-2 md:py-0.5 min-h-touch md:min-h-0 cursor-pointer transition-colors-fast",
+          playableOnly
+            ? "bg-title-bar-blue/15 text-signal-blue w98-inset-dark"
+            : "text-bevel-dark/85 hover:text-desktop-gray",
+        )}
+      >
+        Playable now ({playableCount})
+      </button>
+      <span className="text-bevel-dark/85">
+        {playableOnly ? "Shows the mirror holds" : "Showing everything; dimmed shows wait for archive.org"}
+      </span>
+    </div>
+  );
+}
+
 /** Sort presets — visible only when a non-default sort is active. */
 export function SortPresets({ filters }: { filters: LibraryFilters }) {
   const { sortMode, setSortMode } = filters;
