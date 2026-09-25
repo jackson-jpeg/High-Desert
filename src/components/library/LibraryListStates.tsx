@@ -67,6 +67,7 @@ export function NoFilterMatches({
   seriesFilter,
   guestFilter,
   favoritesOnly,
+  playableOnly = false,
   onClear,
 }: {
   showFilter: ShowFilter;
@@ -74,6 +75,7 @@ export function NoFilterMatches({
   seriesFilter: string | null;
   guestFilter: string | null;
   favoritesOnly: boolean;
+  playableOnly?: boolean;
   onClear: () => void;
 }) {
   return (
@@ -91,6 +93,7 @@ export function NoFilterMatches({
           seriesFilter,
           guestFilter,
           favoritesOnly && "Favorites",
+          playableOnly && "Playable now",
         ].filter(Boolean).join(" · ")}
       </div>
       <button

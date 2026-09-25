@@ -311,3 +311,16 @@ describe("matchComparison", () => {
     expect(matchComparison(5, "=", 4)).toBe(false);
   });
 });
+
+describe("filterEpisodes — Playable now (outage mode)", () => {
+  it("keeps catalog episodes the mirror holds, and anything that never needed archive.org", () => {
+    const local = { ...ep({ id: 7, airDate: "1993-01-01" }), fileHash: "md5:abc" } as Episode;
+    const lib = [...LIB, local];
+    const held = new Set([LIB[0].fileHash, LIB[2].fileHash]);
+    expect(ids(filterEpisodes(lib, { ...NONE, playableOnly: held }))).toEqual([1, 3, 7]);
+  });
+
+  it("null is no filter", () => {
+    expect(filterEpisodes(LIB, { ...NONE, playableOnly: null })).toBe(LIB);
+  });
+});

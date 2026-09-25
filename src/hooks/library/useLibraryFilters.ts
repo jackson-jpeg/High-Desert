@@ -3,6 +3,7 @@
 import { useState, useCallback, useDeferredValue, useEffect, useRef } from "react";
 import { SORT_MODES, type ShowFilter, type SortMode } from "@/lib/library/filter-episodes";
 import { getPreference, setPreference } from "@/db";
+import { useOutageStore, selectOutage } from "@/stores/outage-store";
 
 /** UserPrefs key holding the visitor's last chosen sort. */
 export const SORT_PREF_KEY = "library-sort";
@@ -54,15 +55,29 @@ export function useLibraryFilters() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [seriesFilter, setSeriesFilter] = useState<string | null>(null);
 
+  // "Playable now": on by default for as long as archive.org is down, and off
+  // again when it returns. The listener may turn it off in between; the next
+  // outage turns it back on.
+  const outage = useOutageStore(selectOutage);
+  const manifest = useOutageStore((s) => s.manifest);
+  const [playableOnly, setPlayableOnly] = useState(false);
+  useEffect(() => {
+    // Follows outage mode's edges: on when it begins, off when it ends.
+    setPlayableOnly(outage);
+  }, [outage]);
+  /** What the list filters on: the manifest, only while the filter is in force. */
+  const playableSet = outage && playableOnly && manifest ? manifest.fileHashes : null;
+
   const clearAllFilters = useCallback(() => {
     setShowFilter("all");
     setGuestFilter(null);
     setCategoryFilter(null);
     setSeriesFilter(null);
     setFavoritesOnly(false);
+    setPlayableOnly(false);
   }, []);
 
-  const hasActiveFilters = showFilter !== "all" || guestFilter !== null || categoryFilter !== null || seriesFilter !== null || favoritesOnly;
+  const hasActiveFilters = showFilter !== "all" || guestFilter !== null || categoryFilter !== null || seriesFilter !== null || favoritesOnly || playableSet !== null;
 
   return {
     search, setSearch, deferredSearch,
@@ -72,6 +87,7 @@ export function useLibraryFilters() {
     favoritesOnly, setFavoritesOnly,
     categoryFilter, setCategoryFilter,
     seriesFilter, setSeriesFilter,
+    outage, playableOnly, setPlayableOnly, playableSet, playableCount: manifest?.fileHashes.size ?? 0,
     clearAllFilters,
     hasActiveFilters,
   };

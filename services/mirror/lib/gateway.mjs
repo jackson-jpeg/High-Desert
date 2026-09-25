@@ -1,5 +1,6 @@
 import { createReadStream } from "node:fs";
-import { readFile, access } from "node:fs/promises";
+import { readFile, readdir, access } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { parseRange } from "./range.mjs";
 import { parseTorrent } from "./torrent-file.mjs";
@@ -41,6 +42,7 @@ export function createGateway({
   idleMs = 5 * 60_000,
   extraPeers = [],
   publicPeer = null,
+  manifestTtlMs = 60_000,
   log = () => {},
 }) {
   /** infohash → { torrent, lastUse, streams, pinned } */
@@ -137,8 +139,57 @@ export function createGateway({
     return { active: active.size, pinned: cache.pins.size, peers: outside.size, wires, ...counters };
   }
 
+  /**
+   * What the mirror can play right now with no help from archive.org: every
+   * episode whose file is complete on disk — the warm job's pins, plus any
+   * unpinned file an earlier request finished and the LRU has kept. During an
+   * outage nothing new can arrive (the webseed is archive.org, and nobody else
+   * seeds these), so this is exactly the set that will play.
+   *
+   * The client reads it to decide, before touching the network, whether a
+   * start can work (src/audio/sources.ts) — a show not in it would otherwise
+   * sit through the 15 s first-byte budget and fail anyway. `version` is a
+   * digest of the list, so a client holding the same one learns nothing new.
+   * Memoised for `manifestTtlMs`: it is a readdir plus a stat per entry.
+   */
+  let manifestMemo = null;
+  const fileHashOf = new Map(Object.entries(index).map(([fh, e]) => [e.infohash, fh]));
+  async function manifest() {
+    if (manifestMemo && Date.now() - manifestMemo.at < manifestTtlMs) return manifestMemo.body;
+    let names = [];
+    try {
+      names = await readdir(path.join(cache.root, "data"));
+    } catch {
+      /* no cache yet: an empty manifest */
+    }
+    const fileHashes = [];
+    let pinned = 0;
+    for (const ih of names) {
+      const fh = fileHashOf.get(ih);
+      if (!fh || !(await cache.isComplete(ih))) continue;
+      fileHashes.push(fh);
+      if (cache.pins.has(ih)) pinned++;
+    }
+    fileHashes.sort();
+    const version = createHash("sha256").update(fileHashes.join("\n")).digest("hex").slice(0, 16);
+    const body = { version, count: fileHashes.length, pinned, fileHashes };
+    manifestMemo = { at: Date.now(), body };
+    return body;
+  }
+
   async function handle(req, res) {
     const url = new URL(req.url, "http://mirror");
+    if (url.pathname === "/mirror/manifest" && (req.method === "GET" || req.method === "HEAD")) {
+      const m = await manifest();
+      const etag = `"${m.version}"`;
+      const headers = { "content-type": "application/json", "cache-control": "public, max-age=60", etag };
+      if (req.headers["if-none-match"] === etag) {
+        res.writeHead(304, headers);
+        return res.end();
+      }
+      res.writeHead(200, headers);
+      return res.end(req.method === "HEAD" ? undefined : JSON.stringify(m));
+    }
     if (url.pathname === "/mirror/health") {
       const u = await cache.usage();
       res.writeHead(200, JSON_HEADERS);
@@ -267,7 +318,7 @@ export function createGateway({
     await cache.save();
   }
 
-  return { handle, sweep, seedPins, stats, close, ensureTorrent, active };
+  return { handle, sweep, seedPins, stats, close, ensureTorrent, active, manifest };
 }
 
 function exists(p) {

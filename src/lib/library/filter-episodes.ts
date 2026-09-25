@@ -54,6 +54,12 @@ export interface LibraryCriteria {
   seriesFilter: string | null;
   /** Episode ids with at least one bookmark, for `has:bookmark`. Undefined while loading. */
   bookmarkedIds?: ReadonlySet<number>;
+  /**
+   * "Playable now", during an archive.org outage: the mirror's manifest. A
+   * catalog episode must be in it; anything else (a local file) never needed
+   * archive.org and stays. Null or absent: no such filter.
+   */
+  playableOnly?: ReadonlySet<string> | null;
 }
 
 export function matchComparison(actual: number, op: ComparisonOp["op"], target: number): boolean {
@@ -71,8 +77,13 @@ export function matchComparison(actual: number, op: ComparisonOp["op"], target: 
  * With no criteria set it returns the input array itself.
  */
 export function filterEpisodes(episodes: Episode[], criteria: LibraryCriteria): Episode[] {
-  const { search, showFilter, favoritesOnly, guestFilter, categoryFilter, seriesFilter, bookmarkedIds } = criteria;
+  const { search, showFilter, favoritesOnly, guestFilter, categoryFilter, seriesFilter, bookmarkedIds, playableOnly } = criteria;
   let list = episodes;
+
+  // Playable now (outage mode)
+  if (playableOnly) {
+    list = list.filter((ep) => !ep.fileHash?.startsWith("archive:") || playableOnly.has(ep.fileHash));
+  }
 
   // Show type filter
   if (showFilter !== "all") {

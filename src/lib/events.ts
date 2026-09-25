@@ -38,8 +38,6 @@ export interface HdEventMap {
   "seed-settled": void;
   /** A text size was put into effect; `useTextScale()` readers re-measure. Notification. */
   "text-scale": void;
-  /** archive.org reachability, from the player's error path. Notification. */
-  "archive-status": { up: boolean };
   /** Mirror a non-error toast into the status bar. Notification. */
   "status-message": string;
   "easter-egg": Exclude<EasterEgg, null>;
@@ -67,7 +65,6 @@ export type HdEventKey = keyof HdEventMap;
 export const HD_NOTIFICATIONS: readonly HdEventKey[] = [
   "seed-settled",
   "text-scale",
-  "archive-status",
   "status-message",
 ];
 

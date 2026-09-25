@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { checkArchiveHealth, archiveKnownDown, clearHealthCache, __testing } from "@/services/archive/health";
+import { checkArchiveHealth, archiveKnownDown, clearHealthCache, msUntilReprobe, __testing } from "@/services/archive/health";
+import { useOutageStore } from "@/stores/outage-store";
 
 /**
  * A "down" verdict routes plays to the mirror, so it must be short-lived; and a
@@ -9,6 +10,7 @@ import { checkArchiveHealth, archiveKnownDown, clearHealthCache, __testing } fro
 let answer: () => Promise<Response>;
 beforeEach(() => {
   clearHealthCache();
+  useOutageStore.setState({ archiveUp: null, manifest: null, unavailable: null });
   vi.useFakeTimers();
   vi.stubGlobal("fetch", vi.fn(() => answer()));
 });
@@ -30,24 +32,41 @@ describe("archive health cache", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
-  it("caches down for thirty seconds only — then archiveKnownDown lets go", async () => {
+  it("caches down for thirty seconds only — then re-probes, and an up verdict ends outage mode", async () => {
     answer = json(false);
     expect((await checkArchiveHealth()).up).toBe(false);
     expect(archiveKnownDown()).toBe(true);
+    expect(useOutageStore.getState().archiveUp).toBe(false);
     vi.advanceTimersByTime(__testing.DOWN_TTL - 1);
-    expect(archiveKnownDown()).toBe(true);
+    await checkArchiveHealth();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(msUntilReprobe()).toBe(1);
     vi.advanceTimersByTime(2);
+    expect(msUntilReprobe()).toBe(0);
+    answer = json(true);
+    expect((await checkArchiveHealth()).up).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(2);
     expect(archiveKnownDown()).toBe(false);
+    expect(useOutageStore.getState().archiveUp).toBe(true);
     expect(__testing.DOWN_TTL).toBeLessThanOrEqual(30_000);
+  });
+
+  it("holds a down verdict between probes, so a start agrees with the banner", async () => {
+    answer = json(false);
+    await checkArchiveHealth();
+    vi.advanceTimersByTime(__testing.DOWN_TTL + 5_000);
+    expect(archiveKnownDown()).toBe(true);
   });
 
   it("a probe that failed to reach this server caches nothing", async () => {
     answer = () => Promise.reject(new TypeError("Failed to fetch"));
     expect((await checkArchiveHealth()).up).toBe(false);
     expect(archiveKnownDown()).toBe(false);
+    expect(useOutageStore.getState().archiveUp).toBeNull();
     answer = () => Promise.resolve(new Response("oops", { status: 502 }));
     expect((await checkArchiveHealth()).up).toBe(false);
     expect(archiveKnownDown()).toBe(false);
+    expect(useOutageStore.getState().archiveUp).toBeNull();
     answer = json(true);
     expect((await checkArchiveHealth()).up).toBe(true);
   });

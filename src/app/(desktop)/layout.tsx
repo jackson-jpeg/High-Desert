@@ -6,6 +6,9 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { DesktopShell } from "@/components/desktop/DesktopShell";
 import { AudioPlayer } from "@/components/player/AudioPlayer";
 import { PlaybackErrorDialog } from "@/components/player/PlaybackErrorDialog";
+import { OutageDialog } from "@/components/player/OutageDialog";
+import { useOutageMonitor } from "@/hooks/useOutageMonitor";
+import { admitRequestedStart } from "@/audio/outage-gate";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
@@ -38,6 +41,9 @@ export default function DesktopLayout({
   const enqueue = usePlayerStore((s) => s.enqueue);
   // Continue listening is now handled by ContinueListening on the library page
 
+  // archive.org's health and the mirror's manifest: outage mode's inputs.
+  useOutageMonitor();
+
   // Restore persisted admin state after mount (not during render — see admin-store),
   // then handle ?viewer URL param (logout only — login requires password)
   useEffect(() => {
@@ -65,14 +71,17 @@ export default function DesktopLayout({
   // Listen for custom play-episode events from library
   useEffect(() => {
     const handler = async (episode: Episode) => {
+      // Queued, so manually-played episodes enter the queue — unless
+      // archive.org is down and the mirror does not hold this show: refused,
+      // with the outage dialog, before it is queued or anything else is
+      // touched. Whatever is playing keeps playing.
+      if (!admitRequestedStart(episode, enqueue)) return;
+
       // This is the start. Everything below may await (a metadata fetch, an
       // OPFS read, a file picker), and the listener may pick another show in
       // the meantime; each continuation checks it is still the newest start
       // before going on, and playEpisode checks again (HD-003).
       const start = beginStart();
-
-      // Also enqueue so manually-played episodes enter the queue
-      enqueue(episode);
 
       // Archive episodes stream directly — no file picker needed
       if (episode.sourceUrl) {
@@ -468,6 +477,7 @@ export default function DesktopLayout({
       {/* Mounted here rather than inside AudioPlayer so a failure is still
           announced on pages that render no player chrome. */}
       <PlaybackErrorDialog />
+      <OutageDialog />
       </div>
     </DBErrorBoundary>
   );

@@ -62,3 +62,36 @@ export function fallbacksFor(
   if (current !== "archive") return [];
   return resolveSources(episode).filter((s) => s.kind === "mirror");
 }
+
+/**
+ * How a start should go, decided synchronously before anything touches the
+ * element or the network:
+ *
+ *   play         the first source to try (archive.org, or the mirror while
+ *                archive.org is down)
+ *   unavailable  archive.org is down and the mirror's manifest says it does not
+ *                hold this show. Nothing can deliver it; trying costs the
+ *                listener the gateway's 15 s first-byte budget and ends in an
+ *                error anyway. Refuse at once and say why (`OutageDialog`).
+ *   none         no source at all (a catalog row with no URL)
+ *
+ * `playable` null means the manifest is unknown — never read, or unreadable.
+ * That sends the start to the mirror to find out rather than refusing a show
+ * that may well be there.
+ */
+export type StartPlan =
+  | { kind: "play"; source: PlaySource }
+  | { kind: "unavailable" }
+  | { kind: "none" };
+
+export function planStart(
+  episode: Pick<Episode, "fileHash" | "sourceUrl">,
+  { archiveDown, playable }: { archiveDown: boolean; playable: ReadonlySet<string> | null },
+): StartPlan {
+  const first = resolveSources(episode, { archiveDown })[0];
+  if (!first) return { kind: "none" };
+  if (first.kind === "mirror" && archiveDown && playable && !playable.has(episode.fileHash!)) {
+    return { kind: "unavailable" };
+  }
+  return { kind: "play", source: first };
+}
