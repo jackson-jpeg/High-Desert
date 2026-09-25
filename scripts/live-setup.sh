@@ -64,8 +64,9 @@ mint_link() {
   local nonce hash stamp file
   nonce=$(openssl rand -hex 32)
   hash=$(printf '%s' "$nonce" | sha256sum | cut -d' ' -f1)
-  psql "$(owner_url)" -qv ON_ERROR_STOP=1 -v h="$hash" \
-    -c "INSERT INTO live_admin_nonces (hash, expires_at) VALUES (:'h', now() + interval '24 hours')" >/dev/null
+  # On stdin: psql does not interpolate :'h' in a -c string. Hex, so safe to quote.
+  printf "INSERT INTO live_admin_nonces (hash, expires_at) VALUES ('%s', now() + interval '24 hours');\n" "$hash" |
+    psql "$(owner_url)" -qv ON_ERROR_STOP=1 >/dev/null
   stamp=$(date -u +%Y-%m-%dT%H-%M-%SZ)
   install -d -m 700 "$STAGED"
   file="$STAGED/highdesert-live-admin-signin-$stamp.md"
@@ -117,12 +118,15 @@ if [ "$exists" != 1 ] || ! has LIVE_DATABASE_URL; then
   # A fresh password whenever the URL is missing: the only copy is the env file.
   pw=$(openssl rand -hex 24)
   if [ "$exists" != 1 ]; then
-    runuser -u postgres -- psql -qv ON_ERROR_STOP=1 -v pw="$pw" \
-      -c "CREATE ROLE $ROLE LOGIN PASSWORD :'pw'" >/dev/null
+    # On stdin, not -c: psql does not interpolate :'pw' in a -c string, and
+    # stdin keeps the password out of the process list. It is hex, so quoting
+    # it is safe.
+    printf "CREATE ROLE %s LOGIN PASSWORD '%s';\n" "$ROLE" "$pw" |
+      runuser -u postgres -- psql -qv ON_ERROR_STOP=1 >/dev/null
     log "created role $ROLE"
   else
-    runuser -u postgres -- psql -qv ON_ERROR_STOP=1 -v pw="$pw" \
-      -c "ALTER ROLE $ROLE PASSWORD :'pw'" >/dev/null
+    printf "ALTER ROLE %s PASSWORD '%s';\n" "$ROLE" "$pw" |
+      runuser -u postgres -- psql -qv ON_ERROR_STOP=1 >/dev/null
   fi
   sed -i '/^LIVE_DATABASE_URL=/d' "$ENV_FILE"
   printf 'LIVE_DATABASE_URL=postgres://%s:%s@127.0.0.1:5432/%s\n' "$ROLE" "$pw" "$DB" >> "$ENV_FILE"

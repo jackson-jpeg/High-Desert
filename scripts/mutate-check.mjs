@@ -2563,6 +2563,14 @@ export const MUTATIONS = [
     why: "the dialog offers the same guest first",
   },
   {
+    id: "live-setup-nonce-stored",
+    test: "scripts/__tests__/live-setup.db.test.ts",
+    file: "scripts/live-setup.sh",
+    find: "VALUES ('%s', now() + interval '24 hours');",
+    replace: "VALUES (:'h', now() + interval '24 hours');",
+    why: "psql does not interpolate :'h' in the statement as the script sends it; the first production --link failed exactly so and minted nothing",
+  },
+  {
     id: "live-threat-verb-you",
     test: "services/live/test/filter.test.mjs",
     file: "data/chat-blocklist.txt",
