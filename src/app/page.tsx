@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
+import { safeGetItem, safeSetItem } from "@/lib/utils/safe-storage";
 import { Button } from "@/components/win98";
 
 export default function WelcomePage() {
@@ -19,7 +20,7 @@ export default function WelcomePage() {
   // navigate at 900ms — a mandatory wait on every hit of the root URL, spent
   // hydrating a splash (starfield rAF loop included) purely to leave it.
   useEffect(() => {
-    if (!localStorage.getItem("hd-visited")) return;
+    if (!safeGetItem("local", "hd-visited")) return;
     setIsReturning(true);
     router.replace("/library");
   }, [router]);
@@ -87,7 +88,7 @@ export default function WelcomePage() {
   }, []);
 
   const handleEnter = () => {
-    localStorage.setItem("hd-visited", "1");
+    safeSetItem("local", "hd-visited", "1");
     setFadeOut(true);
     setTimeout(() => router.push("/library"), 500);
   };

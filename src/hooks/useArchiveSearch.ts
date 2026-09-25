@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useSearchStore } from "@/stores/search-store";
 import { searchArchive, getArchiveItem, getStreamUrl, pickBestAudioFile } from "@/services/archive/client";
 import { toast } from "@/stores/toast-store";
@@ -9,9 +10,26 @@ import type { Episode } from "@/db/schema";
 import type { ArchiveSearchResult } from "@/services/archive/types";
 
 export function useArchiveSearch() {
-  const store = useSearchStore();
+  // The state the panel shows, compared shallowly; actions via getState() at
+  // call time. Subscribing to the whole store and depending on it in every
+  // callback rebuilt search/addToLibrary on each keystroke's state change —
+  // and addAllToLibrary read addedIds from whichever render it was built in
+  // (HD-040).
+  const state = useSearchStore(
+    useShallow((s) => ({
+      query: s.query,
+      results: s.results,
+      totalResults: s.totalResults,
+      page: s.page,
+      loading: s.loading,
+      error: s.error,
+      addingIds: s.addingIds,
+      addedIds: s.addedIds,
+    })),
+  );
 
   const search = useCallback(async (query: string, page = 1) => {
+    const store = useSearchStore.getState();
     store.setLoading(true);
     store.setError(null);
     try {
@@ -31,9 +49,10 @@ export function useArchiveSearch() {
     } finally {
       store.setLoading(false);
     }
-  }, [store]);
+  }, []);
 
   const addToLibrary = useCallback(async (result: ArchiveSearchResult) => {
+    const store = useSearchStore.getState();
     store.startAdding(result.identifier);
     try {
       // Check for duplicate
@@ -98,11 +117,12 @@ export function useArchiveSearch() {
       store.finishAdding(result.identifier);
       toast.error(`Failed to add "${result.title}"`);
     }
-  }, [store]);
+  }, []);
 
   const addAllToLibrary = useCallback(async (results: ArchiveSearchResult[]) => {
+    const { addedIds, addingIds } = useSearchStore.getState();
     const newResults = results.filter(
-      (r) => !store.addedIds.has(r.identifier) && !store.addingIds.has(r.identifier),
+      (r) => !addedIds.has(r.identifier) && !addingIds.has(r.identifier),
     );
 
     // Batch into chunks of 10 with 1s delay between chunks (each triggers AI categorization)
@@ -114,10 +134,10 @@ export function useArchiveSearch() {
         await new Promise((r) => setTimeout(r, 1000));
       }
     }
-  }, [store.addedIds, store.addingIds, addToLibrary]);
+  }, [addToLibrary]);
 
   return {
-    ...store,
+    ...state,
     search,
     addToLibrary,
     addAllToLibrary,

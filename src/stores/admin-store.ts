@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { safeSetItem, safeRemoveItem } from "@/lib/utils/safe-storage";
 
 const STORAGE_KEY = "hd-admin";
 const ADMIN_HASH = "7740185e7b5e8ec29b31a918cd2b8d0d491c864072ed360e48999355974280d4";
@@ -42,7 +43,7 @@ export const useAdminStore = create<AdminState>((set) => ({
   login: async (password: string) => {
     const hash = await hashPassword(password);
     if (hash === ADMIN_HASH) {
-      try { localStorage.setItem(STORAGE_KEY, "1"); } catch {}
+      safeSetItem("local", STORAGE_KEY, "1");
       set({ isAdmin: true });
       return true;
     }
@@ -54,12 +55,12 @@ export const useAdminStore = create<AdminState>((set) => ({
   },
 
   enable: () => {
-    try { localStorage.setItem(STORAGE_KEY, "1"); } catch {}
+    safeSetItem("local", STORAGE_KEY, "1");
     set({ isAdmin: true });
   },
 
   logout: () => {
-    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    safeRemoveItem("local", STORAGE_KEY);
     set({ isAdmin: false });
   },
 }));

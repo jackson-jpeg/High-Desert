@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useScraperStore } from "@/stores/scraper-store";
 import { runCatalogImport } from "@/services/archive/catalog-import";
 import { toast } from "@/stores/toast-store";
@@ -11,10 +12,30 @@ import { toast } from "@/stores/toast-store";
  * kept out of the hook so it can be tested against a real database.
  */
 export function useCatalogScraper() {
-  const store = useScraperStore();
+  // The progress fields, compared shallowly. The whole store used to be
+  // subscribed and every callback depended on it, so each progress tick built
+  // new startScrape/cancelScrape functions (HD-040). Actions are read with
+  // getState() at call time instead: stable, and never a stale `phase`.
+  const progress = useScraperStore(
+    useShallow((s) => ({
+      phase: s.phase,
+      fetched: s.fetched,
+      total: s.total,
+      page: s.page,
+      imported: s.imported,
+      duplicates: s.duplicates,
+      categorized: s.categorized,
+      errors: s.errors,
+      errorMessages: s.errorMessages,
+      startedAt: s.startedAt,
+      phaseTimes: s.phaseTimes,
+      currentItem: s.currentItem,
+    })),
+  );
   const abortRef = useRef<AbortController | null>(null);
 
   const startScrape = useCallback(async (options?: { resume?: boolean }) => {
+    const store = useScraperStore.getState();
     if (store.phase !== "idle" && store.phase !== "done" && store.phase !== "error" && store.phase !== "cancelled") {
       return;
     }
@@ -43,15 +64,15 @@ export function useCatalogScraper() {
         toast.error("Catalog import failed");
       }
     }
-  }, [store]);
+  }, []);
 
   const cancelScrape = useCallback(() => {
     abortRef.current?.abort();
-    store.setPhase("cancelled");
-  }, [store]);
+    useScraperStore.getState().setPhase("cancelled");
+  }, []);
 
   return {
-    ...store,
+    ...progress,
     startScrape,
     cancelScrape,
   };

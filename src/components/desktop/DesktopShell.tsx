@@ -50,6 +50,7 @@ const EasterEggOverlays = dynamic(
   { ssr: false },
 );
 import { useKonamiCode } from "@/hooks/useKonamiCode";
+import { usePaletteShortcut } from "@/hooks/usePaletteShortcut";
 import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { usePlayerStore } from "@/stores/player-store";
@@ -98,16 +99,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
 
   // Ctrl/Cmd+K lives here rather than inside CommandPalette, so the palette's
   // chunk is only fetched the first time someone actually opens it.
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setPaletteOpen((prev) => !prev);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
+  usePaletteShortcut(() => setPaletteOpen((prev) => !prev));
   // Announces this tab and reports who else is here. The shell is mounted on
   // every route, so this is the one place the heartbeat needs to live.
   const presence = usePresence();

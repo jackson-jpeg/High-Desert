@@ -4,13 +4,18 @@
  */
 
 import { getPreference } from "@/db";
+import { safeSetItem } from "@/lib/utils/safe-storage";
 
 let hasPlayed = false;
 
 export async function playStartupSound(): Promise<void> {
   // Only once per session
   if (hasPlayed) return;
-  if (sessionStorage.getItem("hd-startup-played")) return;
+  try {
+    if (sessionStorage.getItem("hd-startup-played")) return;
+  } catch {
+    // Storage blocked: the module flag above still limits it to once per load.
+  }
 
   // Check user preference
   try {
@@ -22,7 +27,7 @@ export async function playStartupSound(): Promise<void> {
   }
 
   hasPlayed = true;
-  sessionStorage.setItem("hd-startup-played", "1");
+  safeSetItem("session", "hd-startup-played", "1");
 
   try {
     const ctx = new AudioContext();

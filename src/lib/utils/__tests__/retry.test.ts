@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fetchWithRetry } from "../retry";
+import { fetchWithRetry, MAX_RETRY_AFTER_MS } from "../retry";
 
 describe("fetchWithRetry", () => {
   beforeEach(() => {
@@ -86,5 +86,52 @@ describe("fetchWithRetry", () => {
         delay: 10,
       }),
     ).rejects.toThrow("Aborted");
+  });
+
+  it("leaves no listener on the caller's signal once it settles (HD-040)", async () => {
+    // One listener per attempt used to stay on the caller's signal for as
+    // long as the caller kept it — the scraper's lives for the whole walk.
+    const controller = new AbortController();
+    const live = new Set<unknown>();
+    const add = controller.signal.addEventListener.bind(controller.signal);
+    const remove = controller.signal.removeEventListener.bind(controller.signal);
+    vi.spyOn(controller.signal, "addEventListener").mockImplementation((type, fn, opts) => {
+      if (type === "abort") live.add(fn);
+      add(type, fn, opts);
+    });
+    vi.spyOn(controller.signal, "removeEventListener").mockImplementation((type, fn, opts) => {
+      if (type === "abort") live.delete(fn);
+      remove(type, fn, opts);
+    });
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("error", { status: 500 }))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(new Response("ok", { status: 200 }));
+
+    const res = await fetchWithRetry("https://example.com", { signal: controller.signal }, {
+      retries: 3,
+      delay: 10,
+      backoff: 1,
+    });
+
+    expect(res.status).toBe(200);
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(live.size).toBe(0);
+  });
+
+  it("caps an absurd Retry-After at MAX_RETRY_AFTER_MS (HD-040)", async () => {
+    vi.useRealTimers();
+    vi.useFakeTimers();
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("slow down", { status: 429, headers: { "Retry-After": "3600" } }))
+      .mockResolvedValueOnce(new Response("ok", { status: 200 }));
+
+    const pending = fetchWithRetry("https://example.com", undefined, { retries: 1, delay: 10 });
+    await vi.advanceTimersByTimeAsync(MAX_RETRY_AFTER_MS - 1);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect((await pending).status).toBe(200);
+    expect(MAX_RETRY_AFTER_MS).toBeLessThanOrEqual(30_000);
   });
 });
