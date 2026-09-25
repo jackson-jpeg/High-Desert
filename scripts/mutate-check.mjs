@@ -212,7 +212,7 @@ export const MUTATIONS = [
   {
     id: "global-install",
     test: "src/hooks/__tests__/global-listeners.test.ts",
-    file: "src/hooks/useAudioPlayer.ts",
+    file: "src/hooks/player/globals.ts",
     find: "if (next === 1) globalRelease.set(key, install());",
     replace: "if (next === 99) globalRelease.set(key, install());",
     why: "THE incident: a shared ref counter meant four of five installs never ran, in any browser, for four months",
@@ -465,8 +465,8 @@ export const MUTATIONS = [
   {
     id: "listen-time-tick-wire",
     test: "src/hooks/__tests__/global-listeners.test.ts",
-    file: "src/hooks/useAudioPlayer.ts",
-    find: "            noteListenTick(audio.currentTime);\n",
+    file: "src/hooks/player/persistence.ts",
+    find: "        noteListenTick(audio.currentTime);\n",
     replace: "",
     why: "the listened-time module is only real if the player's tick feeds it",
   },
@@ -1170,9 +1170,9 @@ export const MUTATIONS = [
   {
     id: "abort-event-not-error",
     test: "src/hooks/__tests__/play-session.test.ts",
-    file: "src/hooks/useAudioPlayer.ts",
-    find: "    const onAbort = () => {\n      setBuffering(false);\n    };",
-    replace: "    const onAbort = () => {\n      setBuffering(false);\n      if (isWatching()) noteError(\"network-error\");\n    };",
+    file: "src/hooks/player/media-events.ts",
+    find: "  const onAbort = () => {\n    setBuffering(false);\n  };",
+    replace: "  const onAbort = () => {\n    setBuffering(false);\n    if (isWatching()) noteError(\"network-error\");\n  };",
     why: "the queued `abort` of a replaced fetch lands after the next show arms the watchdog; treating it as an error charged a phantom failure to the new show",
   },
   {
@@ -1202,7 +1202,7 @@ export const MUTATIONS = [
   {
     id: "ended-clears-position",
     test: "src/hooks/__tests__/play-session.test.ts",
-    file: "src/hooks/useAudioPlayer.ts",
+    file: "src/hooks/player/media-events.ts",
     find: ".update(finished.id, { playbackPosition: 0, updatedAt: Date.now() })",
     replace: ".update(finished.id, { updatedAt: Date.now() })",
     why: "HD-004: nothing reset the saved position at the end of a show",
@@ -1226,23 +1226,25 @@ export const MUTATIONS = [
   {
     id: "mediasession-pause-explicit",
     test: "src/hooks/__tests__/play-session.test.ts",
-    file: "src/hooks/useAudioPlayer.ts",
+    file: "src/hooks/player/media-session.ts",
     find: "      [\"pause\", () => pausePlayback()],",
-    replace: "      [\"pause\", () => togglePlay()],",
+    // togglePlay() inlined: it is not in scope in media-session.ts, and a
+    // ReferenceError would go red for the wrong reason.
+    replace: "      [\"pause\", () => (usePlayerStore.getState().playing ? pausePlayback() : void resumePlayback())],",
     why: "HD-032: a toggle inverts whenever the store is out of step with the element — a lock-screen pause that starts the show",
   },
   {
     id: "mediasession-play-explicit",
     test: "src/hooks/__tests__/play-session.test.ts",
-    file: "src/hooks/useAudioPlayer.ts",
+    file: "src/hooks/player/media-session.ts",
     find: "      [\"play\", () => void resumePlayback()],",
-    replace: "      [\"play\", () => void togglePlay()],",
+    replace: "      [\"play\", () => (usePlayerStore.getState().playing ? pausePlayback() : void resumePlayback())],",
     why: "HD-032: the lock screen's play must play",
   },
   {
     id: "position-save-caught",
     test: "src/hooks/__tests__/play-session.test.ts",
-    file: "src/hooks/useAudioPlayer.ts",
+    file: "src/hooks/player/persistence.ts",
     find: "    .catch((err) => {\n      console.warn(\"[player] Failed to save position:\", err);\n    });",
     replace: "    ;",
     why: "HD-032: the position save ran in an interval with no catch — an unhandled rejection on every tick",
@@ -1250,15 +1252,15 @@ export const MUTATIONS = [
   {
     id: "position-save-on-pause",
     test: "src/hooks/__tests__/play-session.test.ts",
-    file: "src/hooks/useAudioPlayer.ts",
-    find: "          savePosition();\n",
+    file: "src/hooks/player/persistence.ts",
+    find: "      savePosition();\n",
     replace: "",
     why: "HD-016: with a 30 s interval, the pause position must be written at the pause",
   },
   {
     id: "position-save-cadence",
     test: "src/hooks/__tests__/global-listeners.test.ts",
-    file: "src/hooks/useAudioPlayer.ts",
+    file: "src/hooks/player/persistence.ts",
     find: "export const POSITION_SAVE_MS = 30_000;",
     replace: "export const POSITION_SAVE_MS = 5_000;",
     why: "HD-016: every save re-runs full-table live queries; at 5 s that is ~2,000 rebuilds per show",
@@ -1282,7 +1284,7 @@ export const MUTATIONS = [
   {
     id: "object-url-owned-on-retry",
     test: "src/hooks/__tests__/play-session.test.ts",
-    file: "src/hooks/useAudioPlayer.ts",
+    file: "src/hooks/player/play-session.ts",
     find: "    (objectUrl !== \"\" && objectUrl !== store.objectUrl)\n",
     replace: "    false\n",
     why: "HD-033: a re-picked file for the same show must be owned by the store, or it is never revoked",
@@ -2068,7 +2070,7 @@ export const MUTATIONS = [
   {
     id: "mirror-failover-one-listen",
     test: "src/hooks/__tests__/mirror-failover.test.ts",
-    file: "src/hooks/useAudioPlayer.ts",
+    file: "src/hooks/player/play-session.ts",
     find: "if (ep && !isListenCounted()) countListen(ep, id);",
     replace: "if (ep) countListen(ep, id);",
     why: "a failover is the same listen continuing; counting it again inflates plays for exactly the shows archive.org drops",

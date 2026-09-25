@@ -425,6 +425,14 @@ concluded it was their own mistake. Regression test:
   `GlobalKey`; reusing an existing one silently disables one of them.
   Regression test: `src/hooks/__tests__/global-listeners.test.ts`, which mounts the hook
   **twice** — the way production does — and asserts each subsystem installs exactly once.
+- **`useAudioPlayer.ts` is the start/stop/seek surface and the wiring; the rest is in
+  `src/hooks/player/`** (HD-018): `globals.ts` (`withGlobals`, `GlobalKey`),
+  `play-session.ts` (`openListen`/`armListen`/`countListen`, the watchdog's failure and
+  failover handlers — not to be confused with `src/audio/play-session.ts`, the start
+  token), `media-events.ts` (the element listeners), `persistence.ts` (position tick,
+  position saves, unload flush, `POSITION_SAVE_MS`) and `media-session.ts`. Every
+  `withGlobals` call stays in `useAudioPlayer.ts`, one per key, so the keys can be read
+  in one place; the modules export plain `install*()` functions that return their teardown.
 - **The service worker must never see media.** `public/sw.js` returns early for
   `Range` requests, `destination === "audio"`, archive.org hosts and audio extensions.
   It never cached audio, so `respondWith()` bought nothing while defeating native
@@ -487,7 +495,7 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   marker is written. **It skips itself while hypervisor steal is above 20%** and
   records why in `warm-status.json`. Pins are exempt from eviction and seeded.
 - **Client failover** (`src/audio/sources.ts`, `playback-watchdog.ts`,
-  `useAudioPlayer.ts`): `resolveSources()` is archive.org then
+  `useAudioPlayer.ts`, `src/hooks/player/play-session.ts`): `resolveSources()` is archive.org then
   `/mirror/{fileHash}`; only catalog episodes have a mirror, and while archive.org
   is known down a show the manifest lacks has none (outage mode, below). On a watchdog
   `network-error`, `stall` or `timeout` — **never `play-rejected`**, which is the
