@@ -48,6 +48,9 @@ interface World {
   cpu: { rc: number; out: string };
   /** warm-status.json, with `ageH` turned into its `at`; null writes no file. */
   warm: { ageH: number; outcome: string; pinned: number; bytes: number; fetched: number; failed: number; steal?: number } | null;
+  liveActive: string;
+  /** /live-api/health's body; null answers 502. */
+  liveHealth: Record<string, unknown> | null;
 }
 
 const HEALTHY: World = {
@@ -71,8 +74,10 @@ const HEALTHY: World = {
   pinnedBytes: 14 * 2 ** 30,
   fillCacheBytes: 2 * 2 ** 30,
   mirrorPlays24h: 7,
-  cpu: { rc: 0, out: "highdesert 3.2\nhighdesert-sample 0.4\nhighdesert-mirror-warm 0.0\nhighdesert-backup 0.0" },
+  cpu: { rc: 0, out: "highdesert 3.2\nhighdesert-live 3.1\nhighdesert-sample 0.4\nhighdesert-mirror-warm 0.0\nhighdesert-backup 0.0" },
   warm: { ageH: 5, outcome: "ok", pinned: 120, bytes: 14 * 2 ** 30, fetched: 4, failed: 0 },
+  liveActive: "active",
+  liveHealth: { ok: true, clients: 42, messagesLastHour: 17, slowMode: false, cpu: { pct: 2.5, windowS: 900 } },
 };
 
 let dir: string;
@@ -105,6 +110,7 @@ async function run(): Promise<{ code: number; out: string }> {
       `case "$*" in`,
       `  "is-active highdesert") echo "${world.serviceActive}";;`,
       `  "is-active highdesert-mirror") echo "${world.oldGatewayActive}";;`,
+      `  "is-active highdesert-live") echo "${world.liveActive}";;`,
       `  *"highdesert-sample.timer -p ActiveState"*) echo "${world.timerState}";;`,
       `  *"highdesert-sample.timer -p LastTriggerUSec"*) echo "${lastTrigger}";;`,
       `  *"highdesert-sample.service -p Result"*) echo "${world.sampleResult}";;`,
@@ -189,6 +195,7 @@ async function run(): Promise<{ code: number; out: string }> {
           HD_MIRROR_PINS: pins,
           HD_MIRROR_PROXY_CACHE: fill,
           HD_CPU_CMD: path.join(bin, "cpu"),
+          HD_LIVE: api,
           HD_WARM_STATUS: warmFile,
         },
         timeout: 30_000,
@@ -215,6 +222,7 @@ beforeEach(async () => {
     mirrorManifest: { ...HEALTHY.mirrorManifest!, fileHashes: [...HEALTHY.mirrorManifest!.fileHashes] },
     cpu: { ...HEALTHY.cpu },
     warm: { ...HEALTHY.warm! },
+    liveHealth: { ...HEALTHY.liveHealth },
   };
   sinceAsked = null;
   dir = await mkdtemp(path.join(tmpdir(), "hd-status-"));
@@ -256,6 +264,9 @@ beforeEach(async () => {
     } else if (req.url?.startsWith("/api/stats/traffic")) {
       const range = new URL(req.url, "http://x").searchParams.get("range");
       res.end(JSON.stringify({ playsInRange: world.plays, playsBySource: range === "24h" ? { archive: 40, mirror: world.mirrorPlays24h } : {} }));
+    } else if (req.url === "/live-api/health") {
+      if (!world.liveHealth) res.statusCode = 502;
+      res.end(JSON.stringify(world.liveHealth ?? {}));
     } else if (req.url === "/mirror/manifest") {
       if (!world.mirrorManifest) {
         res.statusCode = 502;
@@ -487,6 +498,58 @@ describe("highdesert-status", () => {
     const r = await run();
     expect(lineFor(r.out, "presence")).toMatch(/^WARN\s+presence\s+check did not run \(exit 2\): could not load playwright$/);
     expect(r.out).not.toMatch(/^FAIL/m);
+  });
+
+  describe("live line (the phone lines and the 10% rule)", () => {
+    it("reports callers, messages, and hd-cpu-sample's 15-minute figure for highdesert-live", async () => {
+      const r = await run();
+      expect(lineFor(r.out, "live")).toMatch(
+        /^OK\s+live\s+42 caller\(s\) connected, 17 message\(s\) in the last hour; CPU 3\.1% of one core over 15 min \(hd-cpu-sample\), limit 10%$/,
+      );
+      expect(r.code).toBe(0);
+    });
+    it("says when slow mode is on", async () => {
+      world.liveHealth = { ...world.liveHealth, slowMode: true };
+      expect(lineFor((await run()).out, "live")).toMatch(/^OK\s+live\s+.*in the last hour, slow mode on;/);
+    });
+    it("FAILs, and exits non-zero, when highdesert-live is over 10% — and judges its own row, not another unit's", async () => {
+      world.cpu = { rc: 0, out: "highdesert 2.0\nhighdesert-live 10.4" };
+      const r = await run();
+      expect(lineFor(r.out, "live")).toMatch(/^FAIL\s+live\s+OVER THE 10% RULE: CPU 10\.4% of one core over 15 min \(hd-cpu-sample\)/);
+      expect(r.code).toBe(1);
+    });
+    it("is OK at exactly 10%, and another unit over 10% is the cpu line's to report, not this one's", async () => {
+      world.cpu = { rc: 0, out: "highdesert-mirror-warm 44.0\nhighdesert-live 10.0" };
+      const r = await run();
+      expect(lineFor(r.out, "live")).toMatch(/^OK\s+live\s+.*CPU 10\.0% of one core/);
+      expect(lineFor(r.out, "cpu")).toMatch(/^FAIL\s+cpu\s+.*highdesert-mirror-warm 44\.0%/);
+    });
+    it("falls back to the service's own average while the sampler's window is partial (exit 3), and says so", async () => {
+      world.cpu = { rc: 3, out: "only 120s of samples in the last 900s, need 810s" };
+      world.liveHealth = { ...world.liveHealth, cpu: { pct: 12.5, windowS: 900 } };
+      const r = await run();
+      expect(lineFor(r.out, "live")).toMatch(/^FAIL\s+live\s+OVER THE 10% RULE: CPU 12\.5% .*\(the service's own average; hd-cpu-sample has no 15-min figure/);
+      expect(r.code).toBe(1);
+    });
+    it("falls back too when the sampler has no row for the unit yet", async () => {
+      world.cpu = { rc: 0, out: "highdesert 4.2" };
+      expect(lineFor((await run()).out, "live")).toMatch(/^OK\s+live\s+.*CPU 2\.5% .*\(the service's own average/);
+    });
+    it("WARNs, never reports 0%, when neither source has a number", async () => {
+      world.cpu = { rc: 3, out: "only 0s of samples" };
+      world.liveHealth = { ...world.liveHealth, cpu: null };
+      expect(lineFor((await run()).out, "live")).toMatch(/^WARN\s+live\s+.*CPU not measurable yet/);
+    });
+    it("FAILs when the service is down", async () => {
+      world.liveActive = "inactive";
+      const r = await run();
+      expect(lineFor(r.out, "live")).toMatch(/^FAIL\s+live\s+highdesert-live is not active/);
+      expect(r.code).toBe(1);
+    });
+    it("FAILs when the service is up but health does not answer", async () => {
+      world.liveHealth = null;
+      expect(lineFor((await run()).out, "live")).toMatch(/^FAIL\s+live\s+active, but .*did not answer/);
+    });
   });
 
   describe("cpu line", () => {
