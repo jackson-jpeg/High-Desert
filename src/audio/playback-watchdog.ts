@@ -462,7 +462,7 @@ export function armWatchdog(opts: {
   if (!wired()) {
     console.error(
       "[watchdog] refusing to arm: media element listeners are not attached. " +
-        "Playback is unsupervised — no timeout, no retry, no failure dialog.",
+        "Playback is unsupervised: no timeout, no retry, no failure dialog.",
     );
     current = null;
     return;

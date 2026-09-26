@@ -128,7 +128,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
               .join(" ")
               .toLowerCase(),
             label: e.title || e.fileName,
-            sub: [e.guestName, e.airDate].filter(Boolean).join(" — "),
+            sub: [e.guestName, e.airDate].filter(Boolean).join(" · "),
           }));
         setIndexReady(true);
       })

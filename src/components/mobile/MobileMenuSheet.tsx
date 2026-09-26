@@ -134,7 +134,7 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
             className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desert-amber cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
           >
             <span className="w-[24px] text-center text-hd-16">{"\u21C6"}</span>
-            <span>Surprise Me — Shuffle All</span>
+            <span>Surprise Me: Shuffle All</span>
           </button>
 
           {/* Sort group.
@@ -148,8 +148,8 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
             <span className="text-hd-11 text-bevel-dark/85 uppercase tracking-wider font-sans">Sort Episodes</span>
           </div>
           {([
-            ["date", "Date — newest first", "\u{1F4C5}"],
-            ["date-asc", "Date — oldest first", "\u{1F4C5}"],
+            ["date", "Date, newest first", "\u{1F4C5}"],
+            ["date-asc", "Date, oldest first", "\u{1F4C5}"],
             ["recent", "Recently played", "\u{1F553}"],
             ["progress", "In progress", "◑"],
             ["played", sortLabel("played"), "▶"],

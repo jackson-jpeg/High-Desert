@@ -19,7 +19,7 @@ import { describe } from "vitest";
 export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ?? "";
 
 if (!TEST_DATABASE_URL && process.env.CI) {
-  throw new Error("TEST_DATABASE_URL is required in CI — database tests would otherwise be skipped silently");
+  throw new Error("TEST_DATABASE_URL is required in CI: database tests would otherwise be skipped silently");
 }
 
 if (TEST_DATABASE_URL) {

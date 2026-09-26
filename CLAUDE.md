@@ -666,18 +666,27 @@ same offset, computed from a synced clock.
 
 The chat beside Live Broadcast. Its own unit, **`highdesert-live`**, runs as
 user `hdlive` from `/opt/highdesert-live` on 127.0.0.1:3005. It carries SSE
-down and JSON POST up, and keeps its state in seven `live_*` tables in the
+down and JSON POST up, and keeps its state in eight `live_*` tables in the
 `highdesert` database. It connects as its own role, `highdesert_live`. A web
 deploy never drops a chat stream. The full account is in `docs/live-chat.md`.
 
 - **The listener count is not the chat's.** `<LiveChat />` shows
   `useCommunityNow().live` from the one presence function. The service's
   `clients` is an operational number for `highdesert-status` only.
-- **No address is stored.** `client_ref` is an HMAC of the app's own
-  `clientKey()` under `CHAT_CLIENT_SECRET`. The implementation is shared
-  through the symlink `services/live/lib/shared/client-key.ts →
-  src/lib/utils/client-key.ts`, and deploy copies it with `-L`. Every
-  `client_ref` column has a CHECK that it is 64 hex characters.
+- **One browser, one caller** (2026-09-26). A caller is a random id in the
+  signed `hd_live_caller` cookie (HttpOnly, Secure, Path=/live-api, 400 days,
+  `services/live/lib/caller.mjs`); `client_ref` is an HMAC of it. Names,
+  lines, the rename limit, reports, mutes and bans key on it. It used to be
+  an HMAC of the address, which made a household, or a carrier's NAT, one
+  caller. **Never key a per-person rule on the address again.**
+- **The address is a secondary, generous limit.** `addr_ref` is the HMAC of
+  the app's own `clientKey()` (shared through the symlink
+  `services/live/lib/shared/client-key.ts → src/lib/utils/client-key.ts`,
+  copied with `-L` on deploy): 300 new callers and 30 first calls an hour, 60
+  messages a minute. A ban also holds the address for 24 h: one new caller an
+  hour may start talking, so clearing cookies is not a free reset, and callers
+  already there are untouched. Reports count distinct addresses. **No address
+  is stored**: every ref column has a CHECK that it is 64 hex characters.
   `X-Forwarded-For` is trusted only from loopback.
 - **Moderation is server-side and free.** `obscenity` plus
   `data/chat-blocklist.txt`, which the owner extends: `mask:`, `allow:`,

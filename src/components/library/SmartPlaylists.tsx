@@ -83,7 +83,7 @@ export function SmartPlaylists({ onPlay, className }: SmartPlaylistsProps) {
     const result: SmartList[] = [];
 
     if (startHere.length > 0) {
-      result.push({ key: "start-here", label: "Start Here — Classic Episodes", icon: "\u2B50", episodes: startHere });
+      result.push({ key: "start-here", label: "Start Here: Classic Episodes", icon: "\u2B50", episodes: startHere });
     }
     if (unlistened.length > 0) {
       result.push({ key: "unlistened", label: "Unlistened", icon: "\u{1F195}", episodes: unlistened });

@@ -134,7 +134,7 @@ export type PostResult =
 
 /** Fallback wording when the server's own sentence is missing. */
 const REASONS: Record<string, string> = {
-  rate: "Hold the line — one call at a time.",
+  rate: "Hold the line. One call at a time.",
   duplicate: "You just said that.",
   muted: "You're on hold for a few minutes.",
   banned: "This line has been disconnected.",
@@ -167,8 +167,10 @@ function failure(json: Record<string, unknown>): { ok: false; reason: string; me
 export async function sendMessage(body: string): Promise<PostResult> {
   const { status, json } = await postJson("/messages", { body });
   if (status === 201) return { ok: true, message: json as unknown as LiveMessage };
-  if (status === 429 && typeof json.retryAfter === "number") {
-    return { ok: false, reason: "rate", message: `Hold the line — you can call again in ${json.retryAfter} s.`, retryAfter: json.retryAfter };
+  // Only the caller's own pace reads as "wait N s". Any other 429 (a busy or
+  // held network) carries its own sentence, which failure() passes through.
+  if (status === 429 && json.error === "rate" && typeof json.retryAfter === "number") {
+    return { ok: false, reason: "rate", message: `Hold the line. You can call again in ${json.retryAfter} s.`, retryAfter: json.retryAfter };
   }
   return failure(json);
 }
@@ -176,9 +178,9 @@ export async function sendMessage(body: string): Promise<PostResult> {
 export async function changeName(name: string): Promise<{ ok: true; name: string } | { ok: false; reason: string; message: string; retryAfter?: number }> {
   const { status, json } = await postJson("/name", { name });
   if (status === 200) return { ok: true, name: String(json.name) };
-  if (status === 429 && typeof json.retryAfter === "number") {
+  if (status === 429 && json.error === "rate" && typeof json.retryAfter === "number") {
     const minutes = Math.ceil(json.retryAfter / 60);
-    return { ok: false, reason: "rate", message: `Names can change once every 10 minutes — ${minutes} min to go.`, retryAfter: json.retryAfter };
+    return { ok: false, reason: "rate", message: `Names can change once every 10 minutes: ${minutes} min to go.`, retryAfter: json.retryAfter };
   }
   return failure(json);
 }

@@ -56,7 +56,7 @@ export function OfflineIndicator() {
         aria-live="polite"
         className="fixed top-0 inset-x-0 z-50 text-center py-1.5 text-hd-11 md:text-hd-10 font-bold bg-red-900/30 text-red-400"
       >
-        You are offline &mdash; cached episodes still available
+        You are offline. Cached episodes are still available
       </div>
     );
   }

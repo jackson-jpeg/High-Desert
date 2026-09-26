@@ -75,14 +75,22 @@ describeDb("reports", () => {
     expect((await live.post("/live-api/messages", { body: unique() }, { ip: author })).status).toBe(201);
   });
 
-  it("the same household on IPv6 is one reporter, however many addresses it uses", async () => {
+  it("the same household on IPv6 is one reporter, however many addresses and browsers it uses", async () => {
     const m = await live.post("/live-api/messages", { body: unique("ipv6") }, { ip: newCaller() });
     const prefix = `2001:db8:${randomBytes(2).toString("hex")}:1`;
+    // Three browsers (a jar each) on three addresses in one /64: three reports
+    // would hide the message if each counted.
     for (const suffix of ["::1", "::2", ":aaaa::3"]) {
-      await live.post("/live-api/report", { messageId: m.json.id }, { ip: `${prefix}${suffix}` });
+      const r = await live.post("/live-api/report", { messageId: m.json.id }, { ip: `${prefix}${suffix}` });
+      expect(r.json.hidden).toBe(false);
     }
-    const { rows } = await live.pool.query(`SELECT count(*)::int AS n FROM live_reports WHERE message_id = $1`, [m.json.id]);
+    const { rows } = await live.pool.query(
+      `SELECT count(DISTINCT COALESCE(addr_ref, client_ref))::int AS n FROM live_reports WHERE message_id = $1`,
+      [m.json.id],
+    );
     expect(rows[0].n).toBe(1);
+    const { rows: msg } = await live.pool.query(`SELECT hidden_at FROM live_messages WHERE id = $1`, [m.json.id]);
+    expect(msg[0].hidden_at).toBeNull();
   });
 
   it("your own message: reporting it is accepted and does nothing", async () => {

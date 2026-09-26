@@ -188,7 +188,7 @@ export function OnAir() {
           </ul>
         ) : (
           <p className="px-3 py-3 text-hd-caption text-bevel-dark/85">
-            Nobody has the mic right now — the band is open.
+            Nobody has the mic right now. The band is open.
           </p>
         )}
 

@@ -96,12 +96,12 @@ export function CollectionImport() {
               )}
               {progress.phase === "importing" && (
                 <span className="text-hd-10 text-desktop-gray">
-                  Importing episodes — {progress.imported + progress.duplicates} / {progress.total}
+                  Importing episodes: {progress.imported + progress.duplicates} / {progress.total}
                 </span>
               )}
               {progress.phase === "categorizing" && (
                 <span className="text-hd-10 text-desktop-gray">
-                  AI categorization — {progress.categorized} / {progress.imported}
+                  AI categorization: {progress.categorized} / {progress.imported}
                 </span>
               )}
             </div>

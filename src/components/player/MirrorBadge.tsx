@@ -16,7 +16,7 @@ export function MirrorBadge({ className }: { className?: string }) {
   return (
     <span
       data-testid="via-mirror"
-      title="archive.org isn't answering — this show is coming from High Desert's own mirror"
+      title="archive.org isn't answering. This show is coming from High Desert's own mirror"
       className={cn(
         "inline-flex items-center px-1 text-hd-micro font-bold tracking-wider text-signal-blue border border-signal-blue/60 whitespace-nowrap flex-shrink-0",
         className,

@@ -125,7 +125,7 @@ function keyFor(
     }
     case "guest-letter": {
       const k = initial(ep.guestName || "");
-      if (!k) return { key: "none", label: "—", title: "No guest" };
+      if (!k) return { key: "none", label: "·", title: "No guest" };
       return { key: k, label: k, title: k === "#" ? "Guests starting with a digit or symbol" : `Guests starting with ${k}` };
     }
     case "rating": {
@@ -133,7 +133,7 @@ function keyFor(
       // every bucket a contiguous run of it (4.0–4.99 is "4").
       const avg = sortValue(ep, "rated", community);
       const r = Math.floor(avg);
-      if (r <= 0) return { key: "unrated", label: "—", title: "No community ratings" };
+      if (r <= 0) return { key: "unrated", label: "·", title: "No community ratings" };
       return {
         key: String(r),
         label: `${r}★`,
@@ -142,7 +142,7 @@ function keyFor(
     }
     case "my-rating": {
       const r = Math.round(sortValue(ep, "my-rating", community));
-      if (r <= 0) return { key: "unrated", label: "—", title: "You have not rated these" };
+      if (r <= 0) return { key: "unrated", label: "·", title: "You have not rated these" };
       return { key: String(r), label: `${r}★`, title: `You rated ${r} star${r === 1 ? "" : "s"}` };
     }
     case "recency": {

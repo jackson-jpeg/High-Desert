@@ -117,7 +117,7 @@ export function SignalTraffic() {
           <div className="w98-inset-dark bg-inset-well p-6 text-center">
             <div className="text-hd-caption text-desktop-gray mb-1">Not enough history yet.</div>
             <div className="text-hd-caption text-bevel-dark/85 max-w-[320px] mx-auto">
-              Traffic is sampled every couple of minutes. Check back shortly —
+              Traffic is sampled every couple of minutes. Check back shortly:
               the chart appears once there are at least two samples in range.
             </div>
           </div>

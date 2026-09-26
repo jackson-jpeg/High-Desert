@@ -257,7 +257,7 @@ export function SearchPanel() {
 
             {error && (
               <div className="text-hd-10 text-red-400">
-                {error.toLowerCase().includes("rate") ? "Too many requests — wait a moment and try again." : error}
+                {error.toLowerCase().includes("rate") ? "Too many requests. Wait a moment and try again." : error}
               </div>
             )}
           </div>

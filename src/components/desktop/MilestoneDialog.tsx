@@ -15,13 +15,19 @@ const MILESTONE_MESSAGES: Record<number, { title: string; body: string }> = {
   },
   10: {
     title: "10 Hours Deep",
-    body: "A true night owl. You've logged 10 hours with Art Bell — the lines are open.",
+    body: "A true night owl. You've logged 10 hours with Art Bell. The lines are open.",
   },
   100: {
-    title: "100 Hours — Welcome Home",
+    title: "100 Hours: Welcome Home",
     body: "100 hours. You're officially a resident of the High Desert. Art would be proud.",
   },
 };
+
+/** Seconds actually listened, across every history row. */
+export async function listenedSeconds(): Promise<number> {
+  const rows = await db.history.toArray();
+  return rows.reduce((sum, h) => sum + Math.max(0, h.duration ?? 0), 0);
+}
 
 function getSeenMilestones(): number[] {
   try {
@@ -46,18 +52,13 @@ export function MilestoneDialog() {
     let cancelled = false;
 
     const check = async () => {
-      // `playbackPosition` is not an index. This was once
-      // `.where("playbackPosition").above(0)`, which Dexie rejects with
-      // `SchemaError`, so the promise rejected unhandled three seconds after
-      // every single page load and no milestone was ever shown.
-      //
-      // Positions live in the `progress` table since v9 (HD-016), which holds
-      // only episodes that have one — a full read of it is small.
-      const entries = await db.progress.toArray();
-      const totalSeconds = entries.reduce(
-        (sum, p) => sum + Math.max(0, p.playbackPosition ?? 0),
-        0
-      );
+      // Time heard: `history.duration`, from the listen-time tick
+      // (src/services/episodes/listen-time.ts). It once summed
+      // `playbackPosition`, which is *where you are*, not how long you
+      // listened, so a first-time visitor who tuned in to the live station two
+      // hours into a show and reloaded was told "You've spent 2 hours
+      // exploring the archive" within seconds of arriving.
+      const totalSeconds = await listenedSeconds();
       const totalHours = totalSeconds / 3600;
       const seen = getSeenMilestones();
 

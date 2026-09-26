@@ -106,7 +106,7 @@ async function _seedLibraryIfEmpty(): Promise<boolean> {
   try {
     const res = await fetch("/seed/library.json");
     if (!res.ok) {
-      toast.error("Failed to load catalog — try refreshing");
+      toast.error("Failed to load catalog. Try refreshing");
       return false;
     }
 
@@ -163,7 +163,7 @@ async function _seedLibraryIfEmpty(): Promise<boolean> {
     return true;
   } catch (err) {
     console.warn("[seed] Failed to load seed catalog:", err);
-    toast.error("Failed to load catalog — try refreshing");
+    toast.error("Failed to load catalog. Try refreshing");
     return false;
   }
 }

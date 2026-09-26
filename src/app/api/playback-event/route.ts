@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Verification payload refused. Intercept the POST in the page instead — " +
+          "Verification payload refused. Intercept the POST in the page instead: " +
           "this table is the instrument, not a place to test the instrument.",
       },
       { status: 400 },

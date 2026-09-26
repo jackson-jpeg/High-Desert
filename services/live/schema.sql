@@ -4,10 +4,16 @@
 -- prefixed live_. Idempotent: scripts/deploy-live.sh applies it on every
 -- deploy, after a pg_dump.
 --
--- NO ADDRESSES ANYWHERE. A caller is `client_ref`: HMAC-SHA256 of the client
--- bucket (IPv4 address or IPv6 /64, src/lib/utils/client-key.ts) under
--- CHAT_CLIENT_SECRET, 64 hex characters. The CHECK constraints below refuse
--- anything else, so an address cannot be written here by mistake.
+-- NO ADDRESSES ANYWHERE. Two kinds of ref, both HMAC-SHA256 under
+-- CHAT_CLIENT_SECRET, 64 hex characters (services/live/lib/caller.mjs):
+--   client_ref  who is calling: one browser, keyed by the random id in its
+--               hd_live_caller cookie (never the cookie itself).
+--   addr_ref    where from: the client bucket (IPv4 address or IPv6 /64,
+--               src/lib/utils/client-key.ts). A secondary abuse limit only.
+-- Before 2026-09-26 client_ref *was* the address bucket; such rows are legacy
+-- callers, handed to the first browser from that address (adoptLegacy).
+-- The CHECK constraints below refuse anything that is not 64 hex characters,
+-- so an address cannot be written here by mistake.
 --
 -- Retention: live_messages older than 7 days are deleted hourly by the
 -- service (and their reports with them, ON DELETE CASCADE).
@@ -58,6 +64,24 @@ CREATE TABLE IF NOT EXISTS live_names (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS live_names_key ON live_names (name_key) WHERE name_key IS NOT NULL;
 
+-- Per-browser callers (2026-09-26): where each message came from, where each
+-- report came from (reports hide a message only from distinct addresses, so
+-- one person with many cookies cannot mass-report), and each caller's line and
+-- last address (so two browsers in one household get different lines).
+ALTER TABLE live_messages ADD COLUMN IF NOT EXISTS addr_ref text CHECK (addr_ref ~ '^[0-9a-f]{64}$');
+ALTER TABLE live_reports  ADD COLUMN IF NOT EXISTS addr_ref text CHECK (addr_ref ~ '^[0-9a-f]{64}$');
+ALTER TABLE live_names    ADD COLUMN IF NOT EXISTS addr_ref text CHECK (addr_ref ~ '^[0-9a-f]{64}$');
+ALTER TABLE live_names    ADD COLUMN IF NOT EXISTS line int;
+CREATE INDEX IF NOT EXISTS live_names_addr ON live_names (addr_ref, seen_at) WHERE addr_ref IS NOT NULL;
+
+-- A ban holds the banned caller's address for a while: new callers from it
+-- may start talking at most once per interval (config.mjs, BAN_HOLD_*).
+CREATE TABLE IF NOT EXISTS live_address_holds (
+  addr_ref  text PRIMARY KEY CHECK (addr_ref ~ '^[0-9a-f]{64}$'),
+  until     timestamptz NOT NULL,
+  next_at   timestamptz NOT NULL
+);
+
 -- Slow mode forced on by an admin. Automatic slow mode is in memory.
 CREATE TABLE IF NOT EXISTS live_settings (
   key    text PRIMARY KEY,
@@ -79,7 +103,8 @@ DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'highdesert_live') THEN
     GRANT SELECT, INSERT, UPDATE, DELETE ON
-      live_messages, live_reports, live_mutes, live_bans, live_names, live_settings, live_admin_nonces
+      live_messages, live_reports, live_mutes, live_bans, live_names, live_settings, live_admin_nonces,
+      live_address_holds
       TO highdesert_live;
     GRANT USAGE, SELECT ON SEQUENCE live_messages_id_seq TO highdesert_live;
   END IF;

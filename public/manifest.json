@@ -1,7 +1,7 @@
 {
-  "name": "High Desert — Art Bell Radio Archive",
+  "name": "High Desert · Art Bell Radio Archive",
   "short_name": "High Desert",
-  "description": "Stream thousands of Art Bell episodes — Coast to Coast AM, Dreamland, and more.",
+  "description": "Stream thousands of Art Bell episodes: Coast to Coast AM, Dreamland, and more.",
   "id": "/library",
   "start_url": "/library",
   "scope": "/",

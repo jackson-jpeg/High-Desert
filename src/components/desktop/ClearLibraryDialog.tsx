@@ -21,7 +21,7 @@ export function ClearLibraryDialog({ open, onClose }: ClearLibraryDialogProps) {
       toast.success("Library cleared");
     } catch (err) {
       console.warn("[clear-library] failed, nothing was removed:", err);
-      toast.error("Could not clear the library — nothing was removed");
+      toast.error("Could not clear the library. Nothing was removed");
     } finally {
       setClearing(false);
       onClose();

@@ -151,5 +151,5 @@ export function shareUrl(origin: string, episode: Episode): string {
 }
 
 export function shareText(episode: Episode): string {
-  return `🎙️ ${episode.title || episode.fileName}${episode.guestName ? ` — Art Bell with ${episode.guestName}` : ""}${episode.airDate ? ` (${episode.airDate})` : ""} — Listen on High Desert`;
+  return `🎙️ ${episode.title || episode.fileName}${episode.guestName ? `, Art Bell with ${episode.guestName}` : ""}${episode.airDate ? ` (${episode.airDate})` : ""}. Listen on High Desert`;
 }

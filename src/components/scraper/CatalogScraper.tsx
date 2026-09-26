@@ -6,9 +6,9 @@ import { useCatalogScraper } from "@/hooks/useCatalogScraper";
 
 const PHASE_LABELS: Record<string, string> = {
   idle: "Ready",
-  scraping: "Phase 1/3 — Discovering episodes",
-  importing: "Phase 2/3 — Importing metadata",
-  categorizing: "Phase 3/3 — AI categorization",
+  scraping: "Phase 1/3: Discovering episodes",
+  importing: "Phase 2/3: Importing metadata",
+  categorizing: "Phase 3/3: AI categorization",
   done: "Import complete",
   error: "Import failed",
   cancelled: "Import cancelled",
@@ -33,7 +33,7 @@ function formatElapsed(ms: number): string {
 }
 
 function formatRate(count: number, elapsedMs: number): string {
-  if (elapsedMs < 1000 || count === 0) return "—";
+  if (elapsedMs < 1000 || count === 0) return "…";
   const perSec = count / (elapsedMs / 1000);
   if (perSec >= 1) return `${perSec.toFixed(1)}/s`;
   const perMin = perSec * 60;
@@ -277,7 +277,7 @@ export function CatalogScraper() {
             <div className="text-hd-9 text-bevel-dark/85 leading-relaxed">
               Episodes import with metadata parsed from filenames. AI categorization
               runs offline via <code>scripts/categorize-library.py</code> and ships in
-              the seed catalog — nothing is sent to a third party at runtime.
+              the seed catalog. Nothing is sent to a third party at runtime.
             </div>
           </div>
         )}

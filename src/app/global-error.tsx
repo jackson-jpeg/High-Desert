@@ -60,7 +60,7 @@ export default function GlobalError({
               textShadow: "0 1px 2px rgba(0,0,0,0.75)",
             }}
           >
-            High Desert — Fatal Error
+            High Desert · Fatal Error
           </div>
           <div style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             {/* The page's h1. No stylesheet here, so no preflight: the

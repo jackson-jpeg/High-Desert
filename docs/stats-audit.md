@@ -116,6 +116,15 @@ in order.
     desktop first point (116, 544), label box x 122–132, y 542–557; at 390 wide point (35, 499),
     label 41–51 × 498–513 — the digits sat on the line. The label now has its own row above the
     plot; `e2e/signal-traffic.spec.ts` measures label and point on desktop and mobile.
+14. **The listening milestone counted position, not time heard. Fixed 2026-09-26.**
+    `MilestoneDialog` summed `progress.playbackPosition`, the mistake the "Listened"
+    tile once made. On the live station that is where the show is, so a first-time visitor
+    who tuned in more than two hours into a broadcast and then reloaded was shown "2 Hours in
+    the High Desert" and a Venmo ask, over the page, three seconds later. Found because it
+    covered the Leave button in `e2e/live-qa.spec.ts` whenever the show on air was past its
+    second hour: 4 of 8 runs late in a show. It now sums `history.duration`. Test:
+    `src/components/desktop/__tests__/milestone-dialog.test.tsx` (the real dialog over
+    fake-indexeddb); mutation `milestone-time-heard`.
 
 ## Recompute sweep — is any check circular? (2026-09-25)
 

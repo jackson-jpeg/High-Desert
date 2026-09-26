@@ -111,7 +111,7 @@ export function useShellMenus(actions: ShellMenuActions): Menu[] {
       label: "View",
       items: [
         { label: "Sort by Date", onClick: () => sort("date") },
-        { label: "Sort by Date — Oldest First", onClick: () => sort("date-asc") },
+        { label: "Sort by Date: Oldest First", onClick: () => sort("date-asc") },
         { label: "Sort by Name", onClick: () => sort("name") },
         { label: "Sort by Guest", onClick: () => sort("guest") },
         { separator: true, label: "" },
@@ -122,7 +122,7 @@ export function useShellMenus(actions: ShellMenuActions): Menu[] {
         { label: sortLabel("my-plays"), onClick: () => sort("my-plays") },
         { label: sortLabel("my-rating"), onClick: () => sort("my-rating") },
         { separator: true, label: "" },
-        { label: "Surprise Me — Shuffle All", onClick: () => openLibrary({ shuffle: "all" }) },
+        { label: "Surprise Me: Shuffle All", onClick: () => openLibrary({ shuffle: "all" }) },
         { label: "Shuffle Coast to Coast", onClick: () => openLibrary({ shuffle: "coast" }) },
         { label: "Shuffle Dreamland", onClick: () => openLibrary({ shuffle: "dreamland" }) },
         { separator: true, label: "" },

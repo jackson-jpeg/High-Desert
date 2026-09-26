@@ -163,7 +163,7 @@ export function StatusBar({ episodeCount, presence }: StatusBarProps) {
           <span className="inline-block w-[5px] h-[5px] rounded-full bg-red-500 animate-on-air flex-shrink-0" />
         )}
         <span className="text-bevel-dark">{icon}</span>
-        <span className="truncate">{parts.join(" — ")}</span>
+        <span className="truncate">{parts.join(" · ")}</span>
         <MirrorBadge />
       </button>
     );
@@ -227,7 +227,7 @@ export function StatusBar({ episodeCount, presence }: StatusBarProps) {
               title={
                 `${presence.online} ${presence.online === 1 ? "person" : "people"} on the site` +
                 (presence.listening > 0 ? `, ${presence.listening} listening` : "") +
-                " — click to see what they have on"
+                ": click to see what they have on"
               }
               {...presenceAttrs("status-bar", presence)}
             >

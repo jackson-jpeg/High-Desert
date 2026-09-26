@@ -19,7 +19,7 @@
 #
 #   The Postgres role highdesert_live: LOGIN, CONNECT on highdesert, nothing
 #   else. Table privileges come from services/live/schema.sql, which grants
-#   exactly the seven live_* tables when the role exists.
+#   exactly the eight live_* tables when the role exists.
 #
 # The sign-in link: https://highdesert.space/live-api/admin/signin-page#<nonce>.
 # The nonce is 32 random bytes, stored only as its SHA-256, single-use, and
