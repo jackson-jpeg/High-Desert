@@ -2707,6 +2707,22 @@ export const MUTATIONS = [
     why: "the copy rule: about sixty files of em dashes survived \"fix them when the screen is touched\" until a bulk sweep",
   },
   {
+    id: "no-em-dash-escape",
+    test: "src/lib/__tests__/no-em-dash.test.ts",
+    file: "src/app/(desktop)/stats/page.tsx",
+    find: `              value={stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "·"}`,
+    replace: `              value={stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "\\u2014"}`,
+    why: "a scan of the raw source missed \\u2014 escapes; CI's rendered check found one on /stats",
+  },
+  {
+    id: "no-em-dash-entity",
+    test: "src/lib/__tests__/no-em-dash.test.ts",
+    file: "src/components/OfflineIndicator.tsx",
+    find: `        You are offline. Cached episodes are still available`,
+    replace: `        You are offline &mdash; cached episodes still available`,
+    why: "JSX decodes &mdash; to the same dash, and the raw-source scan read it as plain text",
+  },
+  {
     id: "no-em-dash-live-refusal",
     test: "src/lib/__tests__/no-em-dash.test.ts",
     file: "services/live/lib/app.mjs",

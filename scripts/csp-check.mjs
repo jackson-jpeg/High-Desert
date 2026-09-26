@@ -66,10 +66,13 @@ try {
         const DASH = "\u2014";
         const THEIRS = '[data-testid="message-body"], [data-testid="caller-name"], [data-testid="you-name"]';
         const out = [];
-        const body = document.body.cloneNode(true);
-        body.querySelectorAll(THEIRS).forEach((el) => el.remove());
-        body.querySelectorAll("script, style, noscript").forEach((el) => el.remove());
-        for (const line of (body.textContent ?? "").split(/\n+/)) if (line.includes(DASH)) out.push(`text: ${line.trim()}`);
+        // Each text node on its own, so a finding names the words around it.
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          const el = n.parentElement;
+          if (!n.nodeValue?.includes(DASH) || !el || el.closest(`script, style, noscript, ${THEIRS}`)) continue;
+          out.push(`text: ${n.nodeValue.trim().slice(0, 160)}`);
+        }
         if (document.title.includes(DASH)) out.push(`title: ${document.title}`);
         for (const el of document.querySelectorAll("meta[content], [aria-label], [title], [placeholder], [alt]")) {
           if (el.closest(THEIRS)) continue;

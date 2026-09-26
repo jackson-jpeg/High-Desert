@@ -46,13 +46,13 @@ export function ScanResults({ className }: ScanResultsProps) {
                   {ep.title || ep.fileName}
                 </td>
                 <td className="px-2 py-1 text-static-green truncate max-w-[150px]">
-                  {ep.guestName ?? "\u2014"}
+                  {ep.guestName ?? "·"}
                 </td>
                 <td className="px-2 py-1 text-bevel-dark capitalize">
-                  {ep.showType ?? "\u2014"}
+                  {ep.showType ?? "·"}
                 </td>
                 <td className="px-2 py-1 text-right text-bevel-dark whitespace-nowrap">
-                  {ep.duration ? formatTime(ep.duration) : "\u2014"}
+                  {ep.duration ? formatTime(ep.duration) : "·"}
                 </td>
               </tr>
             ))}
@@ -71,7 +71,7 @@ export function ScanResults({ className }: ScanResultsProps) {
                   {ep.airDate ?? "Unknown"}
                 </span>
                 <span className="text-hd-11 text-bevel-dark capitalize">
-                  {ep.showType ?? "\u2014"}
+                  {ep.showType ?? "·"}
                 </span>
               </div>
               <div className="text-hd-13 text-desktop-gray font-bold truncate mt-0.5">
@@ -79,10 +79,10 @@ export function ScanResults({ className }: ScanResultsProps) {
               </div>
               <div className="flex items-center justify-between gap-2 mt-0.5">
                 <span className="text-hd-12 text-static-green truncate">
-                  {ep.guestName ?? "\u2014"}
+                  {ep.guestName ?? "·"}
                 </span>
                 <span className="text-hd-11 text-bevel-dark tabular-nums flex-shrink-0">
-                  {ep.duration ? formatTime(ep.duration) : "\u2014"}
+                  {ep.duration ? formatTime(ep.duration) : "·"}
                 </span>
               </div>
             </div>

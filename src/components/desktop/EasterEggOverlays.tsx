@@ -48,7 +48,7 @@ function Area51Overlay({ onDismiss }: OverlayProps) {
               &ldquo;We have just lost our uplink&hellip; I&rsquo;ll be right back.&rdquo;
             </div>
             <div className="text-hd-9 text-bevel-dark/85 mt-3">
-              September 11, 1997 &mdash; Area 51 Caller
+              September 11, 1997 · Area 51 Caller
             </div>
           </div>
         </div>
@@ -71,7 +71,7 @@ function W6OBBOverlay({ onDismiss }: OverlayProps) {
           </div>
           <div className="text-hd-11 text-desktop-gray/85 leading-relaxed space-y-2">
             <p>
-              <span className="text-static-green">Art Bell</span> &mdash; licensed at age 13,
+              <span className="text-static-green">Art Bell</span>, licensed at age 13,
               Amateur Extra Class operator. Call sign{" "}
               <span className="text-desert-amber font-bold">W6OBB</span>.
             </p>
@@ -80,7 +80,7 @@ function W6OBBOverlay({ onDismiss }: OverlayProps) {
               Worked every continent from the High Desert.
             </p>
             <p className="text-hd-10 text-bevel-dark/85 italic">
-              &ldquo;W6OBB, SK&rdquo; &mdash; ARRL, 2018
+              &ldquo;W6OBB, SK&rdquo; · ARRL, 2018
             </p>
           </div>
           <div className="flex justify-center mt-1">
@@ -212,7 +212,7 @@ const LINES = [
   { name: "International", greeting: "International, where are you calling from?" },
 ];
 
-const FRANTIC_CALLER = "I don\u2019t have a whole lot of time\u2026 um\u2026 OK\u2026 what I\u2019m\u2026 what we\u2019re thinking of as\u2026 as aliens\u2026 they\u2019re extra-dimensional beings\u2026 that an earlier precursor of the\u2026 space program made contact with\u2026 they\u2019re not what they claim to be\u2014";
+const FRANTIC_CALLER = "I don\u2019t have a whole lot of time\u2026 um\u2026 OK\u2026 what I\u2019m\u2026 what we\u2019re thinking of as\u2026 as aliens\u2026 they\u2019re extra-dimensional beings\u2026 that an earlier precursor of the\u2026 space program made contact with\u2026 they\u2019re not what they claim to be\u2026";
 
 function KonamiOverlay({ onDismiss }: OverlayProps) {
   const [selected, setSelected] = useState<string | null>(null);

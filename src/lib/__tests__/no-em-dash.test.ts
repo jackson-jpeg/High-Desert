@@ -23,6 +23,8 @@ import ts from "typescript";
 
 const ROOT = path.resolve(import.meta.dirname, "../../..");
 const DASH = "—";
+/** The HTML entities JSX decodes to an em dash. */
+const ENTITY = /&(mdash|#8212|#x2014);/i;
 
 function walk(p: string, keep: (f: string) => boolean): string[] {
   if (!statSync(p).isDirectory()) return keep(p) ? [p] : [];
@@ -43,16 +45,21 @@ const SOURCES = [
   path.join(ROOT, "public/sw.js"),
 ];
 
-/** Every em dash inside a string, template or JSX text, as `file:line  text`. */
+/**
+ * Every em dash inside a string, template or JSX text, as `file:line  text`.
+ * Judged on the value, not the spelling: `"\u2014"` and `&mdash;` render the
+ * same dash. A scan of the raw source missed eleven of them, and CI caught one
+ * on /stats through csp-check's rendered scan.
+ */
 function dashesInCode(file: string, text: string): string[] {
-  if (!text.includes(DASH)) return [];
   const kind = file.endsWith("x") ? ts.ScriptKind.TSX : /\.(mjs|js)$/.test(file) ? ts.ScriptKind.JS : ts.ScriptKind.TS;
   const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, kind);
   const hits: string[] = [];
   const visit = (n: ts.Node) => {
     const copy =
       ts.isStringLiteralLike(n) || ts.isJsxText(n) || ts.isTemplateHead(n) || ts.isTemplateMiddle(n) || ts.isTemplateTail(n);
-    if (copy && n.getText(sf).includes(DASH)) {
+    const value = copy ? (n as ts.LiteralLikeNode).text : "";
+    if (copy && (value.includes(DASH) || ENTITY.test(value))) {
       const { line } = sf.getLineAndCharacterOfPosition(n.getStart(sf));
       hits.push(`${path.relative(ROOT, file)}:${line + 1}  ${n.getText(sf).replace(/\s+/g, " ").slice(0, 160)}`);
     }
@@ -78,14 +85,18 @@ describe("no em dashes in user-facing copy", () => {
     }
   });
 
-  it("the detector sees a dash in a string, a template and JSX text, and not in a comment", () => {
+  it("the detector sees a dash in a string, a template and JSX text, however it is spelled, and not in a comment", () => {
     const sample = [
       `// a comment ${DASH} not copy`,
       `const a = "one ${DASH} two";`,
       `const b = \`x \${a} ${DASH} y\`;`,
       `const c = <p>three ${DASH} four</p>;`,
+      `const d = "an escape \\u2014 renders one";`,
+      `const e = <p>an entity &mdash; renders one</p>;`,
+      `const f = <p title="so does &#8212; this">x</p>;`,
+      `const g = "a hyphen - and an en dash \u2013 are fine";`,
     ].join("\n");
-    expect(dashesInCode("sample.tsx", sample).map((h) => h.split(":")[1].split(" ")[0])).toEqual(["2", "3", "4"]);
+    expect(dashesInCode("sample.tsx", sample).map((h) => h.split(":")[1].split(" ")[0])).toEqual(["2", "3", "4", "5", "6", "7"]);
   });
 
   it("no string, template or JSX text in the source contains one", () => {

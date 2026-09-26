@@ -141,13 +141,13 @@ export default function StatsPage() {
               label="Avg Rating"
               onClick={stats.ratedCount > 0 ? () => openLibrary({ sort: "my-rating" }) : undefined}
               title="Your ratings: open the library sorted by My rating"
-              value={stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "\u2014"}
+              value={stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "·"}
               sub={stats.avgRating === 0 ? "Rate episodes to track your taste." : `${stats.ratedCount} ${stats.ratedCount === 1 ? 'rating' : 'ratings'}`}
               color="text-desert-amber"
             />
             <HeroStat
               label="Streak"
-              value={stats.streak > 0 ? `${stats.streak}d` : "\u2014"}
+              value={stats.streak > 0 ? `${stats.streak}d` : "·"}
               sub={stats.streak > 0 ? (stats.streak === 1 ? "consecutive day" : "consecutive days") : "listen today!"}
               color="text-static-green"
             />
