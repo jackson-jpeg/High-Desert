@@ -133,6 +133,13 @@ Everything here is per `addr_ref`, in memory, in `config.mjs`.
 | Reports | 60 a minute | **429** `rate` |
 | Open streams | 200 | **429** |
 
+nginx has its own per-address ceilings in front of the service
+(`deploy/nginx/highdesert.conf`): 200 streams, and 120 POSTs a minute with a
+burst of 60. They are held at or above the service's by
+`scripts/__tests__/nginx-vhost.test.ts`. Until 2026-09-26 they were 8 streams
+and 30 a minute, which would have refused the 9th person behind one carrier
+address before the service ever saw them.
+
 **A ban holds the address.** Banning a caller bans that `client_ref` and also
 writes `live_address_holds (addr_ref, until, next_at)` for 24 h. Clearing
 cookies makes a new caller, but while the hold lasts only **one new caller per
