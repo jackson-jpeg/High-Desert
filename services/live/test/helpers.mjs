@@ -1,8 +1,13 @@
 /**
  * An in-process highdesert-live on a random port, against the *_test database,
- * with simulated callers. A caller is an address: requests come from loopback
- * and carry X-Forwarded-For, exactly as nginx sends them, so every test goes
- * through the real identity path (clientKey → HMAC), not a test hook.
+ * with simulated callers. Requests come from loopback and carry
+ * X-Forwarded-For, exactly as nginx sends them, and each simulated browser has
+ * a cookie jar, so every test goes through the real identity path (the signed
+ * caller cookie, and the address HMAC beside it), not a test hook.
+ *
+ * A browser is named by `caller`, defaulting to its address: by default one
+ * address is one browser, and `{ ip, caller: "b" }` is a second browser behind
+ * the same address. `jar: false` sends no cookie and keeps none.
  */
 
 import http from "node:http";
@@ -63,17 +68,38 @@ export async function startLive(opts = {}) {
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
   const base = `http://127.0.0.1:${server.address().port}`;
 
-  async function post(p, body, { ip = "198.51.100.1", origin = ORIGIN, type = "application/json", headers = {} } = {}) {
+  /** browser name → { cookie name → value } */
+  const jars = new Map();
+  const jarOf = (ip, caller, jar) => (jar === false ? null : `${caller ?? ip}`);
+  function cookieHeader(key) {
+    const jar = key && jars.get(key);
+    return jar && Object.keys(jar).length ? { cookie: Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ") } : {};
+  }
+  function keep(key, res) {
+    if (!key) return;
+    for (const line of res.headers.getSetCookie?.() ?? []) {
+      const [pair] = line.split(";");
+      const i = pair.indexOf("=");
+      const jar = jars.get(key) ?? {};
+      jar[pair.slice(0, i).trim()] = pair.slice(i + 1).trim();
+      jars.set(key, jar);
+    }
+  }
+
+  async function post(p, body, { ip = "198.51.100.1", caller, jar, origin = ORIGIN, type = "application/json", headers = {} } = {}) {
+    const key = jarOf(ip, caller, jar);
     const res = await fetch(base + p, {
       method: "POST",
       headers: {
         ...(type ? { "content-type": type } : {}),
         ...(origin ? { origin } : {}),
         "x-forwarded-for": ip,
+        ...cookieHeader(key),
         ...headers,
       },
       body: typeof body === "string" ? body : JSON.stringify(body ?? {}),
     });
+    keep(key, res);
     const text = await res.text();
     let json = null;
     try {
@@ -82,8 +108,10 @@ export async function startLive(opts = {}) {
     return { status: res.status, json, headers: res.headers };
   }
 
-  async function get(p, { ip = "198.51.100.1", headers = {} } = {}) {
-    const res = await fetch(base + p, { headers: { "x-forwarded-for": ip, ...headers } });
+  async function get(p, { ip = "198.51.100.1", caller, jar, headers = {} } = {}) {
+    const key = jarOf(ip, caller, jar);
+    const res = await fetch(base + p, { headers: { "x-forwarded-for": ip, ...cookieHeader(key), ...headers } });
+    keep(key, res);
     const text = await res.text();
     let json = null;
     try {
@@ -93,12 +121,14 @@ export async function startLive(opts = {}) {
   }
 
   /** Open an SSE stream as `ip`. Events arrive in `events`; `next(name)` awaits the next one of that name. */
-  async function stream({ ip = "198.51.100.1", headers = {}, query = "" } = {}) {
+  async function stream({ ip = "198.51.100.1", caller, jar, headers = {}, query = "" } = {}) {
+    const key = jarOf(ip, caller, jar);
     const ctrl = new AbortController();
     const res = await fetch(`${base}/live-api/stream${query}`, {
-      headers: { "x-forwarded-for": ip, accept: "text/event-stream", ...headers },
+      headers: { "x-forwarded-for": ip, accept: "text/event-stream", ...cookieHeader(key), ...headers },
       signal: ctrl.signal,
     });
+    keep(key, res);
     const events = [];
     const waiters = [];
     const s = { status: res.status, headers: res.headers, events, raw: "", close: () => ctrl.abort() };
@@ -175,6 +205,10 @@ export async function startLive(opts = {}) {
     post,
     get,
     stream,
+    /** The caller cookie a browser holds (undefined before its first request). */
+    cookieOf: (callerOrIp) => jars.get(String(callerOrIp))?.hd_live_caller,
+    /** A browser clears its cookies. */
+    clearCookies: (callerOrIp) => jars.delete(String(callerOrIp)),
     admin: (action, body, o = {}) =>
       post(`/live-api/admin/${action}`, body, { ...o, headers: { authorization: `Bearer ${adminToken}`, ...(o.headers ?? {}) } }),
     async close() {

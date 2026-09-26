@@ -1,10 +1,11 @@
 /**
  * Every statement the phone lines run against Postgres (services/live/schema.sql).
- * Nothing here ever sees an address: callers are `client_ref`, an HMAC.
+ * Nothing here ever sees an address: a caller is `client_ref` and where they
+ * came from is `addr_ref`, both HMACs (lib/caller.mjs).
  */
 
 import { NAME_ACTIVE_MS, NAME_CHANGE_MS, RETENTION_MS } from "./config.mjs";
-import { LINES, nameKey } from "./names.mjs";
+import { LINES, lineFor, nameKey } from "./names.mjs";
 
 // `id` goes out as text (a bigint must not round through a JS number), so the
 // sort key is carried separately as `seq`: ordering by the text alias put
@@ -31,11 +32,11 @@ export function createStore(pool, { settingsKey = "slow_mode" } = {}) {
   const q = (text, params) => pool.query(text, params);
 
   return {
-    async insertMessage({ clientRef, name, line, body }) {
+    async insertMessage({ clientRef, addrRef, name, line, body }) {
       const { rows } = await q(
-        `INSERT INTO live_messages (client_ref, caller_name, line, body)
-         VALUES ($1, $2, $3, $4) RETURNING ${MESSAGE_COLUMNS}`,
-        [clientRef, name, line, body],
+        `INSERT INTO live_messages (client_ref, addr_ref, caller_name, line, body)
+         VALUES ($1, $2, $3, $4, $5) RETURNING ${MESSAGE_COLUMNS}`,
+        [clientRef, addrRef ?? null, name, line, body],
       );
       return publicMessage(rows[0]);
     },
@@ -72,13 +73,20 @@ export function createStore(pool, { settingsKey = "slow_mode" } = {}) {
       return rows.map((r) => Number(r.id));
     },
 
-    /** Server-side view of one message, including whose it is. */
+    /**
+     * Server-side view of one message, including whose it is and where from.
+     * A legacy message (before per-browser callers) has no addr_ref, and its
+     * client_ref was the address, so that is where it came from.
+     */
     async getMessage(id) {
       const { rows } = await q(
-        `SELECT id::text AS id, client_ref, hidden_at FROM live_messages WHERE id = $1`,
+        `SELECT id::text AS id, client_ref, addr_ref, hidden_at FROM live_messages WHERE id = $1`,
         [id],
       );
-      return rows[0] ? { id: Number(rows[0].id), clientRef: rows[0].client_ref, hidden: !!rows[0].hidden_at } : null;
+      const r = rows[0];
+      return r
+        ? { id: Number(r.id), clientRef: r.client_ref, addrRef: r.addr_ref ?? r.client_ref, hidden: !!r.hidden_at }
+        : null;
     },
 
     /** Hide one message. True only if it was visible (so the caller broadcasts once). */
@@ -103,19 +111,19 @@ export function createStore(pool, { settingsKey = "slow_mode" } = {}) {
 
     /**
      * File a report. Idempotent per (message, reporter). Returns how many
-     * distinct clients have now reported the message.
+     * distinct *addresses* have now reported the message: one person with many
+     * cookies is one reporter. (A legacy report's client_ref was its address.)
      */
-    async addReport(messageId, clientRef) {
-      const { rows } = await q(
-        `WITH ins AS (
-           INSERT INTO live_reports (message_id, client_ref) VALUES ($1, $2)
-           ON CONFLICT DO NOTHING RETURNING client_ref
-         )
-         SELECT (SELECT count(*) FROM live_reports WHERE message_id = $1)
-              + (SELECT count(*) FROM ins) AS n`,
-        [messageId, clientRef],
+    async addReport(messageId, clientRef, addrRef) {
+      await q(
+        `INSERT INTO live_reports (message_id, client_ref, addr_ref) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+        [messageId, clientRef, addrRef ?? null],
       );
-      return Number(rows[0].n);
+      const { rows } = await q(
+        `SELECT count(DISTINCT COALESCE(addr_ref, client_ref))::int AS n FROM live_reports WHERE message_id = $1`,
+        [messageId],
+      );
+      return rows[0].n;
     },
 
     /** Mute until `untilMs` — never shortens an existing, longer mute. */
@@ -146,19 +154,140 @@ export function createStore(pool, { settingsKey = "slow_mode" } = {}) {
       return rows.map((r) => r.client_ref);
     },
 
+    /** A caller's name and line (the line's index; null until assigned). */
     async getName(clientRef) {
-      const { rows } = await q(`SELECT name, changed_at FROM live_names WHERE client_ref = $1`, [clientRef]);
+      const { rows } = await q(`SELECT name, changed_at, line FROM live_names WHERE client_ref = $1`, [clientRef]);
       return rows[0]
-        ? { name: rows[0].name, changedAt: rows[0].changed_at ? new Date(rows[0].changed_at).getTime() : null }
+        ? {
+            name: rows[0].name,
+            line: rows[0].line,
+            changedAt: rows[0].changed_at ? new Date(rows[0].changed_at).getTime() : null,
+          }
         : null;
     },
 
-    async touch(clientRef) {
+    async touch(clientRef, addrRef) {
       await q(
-        `INSERT INTO live_names (client_ref) VALUES ($1)
-         ON CONFLICT (client_ref) DO UPDATE SET seen_at = now()`,
+        `INSERT INTO live_names (client_ref, addr_ref) VALUES ($1, $2)
+         ON CONFLICT (client_ref) DO UPDATE SET seen_at = now(), addr_ref = COALESCE(EXCLUDED.addr_ref, live_names.addr_ref)`,
+        [clientRef, addrRef ?? null],
+      );
+    },
+
+    /**
+     * Give a caller a line, once. `preferred` (a stable function of the ref)
+     * unless another caller from the same address in the last 30 days has it,
+     * in which case the next free one: two browsers in one household are on
+     * two lines. Returns the line index the caller ends up with.
+     */
+    async assignLine(clientRef, addrRef, preferred) {
+      let line = preferred;
+      if (addrRef) {
+        const { rows } = await q(
+          `SELECT DISTINCT line FROM live_names
+           WHERE addr_ref = $1 AND client_ref <> $2 AND line IS NOT NULL AND seen_at >= now() - interval '30 days'`,
+          [addrRef, clientRef],
+        );
+        const used = new Set(rows.map((r) => r.line));
+        for (let i = 0; i < LINES.length; i++) {
+          const candidate = (preferred + i) % LINES.length;
+          if (!used.has(candidate)) {
+            line = candidate;
+            break;
+          }
+        }
+      }
+      const { rows } = await q(
+        `INSERT INTO live_names (client_ref, addr_ref, line) VALUES ($1, $2, $3)
+         ON CONFLICT (client_ref) DO UPDATE SET line = COALESCE(live_names.line, EXCLUDED.line)
+         RETURNING line`,
+        [clientRef, addrRef ?? null, line],
+      );
+      return rows[0].line;
+    },
+
+    /** Has this caller ever talked: a message still retained, or a name they chose? */
+    async hasSpoken(clientRef) {
+      const { rows } = await q(
+        `SELECT EXISTS (SELECT 1 FROM live_messages WHERE client_ref = $1)
+             OR EXISTS (SELECT 1 FROM live_names WHERE client_ref = $1 AND changed_at IS NOT NULL) AS spoken`,
         [clientRef],
       );
+      return rows[0].spoken;
+    },
+
+    /**
+     * Hand a legacy caller (keyed by its address, before per-browser callers)
+     * to `clientRef`, a browser arriving from that address with no cookie:
+     * name, line, rename clock, messages, reports, mute and ban. Only the first
+     * such browser gets it (the row moves), and only if the legacy caller was
+     * seen inside `withinMs`. Returns { name, banned } or null.
+     */
+    async adoptLegacy(addrRef, clientRef, withinMs) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const { rows } = await client.query(
+          `UPDATE live_names SET client_ref = $2, addr_ref = $1, line = COALESCE(line, $3)
+           WHERE client_ref = $1 AND seen_at >= now() - make_interval(secs => $4)
+             AND NOT EXISTS (SELECT 1 FROM live_names WHERE client_ref = $2)
+           RETURNING name`,
+          [addrRef, clientRef, lineFor(addrRef), withinMs / 1000],
+        );
+        if (!rows.length) {
+          await client.query("ROLLBACK");
+          return null;
+        }
+        await client.query(
+          `UPDATE live_messages SET client_ref = $2, addr_ref = COALESCE(addr_ref, $1) WHERE client_ref = $1`,
+          [addrRef, clientRef],
+        );
+        await client.query(
+          `UPDATE live_reports SET client_ref = $2, addr_ref = COALESCE(addr_ref, $1) WHERE client_ref = $1`,
+          [addrRef, clientRef],
+        );
+        await client.query(`UPDATE live_mutes SET client_ref = $2 WHERE client_ref = $1`, [addrRef, clientRef]);
+        const ban = await client.query(`UPDATE live_bans SET client_ref = $2 WHERE client_ref = $1`, [addrRef, clientRef]);
+        await client.query("COMMIT");
+        return { name: rows[0].name, banned: ban.rowCount > 0 };
+      } catch (err) {
+        await client.query("ROLLBACK").catch(() => {});
+        throw err;
+      } finally {
+        client.release();
+      }
+    },
+
+    /** Hold an address after a ban (never shortens an existing hold). */
+    async holdAddress(addrRef, untilMs, nextAtMs) {
+      await q(
+        `INSERT INTO live_address_holds (addr_ref, until, next_at)
+         VALUES ($1, to_timestamp($2 / 1000.0), to_timestamp($3 / 1000.0))
+         ON CONFLICT (addr_ref) DO UPDATE SET
+           until = GREATEST(live_address_holds.until, EXCLUDED.until),
+           next_at = GREATEST(live_address_holds.next_at, EXCLUDED.next_at)`,
+        [addrRef, untilMs, nextAtMs],
+      );
+    },
+
+    /**
+     * May a new caller from this address start talking? Outside a hold, yes.
+     * Inside one, only if the hold's slot is open, which this takes (the next
+     * opens `intervalMs` later). Returns { ok } or { ok: false, retryAfterMs }.
+     */
+    async takeHoldSlot(addrRef, intervalMs) {
+      const took = await q(
+        `UPDATE live_address_holds SET next_at = now() + make_interval(secs => $2)
+         WHERE addr_ref = $1 AND until > now() AND next_at <= now()`,
+        [addrRef, intervalMs / 1000],
+      );
+      if (took.rowCount === 1) return { ok: true };
+      const { rows } = await q(
+        `SELECT GREATEST(0, EXTRACT(EPOCH FROM (next_at - now())) * 1000)::bigint AS wait
+         FROM live_address_holds WHERE addr_ref = $1 AND until > now()`,
+        [addrRef],
+      );
+      return rows[0] ? { ok: false, retryAfterMs: Number(rows[0].wait) } : { ok: true };
     },
 
     /**
@@ -293,6 +422,7 @@ export function createStore(pool, { settingsKey = "slow_mode" } = {}) {
         [retentionMs / 1000],
       );
       await q(`DELETE FROM live_mutes WHERE until < now()`);
+      await q(`DELETE FROM live_address_holds WHERE until < now()`);
       await q(`DELETE FROM live_admin_nonces WHERE expires_at < now() - interval '1 day'`);
       await q(`DELETE FROM live_names WHERE seen_at < now() - interval '30 days'`);
       return rowCount;

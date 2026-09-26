@@ -221,7 +221,10 @@ describeDb("messages", () => {
       `SELECT table_name, column_name FROM information_schema.columns WHERE table_name LIKE 'live\\_%'`,
     );
     expect(cols.length).toBeGreaterThan(10);
-    expect(cols.filter((c) => /ip|addr|forwarded|host|agent/i.test(c.column_name))).toEqual([]);
+    // The only address-shaped column is addr_ref, an HMAC of the address bucket.
+    expect(
+      cols.filter((c) => /ip|addr|forwarded|host|agent/i.test(c.column_name) && c.column_name !== "addr_ref"),
+    ).toEqual([]);
     const { rows } = await live.pool.query(
       `SELECT row_to_json(m)::text AS j FROM live_messages m WHERE id = $1
        UNION ALL SELECT row_to_json(n)::text FROM live_names n
@@ -229,14 +232,24 @@ describeDb("messages", () => {
       [r.json.id],
     );
     expect(rows).toHaveLength(2);
+    // Nor the caller cookie: a copy of the tables must not be replayable as anyone's cookie.
+    const cookieId = live.cookieOf(ip).split(".")[1];
+    expect(cookieId).toMatch(/^[A-Za-z0-9_-]{43}$/);
     for (const { j } of rows) {
       expect(j).not.toContain("203.0.113");
+      expect(j).not.toContain(cookieId);
       expect(j).toMatch(/"client_ref":"[0-9a-f]{64}"/);
+      expect(j).toMatch(/"addr_ref":"[0-9a-f]{64}"/);
     }
-    // The schema refuses an address in a client_ref column outright.
+    // The schema refuses an address in any ref column outright.
     await expect(
       live.pool.query(`INSERT INTO live_messages (client_ref, caller_name, line, body) VALUES ('203.0.113.77', 'x', 0, 'x')`),
     ).rejects.toThrow(/check constraint/);
+    for (const table of ["live_messages", "live_reports", "live_names", "live_address_holds"]) {
+      await expect(
+        live.pool.query(`UPDATE ${table} SET addr_ref = '203.0.113.77' WHERE addr_ref IS NOT NULL`),
+      ).rejects.toThrow(/check constraint/);
+    }
   });
 
   it("health counts connected streams and messages in the last hour", async () => {
@@ -261,11 +274,11 @@ describe("the load-test identity header", () => {
     try {
       const a = fakeReq({ "x-forwarded-for": "1.2.3.4", "x-live-test-client": "c1" });
       const b = fakeReq({ "x-forwarded-for": "1.2.3.4", "x-live-test-client": "c2" });
-      expect(off.clientRefOf(a)).toBe(off.clientRefOf(b));
-      expect(on.clientRefOf(a)).not.toBe(on.clientRefOf(b));
+      expect(off.addrRefOf(a)).toBe(off.addrRefOf(b));
+      expect(on.addrRefOf(a)).not.toBe(on.addrRefOf(b));
       // ...and only from loopback, even when on.
       const remote = (h) => ({ headers: h, socket: { remoteAddress: "198.51.100.9" } });
-      expect(on.clientRefOf(remote({ "x-live-test-client": "c1" }))).toBe(on.clientRefOf(remote({ "x-live-test-client": "c2" })));
+      expect(on.addrRefOf(remote({ "x-live-test-client": "c1" }))).toBe(on.addrRefOf(remote({ "x-live-test-client": "c2" })));
     } finally {
       off.close();
       on.close();
@@ -278,8 +291,8 @@ describe("the load-test identity header", () => {
     const app = createLiveApp({ pool, clientSecret: "s".repeat(40), adminToken: "t" });
     try {
       const req = (peer, xff) => ({ headers: { "x-forwarded-for": xff }, socket: { remoteAddress: peer } });
-      expect(app.clientRefOf(req("127.0.0.1", "1.1.1.1"))).not.toBe(app.clientRefOf(req("127.0.0.1", "2.2.2.2")));
-      expect(app.clientRefOf(req("198.51.100.9", "1.1.1.1"))).toBe(app.clientRefOf(req("198.51.100.9", "2.2.2.2")));
+      expect(app.addrRefOf(req("127.0.0.1", "1.1.1.1"))).not.toBe(app.addrRefOf(req("127.0.0.1", "2.2.2.2")));
+      expect(app.addrRefOf(req("198.51.100.9", "1.1.1.1"))).toBe(app.addrRefOf(req("198.51.100.9", "2.2.2.2")));
     } finally {
       app.close();
     }

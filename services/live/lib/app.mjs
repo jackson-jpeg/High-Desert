@@ -5,14 +5,20 @@
  * /live-api/ { proxy_pass http://127.0.0.1:3005; }` — no URI part, so nothing
  * is stripped). The full API, with shapes, is in docs/live-chat.md.
  *
- * Who is calling: `client_ref` = HMAC-SHA256(clientKey(ip), CHAT_CLIENT_SECRET)
- * — the app's own bucketing (IPv4 address, IPv6 /64), shared by symlink
- * (lib/shared/client-key.ts). The address comes from X-Forwarded-For, which
- * nginx overwrites with $remote_addr, and is trusted only from a loopback peer.
- * The address itself is used for that one hash and never stored, logged or sent.
+ * Who is calling: one browser. `client_ref` is an HMAC of the random id in its
+ * `hd_live_caller` cookie, which the service mints and signs (lib/caller.mjs).
+ * Names, lines, the rename limit, reports, mutes and bans key on it, so a
+ * household, or strangers behind a mobile carrier's NAT, are separate callers.
+ *
+ * Where from: `addr_ref` = HMAC of the app's own address bucket (IPv4 address,
+ * IPv6 /64, lib/shared/client-key.ts), used only for generous per-address caps
+ * and for holding an address after a ban. The address comes from
+ * X-Forwarded-For, which nginx overwrites with $remote_addr, and is trusted only
+ * from a loopback peer. It is used for that one hash and never stored, logged
+ * or sent.
  */
 
-import { hashClientKey, clientKey } from "./shared/client-key.ts";
+import { hashClientKey } from "./shared/client-key.ts";
 import {
   MAX_BODY_BYTES,
   MAX_STREAMS,
@@ -25,7 +31,16 @@ import {
   RETENTION_SWEEP_MS,
   RETRY_HINT_MS,
   SIGNIN_ATTEMPTS_PER_MINUTE,
-  STREAMS_PER_CLIENT,
+  STREAMS_PER_CALLER,
+  CALLER_COOKIE,
+  NEW_CALLERS_PER_ADDRESS_HOUR,
+  FIRST_CALLS_PER_ADDRESS_HOUR,
+  MESSAGES_PER_ADDRESS_MINUTE,
+  REPORTS_PER_ADDRESS_MINUTE,
+  STREAMS_PER_ADDRESS,
+  BAN_HOLD_MS,
+  BAN_HOLD_INTERVAL_MS,
+  LEGACY_ADOPT_MS,
 } from "./config.mjs";
 import { createStore } from "./store.mjs";
 import { createHub } from "./sse.mjs";
@@ -33,7 +48,8 @@ import { createLimits, createWindowCounter } from "./limits.mjs";
 import { createModerator, REASON_TEXT } from "./moderation/index.mjs";
 import { dedupKey } from "./moderation/normalize.mjs";
 import { lineFor, LINES, randomCallerName } from "./names.mjs";
-import { clearedCookie, isAdminRequest, sessionCookie, sha256hex } from "./admin.mjs";
+import { clearedCookie, isAdminRequest, parseCookies, sessionCookie, sha256hex } from "./admin.mjs";
+import { addressRef, callerCookie, callerRef, mintCallerId, verifyCallerCookie } from "./caller.mjs";
 import { SIGNIN_PAGE, SIGNIN_PAGE_HEADERS } from "./signin-page.mjs";
 import { createCpuSampler } from "./cpu.mjs";
 
@@ -51,6 +67,11 @@ class HttpError extends Error {
 
 function sendJson(res, status, body, headers = {}) {
   const text = JSON.stringify(body);
+  // A caller cookie minted for this request (res.setHeader) and a route's own
+  // cookie (the admin session) must both reach the browser.
+  if (headers["set-cookie"] && res.getHeader("set-cookie")) {
+    headers = { ...headers, "set-cookie": [].concat(res.getHeader("set-cookie"), headers["set-cookie"]) };
+  }
   res.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
@@ -97,6 +118,7 @@ const seconds = (ms) => Math.max(1, Math.ceil(ms / 1000));
  * @param {string[]} [o.origins]      allowed Origin values for POSTs
  * @param {() => {entries: any[], version: number}} [o.blocklist]
  * @param {boolean} [o.loadTest]      honour x-live-test-client from loopback (LIVE_LOAD_TEST=1 only)
+ * @param {boolean} [o.secureCookies] mark the caller cookie Secure (default; off only for a plain-http local stack)
  */
 export function createLiveApp({
   pool,
@@ -105,6 +127,7 @@ export function createLiveApp({
   origins = DEFAULT_ORIGINS,
   blocklist,
   loadTest = false,
+  secureCookies = true,
   now = Date.now,
   heartbeatMs,
   log = (msg) => console.log(msg),
@@ -118,6 +141,15 @@ export function createLiveApp({
   const moderate = createModerator(blocklist);
   const reportCounter = createWindowCounter({ max: REPORTS_PER_MINUTE, windowMs: 60_000, now });
   const signinCounter = createWindowCounter({ max: SIGNIN_ATTEMPTS_PER_MINUTE, windowMs: 60_000, now });
+  // Per-address caps: secondary, and generous (config.mjs).
+  const mintCounter = createWindowCounter({ max: NEW_CALLERS_PER_ADDRESS_HOUR, windowMs: 60 * 60_000, now });
+  const firstCallCounter = createWindowCounter({ max: FIRST_CALLS_PER_ADDRESS_HOUR, windowMs: 60 * 60_000, now });
+  const addressMessages = createWindowCounter({ max: MESSAGES_PER_ADDRESS_MINUTE, windowMs: 60_000, now });
+  const addressReports = createWindowCounter({ max: REPORTS_PER_ADDRESS_MINUTE, windowMs: 60_000, now });
+  /** addr_ref → open streams, across every caller behind it. */
+  const addressStreams = new Map();
+  /** Callers known to have talked: they skip the first-call checks. Cleared hourly. */
+  const spoken = new Set();
   const cpu = createCpuSampler();
   const bans = new Set();
   const startedAt = new Date(now()).toISOString();
@@ -129,6 +161,7 @@ export function createLiveApp({
   })();
 
   async function sweep() {
+    spoken.clear();
     try {
       const n = await store.sweep();
       if (n > 0) log(`[live] retention: deleted ${n} message(s) older than 7 days`);
@@ -145,6 +178,10 @@ export function createLiveApp({
     limits.sweep();
     reportCounter.sweep();
     signinCounter.sweep();
+    mintCounter.sweep();
+    firstCallCounter.sweep();
+    addressMessages.sweep();
+    addressReports.sweep();
     announceSlowIfChanged();
   }, 5_000);
   slowTimer.unref?.();
@@ -165,12 +202,58 @@ export function createLiveApp({
     return (typeof xff === "string" && xff.split(",")[0].trim()) || peer;
   }
 
-  function clientRefOf(req) {
+  function loadTestKey(req) {
     const peer = req.socket.remoteAddress ?? "";
-    if (loadTest && LOOPBACK.has(peer) && typeof req.headers["x-live-test-client"] === "string") {
-      return hashClientKey(`load:${req.headers["x-live-test-client"].slice(0, 64)}`, clientSecret);
+    const key = req.headers["x-live-test-client"];
+    return loadTest && LOOPBACK.has(peer) && typeof key === "string" ? key.slice(0, 64) : null;
+  }
+
+  /** Where a request is from, as an HMAC: the secondary abuse key. */
+  function addrRefOf(req) {
+    const load = loadTestKey(req);
+    if (load !== null) return hashClientKey(`load-addr:${load}`, clientSecret);
+    return addressRef(clientAddress(req), clientSecret);
+  }
+
+  /**
+   * Who is calling: the caller in the request's cookie, or a new one.
+   *
+   * A request with no valid cookie is a new browser. It gets a fresh id (as a
+   * Set-Cookie on whatever this response turns out to be), within the
+   * per-address mint cap. The first new browser from an address that had a
+   * caller before per-browser ids takes that caller over, name and all.
+   *
+   * @returns {Promise<{ ref: string, addr: string }>}
+   */
+  async function callerOf(req, res) {
+    const addr = addrRefOf(req);
+    const load = loadTestKey(req);
+    if (load !== null) return { ref: hashClientKey(`load:${load}`, clientSecret), addr };
+    // One browser, one caller: the ref comes from the cookie's id, never the address.
+    const refFor = (id) => callerRef(id, clientSecret);
+    const id = verifyCallerCookie(parseCookies(req.headers.cookie)[CALLER_COOKIE], clientSecret);
+    if (id) return { ref: refFor(id), addr };
+    const t = mintCounter.take(addr);
+    if (!t.ok) {
+      const retryAfter = seconds(t.retryAfterMs);
+      throw new HttpError(
+        429,
+        { error: "busy-network", retryAfter, message: "Too many new callers from your network right now. Try again soon." },
+        { "retry-after": String(retryAfter) },
+      );
     }
-    return hashClientKey(clientKey(clientAddress(req)), clientSecret);
+    const fresh = mintCallerId();
+    const ref = refFor(fresh);
+    res.setHeader("set-cookie", callerCookie(clientSecret, fresh, { secure: secureCookies }));
+    const adopted = await store.adoptLegacy(addr, ref, LEGACY_ADOPT_MS);
+    if (adopted?.banned) bans.add(ref);
+    return { ref, addr };
+  }
+
+  /** Tests: the caller ref behind a cookie value (never used to serve requests). */
+  function refForCookie(value) {
+    const id = verifyCallerCookie(value, clientSecret);
+    return id ? callerRef(id, clientSecret) : null;
   }
 
   /** CSRF: JSON only, and only from our own origin. */
@@ -183,22 +266,57 @@ export function createLiveApp({
     }
   }
 
-  async function you(ref, req) {
-    const name = await ensureName(ref);
-    return { name, line: LINES[lineFor(ref)], admin: isAdminRequest(req, adminToken, now()) };
+  async function you(caller, req) {
+    const { name, line } = await ensureCaller(caller);
+    return { name, line: LINES[line] ?? LINES[0], admin: isAdminRequest(req, adminToken, now()) };
   }
 
-  /** The caller's name, assigning a fresh unique one on first contact. */
-  async function ensureName(ref) {
+  /**
+   * The caller's name and line (index), assigning them on first contact: a
+   * fresh unique name, and a line no other caller from the same address has.
+   */
+  async function ensureCaller({ ref, addr }) {
     const current = await store.getName(ref);
-    if (current?.name) return current.name;
+    const line = current?.line ?? (await store.assignLine(ref, addr, lineFor(ref)));
+    if (current?.name) return { name: current.name, line };
     for (let i = 0; i < 25; i++) {
       const name = randomCallerName();
-      if ((await store.claimName(ref, name, { isConnected: hub.isConnected, markChanged: false })) === "ok") return name;
+      if ((await store.claimName(ref, name, { isConnected: hub.isConnected, markChanged: false })) === "ok") return { name, line };
     }
     const fallback = `${randomCallerName()} ${String(now()).slice(-4)}`.slice(0, 40);
     await store.claimName(ref, fallback, { isConnected: hub.isConnected, markChanged: false });
-    return fallback;
+    return { name: fallback, line };
+  }
+
+  /**
+   * A caller's first call or first rename. Once someone has talked, this is a
+   * no-op. A new caller counts against their address: a generous hourly cap,
+   * and, while the address is held after a ban, one new caller per interval.
+   * Callers already talking from a held address are untouched.
+   */
+  async function admitFirstCall({ ref, addr }) {
+    if (spoken.has(ref) || (await store.hasSpoken(ref))) {
+      spoken.add(ref);
+      return;
+    }
+    const held = await store.takeHoldSlot(addr, BAN_HOLD_INTERVAL_MS);
+    if (!held.ok) {
+      const retryAfter = seconds(held.retryAfterMs);
+      throw new HttpError(
+        429,
+        { error: "address-hold", retryAfter, message: "New callers from your network are on hold for a while. Try again later." },
+        { "retry-after": String(retryAfter) },
+      );
+    }
+    const t = firstCallCounter.take(addr);
+    if (!t.ok) {
+      const retryAfter = seconds(t.retryAfterMs);
+      throw new HttpError(
+        429,
+        { error: "address-limit", retryAfter, message: "Lots of new callers from your network. Try again in a little while." },
+        { "retry-after": String(retryAfter) },
+      );
+    }
   }
 
   async function assertMayPost(ref) {
@@ -231,18 +349,23 @@ export function createLiveApp({
   // ---- routes ------------------------------------------------------------
 
   async function stream(req, res, url) {
-    const ref = clientRefOf(req);
+    const caller = await callerOf(req, res);
+    const { ref, addr } = caller;
     if (bans.has(ref)) throw new HttpError(403, { error: "banned" });
-    if (hub.streamsOf(ref) >= STREAMS_PER_CLIENT || hub.size >= MAX_STREAMS) {
+    if (
+      hub.streamsOf(ref) >= STREAMS_PER_CALLER ||
+      (addressStreams.get(addr) ?? 0) >= STREAMS_PER_ADDRESS ||
+      hub.size >= MAX_STREAMS
+    ) {
       throw new HttpError(429, { error: "too-many-streams" }, { "retry-after": "30" });
     }
     const lastIdRaw = req.headers["last-event-id"] ?? url.searchParams.get("lastEventId");
     const lastId = positiveInt(Number(lastIdRaw));
+    await store.touch(ref, addr);
     const [me, recent, hidden] = await Promise.all([
-      you(ref, req),
+      you(caller, req),
       lastId ? store.visibleAfter(lastId, 200) : store.recentVisible(RECENT_ON_HELLO),
       store.recentlyHidden(HIDDEN_REPLAY_MS),
-      store.touch(ref),
     ]);
     res.writeHead(200, {
       "content-type": "text/event-stream; charset=utf-8",
@@ -251,8 +374,12 @@ export function createLiveApp({
       "x-accel-buffering": "no",
     });
     res.write(`retry: ${RETRY_HINT_MS}\n\n`);
+    addressStreams.set(addr, (addressStreams.get(addr) ?? 0) + 1);
     const client = hub.add(res, ref, () => {
-      store.touch(ref).catch(() => {});
+      const n = (addressStreams.get(addr) ?? 1) - 1;
+      if (n > 0) addressStreams.set(addr, n);
+      else addressStreams.delete(addr);
+      store.touch(ref, addr).catch(() => {});
     });
     const lastSent = recent.length ? recent[recent.length - 1].id : lastId ?? undefined;
     hub.send(
@@ -266,7 +393,8 @@ export function createLiveApp({
   async function postMessage(req, res) {
     checkPost(req);
     const body = await readJson(req);
-    const ref = clientRefOf(req);
+    const caller = await callerOf(req, res);
+    const { ref, addr } = caller;
     await assertMayPost(ref);
     const pace = limits.pace(ref);
     if (!pace.ok) {
@@ -282,8 +410,15 @@ export function createLiveApp({
     if (limits.duplicate(ref, key)) {
       throw new HttpError(400, { error: "rejected", reason: "duplicate", message: "You just said that." });
     }
-    const name = await ensureName(ref);
-    const msg = await store.insertMessage({ clientRef: ref, name, line: lineFor(ref), body: verdict.text });
+    await admitFirstCall(caller);
+    const busy = addressMessages.take(addr);
+    if (!busy.ok) {
+      const retryAfter = seconds(busy.retryAfterMs);
+      throw new HttpError(429, { error: "rate", retryAfter, slowMode: limits.slowMode().on }, { "retry-after": String(retryAfter) });
+    }
+    const { name, line } = await ensureCaller(caller);
+    const msg = await store.insertMessage({ clientRef: ref, addrRef: addr, name, line, body: verdict.text });
+    spoken.add(ref);
     const turnedSlow = limits.record(ref, key);
     hub.broadcast("message", msg, msg.id);
     if (turnedSlow) announceSlowIfChanged();
@@ -293,7 +428,8 @@ export function createLiveApp({
   async function postName(req, res) {
     checkPost(req);
     const body = await readJson(req);
-    const ref = clientRefOf(req);
+    const caller = await callerOf(req, res);
+    const { ref } = caller;
     await assertMayPost(ref);
     const wait = await store.renameWaitMs(ref);
     if (wait > 0) {
@@ -302,21 +438,26 @@ export function createLiveApp({
     }
     const verdict = moderate.name(typeof body.name === "string" ? body.name : "");
     if (!verdict.ok) throw new HttpError(400, { error: "rejected", reason: verdict.reason, message: REASON_TEXT[verdict.reason] });
+    await admitFirstCall(caller);
+    const { line } = await ensureCaller(caller);
     const r = await store.claimName(ref, verdict.text, { isConnected: hub.isConnected, markChanged: true });
     if (r === "taken") throw new HttpError(409, { error: "taken", message: "Someone on the lines already has that name." });
-    sendJson(res, 200, { name: verdict.text, line: LINES[lineFor(ref)], nextChangeInS: NAME_CHANGE_MS / 1000 });
+    spoken.add(ref);
+    sendJson(res, 200, { name: verdict.text, line: LINES[line] ?? LINES[0], nextChangeInS: NAME_CHANGE_MS / 1000 });
   }
 
   async function postReport(req, res) {
     checkPost(req);
     const body = await readJson(req);
-    const ref = clientRefOf(req);
+    const { ref, addr } = await callerOf(req, res);
     const t = reportCounter.take(ref);
     if (!t.ok) throw new HttpError(429, { error: "rate", retryAfter: seconds(t.retryAfterMs) });
+    const ta = addressReports.take(addr);
+    if (!ta.ok) throw new HttpError(429, { error: "rate", retryAfter: seconds(ta.retryAfterMs) });
     const m = await messageOr404(body.messageId);
     // Your own message, or one already off the air: accepted, and nothing happens.
     if (m.clientRef === ref || m.hidden) return sendJson(res, 200, { ok: true, hidden: m.hidden });
-    const reporters = await store.addReport(m.id, ref);
+    const reporters = await store.addReport(m.id, ref, addr);
     let hidden = false;
     if (reporters >= REPORTS_TO_HIDE) {
       if (await store.hideMessage(m.id, "reports")) {
@@ -349,6 +490,9 @@ export function createLiveApp({
         const m = await messageOr404(body.messageId);
         await store.ban(m.clientRef);
         bans.add(m.clientRef);
+        // Clearing cookies is not a free reset: the address is held, so new
+        // callers from it start talking at most once an hour for a day.
+        await store.holdAddress(m.addrRef, now() + BAN_HOLD_MS, now() + BAN_HOLD_INTERVAL_MS);
         const ids = await store.hideFrom(m.clientRef, 24 * 60 * 60_000, "admin");
         if (ids.length) hub.broadcast("hide", { ids });
         hub.closeRef(m.clientRef);
@@ -392,8 +536,7 @@ export function createLiveApp({
 
   async function signin(req, res) {
     checkPost(req);
-    const ref = clientRefOf(req);
-    const t = signinCounter.take(ref);
+    const t = signinCounter.take(addrRefOf(req));
     if (!t.ok) throw new HttpError(429, { error: "rate", retryAfter: seconds(t.retryAfterMs) });
     const body = await readJson(req);
     const nonce = typeof body.nonce === "string" ? body.nonce : "";
@@ -423,12 +566,13 @@ export function createLiveApp({
     if (m === "GET" && p === "/live-api/stream") return stream(req, res, url);
     if (m === "GET" && p === "/live-api/health") return health(res);
     if (m === "GET" && p === "/live-api/me") {
-      const ref = clientRefOf(req);
+      const caller = await callerOf(req, res);
+      const { ref } = caller;
       if (bans.has(ref)) return sendJson(res, 200, { banned: true, admin: false });
       const mute = await store.activeMute(ref);
       const wait = await store.renameWaitMs(ref);
       return sendJson(res, 200, {
-        ...(await you(ref, req)),
+        ...(await you(caller, req)),
         mutedUntil: mute ? new Date(mute.until).toISOString() : null,
         nextNameChangeInS: wait > 0 ? seconds(wait) : 0,
         slowMode: limits.slowMode(),
@@ -473,7 +617,8 @@ export function createLiveApp({
     store,
     ready,
     sweep,
-    clientRefOf,
+    addrRefOf,
+    refForCookie,
     close() {
       clearInterval(retentionTimer);
       clearInterval(slowTimer);
