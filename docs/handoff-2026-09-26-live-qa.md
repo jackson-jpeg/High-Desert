@@ -1,6 +1,7 @@
 # Handoff: Live listener fixes and Signal Traffic peaks, deployed (2026-09-26)
 
-**Deployed:** `16a8f49` (PR #29 merged onto #27 and #28), app via `scripts/deploy.sh`,
+**Now live:** `d590228` (PR #30, 01:54 UTC), which adds the log scroll fix below.
+**First deployed:** `16a8f49` (PR #29 merged onto #27 and #28), app via `scripts/deploy.sh`,
 phone lines via `scripts/deploy-live.sh`, both at 00:11 UTC. `highdesert-status`: every
 line OK, including the new `peaks` line.
 
@@ -61,7 +62,7 @@ heartbeats are real presence writes, and the sampler would record them into Sign
 Traffic's history. It passes on the local one-origin stack and in CI.
 
 The QA calls posted to the public phone lines were hidden afterwards with the admin API
-(8 calls). One visible call in that window, "TEST: Wahoo" at 00:37 UTC, was not
+(8 calls, then 2 more from the rerun after the fix). One visible call in that window, "TEST: Wahoo" at 00:37 UTC, was not
 from any QA run and was left alone.
 
 ## Found after the deploy, fixed
@@ -73,6 +74,22 @@ the show on air is far down the day's log, which is why every earlier run passed
 It was reproduced red on production (16a8f49) before the fix. The log now reveals the on-air row in its own
 box and never scrolls the page. Tests, mutations and verification: `docs/live-qa.md` A8,
 and "After the fix" below.
+
+## After the fix
+
+- PR #30 CI green: both runs, including e2e at 6:30 PM Pacific, when the failing case
+  applies. It also fixed a flaky phone-lines test found on the way: `clear-name` built its
+  random name from hex, and about 1 in 650 hex suffixes reads as leetspeak ("455...") and
+  is refused by the filter. It now uses `token()`, the consonants-only helper the other
+  tests use.
+- Deployed `d590228` with `scripts/deploy.sh` (the phone-lines service had only a test
+  change, so it was not redeployed).
+- `live-qa.spec.ts` on production at 6:56 PM Pacific, rename test aside (it passed
+  earlier on `16a8f49`, and this change does not touch it): mobile 9 passed, 3 skipped;
+  desktop 11 passed, 1 skipped. The skips are the presence test (never on production)
+  and the tests for the other form factor. The mobile Studio test that was red an hour
+  earlier passes.
+- `highdesert-status`: every line OK, `deploy` at `d590228`.
 
 ## Worth knowing
 
