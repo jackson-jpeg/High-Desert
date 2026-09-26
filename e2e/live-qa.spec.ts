@@ -1,5 +1,6 @@
 import type { BrowserContext, Page } from "@playwright/test";
 import { test, expect, anotherClientAddress } from "./fixtures";
+import { ownLiveState, recordBeats } from "./own-presence";
 
 /**
  * The Live bugs a real listener hit on 2026-09-25, each as the listener met it.
@@ -14,8 +15,10 @@ import { test, expect, anotherClientAddress } from "./fixtures";
  * running the browser (they skip, saying so, when it is not).
  *
  * The presence test lets this page's own heartbeats through to the server — a
- * presence mark that expires in five minutes, never a play. Every other stats
- * write is still answered in the page by the fixture.
+ * presence mark that expires in five minutes, never a play — and judges the
+ * page by those beats (e2e/own-presence.ts), not by the site-wide count, which
+ * a parallel worker can move. Every other stats write is still answered in the
+ * page by the fixture.
  */
 
 const ARCHIVE_PROBE = "https://archive.org/services/check";
@@ -227,7 +230,7 @@ test.describe("tuned in", () => {
     await installProbe(page);
   });
 
-  test("join, refresh, resume: still counted live; leave: the count drops within one presence poll", async ({ page }) => {
+  test("join, refresh, resume: this page is live to the server; leave: it says so at once", async ({ page }) => {
     test.setTimeout(180_000);
     // Its heartbeats are real presence writes, and on production the sampler
     // would record them into Signal Traffic's history. Run it on a local stack.
@@ -237,23 +240,36 @@ test.describe("tuned in", () => {
     );
     // This page's heartbeats reach the server; nothing else does (see the header).
     await page.route("**/api/stats/heartbeat", (route) => route.continue());
+    // Judged on this page's OWN beats (e2e/own-presence.ts). The site-wide live
+    // count is distinct clients, every browser in a local run is one client, and
+    // another worker tuned in at the same moment used to shift "base + 1".
+    const beats = recordBeats(page);
     const liveNow = async () => (await (await page.request.get("/api/stats/now")).json()).live as number;
-    const base = await liveNow();
 
     await tuneIn(page);
-    await expect.poll(liveNow, { timeout: 30_000 }).toBe(base + 1);
+    await expect.poll(() => ownLiveState(beats), { timeout: 30_000 }).toBe("live");
+    // This client's own mark is in the window, so the count includes it
+    // whatever anyone else is doing; others can only add to it.
+    await expect.poll(liveNow, { timeout: 30_000 }).toBeGreaterThanOrEqual(1);
 
-    // A refresh: the show comes back in the bottom player; ▶ resumes the station.
+    // A refresh: a new session, held, so not live until ▶ resumes the station.
+    const reloadedAt = beats.length;
     await page.reload();
+    await expect.poll(() => ownLiveState(beats, reloadedAt), { timeout: 30_000 }).toBe("not-live");
     await playerButton(page, "Play").click();
     await expect.poll(async () => (await element(page))?.paused === false, { timeout: 60_000 }).toBe(true);
     await expect(leaveButton(page)).toBeVisible();
-    await expect.poll(liveNow, { timeout: 30_000 }).toBe(base + 1);
-    // And the count on screen is that same number.
-    await expect(page.getByTestId("live-listeners").first()).toHaveAttribute("data-live", String(base + 1), { timeout: 30_000 });
+    await expect.poll(() => ownLiveState(beats, reloadedAt), { timeout: 30_000 }).toBe("live");
+    expect(new Set(beats.slice(reloadedAt).map((b) => b.sessionId)).size).toBe(1);
+    expect(beats.slice(reloadedAt)[0].sessionId).not.toBe(beats[0].sessionId);
+    // And the count on screen includes this page too.
+    await expect
+      .poll(async () => Number(await page.getByTestId("live-listeners").first().getAttribute("data-live")), { timeout: 30_000 })
+      .toBeGreaterThanOrEqual(1);
 
+    // Leave: said at once by its own beat, not at the next minute's.
     await leaveButton(page).click();
-    await expect.poll(liveNow, { timeout: 25_000 }).toBe(base);
+    await expect.poll(() => ownLiveState(beats, reloadedAt), { timeout: 10_000 }).toBe("not-live");
   });
 
   test("Leave the station stops the audio and clears the player, and it stays cleared after a refresh", async ({ page }) => {
