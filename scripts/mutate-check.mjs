@@ -2731,6 +2731,14 @@ export const MUTATIONS = [
     why: "how many addresses met a cap is what decides whether to raise it",
   },
   {
+    id: "nginx-own-access-log",
+    test: "scripts/__tests__/nginx-vhost.test.ts",
+    file: "deploy/nginx/highdesert.conf",
+    find: `    access_log /var/log/nginx/highdesert.access.log;`,
+    replace: `    # access_log /var/log/nginx/highdesert.access.log;`,
+    why: "in the shared log this site's 5xx and 429 are indistinguishable from every other vhost's",
+  },
+  {
     id: "no-em-dash-menu-label",
     test: "src/lib/__tests__/no-em-dash.test.ts",
     file: "src/hooks/useShellMenus.ts",

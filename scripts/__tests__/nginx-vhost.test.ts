@@ -116,6 +116,11 @@ describe("nginx vhost — the phone lines (/live-api/)", () => {
     expect(burst).toBeGreaterThanOrEqual(MESSAGES_PER_ADDRESS_MINUTE / 2);
   });
 
+  it("the HTTPS server keeps its own access log, so this site's 5xx and 429 are countable", () => {
+    const https = conf.slice(conf.indexOf("listen 187.77.218.14:443"), conf.indexOf("# HTTP"));
+    expect(https).toMatch(/\n\s*access_log\s+\/var\/log\/nginx\/highdesert\.access\.log;/);
+  });
+
   it("health is not public", () => {
     expect(location("= /live-api/health")).toMatch(/return\s+404;/);
   });
