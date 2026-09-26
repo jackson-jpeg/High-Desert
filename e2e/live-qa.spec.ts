@@ -75,6 +75,30 @@ function element(page: Page) {
   });
 }
 
+/**
+ * The show a refresh brings back (`userPrefs["last-episode-id"]`). On a first
+ * visit the station plays a slot-made episode with no id until the seed
+ * settles and it adopts the library row; only then is there one to save.
+ */
+function savedEpisodeId(page: Page) {
+  return page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open("HighDesertDB");
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    try {
+      return await new Promise<string | null>((resolve) => {
+        const req = db.transaction("userPrefs").objectStore("userPrefs").index("key").get("last-episode-id");
+        req.onsuccess = () => resolve((req.result as { value?: string } | undefined)?.value ?? null);
+        req.onerror = () => resolve(null);
+      });
+    } finally {
+      db.close();
+    }
+  });
+}
+
 /** Where the station is right now, in seconds into the current show, by the server's clock. */
 async function stationOffset(page: Page) {
   const s = await (await page.request.get("/api/live/schedule")).json();
@@ -252,7 +276,11 @@ test.describe("tuned in", () => {
     // whatever anyone else is doing; others can only add to it.
     await expect.poll(liveNow, { timeout: 30_000 }).toBeGreaterThanOrEqual(1);
 
-    // A refresh: a new session, held, so not live until ▶ resumes the station.
+    // A refresh: the show comes back in the bottom player, held, as a new
+    // session that is not live until ▶ resumes the station. Waiting on this
+    // page's own beat is near-instant, so wait for the adopted row too: a
+    // reload before the seed settles has no show to bring back.
+    await expect.poll(() => savedEpisodeId(page), { timeout: 60_000 }).not.toBeNull();
     const reloadedAt = beats.length;
     await page.reload();
     await expect.poll(() => ownLiveState(beats, reloadedAt), { timeout: 30_000 }).toBe("not-live");
