@@ -2731,6 +2731,14 @@ export const MUTATIONS = [
     why: "how many addresses met a cap is what decides whether to raise it",
   },
   {
+    id: "nginx-upstream-keepalive-timeout",
+    test: "scripts/__tests__/nginx-vhost.test.ts",
+    file: "deploy/nginx/highdesert.conf",
+    find: `    keepalive_timeout 4s;`,
+    replace: `    keepalive_timeout 60s;`,
+    why: "nginx reused an idle app connection Node had already closed; the POST met a reset and became a 502",
+  },
+  {
     id: "nginx-own-access-log",
     test: "scripts/__tests__/nginx-vhost.test.ts",
     file: "deploy/nginx/highdesert.conf",
