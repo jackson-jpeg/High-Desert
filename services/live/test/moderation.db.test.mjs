@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomBytes } from "node:crypto";
 import { describeDb } from "../../../src/test-support/test-db.ts";
-import { startLive, newCaller, unique } from "./helpers.mjs";
+import { startLive, newCaller, unique, token } from "./helpers.mjs";
 import { sha256hex, sessionValue, verifySession } from "../lib/admin.mjs";
 import { ADMIN_COOKIE, REPORT_MUTE_MS } from "../lib/config.mjs";
 
@@ -257,7 +257,8 @@ describeDb("admin", () => {
 
     it("clear-name: the caller gets a fresh name, on their past messages too", async () => {
       const who = newCaller();
-      const named = await live.post("/live-api/name", { name: `Bad Name ${randomBytes(3).toString("hex")}` }, { ip: who });
+      // token(), never hex: 1 in ~650 hex suffixes reads as leetspeak ("455…") and the filter refuses it.
+      const named = await live.post("/live-api/name", { name: `Bad Name ${token(6)}` }, { ip: who });
       expect(named.status).toBe(200);
       const m = await live.post("/live-api/messages", { body: unique() }, { ip: who });
       expect(m.json.name).toBe(named.json.name);
