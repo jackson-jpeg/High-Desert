@@ -22,10 +22,10 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL("https://highdesert.space"),
   title: {
-    default: "High Desert — Art Bell Radio Archive",
+    default: "High Desert · Art Bell Radio Archive",
     template: "%s | High Desert",
   },
-  description: "Art Bell Radio Archive — Late night talk radio from the Kingdom of Nye. Stream thousands of Coast to Coast AM, Dreamland, and special episodes.",
+  description: "Art Bell Radio Archive. Late night talk radio from the Kingdom of Nye. Stream thousands of Coast to Coast AM, Dreamland, and special episodes.",
   keywords: [
     "Art Bell", "Coast to Coast AM", "Dreamland", "radio archive", "paranormal",
     "UFO", "late night radio", "Kingdom of Nye", "talk radio", "streaming",
@@ -50,8 +50,8 @@ export const metadata: Metadata = {
     title: "High Desert",
   },
   openGraph: {
-    title: "High Desert — Art Bell Radio Archive",
-    description: "Stream thousands of Art Bell episodes — Coast to Coast AM, Dreamland, and more from the Kingdom of Nye.",
+    title: "High Desert · Art Bell Radio Archive",
+    description: "Stream thousands of Art Bell episodes: Coast to Coast AM, Dreamland, and more from the Kingdom of Nye.",
     siteName: "High Desert",
     locale: "en_US",
     type: "website",
@@ -59,8 +59,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "High Desert — Art Bell Radio Archive",
-    description: "Stream thousands of Art Bell episodes — Coast to Coast AM, Dreamland, and more from the Kingdom of Nye.",
+    title: "High Desert · Art Bell Radio Archive",
+    description: "Stream thousands of Art Bell episodes: Coast to Coast AM, Dreamland, and more from the Kingdom of Nye.",
   },
 };
 
@@ -69,7 +69,7 @@ const jsonLd = {
   "@type": "WebApplication",
   name: "High Desert",
   url: "https://highdesert.space",
-  description: "Art Bell Radio Archive — Stream thousands of Coast to Coast AM, Dreamland, and special episodes.",
+  description: "Art Bell Radio Archive. Stream thousands of Coast to Coast AM, Dreamland, and special episodes.",
   applicationCategory: "MultimediaApplication",
   operatingSystem: "Any",
   offers: {
@@ -149,7 +149,7 @@ export default function RootLayout({
         <div id="app-loading">
           <div id="boot-container" style={{ display: "none", flexDirection: "column", gap: "4px", padding: "40px" }}>
             <div className="boot-scanlines" />
-            <div className="boot-line" data-boot="0">BIOS v1.0 — HIGH DESERT SYSTEMS</div>
+            <div className="boot-line" data-boot="0">BIOS v1.0 · HIGH DESERT SYSTEMS</div>
             <div className="boot-line" data-boot="1">MEMORY TEST... 640K OK</div>
             <div className="boot-line" data-boot="2">SYSTEM CHECK... OK</div>
             <div className="boot-line" data-boot="3">LOADING ARCHIVE.ORG INTERFACE...</div>

@@ -69,7 +69,7 @@ function ToastItem({ toast }: { toast: Toast }) {
             style={toast.type === "caller" ? { color: "var(--hd-green-bright)", textShadow: "0 0 6px rgba(51,255,51,0.3)" } : undefined}
             role="status"
           >
-            {toast.type === "caller" ? `INCOMING CALL — ${toast.message}` : toast.message}
+            {toast.type === "caller" ? `INCOMING CALL: ${toast.message}` : toast.message}
           </span>
           <button
             onClick={dismiss}

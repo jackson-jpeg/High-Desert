@@ -33,7 +33,7 @@ export const SIGNIN_SCRIPT_HASH = `sha256-${createHash("sha256").update(SCRIPT).
 
 export const SIGNIN_PAGE = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="referrer" content="no-referrer"><title>High Desert — Phone Lines admin</title>
+<meta name="referrer" content="no-referrer"><title>High Desert · Phone Lines admin</title>
 <style>body{font:16px/1.5 system-ui,sans-serif;background:Canvas;color:CanvasText;max-width:32rem;margin:15vh auto;padding:0 1rem}</style>
 </head><body><h1>Phone Lines admin</h1><p id="out">Signing in…</p>
 <script>${SCRIPT}</script></body></html>`;

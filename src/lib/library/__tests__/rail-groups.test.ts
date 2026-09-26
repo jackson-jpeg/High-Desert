@@ -93,7 +93,7 @@ describe("deriveRailGroups — non-chronological sorts", () => {
   it("my-rating → star buckets of this browser's ratings, 5★ first, unrated last", () => {
     const rows = sortEpisodes(DESC, "my-rating", null);
     const g = deriveRailGroups(rows, "my-rating");
-    expect(g.map((x) => x.label)).toEqual(["5★", "4★", "2★", "—"]);
+    expect(g.map((x) => x.label)).toEqual(["5★", "4★", "2★", "·"]);
     expect(firsts(g)).toEqual([0, 2, 3, 4]);
   });
 
@@ -125,7 +125,7 @@ describe("deriveRailGroups — non-chronological sorts", () => {
   it("rated → community average buckets (floor), unrated last", () => {
     const rows = sortEpisodes(DESC, "rated", null, COMMUNITY);
     const g = deriveRailGroups(rows, "rated", null, 0, COMMUNITY);
-    expect(g.map((x) => x.label)).toEqual(["5★", "4★", "1★", "—"]);
+    expect(g.map((x) => x.label)).toEqual(["5★", "4★", "1★", "·"]);
     // 4.9 and 4.2 are one run: both are "4.0–4.9".
     expect(g.map((x) => x.count)).toEqual([1, 2, 1, 2]);
   });

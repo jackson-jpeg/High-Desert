@@ -39,7 +39,7 @@ export function ImportDataDialog({ fileName, summary, importing, onConfirm, onCl
       <div className="p-4 flex flex-col gap-3 text-hd-caption text-desktop-gray" data-testid="import-data-dialog">
         <div className="break-all text-bevel-dark">{fileName}</div>
         {empty ? (
-          <p>Nothing new to import — everything in this file is already in your library.</p>
+          <p>Nothing new to import. Everything in this file is already in your library.</p>
         ) : (
           <>
             <p>This will add to your library:</p>

@@ -15,10 +15,10 @@ const MILESTONE_MESSAGES: Record<number, { title: string; body: string }> = {
   },
   10: {
     title: "10 Hours Deep",
-    body: "A true night owl. You've logged 10 hours with Art Bell — the lines are open.",
+    body: "A true night owl. You've logged 10 hours with Art Bell. The lines are open.",
   },
   100: {
-    title: "100 Hours — Welcome Home",
+    title: "100 Hours: Welcome Home",
     body: "100 hours. You're officially a resident of the High Desert. Art would be proud.",
   },
 };

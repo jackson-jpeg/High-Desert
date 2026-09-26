@@ -13,6 +13,9 @@
  *   LIVE_ORIGINS (comma-separated; default https://highdesert.space,https://www.highdesert.space)
  * Never set in the unit:
  *   LIVE_LOAD_TEST=1     honour x-live-test-client from loopback (scripts/load.mjs)
+ *   LIVE_INSECURE_COOKIES=1  leave Secure off the caller cookie, for a plain-http
+ *                        local stack in WebKit (which drops Secure cookies on
+ *                        http://127.0.0.1). Chromium, CI and production never need it.
  */
 
 import http from "node:http";
@@ -51,6 +54,9 @@ process.on("SIGHUP", () => blocklist.reload());
 const loadTest = env.LIVE_LOAD_TEST === "1";
 if (loadTest) console.warn("[live] LIVE_LOAD_TEST=1: x-live-test-client is honoured from loopback. Never in production.");
 
+const secureCookies = env.LIVE_INSECURE_COOKIES !== "1";
+if (!secureCookies) console.warn("[live] LIVE_INSECURE_COOKIES=1: the caller cookie is not Secure. Never in production.");
+
 const app = createLiveApp({
   pool,
   clientSecret: env.CHAT_CLIENT_SECRET ?? "",
@@ -58,6 +64,7 @@ const app = createLiveApp({
   origins: env.LIVE_ORIGINS ? env.LIVE_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean) : DEFAULT_ORIGINS,
   blocklist: () => blocklist.get(),
   loadTest,
+  secureCookies,
 });
 if (!env.LIVE_ADMIN_TOKEN) console.warn("[live] LIVE_ADMIN_TOKEN is not set: admin actions are disabled");
 

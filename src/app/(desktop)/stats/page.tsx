@@ -140,7 +140,7 @@ export default function StatsPage() {
             <HeroStat
               label="Avg Rating"
               onClick={stats.ratedCount > 0 ? () => openLibrary({ sort: "my-rating" }) : undefined}
-              title="Your ratings — open the library sorted by My rating"
+              title="Your ratings: open the library sorted by My rating"
               value={stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "\u2014"}
               sub={stats.avgRating === 0 ? "Rate episodes to track your taste." : `${stats.ratedCount} ${stats.ratedCount === 1 ? 'rating' : 'ratings'}`}
               color="text-desert-amber"

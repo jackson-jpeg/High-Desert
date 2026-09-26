@@ -275,7 +275,7 @@ export function TimelineView({
             <button
               type="button"
               onClick={() => onSortModeChange(dateDirection === "date" ? "date-asc" : "date")}
-              aria-label={dateDirection === "date" ? "Newest first — switch to oldest first" : "Oldest first — switch to newest first"}
+              aria-label={dateDirection === "date" ? "Newest first. Switch to oldest first" : "Oldest first. Switch to newest first"}
               className="ml-auto min-h-touch md:min-h-0 px-2 text-hd-10 text-bevel-dark/85 hover:text-desktop-gray cursor-pointer transition-colors-fast whitespace-nowrap"
             >
               {dateDirection === "date" ? "Newest first \u2193" : "Oldest first \u2191"}

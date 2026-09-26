@@ -76,9 +76,9 @@ export function planDoubledHeal(
   for (const [hash, group] of groups) {
     if (group.length === 1) {
       if (tombstones.has(hash)) continue;
-      return { ok: false, reason: `catalog episode ${hash} is present once — not the double-seed signature` };
+      return { ok: false, reason: `catalog episode ${hash} is present once, not the double-seed signature` };
     }
-    if (group.length !== 2) return { ok: false, reason: `catalog episode ${hash} is present ${group.length} times — only exact pairs are healed` };
+    if (group.length !== 2) return { ok: false, reason: `catalog episode ${hash} is present ${group.length} times; only exact pairs are healed` };
     // Keep the first-seeded row: the lower id is the one the library showed
     // first. Which one is kept does not matter for the data — it absorbs the
     // other — only for stable ids in anything this code does not know about.

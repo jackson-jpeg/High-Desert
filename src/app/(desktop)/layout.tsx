@@ -314,7 +314,7 @@ export default function DesktopLayout({
   useEffect(() => {
     const onSWMessage = (e: MessageEvent) => {
       if (e.data?.type === SW_OFFLINE_FALLBACK) {
-        toast.info("Showing cached content — you may be offline.");
+        toast.info("Showing cached content. You may be offline.");
       }
     };
     navigator.serviceWorker?.addEventListener("message", onSWMessage);

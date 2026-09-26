@@ -126,7 +126,7 @@ export function useCollectionImport() {
       });
 
       if (result.outcome === "cancelled") {
-        toast.info(`Import cancelled — ${result.imported} episodes imported`);
+        toast.info(`Import cancelled: ${result.imported} episodes imported`);
         return;
       }
       toast.success(

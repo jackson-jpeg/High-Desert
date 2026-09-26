@@ -64,7 +64,7 @@ function Area51Overlay({ onDismiss }: OverlayProps) {
 function W6OBBOverlay({ onDismiss }: OverlayProps) {
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 pointer-events-auto">
-      <Dialog open onClose={onDismiss} title="W6OBB — Pahrump, NV" className="max-w-[380px]">
+      <Dialog open onClose={onDismiss} title="W6OBB · Pahrump, NV" className="max-w-[380px]">
         <div className="p-3 flex flex-col gap-3">
           <div className="text-hd-11 text-desert-amber text-center tracking-widest">
             50,000 WATTS CLEAR CHANNEL
@@ -267,7 +267,7 @@ function KonamiOverlay({ onDismiss }: OverlayProps) {
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 pointer-events-auto">
-      <Dialog open onClose={onDismiss} title="Coast to Coast AM — Phone Lines" className="max-w-[340px]">
+      <Dialog open onClose={onDismiss} title="Coast to Coast AM · Phone Lines" className="max-w-[340px]">
         <div className="p-3 flex flex-col gap-2">
           {!selected ? (
             <>
@@ -328,7 +328,7 @@ function TitorOverlay({ onDismiss }: OverlayProps) {
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 pointer-events-auto">
-      <Dialog open onClose={onDismiss} title="Post-2-Post BBS — Art Bell Forum" className="max-w-[400px]">
+      <Dialog open onClose={onDismiss} title="Post-2-Post BBS · Art Bell Forum" className="max-w-[400px]">
         <div className="p-3 flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <span className="text-hd-11 text-static-green font-bold">TimeTravel_0</span>
@@ -338,7 +338,7 @@ function TitorOverlay({ onDismiss }: OverlayProps) {
             <p>I was sent back to 1975 to retrieve an IBM 5100.</p>
             <p className="mt-2">The divergence in your timeline is 2.5%. Good luck.</p>
             <p className="mt-2 text-bevel-dark/85 text-hd-9">
-              — John Titor, November 2000
+              John Titor, November 2000
             </p>
           </div>
           <div className="flex justify-end gap-2 mt-1">

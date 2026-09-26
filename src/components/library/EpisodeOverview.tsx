@@ -76,7 +76,7 @@ export function EpisodeOverview({ episode, communityPlays }: { episode: Episode;
           <span>{"\u{1F4DA}"}</span>
           <span>
             {episode.aiSeries}
-            {episode.aiSeriesPart ? ` — Part ${episode.aiSeriesPart}` : ""}
+            {episode.aiSeriesPart ? `, Part ${episode.aiSeriesPart}` : ""}
           </span>
         </button>
       )}

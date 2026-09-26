@@ -123,6 +123,7 @@ for k in LIVE_ADMIN_TOKEN CHAT_CLIENT_SECRET LIVE_DATABASE_URL; do
   grep -q "^$k=." "$ENV_FILE" || { log "$k missing from $ENV_FILE: run scripts/live-setup.sh"; exit 1; }
 done
 grep -q '^LIVE_LOAD_TEST=' "$ENV_FILE" && { log "refusing: LIVE_LOAD_TEST is set in $ENV_FILE"; exit 1; }
+grep -q '^LIVE_INSECURE_COOKIES=' "$ENV_FILE" && { log "refusing: LIVE_INSECURE_COOKIES is set in $ENV_FILE"; exit 1; }
 
 # User.
 id hdlive >/dev/null 2>&1 || useradd --system --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin hdlive

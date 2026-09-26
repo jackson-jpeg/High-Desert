@@ -79,11 +79,11 @@ export function buildCatalogExport(episodes: readonly Episode[]): CatalogRow[] {
 export async function exportLibrarySeed(): Promise<void> {
   const rows = buildCatalogExport(await db.episodes.toArray());
   if (rows.length === 0) {
-    toast.error("Library is empty — nothing to export");
+    toast.error("Library is empty. Nothing to export");
     return;
   }
   // Compact JSON (no pretty print) — gzips well.
   const size = downloadJson("library.json", rows, { compact: true });
   const sizeMB = (size / 1024 / 1024).toFixed(1);
-  toast.success(`Exported ${rows.length.toLocaleString()} episodes (${sizeMB} MB) — place in public/seed/`);
+  toast.success(`Exported ${rows.length.toLocaleString()} episodes (${sizeMB} MB). Place in public/seed/`);
 }

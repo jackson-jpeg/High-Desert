@@ -2,7 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { lstatSync, readlinkSync, realpathSync } from "node:fs";
 import path from "node:path";
-import { randomCallerName, lineFor, LINES, EPITHETS, PLACES, nameKey } from "../lib/names.mjs";
+import { randomCallerName, numberedCallerName, lineFor, LINES, EPITHETS, PLACES, nameKey } from "../lib/names.mjs";
 import { createModerator } from "../lib/moderation/index.mjs";
 import { MAX_NAME_CHARS } from "../lib/config.mjs";
 import * as shared from "../lib/shared/client-key.ts";
@@ -25,6 +25,27 @@ describe("caller names", () => {
     }
     // Enough variety that two callers rarely draw the same one.
     expect(seen.size).toBeGreaterThan(500);
+  });
+
+  it("numbered names (for a night that holds every plain one) stay inside the limit and pass the filter", () => {
+    const mod = createModerator();
+    const accept = (n) => mod.name(n).ok;
+    for (let i = 0; i < 2000; i++) {
+      const n = numberedCallerName(undefined, undefined, accept);
+      expect(n.length, n).toBeLessThanOrEqual(MAX_NAME_CHARS);
+      expect(n).toMatch(/ \d{4}$/);
+      expect(mod.name(n).ok, n).toBe(true);
+    }
+    // A base too long for the number is drawn again, never truncated.
+    const long = "X".repeat(MAX_NAME_CHARS);
+    let calls = 0;
+    const base = () => (calls++ === 0 ? long : "Short Base");
+    expect(numberedCallerName(() => 5, base)).toBe("Short Base 1005");
+    // One the filter refuses is drawn again.
+    let n = 0;
+    const numbers = [3554, 1234];
+    const refusing = numberedCallerName((max) => (max === 9000 ? numbers[n++] - 1000 : 0), () => "Owl in Ely", (x) => !/55/.test(x));
+    expect(refusing).toBe("Owl in Ely 1234");
   });
 
   it("uses the injected randomness", () => {

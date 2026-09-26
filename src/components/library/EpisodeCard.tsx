@@ -169,7 +169,7 @@ export const EpisodeCard = memo(function EpisodeCard({
     <span
       data-unavailable=""
       className="text-hd-micro text-red-400 border border-red-400/60 px-1 leading-tight flex-shrink-0 uppercase tracking-wide"
-      title="Removed from the catalog — the archive's copy has no audio"
+      title="Removed from the catalog: the archive's copy has no audio"
     >
       Unavailable
     </span>
@@ -191,7 +191,7 @@ export const EpisodeCard = memo(function EpisodeCard({
         <span
           data-availability-mark=""
           className="text-hd-micro font-bold text-signal-blue border border-signal-blue/60 px-0.5 leading-none flex-shrink-0"
-          title="archive.org is down — this one plays from the High Desert mirror"
+          title="archive.org is down. This one plays from the High Desert mirror"
         >
           MIRROR
         </span>
@@ -202,7 +202,7 @@ export const EpisodeCard = memo(function EpisodeCard({
       {episode.aiNotable && !isPlaying && (
         <span
           className="text-hd-11 text-yellow-400 flex-shrink-0 drop-shadow-[0_0_3px_rgba(250,204,21,0.4)]"
-          title="Notable episode — a classic Art Bell moment"
+          title="Notable episode: a classic Art Bell moment"
         >
           {"★"}
         </span>
@@ -392,7 +392,7 @@ export const EpisodeCard = memo(function EpisodeCard({
           )}
           title={
             isLarge
-              ? "Large file — expect a longer wait before it starts"
+              ? "Large file: expect a longer wait before it starts"
               : undefined
           }
         >
@@ -474,7 +474,7 @@ export const EpisodeCard = memo(function EpisodeCard({
                   "text-hd-micro tabular-nums font-mono",
                   isLarge ? "text-desert-amber/85" : "text-bevel-dark/85",
                 )}
-                title={isLarge ? "Large file — expect a longer wait to start" : undefined}
+                title={isLarge ? "Large file: expect a longer wait to start" : undefined}
               >
                 {sizeLabel}
               </span>

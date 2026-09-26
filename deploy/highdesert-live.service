@@ -26,7 +26,7 @@ Environment=LIVE_ORIGINS=https://highdesert.space,https://www.highdesert.space
 # LIVE_DATABASE_URL, CHAT_CLIENT_SECRET, LIVE_ADMIN_TOKEN. chmod 600, owned by
 # root, read by systemd before it drops to hdlive; created by
 # scripts/live-setup.sh. Never inlined here, never committed.
-# LIVE_LOAD_TEST is deliberately never set in this unit.
+# LIVE_LOAD_TEST and LIVE_INSECURE_COOKIES are deliberately never set in this unit.
 EnvironmentFile=/root/.high-desert-live.env
 
 # The 10% rule: no High Desert background service may sustain more than 10%

@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
   const raw = request.nextUrl.searchParams.get("range") ?? "24h";
   if (!VALID_RANGES.has(raw as TrafficRange)) {
     return NextResponse.json(
-      { error: 'Invalid range — must be "24h", "7d" or "30d"' },
+      { error: 'Invalid range: must be "24h", "7d" or "30d"' },
       { status: 400 },
     );
   }

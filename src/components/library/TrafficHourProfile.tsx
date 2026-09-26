@@ -49,8 +49,8 @@ export function TrafficHourProfile({ hourly }: { hourly: Traffic["hourly"] }) {
                 className="flex-1 h-full flex items-end"
                 title={
                   b.samples === 0
-                    ? `${hourLabel(hour)} — not sampled yet`
-                    : `${hourLabel(hour)} — ${b.online.toFixed(1)} people on average${b.plays > 0 ? `, ${b.plays} plays` : ""}`
+                    ? `${hourLabel(hour)}: not sampled yet`
+                    : `${hourLabel(hour)}: ${b.online.toFixed(1)} people on average${b.plays > 0 ? `, ${b.plays} plays` : ""}`
                 }
               >
                 <div

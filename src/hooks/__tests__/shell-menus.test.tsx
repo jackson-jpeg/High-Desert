@@ -101,8 +101,8 @@ describe("useShellMenus", () => {
     pathname = "/stats";
     mount(false);
     const labels = menu("View")!.items.map((i) => i.label);
-    expect(labels.indexOf("Sort by Date — Oldest First")).toBe(labels.indexOf("Sort by Date") + 1);
-    item("View", "Sort by Date — Oldest First")!.onClick!();
+    expect(labels.indexOf("Sort by Date: Oldest First")).toBe(labels.indexOf("Sort by Date") + 1);
+    item("View", "Sort by Date: Oldest First")!.onClick!();
     expect(push).toHaveBeenCalledWith("/library?sort=date-asc");
   });
 
@@ -111,7 +111,7 @@ describe("useShellMenus", () => {
     mount(false);
     item("View", "Shuffle Coast to Coast")!.onClick!();
     item("View", "Sort by Guest")!.onClick!();
-    item("View", "Surprise Me — Shuffle All")!.onClick!();
+    item("View", "Surprise Me: Shuffle All")!.onClick!();
     expect(push.mock.calls.map((c) => c[0])).toEqual([
       "/library?shuffle=coast",
       "/library?sort=guest",

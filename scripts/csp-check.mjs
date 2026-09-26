@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Load every route in headless Chromium and fail on any Content-Security-Policy
- * violation, uncaught page error, or console error.
+ * violation, uncaught page error, console error, or em dash in the page's copy.
  *
  * Why this exists: the CSP is enforced by the browser, not the server, so a
  * policy that blocks something the app needs does not fail a build, a unit
@@ -57,6 +57,32 @@ try {
     const violations = await page.evaluate(() => window.__cspViolations ?? []).catch(() => []);
     for (const v of violations) here("csp", v);
 
+    // No em dashes in anything a visitor reads (the copy rule; the source-level
+    // check is src/lib/__tests__/no-em-dash.test.ts). Visible text, the title,
+    // meta descriptions and accessible labels. Callers' own words and names on
+    // the phone lines are theirs, not the app's copy, and are left out.
+    const dashes = await page
+      .evaluate(() => {
+        const DASH = "\u2014";
+        const THEIRS = '[data-testid="message-body"], [data-testid="caller-name"], [data-testid="you-name"]';
+        const out = [];
+        const body = document.body.cloneNode(true);
+        body.querySelectorAll(THEIRS).forEach((el) => el.remove());
+        body.querySelectorAll("script, style, noscript").forEach((el) => el.remove());
+        for (const line of (body.textContent ?? "").split(/\n+/)) if (line.includes(DASH)) out.push(`text: ${line.trim()}`);
+        if (document.title.includes(DASH)) out.push(`title: ${document.title}`);
+        for (const el of document.querySelectorAll("meta[content], [aria-label], [title], [placeholder], [alt]")) {
+          if (el.closest(THEIRS)) continue;
+          for (const a of ["content", "aria-label", "title", "placeholder", "alt"]) {
+            const v = el.getAttribute(a);
+            if (v && v.includes(DASH)) out.push(`${a}: ${v}`);
+          }
+        }
+        return out;
+      })
+      .catch(() => []);
+    for (const d of dashes) here("em-dash", d);
+
     const count = findings.filter((f) => f.route === route).length;
     console.log(`  ${count ? "FAIL" : "ok  "} ${route.padEnd(10)} HTTP ${status}${count ? `  (${count} finding(s))` : ""}`);
     await context.close();
@@ -70,4 +96,4 @@ if (findings.length) {
   for (const f of findings) console.log(`  ${f.route.padEnd(10)} ${f.kind.padEnd(14)} ${f.text}`);
   process.exit(1);
 }
-console.log(`\n[csp-check] ${ROUTES.length} routes on ${BASE}: no CSP violations, no console errors.`);
+console.log(`\n[csp-check] ${ROUTES.length} routes on ${BASE}: no CSP violations, no console errors, no em dashes.`);

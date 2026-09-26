@@ -51,7 +51,7 @@ export function useCatalogScraper() {
       // via scripts/categorize-library.py and ships in the seed catalog, so no API
       // key or admin token is ever exposed to the browser.
       if (result.outcome === "done") {
-        toast.success(`Catalog import complete — ${result.imported} episodes imported`);
+        toast.success(`Catalog import complete: ${result.imported} episodes imported`);
       }
     } catch (err) {
       if (controller.signal.aborted) {

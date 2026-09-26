@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   const period = request.nextUrl.searchParams.get("period");
   if (!period || !VALID_PERIODS.has(period)) {
     return NextResponse.json(
-      { error: 'Invalid period — must be "alltime" or "week"' },
+      { error: 'Invalid period: must be "alltime" or "week"' },
       { status: 400 },
     );
   }

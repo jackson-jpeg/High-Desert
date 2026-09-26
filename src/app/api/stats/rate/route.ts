@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
   // not the server is configured; before any write, so nothing is stored.
   const secret = process.env.RATING_VOTER_SECRET;
   if (!secret) {
-    console.error("[stats/rate] RATING_VOTER_SECRET is not set — refusing to record votes");
+    console.error("[stats/rate] RATING_VOTER_SECRET is not set, refusing to record votes");
     return NextResponse.json({ error: "Ratings unavailable" }, { status: 503 });
   }
   const voter = voterId(ip, secret);

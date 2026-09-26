@@ -34,7 +34,7 @@ export const REMOVED_FROM_CATALOG: ReadonlyMap<string, RemovedEpisode> = new Map
     "archive:ultimate-ultimate-art-bell-collection:2002-03-19 - Coast to Coast AM with Art Bell - Climate Change - Prof. Christina Hulbe.mp3",
     {
       pulled: "2026-07-29",
-      reason: "The archive's copy of this broadcast contains no audio — only its cover art.",
+      reason: "The archive's copy of this broadcast contains no audio, only its cover art.",
     },
   ],
 ]);
@@ -55,5 +55,5 @@ export function isRemovedFromCatalog(episode: Pick<Episode, "fileHash"> | null |
 export const UNAVAILABLE_TITLE = "No Longer in the Archive";
 export const UNAVAILABLE_BODY =
   "This show was taken out of the catalog because the archive's copy has nothing to play. " +
-  "It is still in your library because nothing is ever removed from it without asking you — " +
-  "open it in the library to remove it.";
+  "It is still in your library because nothing is ever removed from it without asking you. " +
+  "Open it in the library to remove it.";

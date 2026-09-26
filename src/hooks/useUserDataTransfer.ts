@@ -55,7 +55,7 @@ export function useUserDataTransfer() {
       const data = await buildUserDataExport();
       downloadJson(userDataFileName(), data);
       const favs = data.episodes.filter((e) => e.favoritedAt).length;
-      toast.success(`Exported your data — ${favs} favourite${favs === 1 ? "" : "s"}, ${data.history.length} history entries`);
+      toast.success(`Exported your data: ${favs} favourite${favs === 1 ? "" : "s"}, ${data.history.length} history entries`);
     } catch (err) {
       console.error("[user-data] export failed:", err);
       toast.error("Couldn't export your data");
@@ -95,7 +95,7 @@ export function useUserDataTransfer() {
     } catch (err) {
       // One transaction: a failure here has written nothing.
       console.error("[user-data] import failed:", err);
-      toast.error("Import failed — nothing was changed");
+      toast.error("Import failed. Nothing was changed");
     } finally {
       setImporting(false);
     }

@@ -191,10 +191,13 @@ d("callers are browsers, not addresses", () => {
 
   it("new browsers per address are capped, generously", async () => {
     const ip = newCaller();
-    let last;
-    for (let i = 0; i <= NEW_CALLERS_PER_ADDRESS_HOUR; i++) last = await live.get("/live-api/me", { ip, jar: false });
-    expect(last.status).toBe(429);
-    expect(last.json.error).toBe("busy-network");
+    // A call with no text: every request mints a caller (no cookie is kept),
+    // is refused before any other per-address cap, and claims no name.
+    const newBrowser = () => live.post("/live-api/messages", { body: 5 }, { ip, jar: false });
+    for (let i = 0; i < NEW_CALLERS_PER_ADDRESS_HOUR; i++) expect((await newBrowser()).status).toBe(400);
+    const over = await newBrowser();
+    expect(over.status).toBe(429);
+    expect(over.json.error).toBe("busy-network");
   });
 
   it("a caller from before per-browser ids is taken over, name and all, by the first browser from that address", async () => {
@@ -225,5 +228,33 @@ d("callers are browsers, not addresses", () => {
     // And nothing is left under the address.
     const { rows: left } = await live.pool.query(`SELECT count(*)::int AS n FROM live_names WHERE client_ref = $1`, [legacy]);
     expect(left[0].n).toBe(0);
+  });
+});
+
+d("a night busy enough to hold every plain caller name", () => {
+  let live;
+  const onlyName = `Owl in ${token(8)}`;
+  beforeAll(async () => {
+    // Every plain name this app can draw is one name, held by someone on the lines.
+    live = await startLive({ randomName: () => onlyName, now: () => clock });
+    expect((await live.get("/live-api/me", { ip: newCaller() })).json.name).toBe(onlyName);
+  });
+  afterAll(async () => {
+    await live?.close();
+  });
+
+  it("a new caller gets the name with a number on it, still inside the length limit", async () => {
+    const r = await live.get("/live-api/me", { ip: newCaller() });
+    expect(r.status).toBe(200);
+    expect(r.json.name).toMatch(new RegExp(`^${onlyName} \\d{4}$`));
+    expect([...r.json.name].length).toBeLessThanOrEqual(32);
+  });
+
+  it("an admin can still clear a caller's name", async () => {
+    tick();
+    const m = await live.post("/live-api/messages", { body: unique() }, { ip: newCaller() });
+    const r = await live.admin("clear-name", { messageId: m.json.id });
+    expect(r.status).toBe(200);
+    expect(r.json.name).toMatch(new RegExp(`^${onlyName} \\d{4}$`));
   });
 });

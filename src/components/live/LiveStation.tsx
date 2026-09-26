@@ -44,7 +44,7 @@ export function LiveStation() {
           "grid-cols-[minmax(0,1fr)] md:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]",
         )}
       >
-        <Window title="High Desert Live — Studio" variant="dark" headingLevel={2} className="flex flex-col min-h-0">
+        <Window title="High Desert Live · Studio" variant="dark" headingLevel={2} className="flex flex-col min-h-0">
           {schedule ? <Console schedule={schedule} /> : <OffAir />}
         </Window>
 

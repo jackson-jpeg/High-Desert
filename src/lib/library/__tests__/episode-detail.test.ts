@@ -104,7 +104,7 @@ describe("links", () => {
 
   it("builds the share text and archive link", () => {
     const e = ep({ title: "Area 51", guestName: "Bob Lazar", airDate: "1989-11-11", archiveIdentifier: "coll" });
-    expect(shareText(e)).toBe("🎙️ Area 51 — Art Bell with Bob Lazar (1989-11-11) — Listen on High Desert");
+    expect(shareText(e)).toBe("🎙️ Area 51, Art Bell with Bob Lazar (1989-11-11). Listen on High Desert");
     expect(archiveDetailsUrl(e)).toBe("https://archive.org/details/coll/a.mp3");
     expect(archiveDetailsUrl(ep())).toBeNull();
   });

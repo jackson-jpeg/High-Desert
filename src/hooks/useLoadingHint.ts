@@ -48,11 +48,11 @@ export function useLoadingHint(): string | null {
   if (large) {
     if (elapsed < 800) return null;
     if (elapsed < 12000) return "Tuning in… this is a big recording, give it a moment.";
-    return "Still trying — a long broadcast on a slow signal.";
+    return "Still trying. A long broadcast on a slow signal.";
   }
 
   if (elapsed < 1500) return null;
   if (elapsed < 4000) return "Tuning in…";
   if (elapsed < 9000) return "Tuning in… long broadcast, this one takes a moment.";
-  return "Still trying — the signal is weak tonight.";
+  return "Still trying. The signal is weak tonight.";
 }

@@ -18,6 +18,7 @@
  * or sent.
  */
 
+import { randomInt } from "node:crypto";
 import { hashClientKey } from "./shared/client-key.ts";
 import {
   MAX_BODY_BYTES,
@@ -47,7 +48,7 @@ import { createHub } from "./sse.mjs";
 import { createLimits, createWindowCounter } from "./limits.mjs";
 import { createModerator, REASON_TEXT } from "./moderation/index.mjs";
 import { dedupKey } from "./moderation/normalize.mjs";
-import { lineFor, LINES, randomCallerName } from "./names.mjs";
+import { lineFor, LINES, numberedCallerName, randomCallerName } from "./names.mjs";
 import { clearedCookie, isAdminRequest, parseCookies, sessionCookie, sha256hex } from "./admin.mjs";
 import { addressRef, callerCookie, callerRef, mintCallerId, verifyCallerCookie } from "./caller.mjs";
 import { SIGNIN_PAGE, SIGNIN_PAGE_HEADERS } from "./signin-page.mjs";
@@ -129,6 +130,8 @@ export function createLiveApp({
   loadTest = false,
   secureCookies = true,
   now = Date.now,
+  /** Tests only: where random caller names come from. */
+  randomName = randomCallerName,
   heartbeatMs,
   log = (msg) => console.log(msg),
   /** Tests only: a private live_settings key, so parallel test apps do not share forced slow mode. */
@@ -279,13 +282,22 @@ export function createLiveApp({
     const current = await store.getName(ref);
     const line = current?.line ?? (await store.assignLine(ref, addr, lineFor(ref)));
     if (current?.name) return { name: current.name, line };
-    for (let i = 0; i < 25; i++) {
-      const name = randomCallerName();
-      if ((await store.claimName(ref, name, { isConnected: hub.isConnected, markChanged: false })) === "ok") return { name, line };
+    return { name: await freshName(ref, { markChanged: false }), line };
+  }
+
+  /**
+   * Claim a random caller name for `ref`. The plain names ("Night Owl in
+   * Pahrump") number about a thousand, and every browser on the lines holds
+   * one for half an hour, so a busy night fills them: after a few tries the
+   * name gets a number ("Night Owl in Pahrump 4821"), which is as good a name
+   * and costs no more round trips. Null only if every try was taken.
+   */
+  async function freshName(ref, { markChanged }) {
+    for (let i = 0; i < 16; i++) {
+      const name = i < 4 ? randomName() : numberedCallerName(randomInt, randomName, (n) => moderate.name(n).ok);
+      if ((await store.claimName(ref, name, { isConnected: hub.isConnected, markChanged })) === "ok") return name;
     }
-    const fallback = `${randomCallerName()} ${String(now()).slice(-4)}`.slice(0, 40);
-    await store.claimName(ref, fallback, { isConnected: hub.isConnected, markChanged: false });
-    return { name: fallback, line };
+    return null;
   }
 
   /**
@@ -509,13 +521,7 @@ export function createLiveApp({
       }
       case "clear-name": {
         const m = await messageOr404(body.messageId);
-        let name = null;
-        for (let i = 0; i < 25 && !name; i++) {
-          const candidate = randomCallerName();
-          if ((await store.claimName(m.clientRef, candidate, { isConnected: hub.isConnected, markChanged: true })) === "ok") {
-            name = candidate;
-          }
-        }
+        const name = await freshName(m.clientRef, { markChanged: true });
         if (!name) throw new HttpError(503, { error: "no-name-available" });
         const ids = await store.renameMessages(m.clientRef, name);
         if (ids.length) hub.broadcast("rename", { ids, name });

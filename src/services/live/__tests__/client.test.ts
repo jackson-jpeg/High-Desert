@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { backoffMs, connectLive, charCount, type LiveHandlers } from "../client";
+import { backoffMs, connectLive, charCount, sendMessage, changeName, type LiveHandlers } from "../client";
 import { keyboardInset } from "@/hooks/useKeyboardInset";
 
 class FakeEventSource {
@@ -108,5 +108,26 @@ describe("helpers", () => {
     expect(keyboardInset(800, { height: 460, offsetTop: 40 })).toBe(300);
     expect(keyboardInset(800, { height: 790, offsetTop: 0 })).toBe(0);
     expect(keyboardInset(800, null)).toBe(0);
+  });
+});
+
+describe("refusals read as what they are", () => {
+  const reply = (status: number, json: unknown) =>
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(json), { status })));
+
+  it("a held network's 429 shows the server's sentence, not a caller's pace", async () => {
+    const message = "New callers from your network are on hold for a while. Try again later.";
+    reply(429, { error: "address-hold", retryAfter: 3600, message });
+    const call = await sendMessage("hello");
+    expect(call).toMatchObject({ ok: false, reason: "address-hold", message });
+    const name = await changeName("Night Owl");
+    expect(name).toMatchObject({ ok: false, reason: "address-hold", message });
+  });
+
+  it("the caller's own pace still says how long to wait (the control)", async () => {
+    reply(429, { error: "rate", retryAfter: 3 });
+    expect(await sendMessage("hello")).toMatchObject({ reason: "rate", message: "Hold the line. You can call again in 3 s." });
+    reply(429, { error: "rate", retryAfter: 300 });
+    expect(await changeName("Night Owl")).toMatchObject({ reason: "rate", message: "Names can change once every 10 minutes: 5 min to go." });
   });
 });

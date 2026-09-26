@@ -100,7 +100,7 @@ export function PlaybackErrorDialog() {
       <div className="p-4 flex flex-col gap-4">
         <div className="text-hd-body text-desktop-gray">
           {empty
-            ? "The archive's copy of this show has no audio in it. Nothing was lost on the way here — there is nothing in the recording."
+            ? "The archive's copy of this show has no audio in it. Nothing was lost on the way here. There is nothing in the recording."
             : "This broadcast isn't coming through. The signal may be weak on this end."}
           {currentEpisode && (
             <span className="block mt-2 text-hd-caption text-bevel-dark break-words">

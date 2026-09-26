@@ -83,7 +83,7 @@ async function writeOne(fileHash: string, blob: Blob): Promise<CacheWriteResult>
       // Once per page load: the scanner calls this per file, and forty
       // identical toasts would bury the scan's own progress.
       warnedFull = true;
-      toast.info("Storage is nearly full — new audio isn't being saved for offline play");
+      toast.info("Storage is nearly full, so new audio isn't being saved for offline play");
     }
     return room;
   }

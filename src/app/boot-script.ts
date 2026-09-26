@@ -14,7 +14,7 @@ export const BOOT_SCRIPT = `
     function readStore(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function writeStore(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 
-    // Text scale — sync read before first paint
+    // Text scale: sync read before first paint
     var scale = readStore('hd-text-scale');
     if (scale) {
       document.documentElement.style.setProperty('--hd-text-scale', scale);
