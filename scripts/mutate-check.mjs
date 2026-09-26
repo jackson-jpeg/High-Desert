@@ -3511,6 +3511,22 @@ export const MUTATIONS = [
     why: "time left counts down from now, not the show's length",
   },
   {
+    id: "live-guide-never-scrolls-page",
+    test: "src/components/live/__tests__/program-guide-scroll.test.tsx",
+    file: "src/components/live/ProgramGuide.tsx",
+    find: "    if (listRef.current && onAirRef.current) revealInGuideBox(listRef.current, onAirRef.current);",
+    replace: "    onAirRef.current?.scrollIntoView?.({ block: \"nearest\" });",
+    why: "scrollIntoView scrolls the page on a phone, and the Studio opens with its clock and live count off screen",
+  },
+  {
+    id: "live-guide-reveals-on-air",
+    test: "src/components/live/__tests__/program-guide-scroll.test.tsx",
+    file: "src/components/live/ProgramGuide.tsx",
+    find: "  else if (r.bottom > c.bottom) box.scrollTop += r.bottom - c.bottom;",
+    replace: "  else if (r.bottom > c.bottom) void box;",
+    why: "on desktop the log's own box must still bring the show on air into view",
+  },
+  {
     id: "live-tune-in-button",
     test: "src/components/live/__tests__/live-station.test.tsx",
     file: "src/components/live/LiveStation.tsx",
