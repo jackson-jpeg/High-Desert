@@ -48,7 +48,7 @@ const SOURCES = [
 /**
  * Every em dash inside a string, template or JSX text, as `file:line  text`.
  * Judged on the value, not the spelling: `"\u2014"` and `&mdash;` render the
- * same dash. A scan of the raw source missed eleven of them, and CI caught one
+ * same dash. A scan of the raw source missed thirteen of them, and CI caught one
  * on /stats through csp-check's rendered scan.
  */
 function dashesInCode(file: string, text: string): string[] {
