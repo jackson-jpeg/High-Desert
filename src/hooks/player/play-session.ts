@@ -7,6 +7,7 @@
 // failure, failover to the mirror).
 
 import { usePlayerStore } from "@/stores/player-store";
+import { liveLocked } from "@/stores/live-store";
 import { resumeContext, seekEngine } from "@/audio/engine";
 import {
   currentStart,
@@ -232,7 +233,7 @@ export function installFailoverHandler(
     audio.preload = "metadata";
     audio.src = next.url;
     seekEngine(position);
-    audio.playbackRate = store.playbackRate;
+    audio.playbackRate = liveLocked() ? 1 : store.playbackRate;
     if (!wanted) return true;
     try {
       await audio.play();

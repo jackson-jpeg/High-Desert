@@ -273,7 +273,7 @@ describe("LiveChat (desktop)", () => {
     const second = render();
     act(() => second.es().emit("hello", { you, slowMode: slowOff, recent: [], resumed: false, hidden: [] }));
     expect(q(second.host, "live-listeners")!.dataset.live).toBe("7");
-    expect(q(second.host, "live-listeners")!.textContent).toBe("7 listening live");
+    expect(q(second.host, "live-listeners")!.textContent).toBe("7 tuned in live");
     // The chat service is never asked how many people are listening.
     expect(fetchMock.mock.calls.filter(([u]) => String(u).includes("health"))).toEqual([]);
     second.done();
@@ -363,5 +363,50 @@ describe("LiveChat (mobile)", () => {
     } finally {
       proto.scrollIntoView = had;
     }
+  });
+});
+
+describe("Change name", () => {
+  it("nameProblem: unchanged, empty and too long are refused locally, with a reason", async () => {
+    const { nameProblem } = await import("../LiveChat");
+    expect(nameProblem("  Night Owl  ", "Night Owl")).toBe("unchanged");
+    expect(nameProblem("   ", "Night Owl")).toBe("Type a name first.");
+    expect(nameProblem("x".repeat(33), "Night Owl")).toBe("Names can be at most 32 characters.");
+    expect(nameProblem("x".repeat(32), "Night Owl")).toBeNull();
+  });
+
+  it("a name over the limit leaves Save pressable and says why — never a silent, disabled Save", async () => {
+    const posted: unknown[] = [];
+    respond((url, body) => {
+      if (url.includes("/name")) posted.push(body);
+      return [200, { name: body.name, line: "Line 3", nextChangeInS: 600 }];
+    });
+    const { host, es, done } = render();
+    act(() => es().emit("hello", { you, slowMode: slowOff, recent: [], resumed: false, hidden: [] }));
+    act(() => q(host, "change-name")!.click());
+    const input = host.querySelector<HTMLInputElement>('input[aria-label="Caller name"]')!;
+    type(input, "A Very Long Caller Name From Beyond Tonopah");
+    const save = q(host, "save-name") as HTMLButtonElement;
+    expect(save.disabled).toBe(false);
+    await submit(q(host, "name-editor")!);
+    expect(q(host, "name-error")!.textContent).toBe("Names can be at most 32 characters.");
+    expect(posted).toEqual([]);
+
+    // A good name goes to the server, and the editor closes.
+    type(input, "Radio Ghost in Beatty");
+    await submit(q(host, "name-editor")!);
+    expect(posted).toEqual([{ name: "Radio Ghost in Beatty" }]);
+    expect(q(host, "name-editor")).toBeNull();
+    done();
+  });
+});
+
+describe("the call-in box", () => {
+  it("its placeholder is short and names nobody: a 32-character name cut it off at 390 wide", () => {
+    const { host, es, done } = render();
+    act(() => es().emit("hello", { you: { ...you, name: "x".repeat(32) }, slowMode: slowOff, recent: [], resumed: false, hidden: [] }));
+    const box = host.querySelector<HTMLInputElement>("input[placeholder]:not([aria-label='Caller name'])")!;
+    expect(box.placeholder).toBe("Call in…");
+    done();
   });
 });

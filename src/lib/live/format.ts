@@ -34,3 +34,16 @@ export function formatLength(seconds: number): string {
   const h = Math.floor(m / 60);
   return h > 0 ? `${h}h ${String(m % 60).padStart(2, "0")}m` : `${m}m`;
 }
+
+/**
+ * "Coast to Coast AM - September 11th Coverage" → show "Coast to Coast AM",
+ * episode "September 11th Coverage". The catalog's titles lead with the show,
+ * which made the studio's heading read the same for every Coast broadcast; the
+ * episode is the heading and the show goes in the kicker. A title with no
+ * " - " is all episode.
+ */
+export function splitShowTitle(title: string): { show: string | null; episode: string } {
+  const at = title.indexOf(" - ");
+  if (at <= 0 || at + 3 >= title.length) return { show: null, episode: title };
+  return { show: title.slice(0, at), episode: title.slice(at + 3) };
+}

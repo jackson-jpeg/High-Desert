@@ -4,20 +4,25 @@
  */
 
 import { NAME_ACTIVE_MS, NAME_CHANGE_MS, RETENTION_MS } from "./config.mjs";
-import { nameKey } from "./names.mjs";
+import { LINES, nameKey } from "./names.mjs";
 
 // `id` goes out as text (a bigint must not round through a JS number), so the
 // sort key is carried separately as `seq`: ordering by the text alias put
 // "999" after "1923", and hello served the wrong fifty once ids passed 999.
 const MESSAGE_COLUMNS = `id::text AS id, id AS seq, at, caller_name AS name, line, body`;
 
-/** The public shape of a message: no client ref, ever. */
+/**
+ * The public shape of a message: no client ref, ever, and the line as its
+ * label. The row stores the line's index; the live broadcast used to be the
+ * only path that turned it into a label, so a reload replayed a caller's own
+ * messages as "5" under a header that said "Line 6".
+ */
 export function publicMessage(row) {
   return {
     id: Number(row.id),
     at: new Date(row.at).toISOString(),
     name: row.name,
-    line: row.line,
+    line: LINES[row.line] ?? LINES[0],
     body: row.body,
   };
 }

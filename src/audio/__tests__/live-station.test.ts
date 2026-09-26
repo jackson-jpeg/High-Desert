@@ -110,7 +110,7 @@ const { useAudioPlayer } = await import("@/hooks/useAudioPlayer");
 const { usePlayerStore } = await import("@/stores/player-store");
 const { useProgressStore } = await import("@/stores/progress-store");
 const { useLiveStore } = await import("@/stores/live-store");
-const { createLiveStation, DRIFT_CHECK_MS } = await import("../live-controller");
+const { createLiveStation, DRIFT_CHECK_MS, TUNED_MARK } = await import("../live-controller");
 const liveSession = await import("../live-session");
 const { __testing: playSessionTesting } = await import("../play-session");
 
@@ -163,6 +163,16 @@ const episodes = new Map<string, Episode>();
 
 function makeElement(): HTMLAudioElement {
   const el = makeMediaElement(vi.fn(() => Promise.resolve()));
+  // What the player last asked for. jsdom's own playbackRate is reset by its
+  // load algorithm, which hid whether the player set 1× or the listener's rate.
+  let rate = 1;
+  Object.defineProperty(el, "playbackRate", {
+    get: () => rate,
+    set: (v: number) => {
+      rate = v;
+    },
+    configurable: true,
+  });
   Object.defineProperty(el, "currentTime", {
     get: playhead,
     set: (v: number) => {
@@ -205,9 +215,12 @@ beforeEach(async () => {
     loadState: "idle",
     error: null,
     volume: 0.6,
+    playbackRate: 1,
   });
+  sessionStorage.clear();
   useLiveStore.setState({
     tuned: false,
+    paused: false,
     phase: "off",
     current: null,
     clockOffsetMs: 0,
@@ -455,14 +468,163 @@ describe("leaving the station", () => {
     expect(playhead()).toBe(0);
   });
 
-  it("pausing tunes out", async () => {
+  it("Leave the station stops the audio, clears the player, and forgets the tab was tuned", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    streaming();
+    expect(sessionStorage.getItem(TUNED_MARK)).toBe("1");
+    act(() => station.leave());
+    expect(useLiveStore.getState().tuned).toBe(false);
+    expect(element.paused).toBe(true);
+    expect(element.getAttribute("src")).toBeNull();
+    expect(usePlayerStore.getState()).toMatchObject({ currentEpisode: null, playing: false });
+    expect(sessionStorage.getItem(TUNED_MARK)).toBeNull();
+    // Nothing the station does afterwards reaches the player.
+    await flush(A.end - Date.now() + GAP);
+    expect(usePlayerStore.getState().currentEpisode).toBeNull();
+    expect(stationId.start).not.toHaveBeenCalled();
+  });
+
+  it("■ Stop in the player leaves the station rather than holding it", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    act(() => player.api.stopPlayback());
+    await flush();
+    expect(useLiveStore.getState()).toMatchObject({ tuned: false, paused: false });
+    expect(sessionStorage.getItem(TUNED_MARK)).toBeNull();
+  });
+
+  it("while live, a seek is refused with a reason instead of being undone ten seconds later", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    streaming();
+    const before = seeks.length;
+    act(() => player.api.seek(playhead() + 30));
+    expect(seeks.length).toBe(before);
+    const { useToastStore } = await import("@/stores/toast-store");
+    expect(useToastStore.getState().toasts.at(-1)?.message).toMatch(/listening live/);
+    // Held, the listener's own seek is theirs again.
+    act(() => player.api.pausePlayback());
+    await flush();
+    act(() => player.api.seek(5));
+    expect(seeks.at(-1)).toBe(5);
+  });
+
+  it("the station plays at 1× whatever speed the listener had set", async () => {
+    // Set, and applied, well before tuning in — as a listener's saved speed is.
+    act(() => usePlayerStore.setState({ playbackRate: 1.5 }));
+    await flush();
+    expect(element.playbackRate).toBe(1.5);
+    act(() => station.tuneIn());
+    await flush();
+    expect(element.playbackRate).toBe(1);
+    // And an ordinary show afterwards gets the listener's speed back.
+    const other = episodeFor(slot("other", 0, 3600));
+    await act(async () => {
+      await player.api.playEpisode(other);
+    });
+    expect(element.playbackRate).toBe(1.5);
+  });
+
+  it("a library show picked while held paused leaves the station, and plays", async () => {
     act(() => station.tuneIn());
     await flush();
     act(() => player.api.pausePlayback());
     await flush();
+    expect(useLiveStore.getState().paused).toBe(true);
+    const other = episodeFor(slot("other", 0, 3600));
+    await act(async () => {
+      await player.api.playEpisode(other);
+    });
     expect(useLiveStore.getState().tuned).toBe(false);
-    // Out of live mode, nothing the station does touches the player.
-    await flush(A.end - Date.now() + GAP);
+    expect(usePlayerStore.getState()).toMatchObject({ playing: true });
+    expect(usePlayerStore.getState().currentEpisode?.fileHash).toBe(other.fileHash);
+  });
+});
+
+describe("pausing holds the station", () => {
+  it("stays tuned, paused; ▶ goes back to where the station is now, and counts nothing again", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    streaming();
+    act(() => player.api.pausePlayback());
+    await flush();
+    expect(useLiveStore.getState()).toMatchObject({ tuned: true, paused: true, phase: "show" });
+    const pausedAt = playhead();
+
+    await flush(45_000);
+    // A paused element sits where it stopped; the fake playhead has to be
+    // told, or it "advances" through the pause and a resume looks like a jump.
+    setPlayhead(pausedAt);
+    await act(async () => {
+      await player.api.resumePlayback();
+    });
+    expect(useLiveStore.getState()).toMatchObject({ tuned: true, paused: false });
+    expect(usePlayerStore.getState().playing).toBe(true);
+    expect(playhead()).toBeCloseTo(stationAt(A), 3);
+    expect(playhead() - pausedAt).toBeGreaterThan(44);
+    expect(reportPlay).toHaveBeenCalledTimes(1);
+  });
+
+  it("nothing starts behind a paused player; ▶ after the show ended starts the one on now", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    act(() => player.api.pausePlayback());
+    await flush();
+    // Past A's end and the station ID: held, so no ID and no B.
+    await flush(A.end - Date.now() + GAP + 60_000);
+    expect(stationId.start).not.toHaveBeenCalled();
     expect(usePlayerStore.getState().currentEpisode?.fileHash).toBe(A.fileHash);
+    expect(useLiveStore.getState().paused).toBe(true);
+
+    await act(async () => {
+      await player.api.togglePlay();
+    });
+    await flush();
+    expect(useLiveStore.getState()).toMatchObject({ tuned: true, paused: false, phase: "show", current: B });
+    expect(usePlayerStore.getState().currentEpisode?.fileHash).toBe(B.fileHash);
+    expect(playhead()).toBeCloseTo(stationAt(B), 3);
+  });
+
+  it("a reload of a tuned tab comes back held, and ▶ lands on the live second", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    expect(reportPlay).toHaveBeenCalledTimes(1);
+    // The page goes away (no teardown runs on unload) and comes back: a fresh
+    // store and a fresh station, the same tab's sessionStorage.
+    useLiveStore.setState({ tuned: false, paused: false, phase: "off", current: null });
+    uninstall();
+    usePlayerStore.setState({ playing: false });
+    station = createLiveStation({
+      fetchSchedule: async () => useLiveStore.getState().schedule,
+      fetchServerNow: async () => Date.now(),
+      startEpisode: (ep) => void player.api.playEpisode(ep),
+      resolveEpisode: (s) => episodes.get(s.fileHash)!,
+      stationId,
+    });
+    uninstall = station.install();
+    expect(useLiveStore.getState()).toMatchObject({ tuned: true, paused: true });
+
+    await flush(30_000);
+    await act(async () => {
+      await player.api.resumePlayback();
+    });
+    await flush();
+    expect(useLiveStore.getState()).toMatchObject({ tuned: true, paused: false, phase: "show", current: A });
+    expect(playhead()).toBeCloseTo(stationAt(A), 3);
+  });
+
+  it("a held station is not live for the heartbeat; resumed, it is", async () => {
+    const { tunedInLive } = await import("@/hooks/usePresence");
+    act(() => station.tuneIn());
+    await flush();
+    expect(tunedInLive()).toBe(true);
+    act(() => player.api.pausePlayback());
+    await flush();
+    expect(tunedInLive()).toBe(false);
+    await act(async () => {
+      await player.api.resumePlayback();
+    });
+    expect(tunedInLive()).toBe(true);
   });
 });

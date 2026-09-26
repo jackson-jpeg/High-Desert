@@ -5,7 +5,10 @@ import type { LiveSchedule, ProgramSlot } from "@/lib/live/schedule";
  * The live station, as this browser sees it.
  *
  *   tuned          the listener has tuned in; cleared the moment they leave
- *                  (pick another show, pause) — src/audio/live-controller.ts
+ *                  (Leave the station, or pick another show) —
+ *                  src/audio/live-controller.ts
+ *   paused         tuned, but the listener paused the player: still in the
+ *                  station, and ▶ goes back to where the station is now
  *   phase          "show" while a slot is on, "station-id" in the gap between
  *                  shows, "off" when not tuned
  *   current        the slot this browser is playing (null in the station ID)
@@ -21,6 +24,7 @@ export type LivePhase = "off" | "show" | "station-id";
 
 interface LiveState {
   tuned: boolean;
+  paused: boolean;
   phase: LivePhase;
   current: ProgramSlot | null;
   clockOffsetMs: number | null;
@@ -30,12 +34,14 @@ interface LiveState {
   setSchedule: (schedule: LiveSchedule) => void;
   setClock: (offsetMs: number, rttMs: number) => void;
   setTuned: (tuned: boolean) => void;
+  setPaused: (paused: boolean) => void;
   setPhase: (phase: Exclude<LivePhase, "off">, current: ProgramSlot | null) => void;
   setDrift: (drift: number | null) => void;
 }
 
 export const useLiveStore = create<LiveState>((set, get) => ({
   tuned: false,
+  paused: false,
   phase: "off",
   current: null,
   clockOffsetMs: null,
@@ -53,13 +59,30 @@ export const useLiveStore = create<LiveState>((set, get) => ({
   },
   setClock: (offsetMs, rttMs) => set({ clockOffsetMs: offsetMs, clockRttMs: rttMs }),
   setTuned: (tuned) =>
-    set(tuned ? { tuned } : { tuned, phase: "off", current: null, drift: null }),
+    set(tuned ? { tuned, paused: false } : { tuned, paused: false, phase: "off", current: null, drift: null }),
+  setPaused: (paused) => {
+    if (!get().tuned) return;
+    set({ paused });
+  },
   setPhase: (phase, current) => {
     if (!get().tuned) return;
     set({ phase, current, drift: null });
   },
   setDrift: (drift) => set({ drift }),
 }));
+
+/**
+ * Tuned in and not held: the station owns the playhead and the speed. A seek
+ * or a speed change would be undone by the next drift check ten seconds later,
+ * so they are refused with a reason instead of silently reverting.
+ */
+export function liveLocked(): boolean {
+  const { tuned, paused } = useLiveStore.getState();
+  return tuned && !paused;
+}
+
+export const LIVE_LOCKED_MESSAGE =
+  "You're listening live: everyone hears the same second. Leave the station to scrub or change speed.";
 
 /** The server's clock, as best this browser knows it. Local time until the first sync. */
 export function serverNow(now: number = Date.now()): number {

@@ -4,11 +4,11 @@ import { useState } from "react";
 import { Window } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
-import { formatCountdown, formatStationTime } from "@/lib/live/format";
+import { formatCountdown, formatStationTime, splitShowTitle } from "@/lib/live/format";
 import { upcoming, knownSlots, type LiveSchedule, type ProgramSlot } from "@/lib/live/schedule";
 import { useLiveStore } from "@/stores/live-store";
 import { usePlayerStore } from "@/stores/player-store";
-import { tuneIn, tuneOut } from "@/audio/live-controller";
+import { leaveStation, tuneIn } from "@/audio/live-controller";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { onAirAt, useLiveSchedule, useStationClock } from "@/hooks/useLiveStation";
 import { useCommunityNow } from "@/hooks/useCommunityNow";
@@ -38,7 +38,10 @@ export function LiveStation() {
       <div
         className={cn(
           "grid gap-3 min-h-full md:h-full",
-          "md:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]",
+          // One column on a phone, and it may shrink: an implicit grid track
+          // is sized to max-content, so the untruncated "Up next" title made
+          // the studio 555 px wide at 390 and clipped the clock and the count.
+          "grid-cols-[minmax(0,1fr)] md:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]",
         )}
       >
         <Window title="High Desert Live — Studio" variant="dark" headingLevel={2} className="flex flex-col min-h-0">
@@ -64,7 +67,12 @@ export function LiveStation() {
           </button>
         ) : (
           <Window title="Phone Lines" variant="dark" headingLevel={2} className="flex flex-col min-h-0">
-            <div className="flex-1 min-h-0 flex flex-col">
+            {/* h-full, not flex-1: the Window's body is a scrolling block,
+                not a flex column. As flex-1 the chat grew to its content, the
+                whole window scrolled instead of the list, and on a 900 px
+                desktop the call-in box started below the fold with the list
+                parked on the oldest call. */}
+            <div className="h-full min-h-0 flex flex-col" data-testid="phone-lines-body">
               <LiveChat />
             </div>
           </Window>
@@ -93,13 +101,14 @@ function Console({ schedule }: { schedule: LiveSchedule }) {
   const now = useStationClock(1000);
   const tuned = useLiveStore((s) => s.tuned);
   const phase = useLiveStore((s) => s.phase);
+  const held = useLiveStore((s) => s.tuned && s.paused);
   const playing = usePlayerStore((s) => s.playing);
   const on = onAirAt(schedule, now);
   const slot = on && "slot" in on ? on.slot : null;
   const next = upcoming(knownSlots(schedule), now)[0] ?? null;
 
   return (
-    <div className="flex flex-col min-h-0 flex-1">
+    <div className="flex flex-col min-h-0 flex-1 md:h-full">
       {/* Top of the console: the sign, the wall clock, who is listening. */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 bg-inset-well border-b border-bevel-dark/20">
         <OnAirLamp lit={!!slot} tuned={tuned} size="lg" />
@@ -126,13 +135,27 @@ function Console({ schedule }: { schedule: LiveSchedule }) {
 
         <div className="flex flex-wrap items-center gap-3">
           {tuned ? (
-            <button
-              type="button"
-              onClick={() => tuneOut()}
-              className="w98-raised-dark bg-raised-surface text-desktop-gray w98-font text-hd-body px-4 min-h-touch md:min-h-0 md:py-1.5 cursor-pointer"
-            >
-              Leave the station
-            </button>
+            <>
+              {held && (
+                // Tuning in again is exactly "rejoin": the play path starts the
+                // show that is on at the station's second, and the hold clears.
+                <button
+                  type="button"
+                  onClick={() => tuneIn()}
+                  data-testid="live-rejoin"
+                  className="w98-raised-dark bg-raised-surface text-desert-amber w98-font text-hd-title px-5 min-h-touch md:min-h-0 md:py-1.5 cursor-pointer"
+                >
+                  Rejoin live
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => leaveStation()}
+                className="w98-raised-dark bg-raised-surface text-desktop-gray w98-font text-hd-body px-4 min-h-touch md:min-h-0 md:py-1.5 cursor-pointer"
+              >
+                Leave the station
+              </button>
+            </>
           ) : (
             <button
               type="button"
@@ -143,10 +166,12 @@ function Console({ schedule }: { schedule: LiveSchedule }) {
               Tune in
             </button>
           )}
-          <VuMeter live={tuned && (playing || phase === "station-id")} />
-          <span className="text-hd-caption text-bevel-dark">
+          <VuMeter live={tuned && !held && (playing || phase === "station-id")} />
+          <span className="text-hd-caption text-bevel-dark" data-testid="live-status">
             {tuned
-              ? phase === "station-id"
+              ? held
+                ? "Paused. The station carries on; rejoin to hear where it is now."
+                : phase === "station-id"
                 ? "Station identification…"
                 : "You're listening live, with everyone else."
               : "Everyone tuned in hears the same second."}
@@ -171,14 +196,15 @@ function NowPlaying({ slot, now }: { slot: ProgramSlot; now: number }) {
   const length = (slot.end - slot.start) / 1000;
   const left = Math.max(0, (slot.end - now) / 1000);
   const pct = length > 0 ? Math.min(100, (elapsed / length) * 100) : 0;
+  const { show, episode } = splitShowTitle(slot.title);
   return (
     <div className="flex flex-col gap-1.5" data-testid="live-now">
-      <span className="text-hd-micro uppercase tracking-[0.2em] text-static-green">
-        Now playing · {KIND_LABEL[slot.kind]}
+      <span className="text-hd-micro uppercase tracking-[0.2em] text-static-green" data-testid="live-now-show">
+        Now playing · {show ?? KIND_LABEL[slot.kind]}
       </span>
-      <span data-testid="live-now-title" className="text-hd-h3 md:text-hd-h2 text-desktop-gray leading-tight">
-        {slot.title}
-      </span>
+      <h2 data-testid="live-now-title" className="text-hd-h3 md:text-hd-h2 text-desktop-gray leading-tight">
+        {episode}
+      </h2>
       <span className="text-hd-body text-bevel-dark">
         {[slot.guestName, slot.airDate ? `Originally aired ${formatAirDate(slot.airDate)}` : null]
           .filter(Boolean)
@@ -211,9 +237,9 @@ function StationBreak({ until, now }: { until: number; now: number }) {
   return (
     <div className="flex flex-col gap-1" data-testid="live-now">
       <span className="text-hd-micro uppercase tracking-[0.2em] text-static-green">Station break</span>
-      <span data-testid="live-now-title" className="text-hd-h3 text-desktop-gray">
+      <h2 data-testid="live-now-title" className="text-hd-h3 text-desktop-gray">
         You&apos;re listening to High Desert
-      </span>
+      </h2>
       <span className="text-hd-caption tabular-nums text-desert-amber" data-testid="live-time-left">
         Next show in {formatCountdown((until - now) / 1000)}
       </span>

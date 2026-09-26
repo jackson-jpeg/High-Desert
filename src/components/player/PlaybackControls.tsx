@@ -8,6 +8,7 @@ import { BookmarkMarkers } from "./BookmarkMarkers";
 import { cn } from "@/lib/utils/cn";
 import { formatTime, formatAirDate } from "@/lib/utils/format";
 import { toast } from "@/stores/toast-store";
+import { LIVE_LOCKED_MESSAGE, liveLocked } from "@/stores/live-store";
 import { PositionTime, SeekRange, ProgressFill } from "./PositionReadouts";
 
 /** Tooltip showing the next episode info on hover */
@@ -99,6 +100,10 @@ export function PlaybackControls({
   };
 
   const cycleRate = () => {
+    if (liveLocked()) {
+      toast.info(LIVE_LOCKED_MESSAGE);
+      return;
+    }
     const rates = [0.5, 0.75, 1, 1.25, 1.5, 2];
     const idx = rates.indexOf(playbackRate);
     const newRate = rates[(idx + 1) % rates.length];
