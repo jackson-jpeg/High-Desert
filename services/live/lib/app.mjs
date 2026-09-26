@@ -58,13 +58,22 @@ const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 export const DEFAULT_ORIGINS = ["https://highdesert.space", "https://www.highdesert.space"];
 
 class HttpError extends Error {
-  constructor(status, body, headers = {}) {
+  /**
+   * @param {string} [kind] what the refusal counts as in /live-api/health's
+   *   `refusals` when `body.error` alone cannot tell (an address cap answers
+   *   with the same "rate" a caller's own pace does). Never sent to the client.
+   */
+  constructor(status, body, headers = {}, kind) {
     super(body?.error ?? String(status));
     this.status = status;
     this.body = body;
     this.headers = headers;
+    this.kind = kind;
   }
 }
+
+/** Refusals that are about the ADDRESS, not the person: the ones a NAT can hit. */
+export const ADDRESS_REFUSALS = ["busy-network", "address-hold", "address-limit", "address-messages", "address-reports", "address-streams"];
 
 function sendJson(res, status, body, headers = {}) {
   const text = JSON.stringify(body);
@@ -364,13 +373,12 @@ export function createLiveApp({
     const caller = await callerOf(req, res);
     const { ref, addr } = caller;
     if (bans.has(ref)) throw new HttpError(403, { error: "banned" });
-    if (
-      hub.streamsOf(ref) >= STREAMS_PER_CALLER ||
-      (addressStreams.get(addr) ?? 0) >= STREAMS_PER_ADDRESS ||
-      hub.size >= MAX_STREAMS
-    ) {
-      throw new HttpError(429, { error: "too-many-streams" }, { "retry-after": "30" });
-    }
+    const streamCap =
+      hub.streamsOf(ref) >= STREAMS_PER_CALLER ? "caller-streams"
+      : (addressStreams.get(addr) ?? 0) >= STREAMS_PER_ADDRESS ? "address-streams"
+      : hub.size >= MAX_STREAMS ? "all-streams"
+      : null;
+    if (streamCap) throw new HttpError(429, { error: "too-many-streams" }, { "retry-after": "30" }, streamCap);
     const lastIdRaw = req.headers["last-event-id"] ?? url.searchParams.get("lastEventId");
     const lastId = positiveInt(Number(lastIdRaw));
     await store.touch(ref, addr);
@@ -426,7 +434,7 @@ export function createLiveApp({
     const busy = addressMessages.take(addr);
     if (!busy.ok) {
       const retryAfter = seconds(busy.retryAfterMs);
-      throw new HttpError(429, { error: "rate", retryAfter, slowMode: limits.slowMode().on }, { "retry-after": String(retryAfter) });
+      throw new HttpError(429, { error: "rate", retryAfter, slowMode: limits.slowMode().on }, { "retry-after": String(retryAfter) }, "address-messages");
     }
     const { name, line } = await ensureCaller(caller);
     const msg = await store.insertMessage({ clientRef: ref, addrRef: addr, name, line, body: verdict.text });
@@ -465,7 +473,7 @@ export function createLiveApp({
     const t = reportCounter.take(ref);
     if (!t.ok) throw new HttpError(429, { error: "rate", retryAfter: seconds(t.retryAfterMs) });
     const ta = addressReports.take(addr);
-    if (!ta.ok) throw new HttpError(429, { error: "rate", retryAfter: seconds(ta.retryAfterMs) });
+    if (!ta.ok) throw new HttpError(429, { error: "rate", retryAfter: seconds(ta.retryAfterMs) }, {}, "address-reports");
     const m = await messageOr404(body.messageId);
     // Your own message, or one already off the air: accepted, and nothing happens.
     if (m.clientRef === ref || m.hidden) return sendJson(res, 200, { ok: true, hidden: m.hidden });
@@ -553,6 +561,23 @@ export function createLiveApp({
     sendJson(res, 200, { ok: true }, { "set-cookie": sessionCookie(adminToken, now()) });
   }
 
+  // Refusals since start, by kind, for the launch watch and highdesert-status:
+  // `refusals` counts every 4xx a caller route answered, `refusedAddresses`
+  // how many distinct addresses met each address cap. A person's own pace and
+  // an address cap both answer "rate" to the client; only these tell them apart.
+  const refusals = new Map();
+  const refusedAddresses = new Map();
+  function countRefusal(err, req) {
+    if (err.status < 400 || err.status >= 500 || err.status === 404) return;
+    const kind = err.kind ?? (err.body?.reason ? `${err.body.error}:${err.body.reason}` : String(err.body?.error ?? err.status));
+    refusals.set(kind, (refusals.get(kind) ?? 0) + 1);
+    if (ADDRESS_REFUSALS.includes(kind)) {
+      const set = refusedAddresses.get(kind) ?? new Set();
+      if (set.size < 10_000) set.add(addrRefOf(req));
+      refusedAddresses.set(kind, set);
+    }
+  }
+
   async function health(res) {
     sendJson(res, 200, {
       ok: true,
@@ -561,6 +586,8 @@ export function createLiveApp({
       slowMode: limits.slowMode().on,
       cpu: cpu.average(),
       startedAt,
+      refusals: Object.fromEntries(refusals),
+      refusedAddresses: Object.fromEntries([...refusedAddresses].map(([k, v]) => [k, v.size])),
     });
   }
 
@@ -606,6 +633,7 @@ export function createLiveApp({
       await route(req, res);
     } catch (err) {
       if (err instanceof HttpError) {
+        countRefusal(err, req);
         if (!res.headersSent) sendJson(res, err.status, err.body, err.headers);
         else res.end();
         return;

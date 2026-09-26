@@ -2715,6 +2715,22 @@ export const MUTATIONS = [
     why: "30 posts a minute per address is two chatty callers on one NAT; the service's own cap is 60 messages a minute",
   },
   {
+    id: "live-health-counts-refusals",
+    test: "services/live/test/callers.db.test.mjs",
+    file: "services/live/lib/app.mjs",
+    find: `        countRefusal(err, req);`,
+    replace: `        // countRefusal(err, req);`,
+    why: "the launch watch reads refusals from health; unwired, an address cap on a carrier NAT is invisible",
+  },
+  {
+    id: "live-health-address-refusals",
+    test: "services/live/test/callers.db.test.mjs",
+    file: "services/live/lib/app.mjs",
+    find: `export const ADDRESS_REFUSALS = ["busy-network", "address-hold", "address-limit", "address-messages", "address-reports", "address-streams"];`,
+    replace: `export const ADDRESS_REFUSALS = ["busy-network", "address-hold", "address-messages", "address-reports", "address-streams"];`,
+    why: "how many addresses met a cap is what decides whether to raise it",
+  },
+  {
     id: "no-em-dash-menu-label",
     test: "src/lib/__tests__/no-em-dash.test.ts",
     file: "src/hooks/useShellMenus.ts",
