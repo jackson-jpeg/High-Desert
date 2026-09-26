@@ -65,7 +65,7 @@ the household case. Stats writes were answered in the page.
     source, however it is spelled;
   - `scripts/csp-check.mjs` covers the rendered pages.
 - The rendered check proved itself on its first CI run. It caught a dash on /stats written
-  as `—`, which the source scan had missed along with twelve more. The source scan now
+  as a Unicode escape, which the source scan had missed along with twelve more. The source scan now
   reads the decoded text.
 
 ## Found on the way, fixed
@@ -85,7 +85,7 @@ failed 4 of 8 runs late in a show; after the fix, 8 of 8 passed.
 - `e2e/live-callers.spec.ts`: 6 passed locally (desktop and mobile), and green in CI.
 - Mutations:
   - one per property;
-  - five for the em dash check (a label, a `—` escape, an `&mdash;` entity, a phone
+  - five for the em dash check (a label, a Unicode escape, an `&mdash;` entity, a phone
     lines refusal, the manifest);
   - one for the milestone.
 
