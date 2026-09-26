@@ -2691,6 +2691,14 @@ export const MUTATIONS = [
     why: "a navigation answered from cache while online keeps a returning visitor on the old HTML and its old chunks",
   },
   {
+    id: "milestone-time-heard",
+    test: "src/components/desktop/__tests__/milestone-dialog.test.tsx",
+    file: "src/components/desktop/MilestoneDialog.tsx",
+    find: `      const totalSeconds = await listenedSeconds();`,
+    replace: `      const totalSeconds = (await db.progress.toArray()).reduce((sum, p) => sum + Math.max(0, p.playbackPosition ?? 0), 0);`,
+    why: "a visitor who tuned in live two hours into a show was congratulated on two hours of listening within seconds of arriving",
+  },
+  {
     id: "no-em-dash-menu-label",
     test: "src/lib/__tests__/no-em-dash.test.ts",
     file: "src/hooks/useShellMenus.ts",
