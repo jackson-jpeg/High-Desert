@@ -2739,6 +2739,22 @@ export const MUTATIONS = [
     why: "in the shared log this site's 5xx and 429 are indistinguishable from every other vhost's",
   },
   {
+    id: "e2e-own-presence-accepted-only",
+    test: "scripts/__tests__/e2e-own-presence.test.ts",
+    file: "e2e/own-presence.ts",
+    find: "  const accepted = beats.slice(after).filter((b) => b.status >= 200 && b.status < 300);",
+    replace: "  const accepted = beats.slice(after);",
+    why: "a beat the server refused did not change its mark; counting it would pass the e2e test on a page the server never heard",
+  },
+  {
+    id: "e2e-own-presence-literal-true",
+    test: "scripts/__tests__/e2e-own-presence.test.ts",
+    file: "e2e/own-presence.ts",
+    find: '  return accepted[accepted.length - 1].live === true ? "live" : "not-live";',
+    replace: '  return accepted[accepted.length - 1].live ? "live" : "not-live";',
+    why: "the server counts only the literal true; the e2e judge must not be looser than the thing it checks",
+  },
+  {
     id: "no-em-dash-menu-label",
     test: "src/lib/__tests__/no-em-dash.test.ts",
     file: "src/hooks/useShellMenus.ts",
