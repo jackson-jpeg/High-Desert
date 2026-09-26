@@ -97,9 +97,9 @@ failed 4 of 8 runs late in a show; after the fix, 8 of 8 passed.
   `~/Downloads/highdesert-live-admin-signin-2026-09-26T07-49-29Z.md`, one use, valid until
   2026-09-27 07:49 UTC. Yesterday's is still valid until 21:17 UTC today; whichever is used
   first works.
-- **A test that still flakes.** The "join, refresh, resume" e2e test compares the site-wide
-  live count, so a second test tuning in at the same moment can shift it. CI runs two
-  workers, so it can still fail now and then. That is the test's weakness, not the site's.
+- **The flaky test is fixed** (PR #35, the same evening). "join, refresh, resume" now judges
+  its own page's heartbeats instead of the site-wide live count; see
+  `docs/handoff-2026-09-26-launch.md`.
 - **Old QA names.** The QA callers' names ("QA Porch …", "QA Kitchen …") stay reserved for
   30 days without use, then the hourly sweep removes them.
 
