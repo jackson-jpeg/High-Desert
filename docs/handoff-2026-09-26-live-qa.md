@@ -64,6 +64,16 @@ The QA calls posted to the public phone lines were hidden afterwards with the ad
 (8 calls). One visible call in that window, "TEST: Wahoo" at 00:37 UTC, was not
 from any QA run and was left alone.
 
+## Found after the deploy, fixed
+
+CI on this handoff's PR went red on mobile "nothing in the studio is wider than the
+screen", at 6 PM Pacific. On a phone the Studio opened scrolled down to the log's ON AIR
+row, with the clock, the live count and Now playing above the screen. It shows only when
+the show on air is far down the day's log, which is why every earlier run passed.
+It was reproduced red on production (16a8f49) before the fix. The log now reveals the on-air row in its own
+box and never scrolls the page. Tests, mutations and verification: `docs/live-qa.md` A8,
+and "After the fix" below.
+
 ## Worth knowing
 
 - **Every browser on one connection is one caller.** The caller id is an HMAC of the
