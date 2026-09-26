@@ -229,6 +229,12 @@ test.describe("tuned in", () => {
 
   test("join, refresh, resume: still counted live; leave: the count drops within one presence poll", async ({ page }) => {
     test.setTimeout(180_000);
+    // Its heartbeats are real presence writes, and on production the sampler
+    // would record them into Signal Traffic's history. Run it on a local stack.
+    test.skip(
+      /(^|\.)highdesert\.space$/.test(new URL(process.env.E2E_BASE_URL ?? "http://127.0.0.1").hostname),
+      "writes presence: never against production",
+    );
     // This page's heartbeats reach the server; nothing else does (see the header).
     await page.route("**/api/stats/heartbeat", (route) => route.continue());
     const liveNow = async () => (await (await page.request.get("/api/stats/now")).json()).live as number;
