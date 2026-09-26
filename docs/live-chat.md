@@ -60,7 +60,7 @@ defence, and the admin cookie's `SameSite=Strict` adds to it.
 | `/live-api/admin/slow` | POST | `{on, minutes}` (default 30) → `{ok, slowMode}` |
 | `/live-api/admin/clear-name` | POST | `{messageId}` → `{ok, name}`. Gives the caller a fresh random name and renames their past messages on every screen |
 | `/live-api/admin/verify` | POST | → `{ok, id, ms}`. Used by the deploy's POST round trip: writes an already-hidden row, reads it back and deletes it. Never broadcast |
-| `/live-api/health` | GET | `{ok, clients, messagesLastHour, slowMode, cpu: {pct, windowS} or null, startedAt}`. **nginx returns 404 for it publicly.** `highdesert-status` reads it on loopback |
+| `/live-api/health` | GET | `{ok, clients, messagesLastHour, slowMode, cpu: {pct, windowS} or null, startedAt, refusals: {kind: n}, refusedAddresses: {kind: n}}`. `refusals` counts every 4xx a caller route answered since start, by kind: the client's `error` (with `:reason` for a rejection), or for the address caps, which answer `rate` like a caller's own pace, `address-messages`/`address-reports`/`address-streams`. `refusedAddresses` is how many distinct addresses met each address cap (`ADDRESS_REFUSALS`). **nginx returns 404 for it publicly.** `highdesert-status` reads it on loopback |
 
 Admin routes accept the cookie or `Authorization: Bearer $LIVE_ADMIN_TOKEN`,
 and return **401** `{error: "admin-only"}` without either.
