@@ -2699,6 +2699,22 @@ export const MUTATIONS = [
     why: "a visitor who tuned in live two hours into a show was congratulated on two hours of listening within seconds of arriving",
   },
   {
+    id: "nginx-live-streams-per-nat",
+    test: "scripts/__tests__/nginx-vhost.test.ts",
+    file: "deploy/nginx/highdesert.conf",
+    find: `        limit_conn hd_live_streams 200;`,
+    replace: `        limit_conn hd_live_streams 8;`,
+    why: "8 streams per address refused the 9th person behind one carrier NAT the phone lines, whatever the service allowed",
+  },
+  {
+    id: "nginx-live-writes-per-nat",
+    test: "scripts/__tests__/nginx-vhost.test.ts",
+    file: "deploy/nginx/highdesert.conf",
+    find: `limit_req_zone $hd_live_write_key zone=hd_live_write:10m rate=120r/m;`,
+    replace: `limit_req_zone $hd_live_write_key zone=hd_live_write:10m rate=30r/m;`,
+    why: "30 posts a minute per address is two chatty callers on one NAT; the service's own cap is 60 messages a minute",
+  },
+  {
     id: "no-em-dash-menu-label",
     test: "src/lib/__tests__/no-em-dash.test.ts",
     file: "src/hooks/useShellMenus.ts",

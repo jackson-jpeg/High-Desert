@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { renderMirrorNginx, PRODUCTION } from "../../services/mirror/lib/nginx.mjs";
+import { STREAMS_PER_ADDRESS, MESSAGES_PER_ADDRESS_MINUTE } from "../../services/live/lib/config.mjs";
 
 /**
  * deploy/nginx/highdesert.conf is the versioned copy of the production vhost
@@ -101,6 +102,18 @@ describe("nginx vhost — the phone lines (/live-api/)", () => {
     expect(body!).toMatch(/proxy_buffering\s+off;/);
     expect(body!).toMatch(/proxy_read_timeout\s+1h;/);
     expect(body!).toMatch(/limit_conn\s+hd_live_streams\s+\d+;/);
+  });
+
+  it("is never tighter per address than the service: one address can be a whole carrier NAT", () => {
+    // The service tells callers apart by cookie and has its own per-address
+    // caps. nginx at 8 streams and 30 r/m per address would refuse the 9th
+    // person behind one mobile carrier address before the service saw them.
+    const streams = Number(/limit_conn\s+hd_live_streams\s+(\d+);/.exec(location("= /live-api/stream")!)![1]);
+    expect(streams).toBeGreaterThanOrEqual(STREAMS_PER_ADDRESS);
+    const rate = Number(/zone=hd_live_write:\S+\s+rate=(\d+)r\/m;/.exec(conf)![1]);
+    expect(rate).toBeGreaterThanOrEqual(MESSAGES_PER_ADDRESS_MINUTE);
+    const burst = Number(/limit_req\s+zone=hd_live_write\s+burst=(\d+)/.exec(location("^~ /live-api/")!)![1]);
+    expect(burst).toBeGreaterThanOrEqual(MESSAGES_PER_ADDRESS_MINUTE / 2);
   });
 
   it("health is not public", () => {
