@@ -60,7 +60,7 @@ defence, and the admin cookie's `SameSite=Strict` adds to it.
 | `/live-api/admin/slow` | POST | `{on, minutes}` (default 30) → `{ok, slowMode}` |
 | `/live-api/admin/clear-name` | POST | `{messageId}` → `{ok, name}`. Gives the caller a fresh random name and renames their past messages on every screen |
 | `/live-api/admin/verify` | POST | → `{ok, id, ms}`. Used by the deploy's POST round trip: writes an already-hidden row, reads it back and deletes it. Never broadcast |
-| `/live-api/health` | GET | `{ok, clients, messagesLastHour, slowMode, cpu: {pct, windowS} or null, startedAt}`. **nginx returns 404 for it publicly.** `highdesert-status` reads it on loopback |
+| `/live-api/health` | GET | `{ok, clients, messagesLastHour, slowMode, cpu: {pct, windowS} or null, startedAt, refusals: {kind: n}, refusedAddresses: {kind: n}}`. `refusals` counts every 4xx a caller route answered since start, by kind: the client's `error` (with `:reason` for a rejection), or for the address caps, which answer `rate` like a caller's own pace, `address-messages`/`address-reports`/`address-streams`. `refusedAddresses` is how many distinct addresses met each address cap (`ADDRESS_REFUSALS`). **nginx returns 404 for it publicly.** `highdesert-status` reads it on loopback |
 
 Admin routes accept the cookie or `Authorization: Bearer $LIVE_ADMIN_TOKEN`,
 and return **401** `{error: "admin-only"}` without either.
@@ -132,6 +132,13 @@ Everything here is per `addr_ref`, in memory, in `config.mjs`.
 | Messages | 60 a minute, across every caller there | **429** `rate` |
 | Reports | 60 a minute | **429** `rate` |
 | Open streams | 200 | **429** |
+
+nginx has its own per-address ceilings in front of the service
+(`deploy/nginx/highdesert.conf`): 200 streams, and 120 POSTs a minute with a
+burst of 60. They are held at or above the service's by
+`scripts/__tests__/nginx-vhost.test.ts`. Until 2026-09-26 they were 8 streams
+and 30 a minute, which would have refused the 9th person behind one carrier
+address before the service ever saw them.
 
 **A ban holds the address.** Banning a caller bans that `client_ref` and also
 writes `live_address_holds (addr_ref, until, next_at)` for 24 h. Clearing

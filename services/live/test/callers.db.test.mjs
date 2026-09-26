@@ -171,7 +171,23 @@ d("callers are browsers, not addresses", () => {
     expect((await call(newCaller(), "elsewhere")).status).toBe(201);
   });
 
+  const refusals = async () => (await live.get("/live-api/health", { ip: "127.0.0.1", jar: false })).json;
+
+  it("health counts refusals by kind: a caller's own pace is never counted as an address cap", async () => {
+    const before = await refusals();
+    const ip = newCaller();
+    expect((await call(ip, "pacer")).status).toBe(201);
+    // Straight away, inside the 3 s pace: the client hears "rate".
+    const again = await live.post("/live-api/messages", { body: unique() }, { ip, caller: "pacer" });
+    expect(again.status).toBe(429);
+    expect(again.json.error).toBe("rate");
+    const after = await refusals();
+    expect((after.refusals.rate ?? 0) - (before.refusals.rate ?? 0)).toBe(1);
+    expect(after.refusals["address-messages"] ?? 0).toBe(before.refusals["address-messages"] ?? 0);
+  });
+
   it("the address cap on new callers is generous, and never touches callers already talking", async () => {
+    const before = await refusals();
     const ip = newCaller();
     expect((await call(ip, "regular")).status).toBe(201);
     let refused = null;
@@ -187,6 +203,10 @@ d("callers are browsers, not addresses", () => {
     expect(refused.r.status).toBe(429);
     expect(refused.r.json.error).toBe("address-limit");
     expect((await call(ip, "regular")).status).toBe(201);
+    // The launch watch sees it as an address cap, from one more address.
+    const after = await refusals();
+    expect((after.refusals["address-limit"] ?? 0) - (before.refusals["address-limit"] ?? 0)).toBe(1);
+    expect((after.refusedAddresses["address-limit"] ?? 0) - (before.refusedAddresses["address-limit"] ?? 0)).toBe(1);
   });
 
   it("new browsers per address are capped, generously", async () => {
