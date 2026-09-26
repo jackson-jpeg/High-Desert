@@ -11,9 +11,9 @@ nothing: no AI, no third-party service.
 - **Transport:** Server-Sent Events carry messages down to the browser; plain
   JSON POSTs carry them up. nginx proxies `/live-api/`. The stream has
   buffering and caching off and a 1 h read timeout.
-- **Storage:** Postgres, the `highdesert` database, seven `live_*` tables
+- **Storage:** Postgres, the `highdesert` database, eight `live_*` tables
   (`services/live/schema.sql`, idempotent). The service connects as its own
-  role, `highdesert_live`, which has DML on those seven tables and nothing
+  role, `highdesert_live`, which has DML on those eight tables and nothing
   else.
 - **UI:** `src/components/live/LiveChat.tsx` (`<LiveChat />`, no props).
   - It has no chrome of its own. The Live screen supplies it: the "Phone
@@ -46,17 +46,17 @@ defence, and the admin cookie's `SameSite=Strict` adds to it.
 
 | Route | Method | Body → response |
 |---|---|---|
-| `/live-api/stream` | GET (SSE) | See the events below. `Last-Event-ID` (header, or `?lastEventId=`) resumes after that id. **403** if banned. **429** past 8 streams per client or 3,000 in total |
-| `/live-api/me` | GET | `{name, line, admin, mutedUntil, nextNameChangeInS, slowMode}`. Returns `{banned: true, admin: false}` for a banned client |
-| `/live-api/messages` | POST | `{body}` → **201** `{id, at, name, line, body}`. The body is the stored text, with mild profanity masked. **400** `{error: "rejected", reason, message}`. **429** `{error: "rate", retryAfter, slowMode}` with `Retry-After`. **403** `{error: "muted", reason, retryAfter, message}` / `{error: "banned", message}` |
-| `/live-api/name` | POST | `{name}` → **200** `{name, line, nextChangeInS}`. **400** rejected. **409** `{error: "taken", message}`. **429** `{error: "rate", retryAfter, message}` |
+| `/live-api/stream` | GET (SSE) | See the events below. `Last-Event-ID` (header, or `?lastEventId=`) resumes after that id. **403** if banned. **429** past 8 streams per caller, 200 per address or 3,000 in total |
+| `/live-api/me` | GET | `{name, line, admin, mutedUntil, nextNameChangeInS, slowMode}`. Returns `{banned: true, admin: false}` for a banned caller |
+| `/live-api/messages` | POST | `{body}` → **201** `{id, at, name, line, body}`. The body is the stored text, with mild profanity masked. **400** `{error: "rejected", reason, message}`. **429** `{error: "rate", retryAfter, slowMode}` with `Retry-After`; `{error: "address-hold" \| "address-limit" \| "busy-network", retryAfter, message}` for the address limits (see "Who is calling"). **403** `{error: "muted", reason, retryAfter, message}` / `{error: "banned", message}` |
+| `/live-api/name` | POST | `{name}` → **200** `{name, line, nextChangeInS}`. **400** rejected. **409** `{error: "taken", message}`. **429** `{error: "rate", retryAfter, message}`, or an address limit |
 | `/live-api/report` | POST | `{messageId}` → `{ok, hidden}`. Reporting your own message, or reporting twice, is accepted and not counted |
 | `/live-api/admin/signin-page` | GET | The page a sign-in link opens. It reads the `#nonce`, removes it from the address bar, then POSTs it |
-| `/live-api/admin/signin` | POST | `{nonce}` → sets the admin cookie. **401** `{error: "bad-link"}` if the nonce is unknown, used or expired. 5 attempts per minute per client |
+| `/live-api/admin/signin` | POST | `{nonce}` → sets the admin cookie. **401** `{error: "bad-link"}` if the nonce is unknown, used or expired. 5 attempts per minute per address |
 | `/live-api/admin/signout` | POST | Clears the cookie |
 | `/live-api/admin/hide` | POST | `{messageId}` |
 | `/live-api/admin/mute` | POST | `{messageId, minutes}` (1 min to 7 days, default 10). Also hides that message |
-| `/live-api/admin/ban` | POST | `{messageId}` → `{ok, hidden}`. Hides that client's last 24 h and closes their streams |
+| `/live-api/admin/ban` | POST | `{messageId}` → `{ok, hidden}`. Hides that caller's last 24 h, closes their streams and holds their address for 24 h |
 | `/live-api/admin/slow` | POST | `{on, minutes}` (default 30) → `{ok, slowMode}` |
 | `/live-api/admin/clear-name` | POST | `{messageId}` → `{ok, name}`. Gives the caller a fresh random name and renames their past messages on every screen |
 | `/live-api/admin/verify` | POST | → `{ok, id, ms}`. Used by the deploy's POST round trip: writes an already-hidden row, reads it back and deletes it. Never broadcast |
@@ -76,24 +76,91 @@ and return **401** `{error: "admin-only"}` without either.
 | `slow` | `{on, until, intervalMs, forced}` |
 | `rename` | `{ids, name}` |
 
-A message never carries its client ref, and no public shape does. A client
+A message never carries its client or address ref, and no public shape does. The caller routes (stream, me, messages, name, report) set the caller cookie when the browser has no valid one. A client
 whose buffered output passes 256 KB is dropped rather than buffered. Its
 EventSource reconnects and resumes from its last id.
 
-## Identity
+## Who is calling
 
-`client_ref = HMAC(CHAT_CLIENT_SECRET, clientKey(ip))`. It uses the app's own
-`clientKey` (IPv6 bucketed on the /64, IPv4-mapped folded into IPv4) through
-the symlink `services/live/lib/shared/client-key.ts → src/lib/utils/client-key.ts`,
-so the two cannot drift. `deploy-live.sh` copies it with `-L`.
+**One browser, one caller** (since 2026-09-26). Before that a caller was an
+HMAC of the client address, so everyone behind one connection was one caller:
+a household shared a name, a line and the rename limit, and strangers behind a
+mobile carrier's NAT shared all of that and each other's mutes and bans.
 
-- **No address is stored anywhere.** Every `client_ref` column has
-  `CHECK (~ '^[0-9a-f]{64}$')`.
+**The caller.** The first request from a browser mints a caller id and sets
+it in a first-party cookie (`services/live/lib/caller.mjs`):
+
+```
+hd_live_caller=v1.<id>.<sig>; Path=/live-api; Max-Age=34560000; HttpOnly; Secure; SameSite=Lax
+```
+
+- `<id>` is 32 random bytes, base64url. It carries no personal data.
+- `<sig>` is an HMAC of the id under a key derived from `CHAT_CLIENT_SECRET`.
+  Only ids this service minted verify, so a script cannot invent fresh ids to
+  step around the address limits below. A cookie that does not verify is
+  ignored, and the browser gets a real one.
+- 400 days, the longest expiry browsers keep.
+- `client_ref = HMAC("caller:" + id)`. The database never sees the cookie, so a
+  copy of the tables cannot be replayed as anyone's cookie.
+
+Names, lines, the rename limit, the pace, duplicate checks, reports, mutes and
+bans all key on `client_ref`.
+
+**The address.** `addr_ref = HMAC(CHAT_CLIENT_SECRET, clientKey(ip))`, through
+the app's own `clientKey` (IPv6 bucketed on the /64, IPv4-mapped folded into
+IPv4). The symlink `services/live/lib/shared/client-key.ts →
+src/lib/utils/client-key.ts` keeps the two from drifting, and `deploy-live.sh`
+copies it with `-L`. It is stored beside messages, reports and names, and it
+is used only for the generous limits below and for the ban hold.
+
+- **No address is stored anywhere.** Every `client_ref` and `addr_ref` column
+  has `CHECK (~ '^[0-9a-f]{64}$')`.
 - `X-Forwarded-For` is trusted only from a loopback peer (nginx).
-- A CGNAT or office network shares one address, so its members share one
-  identity: one name, one pace, one mute. That is the cost of storing no
-  address, and it is also why three reports must come from three distinct
-  clients.
+
+**Lines.** A caller's line is stored with their name (`live_names.line`). A
+new caller takes the line their ref hashes to, unless another caller from the
+same address (seen in the last 30 days) already has it; then the next free
+line. Two people in one house do not show up as the same line.
+
+**Address limits: generous, so a NAT is never punished for one person.**
+Everything here is per `addr_ref`, in memory, in `config.mjs`.
+
+| Limit | Value | Refusal |
+|---|---|---|
+| New caller ids | 300 an hour | **429** `busy-network` |
+| First calls (a caller's first message or first rename) | 30 an hour. A caller who has already called skips it | **429** `address-limit` |
+| Messages | 60 a minute, across every caller there | **429** `rate` |
+| Reports | 60 a minute | **429** `rate` |
+| Open streams | 200 | **429** |
+
+**A ban holds the address.** Banning a caller bans that `client_ref` and also
+writes `live_address_holds (addr_ref, until, next_at)` for 24 h. Clearing
+cookies makes a new caller, but while the hold lasts only **one new caller per
+hour** from that address may start talking. Everyone else new gets **429**
+`address-hold` with `retryAfter`: "New callers from your network are on hold
+for a while. Try again later." Callers who were already talking from there are
+not touched, and listening is never refused. The hourly sweep deletes expired
+holds.
+
+**Reports** count distinct addresses (`COALESCE(addr_ref, client_ref)`), so
+three cookies in one browser, or three browsers in one house, are one report.
+Three from three places hide the call and mute its author only, never the
+author's household.
+
+**Migration.** Rows written before 2026-09-26 are keyed by the address HMAC,
+which is exactly today's `addr_ref`. The first browser that arrives with no
+cookie from an address with such a name (seen in the last 30 days) takes it
+over, in one transaction: the name, its line, the rename clock, its past
+messages, reports, mutes and bans. So a returning caller keeps their name. A
+second browser from that address is a new caller.
+
+**A full name pool.** About 1,091 plain names can be drawn. When the ones
+tried are all taken, a caller gets a numbered one ("Night Owl 2626"), still
+filter-checked and at most 32 characters. Admin clear-name uses the same path.
+
+**Local testing.** WebKit refuses a `Secure` cookie on `http://127.0.0.1`.
+`LIVE_INSECURE_COOKIES=1` drops the attribute for a local stack only.
+`deploy-live.sh` refuses an env file that sets it.
 
 ## Moderation
 
@@ -178,14 +245,15 @@ All of these live in `services/live/lib/config.mjs`.
 | Rule | Value |
 |---|---|
 | Message length | 280 code points |
-| Pace | 1 message per 3 s per client |
-| Duplicate | the same text, ignoring case, accents, punctuation and spacing, from the same client within 10 min (the last 8 remembered) |
-| Flood | the same text of 12+ characters from 3 different clients within 60 s. The 3rd and later senders are refused |
-| Auto slow mode | 20 messages in 30 s turns it on for 2 min: 1 message per 10 s per client. It is announced with a `slow` event |
+| Pace | 1 message per 3 s per caller |
+| Duplicate | the same text, ignoring case, accents, punctuation and spacing, from the same caller within 10 min (the last 8 remembered) |
+| Flood | the same text of 12+ characters from 3 different callers within 60 s. The 3rd and later senders are refused |
+| Auto slow mode | 20 messages in 30 s turns it on for 2 min: 1 message per 10 s per caller. It is announced with a `slow` event |
 | Admin slow mode | forced on for N minutes, or off |
-| Reports | 3 from distinct clients hide the message and mute its sender for 10 min. At most 10 reports per client per minute |
+| Per address | see "Who is calling": new callers, first calls, messages, reports, streams |
+| Reports | 3 from distinct addresses hide the message and mute its sender (that caller only) for 10 min. At most 10 reports per caller per minute |
 | Name change | at most once per 10 min. Unique among names seen in the last 30 min, compared as lower-case letters and digits only |
-| Retention | swept hourly: messages after 7 days (reports go with them), mutes once expired, nonces a day after expiry, names unused for 30 days |
+| Retention | swept hourly: messages after 7 days (reports go with them), mutes and address holds once expired, nonces a day after expiry, names unused for 30 days |
 
 Limit state lives in memory and resets on restart. Mutes, bans, reports,
 names, slow mode and nonces live in Postgres and survive a restart.
