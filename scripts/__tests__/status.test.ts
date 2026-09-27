@@ -50,6 +50,10 @@ interface World {
   warm: { ageH: number; outcome: string; pinned: number; bytes: number; fetched: number; failed: number; steal?: number } | null;
   /** peakOnline / peakListening /api/stats/traffic answers per range; a missing range answers no peaks. */
   peaks: Partial<Record<"24h" | "7d" | "30d", { online: number; listening: number }>>;
+  /** /api/stats/funnel's 7-day totals; null answers 503. */
+  funnel: { visit: number; live: number; tune: number; call: number } | null;
+  /** Its `byDevice.phone`; null leaves `byDevice` out, as a build before the split did. */
+  funnelPhone: { visit: number; live: number; tune: number; call: number } | null;
   liveActive: string;
   /** /live-api/health's body; null answers 502. */
   liveHealth: Record<string, unknown> | null;
@@ -79,6 +83,8 @@ const HEALTHY: World = {
   cpu: { rc: 0, out: "highdesert 3.2\nhighdesert-live 3.1\nhighdesert-sample 0.4\nhighdesert-mirror-warm 0.0\nhighdesert-backup 0.0" },
   warm: { ageH: 5, outcome: "ok", pinned: 120, bytes: 14 * 2 ** 30, fetched: 4, failed: 0 },
   peaks: { "24h": { online: 4, listening: 2 }, "7d": { online: 9, listening: 5 }, "30d": { online: 9, listening: 6 } },
+  funnel: { visit: 40, live: 30, tune: 12, call: 2 },
+  funnelPhone: { visit: 30, live: 22, tune: 8, call: 1 },
   liveActive: "active",
   liveHealth: { ok: true, clients: 42, messagesLastHour: 17, slowMode: false, cpu: { pct: 2.5, windowS: 900 } },
 };
@@ -274,6 +280,9 @@ beforeEach(async () => {
           ...(peak ? { peakOnline: peak.online, peakListening: peak.listening } : {}),
         }),
       );
+    } else if (req.url === "/api/stats/funnel?days=7") {
+      if (!world.funnel) res.statusCode = 503;
+      res.end(JSON.stringify(world.funnel ? { days: 7, cohorts: [], totals: world.funnel, ...(world.funnelPhone ? { byDevice: { phone: world.funnelPhone, desktop: world.funnel } } : {}) } : { error: "Stats unavailable" }));
     } else if (req.url === "/live-api/health") {
       if (!world.liveHealth) res.statusCode = 502;
       res.end(JSON.stringify(world.liveHealth ?? {}));
@@ -305,6 +314,38 @@ describe("highdesert-status", () => {
     expect(r.out).not.toMatch(/^FAIL/m);
     expect(lineFor(r.out, "failures")).toContain("5.0% of starts failed in 7 days (15 failures / 300 plays)");
     expect(r.code).toBe(0);
+  });
+
+  describe("funnel line", () => {
+    it("says how far the week's first visits got, each step as a share of the arrivals", async () => {
+      const r = await run();
+      expect(lineFor(r.out, "funnel")).toBe(
+        "OK    funnel    7d: 40 first visits > 30 saw Live (75%) > 12 tuned in (30%) > 2 called (5%); phones: 30 > 73% saw Live > 27% tuned in > 3% called",
+      );
+    });
+
+    it("leaves the phones out when there were none, or the server does not split by device", async () => {
+      world.funnelPhone = { visit: 0, live: 0, tune: 0, call: 0 };
+      expect(lineFor((await run()).out, "funnel")).toBe(
+        "OK    funnel    7d: 40 first visits > 30 saw Live (75%) > 12 tuned in (30%) > 2 called (5%)",
+      );
+      world.funnelPhone = null;
+      expect(lineFor((await run()).out, "funnel")).toBe(
+        "OK    funnel    7d: 40 first visits > 30 saw Live (75%) > 12 tuned in (30%) > 2 called (5%)",
+      );
+    });
+
+    it("no arrivals is not a division by zero", async () => {
+      world.funnel = { visit: 0, live: 0, tune: 0, call: 0 };
+      expect(lineFor((await run()).out, "funnel")).toBe("OK    funnel    no first visits in 7 days");
+    });
+
+    it("WARNs, and does not fail the run, when the funnel cannot be read", async () => {
+      world.funnel = null;
+      const r = await run();
+      expect(lineFor(r.out, "funnel")).toMatch(/^WARN\s+funnel\s+could not read/);
+      expect(r.code).toBe(0);
+    });
   });
 
   describe("peaks line", () => {

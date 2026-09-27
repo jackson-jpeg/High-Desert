@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 import { safeGetItem, safeSetItem } from "@/lib/utils/safe-storage";
 import { Button } from "@/components/win98";
+import { funnelDecided, startFunnel } from "@/services/stats/funnel-client";
 
 export default function WelcomePage() {
   const router = useRouter();
@@ -35,6 +36,9 @@ export default function WelcomePage() {
       try {
         const { db } = await import("@/db");
         const count = await db.episodes.count();
+        // The funnel's arrival (docs/funnel.md): someone who reads this page
+        // and leaves is a first visit too, not only someone who goes in.
+        if (!funnelDecided()) startFunnel(count === 0);
         if (!cancelled && count > 0) setEpisodeCount(count);
       } catch {
         // DB not ready — the build-time count stands.

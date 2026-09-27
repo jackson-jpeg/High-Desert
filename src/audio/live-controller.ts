@@ -67,6 +67,7 @@ import {
 } from "@/lib/live/schedule";
 import { syncClock } from "@/lib/live/time-sync";
 import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/utils/safe-storage";
+import { noteFunnelStep } from "@/services/stats/funnel-client";
 
 /** Drift beyond this, in seconds, is corrected with a seek. The owner's number. */
 export const DRIFT_LIMIT_SEC = 2;
@@ -480,7 +481,9 @@ export function installLiveStation(deps: LiveDeps): () => void {
 
 /** Tune in (from a tap: the Live screen, the ON AIR lamp). */
 export function tuneIn(): void {
-  station?.tuneIn();
+  if (!station) return;
+  station.tuneIn();
+  noteFunnelStep("tune");
 }
 
 export function tuneOut(): void {

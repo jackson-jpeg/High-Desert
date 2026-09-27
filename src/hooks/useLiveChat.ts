@@ -13,6 +13,7 @@ import {
   type LiveYou,
   type SlowMode,
 } from "@/services/live/client";
+import { noteFunnelStep } from "@/services/stats/funnel-client";
 
 /** How many messages the lines keep on screen. */
 export const KEEP_MESSAGES = 200;
@@ -106,6 +107,8 @@ export function useLiveChat() {
 
   const send = useCallback(async (body: string) => {
     const r = await sendMessage(body);
+    // The funnel's last step: a call went through. Reported once, ever.
+    if (r.ok) noteFunnelStep("call");
     if (r.ok && mounted.current) dispatch({ type: "message", message: r.message, mine: true });
     return r;
   }, []);

@@ -179,6 +179,28 @@ describe("LiveChat (desktop)", () => {
     done();
   });
 
+  it("a call that goes through is the funnel's last step; a refused one is not", async () => {
+    localStorage.setItem("hd-funnel", JSON.stringify({ cohort: "2026-09-27", device: "phone", done: ["visit"] }));
+    respond((url, body) => {
+      if (url === "/live-api/messages" && body.body === "refused") return [400, { error: "rejected", reason: "link", message: "No." }];
+      if (url === "/live-api/messages") return [201, msg(11, { body: body.body, name: you.name, line: you.line })];
+      return [200, { ok: true }];
+    });
+    const funnelPosts = () =>
+      fetchMock.mock.calls.filter((c) => c[0] === "/api/stats/funnel").map((c) => JSON.parse(String((c[1] as RequestInit).body)));
+    const { host, es, done } = render();
+    act(() => es().emit("hello", { you, slowMode: slowOff, recent: [], resumed: false, hidden: [] }));
+    const input = host.querySelector<HTMLInputElement>('[data-testid="composer"] input')!;
+    type(input, "refused");
+    await submit(q(host, "composer")!);
+    expect(funnelPosts()).toEqual([]);
+    type(input, "hello desert");
+    await submit(q(host, "composer")!);
+    expect(funnelPosts()).toEqual([{ step: "call", cohort: "2026-09-27", device: "phone" }]);
+    localStorage.clear();
+    done();
+  });
+
   it("a 429 shows how long to hold, and the button counts down", async () => {
     respond(() => [429, { error: "rate", retryAfter: 3 }]);
     const { host, es, done } = render();

@@ -28,7 +28,7 @@
  * surfaces missing while /api/stats/now reports people online, 2 = could not run.
  */
 
-const SERVER_WRITES = /\/api\/(stats\/(play|stop|rate|heartbeat)|playback-event)(\?|$)/;
+const SERVER_WRITES = /\/api\/(stats\/(play|stop|rate|heartbeat|funnel)|playback-event)(\?|$)/;
 const REREADS = 6;
 
 /**

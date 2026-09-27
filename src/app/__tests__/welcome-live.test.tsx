@@ -16,7 +16,8 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/",
   useSearchParams: () => new URLSearchParams(),
 }));
-vi.mock("@/db", () => ({ db: { episodes: { count: async () => 0 } } }));
+const library = vi.hoisted(() => ({ count: 0 }));
+vi.mock("@/db", () => ({ db: { episodes: { count: async () => library.count } } }));
 HTMLCanvasElement.prototype.getContext = (() => null) as never;
 
 const { default: WelcomePage } = await import("../page");
@@ -51,6 +52,30 @@ describe("the welcome page", () => {
     expect(push).toHaveBeenCalledWith("/live");
     // Marked visited, like entering the archive: next time goes straight in.
     expect(localStorage.getItem("hd-visited")).toBe("1");
+  });
+
+  it("reading this page with an empty library is the funnel's first visit; with one, it is not", async () => {
+    const posts: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: RequestInit) => {
+      posts.push(JSON.parse(String(init.body)));
+      return new Response("{}");
+    }));
+    try {
+      act(() => root.render(createElement(WelcomePage)));
+      await vi.waitFor(() => expect(posts).toEqual([{ step: "visit", cohort: new Date().toISOString().slice(0, 10), device: "desktop" }]));
+
+      act(() => root.unmount());
+      localStorage.clear();
+      posts.length = 0;
+      library.count = 1312;
+      root = createRoot(host);
+      act(() => root.render(createElement(WelcomePage)));
+      await vi.waitFor(() => expect(localStorage.getItem("hd-funnel")).not.toBeNull());
+      expect(posts).toEqual([]);
+    } finally {
+      library.count = 0;
+      vi.unstubAllGlobals();
+    }
   });
 
   it("entering the archive still goes to the library", () => {
