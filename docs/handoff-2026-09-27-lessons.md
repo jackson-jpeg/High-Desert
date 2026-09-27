@@ -26,6 +26,11 @@ Also in these PRs, found along the way:
   tab stop (fixed: a focusable, labelled region).
 - The e2e fixture now also answers `POST /live-api/tuned` in the page, so a
   phone test on production does not tell the real room that a listener tuned in.
+- The Live specs' random call and name tokens could be masked by the chat
+  filter: on #40's CI, "tefcko" went out as "te***o" and the rename spec
+  could not find its own call. Tokens are now three words from a fixed list
+  (`e2e/tokens.ts`). A unit test puts every one of the 13,824 through the
+  real moderator.
 - The `live-name-wait` mutation's anchor matched twice once the place handler
   existed. It is fixed, and all 543 mutation anchors were checked for
   uniqueness.
