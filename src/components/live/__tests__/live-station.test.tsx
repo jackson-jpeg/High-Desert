@@ -157,6 +157,17 @@ describe("Live screen", () => {
     expect(host.querySelector('[data-on-air="lit"]')).not.toBeNull();
   });
 
+  it("the day's log scrolls, so a keyboard can reach it, and it is named by its heading", async () => {
+    stationAt(B.start + H + 500);
+    await mount();
+    const log = q("live-log");
+    expect(log.tabIndex).toBe(0);
+    expect(log.getAttribute("role")).toBe("region");
+    const heading = document.getElementById(log.getAttribute("aria-labelledby") ?? "");
+    expect(heading?.textContent).toMatch(/^Tonight's log/);
+    expect(log.contains(q("live-guide"))).toBe(true);
+  });
+
   it("the heading is the episode; the show it belongs to goes in the kicker", async () => {
     // Every catalog title leads with the show, so "Coast to Coast AM - …" was
     // the studio's heading for every Coast broadcast.

@@ -2827,6 +2827,15 @@ export const MUTATIONS = [
     why: "a phone test on production taps Listen live; without this the real room is told a listener tuned in",
   },
   {
+    id: "live-log-keyboard",
+    test: "src/components/live/__tests__/live-station.test.tsx",
+    file: "src/components/live/LiveStation.tsx",
+    find: `        tabIndex={0}
+        className="flex-1 min-h-[160px]`,
+    replace: `        className="flex-1 min-h-[160px]`,
+    why: "the day's log scrolls; without a tab stop a keyboard cannot scroll it (axe scrollable-region-focusable)",
+  },
+  {
     id: "funnel-status-shares",
     test: "scripts/__tests__/status.test.ts",
     file: "scripts/status.sh",

@@ -248,8 +248,15 @@ function Console({ schedule, listenAbove = false }: { schedule: LiveSchedule; li
         {next && <UpNext slot={next} />}
       </div>
 
-      <div className="flex-1 min-h-[160px] overflow-auto border-t border-bevel-dark/20 bg-card-surface">
-        <h3 className="sticky top-0 z-10 px-3 py-1.5 bg-raised-surface w98-font text-hd-caption uppercase tracking-[0.2em] text-bevel-dark">
+      {/* A scrolling region a keyboard can reach: focusable, and named by its heading. */}
+      <div
+        data-testid="live-log"
+        role="region"
+        aria-labelledby="live-log-heading"
+        tabIndex={0}
+        className="flex-1 min-h-[160px] overflow-auto border-t border-bevel-dark/20 bg-card-surface focus-visible:outline focus-visible:outline-1 focus-visible:outline-signal-blue"
+      >
+        <h3 id="live-log-heading" className="sticky top-0 z-10 px-3 py-1.5 bg-raised-surface w98-font text-hd-caption uppercase tracking-[0.2em] text-bevel-dark">
           Tonight&apos;s log · {schedule.day}
         </h3>
         <ProgramGuide slots={schedule.guide} now={now} />
