@@ -32,7 +32,7 @@ Also in these PRs, found along the way:
   (`e2e/tokens.ts`). A unit test puts every one of the 13,824 through the
   real moderator.
 - The `live-name-wait` mutation's anchor matched twice once the place handler
-  existed. It is fixed, and all 543 mutation anchors were checked for
+  existed. It is fixed, and all 544 mutation anchors were checked for
   uniqueness.
 
 Tests: 1,726 vitest tests. Every change has a mutation, and all of them went
