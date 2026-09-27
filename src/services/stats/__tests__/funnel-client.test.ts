@@ -14,7 +14,7 @@ import {
  */
 
 const DAY = Date.UTC(2026, 8, 27, 15);
-let posted: { step: string; cohort: string }[];
+let posted: { step: string; cohort: string; device: string }[];
 
 beforeEach(() => {
   localStorage.clear();
@@ -36,7 +36,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("funnel, browser side", () => {
   it("an empty library on arrival is a first visit, in today's UTC cohort", () => {
     startFunnel(true, DAY);
-    expect(posted).toEqual([{ step: "visit", cohort: "2026-09-27" }]);
+    expect(posted).toEqual([{ step: "visit", cohort: "2026-09-27", device: "desktop" }]);
     expect(funnelDecided()).toBe(true);
   });
 
@@ -51,10 +51,10 @@ describe("funnel, browser side", () => {
     noteFunnelStep("tune");
     noteFunnelStep("call");
     expect(posted).toEqual([
-      { step: "visit", cohort: "2026-09-27" },
-      { step: "live", cohort: "2026-09-27" },
-      { step: "tune", cohort: "2026-09-27" },
-      { step: "call", cohort: "2026-09-27" },
+      { step: "visit", cohort: "2026-09-27", device: "desktop" },
+      { step: "live", cohort: "2026-09-27", device: "desktop" },
+      { step: "tune", cohort: "2026-09-27", device: "desktop" },
+      { step: "call", cohort: "2026-09-27", device: "desktop" },
     ]);
   });
 
@@ -63,8 +63,8 @@ describe("funnel, browser side", () => {
     startFunnel(true, DAY + 3 * 86_400_000);
     noteFunnelStep("live");
     expect(posted).toEqual([
-      { step: "visit", cohort: "2026-09-27" },
-      { step: "live", cohort: "2026-09-27" },
+      { step: "visit", cohort: "2026-09-27", device: "desktop" },
+      { step: "live", cohort: "2026-09-27", device: "desktop" },
     ]);
   });
 
@@ -119,6 +119,20 @@ describe("funnel, browser side", () => {
     } finally {
       setItem.mockRestore();
     }
+  });
+
+  it("a phone is a phone for the whole funnel, whatever the window does later", () => {
+    const narrow = vi.fn((q: string) => ({ matches: q !== "(min-width: 768px)" }) as MediaQueryList);
+    vi.stubGlobal("matchMedia", narrow);
+    startFunnel(true, DAY);
+    expect(narrow).toHaveBeenCalledWith("(min-width: 768px)");
+    vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: true }) as MediaQueryList)); // rotated, or a wider window
+    resetFunnelForTests();
+    noteFunnelStep("live");
+    expect(posted).toEqual([
+      { step: "visit", cohort: "2026-09-27", device: "phone" },
+      { step: "live", cohort: "2026-09-27", device: "phone" },
+    ]);
   });
 
   it("an unreadable state is treated as excluded, not as a new arrival", () => {

@@ -22,13 +22,23 @@
 import { safeGetItem, safeSetItem } from "@/lib/utils/safe-storage";
 
 export type FunnelStep = "visit" | "live" | "tune" | "call";
+export type FunnelDevice = "phone" | "desktop";
 
 export const FUNNEL_STORAGE_KEY = "hd-funnel";
 
 interface FunnelState {
   /** The UTC day this browser first arrived; null = here before the funnel, never counted. */
   cohort: string | null;
+  /** What it arrived as. Kept with it: a phone rotated to landscape is still the phone that arrived. */
+  device?: FunnelDevice;
   done: FunnelStep[];
+}
+
+/** The app's own breakpoint (useIsMobile): narrower than 768 px is a phone. */
+export function currentDevice(): FunnelDevice {
+  return typeof window !== "undefined" && typeof window.matchMedia === "function" && !window.matchMedia("(min-width: 768px)").matches
+    ? "phone"
+    : "desktop";
 }
 
 let pending = new Set<FunnelStep>();
@@ -49,11 +59,11 @@ function write(s: FunnelState): boolean {
   return safeSetItem("local", FUNNEL_STORAGE_KEY, JSON.stringify(s));
 }
 
-function post(step: FunnelStep, cohort: string): void {
+function post(step: FunnelStep, cohort: string, device: FunnelDevice): void {
   void fetch("/api/stats/funnel", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ step, cohort }),
+    body: JSON.stringify({ step, cohort, device }),
     keepalive: true,
   }).catch(() => {});
 }
@@ -63,14 +73,14 @@ function report(state: FunnelState, step: FunnelStep): void {
   const next = { ...state, done: [...state.done, step] };
   if (!write(next)) return;
   state.done = next.done;
-  post(step, state.cohort);
+  post(step, state.cohort, state.device ?? "desktop");
 }
 
 /**
  * The verdict, once per browser: was the library empty when this browser
  * arrived? Idempotent — a browser with a verdict keeps it.
  */
-export function startFunnel(libraryWasEmpty: boolean, nowMs = Date.now()): void {
+export function startFunnel(libraryWasEmpty: boolean, nowMs = Date.now(), device: FunnelDevice = currentDevice()): void {
   if (read()) return;
   const waiting = pending;
   pending = new Set();
@@ -78,7 +88,7 @@ export function startFunnel(libraryWasEmpty: boolean, nowMs = Date.now()): void 
     write({ cohort: null, done: [] });
     return;
   }
-  const state: FunnelState = { cohort: new Date(nowMs).toISOString().slice(0, 10), done: [] };
+  const state: FunnelState = { cohort: new Date(nowMs).toISOString().slice(0, 10), device, done: [] };
   if (!write(state)) return;
   report(state, "visit");
   for (const step of waiting) report(state, step);

@@ -261,10 +261,14 @@ CREATE TABLE IF NOT EXISTS live_days (
 -- most once, ever, and against the day it first arrived (its cohort), so a
 -- day's row reads as a funnel: of these arrivals, how many got how far.
 -- Browsers that were here before this table existed are not in it at all.
+-- `device` is the browser's class when it arrived, phone (narrower than 768
+-- px, the app's own breakpoint) or desktop, and stays with it: the funnel is
+-- read per device, because the phone and the desktop are different screens.
 -- Counters only: no session, no address, no browser id, nothing per person.
 CREATE TABLE IF NOT EXISTS funnel_daily (
-  day  date   NOT NULL,
-  step text   NOT NULL CHECK (step IN ('visit', 'live', 'tune', 'call')),
-  n    bigint NOT NULL DEFAULT 0,
-  PRIMARY KEY (day, step)
+  day    date   NOT NULL,
+  device text   NOT NULL CHECK (device IN ('phone', 'desktop')),
+  step   text   NOT NULL CHECK (step IN ('visit', 'live', 'tune', 'call')),
+  n      bigint NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, device, step)
 );

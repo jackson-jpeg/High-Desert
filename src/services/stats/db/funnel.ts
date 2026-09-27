@@ -15,6 +15,14 @@ export function isFunnelStep(v: unknown): v is FunnelStep {
   return typeof v === "string" && (FUNNEL_STEPS as readonly string[]).includes(v);
 }
 
+/** The browser's class when it arrived: narrower than the app's 768 px breakpoint, or not. */
+export const FUNNEL_DEVICES = ["phone", "desktop"] as const;
+export type FunnelDevice = (typeof FUNNEL_DEVICES)[number];
+
+export function isFunnelDevice(v: unknown): v is FunnelDevice {
+  return typeof v === "string" && (FUNNEL_DEVICES as readonly string[]).includes(v);
+}
+
 /** A cohort may be this old and still take a later step. */
 export const FUNNEL_COHORT_MAX_AGE_DAYS = 30;
 
@@ -33,23 +41,25 @@ export function isAcceptableCohort(day: unknown, nowMs = Date.now()): day is str
   return t >= today - FUNNEL_COHORT_MAX_AGE_DAYS * 86_400_000 && t <= today + 86_400_000;
 }
 
-export async function recordFunnelStep(day: string, step: FunnelStep): Promise<void> {
+export async function recordFunnelStep(day: string, step: FunnelStep, device: FunnelDevice): Promise<void> {
   await pool().query(
-    `INSERT INTO funnel_daily (day, step, n) VALUES ($1::date, $2, 1)
-     ON CONFLICT (day, step) DO UPDATE SET n = funnel_daily.n + 1`,
-    [day, step],
+    `INSERT INTO funnel_daily (day, device, step, n) VALUES ($1::date, $3, $2, 1)
+     ON CONFLICT (day, device, step) DO UPDATE SET n = funnel_daily.n + 1`,
+    [day, step, device],
   );
 }
 
 export type FunnelCounts = Record<FunnelStep, number>;
 export interface FunnelDay extends FunnelCounts {
   day: string;
+  device: FunnelDevice;
 }
 export interface Funnel {
   days: number;
-  /** One row per cohort day with any arrival or step, oldest first. */
+  /** One row per cohort day and device with any arrival or step, oldest first, phone before desktop. */
   cohorts: FunnelDay[];
   totals: FunnelCounts;
+  byDevice: Record<FunnelDevice, FunnelCounts>;
 }
 
 function zero(): FunnelCounts {
@@ -58,20 +68,24 @@ function zero(): FunnelCounts {
 
 /** The cohorts of the last `days` days (today included), and their totals. */
 export async function getFunnel(days: number): Promise<Funnel> {
-  const { rows } = await pool().query<{ day: string; step: FunnelStep; n: string }>(
-    `SELECT to_char(day, 'YYYY-MM-DD') AS day, step, n
+  const { rows } = await pool().query<{ day: string; device: FunnelDevice; step: FunnelStep; n: string }>(
+    `SELECT to_char(day, 'YYYY-MM-DD') AS day, device, step, n
        FROM funnel_daily
       WHERE day > (now() AT TIME ZONE 'UTC')::date - $1::int
-      ORDER BY day`,
+      ORDER BY day, device DESC`,
     [days],
   );
-  const byDay = new Map<string, FunnelDay>();
+  const byKey = new Map<string, FunnelDay>();
   const totals = zero();
+  const byDevice: Record<FunnelDevice, FunnelCounts> = { phone: zero(), desktop: zero() };
   for (const r of rows) {
-    const row = byDay.get(r.day) ?? { day: r.day, ...zero() };
-    row[r.step] = Number(r.n);
-    totals[r.step] += Number(r.n);
-    byDay.set(r.day, row);
+    const key = `${r.day}/${r.device}`;
+    const row = byKey.get(key) ?? { day: r.day, device: r.device, ...zero() };
+    const n = Number(r.n);
+    row[r.step] = n;
+    totals[r.step] += n;
+    byDevice[r.device][r.step] += n;
+    byKey.set(key, row);
   }
-  return { days, cohorts: [...byDay.values()], totals };
+  return { days, cohorts: [...byKey.values()], totals, byDevice };
 }

@@ -15,6 +15,7 @@ vi.mock("@/services/stats/store", async () => {
   const funnel = await import("@/services/stats/db/funnel");
   return {
     isFunnelStep: funnel.isFunnelStep,
+    isFunnelDevice: funnel.isFunnelDevice,
     isAcceptableCohort: funnel.isAcceptableCohort,
     recordFunnelStep: store.recordFunnelStep,
     getFunnel: store.getFunnel,
@@ -44,19 +45,21 @@ beforeEach(() => {
 
 describe("POST /api/stats/funnel", () => {
   it("a known step for today's cohort reaches the store", async () => {
-    const res = await post({ step: "tune", cohort: today() });
+    const res = await post({ step: "tune", cohort: today(), device: "phone" });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
-    expect(store.recordFunnelStep).toHaveBeenCalledWith(today(), "tune");
+    expect(store.recordFunnelStep).toHaveBeenCalledWith(today(), "tune", "phone");
   });
 
   it("an unknown step, or a cohort that is not a recent day, is a 400 and writes nothing", async () => {
     for (const body of [
-      { step: "session", cohort: today() },
-      { step: "visit" },
-      { step: "visit", cohort: "2026-02-30" },
-      { step: "visit", cohort: "yesterday" },
-      { step: "visit", cohort: "2020-01-01" },
+      { step: "session", cohort: today(), device: "phone" },
+      { step: "visit", device: "phone" },
+      { step: "visit", cohort: "2026-02-30", device: "phone" },
+      { step: "visit", cohort: "yesterday", device: "phone" },
+      { step: "visit", cohort: "2020-01-01", device: "phone" },
+      { step: "visit", cohort: today() },
+      { step: "visit", cohort: today(), device: "tablet" },
     ]) {
       expect((await post(body)).status).toBe(400);
     }
@@ -65,7 +68,7 @@ describe("POST /api/stats/funnel", () => {
 
   it("one client is capped at 10 a minute", async () => {
     const codes = [];
-    for (let i = 0; i < 12; i++) codes.push((await post({ step: "visit", cohort: today() }, "10.7.7.7")).status);
+    for (let i = 0; i < 12; i++) codes.push((await post({ step: "visit", cohort: today(), device: "desktop" }, "10.7.7.7")).status);
     expect(codes.filter((c) => c === 200)).toHaveLength(10);
     expect(codes.slice(10)).toEqual([429, 429]);
   });
