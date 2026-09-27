@@ -41,6 +41,13 @@ Each has a test and a mutation that goes red. All were green in CI.
   with "Transmission Interrupted". The local stack also has no `/mirror`, so an archive.org
   stall has nowhere to fail over. Run them one worker at a time here; CI is the two-worker
   check.
+- **The tuned-in e2e tests still depend on archive.org streaming.** On PR #36's first CI
+  run, "Leave the station stops the audio…" failed because the on-air show's stream failed
+  on the runner ("Transmission Interrupted", "VIA MIRROR"). Production logged an archive.org
+  stall 10 minutes earlier, which the mirror recovered. The tests skip when archive.org
+  cannot be reached, not when a stream stalls, and the CI stack has no mirror to fail over
+  to. A re-run passed. Serving a short fixture MP3 from the e2e stack's own `/mirror` would
+  take archive.org out of these tests' pass/fail.
 - **The admin sign-in link** in the Mac's `~/Downloads` is still valid until 2026-09-27
   07:49 UTC. It was not needed.
 
