@@ -47,9 +47,11 @@ defence, and the admin cookie's `SameSite=Strict` adds to it.
 | Route | Method | Body → response |
 |---|---|---|
 | `/live-api/stream` | GET (SSE) | See the events below. `Last-Event-ID` (header, or `?lastEventId=`) resumes after that id. **403** if banned. **429** past 8 streams per caller, 200 per address or 3,000 in total |
-| `/live-api/me` | GET | `{name, line, admin, mutedUntil, nextNameChangeInS, slowMode}`. Returns `{banned: true, admin: false}` for a banned caller |
-| `/live-api/messages` | POST | `{body}` → **201** `{id, at, name, line, body}`. The body is the stored text, with mild profanity masked. **400** `{error: "rejected", reason, message}`. **429** `{error: "rate", retryAfter, slowMode}` with `Retry-After`; `{error: "address-hold" \| "address-limit" \| "busy-network", retryAfter, message}` for the address limits (see "Who is calling"). **403** `{error: "muted", reason, retryAfter, message}` / `{error: "banned", message}` |
+| `/live-api/me` | GET | `{name, line, place, firstCall, admin, mutedUntil, nextNameChangeInS, nextPlaceChangeInS, slowMode}`. Returns `{banned: true, admin: false}` for a banned caller |
+| `/live-api/messages` | POST | `{body}` → **201** `{id, at, name, place, line, body}`. The body is the stored text, with mild profanity masked. **400** `{error: "rejected", reason, message}`. **429** `{error: "rate", retryAfter, slowMode}` with `Retry-After`; `{error: "address-hold" \| "address-limit" \| "busy-network", retryAfter, message}` for the address limits (see "Who is calling"). **403** `{error: "muted", reason, retryAfter, message}` / `{error: "banned", message}` |
 | `/live-api/name` | POST | `{name}` → **200** `{name, line, nextChangeInS}`. **400** rejected. **409** `{error: "taken", message}`. **429** `{error: "rate", retryAfter, message}`, or an address limit |
+| `/live-api/place` | POST | `{place}` → **200** `{place, nextChangeInS}`. "Calling from" (see below). `""` or null clears it, always at once. **400** rejected (`place-too-short`, `place-too-long`, `place-chars`, `place-reserved`, `place-profane`, or a contact reason). **429** `{error: "rate", retryAfter, message}` for a second change inside 10 minutes. **403** muted or banned |
+| `/live-api/tuned` | POST | `{}` → `{announced}`. This browser just tuned in to the station; sent by `tuneIn()` after the station has started. Announced as a `tunein` line unless this caller was announced in the last hour. Banned callers are never announced |
 | `/live-api/report` | POST | `{messageId}` → `{ok, hidden}`. Reporting your own message, or reporting twice, is accepted and not counted |
 | `/live-api/admin/signin-page` | GET | The page a sign-in link opens. It reads the `#nonce`, removes it from the address bar, then POSTs it |
 | `/live-api/admin/signin` | POST | `{nonce}` → sets the admin cookie. **401** `{error: "bad-link"}` if the nonce is unknown, used or expired. 5 attempts per minute per address |
@@ -58,7 +60,7 @@ defence, and the admin cookie's `SameSite=Strict` adds to it.
 | `/live-api/admin/mute` | POST | `{messageId, minutes}` (1 min to 7 days, default 10). Also hides that message |
 | `/live-api/admin/ban` | POST | `{messageId}` → `{ok, hidden}`. Hides that caller's last 24 h, closes their streams and holds their address for 24 h |
 | `/live-api/admin/slow` | POST | `{on, minutes}` (default 30) → `{ok, slowMode}` |
-| `/live-api/admin/clear-name` | POST | `{messageId}` → `{ok, name}`. Gives the caller a fresh random name and renames their past messages on every screen |
+| `/live-api/admin/clear-name` | POST | `{messageId}` → `{ok, name}`. Gives the caller a fresh random name, clears their place, and renames their past messages on every screen (the `rename` event carries `place: null`) |
 | `/live-api/admin/verify` | POST | → `{ok, id, ms}`. Used by the deploy's POST round trip: writes an already-hidden row, reads it back and deletes it. Never broadcast |
 | `/live-api/health` | GET | `{ok, clients, messagesLastHour, slowMode, cpu: {pct, windowS} or null, startedAt, refusals: {kind: n}, refusedAddresses: {kind: n}}`. `refusals` counts every 4xx a caller route answered since start, by kind: the client's `error` (with `:reason` for a rejection), or for the address caps, which answer `rate` like a caller's own pace, `address-messages`/`address-reports`/`address-streams`. `refusedAddresses` is how many distinct addresses met each address cap (`ADDRESS_REFUSALS`). **nginx returns 404 for it publicly.** `highdesert-status` reads it on loopback |
 
@@ -70,15 +72,65 @@ and return **401** `{error: "admin-only"}` without either.
 
 | Event | Data |
 |---|---|
-| `hello` | `{you: {name, line, admin}, slowMode, recent: [msg…], resumed, hidden: [id…]}`. `recent` is the newest 50, oldest first. On a resume it is everything after the given id, up to 200. **Every `line` in every shape is the label** ("Line 6"), never the stored index — `publicMessage()` maps it once, for the broadcast, the POST answer, `recent` and the resume alike. History once carried the raw index, so a reload showed a caller's own calls as "5" under "Line 6" |
-| `message` | `{id, at, name, line, body}`. The SSE `id:` is the message id |
+| `hello` | `{you: {name, line, place, firstCall, admin}, slowMode, recent: [msg…], resumed, hidden: [id…], tuneins: [notice…]}`. `firstCall` is true until the caller's first message (or rename): the call box offers "Calling from" and a hint then. `tuneins` is the last 3 tune-in lines, oldest first. `recent` is the newest 50, oldest first. On a resume it is everything after the given id, up to 200. **Every `line` in every shape is the label** ("Line 6"), never the stored index — `publicMessage()` maps it once, for the broadcast, the POST answer, `recent` and the resume alike. History once carried the raw index, so a reload showed a caller's own calls as "5" under "Line 6" |
+| `message` | `{id, at, name, place, line, body}`. The SSE `id:` is the message id. `place` is where the caller said they were calling from when they sent it, or null |
 | `hide` | `{ids}` |
 | `slow` | `{on, until, intervalMs, forced}` |
-| `rename` | `{ids, name}` |
+| `rename` | `{ids, name, place?}`. `place: null` when an admin's clear-name also cleared it |
+| `tunein` | `{at, count, places}`: one line for `count` listeners who tuned in, with up to 3 of their places. Not stored; the last 3 are kept in memory for `hello` |
 
 A message never carries its client or address ref, and no public shape does. The caller routes (stream, me, messages, name, report) set the caller cookie when the browser has no valid one. A client
 whose buffered output passes 256 KB is dropped rather than buffered. Its
 EventSource reconnects and resumes from its last id.
+
+## Calling from, and the room at the call box (2026-09-27)
+
+On launch night callers greeted the room from Belgium, Canada and Denver under
+generated desert-town names, and the call box gave no sense of who would hear
+a call. Three things came of it.
+
+- **"Calling from".** A caller may say where they are. It shows after the
+  name on every call they make: "Night Owl, calling from Ghent".
+  - Optional, and theirs: `live_names.place`, set with `POST /live-api/place`.
+  - **Filtered like a name**: the same characters, length (2 to 32), reserved
+    words, contact-detail and profanity checks, with its own reasons.
+  - **Limited like a name**: one change every 10 minutes
+    (`place_changed_at`). **Clearing is never refused and never waits**, and
+    it does not reset the limit, so clear-then-set is no way round it.
+  - A call keeps the place it was sent with (`live_messages.caller_place`),
+    the way it keeps its name. An admin's clear-name clears the place as well,
+    on the caller and on their calls.
+  - **Offered on a first call** (`you.firstCall`), in the call box, prefilled
+    with a suggestion **from the browser's time zone and nothing else**
+    (`Europe/Brussels` → "Brussels", `placeFromTimeZone` in
+    `src/services/live/client.ts`; `Etc/*` and `UTC` suggest nothing). The
+    field is visible and labelled, and an emptied field sends nothing. **No
+    address is ever turned into a place**: there is no IP geolocation anywhere.
+  - The header changes or clears it later ("Change place" / "Add where you're
+    calling from").
+- **The room, beside the call box.** "N tuned in now" sits in the call box
+  itself, from the one presence feed (`useCommunityNow().live`, tagged
+  `data-presence="live"`), as in the header.
+- **Tune-in lines.** "A listener just tuned in from Ohio" when the listener
+  has set a place, otherwise "A new listener tuned in".
+  - `tuneIn()` posts `/live-api/tuned` after the station has started, so
+    nothing comes between the tap and `play()`.
+  - The service batches them (`TUNEIN_*` in `config.mjs`). The first after a
+    quiet minute goes out at once. Any more wait for the minute to pass and go
+    out as one line ("3 new listeners tuned in, one from Ghent"). One caller
+    is announced at most once an hour, so a reload or a re-tune is not a new
+    listener. A busy night is one line a minute at most.
+  - Nothing is stored. The last 3 are kept in memory for `hello`.
+  - **Hide tune-ins** in the header hides them, remembered in localStorage
+    (`hd-live-hide-tuneins`).
+- **A first-call hint**, once per browser ("First call? Say hello. Everyone
+  tuned in hears it."), remembered in localStorage
+  (`hd-live-first-call-hint`) and gone once the call is made.
+
+Tests: `services/live/test/places.db.test.mjs`, the "calling from" and "the
+room" cases in `src/components/live/__tests__/live-chat.test.tsx`, and
+`src/services/live/__tests__/client.test.ts`. Mutations: the `live-place-*`,
+`live-tunein-*`, `client-*` and `chat-*` ids in `scripts/mutate-check.mjs`.
 
 ## Who is calling
 
