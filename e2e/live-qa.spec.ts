@@ -29,17 +29,18 @@ const REFUSED_NAME = Buffer.from("bmlnZ2VyIGluIEJhcnN0b3c=", "base64").toString(
 
 /**
  * The audio tests' setup: catch the player's element, and send archive.org's
- * audio to the fixture. After each test, the redirect must actually have been
- * used: an idle route would let archive.org back into the pass/fail unseen.
+ * audio to the fixture. After each test, the show must actually have come
+ * from /mirror: an idle route would let archive.org back into the pass/fail.
  */
 function streamFromFixture() {
-  let redirected: string[] = [];
+  let served: string[] = [];
   test.beforeEach(async ({ page }) => {
-    redirected = await playFromFixtureMirror(page);
+    served = await playFromFixtureMirror(page);
     await installProbe(page);
   });
-  test.afterEach(async () => {
-    expect(redirected.length, "the show was streamed from the fixture, not archive.org").toBeGreaterThan(0);
+  test.afterEach(async ({}, info) => {
+    if (info.status === "skipped") return;
+    expect(served.length, "the show was streamed from /mirror, not archive.org").toBeGreaterThan(0);
   });
 }
 

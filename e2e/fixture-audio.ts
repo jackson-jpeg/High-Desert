@@ -22,13 +22,29 @@ export function fileHashOf(archiveUrl: string): string | null {
   return `archive:${decodeURIComponent(m[2])}:${decodeURIComponent(m[3])}`;
 }
 
-/** Route `page`'s archive.org audio to its own origin's /mirror. Returns the redirected URLs, for asserting it happened. */
+/** The episode a player source is: an archive.org URL or this origin's `/mirror/{fileHash}`. */
+export function showOf(src: string): string | null {
+  const mirror = /\/mirror\/([^/?#]+)$/.exec(new URL(src, "http://x").pathname);
+  if (mirror) return decodeURIComponent(mirror[1]);
+  return fileHashOf(src);
+}
+
+/**
+ * Route `page`'s archive.org audio to its own origin's /mirror. Returns the
+ * episode audio URLs this page then fetched from /mirror — by redirect, or
+ * directly when the app itself believed archive.org was down — so a spec can
+ * assert its show really came from here (an idle route would let archive.org
+ * back into the pass/fail unseen).
+ */
 export async function playFromFixtureMirror(page: Page): Promise<string[]> {
-  const redirected: string[] = [];
+  const served: string[] = [];
+  page.on("request", (req) => {
+    const u = new URL(req.url());
+    if (/^\/mirror\/archive(:|%3A)/i.test(u.pathname)) served.push(req.url());
+  });
   await page.route(ARCHIVE_AUDIO, (route) => {
     const hash = fileHashOf(route.request().url());
     if (!hash) return route.fallback();
-    redirected.push(route.request().url());
     const origin = new URL(page.url()).origin;
     return route.fulfill({
       status: 302,
@@ -39,5 +55,5 @@ export async function playFromFixtureMirror(page: Page): Promise<string[]> {
       },
     });
   });
-  return redirected;
+  return served;
 }

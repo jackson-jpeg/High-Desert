@@ -2,7 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { fileHashOf } from "../../e2e/fixture-audio";
+import { fileHashOf, showOf } from "../../e2e/fixture-audio";
 
 /**
  * e2e/fixture-audio.ts sends archive.org's audio for an episode to
@@ -26,5 +26,15 @@ describe("fileHashOf", () => {
     expect(fileHashOf("https://archive.org/services/check")).toBeNull();
     expect(fileHashOf("https://example.com/download/a/b.mp3")).toBeNull();
     expect(fileHashOf("https://evilarchive.org/download/a/b.mp3")).toBeNull();
+  });
+});
+
+describe("showOf", () => {
+  it("is the same episode whether the player is on archive.org or on /mirror", () => {
+    const row = rows[0];
+    const mirror = `http://127.0.0.1:3014/mirror/${encodeURIComponent(row.fileHash!)}`;
+    expect(showOf(mirror)).toBe(row.fileHash);
+    expect(showOf(row.sourceUrl!)).toBe(row.fileHash);
+    expect(showOf("http://127.0.0.1:3014/mirror/manifest")).toBe("manifest");
   });
 });
