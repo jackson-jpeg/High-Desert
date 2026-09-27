@@ -1,6 +1,7 @@
 import type { BrowserContext, Page } from "@playwright/test";
 import { test, expect, anotherClientAddress } from "./fixtures";
 import { ownLiveState, recordBeats } from "./own-presence";
+import { playFromFixtureMirror } from "./fixture-audio";
 
 /**
  * The Live bugs a real listener hit on 2026-09-25, each as the listener met it.
@@ -11,8 +12,9 @@ import { ownLiveState, recordBeats } from "./own-presence";
  * leave, pause, read the label, read the heading. docs/live-qa.md has the list.
  *
  * Needs the chat service behind the same origin (scripts/live-e2e-stack.mjs, as
- * CI runs it) and, for the audio tests, archive.org reachable from the machine
- * running the browser (they skip, saying so, when it is not).
+ * CI runs it). The audio tests never touch archive.org: its audio requests are
+ * redirected to the stack's own /mirror, a silent fixture (e2e/fixture-audio.ts),
+ * so a stalled archive.org stream on a runner cannot fail them.
  *
  * The presence test lets this page's own heartbeats through to the server — a
  * presence mark that expires in five minutes, never a play — and judges the
@@ -21,16 +23,25 @@ import { ownLiveState, recordBeats } from "./own-presence";
  * page by the fixture.
  */
 
-const ARCHIVE_PROBE = "https://archive.org/services/check";
 const rnd = () => Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 6).padEnd(6, "x");
 /** A name the filter refuses, not written here in plain text (the fixtures' rule). */
 const REFUSED_NAME = Buffer.from("bmlnZ2VyIGluIEJhcnN0b3c=", "base64").toString("utf8");
 
-async function archiveReachable(request: import("@playwright/test").APIRequestContext) {
-  return request
-    .head(ARCHIVE_PROBE, { timeout: 10_000 })
-    .then((r) => r.status() < 500)
-    .catch(() => false);
+/**
+ * The audio tests' setup: catch the player's element, and send archive.org's
+ * audio to the fixture. After each test, the show must actually have come
+ * from /mirror: an idle route would let archive.org back into the pass/fail.
+ */
+function streamFromFixture() {
+  let served: string[] = [];
+  test.beforeEach(async ({ page }) => {
+    served = await playFromFixtureMirror(page);
+    await installProbe(page);
+  });
+  test.afterEach(async ({}, info) => {
+    if (info.status === "skipped") return;
+    expect(served.length, "the show was streamed from /mirror, not archive.org").toBeGreaterThan(0);
+  });
 }
 
 async function openLines(page: Page, mobile: boolean) {
@@ -249,10 +260,7 @@ test("the call-in placeholder fits its box, whatever the caller is called", asyn
 // ---------------------------------------------------------------------------
 
 test.describe("tuned in", () => {
-  test.beforeEach(async ({ page, request }) => {
-    test.skip(!(await archiveReachable(request)), "archive.org is not reachable from this machine");
-    await installProbe(page);
-  });
+  streamFromFixture();
 
   test("join, refresh, resume: this page is live to the server; leave: it says so at once", async ({ page }) => {
     test.setTimeout(180_000);
@@ -298,6 +306,23 @@ test.describe("tuned in", () => {
     // Leave: said at once by its own beat, not at the next minute's.
     await leaveButton(page).click();
     await expect.poll(() => ownLiveState(beats, reloadedAt), { timeout: 10_000 }).toBe("not-live");
+  });
+
+  test("a phone's first screen: one Listen live tap, with the show, its guest and the count, in view, and it plays", async ({ page, serverWrites }, info) => {
+    test.skip(!info.project.use.isMobile, "the Listen live card is the phone's");
+    test.setTimeout(120_000);
+    await page.goto("/live");
+    const listen = page.getByTestId("live-tune-in");
+    await expect(listen).toBeInViewport({ ratio: 1, timeout: 30_000 });
+    await expect(listen).toContainText("Listen live");
+    await expect(page.getByTestId("listen-title").or(listen.getByText("Station break"))).toBeVisible();
+    await expect(page.getByTestId("listen-count")).toHaveText(/^\d+ tuned in now$/);
+    await listen.tap();
+    await expect.poll(async () => (await element(page))?.paused === false && ((await element(page))?.currentTime ?? 0) > 0, { timeout: 60_000 }).toBe(true);
+    await expect(listen).toHaveCount(0);
+    await expect(leaveButton(page)).toBeVisible();
+    // The tap announced a tune-in; it was answered in the page, not by the room.
+    await expect.poll(() => serverWrites.includes("/live-api/tuned")).toBe(true);
   });
 
   test("Leave the station stops the audio and clears the player, and it stays cleared after a refresh", async ({ page }) => {
@@ -368,9 +393,9 @@ test.describe("tuned in", () => {
 // The first-time listener audit (docs/live-qa.md)
 // ---------------------------------------------------------------------------
 
-test("a first visit can find the station from the welcome page", async ({ page }) => {
+test("a first visit can find the station from the welcome page; a phone is taken straight there", async ({ page }, info) => {
   await page.goto("/");
-  await page.getByTestId("welcome-live").click();
+  if (!info.project.use.isMobile) await page.getByTestId("welcome-live").click();
   await expect(page).toHaveURL(/\/live$/, { timeout: 15_000 });
   await expect(page.getByTestId("live-tune-in")).toBeVisible({ timeout: 30_000 });
 });
@@ -401,10 +426,7 @@ test("desktop: the call-in box is on screen and the newest call is in view", asy
 });
 
 test.describe("tuned in, the station owns the playhead", () => {
-  test.beforeEach(async ({ page, request }) => {
-    test.skip(!(await archiveReachable(request)), "archive.org is not reachable from this machine");
-    await installProbe(page);
-  });
+  streamFromFixture();
 
   test("a seek while live is refused with a reason, not undone ten seconds later", async ({ page }, info) => {
     test.skip(!!info.project.use.isMobile, "the ±15/+30 buttons are the desktop player's");

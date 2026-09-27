@@ -95,9 +95,10 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/mirror/{fileHash}` | GET | **Not Next.js — nginx alone** (`services/mirror/lib/nginx.mjs`). The episode's MP3: a pinned one off disk, anything else in the catalog filled from archive.org through nginx's slice cache. Byte ranges: `206` + `Content-Range`, `416` for an unsatisfiable range. **404** for anything not in the catalog; **502** when a fill cannot reach archive.org. GET/HEAD only. See "archive.org outage mirror" |
 | `/mirror/manifest` | GET | **Not Next.js** — a static file (`/var/lib/highdesert-mirror/manifest.json`, written atomically by the warm job). What the mirror can play with archive.org gone: **`{version, count, pinned, fileHashes: [...]}`** — every pinned episode whole on disk (`count` = `pinned`). `version` is a digest of the list; the **`ETag` is nginx's**, and `If-None-Match` with it gets a 304. `Cache-Control: max-age=60`. Outage mode's input (`src/services/mirror/manifest.ts`) |
 | `/mirror/magnet/{fileHash}` | GET | Static: **`{infohash, magnet}`** for the episode's own single-file torrent (trackers, the archive.org webseed as `ws=`; no `x.pe` — nothing here seeds). 404 outside the catalog. The episode sheet's "Magnet link" |
-| `/live-api/stream` | GET | **Not Next.js** — `highdesert-live` on 127.0.0.1:3005, the phone lines (`docs/live-chat.md`). SSE: `hello {you: {name, line, admin}, slowMode, recent, resumed, hidden}`, then `message {id, at, name, line, body}` (SSE `id:` = message id), `hide {ids}`, `slow`, `rename {ids, name}`. `Last-Event-ID` resumes. nginx: buffering off, `limit_conn` 200 per address (one address can be a carrier NAT; nginx is never tighter than the service, `nginx-vhost.test.ts`) |
-| `/live-api/messages` | POST | **Not Next.js.** `{body}` → **201** `{id, at, name, line, body}` (body as stored — mild profanity masked). **400** `{error: "rejected", reason, message}`, **429** `{error: "rate", retryAfter, slowMode}`, **403** muted/banned. Every `/live-api` POST needs `Content-Type: application/json` (415) and a highdesert.space `Origin` (403) |
-| `/live-api/name`, `/live-api/report`, `/live-api/me` | POST/POST/GET | **Not Next.js.** Rename `{name}` → `{name, line, nextChangeInS}` / 409 taken / 429; report `{messageId}` → `{ok, hidden}`; me → `{name, line, admin, mutedUntil, nextNameChangeInS, slowMode}` |
+| `/live-api/stream` | GET | **Not Next.js** — `highdesert-live` on 127.0.0.1:3005, the phone lines (`docs/live-chat.md`). SSE: `hello {you: {name, line, place, firstCall, admin}, slowMode, recent, resumed, hidden, tuneins}`, then `message {id, at, name, place, line, body}` (SSE `id:` = message id; `place` is "calling from" as sent, or null), `hide {ids}`, `slow`, `rename {ids, name, place?}` (`place: null` when an admin's clear-name cleared it), `tunein {at, count, places}` (batched: at most one a minute, one per caller an hour; `tuneins` in hello is the last 3). `Last-Event-ID` resumes. nginx: buffering off, `limit_conn` 200 per address (one address can be a carrier NAT; nginx is never tighter than the service, `nginx-vhost.test.ts`) |
+| `/live-api/messages` | POST | **Not Next.js.** `{body}` → **201** `{id, at, name, place, line, body}` (body as stored — mild profanity masked). **400** `{error: "rejected", reason, message}`, **429** `{error: "rate", retryAfter, slowMode}`, **403** muted/banned. Every `/live-api` POST needs `Content-Type: application/json` (415) and a highdesert.space `Origin` (403) |
+| `/live-api/name`, `/live-api/report`, `/live-api/me` | POST/POST/GET | **Not Next.js.** Rename `{name}` → `{name, line, nextChangeInS}` / 409 taken / 429; report `{messageId}` → `{ok, hidden}`; me → `{name, line, place, firstCall, admin, mutedUntil, nextNameChangeInS, nextPlaceChangeInS, slowMode}` |
+| `/live-api/place`, `/live-api/tuned` | POST/POST | **Not Next.js.** "Calling from": `{place}` → `{place, nextChangeInS}`; filtered like a name (400 `place-*` reasons), a change at most every 10 min (429), `""`/null clears it at once and never waits. Suggested in the browser from its time zone only, never from an address. Tuned: `{}` → `{announced}`; the caller tuned in to the station (sent by `tuneIn()`), announced to the room as a `tunein` line with their place |
 | `/live-api/admin/*` | POST | **Not Next.js.** `hide`, `mute`, `ban`, `slow`, `clear-name`, `verify` (the deploy's round trip), `signin` `{nonce}`, `signout`; GET `signin-page`. Cookie or `Authorization: Bearer $LIVE_ADMIN_TOKEN`, else **401** `{error: "admin-only"}`. `/live-api/health` is loopback only (nginx 404s it) |
 | `/api/stats/failures` | GET | Which episodes are failing, worst first. `?days=7\|30\|90`. Returns **`{days, summary, entries: [{episodeId, title, failures, recovered, skippedRetries, plays, rate, kinds, uaClasses, details, lastAt}]}`**. Ids resolved to titles from the seed catalog. `details` is the browser's own diagnostics (up to 3 distinct, newest first), **filtered to diagnostic shapes** — the raw text is attacker-controlled (`publicDetails`, HD-038). `skippedRetries` counts retries not attempted for want of a user gesture, excluding `empty-media`, which is never retried by design — it is the instrument for the activation gate. `summary` is site-wide and is deliberately **not** a sum of `entries`, which is capped at 50 episodes. **Excludes advisory kinds** (`ADVISORY_KINDS` in `src/services/stats/db/failures.ts`) — this ranks episodes by how badly they are failing, and a row that never stopped playback would inflate that. Unauthenticated — it is aggregate-only, and the admin gate is presentation, not protection. `?since=<ISO>` adds **`window: {from, to, failures, plays}`**, the fixed 7 days from that instant (cut at now) — how `highdesert-status` holds a release to `docs/reliability-baseline.md` |
 | `/api/stats/funnel` | POST/GET | **The arrival funnel** (`docs/funnel.md`). POST `{step, cohort, device}`: a browser reached `visit`/`live`/`tune`/`call` for the first time, and first arrived on `cohort` (UTC `YYYY-MM-DD`, within 30 days) as a `phone` (narrower than 768 px) or `desktop`, fixed at arrival; adds one to `funnel_daily`. Returns `{ok}`; 10/min. GET `?days=7\|30\|90` → **`{days, cohorts: [{day, device, visit, live, tune, call}], totals, byDevice: {phone, desktop}}`**, `no-store`. A browser that arrived with an empty library is counted; one that already had a library is excluded for good (`src/services/stats/funnel-client.ts`, which keeps "once" in localStorage `hd-funnel`). No session, no address, no id. `highdesert-status`'s `funnel` line reads it. Anything that browses production headless must keep out of it: `csp-check` marks its browser excluded, `presence-check` and the e2e fixture answer the POST in the page |
@@ -647,6 +648,12 @@ same offset, computed from a synced clock.
   heartbeat carries `live: true` → `active_sessions.live_at` →
   `getPresence().live` → `/api/stats/now` `live`. The Live screen reads it from
   the shared feed like every other surface (`data-presence="live"`, with `data-live`).
+- **A phone's first screen is one tap** (`docs/funnel.md`). On a phone, `/live`
+  opens with a "Listen live" card (`ListenLive`, `data-testid="live-tune-in"`)
+  above everything else: the show on the air, its guest and "N tuned in now".
+  The tap is `tuneIn()` itself, so audio starts inside the gesture, and it is
+  the only tune-in control on a phone. A phone's first visit to `/` is sent
+  straight to `/live`.
 - **UI.** `/live` (`src/components/live/LiveStation.tsx`): ON AIR sign, station
   clock (PT), now playing with time left, up next, the day's log
   (`ProgramGuide`, past/now/future), the live count, and the phone lines —
@@ -672,8 +679,16 @@ down and JSON POST up, and keeps its state in eight `live_*` tables in the
 deploy never drops a chat stream. The full account is in `docs/live-chat.md`.
 
 - **The listener count is not the chat's.** `<LiveChat />` shows
-  `useCommunityNow().live` from the one presence function. The service's
-  `clients` is an operational number for `highdesert-status` only.
+  `useCommunityNow().live` from the one presence function, in the header and
+  beside the call box. The service's `clients` is an operational number for
+  `highdesert-status` only.
+- **Calling from, and tune-in lines** (2026-09-27, `docs/live-chat.md`). A
+  caller may set a place (`POST /live-api/place`), filtered and limited like a
+  name, cleared any time, and shown after the name on each call as sent. It
+  is suggested from the browser's time zone only. **Never add IP
+  geolocation.** `tuneIn()` posts `/live-api/tuned`; the service batches
+  tune-ins into at most one line a minute, one per caller an hour. A viewer
+  can hide them.
 - **One browser, one caller** (2026-09-26). A caller is a random id in the
   signed `hd_live_caller` cookie (HttpOnly, Secure, Path=/live-api, 400 days,
   `services/live/lib/caller.mjs`); `client_ref` is an HMAC of it. Names,

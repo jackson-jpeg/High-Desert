@@ -74,6 +74,14 @@ ALTER TABLE live_names    ADD COLUMN IF NOT EXISTS addr_ref text CHECK (addr_ref
 ALTER TABLE live_names    ADD COLUMN IF NOT EXISTS line int;
 CREATE INDEX IF NOT EXISTS live_names_addr ON live_names (addr_ref, seen_at) WHERE addr_ref IS NOT NULL;
 
+-- "Calling from" (2026-09-27): where a caller says they are, in their own
+-- words, optional, filtered like a name. Never derived from an address: the
+-- only suggestion is the browser's own time zone, made in the browser. A
+-- message keeps the place it was sent with, the way it keeps its name.
+ALTER TABLE live_names    ADD COLUMN IF NOT EXISTS place text;
+ALTER TABLE live_names    ADD COLUMN IF NOT EXISTS place_changed_at timestamptz;
+ALTER TABLE live_messages ADD COLUMN IF NOT EXISTS caller_place text;
+
 -- A ban holds the banned caller's address for a while: new callers from it
 -- may start talking at most once per interval (config.mjs, BAN_HOLD_*).
 CREATE TABLE IF NOT EXISTS live_address_holds (

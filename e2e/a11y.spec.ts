@@ -128,13 +128,24 @@ test("/stats has no moderate, serious or critical axe violations", async ({ page
   await scan(page, "/stats");
 });
 
-// The welcome page is only ever seen on a first visit (a returning visitor is
-// sent straight to /library), which is what every test's fresh profile is.
-test("/ (the welcome page) has no moderate, serious or critical axe violations", async ({ page }) => {
+// The welcome page is only ever seen on a desktop's first visit (a returning
+// visitor is sent straight to /library, a phone to /live), which is what every
+// test's fresh profile is.
+test("/ (the welcome page) has no moderate, serious or critical axe violations", async ({ page }, info) => {
+  test.skip(!!info.project.use.isMobile, "a phone is taken past the welcome page");
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: "HIGH DESERT" })).toBeVisible({ timeout: 30_000 });
   await settled(page);
   await scan(page, "/");
+});
+
+// The station: a phone's first screen, the Listen live card included.
+test("/live has no moderate, serious or critical axe violations", async ({ page }, info) => {
+  await page.goto("/live");
+  if (info.project.use.isMobile) await expect(page.getByTestId("live-tune-in")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("live-listeners").first()).toBeVisible({ timeout: 30_000 });
+  await settled(page);
+  await scan(page, "/live");
 });
 
 // The admin pages. Reached the way an admin reaches them — the nav tab from
@@ -183,7 +194,11 @@ const HEADINGS: { route: string; h1: string; admin?: boolean; seed?: boolean; lo
 ];
 
 for (const { route, h1, admin, seed, loaded } of HEADINGS) {
-  test(`${route} has exactly one h1: "${h1}"`, async ({ page }) => {
+  test(`${route} has exactly one h1: "${h1}"`, async ({ page }, info) => {
+    // A phone never sees the welcome page: its first visit goes to /live and a
+    // return visit to /library (src/app/page.tsx; e2e/live-qa.spec.ts holds the
+    // redirect). Its heading is checked where a desktop reads it.
+    test.skip(route === "/" && !!info.project.use.isMobile, "a phone is taken past the welcome page");
     if (admin) await asAdmin(page);
     if (seed) await openLibrary(page);
     if (route !== "/library") {

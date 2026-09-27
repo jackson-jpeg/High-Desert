@@ -157,6 +157,17 @@ describe("Live screen", () => {
     expect(host.querySelector('[data-on-air="lit"]')).not.toBeNull();
   });
 
+  it("the day's log scrolls, so a keyboard can reach it, and it is named by its heading", async () => {
+    stationAt(B.start + H + 500);
+    await mount();
+    const log = q("live-log");
+    expect(log.tabIndex).toBe(0);
+    expect(log.getAttribute("role")).toBe("region");
+    const heading = document.getElementById(log.getAttribute("aria-labelledby") ?? "");
+    expect(heading?.textContent).toMatch(/^Tonight's log/);
+    expect(log.contains(q("live-guide"))).toBe(true);
+  });
+
   it("the heading is the episode; the show it belongs to goes in the kicker", async () => {
     // Every catalog title leads with the show, so "Coast to Coast AM - …" was
     // the studio's heading for every Coast broadcast.
@@ -285,5 +296,40 @@ describe("Live screen", () => {
     } finally {
       Object.defineProperty(window, "innerHeight", { value: innerHeight, configurable: true });
     }
+  });
+
+  it("a phone's first screen is one Listen live tap: the show, its guest and how many are tuned in, and it tunes in", async () => {
+    mobile.value = true;
+    stationAt(B.start + H + 500);
+    await mount();
+    const listen = host.querySelectorAll<HTMLElement>('[data-testid="live-tune-in"]');
+    // One way in, not two: the studio's own Tune in gives way to it.
+    expect(listen).toHaveLength(1);
+    const hero = listen[0];
+    // First in the page, above the phone lines' button and the studio.
+    const grid = hero.parentElement!;
+    const firsts = [...grid.children].filter((c) => /(^|\s)order-first(\s|$)/.test(c.className));
+    expect(firsts[0]).toBe(hero);
+    expect(q("listen-title").textContent).toBe("Show 2");
+    expect(q("listen-guest").textContent).toBe("with Guest 2");
+    const count = q("listen-count");
+    expect(count.textContent).toBe("5 tuned in now");
+    expect(count.getAttribute("data-presence")).toBe("live");
+    expect(hero.textContent).not.toMatch(/\u2014/);
+
+    act(() => hero.click());
+    expect(controller.tuneIn).toHaveBeenCalledTimes(1);
+    // Tuned in, it steps aside for the studio's own controls.
+    act(() => useLiveStore.setState({ tuned: true, phase: "show" }));
+    expect(host.querySelector('[data-testid="live-tune-in"]')).toBeNull();
+    expect([...host.querySelectorAll("button")].some((b) => b.textContent === "Leave the station")).toBe(true);
+  });
+
+  it("desktop keeps the studio's Tune in, and no Listen live card", async () => {
+    stationAt(B.start + H + 500);
+    await mount();
+    expect(host.querySelectorAll('[data-testid="live-tune-in"]')).toHaveLength(1);
+    expect(q("live-tune-in").textContent).toBe("Tune in");
+    expect(host.querySelector('[data-testid="listen-title"]')).toBeNull();
   });
 });

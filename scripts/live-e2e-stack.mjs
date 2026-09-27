@@ -2,7 +2,12 @@
 /**
  * One origin for a local Live stack, the way nginx makes one in production:
  * /live-api/* goes to the phone-lines service (streamed, never buffered, so SSE
- * works), everything else to `next start`. For e2e/live-chat.spec.ts only.
+ * works), everything else to `next start`. For the Live e2e specs only.
+ *
+ * `/mirror/{fileHash}` is answered here, as nginx answers it in production:
+ * with a four-hour silent MP3 (scripts/e2e-mirror.mjs). The tuned-in specs
+ * send archive.org's audio requests to it (e2e/fixture-audio.ts), so a stalled
+ * archive.org stream on a CI runner cannot fail them.
  *
  *   node scripts/live-e2e-stack.mjs --port 3014 --app 3013 --live 3015
  *
@@ -11,6 +16,7 @@
  * service trusts the header only from loopback, which this proxy is.
  */
 import http from "node:http";
+import { serveFixtureMirror } from "./e2e-mirror.mjs";
 
 const arg = (name, dflt) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -20,7 +26,15 @@ const PORT = arg("port", 3014);
 const APP = arg("app", 3013);
 const LIVE = arg("live", 3015);
 
+/** Episode audio, not the manifest or a magnet (those 404 from the app, as "unknown"). */
+export const isMirrorAudio = (url) =>
+  url.startsWith("/mirror/") && !url.startsWith("/mirror/manifest") && !url.startsWith("/mirror/magnet/");
+
 const server = http.createServer((req, res) => {
+  if (isMirrorAudio(req.url)) {
+    serveFixtureMirror(req, res);
+    return;
+  }
   const target = req.url.startsWith("/live-api/") ? LIVE : APP;
   const headers = { ...req.headers, "x-forwarded-for": req.headers["x-forwarded-for"] ?? "127.0.0.1" };
   const up = http.request({ host: "127.0.0.1", port: target, method: req.method, path: req.url, headers }, (r) => {

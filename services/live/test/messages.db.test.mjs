@@ -45,7 +45,7 @@ describeDb("messages", () => {
     expect(ev.data).toMatchObject({ id: r.json.id, body, name: r.json.name, line: r.json.line });
     expect(ev.id).toBe(String(r.json.id));
     // The public shape carries no client ref and no address.
-    expect(Object.keys(ev.data).sort()).toEqual(["at", "body", "id", "line", "name"]);
+    expect(Object.keys(ev.data).sort()).toEqual(["at", "body", "id", "line", "name", "place"]);
     s.close();
   });
 
