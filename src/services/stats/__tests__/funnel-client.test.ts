@@ -107,6 +107,20 @@ describe("funnel, browser side", () => {
     }
   });
 
+  it("a later step that cannot be remembered is not reported, however often it happens", () => {
+    startFunnel(true, DAY);
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("full", "QuotaExceededError");
+    });
+    try {
+      noteFunnelStep("live");
+      noteFunnelStep("live");
+      expect(posted.map((p) => p.step)).toEqual(["visit"]);
+    } finally {
+      setItem.mockRestore();
+    }
+  });
+
   it("an unreadable state is treated as excluded, not as a new arrival", () => {
     localStorage.setItem(FUNNEL_STORAGE_KEY, "{not json");
     startFunnel(true, DAY);
