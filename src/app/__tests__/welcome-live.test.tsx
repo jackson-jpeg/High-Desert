@@ -62,7 +62,7 @@ describe("the welcome page", () => {
     }));
     try {
       act(() => root.render(createElement(WelcomePage)));
-      await vi.waitFor(() => expect(posts).toEqual([{ step: "visit", cohort: new Date().toISOString().slice(0, 10) }]));
+      await vi.waitFor(() => expect(posts).toEqual([{ step: "visit", cohort: new Date().toISOString().slice(0, 10), device: "desktop" }]));
 
       act(() => root.unmount());
       localStorage.clear();

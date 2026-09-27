@@ -195,14 +195,14 @@ describe("Live screen", () => {
   });
 
   it("being on screen is the funnel's Live step", async () => {
-    localStorage.setItem("hd-funnel", JSON.stringify({ cohort: "2026-09-27", done: ["visit"] }));
+    localStorage.setItem("hd-funnel", JSON.stringify({ cohort: "2026-09-27", device: "phone", done: ["visit"] }));
     stationAt(B.start + H + 500);
     await mount();
     const posts = vi
       .mocked(fetch)
       .mock.calls.filter((c) => c[0] === "/api/stats/funnel")
       .map((c) => JSON.parse(String((c[1] as RequestInit).body)));
-    expect(posts).toEqual([{ step: "live", cohort: "2026-09-27" }]);
+    expect(posts).toEqual([{ step: "live", cohort: "2026-09-27", device: "phone" }]);
     localStorage.clear();
   });
 

@@ -180,7 +180,7 @@ describe("LiveChat (desktop)", () => {
   });
 
   it("a call that goes through is the funnel's last step; a refused one is not", async () => {
-    localStorage.setItem("hd-funnel", JSON.stringify({ cohort: "2026-09-27", done: ["visit"] }));
+    localStorage.setItem("hd-funnel", JSON.stringify({ cohort: "2026-09-27", device: "phone", done: ["visit"] }));
     respond((url, body) => {
       if (url === "/live-api/messages" && body.body === "refused") return [400, { error: "rejected", reason: "link", message: "No." }];
       if (url === "/live-api/messages") return [201, msg(11, { body: body.body, name: you.name, line: you.line })];
@@ -196,7 +196,7 @@ describe("LiveChat (desktop)", () => {
     expect(funnelPosts()).toEqual([]);
     type(input, "hello desert");
     await submit(q(host, "composer")!);
-    expect(funnelPosts()).toEqual([{ step: "call", cohort: "2026-09-27" }]);
+    expect(funnelPosts()).toEqual([{ step: "call", cohort: "2026-09-27", device: "phone" }]);
     localStorage.clear();
     done();
   });
