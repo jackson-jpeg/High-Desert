@@ -73,7 +73,8 @@ describe("boot screen dismissal", () => {
   });
 
   it("a phone's first visit gets the quick splash, gone as soon as the app is up", async () => {
-    vi.stubGlobal("matchMedia", (q: string) => ({ matches: q !== "(min-width: 768px)" }));
+    // Narrower than 768px, and no reduced-motion preference: every query is false.
+    vi.stubGlobal("matchMedia", () => ({ matches: false }));
     try {
       const el = mountBootScreen();
       runBootScript();
