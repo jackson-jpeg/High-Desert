@@ -194,6 +194,18 @@ describe("Live screen", () => {
     expect(el.textContent?.match(/\d+/g)?.map(Number)).toEqual([5, 8]);
   });
 
+  it("being on screen is the funnel's Live step", async () => {
+    localStorage.setItem("hd-funnel", JSON.stringify({ cohort: "2026-09-27", done: ["visit"] }));
+    stationAt(B.start + H + 500);
+    await mount();
+    const posts = vi
+      .mocked(fetch)
+      .mock.calls.filter((c) => c[0] === "/api/stats/funnel")
+      .map((c) => JSON.parse(String((c[1] as RequestInit).body)));
+    expect(posts).toEqual([{ step: "live", cohort: "2026-09-27" }]);
+    localStorage.clear();
+  });
+
   it("Tune in reaches the station controller", async () => {
     stationAt(B.start + H + 500);
     await mount();

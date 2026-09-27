@@ -250,3 +250,21 @@ CREATE TABLE IF NOT EXISTS live_days (
   program    jsonb       NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- ---------------------------------------------------------------------------
+-- The arrival funnel (src/services/stats/db/funnel.ts, docs/funnel.md)
+-- ---------------------------------------------------------------------------
+
+-- How many browsers that first arrived on `day` went on to each step: `visit`
+-- (the arrival itself), `live` (saw the Live screen), `tune` (tuned in) and
+-- `call` (made a first call on the phone lines). A browser reports each step at
+-- most once, ever, and against the day it first arrived (its cohort), so a
+-- day's row reads as a funnel: of these arrivals, how many got how far.
+-- Browsers that were here before this table existed are not in it at all.
+-- Counters only: no session, no address, no browser id, nothing per person.
+CREATE TABLE IF NOT EXISTS funnel_daily (
+  day  date   NOT NULL,
+  step text   NOT NULL CHECK (step IN ('visit', 'live', 'tune', 'call')),
+  n    bigint NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, step)
+);

@@ -9,6 +9,7 @@ import { PlaybackErrorDialog } from "@/components/player/PlaybackErrorDialog";
 import { OutageDialog } from "@/components/player/OutageDialog";
 import { useOutageMonitor } from "@/hooks/useOutageMonitor";
 import { installBrowserLiveStation } from "@/services/live/browser-station";
+import { funnelDecided, startFunnel } from "@/services/stats/funnel-client";
 import { admitRequestedStart } from "@/audio/outage-gate";
 import { UnavailableEpisodeDialog } from "@/components/player/UnavailableEpisodeDialog";
 import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
@@ -52,6 +53,14 @@ export default function DesktopLayout({
   // The live station follows the listener across routes, so it lives here,
   // once, beside the play-episode handler it starts shows through.
   useEffect(() => installBrowserLiveStation(), []);
+
+  // The arrival funnel's verdict (docs/funnel.md): an empty library on arrival
+  // is a first visit. Read now, not after the idle-deferred seed, so a visit
+  // that leaves within a second or two is still counted.
+  useEffect(() => {
+    if (funnelDecided()) return;
+    db.episodes.count().then((n) => startFunnel(n === 0)).catch(() => {});
+  }, []);
 
   // Restore persisted admin state after mount (not during render — see admin-store),
   // then handle ?viewer URL param (logout only — login requires password)
@@ -262,6 +271,9 @@ export default function DesktopLayout({
       if (cancelled) return;
       seedLibraryIfEmpty()
         .then(async (seeded) => {
+          // This tab seeded an empty library: a first visit, whatever the
+          // count above managed to read. A no-op once there is a verdict.
+          if (seeded) startFunnel(true);
           if (seeded || cancelled) return;
           // Before reconcile: a library doubled by two first-visit tabs
           // (HD-009) is merged back to one row per catalog episode, keeping

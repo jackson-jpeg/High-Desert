@@ -36,7 +36,7 @@ import { hdEventName } from "../src/lib/events";
 
 export const busEventName = hdEventName;
 
-const SERVER_WRITES = /\/api\/(stats\/(play|stop|rate|heartbeat)|playback-event)(\?|$)/;
+const SERVER_WRITES = /\/api\/(stats\/(play|stop|rate|heartbeat|funnel)|playback-event)(\?|$)/;
 
 /**
  * A private-range address unique to this test within the run. 10/8 has room for

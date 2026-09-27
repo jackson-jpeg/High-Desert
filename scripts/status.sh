@@ -15,6 +15,9 @@
 #   failures  7-day failed-start rate from /api/stats/failures vs plays from /api/stats/traffic
 #   peaks     Signal Traffic's peaks nest: peak(30d) >= peak(7d) >= peak(24h) for online
 #             and listening, from /api/stats/traffic; FAIL if a longer window reads lower
+#   funnel    the last 7 days' arrivals and how far they got, from /api/stats/funnel:
+#             first visits -> saw the Live screen -> tuned in -> called (docs/funnel.md).
+#             Reported, never judged; WARN only if it cannot be read
 #   release   failed-start rate over the 7 days after the release recorded in
 #             docs/reliability-baseline.md (/api/stats/failures?since=), WARN at 3%+
 #   presence  the live site's presence surfaces (Stats badge, status bar, mobile
@@ -194,6 +197,24 @@ else
   else
     line OK peaks "nested: $desc"
   fi
+fi
+
+# --- funnel ------------------------------------------------------------------
+# Of the browsers that first arrived in the last 7 days, how many saw the Live
+# screen, tuned in and called. A product number, like the failure rate: it is
+# reported, not judged.
+funnel_json="$(curl -s --max-time 10 "$API/api/stats/funnel?days=7" 2>/dev/null)"
+fv="$(jq -r '.totals.visit // empty' <<<"$funnel_json" 2>/dev/null)"
+fl="$(jq -r '.totals.live // empty' <<<"$funnel_json" 2>/dev/null)"
+ft="$(jq -r '.totals.tune // empty' <<<"$funnel_json" 2>/dev/null)"
+fc="$(jq -r '.totals.call // empty' <<<"$funnel_json" 2>/dev/null)"
+if [[ -z "$fv" || -z "$fl" || -z "$ft" || -z "$fc" ]]; then
+  line WARN funnel "could not read $API/api/stats/funnel"
+elif (( fv == 0 )); then
+  line OK funnel "no first visits in 7 days"
+else
+  fpct() { awk -v n="$1" -v d="$fv" 'BEGIN { printf "%d%%", 100 * n / d + 0.5 }'; }
+  line OK funnel "7d: $fv first visits > $fl saw Live ($(fpct "$fl")) > $ft tuned in ($(fpct "$ft")) > $fc called ($(fpct "$fc"))"
 fi
 
 # --- release -----------------------------------------------------------------

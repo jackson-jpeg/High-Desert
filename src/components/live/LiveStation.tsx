@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Window } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
@@ -17,6 +17,7 @@ import { OnAirLamp } from "./OnAirLamp";
 import { KIND_LABEL, ProgramGuide } from "./ProgramGuide";
 import { LiveChat } from "./LiveChat";
 import { LiveChatSheet } from "./LiveChatSheet";
+import { noteFunnelStep } from "@/services/stats/funnel-client";
 
 /**
  * The Live screen: a late-night studio. The ON AIR sign, the wall clock, the
@@ -32,6 +33,8 @@ export function LiveStation() {
   const schedule = useLiveSchedule();
   const isMobile = useIsMobile();
   const [linesOpen, setLinesOpen] = useState(false);
+  // The funnel's second step: the Live screen was on screen (docs/funnel.md).
+  useEffect(() => noteFunnelStep("live"), []);
 
   return (
     <div className="h-full min-h-0 p-2 md:p-3 overflow-auto md:overflow-hidden">

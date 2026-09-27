@@ -73,6 +73,15 @@ export {
   getFailureWindow,
   getFailureSummary,
 } from "./db/failures";
+export {
+  FUNNEL_STEPS,
+  isFunnelStep,
+  isAcceptableCohort,
+  recordFunnelStep,
+  getFunnel,
+} from "./db/funnel";
+export type { FunnelStep, FunnelCounts, FunnelDay, Funnel } from "./db/funnel";
+
 export type {
   PlaybackFailureInput,
   FailureRate,
