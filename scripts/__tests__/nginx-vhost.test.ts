@@ -2,6 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import http from "node:http";
 import { renderMirrorNginx, PRODUCTION } from "../../services/mirror/lib/nginx.mjs";
 import { STREAMS_PER_ADDRESS, MESSAGES_PER_ADDRESS_MINUTE } from "../../services/live/lib/config.mjs";
 
@@ -32,6 +33,21 @@ function location(spec: string): string | null {
 function allLocations(): string[] {
   return [...conf.matchAll(/location\s+([^{]+)\{/g)].map((m) => m[1].trim());
 }
+
+describe("nginx vhost — the app upstream", () => {
+  it("retires idle connections before the app does, so a request never lands on a closed one", () => {
+    const block = /upstream\s+highdesert_app\s*\{([^}]*)\}/.exec(conf)?.[1] ?? "";
+    expect(block).toMatch(/\bkeepalive\s+\d+;/);
+    const m = /\bkeepalive_timeout\s+(\d+)(ms|s)?;/.exec(block);
+    expect(m, "upstream keepalive_timeout (nginx's default is 60 s)").not.toBeNull();
+    const nginxMs = Number(m![1]) * (m![2] === "ms" ? 1 : 1000);
+    // The app's idle timeout is Node's own default unless the unit overrides it.
+    const unit = readFileSync(path.resolve(__dirname, "../../deploy/highdesert.service"), "utf8");
+    expect(unit).not.toMatch(/keepAliveTimeout/i);
+    const nodeMs = http.createServer().keepAliveTimeout;
+    expect(nginxMs).toBeLessThan(nodeMs);
+  });
+});
 
 describe("nginx vhost — stats write limit", () => {
   it("defines a zone keyed on the client address for POSTs only", () => {
