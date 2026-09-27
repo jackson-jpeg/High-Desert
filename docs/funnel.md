@@ -68,4 +68,39 @@ first; nothing below is a result until it has a date against it.
 
 ### Before (funnel live, old phone screen)
 
-_Collecting._
+The funnel went live at 2026-09-27 04:45 UTC (#37). The new phone screen
+(#38) went out at 06:04 UTC. Snapshot taken just before it, at 06:02:55 UTC:
+one cohort day (2026-09-27), 1 h 18 min of arrivals, late Saturday evening
+Pacific.
+
+| Device | First visits | Saw Live | Tuned in | Called |
+|---|---|---|---|---|
+| Phone | 20 | 20 (100%) | 13 (65%) | 0 (0%) |
+| Desktop | 8 | 7 (88%) | 4 (50%) | 1 (13%) |
+
+Read with care:
+
+- **It is small.** 28 arrivals over 78 minutes; one phone either way moves
+  the tune-in share by 5 points.
+- **It is not launch night.** Launch night's "three in four never pressed
+  play" counted everyone online, regulars included, at the Reddit peak. This
+  counts only new browsers, at a quiet hour, most of them landing on /live
+  from a link. Saw Live at 100% on phones is that: they arrived there.
+- The old screen already worked for most of the phones that arrived on it:
+  65% tuned in. The new screen's job is the other third.
+
+### After (one-tap Listen live, phones past the welcome page)
+
+Cohort days are UTC days, and the 2026-09-27 cohort holds arrivals from both
+sides of the 06:04 deploy, so it is neither. **"After" is the cohorts from
+2026-09-28 on**, entirely after both #38 and #39 (#39 took the boot sequence
+and the catalog toast off the card on phones):
+
+```bash
+curl -s 'https://highdesert.space/api/stats/funnel?days=7' \
+  | jq '.cohorts | map(select(.day >= "2026-09-28" and .device == "phone"))'
+```
+
+_Not measured yet._ Compare phones with phones, and hold a verdict until
+there are at least a few hundred phone arrivals: at 20, the difference
+between 65% and 75% is two people.

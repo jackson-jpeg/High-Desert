@@ -20,6 +20,13 @@ function mountBootScreen() {
   return document.getElementById("app-loading") as HTMLElement;
 }
 
+/** What React's first commit does: an element carrying data-hydrated appears. */
+function hydrate() {
+  const el = document.createElement("div");
+  el.setAttribute("data-hydrated", "");
+  document.body.appendChild(el);
+}
+
 function runBootScript() {
   new Function(BOOT_SCRIPT)();
 }
@@ -48,6 +55,39 @@ describe("boot screen dismissal", () => {
 
     vi.advanceTimersByTime(400);
     expect(el.style.display).toBe("none");
+  });
+
+  it("a desktop's first visit gets the boot sequence, held after the app is up", async () => {
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: q === "(min-width: 768px)" }));
+    try {
+      const el = mountBootScreen();
+      runBootScript();
+      expect(document.getElementById("boot-container")!.style.display).toBe("flex");
+      hydrate();
+      await Promise.resolve(); // the MutationObserver's callback
+      vi.advanceTimersByTime(0);
+      expect(el.style.opacity).not.toBe("0");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("a phone's first visit gets the quick splash, gone as soon as the app is up", async () => {
+    // Narrower than 768px, and no reduced-motion preference: every query is false.
+    vi.stubGlobal("matchMedia", () => ({ matches: false }));
+    try {
+      const el = mountBootScreen();
+      runBootScript();
+      expect(document.getElementById("boot-container")!.style.display).toBe("none");
+      expect(document.getElementById("quick-splash")!.style.display).toBe("block");
+      hydrate();
+      await Promise.resolve(); // the MutationObserver's callback
+      vi.advanceTimersByTime(0);
+      expect(el.style.opacity).toBe("0");
+      expect(el.style.pointerEvents).toBe("none");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("stops intercepting pointers the moment the fade starts (timed dismiss)", () => {
