@@ -16,7 +16,8 @@ import { parseBlocklist } from "../../services/live/lib/moderation/blocklist.mjs
 
 const ROOT = path.resolve(__dirname, "../..");
 const { entries } = parseBlocklist(readFileSync(path.join(ROOT, "data/chat-blocklist.txt"), "utf8"));
-const mod = createModerator(() => ({ entries, version: 1 }));
+// The .mjs default parameter types its entries as never[]; the real list is what it takes.
+const mod = createModerator((() => ({ entries, version: 1 })) as unknown as Parameters<typeof createModerator>[0]);
 
 const every: string[] = [];
 for (const a of TOKEN_WORDS) for (const b of TOKEN_WORDS) for (const c of TOKEN_WORDS) every.push(`${a}${b}${c}`);
