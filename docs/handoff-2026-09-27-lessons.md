@@ -101,6 +101,16 @@ This is a reliability question, separate from this work.
 
 ## Loose ends
 
+- **One unexplained 500 from admin clear-name in CI.** On #40's
+  pull_request run (36304058746), `moderation.db.test.mjs`'s clear-name test
+  got a 500. The push run of the same commit passed, and 15 local runs passed.
+  The service logs a 500's cause to an array the tests never printed, so the
+  reason is lost. The test helper now prints the service's last log lines on
+  any 5xx (`services/live/test/helpers.mjs`), so the next occurrence names
+  its cause. The code path (claim a fresh name, clear the place, rename past
+  messages) has no step I can find that fails intermittently: a unique
+  collision on the name is already handled as "taken".
+
 - The `warm` line reads `stopped-at-floor`: 318 pinned, down from 331. The
   disk floor stopped it, not a failure, so nothing needs doing now.
 - The local e2e stack in the scratchpad (ports 3013 to 3015) was stopped at
