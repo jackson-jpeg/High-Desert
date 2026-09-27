@@ -308,7 +308,7 @@ test.describe("tuned in", () => {
     await expect.poll(() => ownLiveState(beats, reloadedAt), { timeout: 10_000 }).toBe("not-live");
   });
 
-  test("a phone's first screen: one Listen live tap, with the show, its guest and the count, in view, and it plays", async ({ page }, info) => {
+  test("a phone's first screen: one Listen live tap, with the show, its guest and the count, in view, and it plays", async ({ page, serverWrites }, info) => {
     test.skip(!info.project.use.isMobile, "the Listen live card is the phone's");
     test.setTimeout(120_000);
     await page.goto("/live");
@@ -321,6 +321,8 @@ test.describe("tuned in", () => {
     await expect.poll(async () => (await element(page))?.paused === false && ((await element(page))?.currentTime ?? 0) > 0, { timeout: 60_000 }).toBe(true);
     await expect(listen).toHaveCount(0);
     await expect(leaveButton(page)).toBeVisible();
+    // The tap announced a tune-in; it was answered in the page, not by the room.
+    await expect.poll(() => serverWrites.includes("/live-api/tuned")).toBe(true);
   });
 
   test("Leave the station stops the audio and clears the player, and it stays cleared after a refresh", async ({ page }) => {

@@ -2819,6 +2819,14 @@ export const MUTATIONS = [
     why: "a phone share is over the phones that arrived, not over every arrival",
   },
   {
+    id: "e2e-fixture-tunein-answered",
+    test: "scripts/__tests__/e2e-fixture-writes.test.ts",
+    file: "e2e/fixtures.ts",
+    find: `|playback-event)|\\/live-api\\/tuned)(\\?|$)/;`,
+    replace: `|playback-event)|\\/live-api\\/nothing)(\\?|$)/;`,
+    why: "a phone test on production taps Listen live; without this the real room is told a listener tuned in",
+  },
+  {
     id: "funnel-status-shares",
     test: "scripts/__tests__/status.test.ts",
     file: "scripts/status.sh",
