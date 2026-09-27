@@ -1,5 +1,6 @@
 import type { BrowserContext, Page } from "@playwright/test";
 import { test, expect, answerServerWrites, anotherClientAddress } from "./fixtures";
+import { playFromFixtureMirror } from "./fixture-audio";
 
 /**
  * Two listeners tuned in to the live station hear the same second.
@@ -26,12 +27,12 @@ import { test, expect, answerServerWrites, anotherClientAddress } from "./fixtur
  *   DATABASE_URL="$E2E_DATABASE_URL" npx next start -H 127.0.0.1 -p 3013 &
  *   E2E_BASE_URL=http://127.0.0.1:3013 npx playwright test e2e/live.spec.ts
  *
- * It streams the scheduled show from archive.org, so it needs archive.org
- * reachable from the machine running it; when it is not, the spec skips and
- * says why (the outage path is the schedule tests' and chaos-mirror's).
+ * It never streams from archive.org: both pages' archive.org audio is
+ * redirected to this origin's /mirror (e2e/fixture-audio.ts), which on the e2e
+ * stack is a silent fixture (scripts/e2e-mirror.mjs), so a stalled stream on
+ * the runner cannot fail it. Run it through the stack for that:
+ * scripts/live-e2e-stack.mjs in front of the `next start` above.
  */
-
-const ARCHIVE_PROBE = "https://archive.org/services/check";
 
 interface LiveProbe {
   el: HTMLMediaElement | null;
@@ -73,11 +74,6 @@ async function tuneIn(page: Page) {
 
 test("two listeners tuned in land within 2 s of each other", async ({ page, browser, request }, info) => {
   test.setTimeout(150_000);
-  const reachable = await request
-    .head(ARCHIVE_PROBE, { timeout: 10_000 })
-    .then((r) => r.status() < 500)
-    .catch(() => false);
-  test.skip(!reachable, "archive.org is not reachable from this machine; the station would be on the mirror");
 
   // The second listener: its own profile and client address, with the same
   // protections the fixture gives the first (no stats writes reach the
@@ -97,6 +93,7 @@ test("two listeners tuned in land within 2 s of each other", async ({ page, brow
   try {
     const late = await other.newPage();
     await answerServerWrites(late, otherWrites);
+    const redirected = [...(await Promise.all([playFromFixtureMirror(page), playFromFixtureMirror(late)]))];
     await installProbe(page);
     await installProbe(late);
 
@@ -123,6 +120,8 @@ test("two listeners tuned in land within 2 s of each other", async ({ page, brow
       expect(Math.abs(a!.lead - b!.lead), `sample ${i}: ${a!.currentTime} vs ${b!.currentTime}`).toBeLessThan(2);
       await page.waitForTimeout(2_000);
     }
+    // Both streamed from the fixture: archive.org was never in the pass/fail.
+    expect(redirected.map((r) => r.length > 0)).toEqual([true, true]);
   } finally {
     await other.close();
   }
