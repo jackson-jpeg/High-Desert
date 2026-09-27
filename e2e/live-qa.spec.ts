@@ -1,5 +1,5 @@
 import type { BrowserContext, Page } from "@playwright/test";
-import { test, expect, anotherClientAddress } from "./fixtures";
+import { test, expect, anotherClientAddress, busEventName } from "./fixtures";
 import { ownLiveState, recordBeats } from "./own-presence";
 import { playFromFixtureMirror } from "./fixture-audio";
 
@@ -311,9 +311,30 @@ test.describe("tuned in", () => {
   test("a phone's first screen: one Listen live tap, with the show, its guest and the count, in view, and it plays", async ({ page, serverWrites }, info) => {
     test.skip(!info.project.use.isMobile, "the Listen live card is the phone's");
     test.setTimeout(120_000);
+    // What covered the card, recorded as it happens: the toast goes by itself
+    // after a few seconds, so a check made later would pass either way.
+    await page.addInitScript((settled) => {
+      const w = window as unknown as { __seen: { boot: boolean; toast: boolean; settled: boolean } };
+      w.__seen = { boot: false, toast: false, settled: false };
+      const look = () => {
+        if (document.getElementById("boot-container")?.style.display === "flex") w.__seen.boot = true;
+        if (document.body?.textContent?.includes("episodes from catalog")) w.__seen.toast = true;
+      };
+      new MutationObserver(look).observe(document, { subtree: true, childList: true, characterData: true, attributes: true });
+      window.addEventListener(settled, () => {
+        look();
+        w.__seen.settled = true;
+      });
+    }, busEventName("seed-settled"));
     await page.goto("/live");
     const listen = page.getByTestId("live-tune-in");
     await expect(listen).toBeInViewport({ ratio: 1, timeout: 30_000 });
+    await expect(page.locator("#app-loading")).toBeHidden({ timeout: 15_000 });
+    const seen = () => page.evaluate(() => (window as unknown as { __seen: { boot: boolean; toast: boolean; settled: boolean } }).__seen);
+    await expect.poll(async () => (await seen()).settled, { timeout: 30_000 }).toBe(true);
+    // A frame for a toast raised just before the seed settled to reach the page.
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    expect(await seen()).toEqual({ boot: false, toast: false, settled: true });
     await expect(listen).toContainText("Listen live");
     await expect(page.getByTestId("listen-title").or(listen.getByText("Station break"))).toBeVisible();
     await expect(page.getByTestId("listen-count")).toHaveText(/^\d+ tuned in now$/);
