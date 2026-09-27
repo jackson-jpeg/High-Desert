@@ -1,5 +1,6 @@
 import type { Browser, BrowserContext, Page, TestInfo } from "@playwright/test";
 import { test, expect, anotherClientAddress, answerServerWrites } from "./fixtures";
+import { rnd } from "./tokens";
 
 /**
  * One browser, one caller (docs/live-chat.md, "Who is calling").
@@ -18,7 +19,6 @@ import { test, expect, anotherClientAddress, answerServerWrites } from "./fixtur
  */
 
 const ADMIN = process.env.E2E_LIVE_ADMIN_TOKEN;
-const rnd = () => Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 6).padEnd(6, "x");
 const properName = (prefix: string) => `${prefix} ${rnd().replace(/^./, (c) => c.toUpperCase())}`;
 
 /** Two browsers behind one address. */

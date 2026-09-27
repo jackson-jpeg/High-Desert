@@ -105,6 +105,9 @@ export async function startLive(opts = {}) {
     try {
       json = JSON.parse(text);
     } catch {}
+    // A 500 says only {error: "internal"}; the reason is in the service's log,
+    // which the test never prints. Show it, so a failure in CI can be read.
+    if (res.status >= 500) console.error(`[live test] ${res.status} on POST ${p}:\n${logs.slice(-5).join("\n")}`);
     return { status: res.status, json, headers: res.headers };
   }
 
@@ -117,6 +120,7 @@ export async function startLive(opts = {}) {
     try {
       json = JSON.parse(text);
     } catch {}
+    if (res.status >= 500) console.error(`[live test] ${res.status} on GET ${p}:\n${logs.slice(-5).join("\n")}`);
     return { status: res.status, json, text, headers: res.headers };
   }
 

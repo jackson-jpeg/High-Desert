@@ -1,5 +1,6 @@
 import type { BrowserContext, Page } from "@playwright/test";
 import { test, expect, anotherClientAddress, busEventName } from "./fixtures";
+import { rnd } from "./tokens";
 import { ownLiveState, recordBeats } from "./own-presence";
 import { playFromFixtureMirror } from "./fixture-audio";
 
@@ -23,7 +24,6 @@ import { playFromFixtureMirror } from "./fixture-audio";
  * page by the fixture.
  */
 
-const rnd = () => Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 6).padEnd(6, "x");
 /** A name the filter refuses, not written here in plain text (the fixtures' rule). */
 const REFUSED_NAME = Buffer.from("bmlnZ2VyIGluIEJhcnN0b3c=", "base64").toString("utf8");
 
