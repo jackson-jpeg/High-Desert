@@ -33,6 +33,7 @@ export function LiveStation() {
   const schedule = useLiveSchedule();
   const isMobile = useIsMobile();
   const [linesOpen, setLinesOpen] = useState(false);
+  const tuned = useLiveStore((s) => s.tuned);
   // The funnel's second step: the Live screen was on screen (docs/funnel.md).
   useEffect(() => noteFunnelStep("live"), []);
 
@@ -48,8 +49,10 @@ export function LiveStation() {
         )}
       >
         <Window title="High Desert Live · Studio" variant="dark" headingLevel={2} className="flex flex-col min-h-0">
-          {schedule ? <Console schedule={schedule} /> : <OffAir />}
+          {schedule ? <Console schedule={schedule} listenAbove={isMobile} /> : <OffAir />}
         </Window>
+
+        {isMobile && schedule && !tuned && <ListenLive schedule={schedule} />}
 
         {isMobile ? (
           <button
@@ -99,8 +102,68 @@ function OffAir() {
   );
 }
 
+/**
+ * A phone's first screen (docs/funnel.md): one tap to listen, and what that
+ * tap gets you — the show on the air, its guest, and how many are tuned in
+ * now. 3 in 4 people online on launch night never pressed play, and 75% were
+ * on phones, where Tune in sat below the studio's clock and sign. The tap is
+ * `tuneIn()` itself, so the show starts inside the gesture (Safari's rule).
+ * Gone once tuned in: the studio below is then the way to pause or leave.
+ */
+function ListenLive({ schedule }: { schedule: LiveSchedule }) {
+  const now = useStationClock(5000);
+  const presence = useCommunityNow();
+  const on = onAirAt(schedule, now);
+  const slot = on && "slot" in on ? on.slot : null;
+  const { episode } = slot ? splitShowTitle(slot.title) : { episode: null };
+  return (
+    <button
+      type="button"
+      onClick={() => tuneIn()}
+      data-testid="live-tune-in"
+      aria-label={slot ? `Listen live: ${episode}` : "Listen live"}
+      className={cn(
+        "order-first w98-raised-dark bg-raised-surface cursor-pointer text-left",
+        "flex items-center gap-4 px-4 py-4 min-h-touch",
+      )}
+    >
+      <span
+        className="shrink-0 flex items-center justify-center w-14 h-14 rounded-full bg-desert-amber text-midnight text-hd-h3"
+        aria-hidden="true"
+      >
+        ▶
+      </span>
+      <span className="flex flex-col min-w-0 gap-0.5">
+        <span className="w98-font text-hd-h3 text-desert-amber leading-tight">Listen live</span>
+        {slot ? (
+          <>
+            <span className="text-hd-body text-desktop-gray leading-snug line-clamp-2" data-testid="listen-title">
+              {episode}
+            </span>
+            {slot.guestName && (
+              <span className="text-hd-caption text-bevel-dark truncate" data-testid="listen-guest">
+                with {slot.guestName}
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="text-hd-body text-desktop-gray">Station break. The next show is moments away.</span>
+        )}
+        <span
+          className="flex items-center gap-1.5 text-hd-caption text-static-green tabular-nums"
+          data-testid="listen-count"
+          {...presenceAttrs("live", presence)}
+        >
+          <span className="w-2 h-2 rounded-full bg-static-green animate-on-air" aria-hidden="true" />
+          {presence.live} tuned in now
+        </span>
+      </span>
+    </button>
+  );
+}
+
 /** The console. Re-renders once a second — it is the clock. */
-function Console({ schedule }: { schedule: LiveSchedule }) {
+function Console({ schedule, listenAbove = false }: { schedule: LiveSchedule; listenAbove?: boolean }) {
   const now = useStationClock(1000);
   const tuned = useLiveStore((s) => s.tuned);
   const phase = useLiveStore((s) => s.phase);
@@ -159,7 +222,8 @@ function Console({ schedule }: { schedule: LiveSchedule }) {
                 Leave the station
               </button>
             </>
-          ) : (
+          ) : listenAbove ? null : (
+            // On a phone the one way in is "Listen live", above the studio.
             <button
               type="button"
               onClick={() => tuneIn()}

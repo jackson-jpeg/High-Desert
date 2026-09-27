@@ -40,6 +40,24 @@ export const REPORTS_PER_MINUTE = 10;
 
 /** A caller name can be changed at most once per this long. */
 export const NAME_CHANGE_MS = 10 * 60_000;
+
+/** "Calling from": optional, as long as a name, changed as often as one. Clearing it is never limited. */
+export const MAX_PLACE_CHARS = 32;
+export const MIN_PLACE_CHARS = 2;
+export const PLACE_CHANGE_MS = NAME_CHANGE_MS;
+
+/**
+ * Tune-in notices ("A listener just tuned in from Ohio"). One caller is
+ * announced at most once per TUNEIN_REPEAT_MS, however often they tune in;
+ * notices go out at most once per TUNEIN_BATCH_MS, as one line for everyone
+ * who tuned in meanwhile, so a busy night is one line a minute, never a flood.
+ */
+export const TUNEIN_BATCH_MS = 60_000;
+export const TUNEIN_REPEAT_MS = 60 * 60_000;
+/** Places named in one notice; the rest are counted. */
+export const TUNEIN_PLACES_SHOWN = 3;
+/** Notices a new stream is sent in its hello, newest last. */
+export const TUNEIN_ON_HELLO = 3;
 /** A name is held by a caller who is connected or was seen inside this window. */
 export const NAME_ACTIVE_MS = 30 * 60_000;
 

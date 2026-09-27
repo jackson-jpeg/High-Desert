@@ -68,6 +68,7 @@ import {
 import { syncClock } from "@/lib/live/time-sync";
 import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/utils/safe-storage";
 import { noteFunnelStep } from "@/services/stats/funnel-client";
+import { announceTuneIn } from "@/services/live/client";
 
 /** Drift beyond this, in seconds, is corrected with a seek. The owner's number. */
 export const DRIFT_LIMIT_SEC = 2;
@@ -484,6 +485,9 @@ export function tuneIn(): void {
   if (!station) return;
   station.tuneIn();
   noteFunnelStep("tune");
+  // The room hears it as a quiet line (batched by the service). After the
+  // station has started: nothing here may come between the tap and play().
+  announceTuneIn();
 }
 
 export function tuneOut(): void {

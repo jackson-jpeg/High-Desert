@@ -4,13 +4,13 @@
  * came from is `addr_ref`, both HMACs (lib/caller.mjs).
  */
 
-import { NAME_ACTIVE_MS, NAME_CHANGE_MS, RETENTION_MS } from "./config.mjs";
+import { NAME_ACTIVE_MS, NAME_CHANGE_MS, PLACE_CHANGE_MS, RETENTION_MS } from "./config.mjs";
 import { LINES, lineFor, nameKey } from "./names.mjs";
 
 // `id` goes out as text (a bigint must not round through a JS number), so the
 // sort key is carried separately as `seq`: ordering by the text alias put
 // "999" after "1923", and hello served the wrong fifty once ids passed 999.
-const MESSAGE_COLUMNS = `id::text AS id, id AS seq, at, caller_name AS name, line, body`;
+const MESSAGE_COLUMNS = `id::text AS id, id AS seq, at, caller_name AS name, caller_place AS place, line, body`;
 
 /**
  * The public shape of a message: no client ref, ever, and the line as its
@@ -23,6 +23,8 @@ export function publicMessage(row) {
     id: Number(row.id),
     at: new Date(row.at).toISOString(),
     name: row.name,
+    // Where the caller said they were calling from when they sent it; null for none.
+    place: row.place ?? null,
     line: LINES[row.line] ?? LINES[0],
     body: row.body,
   };
@@ -32,11 +34,11 @@ export function createStore(pool, { settingsKey = "slow_mode" } = {}) {
   const q = (text, params) => pool.query(text, params);
 
   return {
-    async insertMessage({ clientRef, addrRef, name, line, body }) {
+    async insertMessage({ clientRef, addrRef, name, place = null, line, body }) {
       const { rows } = await q(
-        `INSERT INTO live_messages (client_ref, addr_ref, caller_name, line, body)
-         VALUES ($1, $2, $3, $4, $5) RETURNING ${MESSAGE_COLUMNS}`,
-        [clientRef, addrRef ?? null, name, line, body],
+        `INSERT INTO live_messages (client_ref, addr_ref, caller_name, caller_place, line, body)
+         VALUES ($1, $2, $3, $6, $4, $5) RETURNING ${MESSAGE_COLUMNS}`,
+        [clientRef, addrRef ?? null, name, line, body, place],
       );
       return publicMessage(rows[0]);
     },
@@ -156,11 +158,12 @@ export function createStore(pool, { settingsKey = "slow_mode" } = {}) {
 
     /** A caller's name and line (the line's index; null until assigned). */
     async getName(clientRef) {
-      const { rows } = await q(`SELECT name, changed_at, line FROM live_names WHERE client_ref = $1`, [clientRef]);
+      const { rows } = await q(`SELECT name, changed_at, line, place FROM live_names WHERE client_ref = $1`, [clientRef]);
       return rows[0]
         ? {
             name: rows[0].name,
             line: rows[0].line,
+            place: rows[0].place ?? null,
             changedAt: rows[0].changed_at ? new Date(rows[0].changed_at).getTime() : null,
           }
         : null;
@@ -349,10 +352,35 @@ export function createStore(pool, { settingsKey = "slow_mode" } = {}) {
       return rows[0] ? Number(rows[0].wait) : 0;
     },
 
+    /**
+     * Set (or, with null, clear) where a caller is calling from. A change
+     * starts the wait before the next one; a clear does not, and is never
+     * refused: taking your place off the air must always be possible.
+     */
+    async setPlace(clientRef, place) {
+      await q(
+        `INSERT INTO live_names (client_ref, place, place_changed_at) VALUES ($1, $2, CASE WHEN $2::text IS NULL THEN NULL ELSE now() END)
+         ON CONFLICT (client_ref) DO UPDATE SET
+           place = EXCLUDED.place, seen_at = now(),
+           place_changed_at = CASE WHEN $2::text IS NULL THEN live_names.place_changed_at ELSE now() END`,
+        [clientRef, place],
+      );
+    },
+
+    /** How long until this caller may set a new place, in ms (0 = now). */
+    async placeWaitMs(clientRef) {
+      const { rows } = await q(
+        `SELECT GREATEST(0, EXTRACT(EPOCH FROM (place_changed_at + make_interval(secs => $2) - now())) * 1000)::bigint AS wait
+         FROM live_names WHERE client_ref = $1 AND place_changed_at IS NOT NULL`,
+        [clientRef, PLACE_CHANGE_MS / 1000],
+      );
+      return rows[0] ? Number(rows[0].wait) : 0;
+    },
+
     /** Rewrite the caller name on a caller's retained messages (admin clear-name). */
     async renameMessages(clientRef, name) {
       const { rows } = await q(
-        `UPDATE live_messages SET caller_name = $2 WHERE client_ref = $1 RETURNING id::text AS id`,
+        `UPDATE live_messages SET caller_name = $2, caller_place = NULL WHERE client_ref = $1 RETURNING id::text AS id`,
         [clientRef, name],
       );
       return rows.map((r) => Number(r.id));

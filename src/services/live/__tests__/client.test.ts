@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { backoffMs, connectLive, charCount, sendMessage, changeName, type LiveHandlers } from "../client";
+import { backoffMs, connectLive, charCount, sendMessage, changeName, changePlace, placeFromTimeZone, tuneinText, type LiveHandlers } from "../client";
 import { keyboardInset } from "@/hooks/useKeyboardInset";
 
 class FakeEventSource {
@@ -30,7 +30,7 @@ class FakeEventSource {
 
 const handlers = (): LiveHandlers & { statuses: string[] } => {
   const statuses: string[] = [];
-  return { statuses, hello: vi.fn(), message: vi.fn(), hide: vi.fn(), rename: vi.fn(), slow: vi.fn(), status: (s) => statuses.push(s) };
+  return { statuses, hello: vi.fn(), message: vi.fn(), hide: vi.fn(), rename: vi.fn(), slow: vi.fn(), tunein: vi.fn(), status: (s) => statuses.push(s) };
 };
 
 afterEach(() => {
@@ -129,5 +129,48 @@ describe("refusals read as what they are", () => {
     expect(await sendMessage("hello")).toMatchObject({ reason: "rate", message: "Hold the line. You can call again in 3 s." });
     reply(429, { error: "rate", retryAfter: 300 });
     expect(await changeName("Night Owl")).toMatchObject({ reason: "rate", message: "Names can change once every 10 minutes: 5 min to go." });
+  });
+});
+
+describe("calling from", () => {
+  it("suggests a place from the time zone's city, and nothing from zones that name no place", () => {
+    expect(placeFromTimeZone("Europe/Brussels")).toBe("Brussels");
+    expect(placeFromTimeZone("America/Denver")).toBe("Denver");
+    expect(placeFromTimeZone("America/Argentina/Buenos_Aires")).toBe("Buenos Aires");
+    expect(placeFromTimeZone("America/Indiana/Indianapolis")).toBe("Indianapolis");
+    for (const tz of ["UTC", "Etc/GMT+5", "Etc/UTC", "", undefined]) expect(placeFromTimeZone(tz)).toBeNull();
+  });
+
+  it("a rate-limited change says how long, in minutes; a refusal passes the server's sentence", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "rate", retryAfter: 290 }), { status: 429 })));
+    expect(await changePlace("Boulder")).toMatchObject({ ok: false, reason: "rate", retryAfter: 290, message: expect.stringContaining("5 min to go") });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "rejected", reason: "place-chars", message: "Places can use letters." }), { status: 400 })));
+    expect(await changePlace("<x>")).toMatchObject({ ok: false, reason: "place-chars", message: "Places can use letters." });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ place: null, nextChangeInS: 0 }), { status: 200 })));
+    expect(await changePlace("")).toEqual({ ok: true, place: null });
+  });
+});
+
+describe("tune-in notices", () => {
+  const at = "2026-09-27T04:00:00.000Z";
+  it("one listener: with their place, or without", () => {
+    expect(tuneinText({ at, count: 1, places: ["Ohio"] })).toBe("A listener just tuned in from Ohio");
+    expect(tuneinText({ at, count: 1, places: [] })).toBe("A new listener tuned in");
+  });
+
+  it("a batch is one line: every place when everyone gave one, otherwise the count and the places given", () => {
+    expect(tuneinText({ at, count: 2, places: ["Ohio", "Ghent"] })).toBe("2 listeners just tuned in: one from Ohio and one from Ghent");
+    expect(tuneinText({ at, count: 3, places: ["Ghent"] })).toBe("3 new listeners tuned in, one from Ghent");
+    expect(tuneinText({ at, count: 4, places: [] })).toBe("4 new listeners tuned in");
+    for (const n of [1, 2, 5]) expect(tuneinText({ at, count: n, places: ["A", "B"].slice(0, n) })).not.toMatch(/—/);
+  });
+
+  it("reach the handler from the stream", () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    const h = handlers();
+    const c = connectLive(h);
+    FakeEventSource.instances[0].emit("tunein", { at, count: 1, places: [] });
+    expect(h.tunein).toHaveBeenCalledWith({ at, count: 1, places: [] });
+    c.close();
   });
 });

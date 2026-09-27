@@ -8,7 +8,7 @@
  *   names also: name-too-short, name-too-long, name-chars, name-reserved, name-profane
  */
 
-import { MAX_MESSAGE_CHARS, MAX_NAME_CHARS, MIN_NAME_CHARS } from "../config.mjs";
+import { MAX_MESSAGE_CHARS, MAX_NAME_CHARS, MIN_NAME_CHARS, MAX_PLACE_CHARS, MIN_PLACE_CHARS } from "../config.mjs";
 import { normalizeText, codePointLength } from "./normalize.mjs";
 import { contactReason } from "./contact.mjs";
 import { createProfanityFilter } from "./profanity.mjs";
@@ -25,6 +25,11 @@ export const REASON_TEXT = {
   "name-chars": "Names can use letters, numbers, spaces and - ' . , &",
   "name-reserved": "That name is reserved.",
   "name-profane": "Pick a name the whole room can hear.",
+  "place-too-short": `Places need at least ${MIN_PLACE_CHARS} characters.`,
+  "place-too-long": `Places can be at most ${MAX_PLACE_CHARS} characters.`,
+  "place-chars": "Places can use letters, numbers, spaces and - ' . , &",
+  "place-reserved": "That can't be a place.",
+  "place-profane": "Pick a place the whole room can hear.",
 };
 
 /** Names nobody may take: the host, and anything that reads as staff. */
@@ -81,5 +86,23 @@ export function createModerator(blocklist = () => ({ entries: [], version: 0 }))
     return { ok: true, text };
   }
 
-  return { message, name };
+  /**
+   * "Calling from": the name's filter, word for word, with its own reasons.
+   * Empty is not a refusal: it clears the place (`text: null`).
+   */
+  function place(raw) {
+    const text = normalizeText(raw);
+    if (text === "") return { ok: true, text: null };
+    const len = codePointLength(text);
+    if (len < MIN_PLACE_CHARS) return { ok: false, reason: "place-too-short" };
+    if (len > MAX_PLACE_CHARS) return { ok: false, reason: "place-too-long" };
+    if (!/^[\p{L}\p{N}][\p{L}\p{N} '.,&-]*$/u.test(text)) return { ok: false, reason: "place-chars" };
+    if (RESERVED.some((r) => r.test(text))) return { ok: false, reason: "place-reserved" };
+    const contact = contactReason(text);
+    if (contact) return { ok: false, reason: contact };
+    if (filter().check(text).hits > 0) return { ok: false, reason: "place-profane" };
+    return { ok: true, text };
+  }
+
+  return { message, name, place };
 }

@@ -308,6 +308,21 @@ test.describe("tuned in", () => {
     await expect.poll(() => ownLiveState(beats, reloadedAt), { timeout: 10_000 }).toBe("not-live");
   });
 
+  test("a phone's first screen: one Listen live tap, with the show, its guest and the count, in view, and it plays", async ({ page }, info) => {
+    test.skip(!info.project.use.isMobile, "the Listen live card is the phone's");
+    test.setTimeout(120_000);
+    await page.goto("/live");
+    const listen = page.getByTestId("live-tune-in");
+    await expect(listen).toBeInViewport({ ratio: 1, timeout: 30_000 });
+    await expect(listen).toContainText("Listen live");
+    await expect(page.getByTestId("listen-title").or(listen.getByText("Station break"))).toBeVisible();
+    await expect(page.getByTestId("listen-count")).toHaveText(/^\d+ tuned in now$/);
+    await listen.tap();
+    await expect.poll(async () => (await element(page))?.paused === false && ((await element(page))?.currentTime ?? 0) > 0, { timeout: 60_000 }).toBe(true);
+    await expect(listen).toHaveCount(0);
+    await expect(leaveButton(page)).toBeVisible();
+  });
+
   test("Leave the station stops the audio and clears the player, and it stays cleared after a refresh", async ({ page }) => {
     test.setTimeout(150_000);
     await tuneIn(page);
@@ -376,9 +391,9 @@ test.describe("tuned in", () => {
 // The first-time listener audit (docs/live-qa.md)
 // ---------------------------------------------------------------------------
 
-test("a first visit can find the station from the welcome page", async ({ page }) => {
+test("a first visit can find the station from the welcome page; a phone is taken straight there", async ({ page }, info) => {
   await page.goto("/");
-  await page.getByTestId("welcome-live").click();
+  if (!info.project.use.isMobile) await page.getByTestId("welcome-live").click();
   await expect(page).toHaveURL(/\/live$/, { timeout: 15_000 });
   await expect(page.getByTestId("live-tune-in")).toBeVisible({ timeout: 30_000 });
 });

@@ -432,3 +432,181 @@ describe("the call-in box", () => {
     done();
   });
 });
+
+describe("calling from", () => {
+  const brusselsZone = () => {
+    const real = Intl.DateTimeFormat;
+    return vi.spyOn(Intl, "DateTimeFormat").mockImplementation(((...args: ConstructorParameters<typeof Intl.DateTimeFormat>) => {
+      const f = new real(...args);
+      const resolved = f.resolvedOptions();
+      return Object.assign(Object.create(f), { resolvedOptions: () => ({ ...resolved, timeZone: "Europe/Brussels" }) });
+    }) as never);
+  };
+
+  beforeEach(() => localStorage.clear());
+
+  it("a call shows where the caller is calling from, after the name; a call without a place shows the name alone", () => {
+    const { host, es, done } = render();
+    act(() =>
+      es().emit("hello", {
+        you,
+        slowMode: slowOff,
+        recent: [msg(1, { name: "Night Owl", place: "Ghent" }), msg(2, { name: "Dust Devil" })],
+        resumed: false,
+        hidden: [],
+      }),
+    );
+    const [a, b] = all(host, "live-message");
+    expect(a.textContent).toContain("Night Owl, calling from Ghent");
+    expect(q(b, "caller-place")).toBeNull();
+    // An admin's clear-name clears the place with it.
+    act(() => es().emit("rename", { ids: [1], name: "Caller 7", place: null }));
+    expect(q(all(host, "live-message")[0], "caller-place")).toBeNull();
+    done();
+  });
+
+  it("a first call offers the field, suggested from the time zone, and the place goes up before the call", async () => {
+    const zone = brusselsZone();
+    const order: string[] = [];
+    respond((url, body) => {
+      order.push(url);
+      if (url === "/live-api/place") return [200, { place: body.place, nextChangeInS: 600 }];
+      if (url === "/live-api/messages") return [201, msg(20, { body: body.body, name: you.name, place: "Brussels" })];
+      return [200, {}];
+    });
+    try {
+      const { host, es, done } = render();
+      act(() => es().emit("hello", { you: { ...you, place: null, firstCall: true }, slowMode: slowOff, recent: [], resumed: false, hidden: [] }));
+      const field = q(host, "first-call-place") as HTMLInputElement;
+      expect(field.value).toBe("Brussels");
+      expect(q(host, "first-call-hint")!.textContent).toBe("First call? Say hello. Everyone tuned in hears it.");
+      expect(host.textContent).not.toMatch(/—/);
+
+      type(host.querySelector<HTMLInputElement>('input[aria-label="Your call"]')!, "evening all");
+      await submit(q(host, "composer")!);
+      expect(order.filter((u) => u.startsWith("/live-api/"))).toEqual(["/live-api/place", "/live-api/messages"]);
+      expect(JSON.parse(String(fetchMock.mock.calls.find((c) => c[0] === "/live-api/place")![1].body))).toEqual({ place: "Brussels" });
+      // Called: the offer and the hint are done.
+      expect(q(host, "first-call-place")).toBeNull();
+      expect(q(host, "first-call-hint")).toBeNull();
+      expect(q(host, "you-place")!.textContent).toBe("Brussels");
+      done();
+    } finally {
+      zone.mockRestore();
+    }
+  });
+
+  it("the field is optional: emptied, nothing but the call is sent; a refused place stops the call and says why", async () => {
+    const urls: string[] = [];
+    respond((url, body) => {
+      urls.push(url);
+      if (url === "/live-api/place" && body.place === "<x>") return [400, { error: "rejected", reason: "place-chars", message: "Places can use letters." }];
+      if (url === "/live-api/messages") return [201, msg(21, { body: body.body, name: you.name })];
+      return [200, {}];
+    });
+    const { host, es, done } = render();
+    act(() => es().emit("hello", { you: { ...you, place: null, firstCall: true }, slowMode: slowOff, recent: [], resumed: false, hidden: [] }));
+    const field = q(host, "first-call-place") as HTMLInputElement;
+    const box = host.querySelector<HTMLInputElement>('input[aria-label="Your call"]')!;
+
+    type(field, "<x>");
+    type(box, "hello");
+    await submit(q(host, "composer")!);
+    expect(urls).toEqual(["/live-api/place"]);
+    expect(q(host, "live-rejection")!.textContent).toBe("Places can use letters.");
+    expect(box.value).toBe("hello");
+
+    type(field, "");
+    await submit(q(host, "composer")!);
+    expect(urls).toEqual(["/live-api/place", "/live-api/messages"]);
+    done();
+  });
+
+  it("the hint is shown once per browser", () => {
+    const first = render();
+    act(() => first.es().emit("hello", { you: { ...you, firstCall: true }, slowMode: slowOff, recent: [], resumed: false, hidden: [] }));
+    expect(q(first.host, "first-call-hint")).not.toBeNull();
+    first.done();
+    const again = render();
+    act(() => again.es().emit("hello", { you: { ...you, firstCall: true }, slowMode: slowOff, recent: [], resumed: false, hidden: [] }));
+    expect(q(again.host, "first-call-hint")).toBeNull();
+    again.done();
+  });
+
+  it("the header changes it, and clears it", async () => {
+    const posted: unknown[] = [];
+    respond((url, body) => {
+      if (url === "/live-api/place") {
+        posted.push(body);
+        return [200, { place: body.place || null, nextChangeInS: 600 }];
+      }
+      return [404, {}];
+    });
+    const { host, es, done } = render();
+    act(() => es().emit("hello", { you: { ...you, place: "Denver" }, slowMode: slowOff, recent: [], resumed: false, hidden: [] }));
+    expect(q(host, "you-place")!.textContent).toBe("Denver");
+    act(() => q(host, "change-place")!.click());
+    type(host.querySelector<HTMLInputElement>('input[aria-label="Calling from"]')!, "Boulder");
+    await submit(q(host, "place-editor")!);
+    expect(q(host, "you-place")!.textContent).toBe("Boulder");
+
+    act(() => q(host, "change-place")!.click());
+    await act(async () => {
+      q(host, "clear-place")!.click();
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+    });
+    expect(posted).toEqual([{ place: "Boulder" }, { place: "" }]);
+    expect(q(host, "you-place")).toBeNull();
+    expect(q(host, "change-place")!.textContent).toBe("Add where you're calling from");
+    done();
+  });
+});
+
+describe("the room, where people decide to speak", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("beside the call box: how many are tuned in now, from the one presence feed", () => {
+    // Distinct from online (5) and listening (3), so the right one is read.
+    presence.live = 6;
+    const { host, es, done } = render();
+    act(() => es().emit("hello", { you, slowMode: slowOff, recent: [], resumed: false, hidden: [] }));
+    const count = q(host, "call-box-listeners")!;
+    expect(q(host, "composer")!.contains(count)).toBe(true);
+    expect(count.textContent).toBe("6 tuned in now");
+    expect(count.dataset.presence).toBe("live");
+    expect(count.dataset.live).toBe("6");
+    done();
+  });
+
+  it("tune-ins are quiet lines among the calls, in time order; a listener can hide them, and that is remembered", () => {
+    const { host, es, done } = render();
+    act(() =>
+      es().emit("hello", {
+        you,
+        slowMode: slowOff,
+        recent: [msg(1, { at: "2026-09-25T06:00:00.000Z" }), msg(2, { at: "2026-09-25T06:02:00.000Z" })],
+        resumed: false,
+        hidden: [],
+        tuneins: [{ at: "2026-09-25T06:01:00.000Z", count: 1, places: ["Ohio"] }],
+      }),
+    );
+    act(() => es().emit("tunein", { at: "2026-09-25T06:03:00.000Z", count: 2, places: [] }));
+    const rows = [...host.querySelectorAll('[data-testid="live-messages"] > li')].map((li) =>
+      li.getAttribute("data-testid") === "tunein-notice" ? li.textContent : `call ${li.getAttribute("data-id")}`,
+    );
+    expect(rows).toEqual(["call 1", "A listener just tuned in from Ohio", "call 2", "2 new listeners tuned in"]);
+
+    act(() => q(host, "toggle-tuneins")!.click());
+    expect(all(host, "tunein-notice")).toHaveLength(0);
+    expect(all(host, "live-message")).toHaveLength(2);
+    expect(q(host, "toggle-tuneins")!.textContent).toBe("Show tune-ins");
+    done();
+
+    const again = render();
+    act(() => again.es().emit("hello", { you, slowMode: slowOff, recent: [], resumed: false, hidden: [], tuneins: [{ at: "2026-09-25T06:01:00.000Z", count: 1, places: [] }] }));
+    expect(all(again.host, "tunein-notice")).toHaveLength(0);
+    act(() => q(again.host, "toggle-tuneins")!.click());
+    expect(all(again.host, "tunein-notice")).toHaveLength(1);
+    again.done();
+  });
+});

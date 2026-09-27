@@ -21,9 +21,21 @@ export default function WelcomePage() {
   // navigate at 900ms — a mandatory wait on every hit of the root URL, spent
   // hydrating a splash (starfield rAF loop included) purely to leave it.
   useEffect(() => {
-    if (!safeGetItem("local", "hd-visited")) return;
-    setIsReturning(true);
-    router.replace("/library");
+    if (safeGetItem("local", "hd-visited")) {
+      setIsReturning(true);
+      router.replace("/library");
+      return;
+    }
+    // A phone's first visit goes straight to the station, whose first screen
+    // is one "Listen live" tap (docs/funnel.md). On launch night 75% of the
+    // people online were on phones and 3 in 4 never pressed play; a splash
+    // that asks them to choose between the archive and the station is one
+    // screen too many. The same breakpoint as useIsMobile.
+    if (typeof window.matchMedia === "function" && !window.matchMedia("(min-width: 768px)").matches) {
+      safeSetItem("local", "hd-visited", "1");
+      setIsReturning(true);
+      router.replace("/live");
+    }
   }, [router]);
 
   // Episode count. Seeded from the build-time catalog size so the line shows

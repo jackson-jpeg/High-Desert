@@ -11,8 +11,9 @@ import { createRoot, type Root } from "react-dom/client";
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
 const push = vi.hoisted(() => vi.fn());
+const replace = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push, replace: vi.fn(), back: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => ({ push, replace, back: vi.fn(), prefetch: vi.fn() }),
   usePathname: () => "/",
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -74,6 +75,36 @@ describe("the welcome page", () => {
       expect(posts).toEqual([]);
     } finally {
       library.count = 0;
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("a phone's first visit goes straight to the station; a desktop's stays; a return visit goes to the library", () => {
+    const media = (desktop: boolean) =>
+      vi.stubGlobal("matchMedia", (q: string) => ({ matches: q === "(min-width: 768px)" ? desktop : false, media: q, addEventListener() {}, removeEventListener() {} }));
+    try {
+      media(false);
+      replace.mockClear();
+      act(() => root.render(createElement(WelcomePage)));
+      expect(replace).toHaveBeenCalledWith("/live");
+      expect(localStorage.getItem("hd-visited")).toBe("1");
+
+      act(() => root.unmount());
+      localStorage.clear();
+      replace.mockClear();
+      media(true);
+      root = createRoot(host);
+      act(() => root.render(createElement(WelcomePage)));
+      expect(replace).not.toHaveBeenCalled();
+
+      act(() => root.unmount());
+      localStorage.setItem("hd-visited", "1");
+      media(false);
+      root = createRoot(host);
+      act(() => root.render(createElement(WelcomePage)));
+      expect(replace).toHaveBeenCalledWith("/library");
+      expect(replace).not.toHaveBeenCalledWith("/live");
+    } finally {
       vi.unstubAllGlobals();
     }
   });

@@ -42,6 +42,11 @@ import {
   BAN_HOLD_MS,
   BAN_HOLD_INTERVAL_MS,
   LEGACY_ADOPT_MS,
+  PLACE_CHANGE_MS,
+  TUNEIN_BATCH_MS,
+  TUNEIN_REPEAT_MS,
+  TUNEIN_PLACES_SHOWN,
+  TUNEIN_ON_HELLO,
 } from "./config.mjs";
 import { createStore } from "./store.mjs";
 import { createHub } from "./sse.mjs";
@@ -141,6 +146,8 @@ export function createLiveApp({
   now = Date.now,
   /** Tests only: where random caller names come from. */
   randomName = randomCallerName,
+  /** Tests only: the tune-in notice batch window. */
+  tuneinBatchMs = TUNEIN_BATCH_MS,
   heartbeatMs,
   log = (msg) => console.log(msg),
   /** Tests only: a private live_settings key, so parallel test apps do not share forced slow mode. */
@@ -194,6 +201,7 @@ export function createLiveApp({
     firstCallCounter.sweep();
     addressMessages.sweep();
     addressReports.sweep();
+    sweepTuneins();
     announceSlowIfChanged();
   }, 5_000);
   slowTimer.unref?.();
@@ -203,6 +211,53 @@ export function createLiveApp({
       hub.broadcast("slow", s);
     }
     lastSlow = s;
+  }
+
+  // ---- tune-in notices ---------------------------------------------------
+  // "A listener just tuned in from Ohio." Batched: the first tune-in after a
+  // quiet minute goes out at once, anything after it waits for the minute to
+  // pass and goes out as one line. Nothing is stored; the last few are kept
+  // in memory for a new stream's hello.
+
+  /** caller ref → when they were last announced. */
+  const tuneinSeen = new Map();
+  let tuneinPending = null;
+  let tuneinTimer = null;
+  let tuneinLastAt = -Infinity;
+  const tuneinRecent = [];
+
+  function flushTuneins() {
+    tuneinTimer = null;
+    if (!tuneinPending) return;
+    const notice = { at: new Date(now()).toISOString(), ...tuneinPending };
+    tuneinPending = null;
+    tuneinLastAt = now();
+    tuneinRecent.push(notice);
+    if (tuneinRecent.length > TUNEIN_ON_HELLO) tuneinRecent.shift();
+    hub.broadcast("tunein", notice);
+  }
+
+  /** Returns whether this tune-in will be announced. */
+  function noteTunein(ref, place) {
+    const t = now();
+    const last = tuneinSeen.get(ref);
+    if (last !== undefined && t - last < TUNEIN_REPEAT_MS) return false;
+    tuneinSeen.set(ref, t);
+    tuneinPending ??= { count: 0, places: [] };
+    tuneinPending.count += 1;
+    if (place && tuneinPending.places.length < TUNEIN_PLACES_SHOWN && !tuneinPending.places.includes(place)) {
+      tuneinPending.places.push(place);
+    }
+    if (!tuneinTimer) {
+      tuneinTimer = setTimeout(flushTuneins, Math.max(0, tuneinLastAt + tuneinBatchMs - t));
+      tuneinTimer.unref?.();
+    }
+    return true;
+  }
+
+  function sweepTuneins() {
+    const t = now();
+    for (const [ref, at] of tuneinSeen) if (t - at >= TUNEIN_REPEAT_MS) tuneinSeen.delete(ref);
   }
 
   // ---- identity ----------------------------------------------------------
@@ -279,8 +334,9 @@ export function createLiveApp({
   }
 
   async function you(caller, req) {
-    const { name, line } = await ensureCaller(caller);
-    return { name, line: LINES[line] ?? LINES[0], admin: isAdminRequest(req, adminToken, now()) };
+    const { name, line, place } = await ensureCaller(caller);
+    const firstCall = !(spoken.has(caller.ref) || (await store.hasSpoken(caller.ref)));
+    return { name, line: LINES[line] ?? LINES[0], place, firstCall, admin: isAdminRequest(req, adminToken, now()) };
   }
 
   /**
@@ -290,8 +346,9 @@ export function createLiveApp({
   async function ensureCaller({ ref, addr }) {
     const current = await store.getName(ref);
     const line = current?.line ?? (await store.assignLine(ref, addr, lineFor(ref)));
-    if (current?.name) return { name: current.name, line };
-    return { name: await freshName(ref, { markChanged: false }), line };
+    const place = current?.place ?? null;
+    if (current?.name) return { name: current.name, line, place };
+    return { name: await freshName(ref, { markChanged: false }), line, place };
   }
 
   /**
@@ -405,7 +462,7 @@ export function createLiveApp({
     hub.send(
       client,
       "hello",
-      { you: me, slowMode: limits.slowMode(), recent, resumed: !!lastId, hidden },
+      { you: me, slowMode: limits.slowMode(), recent, resumed: !!lastId, hidden, tuneins: [...tuneinRecent] },
       lastSent,
     );
   }
@@ -436,8 +493,8 @@ export function createLiveApp({
       const retryAfter = seconds(busy.retryAfterMs);
       throw new HttpError(429, { error: "rate", retryAfter, slowMode: limits.slowMode().on }, { "retry-after": String(retryAfter) }, "address-messages");
     }
-    const { name, line } = await ensureCaller(caller);
-    const msg = await store.insertMessage({ clientRef: ref, addrRef: addr, name, line, body: verdict.text });
+    const { name, line, place } = await ensureCaller(caller);
+    const msg = await store.insertMessage({ clientRef: ref, addrRef: addr, name, place, line, body: verdict.text });
     spoken.add(ref);
     const turnedSlow = limits.record(ref, key);
     hub.broadcast("message", msg, msg.id);
@@ -464,6 +521,48 @@ export function createLiveApp({
     if (r === "taken") throw new HttpError(409, { error: "taken", message: "Someone on the lines already has that name." });
     spoken.add(ref);
     sendJson(res, 200, { name: verdict.text, line: LINES[line] ?? LINES[0], nextChangeInS: NAME_CHANGE_MS / 1000 });
+  }
+
+  /**
+   * "Calling from". `{place}`: a new place, filtered like a name and limited
+   * like one (PLACE_CHANGE_MS); empty or null clears it, always, at once.
+   * Setting a place is not a call: it does not pass the first-call checks,
+   * and nothing is said on the air until the caller's next message.
+   */
+  async function postPlace(req, res) {
+    checkPost(req);
+    const body = await readJson(req);
+    const caller = await callerOf(req, res);
+    const { ref } = caller;
+    await assertMayPost(ref);
+    const verdict = moderate.place(typeof body.place === "string" ? body.place : "");
+    if (!verdict.ok) throw new HttpError(400, { error: "rejected", reason: verdict.reason, message: REASON_TEXT[verdict.reason] });
+    await ensureCaller(caller);
+    if (verdict.text !== null) {
+      const current = await store.getName(ref);
+      if (current?.place === verdict.text) return sendJson(res, 200, { place: verdict.text, nextChangeInS: seconds(await store.placeWaitMs(ref)) });
+      const wait = await store.placeWaitMs(ref);
+      if (wait > 0) {
+        const retryAfter = seconds(wait);
+        throw new HttpError(429, { error: "rate", retryAfter, message: "Where you're calling from can change once every 10 minutes." }, { "retry-after": String(retryAfter) });
+      }
+    }
+    await store.setPlace(ref, verdict.text);
+    sendJson(res, 200, { place: verdict.text, nextChangeInS: verdict.text === null ? seconds(await store.placeWaitMs(ref)) : PLACE_CHANGE_MS / 1000 });
+  }
+
+  /**
+   * This browser just tuned in to the station. Announced to the room as a
+   * quiet line (batched, and once an hour per caller at most), with the
+   * caller's place if they have set one. `{announced}` says which.
+   */
+  async function postTuned(req, res) {
+    checkPost(req);
+    await readJson(req);
+    const caller = await callerOf(req, res);
+    if (bans.has(caller.ref)) return sendJson(res, 200, { announced: false });
+    const current = await store.getName(caller.ref);
+    sendJson(res, 200, { announced: noteTunein(caller.ref, current?.place ?? null) });
   }
 
   async function postReport(req, res) {
@@ -531,8 +630,11 @@ export function createLiveApp({
         const m = await messageOr404(body.messageId);
         const name = await freshName(m.clientRef, { markChanged: true });
         if (!name) throw new HttpError(503, { error: "no-name-available" });
+        // A name that needed clearing may have come with a place that does:
+        // both go, on the caller and on what they said.
+        await store.setPlace(m.clientRef, null);
         const ids = await store.renameMessages(m.clientRef, name);
-        if (ids.length) hub.broadcast("rename", { ids, name });
+        if (ids.length) hub.broadcast("rename", { ids, name, place: null });
         return sendJson(res, 200, { ok: true, name });
       }
       case "verify": {
@@ -604,15 +706,19 @@ export function createLiveApp({
       if (bans.has(ref)) return sendJson(res, 200, { banned: true, admin: false });
       const mute = await store.activeMute(ref);
       const wait = await store.renameWaitMs(ref);
+      const placeWait = await store.placeWaitMs(ref);
       return sendJson(res, 200, {
         ...(await you(caller, req)),
         mutedUntil: mute ? new Date(mute.until).toISOString() : null,
         nextNameChangeInS: wait > 0 ? seconds(wait) : 0,
+        nextPlaceChangeInS: placeWait > 0 ? seconds(placeWait) : 0,
         slowMode: limits.slowMode(),
       });
     }
     if (m === "POST" && p === "/live-api/messages") return postMessage(req, res);
     if (m === "POST" && p === "/live-api/name") return postName(req, res);
+    if (m === "POST" && p === "/live-api/place") return postPlace(req, res);
+    if (m === "POST" && p === "/live-api/tuned") return postTuned(req, res);
     if (m === "POST" && p === "/live-api/report") return postReport(req, res);
     if (m === "POST" && p === "/live-api/admin/signin") return signin(req, res);
     if (m === "POST" && p === "/live-api/admin/signout") {
@@ -656,6 +762,7 @@ export function createLiveApp({
     close() {
       clearInterval(retentionTimer);
       clearInterval(slowTimer);
+      clearTimeout(tuneinTimer);
       cpu.stop();
       hub.close();
     },
