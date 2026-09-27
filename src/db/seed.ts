@@ -94,6 +94,15 @@ export async function fetchSeedRows(): Promise<Record<string, unknown>[] | null>
  */
 let _seedPromise: Promise<boolean> | null = null;
 
+/**
+ * Whether a first seed says so. Not on the station: its first screen is one
+ * Listen live tap on a phone, and the toast sat on top of it. The library is
+ * the place that number means anything.
+ */
+export function announcesSeed(pathname: string): boolean {
+  return !/^\/live(\/|$)/.test(pathname);
+}
+
 export function seedLibraryIfEmpty(): Promise<boolean> {
   if (!_seedPromise) _seedPromise = withSeedLock(_seedLibraryIfEmpty);
   return _seedPromise;
@@ -159,7 +168,9 @@ async function _seedLibraryIfEmpty(): Promise<boolean> {
     });
     if (!inserted) return false;
 
-    toast.success(`Loaded ${episodes.length.toLocaleString()} episodes from catalog`);
+    if (announcesSeed(typeof location === "undefined" ? "" : location.pathname)) {
+      toast.success(`Loaded ${episodes.length.toLocaleString()} episodes from catalog`);
+    }
     return true;
   } catch (err) {
     console.warn("[seed] Failed to load seed catalog:", err);

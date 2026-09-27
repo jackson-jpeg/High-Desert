@@ -24,7 +24,14 @@ export const BOOT_SCRIPT = `
     var reduceMotion = window.matchMedia
       && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    var isFirstVisit = !readStore('hd-booted') && !reduceMotion;
+    // Nor does a phone. Its first visit lands on the station, whose first
+    // screen is one Listen live tap (docs/funnel.md); 2.8s of theatre over
+    // it hid the card, and the first tap only dismissed the overlay. The
+    // same breakpoint as useIsMobile.
+    var narrow = window.matchMedia
+      && !window.matchMedia('(min-width: 768px)').matches;
+
+    var isFirstVisit = !readStore('hd-booted') && !reduceMotion && !narrow;
     var bootContainer = document.getElementById('boot-container');
     var quickSplash = document.getElementById('quick-splash');
 
