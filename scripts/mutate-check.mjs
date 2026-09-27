@@ -2860,6 +2860,14 @@ export const MUTATIONS = [
     why: "the catalog toast sat on top of a phone's Listen live card",
   },
   {
+    id: "e2e-tokens-filter-safe",
+    test: "scripts/__tests__/e2e-tokens.test.ts",
+    file: "e2e/tokens.ts",
+    find: `  "moon", "star", "wind", "rain", "dial", "tone", "echo", "lamp",`,
+    replace: `  "moon", "star", "wind", "rain", "dial", "tone", "echo", "fck",`,
+    why: "a token the chat filter masks goes out altered, and the spec cannot find its own call",
+  },
+  {
     id: "funnel-status-shares",
     test: "scripts/__tests__/status.test.ts",
     file: "scripts/status.sh",
