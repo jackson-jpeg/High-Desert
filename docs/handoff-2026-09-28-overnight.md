@@ -19,7 +19,7 @@ pins reach their target.
   redeployed. This handoff's own commit is deployed after it, so there is no
   drift.
 - **Pushed:** `main` on GitHub is the merge of #41 plus this handoff (PR #42).
-- **`highdesert-status`:** __STATUS__
+- **`highdesert-status`:** read at 06:59 UTC, after the pins reached target and before this doc's own deploy: **every line OK but `release`**, which was still reading b2feecc's window from the deployed copy of `docs/reliability-baseline.md` (WARN 4.4%, 50 / 1,147). `warm` OK (332 pinned, 15.0 GB, 0 failed), `mirror` OK (332 pinned), `cpu` OK (highest 1.3%). This commit moves the release line to 15144c1; the reading after its deploy is in the session's final report, and the next session should record it in the baseline's table.
 - **Funnel verdict job:** `highdesert-funnel-verdict.timer` is installed and
   enabled (17:40 UTC daily). Its first run: 82 of the 300 post-09-28 phone
   arrivals, so no verdict yet.
