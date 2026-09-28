@@ -161,6 +161,12 @@ for (const [route, tab, heading] of [
     await page.getByRole("navigation").getByRole("button", { name: tab, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`${route}$`));
     await expect(page.getByRole("heading", { level: 1, name: heading })).toBeAttached({ timeout: 30_000 });
+    // /search asks archive.org on mount and its cards fade in when the answer
+    // lands, on the network's timer: settle only after it has answered, or
+    // axe measures the cards mid-fade (CI, 2026-09-28: an Add button at 1.29:1).
+    if (route === "/search") {
+      await expect(page.locator('[data-search-results][aria-busy="false"]')).toBeAttached({ timeout: 45_000 });
+    }
     await settled(page);
     await scan(page, route);
   });

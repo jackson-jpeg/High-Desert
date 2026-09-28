@@ -5255,6 +5255,22 @@ export const MUTATIONS = [
     replace: `    if false; then`,
     why: "a digest that never reached the Mac read as fine forever",
   },
+  {
+    id: "live-held-pick-leaves",
+    test: "src/audio/__tests__/live-station.test.ts",
+    file: "src/audio/live-controller.ts",
+    find: `const stationHash = current?.fileHash ?? prev.currentEpisode?.fileHash;`,
+    replace: `const stationHash = current?.fileHash;`,
+    why: "after a reload, a show picked while held left the station only once its sound began; leave first and the station came back",
+  },
+  {
+    id: "search-results-busy",
+    test: "src/components/search/__tests__/search-panel-busy.test.tsx",
+    file: "src/components/search/SearchPanel.tsx",
+    find: `aria-busy={loading || (!hasInitialized && results.length === 0)}`,
+    replace: `aria-busy={false}`,
+    why: "/search said it was ready before its results arrived, and axe scanned cards mid-fade",
+  },
   // ── Which mutations CI checks (selectMutations, .github/workflows/mutations.yml) ──
   // The finds below that target this file spell one character as an escape
   // (\x7c is "|", \x26 "&", \x25 "%", \x3e ">", \x3f "?"), so the anchor is
