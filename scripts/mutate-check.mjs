@@ -1382,8 +1382,8 @@ export const MUTATIONS = [
     id: "blob-not-revoked-before-retry",
     test: "src/hooks/__tests__/play-session.test.ts",
     file: "src/hooks/useAudioPlayer.ts",
-    find: "        if (isWatching()) {\n          noteError(\"play-rejected\");\n        } else {\n          usePlayerStore.getState().setLoadState(\"failed\");\n          setError(\"Playback failed. The audio source may be unavailable.\");",
-    replace: "        if (isObjectUrl) URL.revokeObjectURL(url);\n        if (isWatching()) {\n          noteError(\"play-rejected\");\n        } else {\n          usePlayerStore.getState().setLoadState(\"failed\");\n          setError(\"Playback failed. The audio source may be unavailable.\");",
+    find: "        if (isWatching()) {\n          const r = playRejection(err);\n          noteError(r.kind, r.detail, { wanted: true });\n        } else {\n          usePlayerStore.getState().setLoadState(\"failed\");\n          setError(\"Playback failed. The audio source may be unavailable.\");",
+    replace: "        if (isObjectUrl) URL.revokeObjectURL(url);\n        if (isWatching()) {\n          const r = playRejection(err);\n          noteError(r.kind, r.detail, { wanted: true });\n        } else {\n          usePlayerStore.getState().setLoadState(\"failed\");\n          setError(\"Playback failed. The audio source may be unavailable.\");",
     why: "HD-033: revoking the object URL before the watchdog's retry re-assigns it guarantees the retry fails",
   },
   {
