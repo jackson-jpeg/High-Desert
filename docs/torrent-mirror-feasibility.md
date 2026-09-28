@@ -144,6 +144,47 @@ whose *Try Again* is a real gesture). No device test was run.
   skips itself when hypervisor steal is over 20%, because the 2026-09-22 episode
   ran near 90%. `highdesert-status` reports steal (WARN >20%, FAIL >50%).
 
+### The real disk budget (measured 2026-09-28)
+
+The 34 GB free of §4 is gone. The warm run of 2026-09-27 stopped at the floor
+with 318 pins, down from 339, and nothing said so. Measured on 2026-09-28
+(`df`, `du -sb`):
+
+| | Bytes | GiB |
+|---|---|---|
+| Disk | 102,888,095,744 | 95.8 |
+| Free | 7,307,722,752 | 6.8 |
+| Warm floor (`MIRROR_DISK_FLOOR_GB`) | 10,737,418,240 | 10.0 |
+| Pin target (`MIRROR_PIN_MAX_GB`) | 16,106,127,360 | 15.0 |
+| Pinned now (318 episodes) | 15,547,047,098 | 14.48 |
+| Fill cache (`/var/cache/highdesert-mirror/proxy`) | 0 | 0 |
+
+So the pin set **cannot** be restored to the target now. Free space sits
+3.2 GiB *below* the floor, and the job adds a pin only when free space minus
+the file stays above the floor. The target is 0.52 GiB short, and the top
+episodes still missing are listed in `warm-status.json` (`targetMissing`). What
+holds the disk is outside High Desert: `/root` 37 GB (other projects' trees
+and worktrees), `/tmp` 9.4 GB (other sessions' scratch), `/usr` 9.1 GB. The
+mirror's 15.5 GB is its whole share.
+
+What changed so that this cannot shrink silently again:
+
+- **Pins come first.**
+  - An out-of-top pin is dropped only to make room for a top episode that
+    then fits, or after every top episode is present. It is never dropped
+    up front.
+  - A run that stops at the floor keeps what it had.
+- **Fill slices give way first.** nginx's `min_free` is 12g, 2 GB above the
+  warm floor, so the slice cache evicts itself before the warm job's floor is
+  reached.
+- **`highdesert-status` WARNs** (`warm` line) whenever the pinned set is short
+  of the top episodes the budget holds, or the run stopped at the floor. The
+  line gives the pinned count, bytes against the target, and free space
+  against the floor.
+
+The target is reached again when about 3.2 GiB more is free on the disk, or
+the floor is lowered. Either is a decision for the box's owner, not the job.
+
 ## 5. What would change the answer
 
 - **archive.org regenerating the item torrent with the MP3s.** Then its swarm and

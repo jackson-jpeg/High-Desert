@@ -506,8 +506,13 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   `Nice=19`, idle I/O) pins the most-played episodes by 90-day `play_events`, whole
   files only, up to 15 GB: a plain HTTP download into `/var/lib/highdesert-mirror/tmp`,
   **verified against the `.torrent`'s piece SHA-1s**, then renamed into `pins/` — a
-  name in `pins/` is always a whole, verified episode. Episodes that fell out of the
-  top are unpinned first, never on an empty play list. It rewrites
+  name in `pins/` is always a whole, verified episode. **Pins come first**: an
+  episode that fell out of the top is unpinned only to make room for a top one
+  that then fits (or once every top one is present), never up front and never on
+  an empty play list; nginx's `min_free` (12g) sits 2 GB above the warm floor so
+  fill slices give way before any pin. The disk does not currently hold the
+  15 GiB target (`docs/torrent-mirror-feasibility.md`, "The real disk budget"),
+  and `highdesert-status`'s `warm` line WARNs while pins are below it. It rewrites
   `/var/lib/highdesert-mirror/manifest.json` **atomically** (temp + rename: nginx may
   be mid-send). **It skips itself while hypervisor steal is above 20%** and records
   why in `/var/cache/highdesert-mirror/warm-status.json`.
