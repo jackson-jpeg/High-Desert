@@ -243,6 +243,24 @@ describe("deploy.sh", () => {
     expect(await restarts()).toBe(1);
   });
 
+  it("every deploy is appended to .deploy/history; a failed build adds nothing", async () => {
+    // The release line counts rows from the builds deployed since the release
+    // (scripts/status.sh), so this log is its input.
+    await startServer();
+    const history = async () =>
+      (await readFile(path.join(h.root, ".deploy/history"), "utf8").catch(() => "")).split("\n").filter(Boolean);
+    expect((await run([], { FAKE_BUILD: "fail" })).code).not.toBe(0);
+    expect(await history()).toEqual([]);
+    expect((await run([])).code).toBe(0);
+    expect((await run([])).code).toBe(0);
+    const head = await git("rev-parse", "--short", "HEAD");
+    const lines = await history();
+    expect(lines).toHaveLength(2);
+    for (const l of lines) expect(l).toMatch(new RegExp(`^${head} \\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ$`));
+    // The last line is what .deploy/deployed says is live.
+    expect((await readFile(path.join(h.root, ".deploy/deployed"), "utf8")).trim()).toBe(lines[1]);
+  });
+
   it("a build that fails verification is rolled back automatically", async () => {
     await startServer();
     const r = await run([], { FAKE_BUILD: "no-chunks" });

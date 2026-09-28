@@ -24,6 +24,7 @@
  */
 
 import type { Episode } from "@/db/schema";
+import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/utils/safe-storage";
 
 export interface LiveStart {
   fileHash: string;
@@ -40,9 +41,27 @@ export interface LiveStart {
 }
 
 let live: LiveStart | null = null;
-/** Airings already counted by this client. Bounded: a day is ~10 slots. */
-const counted = new Set<string>();
+/**
+ * Airings already counted by this tab. Bounded: a day is ~10 slots. Kept in
+ * sessionStorage, so a reload (a listener's, or the tab updating itself to a
+ * new build, src/services/build/stale-tab.ts) does not count the same airing
+ * again when they come back to it. Storage blocked: memory only, as before.
+ */
+export const COUNTED_MARK = "hd-live-counted";
+let counted: Set<string> | null = null;
 const COUNTED_MAX = 64;
+
+function countedAirings(): Set<string> {
+  if (counted) return counted;
+  let saved: unknown = null;
+  try {
+    saved = JSON.parse(safeGetItem("session", COUNTED_MARK) ?? "null");
+  } catch {
+    saved = null;
+  }
+  counted = new Set(Array.isArray(saved) ? saved.filter((k): k is string => typeof k === "string") : []);
+  return counted;
+}
 let endedHandler: (() => void) | null = null;
 let resumeHandler: (() => boolean) | null = null;
 let stopHandler: (() => void) | null = null;
@@ -80,9 +99,11 @@ export function liveStartFor(episode: Pick<Episode, "fileHash">): number | null 
 export function claimLiveListen(episode: Pick<Episode, "fileHash">): boolean | null {
   if (!matches(episode)) return null;
   const key = live!.slotKey;
-  if (counted.has(key)) return false;
-  counted.add(key);
-  while (counted.size > COUNTED_MAX) counted.delete(counted.values().next().value!);
+  const seen = countedAirings();
+  if (seen.has(key)) return false;
+  seen.add(key);
+  while (seen.size > COUNTED_MAX) seen.delete(seen.values().next().value!);
+  safeSetItem("session", COUNTED_MARK, JSON.stringify([...seen]));
   return true;
 }
 
@@ -149,10 +170,16 @@ export function stopPlayerForLive(): void {
 export const __testing = {
   reset() {
     live = null;
-    counted.clear();
+    counted = null;
+    safeRemoveItem("session", COUNTED_MARK);
     endedHandler = null;
     resumeHandler = null;
     refusedHandler = null;
     stopHandler = null;
+  },
+  /** What a reload does to this module: memory gone, the tab's sessionStorage kept. */
+  reload() {
+    live = null;
+    counted = null;
   },
 };

@@ -1,6 +1,7 @@
 import { fetchWithRetry } from "@/lib/utils/retry";
 import type { FailureKind } from "@/audio/playback-watchdog";
 import type { SourceKind } from "@/audio/sources";
+import { pageBuild } from "@/lib/utils/build-id";
 
 const RETRY_OPTS = { retries: 1, timeout: 5000 } as const;
 
@@ -8,12 +9,22 @@ const RETRY_OPTS = { retries: 1, timeout: 5000 } as const;
 // Writes — fire-and-forget, never throw
 // ---------------------------------------------------------------------------
 
+/**
+ * `{ build }` for a play or failure row: the build this page runs, so a row is
+ * counted against the build that wrote it (docs/reliability-baseline.md).
+ * Omitted when the page cannot say, which the server stores as unknown.
+ */
+function buildTag(): { build?: string } {
+  const build = pageBuild();
+  return build ? { build } : {};
+}
+
 /** `source`: which host the listen is coming from (src/audio/sources.ts). */
 export function reportPlay(episodeId: string, sessionId: string, source?: SourceKind | null): void {
   fetch("/api/stats/play", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ episodeId, sessionId, ...(source ? { source } : {}) }),
+    body: JSON.stringify({ episodeId, sessionId, ...(source ? { source } : {}), ...buildTag() }),
   }).catch(() => {});
 }
 
@@ -66,7 +77,7 @@ export function reportPlaybackFailure(failure: PlaybackFailure): void {
   fetch("/api/playback-event", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(failure),
+    body: JSON.stringify({ ...failure, ...buildTag() }),
     // A failure reported at the moment the user gives up and closes the tab is
     // the most interesting kind, and is exactly the one a plain fetch drops.
     keepalive: true,

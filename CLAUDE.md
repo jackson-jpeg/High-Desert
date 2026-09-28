@@ -84,7 +84,7 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/archive/scrape` | GET | Proxy for catalog scrape (rate-limited 30/min) |
 | `/api/archive/metadata` | GET | Proxy for item metadata (cached 1hr) |
 | `/api/archive/health` | GET | archive.org reachability probe. Returns **`{up, status, checkedAt}`**. One upstream HEAD is shared by every caller for 60 s (up) / 10 s (down), and concurrent callers share the one in flight — every tab polls it (`useOutageMonitor`) |
-| `/api/stats/play` | POST | Record a play. Body `{episodeId, sessionId, source?}`. Returns `{ok}`. `episodeId` must be in the community-key allowlist. `source` is where the audio came from — `archive`/`mirror`/`cache`/`local` (`PLAY_SOURCES`); anything else is **400**, absent is stored NULL (*unknown*, never assumed to be archive.org) |
+| `/api/stats/play` | POST | Record a play. Body `{episodeId, sessionId, source?, build?}`. Returns `{ok}`. `episodeId` must be in the community-key allowlist. `source` is where the audio came from — `archive`/`mirror`/`cache`/`local` (`PLAY_SOURCES`); anything else is **400**, absent is stored NULL (*unknown*, never assumed to be archive.org). `build` is the sending page's build (see "Long-lived tabs"); anything that is not a build id is stored NULL, never refused |
 | `/api/stats/stop` | POST | End playback. Body `{sessionId, keepPresence?}`. `keepPresence: true` clears only the listening mark (the tab is still open); omitting it deletes the session, which is what the unload beacon does. Returns `{ok}` |
 | `/api/stats/rate` | POST | Submit a rating 1–5 or null. Body `{episodeId, rating}`. Returns `{ok}`. One ballot per client (IPv4 address / IPv6 /64), stored as an HMAC; **503 when `RATING_VOTER_SECRET` is unset** |
 | `/api/stats/episodes` | GET | Play counts for up to **100** ids. Returns **`{counts: {id: n}}`** |
@@ -96,8 +96,9 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/now` | GET | **The one presence endpoint.** Presence **plus what is playing**. Returns **`{online, listening, live, onAir: [{episodeId, listeners}], recent: [{episodeId, at}]}`**. `online` is distinct *clients* (not sessions) with a heartbeat inside 5 min; `listening` is the subset with a playing session; `live` the subset tuned in to the live station (`live_at` inside the window); `listeners` is distinct clients per episode. `no-store` — a stale on-air list is worse than none. Aggregate only: no query joins `session_id` to `episode_id`, and `recent_plays` stores no session at all |
 | `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, onlineMax, listeningMax, plays}], peakOnline, peakListening, playsInRange, totalPlays, peakAt, hourly: [{hour, online, listening, plays, samples}]}`**. A point's `online`/`listening` are the bucket's **mean**, `onlineMax`/`listeningMax` its highest sample — the chart's main lines. **`peakOnline`, `peakListening` and `peakAt` come from the raw 2-minute samples**, never from the buckets: a max of averages shrinks as the bucket widens, and 30 days once read a lower peak than 24 hours (`docs/stats-audit.md`, finding 12). `traffic_daily` keeps `peak_online`/`peak_listening`/`peak_at` past the 90-day sample prune; `highdesert-status`'s `peaks` line FAILs unless peak(30d) ≥ peak(7d) ≥ peak(24h). `hourly` is always a 24-entry, zero-filled, **UTC**-hour profile over the last 30 days and does *not* vary with `range`; the client rotates it into local time. `samples: 0` means *never observed*, which is not the same as "observed, nobody here" — the UI hides the profile until 8 hours have been sampled, or a day-old deployment draws 23 empty columns and looks like a dead site. **`playsBySource: {archive, mirror, …, unknown}`** counts `play_events` in the range by `source` — what `highdesert-status` reads for "mirror plays in 24h" |
 | `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Also prunes `weekly_plays` past 3 weeks. Returns `{ok, online, listening, live, totalPlays, rolledUp, anonymized, prunedWeeks}` (`live` is reported, not sampled — `listener_samples` has no column for it) |
-| `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass, detail?}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`handover-rejected`/`network-error`/`decode-error`/`empty-media`/`empty-media-suspected` (`handover-rejected`: the live station's change of show refused, counted like any failed start); `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. `detail` is short (≤200 char) free text: the reported duration on an advisory row, or `MediaError.code` plus its message on a `decode-error`/`network-error`/`empty-media`. That message is a browser pipeline diagnostic (`DEMUXER_ERROR_COULD_NOT_OPEN: …`) and is the **only** way an empty file is distinguishable from an unreachable one on Chromium, which errors on the missing frames rather than reporting a short duration. A `detail` containing `HD-VERIFY` (any case, checked after truncation) is **rejected with 400** — this table is the instrument that decides whether the 5s duration floor is safe to promote, and verification rows have polluted it twice; intercept the POST in the page instead. No session id, no IP. `episodeId` must be in the community-key allowlist. Optional `source` as on `/api/stats/play`, but an unknown value is stored NULL rather than refused — losing a failure row costs more than losing its source. A failover row carries the source that *failed* (`archive`) and `recovered: true` once the mirror plays |
+| `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass, detail?}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`handover-rejected`/`network-error`/`decode-error`/`empty-media`/`empty-media-suspected` (`handover-rejected`: the live station's change of show refused, counted like any failed start); `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. `detail` is short (≤200 char) free text: the reported duration on an advisory row, or `MediaError.code` plus its message on a `decode-error`/`network-error`/`empty-media`. That message is a browser pipeline diagnostic (`DEMUXER_ERROR_COULD_NOT_OPEN: …`) and is the **only** way an empty file is distinguishable from an unreachable one on Chromium, which errors on the missing frames rather than reporting a short duration. A `detail` containing `HD-VERIFY` (any case, checked after truncation) is **rejected with 400** — this table is the instrument that decides whether the 5s duration floor is safe to promote, and verification rows have polluted it twice; intercept the POST in the page instead. No session id, no IP. `episodeId` must be in the community-key allowlist. Optional `source` as on `/api/stats/play`, but an unknown value is stored NULL rather than refused — losing a failure row costs more than losing its source. A failover row carries the source that *failed* (`archive`) and `recovered: true` once the mirror plays. Optional `build`, as on `/api/stats/play` |
 | `/api/live/schedule` | GET | **The live station's program.** Returns **`{day, tz: "America/Los_Angeles", serverNow, stationIdSec: 8, now, upNext: [Slot, Slot], rest: [Slot], guide: [Slot], outage}`**. `now` is `{slot, startedAt, offsetSec, endsAt}` (a show: start and offset into it) or `{stationId: true, endsAt}` (the gap between shows). `Slot` is `{fileHash, episodeId, title, airDate, guestName, showType, duration, sourceUrl, kind: "on-this-date"\|"fan-favorite"\|"outage-swap", start, end, replaces?}`, times epoch ms. `upNext` reaches into tomorrow during the day's last show; `rest` is the rest of *today* after it; `guide` is all of today, past included. `outage: true` when archive.org is down and the swap was applied. `no-store`, 30/min, **503** without a database |
+| `/api/build` | GET | **`{build}`**: the build this server runs (`NEXT_PUBLIC_BUILD_ID`, the short SHA). `no-store`, 30/min. What an open tab compares its own `<meta name="hd-build">` with (`src/services/build/stale-tab.ts`) |
 | `/api/live/time` | GET | The server clock for the client's time sync: **`{now}`** (epoch ms). `no-store`, 60/min. The client takes 5 samples and keeps the one with the smallest round trip |
 | `/mirror/{fileHash}` | GET | **Not Next.js — nginx alone** (`services/mirror/lib/nginx.mjs`). The episode's MP3: a pinned one off disk, anything else in the catalog filled from archive.org through nginx's slice cache. Byte ranges: `206` + `Content-Range`, `416` for an unsatisfiable range. **404** for anything not in the catalog; **502** when a fill cannot reach archive.org. GET/HEAD only. See "archive.org outage mirror" |
 | `/mirror/manifest` | GET | **Not Next.js** — a static file (`/var/lib/highdesert-mirror/manifest.json`, written atomically by the warm job). What the mirror can play with archive.org gone: **`{version, count, pinned, fileHashes: [...]}`** — every pinned episode whole on disk (`count` = `pinned`). `version` is a digest of the list; the **`ETag` is nginx's**, and `If-None-Match` with it gets a 304. `Cache-Control: max-age=60`. Outage mode's input (`src/services/mirror/manifest.ts`) |
@@ -705,6 +706,60 @@ same offset, computed from a synced clock.
   390 and on desktop), and `e2e/live.spec.ts` (two browser
   contexts within 2 s — run against a local build on the e2e database, the
   command is in its header). Mutations: the `live-*` ids in `scripts/mutate-check.mjs`.
+## Long-lived tabs and the build that wrote each row (read before touching `src/services/build/`)
+
+The station is left open for days. A deploy replaces the server, not the pages
+already open, and on 2026-09-28 four of the first eight failures after a
+release came from one tab still running the build before it.
+
+- **Every play and failure row names its build.** The page's build is its
+  document's `<meta name="hd-build">` (`src/lib/utils/build-id.ts`, the short
+  SHA `deploy.sh` built); `reportPlay`/`reportPlaybackFailure` send it, and
+  `play_events.build` / `playback_failures.build` store it (a CHECK holds it to
+  a build id or NULL). `getFailureWindow()` returns `byBuild`, and status's
+  `release` line counts only this release's builds (the release commit plus
+  `.deploy/history`, which `deploy.sh` appends to), older builds apart
+  (`docs/reliability-baseline.md`).
+- **A tab updates itself at a natural break** (`src/services/build/stale-tab.ts`,
+  installed by `(desktop)/layout.tsx`). It asks `/api/build` 30 s after load,
+  every 5 min, and on coming back on screen, focus and `online`. A newer build
+  is *pending* until `naturalBreak()` says now:
+  - **never mid-audio, never while a text field has something typed in it;**
+  - with sound on, only the station's gap between shows, on screen, where the
+    new page may start sound without a tap (`canResumeAfterReload`: a Chromium
+    engine and a tab that has had a tap). Safari and iOS wait for a pause;
+  - with nothing playing: when hidden, or after 2 min without input.
+- **It keeps the listener's place.** A show and its position come back as after
+  any reload (the position is saved on `pagehide`). For the station it writes
+  `hd-update-resume` (sessionStorage) and the new page calls
+  `resumeStationAfterReload()`, which waits for the program and the clock and
+  puts it back on the air with no tap. A refusal is a `handover-rejected` row
+  whose detail starts `reload`. The counted-airings set is kept in
+  sessionStorage (`hd-live-counted`), so a reload never counts an airing twice.
+- **Never a loop:** `hd-update-reloaded-for` holds the build a reload was for,
+  and a page that comes back still not on it stays put.
+- **A new bridge source starts at 0** (`fromTheTop` in `engine.ts`). A
+  `currentTime` written before metadata (priming the remembered show) is the
+  element's default start position, and Chromium keeps it across a change of
+  `src`: after a reload the station ID started at 94 s, ended at once, and the
+  next show never started. `e2e/stale-tab.spec.ts` found it.
+- **Tests:** `src/services/build/__tests__/stale-tab.test.ts`, the reload block
+  in `src/audio/__tests__/live-station.test.ts`, `live-session-reload.test.ts`,
+  and `e2e/stale-tab.spec.ts` (a tab on build A, B deployed in the page, the
+  reload after the slot boundary, B playing with no tap). Mutations: the
+  `stale-tab-*`, `live-*reload*`, `build-*` ids.
+
+## The weekly digest
+
+`highdesert-digest.timer` (17:40 UTC daily; writes Mondays from 2026-10-05)
+runs `scripts/digest.mjs`: `docs/digest/YYYY-MM-DD.md` on main from its own
+checkout, copied to the Mac's `~/Downloads/high-desert-digest/`. What needs
+action first; then the release line and verdict, the funnel, locked phones,
+the week, health. A FAIL, or the release at 3%+ on 300+ plays, adds the rows,
+the pattern and a proposed fix. `docs/digest/README.md` has the rules;
+`highdesert-status`'s `digest` line says whether the week's is written and on
+the Mac.
+
 ## Live chat — the phone lines (read before touching `services/live/` or `src/components/live/`)
 
 The chat beside Live Broadcast. Its own unit, **`highdesert-live`**, runs as

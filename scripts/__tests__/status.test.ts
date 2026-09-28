@@ -32,6 +32,12 @@ interface World {
   /** The `**Release deployed:**` timestamp in docs/reliability-baseline.md; null writes no doc. */
   releaseAt: string | null;
   release: { failures: number; plays: number; days: number };
+  /** Rows in the window from builds that are not the release's, and untagged rows. */
+  releaseOther: { build: string | null; failures: number; plays: number }[];
+  /** .deploy/history lines ("<ref> <ISO>"); the release commit in the doc is abc1234. */
+  history: string[];
+  /** Answer the window without `byBuild`, as the API did before the build split. */
+  noBuildSplit?: boolean;
   /** What the stub presence check prints and exits with. */
   presence: { rc: number; out: string };
   /** %steal of each sysstat sample today, oldest first; [] prints no samples. */
@@ -69,6 +75,8 @@ interface World {
   funnelPhone: { visit: number; live: number; tune: number; call: number } | null;
   /** scripts/funnel-verdict.mjs's status.json; null: the job has never run. `ageH` sets checkedAt. */
   funnelVerdict: ({ ageH: number } & Record<string, unknown>) | null;
+  /** scripts/digest.mjs's status.json; null: never run. `ageH` sets checkedAt. */
+  digest: ({ ageH: number } & Record<string, unknown>) | null;
   liveActive: string;
   /** /live-api/health's body; null answers 502. */
   liveHealth: Record<string, unknown> | null;
@@ -87,6 +95,8 @@ const HEALTHY: World = {
   deployedIsHead: true,
   releaseAt: "2026-09-21T15:50:00Z",
   release: { failures: 4, plays: 200, days: 7 },
+  releaseOther: [],
+  history: [],
   presence: { rc: 0, out: "surfaces agree in 3 view(s)" },
   // The oldest sample is high on purpose: only the last three (30 min) count.
   steal: [90, 4, 5, 6],
@@ -100,6 +110,13 @@ const HEALTHY: World = {
   peaks: { "24h": { online: 4, listening: 2 }, "7d": { online: 9, listening: 5 }, "30d": { online: 9, listening: 6 } },
   funnel: { visit: 40, live: 30, tune: 12, call: 2 },
   funnelPhone: { visit: 30, live: 22, tune: 8, call: 1 },
+  digest: {
+    ageH: 2,
+    due: "2026-10-05",
+    written: { "2026-10-05": { sha: "abc1234", at: "2026-10-05T17:41:00Z" } },
+    copied: { "2026-10-05": "2026-10-05T17:41:05Z" },
+    error: null,
+  },
   funnelVerdict: null,
   liveActive: "active",
   liveHealth: { ok: true, clients: 42, messagesLastHour: 17, slowMode: false, cpu: { pct: 2.5, windowS: 900 } },
@@ -195,9 +212,17 @@ async function run(): Promise<{ code: number; out: string }> {
   } else {
     await rm(verdictFile, { force: true });
   }
+  const digestFile = path.join(dir, "digest.json");
+  if (world.digest) {
+    const { ageH, ...rest } = world.digest;
+    await writeFile(digestFile, JSON.stringify({ checkedAt: new Date(Date.now() - ageH * 3_600_000).toISOString(), ...rest }));
+  } else {
+    await rm(digestFile, { force: true });
+  }
   const head = await git("rev-parse", "--short", "HEAD");
   const deployed = world.deployedIsHead ? head : await git("rev-parse", "--short", "HEAD~1");
   await writeFile(path.join(root, ".deploy/deployed"), `${deployed} 2026-09-21T14:00:00Z\n`);
+  await writeFile(path.join(root, ".deploy/history"), world.history.map((l) => `${l}\n`).join(""));
   if (world.releaseAt) {
     await writeFile(
       path.join(root, "docs/reliability-baseline.md"),
@@ -230,6 +255,7 @@ async function run(): Promise<{ code: number; out: string }> {
           HD_LIVE: api,
           HD_WARM_STATUS: warmFile,
           HD_FUNNEL_VERDICT: verdictFile,
+          HD_DIGEST_STATUS: digestFile,
         },
         timeout: 30_000,
       },
@@ -288,7 +314,20 @@ beforeEach(async () => {
         res.end(
           JSON.stringify({
             summary: { failures: world.failures },
-            window: { from: from.toISOString(), to: to.toISOString(), ...world.release },
+            window: {
+              from: from.toISOString(),
+              to: to.toISOString(),
+              failures: world.release.failures + world.releaseOther.reduce((n, b) => n + b.failures, 0),
+              plays: world.release.plays + world.releaseOther.reduce((n, b) => n + b.plays, 0),
+              ...(world.noBuildSplit
+                ? {}
+                : {
+                    byBuild: [
+                      { build: "abc1234", failures: world.release.failures, plays: world.release.plays },
+                      ...world.releaseOther,
+                    ],
+                  }),
+            },
           }),
         );
         return;
@@ -436,21 +475,52 @@ describe("highdesert-status", () => {
       const r = await run();
       expect(sinceAsked).toBe("2026-09-21T15:50:00Z");
       expect(lineFor(r.out, "release")).toBe(
-        "OK    release   2.0% of starts failed in the 7 of 7 days since 2026-09-21T15:50:00Z (4 failures / 200 plays; target <3%)",
+        "OK    release   2.0% of starts failed on this release's builds in the 7 of 7 days since 2026-09-21T15:50:00Z (4 failures / 200 plays, 200 of 300 for a verdict; target <3%)",
       );
     });
 
     it("WARNs at 3% — and only WARNs: a bad week is not an outage", async () => {
       world.release = { failures: 6, plays: 200, days: 2.5 };
       const r = await run();
-      expect(lineFor(r.out, "release")).toMatch(/^WARN\s+release\s+3\.0% of starts failed in the 2\.5 of 7 days/);
+      expect(lineFor(r.out, "release")).toMatch(/^WARN\s+release\s+3\.0% of starts failed on this release's builds in the 2\.5 of 7 days/);
       expect(r.code).toBe(0);
     });
 
     it("says so when there have been no plays yet, rather than dividing by zero", async () => {
       world.release = { failures: 0, plays: 0, days: 0.1 };
       const r = await run();
-      expect(lineFor(r.out, "release")).toMatch(/^OK\s+release\s+no plays yet since the release/);
+      expect(lineFor(r.out, "release")).toMatch(/^OK\s+release\s+no plays yet on this release's builds since the release/);
+    });
+
+    it("counts only the release's builds; old and untagged rows are shown beside it, not dropped", async () => {
+      // 4 / 200 on the release is 2.0%. Mixed in, an old tab's 9 / 20 would read 5.9%.
+      world.releaseOther = [
+        { build: "0ld0001", failures: 5, plays: 12 },
+        { build: null, failures: 4, plays: 8 },
+      ];
+      const r = await run();
+      expect(lineFor(r.out, "release")).toBe(
+        "OK    release   2.0% of starts failed on this release's builds in the 7 of 7 days since 2026-09-21T15:50:00Z (4 failures / 200 plays, 200 of 300 for a verdict; target <3%); older builds: 9 failures / 20 plays, counted apart",
+      );
+    });
+
+    it("a build deployed after the release instant is the release; one deployed before is not", async () => {
+      world.history = ["0ld0001 2026-09-20T10:00:00Z", "abc1234 2026-09-21T15:50:00Z", "d0c5678 2026-09-22T09:00:00Z"];
+      world.releaseOther = [
+        { build: "d0c5678", failures: 2, plays: 100 },
+        { build: "0ld0001", failures: 3, plays: 3 },
+      ];
+      const r = await run();
+      expect(lineFor(r.out, "release")).toBe(
+        "OK    release   2.0% of starts failed on this release's builds in the 7 of 7 days since 2026-09-21T15:50:00Z (6 failures / 300 plays; target <3%); older builds: 3 failures / 3 plays, counted apart",
+      );
+    });
+
+    it("an API without the build split still gets a line, and says it could not split", async () => {
+      world.noBuildSplit = true;
+      world.releaseOther = [{ build: null, failures: 1, plays: 10 }];
+      const r = await run();
+      expect(lineFor(r.out, "release")).toMatch(/^OK\s+release\s+2\.4% of starts failed \(all builds: the API gave no build split\)/);
     });
 
     it("WARNs, and asks the API nothing, when there is no baseline to measure from", async () => {
@@ -732,6 +802,44 @@ describe("highdesert-status", () => {
       const r = await run();
       expect(lineFor(r.out, "cpu")).toMatch(/^WARN\s+cpu\s+no 15-minute CPU figure \(exit 3\): only 240s of samples, need 810s$/);
       expect(r.out).not.toMatch(/^FAIL/m);
+    });
+  });
+
+  describe("digest line (the weekly report, scripts/digest.mjs)", () => {
+    const W = { "2026-10-05": { sha: "abc1234", at: "2026-10-05T17:41:00Z" } };
+
+    it("written and on the Mac: OK, saying which week", async () => {
+      expect(lineFor((await run()).out, "digest")).toBe(
+        "OK    digest    docs/digest/2026-10-05.md written 2026-10-05T17:41:00Z, on the Mac 2026-10-05T17:41:05Z",
+      );
+    });
+
+    it("never run: WARN, naming the timer", async () => {
+      world.digest = null;
+      expect(lineFor((await run()).out, "digest")).toMatch(/^WARN\s+digest\s+the digest job has never run/);
+    });
+
+    it("not run for 36h: WARN (a skipped night leaves no other trace)", async () => {
+      world.digest = { ageH: 40, due: "2026-10-05", written: W, copied: {}, error: null };
+      expect(lineFor((await run()).out, "digest")).toMatch(/^WARN\s+digest\s+the digest job last ran 40h ago/);
+    });
+
+    it("the week's not written: WARN, with the job's error", async () => {
+      world.digest = { ageH: 1, due: "2026-10-12", written: W, copied: {}, error: "git push: rejected" };
+      expect(lineFor((await run()).out, "digest")).toBe("WARN  digest    the digest for 2026-10-12 is not written (last run: git push: rejected)");
+    });
+
+    it("before the first week: OK, saying when the first is", async () => {
+      world.digest = { ageH: 1, due: null, firstDue: "2026-10-05", written: {}, copied: {}, error: null };
+      expect(lineFor((await run()).out, "digest")).toBe("OK    digest    none due yet: the first is 2026-10-05, 17:40 UTC");
+    });
+
+    it("waiting for the Mac: OK for two days (it is often asleep), then WARN", async () => {
+      const at = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+      world.digest = { ageH: 1, due: "2026-10-05", written: { "2026-10-05": { at: at(20) } }, copied: {}, error: "ssh: timed out" };
+      expect(lineFor((await run()).out, "digest")).toMatch(/^OK\s+digest\s+docs\/digest\/2026-10-05\.md written .* \(not on the Mac yet; retried daily\)$/);
+      world.digest = { ageH: 1, due: "2026-10-05", written: { "2026-10-05": { at: at(50) } }, copied: {}, error: "ssh: timed out" };
+      expect(lineFor((await run()).out, "digest")).toMatch(/^WARN\s+digest\s+docs\/digest\/2026-10-05\.md written .*, not on the Mac after 50h \(last run: ssh: timed out\)$/);
     });
   });
 });

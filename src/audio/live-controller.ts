@@ -52,6 +52,15 @@
  * tuned, and the station comes back held: the layout restores the show to the
  * player as it always does, and ▶ lands on the live second.
  *
+ * ## Updating itself
+ *
+ * A tab left on the air reloads onto a newer build between shows
+ * (src/services/build/stale-tab.ts). That reload comes back held like any
+ * other, and then `resumeAfterReload()` puts it back on the air without a tap.
+ * The browsers it happens on keep a same-origin page's activation across the
+ * reload; if one refuses anyway, that is a `handover-rejected` row whose detail
+ * starts `reload`, and the tab holds with "Tap to rejoin".
+ *
  * ## Leaving
  *
  * "Leave the station" stops the player outright — audio off, the show cleared
@@ -185,6 +194,8 @@ export interface LiveStation {
   refreshClock(): Promise<void>;
   /** Install the listeners (ended, stall, visibility, player store). Returns the teardown. */
   install(): () => void;
+  /** Back on the air, no tap, after the tab reloaded itself onto a new build. */
+  resumeAfterReload(): Promise<void>;
 }
 
 export function createLiveStation(deps: LiveDeps): LiveStation {
@@ -207,6 +218,8 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
   let transitioning = false;
   let stalled = false;
   let lastClockSync = 0;
+  /** Coming back on the air after a reload for a new build: its refusals say so. */
+  let afterReload = false;
 
   function transition(fn: () => void) {
     transitioning = true;
@@ -252,7 +265,8 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
   function refused(detail: string) {
     if (!live().tuned) return;
     const cur = live().current;
-    reportHandoverRefused(cur ?? nextAfterNow(), detail);
+    reportHandoverRefused(cur ?? nextAfterNow(), afterReload ? detail.replace(/^handover/, "reload") : detail);
+    afterReload = false;
     hold(true);
   }
 
@@ -456,6 +470,25 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
     return true;
   }
 
+  /**
+   * A reload onto a new build, from a tab that was on the air: back on the
+   * air, no tap. Waits for the program and the clock (a fresh page has
+   * neither), then starts whatever is on now, as a handover does.
+   */
+  async function resumeAfterReload(): Promise<void> {
+    if (!live().tuned || !live().paused) return;
+    await Promise.all([
+      refreshSchedule(),
+      now() - lastClockSync > CLOCK_STALE_MS ? refreshClock() : null,
+    ]);
+    // The listener did something meanwhile (left, or pressed ▶ themselves).
+    if (!live().tuned || !live().paused) return;
+    afterReload = true;
+    live().setPaused(false);
+    startLoops();
+    go();
+  }
+
   /** A reload of a tab that was tuned in: come back held, ready for ▶. */
   function restoreHeld() {
     if (live().tuned || !wasTuned()) return;
@@ -477,6 +510,7 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
       stalled = true;
     });
     const offPlaying = onEngineEvent("playing", () => {
+      afterReload = false;
       if (!stalled) return;
       stalled = false;
       resync();
@@ -563,7 +597,7 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
     };
   }
 
-  return { tuneIn, tuneOut, leave, resync, refreshSchedule, refreshClock, install };
+  return { tuneIn, tuneOut, leave, resync, refreshSchedule, refreshClock, install, resumeAfterReload };
 }
 
 // ---------------------------------------------------------------------------
@@ -606,6 +640,11 @@ export function tuneIn(): void {
 
 export function tuneOut(): void {
   station?.tuneOut();
+}
+
+/** The tab reloaded itself onto a new build while on the air (src/services/build/stale-tab.ts). */
+export function resumeStationAfterReload(): Promise<void> {
+  return station ? station.resumeAfterReload() : Promise.resolve();
 }
 
 /** "Leave the station": tune out, stop the audio, clear the player. */

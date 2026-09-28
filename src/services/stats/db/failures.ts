@@ -21,6 +21,8 @@ export interface PlaybackFailureInput {
   detail?: string | null;
   /** The host that failed. */
   source?: PlaySource | null;
+  /** The build that wrote the row (src/lib/utils/build-id.ts); null when unknown. */
+  build?: string | null;
 }
 
 /**
@@ -48,8 +50,8 @@ export async function recordPlaybackFailure(
       DELETE FROM playback_failures WHERE at < now() - interval '90 days'
     )
     INSERT INTO playback_failures
-      (episode_id, kind, retried, recovered, elapsed_ms, ua_class, detail, source)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      (episode_id, kind, retried, recovered, elapsed_ms, ua_class, detail, source, build)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     `,
     [
       f.episodeId,
@@ -60,6 +62,7 @@ export async function recordPlaybackFailure(
       f.uaClass,
       f.detail ?? null,
       f.source ?? null,
+      f.build ?? null,
     ],
   );
 }
@@ -235,6 +238,20 @@ export interface FailureWindow {
   to: string;
   failures: number;
   plays: number;
+  /**
+   * The same window split by the build that wrote each row, `build: null` for
+   * rows that carry none (written before 2026-09-28, or by a page that could
+   * not say). Sums to `failures` and `plays`: nothing is dropped. Which of these
+   * builds are the release is the caller's to decide (scripts/status.sh reads
+   * `.deploy/history`); a tab left open on older code lands in its own row.
+   */
+  byBuild: BuildCounts[];
+}
+
+export interface BuildCounts {
+  build: string | null;
+  failures: number;
+  plays: number;
 }
 
 /**
@@ -248,21 +265,33 @@ export interface FailureWindow {
  * `playsInRange`, which is what the baseline was measured with.
  */
 export async function getFailureWindow(from: Date, to: Date): Promise<FailureWindow> {
-  const { rows } = await pool().query<{ failures: string; plays: string }>(
+  const { rows } = await pool().query<{ build: string | null; failures: string; plays: string }>(
     `
-    SELECT (SELECT count(*) FROM playback_failures
-             WHERE at >= $1 AND at < $2
-               AND NOT (kind = ANY($3)))                AS failures,
-           (SELECT count(*) FROM play_events
-             WHERE played_at >= $1 AND played_at < $2)  AS plays
+    SELECT build, sum(failures) AS failures, sum(plays) AS plays FROM (
+      SELECT build, count(*) AS failures, 0 AS plays FROM playback_failures
+       WHERE at >= $1 AND at < $2 AND NOT (kind = ANY($3))
+       GROUP BY build
+      UNION ALL
+      SELECT build, 0, count(*) FROM play_events
+       WHERE played_at >= $1 AND played_at < $2
+       GROUP BY build
+    ) x
+    GROUP BY build
+    ORDER BY build NULLS LAST
     `,
     [from.toISOString(), to.toISOString(), ADVISORY_KINDS],
   );
+  const byBuild = rows.map((r) => ({
+    build: r.build,
+    failures: Number(r.failures),
+    plays: Number(r.plays),
+  }));
   return {
     from: from.toISOString(),
     to: to.toISOString(),
-    failures: Number(rows[0]?.failures ?? 0),
-    plays: Number(rows[0]?.plays ?? 0),
+    failures: byBuild.reduce((n, b) => n + b.failures, 0),
+    plays: byBuild.reduce((n, b) => n + b.plays, 0),
+    byBuild,
   };
 }
 

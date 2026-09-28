@@ -1,0 +1,14 @@
+[Unit]
+Description=High Desert, daily check for the weekly digest (written Mondays)
+
+[Timer]
+# 17:40 UTC: the Mac's best-reachable hour (the tunnel is up 85% of the 17:00
+# hour), after the 17:15 repo-bundle and the 17:30 backup. Daily, not weekly:
+# a Monday the box missed is caught up on Tuesday, and a copy the sleeping
+# Mac missed is retried.
+OnCalendar=*-*-* 17:40:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

@@ -9,12 +9,15 @@ import { PlaybackErrorDialog } from "@/components/player/PlaybackErrorDialog";
 import { OutageDialog } from "@/components/player/OutageDialog";
 import { useOutageMonitor } from "@/hooks/useOutageMonitor";
 import { installBrowserLiveStation } from "@/services/live/browser-station";
+import { installStaleTab } from "@/services/build/stale-tab";
+import { resumeStationAfterReload } from "@/audio/live-controller";
 import { funnelDecided, startFunnel } from "@/services/stats/funnel-client";
 import { admitRequestedStart } from "@/audio/outage-gate";
 import { UnavailableEpisodeDialog } from "@/components/player/UnavailableEpisodeDialog";
 import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { usePlayerStore } from "@/stores/player-store";
+import { useLiveStore } from "@/stores/live-store";
 import { positionOf } from "@/stores/progress-store";
 import { progressReady, startProgressSync } from "@/services/episodes/progress";
 import { useAdminStore } from "@/stores/admin-store";
@@ -53,6 +56,39 @@ export default function DesktopLayout({
   // The live station follows the listener across routes, so it lives here,
   // once, beside the play-episode handler it starts shows through.
   useEffect(() => installBrowserLiveStation(), []);
+
+  // A tab left open for days updates itself to the live build at a natural
+  // break, keeping the listener's place (src/services/build/stale-tab.ts).
+  // After the station's install: a reload that left it on the air resumes it.
+  useEffect(
+    () =>
+      installStaleTab({
+        state: () => {
+          const l = useLiveStore.getState();
+          const p = usePlayerStore.getState();
+          return {
+            playing: p.playing || (l.tuned && !l.paused),
+            liveTuned: l.tuned,
+            livePaused: l.paused,
+            livePhase: l.phase,
+          };
+        },
+        resumeStation: () => void resumeStationAfterReload(),
+        onChange: (fn) => {
+          const offPlayer = usePlayerStore.subscribe((s, prev) => {
+            if (s.playing !== prev.playing) fn();
+          });
+          const offLive = useLiveStore.subscribe((s, prev) => {
+            if (s.phase !== prev.phase || s.paused !== prev.paused || s.tuned !== prev.tuned) fn();
+          });
+          return () => {
+            offPlayer();
+            offLive();
+          };
+        },
+      }),
+    [],
+  );
 
   // The arrival funnel's verdict (docs/funnel.md): an empty library on arrival
   // is a first visit. Read now, not after the idle-deferred seed, so a visit
