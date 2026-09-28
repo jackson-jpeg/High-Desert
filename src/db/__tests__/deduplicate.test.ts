@@ -7,8 +7,9 @@ import type { Episode } from "../schema";
 /**
  * Regression tests for the library-wipe incident.
  *
- * Every episode in the shipped catalog shares the archiveIdentifier
- * "ultimate-ultimate-art-bell-collection". The old dedupKey() keyed on that alone,
+ * Every episode in the shipped catalog shared the archiveIdentifier
+ * "ultimate-ultimate-art-bell-collection" (all but the 2026-09-28 community
+ * additions still do). The old dedupKey() keyed on that alone,
  * collapsing all 1,313 episodes into one group and deleting 1,312 of them.
  */
 
@@ -43,9 +44,14 @@ describe("seed catalog fixture", () => {
     expect(catalog.length).toBeGreaterThan(1000);
   });
 
-  it("has a single shared archiveIdentifier — the condition that caused the wipe", () => {
-    const identifiers = new Set(catalog.map((e) => e.archiveIdentifier));
-    expect(identifiers.size).toBe(1);
+  it("has one archiveIdentifier shared by most of the catalog — the condition that caused the wipe", () => {
+    // Until 2026-09-28 every row shared one identifier. The community-sources
+    // import (docs/community-sources.md) added rows from other items, but the
+    // condition this fixture exists for still holds: over a thousand rows share
+    // a single identifier, so it can never serve as an identity alone.
+    const counts = new Map<string | undefined, number>();
+    for (const e of catalog) counts.set(e.archiveIdentifier, (counts.get(e.archiveIdentifier) ?? 0) + 1);
+    expect(Math.max(...counts.values())).toBeGreaterThan(1000);
   });
 });
 
