@@ -143,7 +143,7 @@ from archive.org on whole-file GETs; the second run fetched all 14.
 
 ## Docs written or revised
 
-All copied to the Mac's `~/Downloads/high-desert-2026-09-28/`, verified by
+All copied to the Mac's `~/Downloads/high-desert-2026-09-28-overnight/`, verified by
 checksum:
 `docs/handoff-2026-09-28-overnight.md` (this), `docs/disk-cleanup-2026-09-28.md`
 (new), `docs/ios-stalls.md` (new; the simulator runs), `docs/community-sources.md`

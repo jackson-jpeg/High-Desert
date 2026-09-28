@@ -155,9 +155,13 @@ and neither was re-run until green.
 
 ## On the Mac
 
-All of this session's docs are in one folder,
-`~/Downloads/high-desert-2026-09-28/`, checksum-verified:
-- this handoff and the long-lived-tabs handoff;
-- `reliability-baseline.md`, `security-exceptions.md` and `digest-README.md`;
-- the digest sample;
-- CLAUDE.md, and `mutations.yml` as text.
+One folder per batch, `project-date-topic` (the standing rule added to
+`/root/CLAUDE.md` today), checksum-verified:
+- `~/Downloads/high-desert-2026-09-28-ci/`: this handoff,
+  `security-exceptions.md`, CLAUDE.md (as `CLAUDE-high-desert.md`), and
+  `mutations.yml` as text.
+- `~/Downloads/high-desert-2026-09-28-longlived/`: the long-lived-tabs
+  handoff, `reliability-baseline.md`, `digest-README.md` and the digest
+  sample.
+- `~/Downloads/high-desert-2026-09-28-overnight/`: the overnight handoff and
+  its docs.
