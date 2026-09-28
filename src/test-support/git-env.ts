@@ -1,5 +1,7 @@
 /**
- * No git variable reaches the suite (vitest setupFiles, vitest.config.mts).
+ * No git variable reaches the suite. Called for every run by
+ * src/test-support/git-env.setup.ts (vitest setupFiles, vitest.config.mts);
+ * this module has no side effect, so importing it in a test proves nothing.
  *
  * 2026-09-28: the suite ran inside a git hook, which exports GIT_DIR and its
  * kin. Tests that build throwaway repositories (deploy.test.ts,
@@ -20,4 +22,3 @@ export function clearGitEnv(env: Record<string, string | undefined> = process.en
   return removed;
 }
 
-clearGitEnv();

@@ -4570,7 +4570,7 @@ export const MUTATIONS = [
     id: "git-env-setup-wired",
     test: "src/test-support/__tests__/git-env.test.ts",
     file: "vitest.config.mts",
-    find: '    setupFiles: ["src/test-support/git-env.ts"],',
+    find: '    setupFiles: ["src/test-support/git-env.setup.ts"],',
     replace: "",
     why: "the suite ran with git's hook variables, and the tests' throwaway repositories wrote into the real one (core.bare = true under /root/High-Desert)",
   },
