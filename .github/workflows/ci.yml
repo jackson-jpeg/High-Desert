@@ -1,17 +1,22 @@
 name: CI
 # A branch push used to run twice (push + pull_request), so one broken commit
 # on a PR sent two failure emails. Now: push runs only on main; a branch is
-# checked through its pull request; a newer commit on a PR cancels the run it
-# supersedes (cancelled runs send no failure email). main is never cancelled.
+# checked through its pull request; a newer push to the same PR, or to main,
+# cancels the run it supersedes (cancelled runs send no failure email).
+#
+# Two jobs in parallel: `checks` (lint, typecheck, the suite) and `browser`
+# (build, CSP, Playwright). The mutation check is its own workflow,
+# mutations.yml: a PR checks what it touched, main and the nightly run check
+# everything in four shards.
 on:
   push:
     branches: [main]
   pull_request:
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 jobs:
-  ci:
+  checks:
     runs-on: ubuntu-24.04
     # A real Postgres, so the stats store is tested against the database it
     # runs on (query plans, statement_timeout, rollup windows) and so the
@@ -62,12 +67,41 @@ jobs:
         run: npm run typecheck
       - name: Test
         run: npm run test
-      # Does each test file actually observe the code it claims to test? Breaks
-      # one real line per module and requires the suite to notice. Three defects
-      # in this repo were passing tests disconnected from their subject, which
-      # `npm run test` cannot distinguish from working ones.
-      - name: Mutation check
-        run: npm run test:mutations
+
+  browser:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: highdesert_test
+          POSTGRES_PASSWORD: highdesert_test
+          POSTGRES_DB: highdesert_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U highdesert_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://highdesert_test:highdesert_test@127.0.0.1:5432/highdesert_test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install live chat dependencies
+        run: npm ci --prefix services/live --no-audit --no-fund
+      - name: Apply schema
+        run: |
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f scripts/schema.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f services/live/schema.sql
       - name: Build
         run: npm run build
       # The CSP is enforced by the browser, so a policy that blocks something
