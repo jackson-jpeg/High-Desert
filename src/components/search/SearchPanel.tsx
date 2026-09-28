@@ -264,8 +264,14 @@ export function SearchPanel() {
         </Window>
       </div>
 
-      {/* Content area */}
-      <div className="flex-1 overflow-auto">
+      {/* Content area. aria-busy until the search has answered: the list
+          arrives on its own timer, and a reader (or axe, e2e/a11y.spec.ts)
+          arriving first would take the skeleton for the page. */}
+      <div
+        className="flex-1 overflow-auto"
+        data-search-results
+        aria-busy={loading || (!hasInitialized && results.length === 0)}
+      >
         {loading || (!hasInitialized && results.length === 0) ? (
           <LoadingSkeleton />
         ) : results.length === 0 && query ? (

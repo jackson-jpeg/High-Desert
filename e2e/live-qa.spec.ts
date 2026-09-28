@@ -369,7 +369,10 @@ test.describe("tuned in", () => {
     // Each layout's own gesture: a double-click on desktop; on a phone a tap
     // opens the episode sheet, whose ▶ Play starts it. (A tap alone starts
     // nothing, and a reload re-primes the element — so "src changed" is not
-    // evidence; the other show must be the one playing.)
+    // evidence; the other show must be the one playing. Nor is `!paused`:
+    // play() clears it at once, and on 2026-09-28 this test went on 11 ms
+    // after the tap, before a byte of the show had loaded. Playing is time
+    // moving: currentTime > 0.)
     if (info.project.use.isMobile) {
       await row.click();
       await page.getByRole("button", { name: "▶ Play" }).first().click();
@@ -379,7 +382,7 @@ test.describe("tuned in", () => {
     await expect
       .poll(async () => {
         const el = await element(page);
-        return !!el && el.src !== stationSrc && !el.paused;
+        return !!el && el.src !== stationSrc && !el.paused && el.currentTime > 0;
       }, { timeout: 30_000 })
       .toBe(true);
     await page.goto("/live");

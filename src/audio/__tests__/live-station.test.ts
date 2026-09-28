@@ -821,6 +821,39 @@ describe("pausing holds the station", () => {
     expect(playhead()).toBeCloseTo(stationAt(A), 3);
   });
 
+  it("after a reload, picking another show leaves the station at the pick, before its sound starts", async () => {
+    // CI, 2026-09-28 (#57): back on /library after a reload, the station is
+    // held with no slot named yet (`current` is set only when it plays). The
+    // listener picked another show and went to /live before its audio began;
+    // the station was still tuned and came back held. A pick is the decision.
+    act(() => station.tuneIn());
+    await flush();
+    uninstall();
+    useLiveStore.setState({ tuned: false, paused: false, phase: "off", current: null });
+    usePlayerStore.setState({ playing: false });
+    station = createLiveStation({
+      fetchSchedule: async () => useLiveStore.getState().schedule,
+      fetchServerNow: async () => Date.now(),
+      startEpisode: (ep) => void player.api.playEpisode(ep),
+      resolveEpisode: (s) => episodes.get(s.fileHash)!,
+      stationId,
+    });
+    uninstall = station.install();
+    expect(useLiveStore.getState()).toMatchObject({ tuned: true, paused: true, current: null });
+    expect(usePlayerStore.getState().currentEpisode?.fileHash).toBe(A.fileHash);
+
+    // Control: the same show as another object (the seed's row adopting the
+    // slot-made one) is not a pick.
+    act(() => usePlayerStore.getState().loadEpisode({ ...usePlayerStore.getState().currentEpisode! }, ""));
+    expect(useLiveStore.getState().tuned).toBe(true);
+
+    const other = episodeFor(slot("other", 0, 3600));
+    act(() => usePlayerStore.getState().loadEpisode(other, ""));
+    expect(usePlayerStore.getState().playing).toBe(false);
+    expect(useLiveStore.getState().tuned).toBe(false);
+    expect(sessionStorage.getItem(TUNED_MARK)).toBeNull();
+  });
+
   it("a held station is not live for the heartbeat; resumed, it is", async () => {
     const { tunedInLive } = await import("@/hooks/usePresence");
     act(() => station.tuneIn());

@@ -535,9 +535,15 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
       if (paused) {
         // Held. Anything that starts sound now went around the station's own
         // resume (which clears the hold first): the listener picked a show.
+        // The pick is the decision, not its first sound: a reloaded tab is
+        // held before the station has named a slot (`current` is set only when
+        // it plays), so the held player's own show stands in for it, and a
+        // listener who picks and moves on before the audio starts has still
+        // left. From no show at all (the restore priming) is not a pick.
+        const stationHash = current?.fileHash ?? prev.currentEpisode?.fileHash;
         const swapped =
-          !!current && !!s.currentEpisode && s.currentEpisode !== prev.currentEpisode &&
-          s.currentEpisode.fileHash !== current.fileHash;
+          !!stationHash && !!s.currentEpisode && s.currentEpisode !== prev.currentEpisode &&
+          s.currentEpisode.fileHash !== stationHash;
         if (swapped || (s.playing && !prev.playing)) tuneOut();
         return;
       }

@@ -85,6 +85,6 @@ live-qa, live and stale-tab pass locally: 29 of 29. CI on `110f59b` is green.
 
 ## Files on the Mac
 
-In `~/Downloads/high-desert-2026-09-28/`, with checksums compared against the VPS:
+In `~/Downloads/high-desert-2026-09-28-longlived/`, with checksums compared against the VPS:
 this handoff, `reliability-baseline.md`, `digest-README.md`, and
 `digest-sample-2026-09-28.md`.
