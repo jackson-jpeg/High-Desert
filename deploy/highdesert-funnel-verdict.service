@@ -1,0 +1,23 @@
+[Unit]
+Description=High Desert — the funnel's before-and-after verdict, once there are 300 phone arrivals
+Documentation=file:///root/High-Desert/docs/funnel.md
+After=network-online.target highdesert.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Runs from the production tree but never writes to it: the verdict goes
+# into its own checkout under /var/lib/highdesert-funnel and is pushed to
+# main from there. root, for the push credentials and the `macbook` ssh alias.
+WorkingDirectory=/root/High-Desert
+ExecStart=/usr/bin/node /root/High-Desert/scripts/funnel-verdict.mjs
+Environment=HOME=/root
+Environment=HD_FUNNEL_STATE=/var/lib/highdesert-funnel
+StateDirectory=highdesert-funnel
+# One HTTP read a day and, once, a git push and an scp: the 10% rule holds
+# with room to spare, and it is never urgent.
+CPUQuota=10%
+Nice=19
+IOSchedulingClass=idle
+TimeoutStartSec=10min
+SyslogIdentifier=highdesert-funnel-verdict
