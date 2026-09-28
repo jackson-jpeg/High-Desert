@@ -91,14 +91,31 @@ VPS.
 
 - **From archive.org:**
   - Started at 30:00, the way a mid-show tune-in seeks. It played to
-    **1:13:06**, with **no `waiting` after the first `playing`** and no error.
-  - The 42 `stalled` events are Safari's "the network fetch is idle" signal.
+    **4:18:19** (13,700 s of the show over 16,158 s of wall clock), with **no
+    `waiting` after the first `playing`** and no error.
+  - At 1:13:57 its tab went **hidden** (a second tab was opened over it), and
+    it played on in the background for the remaining 3 hours, still without a
+    `waiting`. That is a hidden page, not a locked screen, but it is the
+    closest the simulator gets (below).
+  - The 208 `stalled` events are Safari's "the network fetch is idle" signal.
     Safari throttles the download once it has buffered ahead, so the buffer
     stayed about 75 minutes deep.
-  - Wall-clock time ran about twice the audio time. The Mac's load average was
-    40 to 97, and the simulated device was starved.
+  - The show fell behind the wall clock, most of it early in the night, when
+    the Mac's load average was 40 to 97 and the simulated device was starved.
+    The playhead advanced without ever reporting `waiting`.
   - **The stall did not reproduce.**
-- **From our pinned copy (`/mirror/…`):** see "Pinned copy run" below.
+- **From our pinned copy (`/mirror/…`),** run on 2026-09-28 once the Mac's
+  load had dropped to about 5 (the first attempt overnight never received its
+  tap):
+  - Tapped at 30:00; `playing` 1.1 s later. It played to **1:03:23** (2,003 s
+    of wall clock for 2,003 s of show) with **no `waiting` after the first
+    `playing`**, no error and no pause.
+  - nginx served it off disk fast enough that 43 minutes were buffered within
+    40 s. There were 16 `stalled` (fetch idle) events, the same throttling as
+    above.
+  - For the last 484 s its tab was **hidden** (another page opened over it),
+    and the playhead advanced 488 s in that time.
+  - **The stall did not reproduce from the mirror either.**
 
 The screen-locked case cannot be simulated faithfully here: locking the
 simulator (Device > Lock) did not change the page's `visibilityState`, so
