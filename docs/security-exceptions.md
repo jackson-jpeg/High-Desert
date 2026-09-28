@@ -34,6 +34,8 @@ closed with a one-line reason here, so the decision is findable.
 
 - **eslint 9 → 10** (PR #14, 2026-09-21): `npm run lint` crashes — the `eslint-plugin-react` bundled by `eslint-config-next` 16.3.5 calls `context.getFilename()`, removed in ESLint 10, and it and `eslint-plugin-import`/`jsx-a11y` declare peer ranges ending at `^9`. Retry when `eslint-config-next` supports 10. Dev-only; no advisory against eslint 9.
 - **eslint 9 → 10.11** (PR #49, 2026-09-28): the same crash (`react/display-name`: `contextOrFilename.getFilename is not a function`) under `eslint-config-next` 16.3.6; `eslint-plugin-react` 7.37.5, its latest, still declares `eslint ^3 … ^9.7`. Retry when it declares 10. Dev-only; no advisory against eslint 9.
+- **typescript 5.9 → 7.0** (PR #55, 2026-09-28): lint stops at once with `typescript-eslint does not support TS 7.0`. Retry when typescript-eslint declares 7. Dev-only; no advisory against 5.9.
+- **@types/node 22 → 26** (PR #54, 2026-09-28): not an upgrade to take on its own. The runtime is Node 22 (the VPS, `node-version: 22` in CI), and Node 26's types would let code call APIs Node 22 does not have and typecheck clean. Move `@types/node` with the runtime, never ahead of it. Dev-only.
 
 ## HD-043 — the admin password hash ships in the client bundle
 
