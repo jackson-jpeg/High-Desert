@@ -41,6 +41,8 @@ interface World {
   noBuildSplit?: boolean;
   /** What the stub presence check prints and exits with. */
   presence: { rc: number; out: string };
+  /** /proc/meminfo's MemTotal, MemAvailable and swap, in kB; null writes no file. */
+  memory: { totalKb: number; availKb: number; swapTotalKb: number; swapFreeKb: number } | null;
   /** %steal of each sysstat sample today, oldest first; [] prints no samples. */
   steal: number[];
   /** is-active of the retired webtorrent unit, highdesert-mirror. */
@@ -103,6 +105,7 @@ const HEALTHY: World = {
   presence: { rc: 0, out: "surfaces agree in 3 view(s)" },
   // The oldest sample is high on purpose: only the last three (30 min) count.
   steal: [90, 4, 5, 6],
+  memory: { totalKb: 8_000_000, availKb: 3_000_000, swapTotalKb: 12_582_912, swapFreeKb: 10_485_760 },
   oldGatewayActive: "inactive",
   mirrorManifest: { version: "0123456789abcdef", count: 3, pinned: 3, fileHashes: ["archive:c:a.mp3", "archive:c:b.mp3", "archive:c:c.mp3"] },
   pinnedBytes: 14 * 2 ** 30,
@@ -202,6 +205,23 @@ async function run(): Promise<{ code: number; out: string }> {
   await truncate(path.join(pins, "archive:c:a.mp3"), world.pinnedBytes);
   await writeFile(path.join(fill, "a", "bc", "slice"), "");
   await truncate(path.join(fill, "a", "bc", "slice"), world.fillCacheBytes);
+  const meminfoFile = path.join(dir, "meminfo");
+  if (world.memory) {
+    const m = world.memory;
+    await writeFile(
+      meminfoFile,
+      [
+        `MemTotal:       ${m.totalKb} kB`,
+        `MemFree:        ${Math.floor(m.availKb / 2)} kB`,
+        `MemAvailable:   ${m.availKb} kB`,
+        `SwapTotal:      ${m.swapTotalKb} kB`,
+        `SwapFree:       ${m.swapFreeKb} kB`,
+        "",
+      ].join("\n"),
+    );
+  } else {
+    await rm(meminfoFile, { force: true });
+  }
   const warmFile = path.join(dir, "warm-status.json");
   if (world.warm) {
     const { ageH, ...rest } = world.warm;
@@ -282,6 +302,7 @@ async function run(): Promise<{ code: number; out: string }> {
           HD_FUNNEL_VERDICT: verdictFile,
           HD_DIGEST_STATUS: digestFile,
           HD_MUTATIONS_CMD: path.join(bin, "mutations"),
+          HD_MEMINFO: path.join(dir, "meminfo"),
         },
         timeout: 30_000,
       },
@@ -304,6 +325,7 @@ beforeEach(async () => {
     release: { ...HEALTHY.release },
     presence: { ...HEALTHY.presence },
     steal: [...HEALTHY.steal],
+    memory: { ...HEALTHY.memory! },
     mirrorManifest: { ...HEALTHY.mirrorManifest!, fileHashes: [...HEALTHY.mirrorManifest!.fileHashes] },
     cpu: { ...HEALTHY.cpu },
     warm: { ...HEALTHY.warm! },
@@ -508,12 +530,34 @@ describe("highdesert-status", () => {
       expect(l.slice(0, l.indexOf("target"))).not.toContain("%");
     });
 
-    it("one failure in one play is a count and no verdict, not \"100% failed\"", async () => {
+    it("one failure in one play is a count and no verdict, not \"100% failed\", and reads OK", async () => {
       world.release = { failures: 1, recovered: 0, plays: 1, days: 0.1 };
       const r = await run();
       expect(lineFor(r.out, "release")).toBe(
-        "WARN  release   1 start lost in 1 play on this release's builds so far, no verdict until 300 plays; 0 rescued by the retry or the mirror (0.1 of 7 days since 2026-09-21T15:50:00Z; target <3% lost)",
+        "OK    release   1 start lost in 1 play on this release's builds so far, no verdict until 300 plays; 0 rescued by the retry or the mirror (0.1 of 7 days since 2026-09-21T15:50:00Z; target <3% lost)",
       );
+    });
+
+    it("under 300 plays, over the 3% target still reads OK: that is a verdict, and there is none yet", async () => {
+      world.release = { failures: 10, recovered: 0, plays: 200, days: 3 };
+      expect(lineFor((await run()).out, "release")).toMatch(/^OK\s+release\s+10 starts lost in 200 plays/);
+    });
+
+    it("the tripwire: 10% or more lost on at least 30 plays WARNs before the verdict", async () => {
+      world.release = { failures: 3, recovered: 0, plays: 30, days: 0.5 };
+      const r = await run();
+      expect(lineFor(r.out, "release")).toBe(
+        "WARN  release   3 starts lost in 30 plays on this release's builds so far, no verdict until 300 plays; 0 rescued by the retry or the mirror (0.5 of 7 days since 2026-09-21T15:50:00Z; target <3% lost); tripwire: 10% or more lost on 30+ plays",
+      );
+      expect(r.code).toBe(0);
+    });
+
+    it("the tripwire needs 30 plays, and counts only lost starts", async () => {
+      world.release = { failures: 3, recovered: 0, plays: 29, days: 0.5 };
+      expect(lineFor((await run()).out, "release")).toMatch(/^OK\s+release\s+3 starts lost in 29 plays/);
+      // 6 failures on 40 plays is 15%, but 4 were rescued: 2 lost is 5%.
+      world.release = { failures: 6, recovered: 4, plays: 40, days: 0.5 };
+      expect(lineFor((await run()).out, "release")).toMatch(/^OK\s+release\s+2 starts lost in 40 plays/);
     });
 
     it("from 300 plays it leads with the share of starts lost, OK under 3%", async () => {
@@ -693,6 +737,33 @@ describe("highdesert-status", () => {
     it("WARNs — does not report 0% — when sysstat has no samples", async () => {
       world.steal = [];
       expect(lineFor((await run()).out, "steal")).toMatch(/^WARN\s+steal\s+no sysstat samples/);
+    });
+  });
+
+  describe("memory line", () => {
+    it("reports available memory and swap, OK at 15% or more", async () => {
+      const r = await run();
+      expect(lineFor(r.out, "memory")).toBe("OK    memory    37.5% available (2.9 of 7.6 GB); swap 2.0 of 12.0 GB used");
+    });
+    it("is still OK at exactly 15%", async () => {
+      world.memory = { ...world.memory!, availKb: 1_200_000 };
+      expect(lineFor((await run()).out, "memory")).toMatch(/^OK\s+memory\s+15\.0% available/);
+    });
+    it("WARNs under 15%, and exits 0", async () => {
+      world.memory = { ...world.memory!, availKb: 1_040_000 };
+      const r = await run();
+      expect(lineFor(r.out, "memory")).toMatch(/^WARN\s+memory\s+13\.0% available .*\(WARN under 15%\)$/);
+      expect(r.code).toBe(0);
+    });
+    it("FAILs under 5%, and exits non-zero", async () => {
+      world.memory = { ...world.memory!, availKb: 392_000 };
+      const r = await run();
+      expect(lineFor(r.out, "memory")).toMatch(/^FAIL\s+memory\s+4\.9% available .*\(FAIL under 5%\)$/);
+      expect(r.code).toBe(1);
+    });
+    it("WARNs when meminfo cannot be read, rather than reporting nothing", async () => {
+      world.memory = null;
+      expect(lineFor((await run()).out, "memory")).toMatch(/^WARN\s+memory\s+could not read MemAvailable/);
     });
   });
 

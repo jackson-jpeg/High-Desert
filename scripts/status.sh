@@ -26,7 +26,8 @@
 #             in docs/reliability-baseline.md (/api/stats/failures?since=): failures
 #             the retry or the mirror did not rescue, WARN at 3%+ of plays; the
 #             rescued ones beside it with their own count. Under 300 plays, counts
-#             only ("N starts lost in M plays so far, no verdict until 300 plays").
+#             only ("N starts lost in M plays so far, no verdict until 300 plays"),
+#             and OK unless a tripwire trips: 10%+ lost on at least 30 plays.
 #             Only rows from this release's builds (the release commit and
 #             .deploy/history since the release); other builds' rows beside it
 #   presence  the live site's presence surfaces (Stats badge, status bar, mobile
@@ -34,6 +35,8 @@
 #             poll — scripts/presence-check.mjs in headless Chromium; FAIL if not
 #   steal     hypervisor steal, mean of sysstat's samples over the last 30 minutes:
 #             WARN above 20%, FAIL above 50% (the 2026-09-22 episode ran ~90%)
+#   memory    MemAvailable as a share of MemTotal (/proc/meminfo): WARN under 15%,
+#             FAIL under 5%; swap in use beside it, reported, not judged
 #   mirror    the outage mirror as nginx serves it: /mirror/manifest answering with
 #             at least one pin; pinned count and bytes, the fill cache's size, and
 #             mirror plays in the last 24h. WARN if the retired webtorrent gateway
@@ -73,7 +76,7 @@
 #   HD_WARM_STATUS, HD_WARM_MAX_AGE_S (129600), HD_CPU_CMD (hd-cpu-sample report --window 900),
 #   HD_LIVE (http://127.0.0.1:3005), HD_FUNNEL_VERDICT (/var/lib/highdesert-funnel/status.json),
 #   HD_DIGEST_STATUS (/var/lib/highdesert-digest/status.json),
-#   HD_MUTATIONS_CMD (bash scripts/nightly-mutations.sh)
+#   HD_MUTATIONS_CMD (bash scripts/nightly-mutations.sh), HD_MEMINFO (/proc/meminfo)
 set -uo pipefail
 
 ROOT="${HD_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -279,6 +282,11 @@ fi
 # dropped and never mixed in (docs/reliability-baseline.md).
 RELEASE_TARGET_PCT=3
 RELEASE_VERDICT_PLAYS=300
+# Under the verdict the line reads OK, with one tripwire so a broken release
+# still flags early: at least RELEASE_TRIPWIRE_PLAYS plays with
+# RELEASE_TRIPWIRE_PCT% or more of them lost.
+RELEASE_TRIPWIRE_PLAYS=30
+RELEASE_TRIPWIRE_PCT=10
 baseline_doc="docs/reliability-baseline.md"
 release_at="$(sed -n 's/^\*\*Release deployed:\*\* `\([^`]*\)`.*/\1/p' "$baseline_doc" 2>/dev/null | head -1)"
 release_ref="$(sed -n 's/^\*\*Release deployed:\*\* `[^`]*` (\([0-9a-f]\{7,40\}\)).*/\1/p' "$baseline_doc" 2>/dev/null | head -1)"
@@ -326,12 +334,17 @@ else
     else
       rpct="$(awk -v f="$rl" -v p="$rp" 'BEGIN { printf "%.1f", 100 * f / p }')"
       level=OK
-      awk -v x="$rpct" -v t="$RELEASE_TARGET_PCT" 'BEGIN { exit !(x >= t) }' && level=WARN
       if (( rp < RELEASE_VERDICT_PLAYS )); then
         (( rl == 1 )) && starts="start" || starts="starts"
         (( rp == 1 )) && plays="play" || plays="plays"
-        line "$level" release "$rl $starts lost in $rp $plays $whose so far, no verdict until $RELEASE_VERDICT_PLAYS plays; $rescued (${wdays} of 7 days since $release_at; target <${RELEASE_TARGET_PCT}% lost)$older"
+        trip=""
+        if (( rp >= RELEASE_TRIPWIRE_PLAYS )) && awk -v x="$rpct" -v t="$RELEASE_TRIPWIRE_PCT" 'BEGIN { exit !(x >= t) }'; then
+          level=WARN
+          trip="; tripwire: ${RELEASE_TRIPWIRE_PCT}% or more lost on ${RELEASE_TRIPWIRE_PLAYS}+ plays"
+        fi
+        line "$level" release "$rl $starts lost in $rp $plays $whose so far, no verdict until $RELEASE_VERDICT_PLAYS plays; $rescued (${wdays} of 7 days since $release_at; target <${RELEASE_TARGET_PCT}% lost)$trip$older"
       else
+        awk -v x="$rpct" -v t="$RELEASE_TARGET_PCT" 'BEGIN { exit !(x >= t) }' && level=WARN
         respct="$(awk -v f="$rr" -v p="$rp" 'BEGIN { printf "%.1f", 100 * f / p }')"
         line "$level" release "${rpct}% of starts lost $whose in the ${wdays} of 7 days since $release_at ($rl lost / $rp plays; target <${RELEASE_TARGET_PCT}%); $rescued (${respct}%)$older"
       fi
@@ -367,6 +380,29 @@ else
   line OK steal "${steal}% hypervisor steal over 30 min"
 fi
 
+
+# --- memory ------------------------------------------------------------------
+# MemAvailable over MemTotal (/proc/meminfo): what the kernel can hand out
+# without swapping. WARN under 15%, FAIL under 5%. Swap is reported, not
+# judged. On 2026-09-28 available memory fell to 13% while two SoGoJet test
+# runs, another session's jest/tsc/eslint and a High Desert build overlapped,
+# and Claude Code killed a background job to make room (docs/memory-2026-09-28.md).
+MEMINFO="${HD_MEMINFO:-/proc/meminfo}"
+mem="$(awk '/^MemTotal:/ { t = $2 } /^MemAvailable:/ { a = $2 } /^SwapTotal:/ { st = $2 } /^SwapFree:/ { sf = $2 }
+  END { if (t > 0 && a != "") printf "%.1f %.1f %.1f %.1f %.1f", 100 * a / t, a / 1048576, t / 1048576, (st - sf) / 1048576, st / 1048576 }' "$MEMINFO" 2>/dev/null)"
+if [[ -z "$mem" ]]; then
+  line WARN memory "could not read MemAvailable from $MEMINFO"
+else
+  read -r mpct mavail mtotal mswap mswaptot <<<"$mem"
+  mtext="${mpct}% available (${mavail} of ${mtotal} GB); swap ${mswap} of ${mswaptot} GB used"
+  if awk -v x="$mpct" 'BEGIN { exit !(x < 5) }'; then
+    line FAIL memory "$mtext (FAIL under 5%)"
+  elif awk -v x="$mpct" 'BEGIN { exit !(x < 15) }'; then
+    line WARN memory "$mtext (WARN under 15%)"
+  else
+    line OK memory "$mtext"
+  fi
+fi
 # --- mirror ------------------------------------------------------------------
 # The archive.org outage fallback: nginx serves the pins and fills the rest
 # (services/mirror/lib/nginx.mjs). No manifest, or an empty one, is a FAIL:
