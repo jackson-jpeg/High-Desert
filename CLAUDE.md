@@ -29,7 +29,9 @@ against the e2e database (`/root/.high-desert-e2e.env`), never `TEST_DATABASE_UR
 production, never `npm install` — see "Deploying to the VPS".)
 
 **CI is the gate**, and it runs once per change: on pull requests and on `main`, never
-twice per push, and a newer commit on a PR cancels the older run. There is no pre-push
+twice per push, and a newer push to the same PR or to `main` cancels the older run.
+Two workflows: `ci.yml` (jobs `checks`: lint, typecheck, suite; and `browser`: build, CSP,
+Playwright, in parallel) and `mutations.yml` (below). There is no pre-push
 hook: **no git hooks in production trees** (2026-09-28: a local pre-push gate ran the suite
 with git's hook variables set, and the tests' throwaway repositories wrote into the real
 one, setting `core.bare = true` under `/root/High-Desert`). Every test that runs git
@@ -46,8 +48,21 @@ were checks disconnected from the thing they checked — a watchdog whose listen
 were never attached, two tests that re-implemented their subject, and a handoff
 that asserted "pushed to origin" without looking. A passing suite cannot tell those
 from working ones. `scripts/mutate-check.mjs` breaks one real line per module and
-requires the suite to notice; it runs in CI. Read `docs/disconnected-checks.md`
+requires the suite to notice. Read `docs/disconnected-checks.md`
 before adding a test, and add a mutation alongside it.
+
+**Where the mutations run** (`.github/workflows/mutations.yml`, 2026-09-28; it was 25 of
+CI's 35 minutes run one after another):
+- **A pull request** checks only the mutations whose target or test file it changed, plus
+  entries it added or edited, in 4 shards (`--changed-from HEAD^1`, `selectMutations`).
+  A change to `package.json`, the lockfile or the vitest config checks the whole list
+  (`RUN_ALL_WHEN_CHANGED`). A change to a helper a test imports is *not* seen here.
+- **`main`** after each merge, and **nightly at 09:30 UTC**, check the whole list in 4
+  shards (`--shard i/4`). The nightly run is never cancelled.
+- **`highdesert-status`'s `mutations` line is the guarantee**: it FAILs if any shard of
+  the newest nightly run had a mutation survive or go stale, and WARNs if that run broke
+  before checking, is over 36 h old, or never ran (`scripts/nightly-mutations.sh`).
+- Locally: `node scripts/mutate-check.mjs <id-substring>`, or all of them with no argument.
 
 ## Tech Stack
 
