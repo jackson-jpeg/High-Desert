@@ -28,12 +28,12 @@ against the e2e database (`/root/.high-desert-e2e.env`), never `TEST_DATABASE_UR
 (Quick Start is for a *development* checkout. In `/root/High-Desert`, which is
 production, never `npm install` — see "Deploying to the VPS".)
 
-**A push runs CI's gate first** (`scripts/pre-push`, via the global dispatcher
-`/root/.git-hooks/pre-push`): lint, typecheck, the whole suite on the test database with
-**no global git config** (CI has none), and the mutations of every changed file. It
-exists because a day of branch-CI failure emails were all failures it catches. CI itself
-runs on pull requests and on `main` only (never twice per push), and a newer commit on a
-PR cancels the older run. Don't `--no-verify` a push CI will check.
+**CI is the gate**, and it runs once per change: on pull requests and on `main`, never
+twice per push, and a newer commit on a PR cancels the older run. There is no pre-push
+hook: **no git hooks in production trees** (2026-09-28: a local pre-push gate ran the suite
+with git's hook variables set, and the tests' throwaway repositories wrote into the real
+one, setting `core.bare = true` under `/root/High-Desert`). Every test that runs git
+clears the `GIT_*` variables first (`src/test-support/git-env.ts`).
 
 **Database-backed tests** (`*.db.test.ts`, `scripts/__tests__/backup-db.test.ts`) need
 `TEST_DATABASE_URL`, a `*_test` database — enforced by `src/test-support/test-db.ts`. CI

@@ -142,8 +142,8 @@ async function publish(state, section, remote) {
     await git("add", DOC);
     await git("commit", "-q", "-m", "docs(funnel): the before and after verdict, written by funnel-verdict");
   }
-  // --no-verify: this checkout has no node_modules, so the box's pre-push gate
-  // (scripts/pre-push) cannot run in it, and the push is one doc.
+  // --no-verify: a machine-made push of one doc from a checkout with no
+  // node_modules; no hook the box might carry can run in it.
   await git("push", "-q", "--no-verify", "origin", "HEAD:main");
   return { sha: await git("rev-parse", "--short", "HEAD"), file };
 }

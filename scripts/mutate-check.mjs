@@ -4567,6 +4567,22 @@ export const MUTATIONS = [
     why: "the box's pre-push gate cannot run in the job's checkout (no node_modules), so the verdict push was refused",
   },
   {
+    id: "git-env-setup-wired",
+    test: "src/test-support/__tests__/git-env.test.ts",
+    file: "vitest.config.mts",
+    find: '    setupFiles: ["src/test-support/git-env.ts"],',
+    replace: "",
+    why: "the suite ran with git's hook variables, and the tests' throwaway repositories wrote into the real one (core.bare = true under /root/High-Desert)",
+  },
+  {
+    id: "git-env-clears",
+    test: "src/test-support/__tests__/git-env.test.ts",
+    file: "src/test-support/git-env.ts",
+    find: "  for (const k of removed) delete env[k];",
+    replace: "",
+    why: "GIT_DIR from a hook reached every test that runs git",
+  },
+  {
     id: "community-import-needs-length",
     test: "scripts/__tests__/community-sources.test.ts",
     file: "scripts/import-community-sources.mjs",

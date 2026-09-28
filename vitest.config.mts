@@ -4,6 +4,10 @@ import path from "path";
 export default defineConfig({
   test: {
     environment: "jsdom",
+    // No git variable reaches a test (src/test-support/git-env.ts). The canary
+    // below is planted so the guard test can see the setup file clear it.
+    setupFiles: ["src/test-support/git-env.ts"],
+    env: { GIT_DIR: "/nonexistent/git-env-canary" },
     // deploy.sh keeps the previous node_modules and build beside the live ones
     // for rollback; their packages' own test files are not ours to run.
     exclude: [
