@@ -77,6 +77,8 @@ interface World {
   funnelVerdict: ({ ageH: number } & Record<string, unknown>) | null;
   /** scripts/digest.mjs's status.json; null: never run. `ageH` sets checkedAt. */
   digest: ({ ageH: number } & Record<string, unknown>) | null;
+  /** scripts/nightly-mutations.sh's answer; `ageH` sets createdAt. null: never run; "unreadable": GitHub fails. */
+  mutations: { ageH: number; conclusion: string; mutationCheck: string[] } | null | "unreadable";
   liveActive: string;
   /** /live-api/health's body; null answers 502. */
   liveHealth: Record<string, unknown> | null;
@@ -118,6 +120,7 @@ const HEALTHY: World = {
     error: null,
   },
   funnelVerdict: null,
+  mutations: { ageH: 8, conclusion: "success", mutationCheck: ["success", "success", "success", "success"] },
   liveActive: "active",
   liveHealth: { ok: true, clients: 42, messagesLastHour: 17, slowMode: false, cpu: { pct: 2.5, windowS: 900 } },
 };
@@ -219,6 +222,27 @@ async function run(): Promise<{ code: number; out: string }> {
   } else {
     await rm(digestFile, { force: true });
   }
+  const mutationsFile = path.join(dir, "mutations.json");
+  if (world.mutations && world.mutations !== "unreadable") {
+    const { ageH, ...rest } = world.mutations;
+    await writeFile(
+      mutationsFile,
+      JSON.stringify({
+        databaseId: 4242,
+        headSha: "0123456789abcdef0123456789abcdef01234567",
+        url: "https://github.com/o/r/actions/runs/4242",
+        createdAt: new Date(Date.now() - ageH * 3_600_000).toISOString().replace(/\.\d{3}Z$/, "Z"),
+        ...rest,
+      }),
+    );
+  } else {
+    await writeFile(mutationsFile, "{}");
+  }
+  await writeFile(
+    path.join(bin, "mutations"),
+    world.mutations === "unreadable" ? "#!/bin/sh\necho 'HTTP 502' >&2\nexit 1\n" : `#!/bin/sh\ncat "${mutationsFile}"\n`,
+    { mode: 0o755 },
+  );
   const head = await git("rev-parse", "--short", "HEAD");
   const deployed = world.deployedIsHead ? head : await git("rev-parse", "--short", "HEAD~1");
   await writeFile(path.join(root, ".deploy/deployed"), `${deployed} 2026-09-21T14:00:00Z\n`);
@@ -256,6 +280,7 @@ async function run(): Promise<{ code: number; out: string }> {
           HD_WARM_STATUS: warmFile,
           HD_FUNNEL_VERDICT: verdictFile,
           HD_DIGEST_STATUS: digestFile,
+          HD_MUTATIONS_CMD: path.join(bin, "mutations"),
         },
         timeout: 30_000,
       },
@@ -802,6 +827,99 @@ describe("highdesert-status", () => {
       const r = await run();
       expect(lineFor(r.out, "cpu")).toMatch(/^WARN\s+cpu\s+no 15-minute CPU figure \(exit 3\): only 240s of samples, need 810s$/);
       expect(r.out).not.toMatch(/^FAIL/m);
+    });
+  });
+
+  describe("mutations line (the nightly full run holds the whole list)", () => {
+    it("OK when the newest nightly run checked every shard and all went red", async () => {
+      expect(lineFor((await run()).out, "mutations")).toMatch(
+        /^OK\s+mutations\s+nightly full run on 0123456 \(.*\): every mutation red in all 4 shards$/,
+      );
+    });
+
+    it("FAILs, and the command exits non-zero, when a mutation survived", async () => {
+      world.mutations = { ageH: 8, conclusion: "failure", mutationCheck: ["success", "failure", "success", "success"] };
+      const r = await run();
+      expect(lineFor(r.out, "mutations")).toMatch(
+        /^FAIL\s+mutations\s+nightly full run on 0123456 .*: 1 of 4 shard\(s\) had a mutation survive or go stale: https:\/\/github.com\/o\/r\/actions\/runs\/4242$/,
+      );
+      expect(r.code).not.toBe(0);
+    });
+
+    it("FAILs on survivors however old the run is", async () => {
+      world.mutations = { ageH: 80, conclusion: "failure", mutationCheck: ["failure", "success", "success", "success"] };
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^FAIL\s+mutations/);
+    });
+
+    it("WARNs when the run broke before every shard checked", async () => {
+      world.mutations = { ageH: 8, conclusion: "failure", mutationCheck: ["success", "success"] };
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+.* ended failure before every shard checked/);
+      world.mutations = { ageH: 8, conclusion: "cancelled", mutationCheck: ["success", "success", "success", "success"] };
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+.* ended cancelled/);
+    });
+
+    it("WARNs when the nightly run has stopped running", async () => {
+      world.mutations = { ageH: 40, conclusion: "success", mutationCheck: ["success", "success", "success", "success"] };
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+the last nightly full run was 40h ago/);
+    });
+
+    it("WARNs, never OK, with no run or no answer from GitHub", async () => {
+      world.mutations = null;
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+no nightly full mutation run yet/);
+      world.mutations = "unreadable";
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+could not read/);
+    });
+  });
+
+  describe("scripts/nightly-mutations.sh (what the mutations line reads)", () => {
+    const HELPER = path.resolve(__dirname, "../nightly-mutations.sh");
+    const helper = async (list: unknown[], jobs: unknown) => {
+      const gh = path.join(dir, "bin", "gh");
+      await writeFile(path.join(dir, "list.json"), JSON.stringify(list));
+      await writeFile(path.join(dir, "jobs.json"), JSON.stringify(jobs));
+      await writeFile(
+        gh,
+        [
+          "#!/bin/sh",
+          `echo "$*" >> "${path.join(dir, "gh.log")}"`,
+          `case "$1 $2" in`,
+          `  "run list") cat "${path.join(dir, "list.json")}";;`,
+          `  "run view") cat "${path.join(dir, "jobs.json")}";;`,
+          "esac",
+        ].join("\n"),
+        { mode: 0o755 },
+      );
+      return new Promise<string>((resolve, reject) =>
+        execFile("bash", [HELPER], { env: { ...process.env, HD_GH: gh } }, (err, out) => (err ? reject(err) : resolve(out))),
+      );
+    };
+
+    it("asks for the newest finished scheduled run on main and reports each shard's mutation check", async () => {
+      const out = await helper(
+        [{ databaseId: 7, conclusion: "failure", createdAt: "2026-09-29T09:31:00Z", headSha: "abc", url: "u" }],
+        {
+          jobs: [
+            { name: "mutations (1/4)", steps: [{ name: "Install dependencies", conclusion: "success" }, { name: "Mutation check", conclusion: "success" }] },
+            { name: "mutations (2/4)", steps: [{ name: "Mutation check", conclusion: "failure" }] },
+          ],
+        },
+      );
+      expect(JSON.parse(out)).toEqual({
+        databaseId: 7,
+        conclusion: "failure",
+        createdAt: "2026-09-29T09:31:00Z",
+        headSha: "abc",
+        url: "u",
+        mutationCheck: ["success", "failure"],
+      });
+      const { readFile } = await import("node:fs/promises");
+      const asked = await readFile(path.join(dir, "gh.log"), "utf8");
+      expect(asked).toMatch(/run list .*--workflow mutations\.yml --event schedule --branch main --status completed --limit 1/);
+      expect(asked).toMatch(/run view 7 /);
+    });
+
+    it("prints {} when there has never been a nightly run", async () => {
+      expect(JSON.parse(await helper([], { jobs: [] }))).toEqual({});
     });
   });
 

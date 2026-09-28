@@ -15,15 +15,23 @@ updates:
       time: "15:00"
       timezone: Etc/UTC
     open-pull-requests-limit: 5
+    # One PR a week for every minor and patch update, so the lockfile is
+    # rebased once and CI runs once (on 2026-09-28 four separate PRs meant four
+    # rebases and four runs). A PR that changes the lockfile checks the whole
+    # mutation list (scripts/mutate-check.mjs, RUN_ALL_WHEN_CHANGED).
+    # Majors come separately, each its own PR, except the pairs below. A group
+    # takes an update in the order written, so minor-and-patch comes first.
     groups:
-      # Next and its lint config move together, or lint breaks.
-      next:
-        patterns: ["next", "eslint-config-next", "@next/*"]
-      react:
-        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
-      tooling-minor:
-        dependency-type: development
+      minor-and-patch:
+        patterns: ["*"]
         update-types: ["minor", "patch"]
+      # Next and its lint config move together, or lint breaks.
+      next-major:
+        patterns: ["next", "eslint-config-next", "@next/*"]
+        update-types: ["major"]
+      react-major:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+        update-types: ["major"]
     labels: ["dependencies"]
     commit-message:
       prefix: "deps"
@@ -31,4 +39,7 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
     labels: ["dependencies"]

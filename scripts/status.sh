@@ -48,6 +48,12 @@
 #             week's written to docs/digest/ and copied to the Mac. WARN if the job
 #             has never run or not for 36h, if the week's is not written, or if it
 #             has waited more than 48h for the Mac
+#   mutations the newest nightly full mutation run on main (.github/workflows/
+#             mutations.yml, scripts/nightly-mutations.sh): FAIL if any shard's
+#             mutation check failed (a mutation survived or its anchor went stale);
+#             WARN if the run broke before checking, is older than 36h, has never
+#             run, or GitHub cannot be read. A PR checks only what it touched, so
+#             this line is where the whole list is held
 #   audit     npm audit --omit=dev critical + high count
 #
 # The failure rate is reported, not judged: WARN above 10%, never FAIL — it
@@ -63,7 +69,8 @@
 #   HD_MIRROR_MANIFEST_URL ($HD_SITE/mirror/manifest), HD_MIRROR_PINS, HD_MIRROR_PROXY_CACHE,
 #   HD_WARM_STATUS, HD_WARM_MAX_AGE_S (129600), HD_CPU_CMD (hd-cpu-sample report --window 900),
 #   HD_LIVE (http://127.0.0.1:3005), HD_FUNNEL_VERDICT (/var/lib/highdesert-funnel/status.json),
-#   HD_DIGEST_STATUS (/var/lib/highdesert-digest/status.json)
+#   HD_DIGEST_STATUS (/var/lib/highdesert-digest/status.json),
+#   HD_MUTATIONS_CMD (bash scripts/nightly-mutations.sh)
 set -uo pipefail
 
 ROOT="${HD_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -87,6 +94,7 @@ WARM_MAX_AGE_S="${HD_WARM_MAX_AGE_S:-129600}"
 LIVE="${HD_LIVE:-http://127.0.0.1:3005}"
 # Same default as the `cpu` line's HD_CPU_CMD; its own name so the two lines merge cleanly.
 LIVE_CPU_CMD="${HD_CPU_CMD:-hd-cpu-sample report --window 900}"
+MUTATIONS_CMD="${HD_MUTATIONS_CMD:-bash $ROOT/scripts/nightly-mutations.sh}"
 
 cd "$ROOT" || exit 2
 
@@ -496,6 +504,33 @@ else
     fi
   else
     line OK digest "docs/digest/$d_due.md written $d_at, on the Mac $d_copied"
+  fi
+fi
+
+# --- mutations ---------------------------------------------------------------
+# A pull request checks only the mutations it touched; the whole list is held
+# by the full run on main and, since a push to main may be cancelled by the
+# next one, by the nightly run. This line is that guarantee's reader.
+if ! mj="$($MUTATIONS_CMD 2>/dev/null)" || ! jq -e 'type == "object"' >/dev/null 2>&1 <<<"$mj"; then
+  line WARN mutations "could not read the nightly mutation run from GitHub (scripts/nightly-mutations.sh)"
+elif [[ "$(jq -r '.databaseId // empty' <<<"$mj")" == "" ]]; then
+  line WARN mutations "no nightly full mutation run yet (.github/workflows/mutations.yml)"
+else
+  m_sha="$(jq -r '.headSha // "" | .[0:7]' <<<"$mj")"
+  m_at="$(jq -r '.createdAt // empty' <<<"$mj")"
+  m_url="$(jq -r '.url // empty' <<<"$mj")"
+  m_age=$(( $(date +%s) - $(date -d "${m_at:-1970-01-01}" +%s 2>/dev/null || echo 0) ))
+  m_failed="$(jq -r '[.mutationCheck[]? | select(. == "failure")] | length' <<<"$mj")"
+  m_ok="$(jq -r '[.mutationCheck[]? | select(. == "success")] | length' <<<"$mj")"
+  m_shards="$(jq -r '.mutationCheck | length' <<<"$mj")"
+  if (( m_failed > 0 )); then
+    line FAIL mutations "nightly full run on $m_sha ($m_at): $m_failed of $m_shards shard(s) had a mutation survive or go stale: $m_url"
+  elif [[ "$(jq -r '.conclusion' <<<"$mj")" != success ]] || (( m_shards == 0 || m_ok != m_shards )); then
+    line WARN mutations "nightly full run on $m_sha ($m_at) ended $(jq -r '.conclusion' <<<"$mj") before every shard checked: $m_url"
+  elif (( m_age > 129600 )); then
+    line WARN mutations "the last nightly full run was $(( m_age / 3600 ))h ago ($m_sha, every mutation red then)"
+  else
+    line OK mutations "nightly full run on $m_sha ($m_at): every mutation red in all $m_shards shards"
   fi
 fi
 

@@ -29,11 +29,14 @@
  *
  *   node scripts/mutate-check.mjs              # all
  *   node scripts/mutate-check.mjs streak dedup # substring filter on id
+ *   node scripts/mutate-check.mjs --shard 2/4  # every 4th, from the 2nd
+ *   node scripts/mutate-check.mjs --changed-from origin/main  # a PR's (selectMutations)
  *
  * Exits non-zero if any mutation survives.
  */
 
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -5252,7 +5255,231 @@ export const MUTATIONS = [
     replace: `    if false; then`,
     why: "a digest that never reached the Mac read as fine forever",
   },
+  // ── Which mutations CI checks (selectMutations, .github/workflows/mutations.yml) ──
+  // The finds below that target this file spell one character as an escape
+  // (\x7c is "|", \x26 "&", \x25 "%", \x3e ">", \x3f "?"), so the anchor is
+  // found once in the code and not a second time here.
+  {
+    id: "mutate-select-by-target",
+    test: "scripts/__tests__/mutate-select.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: "(m) => files.has(m.file) \x7c| files.has(m.test) ||",
+    replace: "(m) => files.has(m.test) ||",
+    why: "a PR that changed a mutation's target skipped the mutation",
+  },
+  {
+    id: "mutate-select-new-entries",
+    test: "scripts/__tests__/mutate-select.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: "(before !== null \x26& !before.has(entryKey(m)))",
+    replace: "false",
+    why: "a PR that added or edited a mutation never ran it",
+  },
+  {
+    id: "mutate-run-all-on-lockfile",
+    test: "scripts/__tests__/mutate-select.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: "if (!RUN_ALL_WHEN_CHANGED.some((f) =\x3e files.has(f))) {",
+    replace: "if (true) {",
+    why: "a dependency upgrade that can blind any test checked only the files it touched",
+  },
+  {
+    id: "mutate-shards-disjoint",
+    test: "scripts/__tests__/mutate-select.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: "i \x25 shard.total === shard.index - 1",
+    replace: "i % shard.total <= shard.index - 1",
+    why: "shards overlapped, so four of them no longer added up to the list",
+  },
+  {
+    id: "mutate-base-list-read",
+    test: "scripts/__tests__/mutate-select.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: "base = JSON.parse(json) ?\x3f [];",
+    replace: "base = [];",
+    why: "the base's list was never read, so every entry looked new",
+  },
+  {
+    id: "status-mutations-fail",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: `  if (( m_failed > 0 )); then`,
+    replace: `  if false; then`,
+    why: "a mutation that survived the nightly full run did not FAIL highdesert-status",
+  },
+  {
+    id: "status-mutations-broken-run",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: `  elif [[ "$(jq -r '.conclusion' <<<"$mj")" != success ]] || (( m_shards == 0 || m_ok != m_shards )); then`,
+    replace: `  elif false; then`,
+    why: "a nightly run that broke before checking read as every mutation red",
+  },
+  {
+    id: "status-mutations-stale",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: `  elif (( m_age > 129600 )); then`,
+    replace: `  elif false; then`,
+    why: "a nightly run that had stopped running read as fine",
+  },
+  {
+    id: "nightly-helper-schedule-only",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/nightly-mutations.sh",
+    find: `--workflow mutations.yml --event schedule --branch main`,
+    replace: `--workflow mutations.yml --branch main`,
+    why: "status read a PR's narrowed run as the nightly full one",
+  },
+  {
+    id: "nightly-helper-step",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/nightly-mutations.sh",
+    find: `select(.name == "Mutation check")`,
+    replace: `select(.name != "")`,
+    why: "status judged every step of a shard, not its mutation check",
+  },
+  {
+    id: "ci-mutations-nightly",
+    test: "scripts/__tests__/ci-workflows.test.ts",
+    file: ".github/workflows/mutations.yml",
+    find: `  schedule:\n    - cron: "30 9 * * *"\n`,
+    replace: ``,
+    why: "the nightly full run, which holds the whole list, was never scheduled",
+  },
+  {
+    id: "ci-mutations-full-off-pr",
+    test: "scripts/__tests__/ci-workflows.test.ts",
+    file: ".github/workflows/mutations.yml",
+    find: "          else\n            node scripts/mutate-check.mjs --shard ${{ matrix.shard }}/4\n",
+    replace: "          else\n            node scripts/mutate-check.mjs --shard ${{ matrix.shard }}/4 --changed-from HEAD^1\n",
+    why: "main and the nightly run checked only a diff, so nothing checked the whole list",
+  },
+  {
+    id: "ci-mutations-nightly-uncancelled",
+    test: "scripts/__tests__/ci-workflows.test.ts",
+    file: ".github/workflows/mutations.yml",
+    find: "cancel-in-progress: ${{ github.event_name != 'schedule' }}",
+    replace: "cancel-in-progress: true",
+    why: "a merge could cancel the nightly full run",
+  },
+  {
+    id: "ci-mutations-shards",
+    test: "scripts/__tests__/ci-workflows.test.ts",
+    file: ".github/workflows/mutations.yml",
+    find: `        shard: [1, 2, 3, 4]`,
+    replace: `        shard: [1, 2, 3]`,
+    why: "a shard of the list was never run",
+  },
+  {
+    id: "ci-cancels-superseded",
+    test: "scripts/__tests__/ci-workflows.test.ts",
+    file: ".github/workflows/ci.yml",
+    find: `  cancel-in-progress: true`,
+    replace: "  cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
+    why: "a newer push to main left the older run going",
+  },
+  {
+    id: "dependabot-one-minor-patch-pr",
+    test: "scripts/__tests__/ci-workflows.test.ts",
+    file: ".github/dependabot.yml",
+    find: `        update-types: ["minor", "patch"]`,
+    replace: `        update-types: ["patch"]`,
+    why: "minor updates went back to one PR each",
+  },
+  {
+    id: "dependabot-majors-separate",
+    test: "scripts/__tests__/ci-workflows.test.ts",
+    file: ".github/dependabot.yml",
+    find: `        patterns: ["next", "eslint-config-next", "@next/*"]\n        update-types: ["major"]\n`,
+    replace: `        patterns: ["next", "eslint-config-next", "@next/*"]\n`,
+    why: "a major rode along with minor updates in a group",
+  },
 ];
+
+/**
+ * Files that change what every test does. A pull request touching one runs
+ * the whole list: a new vitest, jsdom or setup file can blind any test.
+ */
+export const RUN_ALL_WHEN_CHANGED = [
+  "package.json",
+  "package-lock.json",
+  "vitest.config.mts",
+  "src/test-support/git-env.setup.ts",
+];
+
+const entryKey = (m) => JSON.stringify([m.id, m.test, m.file, m.find, m.replace, m.needs ?? null]);
+
+/**
+ * Which mutations a run checks (.github/workflows/mutations.yml).
+ *
+ * - `changed` (a pull request's files, relative to the repo root): only the
+ *   mutations whose target or test file changed, plus any entry that is new
+ *   or edited relative to `base` (the list at the PR's base). Everything else
+ *   is left to the full run on main and the nightly one, which pass no
+ *   `changed` and so check the whole list.
+ * - `shard` ({index, total}, index from 1): every total-th mutation of what
+ *   is left, so the shards of one run are disjoint and together are all of it.
+ *
+ * @template {{id: string, file: string, test: string, find: string, replace: string, needs?: string}} T
+ * @param {T[]} all
+ * @param {{changed?: string[] | null, base?: {id: string, file: string, test: string, find: string, replace: string, needs?: string}[] | null, shard?: {index: number, total: number} | null}} [options]
+ * @returns {T[]}
+ */
+export function selectMutations(all, { changed = null, base = null, shard = null } = {}) {
+  let picked = all;
+  if (changed) {
+    const files = new Set(changed);
+    if (!RUN_ALL_WHEN_CHANGED.some((f) => files.has(f))) {
+      const before = base ? new Set(base.map(entryKey)) : null;
+      picked = all.filter(
+        (m) => files.has(m.file) || files.has(m.test) || (before !== null && !before.has(entryKey(m))),
+      );
+    }
+  }
+  if (shard) picked = picked.filter((_, i) => i % shard.total === shard.index - 1);
+  return picked;
+}
+
+/** "2/4" → {index: 2, total: 4}; anything else throws. */
+export function parseShard(text) {
+  const m = /^(\d+)\/(\d+)$/.exec(text ?? "");
+  const index = m ? Number(m[1]) : NaN;
+  const total = m ? Number(m[2]) : NaN;
+  if (!(total >= 1 && index >= 1 && index <= total)) throw new Error(`--shard wants i/n with 1 <= i <= n, got ${text}`);
+  return { index, total };
+}
+
+/**
+ * The files a ref..HEAD diff touches, and the mutation list as it stood at `ref` ([] if absent).
+ * @param {string} ref
+ * @param {string} [root]
+ * @returns {Promise<{changed: string[], base: {id: string, file: string, test: string, find: string, replace: string, needs?: string}[]}>}
+ */
+export async function changesSince(ref, root = ROOT) {
+  const { stdout } = await execFileP("git", ["diff", "--name-only", ref, "HEAD"], { cwd: root });
+  const changed = stdout.split("\n").filter(Boolean);
+  let base = [];
+  try {
+    const { stdout: text } = await execFileP("git", ["show", `${ref}:scripts/mutate-check.mjs`], {
+      cwd: root,
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    const tmp = path.join(await mkdtemp(path.join(tmpdir(), "mutate-base-")), "mutate-check.mjs");
+    await writeFile(tmp, text, "utf8");
+    // In a child process: a dynamic import() in this file is rewritten by vite
+    // for every test that imports it, above the shebang, which breaks them.
+    const { stdout: json } = await execFileP(
+      process.execPath,
+      ["--input-type=module", "-e", "const m = await import(process.argv[1]); console.log(JSON.stringify(m.MUTATIONS));", pathToFileURL(tmp).href],
+      { maxBuffer: 64 * 1024 * 1024 },
+    );
+    base = JSON.parse(json) ?? [];
+  } catch {
+    base = []; // no list at the base: every entry is new
+  }
+  return { changed, base };
+}
 
 /**
  * Run only when invoked as a script. The list is also imported —
@@ -5262,12 +5489,32 @@ export const MUTATIONS = [
 const IS_MAIN = !!process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
 
 if (IS_MAIN) {
-  const filters = process.argv.slice(2);
-  const selected = filters.length
+  const args = process.argv.slice(2);
+  const flag = (name) => {
+    const i = args.indexOf(name);
+    if (i === -1) return null;
+    const v = args[i + 1];
+    args.splice(i, 2);
+    return v;
+  };
+  const changedFrom = flag("--changed-from");
+  const shardArg = flag("--shard");
+  const filters = args;
+  const filtered = filters.length
     ? MUTATIONS.filter((m) => filters.some((f) => m.id.includes(f) || m.test.includes(f)))
     : MUTATIONS;
+  const selected = selectMutations(filtered, {
+    ...(changedFrom ? await changesSince(changedFrom) : {}),
+    shard: shardArg ? parseShard(shardArg) : null,
+  });
 
   if (selected.length === 0) {
+    if (changedFrom || shardArg) {
+      console.log(
+        `\n[mutate-check] nothing to check here${changedFrom ? ` (no mutation target or test changed since ${changedFrom})` : ""}; the full run on main and nightly checks all ${MUTATIONS.length}.\n`,
+      );
+      process.exit(0);
+    }
     console.error(`No mutation matches ${filters.join(", ")}`);
     process.exit(2);
   }

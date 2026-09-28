@@ -1,0 +1,81 @@
+name: Mutations
+# Does each test observe its subject? scripts/mutate-check.mjs breaks one real
+# line per entry and requires the suite to notice. At 632 entries, one after
+# another, it was 25 of CI's 35 minutes, so:
+#
+#   pull request  only the mutations whose target or test file the PR changed,
+#                 plus entries it added or edited (all of them if it changed
+#                 package.json, the lockfile or the vitest config), 4 shards
+#   main          the whole list after every merge, 4 shards
+#   nightly       the whole list on main, 4 shards, never cancelled.
+#                 highdesert-status's `mutations` line reads this run and FAILs
+#                 if any mutation survived (scripts/nightly-mutations.sh)
+#
+# A newer push to the same PR or to main cancels the run it supersedes; the
+# nightly run is its own group, so a merge cannot cancel it or be cancelled
+# by it.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "30 9 * * *"
+  workflow_dispatch:
+concurrency:
+  group: mutations-${{ github.event_name == 'schedule' && 'nightly' || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+jobs:
+  mutations:
+    name: mutations (${{ matrix.shard }}/4)
+    runs-on: ubuntu-24.04
+    strategy:
+      # Every shard reports: one survivor must not hide another.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: highdesert_test
+          POSTGRES_PASSWORD: highdesert_test
+          POSTGRES_DB: highdesert_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U highdesert_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://highdesert_test:highdesert_test@127.0.0.1:5432/highdesert_test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # A PR is checked out as a merge commit; its first parent is the
+          # base it merges into, which is what the PR's diff is taken from.
+          fetch-depth: 2
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: nginx for the mirror's integration test
+        run: command -v nginx >/dev/null || test -x /usr/sbin/nginx || sudo apt-get install -y --no-install-recommends nginx-core
+      - name: Install live chat dependencies
+        run: npm ci --prefix services/live --no-audit --no-fund
+      - name: Apply schema
+        run: |
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f scripts/schema.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f services/live/schema.sql
+      # The step name is read by scripts/nightly-mutations.sh; keep it.
+      - name: Mutation check
+        run: |
+          if [ "${{ github.event_name }}" = pull_request ]; then
+            node scripts/mutate-check.mjs --shard ${{ matrix.shard }}/4 --changed-from HEAD^1
+          else
+            node scripts/mutate-check.mjs --shard ${{ matrix.shard }}/4
+          fi
