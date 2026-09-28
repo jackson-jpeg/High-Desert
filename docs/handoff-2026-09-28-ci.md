@@ -113,15 +113,16 @@ only worth doing if the repo ever goes private.
 
 ## Hook and permission blocks this phase
 
-- **The Bash pipefail hook blocked six commands**, each a pipe without
-  `set -o pipefail`:
-  - the handoff commit-and-push (`git push | tail`);
+- **The Bash pipefail hook blocked three commands** in this work, each a pipe
+  without `set -o pipefail`:
   - a grep of status.sh and deploy.sh;
   - the eslint 10 peer-range check;
   - the `npx vitest` timing loop.
 
   Each was re-run unchanged, with `set -o pipefail;` first, which is the
-  path the hook names. Every command since has started with it.
+  path the hook names, and every command since has started with it. (A
+  fourth, on the #44 handoff's `git push | tail`, came before this request
+  and is reported in `docs/handoff-2026-09-28-longlived.md`.)
 - No other hook, classifier or permission refusal. (The Edit tool refused
   twice because a file had not been read in that worktree; I read it first
   and edited normally.)
