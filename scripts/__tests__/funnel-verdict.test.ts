@@ -92,6 +92,14 @@ describe("the job", () => {
     vi.stubEnv("GIT_CONFIG_GLOBAL", "/dev/null");
     vi.stubEnv("GIT_CONFIG_NOSYSTEM", "1");
     dir = await mkdtemp(path.join(os.tmpdir(), "funnel-verdict-"));
+    // The box's global pre-push gate, which cannot run in the job's checkout:
+    // here a hook that refuses every push, so only a push that skips it lands.
+    const hooks = path.join(dir, "hooks");
+    execFileSync("mkdir", ["-p", hooks]);
+    await writeFile(path.join(hooks, "pre-push"), "#!/bin/sh\necho 'pre-push: refused' >&2\nexit 1\n", { mode: 0o755 });
+    vi.stubEnv("GIT_CONFIG_COUNT", "1");
+    vi.stubEnv("GIT_CONFIG_KEY_0", "core.hooksPath");
+    vi.stubEnv("GIT_CONFIG_VALUE_0", hooks);
     execFileSync("mkdir", ["-p", path.join(dir, "bin"), path.join(dir, "seed", "docs")]);
     // The remote: a bare repo whose main holds the real docs/funnel.md.
     remote = path.join(dir, "remote.git");
@@ -101,7 +109,7 @@ describe("the job", () => {
     await writeFile(path.join(seed, "docs", "funnel.md"), DOC);
     git(seed, "add", ".");
     git(seed, "commit", "-q", "-m", "seed");
-    git(seed, "push", "-q", remote, "main");
+    git(seed, "push", "-q", "--no-verify", remote, "main"); // the setup, not the job: past the refusing hook
     copies = path.join(dir, "copied-funnel.md");
     macUp = true;
     cohorts = [cohort("2026-09-28", "phone", 44, 28)];

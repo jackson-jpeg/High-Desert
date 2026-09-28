@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Run CI's gate here before a push leaves the box (2026-09-28: a day of
+# failure emails from branch CI, every one a failure this would have caught).
+#
+# Called by the global pre-push dispatcher (/root/.git-hooks/pre-push) for any
+# repository that has an executable scripts/pre-push. Skip with
+# `git push --no-verify` only for a push that CI will not run (CI runs on
+# pull requests and on main).
+#
+# What CI runs, in CI's conditions:
+#   lint, typecheck, the whole vitest suite against the *_test database, with
+#   no global git config (CI has none: the funnel job's commit once passed here
+#   only because root has an identity), and the mutations of every file the
+#   push changes. Build and Playwright stay in CI: they need a build and a
+#   browser, and every failure of theirs in the last day was a real product
+#   change caught on the PR, not something a local run adds.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "pre-push: the tree is dirty; commit or stash first (the mutation check needs a clean tree)" >&2
+  exit 1
+fi
+if [[ ! -d node_modules ]]; then
+  echo "pre-push: no node_modules here; run the gate from a checkout that has them, or push with --no-verify from a docs-only checkout" >&2
+  exit 1
+fi
+
+set -a
+# shellcheck disable=SC1091
+. /root/.high-desert-test.env
+set +a
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 CI=1
+
+step() { printf '\n== pre-push: %s\n' "$1"; }
+run() { nice -n 10 "$@"; }
+
+step lint;      run npm run -s lint
+step typecheck; run npm run -s typecheck
+step test;      run npx vitest run --reporter=dot
+
+base="$(git merge-base HEAD origin/main 2>/dev/null || echo HEAD)"
+ids="$(node --input-type=module -e '
+  import { MUTATIONS } from "./scripts/mutate-check.mjs";
+  const changed = new Set(process.argv[1].split("\n").filter(Boolean));
+  const ids = MUTATIONS.filter((m) => changed.has(m.file) || changed.has(m.test)).map((m) => m.id);
+  console.log(ids.join(" "));
+' "$(git diff --name-only "$base" HEAD)")"
+if [[ -n "$ids" ]]; then
+  # shellcheck disable=SC2086
+  step "mutations of changed files ($(wc -w <<<"$ids"))"; run node scripts/mutate-check.mjs $ids
+else
+  step "mutations: none touch the changed files"
+fi
+printf '\n== pre-push: all green\n'

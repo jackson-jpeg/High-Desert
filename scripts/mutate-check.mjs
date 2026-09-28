@@ -4482,7 +4482,7 @@ export const MUTATIONS = [
     id: "funnel-verdict-push",
     test: "scripts/__tests__/funnel-verdict.test.ts",
     file: "scripts/funnel-verdict.mjs",
-    find: "  await git(\"push\", \"-q\", \"origin\", \"HEAD:main\");\n",
+    find: "  await git(\"push\", \"-q\", \"--no-verify\", \"origin\", \"HEAD:main\");\n",
     replace: "",
     why: "the verdict was committed in the job's checkout and never reached main",
   },
@@ -4557,6 +4557,14 @@ export const MUTATIONS = [
     find: '  const git = (...a) => sh("git", ["-C", repo, "-c", `user.name=${AUTHOR.name}`, "-c", `user.email=${AUTHOR.email}`, ...a]);',
     replace: '  const git = (...a) => sh("git", ["-C", repo, ...a]);',
     why: "the verdict commit borrowed the box's global git identity; on a machine without one it was refused and the verdict never landed",
+  },
+  {
+    id: "funnel-verdict-skips-pre-push",
+    test: "scripts/__tests__/funnel-verdict.test.ts",
+    file: "scripts/funnel-verdict.mjs",
+    find: '  await git("push", "-q", "--no-verify", "origin", "HEAD:main");',
+    replace: '  await git("push", "-q", "origin", "HEAD:main");',
+    why: "the box's pre-push gate cannot run in the job's checkout (no node_modules), so the verdict push was refused",
   },
   {
     id: "community-import-needs-length",

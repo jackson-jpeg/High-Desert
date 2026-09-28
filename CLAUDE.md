@@ -28,6 +28,13 @@ against the e2e database (`/root/.high-desert-e2e.env`), never `TEST_DATABASE_UR
 (Quick Start is for a *development* checkout. In `/root/High-Desert`, which is
 production, never `npm install` — see "Deploying to the VPS".)
 
+**A push runs CI's gate first** (`scripts/pre-push`, via the global dispatcher
+`/root/.git-hooks/pre-push`): lint, typecheck, the whole suite on the test database with
+**no global git config** (CI has none), and the mutations of every changed file. It
+exists because a day of branch-CI failure emails were all failures it catches. CI itself
+runs on pull requests and on `main` only (never twice per push), and a newer commit on a
+PR cancels the older run. Don't `--no-verify` a push CI will check.
+
 **Database-backed tests** (`*.db.test.ts`, `scripts/__tests__/backup-db.test.ts`) need
 `TEST_DATABASE_URL`, a `*_test` database — enforced by `src/test-support/test-db.ts`. CI
 provides one; on the VPS: `set -a; . /root/.high-desert-test.env; set +a`. Without it they
