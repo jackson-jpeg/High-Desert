@@ -22,9 +22,12 @@
 #             before-and-after verdict's progress, or the verdict once written
 #             (scripts/funnel-verdict.mjs, HD_FUNNEL_VERDICT); WARN if that job
 #             has not run for 36h
-#   release   failed-start rate over the 7 days after the release recorded in
-#             docs/reliability-baseline.md (/api/stats/failures?since=), WARN at 3%+,
-#             counting only rows from this release's builds (the release commit and
+#   release   starts the listener lost over the 7 days after the release recorded
+#             in docs/reliability-baseline.md (/api/stats/failures?since=): failures
+#             the retry or the mirror did not rescue, WARN at 3%+ of plays; the
+#             rescued ones beside it with their own count. Under 300 plays, counts
+#             only ("N starts lost in M plays so far, no verdict until 300 plays").
+#             Only rows from this release's builds (the release commit and
 #             .deploy/history since the release); other builds' rows beside it
 #   presence  the live site's presence surfaces (Stats badge, status bar, mobile
 #             sheet, On Air, Signal Traffic) show the same numbers within one
@@ -284,6 +287,7 @@ if [[ -z "$release_at" ]]; then
 else
   window_json="$(curl -s --max-time 10 "$API/api/stats/failures?days=7&since=$release_at" 2>/dev/null)"
   wf="$(jq -r '.window.failures // empty' <<<"$window_json" 2>/dev/null)"
+  wr="$(jq -r '.window.recovered // 0' <<<"$window_json" 2>/dev/null)"
   wp="$(jq -r '.window.plays // empty' <<<"$window_json" 2>/dev/null)"
   wdays="$(jq -r '((.window.to | sub("\\.[0-9]+Z$"; "Z") | fromdate) - (.window.from | sub("\\.[0-9]+Z$"; "Z") | fromdate)) / 86400 | . * 10 | floor / 10' <<<"$window_json" 2>/dev/null)"
   rel_builds="$( { [[ -n "$release_ref" ]] && echo "$release_ref"; awk -v t="$release_at" '$2 >= t { print $1 }' .deploy/history 2>/dev/null; } | jq -Rsc 'split("\n") | map(select(length > 0))')"
@@ -292,31 +296,45 @@ else
     .window.byBuild as $bb
     | if ($bb | type) != "array" then empty else
         [ ([$bb[] | select(isrel(.build)) | .failures] | add // 0),
+          ([$bb[] | select(isrel(.build)) | (.recovered // 0)] | add // 0),
           ([$bb[] | select(isrel(.build)) | .plays] | add // 0),
           ([$bb[] | select(isrel(.build) | not) | .failures] | add // 0),
+          ([$bb[] | select(isrel(.build) | not) | (.recovered // 0)] | add // 0),
           ([$bb[] | select(isrel(.build) | not) | .plays] | add // 0) ] | @tsv
       end' <<<"$window_json" 2>/dev/null)"
   if [[ -z "$wf" || -z "$wp" || -z "$wdays" ]]; then
     line FAIL release "could not read /api/stats/failures?since=$release_at from $API"
   else
     if [[ -n "$split" ]]; then
-      read -r rf rp of op <<<"$split"
+      read -r rf rr rp of orr op <<<"$split"
       whose="on this release's builds"
       older=""
-      (( of + op > 0 )) && older="; older builds: $of failures / $op plays, counted apart"
+      (( of + op > 0 )) && older="; older builds: $(( of - orr )) lost, $orr rescued / $op plays, counted apart"
     else
       # An API from before the build split: every row, as the line used to count.
-      rf="$wf" rp="$wp" whose="(all builds: the API gave no build split)" older=""
+      rf="$wf" rr="$wr" rp="$wp" whose="(all builds: the API gave no build split)" older=""
     fi
+    # The headline is the starts the listener lost: a failure the retry or the
+    # mirror got playing was heard, so it stands beside the headline with its
+    # own count and is not held to the target (docs/reliability-baseline.md,
+    # 2026-09-28). Under RELEASE_VERDICT_PLAYS the line gives counts, never a
+    # percentage: "100% failed" on one play reads as a verdict it is not.
+    rl=$(( rf - rr ))
+    rescued="$rr rescued by the retry or the mirror"
     if (( rp == 0 )); then
-      line OK release "no plays yet $whose since the release ($release_at); target <${RELEASE_TARGET_PCT}%$older"
+      line OK release "no plays yet $whose since the release ($release_at); target <${RELEASE_TARGET_PCT}% of starts lost$older"
     else
-      rpct="$(awk -v f="$rf" -v p="$rp" 'BEGIN { printf "%.1f", 100 * f / p }')"
+      rpct="$(awk -v f="$rl" -v p="$rp" 'BEGIN { printf "%.1f", 100 * f / p }')"
       level=OK
       awk -v x="$rpct" -v t="$RELEASE_TARGET_PCT" 'BEGIN { exit !(x >= t) }' && level=WARN
-      sample=""
-      (( rp < RELEASE_VERDICT_PLAYS )) && sample=", $rp of $RELEASE_VERDICT_PLAYS for a verdict"
-      line "$level" release "${rpct}% of starts failed $whose in the ${wdays} of 7 days since $release_at ($rf failures / $rp plays$sample; target <${RELEASE_TARGET_PCT}%)$older"
+      if (( rp < RELEASE_VERDICT_PLAYS )); then
+        (( rl == 1 )) && starts="start" || starts="starts"
+        (( rp == 1 )) && plays="play" || plays="plays"
+        line "$level" release "$rl $starts lost in $rp $plays $whose so far, no verdict until $RELEASE_VERDICT_PLAYS plays; $rescued (${wdays} of 7 days since $release_at; target <${RELEASE_TARGET_PCT}% lost)$older"
+      else
+        respct="$(awk -v f="$rr" -v p="$rp" 'BEGIN { printf "%.1f", 100 * f / p }')"
+        line "$level" release "${rpct}% of starts lost $whose in the ${wdays} of 7 days since $release_at ($rl lost / $rp plays; target <${RELEASE_TARGET_PCT}%); $rescued (${respct}%)$older"
+      fi
     fi
   fi
 fi

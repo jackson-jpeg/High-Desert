@@ -137,6 +137,13 @@ describeDb("stats store (Postgres)", () => {
       // A refused handover stopped the station: it counts on the release line.
       // It and two of the plays carry a build; the rest are untagged (old code).
       await fail(from.getTime() + 2000, "handover-rejected", "abc1234");
+      // A start the mirror rescued: still a failure, and counted as recovered,
+      // on its own build so the split shows which build it belongs to.
+      await q(
+        `INSERT INTO playback_failures (episode_id, kind, retried, recovered, elapsed_ms, ua_class, at, build)
+         VALUES ($1, 'stall', true, true, 0, 'ios-safari', $2, 'def5678')`,
+        [TAG, at(from.getTime() + 3000)],
+      );
       // Five plays in all inside the window, for a denominator that differs from the numerator.
       await q("INSERT INTO play_events (episode_id, played_at, build) VALUES ($1, $2, $3), ($1, $2, $3)", [
         TAG,
@@ -148,13 +155,15 @@ describeDb("stats store (Postgres)", () => {
       expect(w).toEqual({
         from: from.toISOString(),
         to: to.toISOString(),
-        failures: 4,
+        failures: 5,
+        recovered: 1,
         plays: 5,
         // Nothing dropped: the split sums to the totals, and untagged rows are
         // their own row rather than folded into a build.
         byBuild: [
-          { build: "abc1234", failures: 1, plays: 2 },
-          { build: null, failures: 3, plays: 3 },
+          { build: "abc1234", failures: 1, recovered: 0, plays: 2 },
+          { build: "def5678", failures: 1, recovered: 1, plays: 0 },
+          { build: null, failures: 3, recovered: 0, plays: 3 },
         ],
       });
     } finally {

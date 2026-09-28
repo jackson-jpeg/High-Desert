@@ -9,9 +9,10 @@ import { publicDetails } from "@/services/stats/failure-detail";
  *
  * Returns `{days, summary, entries: [{episodeId, title, failures, recovered,
  * skippedRetries, plays, rate, kinds, uaClasses, details, lastAt}]}`, plus
- * `window: {from, to, failures, plays}` when `?since=<ISO instant>` is given:
- * the seven days from `since` (or up to now, if fewer have passed). That is
- * how `highdesert-status` holds a release to its baseline.
+ * `window: {from, to, failures, recovered, plays, byBuild}` when
+ * `?since=<ISO instant>` is given: the seven days from `since` (or up to now,
+ * if fewer have passed). That is how `highdesert-status` holds a release to its
+ * baseline; it leads with `failures - recovered`, the starts the listener lost.
  *
  * `summary` is site-wide for the same window and is deliberately *not* a sum of
  * `entries`, which is capped at 50 episodes — summing it would under-report the

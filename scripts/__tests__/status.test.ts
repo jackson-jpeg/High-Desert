@@ -31,9 +31,10 @@ interface World {
   deployedIsHead: boolean;
   /** The `**Release deployed:**` timestamp in docs/reliability-baseline.md; null writes no doc. */
   releaseAt: string | null;
-  release: { failures: number; plays: number; days: number };
+  /** `recovered` of `failures` were rescued by the retry or the mirror; the rest were lost. */
+  release: { failures: number; recovered: number; plays: number; days: number };
   /** Rows in the window from builds that are not the release's, and untagged rows. */
-  releaseOther: { build: string | null; failures: number; plays: number }[];
+  releaseOther: { build: string | null; failures: number; recovered: number; plays: number }[];
   /** .deploy/history lines ("<ref> <ISO>"); the release commit in the doc is abc1234. */
   history: string[];
   /** Answer the window without `byBuild`, as the API did before the build split. */
@@ -96,7 +97,7 @@ const HEALTHY: World = {
   backupMacSkipped: false,
   deployedIsHead: true,
   releaseAt: "2026-09-21T15:50:00Z",
-  release: { failures: 4, plays: 200, days: 7 },
+  release: { failures: 4, recovered: 0, plays: 200, days: 7 },
   releaseOther: [],
   history: [],
   presence: { rc: 0, out: "surfaces agree in 3 view(s)" },
@@ -343,12 +344,13 @@ beforeEach(async () => {
               from: from.toISOString(),
               to: to.toISOString(),
               failures: world.release.failures + world.releaseOther.reduce((n, b) => n + b.failures, 0),
+              recovered: world.release.recovered + world.releaseOther.reduce((n, b) => n + b.recovered, 0),
               plays: world.release.plays + world.releaseOther.reduce((n, b) => n + b.plays, 0),
               ...(world.noBuildSplit
                 ? {}
                 : {
                     byBuild: [
-                      { build: "abc1234", failures: world.release.failures, plays: world.release.plays },
+                      { build: "abc1234", failures: world.release.failures, recovered: world.release.recovered, plays: world.release.plays },
                       ...world.releaseOther,
                     ],
                   }),
@@ -496,56 +498,85 @@ describe("highdesert-status", () => {
   });
 
   describe("release line", () => {
-    it("measures from the timestamp in docs/reliability-baseline.md, and is OK under 3%", async () => {
+    it("measures from the timestamp in docs/reliability-baseline.md; under 300 plays it gives counts, never a percentage", async () => {
       const r = await run();
       expect(sinceAsked).toBe("2026-09-21T15:50:00Z");
+      const l = lineFor(r.out, "release");
+      expect(l).toBe(
+        "OK    release   4 starts lost in 200 plays on this release's builds so far, no verdict until 300 plays; 0 rescued by the retry or the mirror (7 of 7 days since 2026-09-21T15:50:00Z; target <3% lost)",
+      );
+      expect(l.slice(0, l.indexOf("target"))).not.toContain("%");
+    });
+
+    it("one failure in one play is a count and no verdict, not \"100% failed\"", async () => {
+      world.release = { failures: 1, recovered: 0, plays: 1, days: 0.1 };
+      const r = await run();
       expect(lineFor(r.out, "release")).toBe(
-        "OK    release   2.0% of starts failed on this release's builds in the 7 of 7 days since 2026-09-21T15:50:00Z (4 failures / 200 plays, 200 of 300 for a verdict; target <3%)",
+        "WARN  release   1 start lost in 1 play on this release's builds so far, no verdict until 300 plays; 0 rescued by the retry or the mirror (0.1 of 7 days since 2026-09-21T15:50:00Z; target <3% lost)",
       );
     });
 
-    it("WARNs at 3% — and only WARNs: a bad week is not an outage", async () => {
-      world.release = { failures: 6, plays: 200, days: 2.5 };
+    it("from 300 plays it leads with the share of starts lost, OK under 3%", async () => {
+      world.release = { failures: 6, recovered: 0, plays: 300, days: 7 };
       const r = await run();
-      expect(lineFor(r.out, "release")).toMatch(/^WARN\s+release\s+3\.0% of starts failed on this release's builds in the 2\.5 of 7 days/);
+      expect(lineFor(r.out, "release")).toBe(
+        "OK    release   2.0% of starts lost on this release's builds in the 7 of 7 days since 2026-09-21T15:50:00Z (6 lost / 300 plays; target <3%); 0 rescued by the retry or the mirror (0.0%)",
+      );
+    });
+
+    it("WARNs at 3% lost, and only WARNs: a bad week is not an outage", async () => {
+      world.release = { failures: 9, recovered: 0, plays: 300, days: 2.5 };
+      const r = await run();
+      expect(lineFor(r.out, "release")).toMatch(/^WARN\s+release\s+3\.0% of starts lost on this release's builds in the 2\.5 of 7 days/);
       expect(r.code).toBe(0);
     });
 
+    it("a start the retry or the mirror rescued is shown beside the headline, not held to the target", async () => {
+      // 20 failures on 300 plays read 6.7% before 2026-09-28. The listener lost 3 of them.
+      world.release = { failures: 20, recovered: 17, plays: 300, days: 7 };
+      const r = await run();
+      expect(lineFor(r.out, "release")).toBe(
+        "OK    release   1.0% of starts lost on this release's builds in the 7 of 7 days since 2026-09-21T15:50:00Z (3 lost / 300 plays; target <3%); 17 rescued by the retry or the mirror (5.7%)",
+      );
+    });
+
     it("says so when there have been no plays yet, rather than dividing by zero", async () => {
-      world.release = { failures: 0, plays: 0, days: 0.1 };
+      world.release = { failures: 0, recovered: 0, plays: 0, days: 0.1 };
       const r = await run();
       expect(lineFor(r.out, "release")).toMatch(/^OK\s+release\s+no plays yet on this release's builds since the release/);
     });
 
     it("counts only the release's builds; old and untagged rows are shown beside it, not dropped", async () => {
-      // 4 / 200 on the release is 2.0%. Mixed in, an old tab's 9 / 20 would read 5.9%.
+      // 4 lost of 200 on the release. Mixed in, an old tab's rows would add 7 lost and 20 plays.
       world.releaseOther = [
-        { build: "0ld0001", failures: 5, plays: 12 },
-        { build: null, failures: 4, plays: 8 },
+        { build: "0ld0001", failures: 5, recovered: 2, plays: 12 },
+        { build: null, failures: 4, recovered: 0, plays: 8 },
       ];
       const r = await run();
       expect(lineFor(r.out, "release")).toBe(
-        "OK    release   2.0% of starts failed on this release's builds in the 7 of 7 days since 2026-09-21T15:50:00Z (4 failures / 200 plays, 200 of 300 for a verdict; target <3%); older builds: 9 failures / 20 plays, counted apart",
+        "OK    release   4 starts lost in 200 plays on this release's builds so far, no verdict until 300 plays; 0 rescued by the retry or the mirror (7 of 7 days since 2026-09-21T15:50:00Z; target <3% lost); older builds: 7 lost, 2 rescued / 20 plays, counted apart",
       );
     });
 
     it("a build deployed after the release instant is the release; one deployed before is not", async () => {
       world.history = ["0ld0001 2026-09-20T10:00:00Z", "abc1234 2026-09-21T15:50:00Z", "d0c5678 2026-09-22T09:00:00Z"];
       world.releaseOther = [
-        { build: "d0c5678", failures: 2, plays: 100 },
-        { build: "0ld0001", failures: 3, plays: 3 },
+        { build: "d0c5678", failures: 2, recovered: 1, plays: 100 },
+        { build: "0ld0001", failures: 3, recovered: 0, plays: 3 },
       ];
       const r = await run();
       expect(lineFor(r.out, "release")).toBe(
-        "OK    release   2.0% of starts failed on this release's builds in the 7 of 7 days since 2026-09-21T15:50:00Z (6 failures / 300 plays; target <3%); older builds: 3 failures / 3 plays, counted apart",
+        "OK    release   1.7% of starts lost on this release's builds in the 7 of 7 days since 2026-09-21T15:50:00Z (5 lost / 300 plays; target <3%); 1 rescued by the retry or the mirror (0.3%); older builds: 3 lost, 0 rescued / 3 plays, counted apart",
       );
     });
 
     it("an API without the build split still gets a line, and says it could not split", async () => {
       world.noBuildSplit = true;
-      world.releaseOther = [{ build: null, failures: 1, plays: 10 }];
+      world.releaseOther = [{ build: null, failures: 1, recovered: 1, plays: 10 }];
       const r = await run();
-      expect(lineFor(r.out, "release")).toMatch(/^OK\s+release\s+2\.4% of starts failed \(all builds: the API gave no build split\)/);
+      expect(lineFor(r.out, "release")).toMatch(
+        /^OK\s+release\s+4 starts lost in 210 plays \(all builds: the API gave no build split\) so far, no verdict until 300 plays; 1 rescued/,
+      );
     });
 
     it("WARNs, and asks the API nothing, when there is no baseline to measure from", async () => {

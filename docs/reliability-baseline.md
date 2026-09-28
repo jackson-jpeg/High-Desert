@@ -2,11 +2,53 @@
 
 **Release deployed:** `2026-09-28T14:49:18Z` (02db307)
 
-`highdesert-status` reads the line above and prints a `release` line: the
-failed-start rate over the seven days from that instant
-(`/api/stats/failures?since=`). **Target: under 3%.** It WARNs at 3% or more
+`highdesert-status` reads the line above and prints a `release` line over the
+seven days from that instant (`/api/stats/failures?since=`). **Its headline is
+the starts the listener lost**: failed starts that neither the retry nor the
+mirror got playing, over plays. **Target: under 3%.** It WARNs at 3% or more
 and never FAILs. A trailing 7-day rate can't judge a deploy, because for the
 first week it still includes the old build's failures.
+
+**Rescued starts stand beside it** as `N rescued by the retry or the mirror`,
+with their own count (and share, from 300 plays), in status and in the weekly
+digest. They are still failure rows (`recovered: true`), still in
+`/api/stats/failures`, and still evidence when a release is investigated, but
+the listener heard the show, so they are not held to the target.
+
+**Under 300 plays the line gives counts, never a percentage**: `2 starts lost
+in 55 plays on this release's builds so far, no verdict until 300 plays`. A
+share of a few dozen plays reads as a verdict it is not (one failure on one
+play is "100%"). From 300 plays it leads with the share: `1.0% of starts lost
+… (3 lost / 300 plays; target <3%); 17 rescued by the retry or the mirror
+(5.7%)`. The digest follows the same rule, and gives the verdict at 300.
+
+## The headline changed on 2026-09-28
+
+Until 2026-09-28 the headline counted every failed start, rescued or not
+("4.4% of starts failed"). From 2026-09-28 (the commit that changed
+`scripts/status.sh`, `scripts/digest.mjs` and `getFailureWindow`, which now
+returns `recovered` per build) it counts only the starts the listener lost.
+The target (3%) and the verdict rule (300 plays) did not change; what they
+are applied to did.
+
+The current line, recomputed both ways once, from the rows at 2026-09-28T21:08:56Z
+(release 02db307 and its deploys since; 15 plays on untagged rows, no failures,
+counted apart either way):
+
+| | Failures | Of them rescued | Plays | Line |
+|---|---|---|---|---|
+| Before (every failure) | 3 | (counted as failures) | 55 | `5.5% of starts failed … (3 failures / 55 plays, 55 of 300 for a verdict)` |
+| After (lost; rescued beside) | 2 lost | 1 rescued (row 585: an iOS stall the mirror played) | 55 | `2 starts lost in 55 plays … so far, no verdict until 300 plays; 1 rescued by the retry or the mirror` |
+
+The two lost starts are rows 586 and 587 (build 961c244): failovers where
+archive.org failed first and then the mirror failed too.
+
+**This moves at least one past verdict.** The closing reading for b2feecc
+(the table below, 2026-09-28T06:48Z) was 49 failures on 1,126 plays, 4.4%,
+over target. 31 of the 49 were rescued, so the listener lost 18: **1.6%,
+under target** by the new headline. That release is not re-judged here, and
+its row below stays as printed. It is the size of the difference: on that
+week, most failures were ones the retry or the mirror had already absorbed.
 
 **Counted by the build that wrote each row** (from the long-lived tabs
 release on). Every play (`play_events.build`) and failure
@@ -17,15 +59,11 @@ line above, plus every build `deploy.sh` recorded in `.deploy/history` at or
 after the release instant (a docs deploy is a new build of the same release).
 Rows from any other build, or with none (written before the column existed,
 or by a page that could not say), are printed beside it as `older builds: X
-failures / Y plays, counted apart`, never dropped and never mixed in. That is
+lost, R rescued / Y plays, counted apart`, never dropped and never mixed in. That is
 what a tab left open for days on older code used to do to this line: on
 2026-09-28 four of the first eight failures after 15144c1 came from one such
 tab. Tabs now update themselves at a break (`src/services/build/stale-tab.ts`),
 so the older-builds figure should fall to nothing within a day of a deploy.
-
-Under 300 plays the line says `N of 300 for a verdict`: a rate on a few dozen
-plays is a reading, not a verdict. The weekly digest (`docs/digest/`) gives the
-verdict once there are 300.
 
 ## Before
 
