@@ -128,8 +128,16 @@ and neither was re-run until green.
   The lockfile changed twice today, and both times it was installed in the
   staging copy. `/api/build` answers the deployed commit.
 - **`highdesert-status`:** exit 0. Two WARNs, both expected:
-  - `release` is one failure in a handful of plays, not a verdict (300 plays
-    needed). The failure is row 585, an iOS stall that the mirror rescued.
+  - `release` is 3 failures in 52 plays (5.8%), not a verdict (300 plays
+    needed). Row 585 is an iOS stall that the mirror rescued (build
+    02db307). Rows 586 and 587 (build 961c244) are failovers that did
+    **not** recover: a desktop Chromium stall on 2001-09-12 (Open Lines,
+    9/11 day 2), 27 s in, and an Android Chrome `code=4` format error on
+    1994-06-10 (Sean David Morton), 127 s in. In both, archive.org failed
+    first and then the mirror failed too. Checked afterwards, the mirror serves
+    both files (206 on a 64 KiB range), so neither is a missing file. The cause
+    is not established. If the pattern repeats past 300 plays, the release
+    line will say so and the digest will carry the rows.
   - `mutations` has no nightly run yet. **The first one is 2026-09-29, 09:30
     UTC**, and the line should read OK from then on. If it reads anything
     else, that is the finding.
@@ -158,7 +166,8 @@ and neither was re-run until green.
 One folder per batch, `project-date-topic` (the standing rule added to
 `/root/CLAUDE.md` today), checksum-verified:
 - `~/Downloads/high-desert-2026-09-28-ci/`: this handoff,
-  `security-exceptions.md`, CLAUDE.md (as `CLAUDE-high-desert.md`), and
+  `security-exceptions.md`, CLAUDE.md (as `CLAUDE-high-desert.md`),
+  `/root/CLAUDE.md` with the new folder rule (as `root-CLAUDE.md`), and
   `mutations.yml` as text.
 - `~/Downloads/high-desert-2026-09-28-longlived/`: the long-lived-tabs
   handoff, `reliability-baseline.md`, `digest-README.md` and the digest
