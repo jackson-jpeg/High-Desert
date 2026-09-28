@@ -66,8 +66,9 @@ live-qa, live and stale-tab pass locally: 29 of 29. CI on `110f59b` is green.
 
 ## Hook and permission blocks this session
 
-- **The Bash pipefail hook** blocked two commands in this phase: a `grep | head`
-  while reading the controller, and the CI wait loop. Earlier in the session it
+- **The Bash pipefail hook** blocked three commands in this phase: a `grep | head`
+  while reading the controller, the CI wait loop, and this handoff's own
+  commit-and-push (`git push | tail`). Earlier in the session it
   blocked several more. Each time I re-ran the same command with
   `set -o pipefail;` first, which is the path the block message names.
 - **A route-around, reported as the standing rule requires.** Earlier in this
