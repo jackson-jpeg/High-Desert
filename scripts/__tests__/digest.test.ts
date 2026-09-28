@@ -332,6 +332,28 @@ describe("the job", () => {
     expect(git(remote, "show", "main:docs/digest/2026-10-05.md")).not.toContain("changed");
   });
 
+  it("frozen even with its state lost: a week already on main is not rewritten", async () => {
+    await run("2026-10-05T17:41:00Z");
+    const doc = git(remote, "show", "main:docs/digest/2026-10-05.md");
+    await rm(path.join(dir, "state", "status.json"));
+    const s = await run("2026-10-06T17:41:00Z", sources({ status: async () => "FAIL  backup    changed" }));
+    expect(s.error).toBeNull();
+    expect(s.written["2026-10-05"]).toMatchObject({ note: "already on main" });
+    expect(git(remote, "show", "main:docs/digest/2026-10-05.md")).toBe(doc);
+    expect(remoteCommits()).toBe(2);
+  });
+
+  it("a week the Mac slept through is still copied when it wakes, a week later", async () => {
+    macUp = false;
+    await run("2026-10-05T17:41:00Z");
+    await run("2026-10-08T17:41:00Z");
+    macUp = true;
+    const s = await run("2026-10-12T17:41:00Z");
+    expect(s.error).toBeNull();
+    expect(s.copied).toEqual({ "2026-10-05": "2026-10-12T17:41:00Z", "2026-10-12": "2026-10-12T17:41:00Z" });
+    expect(await readFile(path.join(copies, "2026-10-05.md"), "utf8")).toContain("week to Monday, 5 October 2026");
+  });
+
   it("a Monday that never ran is caught up on Tuesday, for that Monday", async () => {
     const s = await run("2026-10-06T17:41:00Z");
     expect(s.due).toBe("2026-10-05");
