@@ -4551,6 +4551,14 @@ export const MUTATIONS = [
     why: "1999-01-25 went back to the LAME tag's 18.39 s, and the live station would air 18 seconds of a two-and-a-half hour show",
   },
   {
+    id: "funnel-verdict-own-identity",
+    test: "scripts/__tests__/funnel-verdict.test.ts",
+    file: "scripts/funnel-verdict.mjs",
+    find: '  const git = (...a) => sh("git", ["-C", repo, "-c", `user.name=${AUTHOR.name}`, "-c", `user.email=${AUTHOR.email}`, ...a]);',
+    replace: '  const git = (...a) => sh("git", ["-C", repo, ...a]);',
+    why: "the verdict commit borrowed the box's global git identity; on a machine without one it was refused and the verdict never landed",
+  },
+  {
     id: "community-import-needs-length",
     test: "scripts/__tests__/community-sources.test.ts",
     file: "scripts/import-community-sources.mjs",

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createServer, type Server } from "node:http";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -81,13 +81,16 @@ describe("the job", () => {
       HD_SSH: path.join(bin, "ssh"),
       HD_SCP: path.join(bin, "scp"),
       HD_NOW: now,
-      GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t",
     });
   }
   const remoteDoc = () => git(remote, "show", "main:docs/funnel.md");
   const remoteCommits = () => Number(git(remote, "rev-list", "--count", "main"));
 
   beforeEach(async () => {
+    // No git identity from a global config, as on CI or a fresh box: the job
+    // must bring its own (2026-09-28: it did not, and CI refused its commit).
+    vi.stubEnv("GIT_CONFIG_GLOBAL", "/dev/null");
+    vi.stubEnv("GIT_CONFIG_NOSYSTEM", "1");
     dir = await mkdtemp(path.join(os.tmpdir(), "funnel-verdict-"));
     execFileSync("mkdir", ["-p", path.join(dir, "bin"), path.join(dir, "seed", "docs")]);
     // The remote: a bare repo whose main holds the real docs/funnel.md.
@@ -116,6 +119,7 @@ describe("the job", () => {
   afterEach(async () => {
     await new Promise((r) => server.close(r));
     await rm(dir, { recursive: true, force: true });
+    vi.unstubAllEnvs();
   });
 
   it("below 300 phone arrivals: progress recorded, nothing written, nothing pushed, nothing copied", async () => {
@@ -132,6 +136,7 @@ describe("the job", () => {
     expect(s.error).toBeNull();
     expect(s.verdict).toMatchObject({ writtenAt: "2026-10-01T17:40:00Z", after: { visit: 310, tune: 215 } });
     expect(remoteCommits()).toBe(2);
+    expect(git(remote, "log", "-1", "--format=%an <%ae>", "main")).toBe("High Desert funnel-verdict <funnel-verdict@highdesert.space>");
     const doc = remoteDoc();
     expect(doc).toContain("| After | 310 |");
     expect(doc).not.toContain("_Not measured yet._");

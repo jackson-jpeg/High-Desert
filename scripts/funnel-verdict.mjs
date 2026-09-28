@@ -37,6 +37,8 @@ export const BEFORE = { visit: 20, live: 20, tune: 13, call: 0 };
 export const START_MARK = "<!-- funnel-verdict:start -->";
 export const END_MARK = "<!-- funnel-verdict:end -->";
 const DOC = "docs/funnel.md";
+/** Who the verdict commit is from. */
+export const AUTHOR = { name: "High Desert funnel-verdict", email: "funnel-verdict@highdesert.space" };
 
 /** The phone cohorts from `since` on, summed. */
 export function afterCohort(funnel, since = AFTER_SINCE) {
@@ -125,7 +127,10 @@ async function writeJson(file, value) {
 /** Commit the verdict into docs/funnel.md on main, from the job's own checkout. */
 async function publish(state, section, remote) {
   const repo = path.join(state, "repo");
-  const git = (...a) => sh("git", ["-C", repo, ...a]);
+  // Its own identity, not whatever the box's global git config says: a
+  // machine without one (CI, a fresh box) refused the commit, and the verdict
+  // would never have landed.
+  const git = (...a) => sh("git", ["-C", repo, "-c", `user.name=${AUTHOR.name}`, "-c", `user.email=${AUTHOR.email}`, ...a]);
   if (!existsSync(path.join(repo, ".git"))) await sh("git", ["clone", "-q", remote, repo]);
   await git("fetch", "-q", "origin", "main");
   await git("checkout", "-q", "--detach", "origin/main");
