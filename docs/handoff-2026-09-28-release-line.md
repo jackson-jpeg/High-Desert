@@ -1,4 +1,4 @@
-# Handoff: the release line, the Mac-script rule, the first nightly (2026-09-28)
+# Handoff: the release line, the Mac-script rule, memory, the first nightly (2026-09-28)
 
 Three decisions from the CI and long-lived-tabs handoffs, then a check of the
 first nightly mutation run. Before any of it, #58 (a correction to the CI
@@ -54,15 +54,16 @@ not re-judged; its row stays as printed.
 - **The digest**, under 300 plays: `N starts lost in M plays … so far, no
   verdict until 300. K more rescued by the retry or the mirror.` A test holds
   the Release section free of any `%` under 300.
-- **One thing I kept as it was:** status still WARNs when the lost share is 3%
-  or more, even under 300 plays. The line is a flag, not a verdict. It no
-  longer prints the share there, but it still flags one. Right now it reads
-  WARN at 2 lost of 58 (3.4%). If you would rather it read OK until there is a
-  verdict, that is a one-line change.
+- **Under 300 plays it now reads OK, with one tripwire** (your follow-up
+  decision). It WARNs only once at least 30 plays show 10% or more lost, so a
+  broken release still flags early. It then adds `; tripwire: 10% or more lost
+  on 30+ plays`. From 300 plays nothing changed: WARN at 3% or more lost. The
+  live line reads OK again (2 lost of 58 was a WARN at the old rule).
 
 **Tests:**
-- status: 81 (6 new or rewritten release cases, including 1-in-1 and "rescued
-  not held to the target");
+- status: 89 (the release cases, including 1-in-1 reading OK, over 3% under
+  300 reading OK, the tripwire at 3 of 30, not at 3 of 29, and counting only
+  lost starts; plus the memory line's five);
 - digest: 29 (2 new);
 - `store.db.test.ts` against Postgres (a rescued row on its own build).
 
@@ -73,8 +74,10 @@ not re-judged; its row stays as printed.
 - `failure-window-recovered`
 - `digest-release-counts-under-300`
 - `digest-release-headline-lost`
+- for the tripwire: `status-release-tripwire`, `status-release-tripwire-needs-30`
+  and `status-release-ok-under-300`.
 
-That is 656 in all. #59's CI took 8.2 minutes, all six checks green.
+That is 662 in all. #59's CI took 8.2 minutes, all six checks green.
 
 ## 3. Mac scripts: a new standing rule in /root/CLAUDE.md
 
@@ -98,34 +101,125 @@ own session to commit.
 
 ## 4. The first nightly mutation run
 
-(Filled in once the 2026-09-29 09:30 UTC run has finished. See below.)
+**The first nightly full run is at 09:30 UTC on 2026-09-29**
+(`.github/workflows/mutations.yml`, schedule `30 9 * * *`, on `main`). It had
+not run when this was written; GitHub listed no scheduled run at 21:32 UTC.
+**The `mutations` line in `highdesert-status` reports it**:
+- **OK:** every shard's "Mutation check" passed, so every mutation went red.
+- **FAIL:** a mutation survived or its anchor went stale.
+- **WARN:** the run broke before checking, is older than 36 h, or has not run.
+
+Until that run it reads `WARN mutations no nightly full mutation run yet`.
+
+I watched for it with a background loop until Claude Code killed the loop at
+21:32 UTC for low memory (section 5). I did not restart it. Instead, **reading
+the `mutations` line is now one of the session-start checks in
+`/root/CLAUDE.md`** (committed 32e2542). The first session after 10:00 UTC on
+2026-09-29 confirms it reads OK and says so in its handoff.
+
+## 5. Memory
+
+Written up in full in `docs/memory-2026-09-28.md`:
+- **The box:** 7.8 GB of RAM, 12 GB of swap already there (10 + 2 GB files),
+  swappiness 60. Swap was there, so no swapfile was added and swap was not
+  touched.
+- **What killed the watcher:** at 21:26 to 21:33 up to five test and build
+  jobs overlapped, on top of about 3 GB always resident:
+  - two SoGoJet Actions `jest --coverage` runs (1.76 GB at peak);
+  - another session's jest, tsc and eslint in two SoGoJet worktrees;
+  - SoGoJet staging's tsc;
+  - my own High Desert deploy's `next build`.
+
+  Available memory fell to 13 to 14%. There were no OOM kills.
+- **The resident set:**
+  - four Claude sessions at 0.5 to 0.9 GB each, including about 220 MB of MCP
+    servers each;
+  - the SoGoJet runner (2.0 GB while testing);
+  - plotslop 265 MB;
+  - docket4me-next and sanger-next, about 210 MB each, mostly swapped out.
+- **Nothing of another project's was stopped or changed.** The doc lists
+  each with its use and the options, for you to decide.
+- **`highdesert-status` has a `memory` line:** WARN under 15% available, FAIL
+  under 5%, swap beside it. Tests in `status.test.ts`; mutations
+  `status-memory-warn`, `status-memory-fail`, `status-memory-available`, each
+  red alone. It reads OK (38%) now, and would have read WARN at 21:32.
+
+## 6. Rows 586 and 587: a precise lead, not yet a fix
+
+Both episodes are **pinned** (`/var/lib/highdesert-mirror/pins/`), so the
+mirror serves them straight off disk. Neither is a mirror-side failure.
+
+- **Row 586** (desktop Chromium, 2001-09-12 Open Lines, 18:36:33, `stall
+  after archive stall`, 27 s after the failover).
+  - The access log shows the mirror answering, then a **new range request
+    every 10 seconds**, each cut short: 206 with 98 to 380 KB, from 18:36:36
+    to 18:37:56. Only at 18:39:59 was there a long read (7.3 MB).
+  - 10 s is `DRIFT_CHECK_MS`. `resync()` in `src/audio/live-controller.ts`
+    skips only when the element is `paused`, has `readyState < 1`, or has an
+    error. So it keeps correcting while the element is **buffering**
+    (unpaused, `readyState` 1 or 2): `currentTime` stands still, the station
+    clock moves, drift passes 2 s, and it `seekEngine`s to the live second.
+    That abandons the range in flight and starts a new one from scratch.
+  - On a link slower than about 2 s per seek's worth of data it never gets
+    ahead. Each seek's `waiting` restarts the watchdog's 8 s stall clock,
+    which gives up. The archive.org stall that started it may be the same
+    loop.
+  - Of today's mirror traffic, this client is the only client and file with
+    that 10-second pattern. archive.org traffic is not in our logs, so its
+    rate there is unknown.
+  - **Proposed fix, not shipped:** skip the drift correction while the element
+    is buffering (`readyState < HAVE_FUTURE_DATA`), or while a watchdog
+    attempt is unsettled. Correct once it is `playing` again, which the stall
+    resync already does. Test it with the real `useAudioPlayer`: an unpaused
+    element at `readyState` 2 for 25 s must see no seek, and must see one once
+    `playing` fires. Add a mutation on the new guard.
+- **Row 587** (Android Chrome, 1994-06-10, 19:50:24, `stall after archive
+  network-error code=4`, **127 s** after the failover).
+  - **No request for this episode reached the mirror all day**, except my own
+    curl at 20:52. The client switched `src` to the mirror, and the element
+    never fetched it.
+  - 127 s is far past both the 12 s deadline and the 8 s stall clock, which
+    fits a page in the background. `deferWhileHidden()` re-arms only while a
+    failover's `play()` is pending. Android Chrome does not load media for a
+    backgrounded tab.
+  - **Lead:** the watchdog's `visibilitychange` handling once `play()` has
+    settled. Check the row's `ua_class` sessions for a `pagehide` or
+    `visibilitychange` at 19:48 to 19:50. The combined log format has no
+    `Range` or `$request_time`; adding both to the mirror's `access_log` would
+    turn the next case from inference into evidence.
 
 ## State at hand-over
 
-- **Deployed:** bf37425 (#59) via `nice -n -15 ionice -c2 -n0 bash
-  scripts/deploy.sh`, clean. `/api/build` answers bf37425.
-- **`highdesert-status`** exits 0. Two WARNs, both expected:
-  - `release`: 2 lost in 58 plays, 1 rescued, no verdict until 300 plays.
-  - `mutations`: until the first nightly run. See section 4.
+- **Deployed:** see the PR for this handoff (the tripwire, the memory line and
+  these docs), via `nice -n -15 ionice -c2 -n0 bash scripts/deploy.sh`.
+- **`highdesert-status`:** read after that deploy. See the last line of this
+  section.
 
 ## Hook and permission blocks
 
-The Bash pipefail hook blocked **three** commands in this stretch. Each was a
-pipe without `set -o pipefail`, and each was re-run unchanged with `set -o
-pipefail;` first, which is the path the block names:
+The Bash pipefail hook blocked **four** commands in this stretch (eight in the
+session). Each was a pipe without `set -o pipefail`, and each was re-run
+unchanged with `set -o pipefail;` first, which is the path the block names:
 - a `psql` + `git status | head` check of the release rows, while finishing
   #58;
 - a `grep … | head` of `status.sh` and `digest.mjs`;
 - a Python edit of `digest.mjs` followed by `grep | head`. The whole command
-  was refused, so the edit had not run either, and it ran on the retry.
+  was refused, so the edit had not run either, and it ran on the retry;
+- a `sed`/`grep | head` read of `status.sh` and its test, during the memory
+  line.
 
-There were no other hook, classifier or permission refusals. One `scp` to the
+There were no other hook, classifier or permission refusals. Claude Code
+killed one background shell (the nightly watch) for low memory; it was not
+restarted, as asked. One `scp` to the
 Mac returned non-zero with no message. It was retried, and the checksum
 matched.
 
 ## On the Mac
 
-`~/Downloads/high-desert-2026-09-28-release-line/`, checksum-verified: this
-handoff, `reliability-baseline.md`, the project's `CLAUDE.md` (as
-`CLAUDE-high-desert.md`), and `/root/CLAUDE.md` at 292cce4 (as
-`root-CLAUDE.md`, the committed version, without the other session's change).
+`~/Downloads/high-desert-2026-09-28-release-line/`, checksum-verified:
+- this handoff;
+- `memory-2026-09-28.md`;
+- `reliability-baseline.md`;
+- the project's `CLAUDE.md` (as `CLAUDE-high-desert.md`);
+- `/root/CLAUDE.md` at 32e2542 (as `root-CLAUDE.md`, the committed version,
+  without the other session's uncommitted change).

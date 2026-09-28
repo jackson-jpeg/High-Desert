@@ -616,7 +616,8 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   - **Local files are never marked or refused** — they never needed archive.org.
   - Tests start from `archiveUpFixture` / `archiveDownFixture`
     (`src/test-support/outage.ts`); `e2e/chaos-mirror.spec.ts` runs it on production.
-- **Status:** `highdesert-status` has `steal` (30-min mean; WARN >20%, FAIL >50%),
+- **Status:** `highdesert-status` has `memory` (MemAvailable / MemTotal; WARN <15%,
+  FAIL <5%; `docs/memory-2026-09-28.md`), `steal` (30-min mean; WARN >20%, FAIL >50%),
   `mirror` (the manifest answering through the site with ≥1 pin — FAIL otherwise;
   pinned count and bytes, fill-cache size, 24h mirror plays; WARN if the retired
   `highdesert-mirror` unit is running again), `cpu` (every High Desert unit's
@@ -740,7 +741,8 @@ release came from one tab still running the build before it.
   Rescued starts stand beside it with their own count ("N rescued by the retry
   or the mirror"), in status and the digest, never held to the target. **Under
   300 plays it is counts, never a percentage** ("2 starts lost in 55 plays so
-  far, no verdict until 300 plays"); from 300 it leads with the share.
+  far, no verdict until 300 plays"), and reads OK save one tripwire: WARN once
+  at least 30 plays show 10% or more lost. From 300 it leads with the share.
 - **A tab updates itself at a natural break** (`src/services/build/stale-tab.ts`,
   installed by `(desktop)/layout.tsx`). It asks `/api/build` 30 s after load,
   every 5 min, and on coming back on screen, focus and `online`. A newer build
