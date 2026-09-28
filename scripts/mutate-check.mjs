@@ -4360,7 +4360,7 @@ export const MUTATIONS = [
   },
   {
     id: "live-rejoin-flag",
-    test: "src/components/live/__tests__/live-station.test.tsx",
+    test: "src/audio/__tests__/live-station.test.ts",
     file: "src/stores/live-store.ts",
     find: "    set({ paused, rejoin: paused && rejoin });",
     replace: "    set({ paused, rejoin: false });",

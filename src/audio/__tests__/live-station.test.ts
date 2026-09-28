@@ -535,10 +535,15 @@ describe("with the screen off: one element, never paused, from one show to the n
     expect(element.src).toMatch(/\/audio\/station-id\.mp3$/);
     expect(vi.mocked(element.play).mock.calls.length).toBe(plays + 1);
 
-    // The ID's file ends: quiet on a loop, on the same element.
+    // The ID's file ends: quiet on a loop, on the same element. As a real
+    // element reports it: eight seconds long, at its end, which for the show
+    // it follows would read as an empty file or a dropped connection.
+    Object.defineProperty(element, "duration", { value: 8, configurable: true });
+    setPlayhead(8);
     act(() => {
       element.dispatchEvent(new Event("ended"));
     });
+    expect(reportPlaybackFailure).not.toHaveBeenCalled();
     expect(element.src).toMatch(/\/audio\/station-quiet\.mp3$/);
     expect(element.loop).toBe(true);
     // The ID's `ended` was not the show's: no failure, nothing from the queue.
