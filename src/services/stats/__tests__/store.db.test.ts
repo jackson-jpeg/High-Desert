@@ -115,11 +115,11 @@ describeDb("stats store (Postgres)", () => {
     const at = (t: number) => new Date(t).toISOString();
     const inside = [from.getTime(), from.getTime() + 86_400_000, to.getTime() - 1];
     const outside = [from.getTime() - 1, to.getTime()];
-    const fail = (t: number, kind: string) =>
+    const fail = (t: number, kind: string, build: string | null = null) =>
       q(
-        `INSERT INTO playback_failures (episode_id, kind, retried, recovered, elapsed_ms, ua_class, at)
-         VALUES ($1, $2, false, false, 0, 'desktop-chromium', $3)`,
-        [TAG, kind, at(t)],
+        `INSERT INTO playback_failures (episode_id, kind, retried, recovered, elapsed_ms, ua_class, at, build)
+         VALUES ($1, $2, false, false, 0, 'desktop-chromium', $3, $4)`,
+        [TAG, kind, at(t), build],
       );
     const clean = async () => {
       await q("DELETE FROM playback_failures WHERE episode_id = $1", [TAG]);
@@ -135,12 +135,28 @@ describeDb("stats store (Postgres)", () => {
       // Advisory: recorded, never stopped playback, so not a failed start.
       await fail(from.getTime() + 1000, "empty-media-suspected");
       // A refused handover stopped the station: it counts on the release line.
-      await fail(from.getTime() + 2000, "handover-rejected");
+      // It and two of the plays carry a build; the rest are untagged (old code).
+      await fail(from.getTime() + 2000, "handover-rejected", "abc1234");
       // Five plays in all inside the window, for a denominator that differs from the numerator.
-      await q("INSERT INTO play_events (episode_id, played_at) VALUES ($1, $2), ($1, $2)", [TAG, at(from.getTime() + 5000)]);
+      await q("INSERT INTO play_events (episode_id, played_at, build) VALUES ($1, $2, $3), ($1, $2, $3)", [
+        TAG,
+        at(from.getTime() + 5000),
+        "abc1234",
+      ]);
 
       const w = await store.getFailureWindow(from, to);
-      expect(w).toEqual({ from: from.toISOString(), to: to.toISOString(), failures: 4, plays: 5 });
+      expect(w).toEqual({
+        from: from.toISOString(),
+        to: to.toISOString(),
+        failures: 4,
+        plays: 5,
+        // Nothing dropped: the split sums to the totals, and untagged rows are
+        // their own row rather than folded into a build.
+        byBuild: [
+          { build: "abc1234", failures: 1, plays: 2 },
+          { build: null, failures: 3, plays: 3 },
+        ],
+      });
     } finally {
       await clean();
     }
@@ -203,6 +219,37 @@ describeDb("stats store (Postgres)", () => {
     } finally {
       await q("DELETE FROM active_sessions WHERE session_id = $1", [sid]);
       for (const t of ["play_events", "recent_plays", "episode_plays", "weekly_plays"]) {
+        await q(`DELETE FROM ${t} WHERE episode_id = $1`, [TAG]);
+      }
+    }
+  });
+
+  it("a play and a failure record the build that wrote them; the column holds build ids only", async () => {
+    // Here for the same reason as the tests above: recordPlay writes today's play_events.
+    const client = `198.51.100.${(process.pid + 7) % 200}`;
+    const sid = `${TAG}-build`;
+    try {
+      await store.recordPlay(TAG, sid, client, "archive", "1ff3416");
+      await store.recordPlay(TAG, sid, client, "archive");
+      await store.recordPlaybackFailure({
+        episodeId: TAG, kind: "stall", retried: true, recovered: false,
+        elapsedMs: 10, uaClass: "ios-safari", build: "1ff3416",
+      });
+      await store.recordPlaybackFailure({
+        episodeId: TAG, kind: "stall", retried: true, recovered: false, elapsedMs: 10, uaClass: "ios-safari",
+      });
+      const plays = await q<{ build: string | null }>("SELECT build FROM play_events WHERE episode_id = $1 ORDER BY id", [TAG]);
+      const fails = await q<{ build: string | null }>("SELECT build FROM playback_failures WHERE episode_id = $1 ORDER BY id", [TAG]);
+      // Not sent is NULL: unknown, never guessed to be the current build.
+      expect(plays.map((r) => r.build)).toEqual(["1ff3416", null]);
+      expect(fails.map((r) => r.build)).toEqual(["1ff3416", null]);
+      // The column cannot be used as free-text storage.
+      await expect(
+        q("INSERT INTO play_events (episode_id, build) VALUES ($1, $2)", [TAG, "not a build"]),
+      ).rejects.toThrow(/check/i);
+    } finally {
+      await q("DELETE FROM active_sessions WHERE session_id = $1", [sid]);
+      for (const t of ["play_events", "recent_plays", "episode_plays", "weekly_plays", "playback_failures"]) {
         await q(`DELETE FROM ${t} WHERE episode_id = $1`, [TAG]);
       }
     }

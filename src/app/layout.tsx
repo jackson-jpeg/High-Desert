@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { BOOT_SCRIPT } from "./boot-script";
 import { PALETTE } from "@/lib/palette";
+import { BUILD_META } from "@/lib/utils/build-id";
 import "./globals.css";
 
 const w95fa = localFont({
@@ -94,6 +95,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* The build this document belongs to (src/lib/utils/build-id.ts). */}
+        <meta name={BUILD_META} content={process.env.NEXT_PUBLIC_BUILD_ID ?? "dev"} />
         <link rel="preconnect" href="https://archive.org" />
         <link rel="dns-prefetch" href="https://archive.org" />
         <link rel="preconnect" href="https://ia800100.us.archive.org" crossOrigin="anonymous" />

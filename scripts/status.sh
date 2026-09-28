@@ -23,7 +23,9 @@
 #             (scripts/funnel-verdict.mjs, HD_FUNNEL_VERDICT); WARN if that job
 #             has not run for 36h
 #   release   failed-start rate over the 7 days after the release recorded in
-#             docs/reliability-baseline.md (/api/stats/failures?since=), WARN at 3%+
+#             docs/reliability-baseline.md (/api/stats/failures?since=), WARN at 3%+,
+#             counting only rows from this release's builds (the release commit and
+#             .deploy/history since the release); other builds' rows beside it
 #   presence  the live site's presence surfaces (Stats badge, status bar, mobile
 #             sheet, On Air, Signal Traffic) show the same numbers within one
 #             poll — scripts/presence-check.mjs in headless Chromium; FAIL if not
@@ -253,9 +255,17 @@ else
 fi
 
 # --- release -----------------------------------------------------------------
+# Counts only rows written by this release's builds: the release commit named
+# in the baseline doc, and every build deploy.sh recorded in .deploy/history at
+# or after the release instant (a docs deploy is a new build of the same
+# release). A row from any other build, or with no build at all (written before
+# 2026-09-28, or by a tab still on older code), is shown beside it, never
+# dropped and never mixed in (docs/reliability-baseline.md).
 RELEASE_TARGET_PCT=3
+RELEASE_VERDICT_PLAYS=300
 baseline_doc="docs/reliability-baseline.md"
 release_at="$(sed -n 's/^\*\*Release deployed:\*\* `\([^`]*\)`.*/\1/p' "$baseline_doc" 2>/dev/null | head -1)"
+release_ref="$(sed -n 's/^\*\*Release deployed:\*\* `[^`]*` (\([0-9a-f]\{7,40\}\)).*/\1/p' "$baseline_doc" 2>/dev/null | head -1)"
 if [[ -z "$release_at" ]]; then
   line WARN release "no '**Release deployed:**' timestamp in $baseline_doc"
 else
@@ -263,15 +273,38 @@ else
   wf="$(jq -r '.window.failures // empty' <<<"$window_json" 2>/dev/null)"
   wp="$(jq -r '.window.plays // empty' <<<"$window_json" 2>/dev/null)"
   wdays="$(jq -r '((.window.to | sub("\\.[0-9]+Z$"; "Z") | fromdate) - (.window.from | sub("\\.[0-9]+Z$"; "Z") | fromdate)) / 86400 | . * 10 | floor / 10' <<<"$window_json" 2>/dev/null)"
+  rel_builds="$( { [[ -n "$release_ref" ]] && echo "$release_ref"; awk -v t="$release_at" '$2 >= t { print $1 }' .deploy/history 2>/dev/null; } | jq -Rsc 'split("\n") | map(select(length > 0))')"
+  split="$(jq -r --argjson rel "${rel_builds:-[]}" '
+    def isrel($b): $b != null and any($rel[]; . as $r | ($b | startswith($r)) or ($r | startswith($b)));
+    .window.byBuild as $bb
+    | if ($bb | type) != "array" then empty else
+        [ ([$bb[] | select(isrel(.build)) | .failures] | add // 0),
+          ([$bb[] | select(isrel(.build)) | .plays] | add // 0),
+          ([$bb[] | select(isrel(.build) | not) | .failures] | add // 0),
+          ([$bb[] | select(isrel(.build) | not) | .plays] | add // 0) ] | @tsv
+      end' <<<"$window_json" 2>/dev/null)"
   if [[ -z "$wf" || -z "$wp" || -z "$wdays" ]]; then
     line FAIL release "could not read /api/stats/failures?since=$release_at from $API"
-  elif (( wp == 0 )); then
-    line OK release "no plays yet since the release ($release_at); target <${RELEASE_TARGET_PCT}%"
   else
-    rpct="$(awk -v f="$wf" -v p="$wp" 'BEGIN { printf "%.1f", 100 * f / p }')"
-    level=OK
-    awk -v x="$rpct" -v t="$RELEASE_TARGET_PCT" 'BEGIN { exit !(x >= t) }' && level=WARN
-    line "$level" release "${rpct}% of starts failed in the ${wdays} of 7 days since $release_at ($wf failures / $wp plays; target <${RELEASE_TARGET_PCT}%)"
+    if [[ -n "$split" ]]; then
+      read -r rf rp of op <<<"$split"
+      whose="on this release's builds"
+      older=""
+      (( of + op > 0 )) && older="; older builds: $of failures / $op plays, counted apart"
+    else
+      # An API from before the build split: every row, as the line used to count.
+      rf="$wf" rp="$wp" whose="(all builds: the API gave no build split)" older=""
+    fi
+    if (( rp == 0 )); then
+      line OK release "no plays yet $whose since the release ($release_at); target <${RELEASE_TARGET_PCT}%$older"
+    else
+      rpct="$(awk -v f="$rf" -v p="$rp" 'BEGIN { printf "%.1f", 100 * f / p }')"
+      level=OK
+      awk -v x="$rpct" -v t="$RELEASE_TARGET_PCT" 'BEGIN { exit !(x >= t) }' && level=WARN
+      sample=""
+      (( rp < RELEASE_VERDICT_PLAYS )) && sample=", $rp of $RELEASE_VERDICT_PLAYS for a verdict"
+      line "$level" release "${rpct}% of starts failed $whose in the ${wdays} of 7 days since $release_at ($rf failures / $rp plays$sample; target <${RELEASE_TARGET_PCT}%)$older"
+    fi
   fi
 fi
 

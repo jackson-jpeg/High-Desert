@@ -32,6 +32,12 @@ interface World {
   /** The `**Release deployed:**` timestamp in docs/reliability-baseline.md; null writes no doc. */
   releaseAt: string | null;
   release: { failures: number; plays: number; days: number };
+  /** Rows in the window from builds that are not the release's, and untagged rows. */
+  releaseOther: { build: string | null; failures: number; plays: number }[];
+  /** .deploy/history lines ("<ref> <ISO>"); the release commit in the doc is abc1234. */
+  history: string[];
+  /** Answer the window without `byBuild`, as the API did before the build split. */
+  noBuildSplit?: boolean;
   /** What the stub presence check prints and exits with. */
   presence: { rc: number; out: string };
   /** %steal of each sysstat sample today, oldest first; [] prints no samples. */
@@ -87,6 +93,8 @@ const HEALTHY: World = {
   deployedIsHead: true,
   releaseAt: "2026-09-21T15:50:00Z",
   release: { failures: 4, plays: 200, days: 7 },
+  releaseOther: [],
+  history: [],
   presence: { rc: 0, out: "surfaces agree in 3 view(s)" },
   // The oldest sample is high on purpose: only the last three (30 min) count.
   steal: [90, 4, 5, 6],
@@ -198,6 +206,7 @@ async function run(): Promise<{ code: number; out: string }> {
   const head = await git("rev-parse", "--short", "HEAD");
   const deployed = world.deployedIsHead ? head : await git("rev-parse", "--short", "HEAD~1");
   await writeFile(path.join(root, ".deploy/deployed"), `${deployed} 2026-09-21T14:00:00Z\n`);
+  await writeFile(path.join(root, ".deploy/history"), world.history.map((l) => `${l}\n`).join(""));
   if (world.releaseAt) {
     await writeFile(
       path.join(root, "docs/reliability-baseline.md"),
@@ -288,7 +297,20 @@ beforeEach(async () => {
         res.end(
           JSON.stringify({
             summary: { failures: world.failures },
-            window: { from: from.toISOString(), to: to.toISOString(), ...world.release },
+            window: {
+              from: from.toISOString(),
+              to: to.toISOString(),
+              failures: world.release.failures + world.releaseOther.reduce((n, b) => n + b.failures, 0),
+              plays: world.release.plays + world.releaseOther.reduce((n, b) => n + b.plays, 0),
+              ...(world.noBuildSplit
+                ? {}
+                : {
+                    byBuild: [
+                      { build: "abc1234", failures: world.release.failures, plays: world.release.plays },
+                      ...world.releaseOther,
+                    ],
+                  }),
+            },
           }),
         );
         return;
@@ -436,21 +458,52 @@ describe("highdesert-status", () => {
       const r = await run();
       expect(sinceAsked).toBe("2026-09-21T15:50:00Z");
       expect(lineFor(r.out, "release")).toBe(
-        "OK    release   2.0% of starts failed in the 7 of 7 days since 2026-09-21T15:50:00Z (4 failures / 200 plays; target <3%)",
+        "OK    release   2.0% of starts failed on this release's builds in the 7 of 7 days since 2026-09-21T15:50:00Z (4 failures / 200 plays, 200 of 300 for a verdict; target <3%)",
       );
     });
 
     it("WARNs at 3% — and only WARNs: a bad week is not an outage", async () => {
       world.release = { failures: 6, plays: 200, days: 2.5 };
       const r = await run();
-      expect(lineFor(r.out, "release")).toMatch(/^WARN\s+release\s+3\.0% of starts failed in the 2\.5 of 7 days/);
+      expect(lineFor(r.out, "release")).toMatch(/^WARN\s+release\s+3\.0% of starts failed on this release's builds in the 2\.5 of 7 days/);
       expect(r.code).toBe(0);
     });
 
     it("says so when there have been no plays yet, rather than dividing by zero", async () => {
       world.release = { failures: 0, plays: 0, days: 0.1 };
       const r = await run();
-      expect(lineFor(r.out, "release")).toMatch(/^OK\s+release\s+no plays yet since the release/);
+      expect(lineFor(r.out, "release")).toMatch(/^OK\s+release\s+no plays yet on this release's builds since the release/);
+    });
+
+    it("counts only the release's builds; old and untagged rows are shown beside it, not dropped", async () => {
+      // 4 / 200 on the release is 2.0%. Mixed in, an old tab's 9 / 20 would read 5.9%.
+      world.releaseOther = [
+        { build: "0ld0001", failures: 5, plays: 12 },
+        { build: null, failures: 4, plays: 8 },
+      ];
+      const r = await run();
+      expect(lineFor(r.out, "release")).toBe(
+        "OK    release   2.0% of starts failed on this release's builds in the 7 of 7 days since 2026-09-21T15:50:00Z (4 failures / 200 plays, 200 of 300 for a verdict; target <3%); older builds: 9 failures / 20 plays, counted apart",
+      );
+    });
+
+    it("a build deployed after the release instant is the release; one deployed before is not", async () => {
+      world.history = ["0ld0001 2026-09-20T10:00:00Z", "abc1234 2026-09-21T15:50:00Z", "d0c5678 2026-09-22T09:00:00Z"];
+      world.releaseOther = [
+        { build: "d0c5678", failures: 2, plays: 100 },
+        { build: "0ld0001", failures: 3, plays: 3 },
+      ];
+      const r = await run();
+      expect(lineFor(r.out, "release")).toBe(
+        "OK    release   2.0% of starts failed on this release's builds in the 7 of 7 days since 2026-09-21T15:50:00Z (6 failures / 300 plays; target <3%); older builds: 3 failures / 3 plays, counted apart",
+      );
+    });
+
+    it("an API without the build split still gets a line, and says it could not split", async () => {
+      world.noBuildSplit = true;
+      world.releaseOther = [{ build: null, failures: 1, plays: 10 }];
+      const r = await run();
+      expect(lineFor(r.out, "release")).toMatch(/^OK\s+release\s+2\.4% of starts failed \(all builds: the API gave no build split\)/);
     });
 
     it("WARNs, and asks the API nothing, when there is no baseline to measure from", async () => {

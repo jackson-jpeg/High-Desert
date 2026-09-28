@@ -64,6 +64,7 @@ export function initEngine(audio: HTMLAudioElement): void {
     if (mediaElement !== audio || !bridging || audio.loop) return;
     audio.loop = true;
     audio.src = BRIDGE_QUIET_URL;
+    fromTheTop(audio);
     audio.play().catch(() => {});
   });
   // Reset connection flag only if we get a brand new element
@@ -120,6 +121,23 @@ export const BRIDGE_QUIET_URL = "/audio/station-quiet.mp3";
 
 let bridging = false;
 
+/**
+ * A new bridge source starts at 0, said out loud. A `currentTime` written
+ * before metadata (seekEngine priming a restored show at its saved position)
+ * becomes the element's default start position, and Chromium keeps it across
+ * a change of `src`: after a reload, the station ID started at 94 s, was
+ * clamped to its own 8 s end, ended at once, and the gap was taken for a
+ * pause, so the next show never started. Found by e2e/stale-tab.spec.ts.
+ */
+function fromTheTop(a: HTMLMediaElement): void {
+  pendingSeek = null;
+  try {
+    a.currentTime = 0;
+  } catch {
+    // An engine that refuses a write before metadata keeps no position either.
+  }
+}
+
 export function isBridging(): boolean {
   return bridging;
 }
@@ -136,6 +154,7 @@ export function playBridge(): Promise<void> {
   pendingSeek = null;
   a.loop = false;
   a.src = STATION_ID_URL;
+  fromTheTop(a);
   a.playbackRate = 1;
   return a.play();
 }

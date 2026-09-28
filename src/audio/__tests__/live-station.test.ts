@@ -797,9 +797,10 @@ describe("pausing holds the station", () => {
     await flush();
     expect(reportPlay).toHaveBeenCalledTimes(1);
     // The page goes away (no teardown runs on unload) and comes back: a fresh
-    // store and a fresh station, the same tab's sessionStorage.
-    useLiveStore.setState({ tuned: false, paused: false, phase: "off", current: null });
+    // store and a fresh station, the same tab's sessionStorage. The old page's
+    // timers die with it: uninstall while the store still says tuned.
     uninstall();
+    useLiveStore.setState({ tuned: false, paused: false, phase: "off", current: null });
     usePlayerStore.setState({ playing: false });
     station = createLiveStation({
       fetchSchedule: async () => useLiveStore.getState().schedule,
@@ -832,5 +833,114 @@ describe("pausing holds the station", () => {
       await player.api.resumePlayback();
     });
     expect(tunedInLive()).toBe(true);
+  });
+});
+
+describe("a tab that reloads itself onto a new build (src/services/build/stale-tab.ts)", () => {
+  /** The page goes away and comes back: fresh stores and station, the same tab's sessionStorage. */
+  function reloadPage() {
+    // The old page's timers die with it: uninstall while the store still says tuned.
+    uninstall();
+    useLiveStore.setState({ tuned: false, paused: false, phase: "off", current: null });
+    engine.endBridge();
+    usePlayerStore.setState({ playing: false });
+    liveSession.__testing.reload();
+    station = createLiveStation({
+      fetchSchedule: async () => useLiveStore.getState().schedule,
+      fetchServerNow: async () => Date.now(),
+      startEpisode: (ep) => void player.api.playEpisode(ep),
+      resolveEpisode: (s) => episodes.get(s.fileHash)!,
+      stationId,
+    });
+    uninstall = station.install();
+  }
+
+  it("reloaded in the gap between shows, it is back on the air with no tap, and the next show counts once", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    streaming();
+    await flush(A.end - Date.now() + 2_000);
+    expect(useLiveStore.getState().phase).toBe("station-id");
+    expect(reportPlay).toHaveBeenCalledTimes(1);
+
+    reloadPage();
+    expect(useLiveStore.getState()).toMatchObject({ tuned: true, paused: true });
+    await act(async () => {
+      await station.resumeAfterReload();
+    });
+    expect(useLiveStore.getState()).toMatchObject({ tuned: true, paused: false, phase: "station-id" });
+
+    await flush(B.start - Date.now() + 1_000);
+    expect(useLiveStore.getState()).toMatchObject({ phase: "show", current: B });
+    expect(usePlayerStore.getState().playing).toBe(true);
+    expect(usePlayerStore.getState().currentEpisode?.fileHash).toBe(B.fileHash);
+    expect(reportPlay).toHaveBeenCalledTimes(2);
+    expect(reportPlaybackFailure).not.toHaveBeenCalled();
+  });
+
+  it("reloaded mid-show (a paused tab), resuming lands on the live second and does not count the airing again", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    act(() => player.api.pausePlayback());
+    await flush(60_000);
+    reloadPage();
+    await act(async () => {
+      await station.resumeAfterReload();
+    });
+    await flush();
+    expect(useLiveStore.getState()).toMatchObject({ paused: false, phase: "show", current: A });
+    expect(playhead()).toBeCloseTo(stationAt(A), 3);
+    expect(reportPlay).toHaveBeenCalledTimes(1);
+  });
+
+  it("a browser that refuses the new page's sound is recorded as a reload, not a handover, and held", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    streaming();
+    await flush(A.end - Date.now() + 2_000);
+    reloadPage();
+    refusePlay = true;
+    await act(async () => {
+      await station.resumeAfterReload();
+    });
+    await flush();
+    const rows = reportPlaybackFailure.mock.calls.map((c) => c[0]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ kind: "handover-rejected" });
+    expect(rows[0].detail).toMatch(/^reload to=station-id /);
+    expect(useLiveStore.getState()).toMatchObject({ tuned: true, paused: true, rejoin: true });
+  });
+
+  it("the restored show's saved position does not carry into the station ID (it would end at once)", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    streaming();
+    await flush(A.end - Date.now() + 2_000);
+    reloadPage();
+    // The new page's element: no source yet, then the layout primes the
+    // remembered show at its saved position. Before metadata, that write is
+    // the element's default start position, which Chromium keeps across a
+    // change of src (this mock keeps it too: its playhead is not reset by src).
+    flowing = false;
+    element.removeAttribute("src");
+    setReadyState(element, 0);
+    useProgressStore.getState().patch(A.fileHash, { playbackPosition: 94, lastPlayedAt: T0 });
+    act(() => player.api.primeEpisode(episodeFor(A)));
+    expect(playhead()).toBe(94);
+
+    await act(async () => {
+      await station.resumeAfterReload();
+    });
+    expect(element.src).toMatch(/\/audio\/station-id\.mp3$/);
+    expect(playhead(), "the ID starts from its top").toBe(0);
+    expect(useLiveStore.getState()).toMatchObject({ paused: false, phase: "station-id" });
+  });
+
+  it("does nothing for a tab that was not held on the station (control: no stray start)", async () => {
+    await act(async () => {
+      await station.resumeAfterReload();
+    });
+    expect(useLiveStore.getState().tuned).toBe(false);
+    expect(usePlayerStore.getState().currentEpisode).toBeNull();
   });
 });

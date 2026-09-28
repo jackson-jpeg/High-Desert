@@ -148,6 +148,12 @@ CREATE TABLE IF NOT EXISTS play_events (
 -- (src/audio/sources.ts). Added with the archive.org outage mirror; rows from
 -- before it are NULL — unknown, deliberately not back-filled as "archive".
 ALTER TABLE play_events ADD COLUMN IF NOT EXISTS source text;
+-- The build that sent the play: the commit's short SHA the page was served as
+-- (src/lib/utils/build-id.ts). NULL for rows before 2026-09-28 and for a page
+-- that could not say. The release line counts a row against the build that
+-- wrote it, so a tab left open on old code is counted apart from the release.
+ALTER TABLE play_events ADD COLUMN IF NOT EXISTS build text
+  CHECK (build IS NULL OR build ~ '^[0-9a-f]{7,40}(-[0-9a-f]{7})?$');
 CREATE INDEX IF NOT EXISTS play_events_played_at_idx
   ON play_events (played_at DESC);
 CREATE INDEX IF NOT EXISTS play_events_episode_idx
@@ -215,6 +221,9 @@ CREATE TABLE IF NOT EXISTS playback_failures (
 );
 -- The host that failed (see play_events.source). NULL on older rows.
 ALTER TABLE playback_failures ADD COLUMN IF NOT EXISTS source text;
+-- The build that wrote the row (see play_events.build). NULL on older rows.
+ALTER TABLE playback_failures ADD COLUMN IF NOT EXISTS build text
+  CHECK (build IS NULL OR build ~ '^[0-9a-f]{7,40}(-[0-9a-f]{7})?$');
 -- Free-text context, only ever written for advisory kinds. Today that is
 -- empty-media-suspected, which carries the duration `loadedmetadata` claimed so
 -- the five-second floor can be judged against real traffic before it is given

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isBuildId } from "@/lib/utils/build-id";
 import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { recordPlaybackFailure, isPlaySource } from "@/services/stats/store";
 import { isKnownEpisodeId } from "@/services/stats/allowlist";
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
   if (parsed.error) return parsed.error;
   const body = parsed.body;
 
-  const { episodeId, kind, retried, recovered, elapsedMs, uaClass, detail, source } =
+  const { episodeId, kind, retried, recovered, elapsedMs, uaClass, detail, source, build } =
     body;
 
   if (typeof episodeId !== "string" || !episodeId) {
@@ -157,6 +158,9 @@ export async function POST(request: NextRequest) {
       detail: det,
       // Which host failed; unknown values are dropped, not rejected, like uaClass.
       source: isPlaySource(source) ? source : null,
+      // The build that wrote it, so the release line counts it against that
+      // build (docs/reliability-baseline.md). Unknown values are dropped.
+      build: isBuildId(build) ? build : null,
     });
   } catch (err) {
     // No DATABASE_URL, or Postgres is down. Losing a failure report is not

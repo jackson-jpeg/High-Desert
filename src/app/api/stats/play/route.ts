@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isBuildId } from "@/lib/utils/build-id";
 import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { recordPlay, isPlaySource } from "@/services/stats/store";
 import { isKnownEpisodeId } from "@/services/stats/allowlist";
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
   if (parsed.error) return parsed.error;
   const body = parsed.body;
 
-  const { episodeId, sessionId, source } = body;
+  const { episodeId, sessionId, source, build } = body;
 
   if (
     typeof episodeId !== "string" ||
@@ -62,7 +63,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await recordPlay(episodeId, sessionId, ip, source ?? null);
+    // The build that sent it. Anything that is not a build id is stored as
+    // unknown rather than refused: a play is worth more than its tag.
+    await recordPlay(episodeId, sessionId, ip, source ?? null, isBuildId(build) ? build : null);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[stats/play] store error:", err);

@@ -265,7 +265,11 @@ if [[ -d node_modules.staging ]]; then
   touch "$STATE_DIR/deps-swapped"
   echo "  node_modules replaced (previous kept as node_modules.prev)"
 fi
-echo "$BUILD_REF $(date -u +%FT%TZ)" > "$STATE_DIR/deployed"
+DEPLOYED_AT="$(date -u +%FT%TZ)"
+echo "$BUILD_REF $DEPLOYED_AT" > "$STATE_DIR/deployed"
+# Every build that has gone live, oldest first. The release line counts rows
+# from the builds deployed since the release (scripts/status.sh).
+echo "$BUILD_REF $DEPLOYED_AT" >> "$STATE_DIR/history"
 
 restart
 
