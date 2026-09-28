@@ -214,6 +214,12 @@ unchanged with `set -o pipefail;` first, which is the path the block names:
 - a `sed`/`grep | head` read of `status.sh` and its test, during the memory
   line.
 
+**Claude Code's built-in safety check refused one command:** `rm -f $S/*`,
+clearing my own staging folder in the scratchpad before copying the Mac folder,
+because a variable target could expand to `/`. The command did not run. I did
+not need it (the copy overwrites files of the same names), so I ran the copy
+without any removal. Nothing was deleted.
+
 There were no other hook, classifier or permission refusals. Claude Code
 killed one background shell (the nightly watch) for low memory; it was not
 restarted, as asked. One `scp` to the
