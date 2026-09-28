@@ -94,16 +94,42 @@ I could not read the usage figure itself: the billing endpoints need the
 `repo`. Granting it takes `gh auth refresh -h github.com -s user`, which is
 only worth doing if the repo ever goes private.
 
+## Two e2e failures the split surfaced, both fixed in #57
+
+Right after the split, the browser job failed twice, on a docs-only PR (#57)
+and on main (961c244). Neither change touched app code. Neither was a flake,
+and neither was re-run until green.
+
+- **A real station bug** (`e2e/live-qa.spec.ts`, mobile). After a reload the
+  station comes back held, with no slot named yet (`current` is set only when
+  it plays). So a show picked from the library tuned the station out only once
+  that show's sound began. The trace shows the test moved on to `/live` 11 ms
+  after the tap, before any of the show's audio was requested, and the
+  station came back held. A listener who picks a show and moves on has left
+  the station: the held player's own show now stands in for the unnamed slot
+  (`live-controller.ts`). There is a unit test that reproduces it (red before
+  the fix), with a control for the same show as another object. Mutation:
+  `live-held-pick-leaves`.
+- **The test's proof of "playing" was weak.** It checked `!paused`, which
+  `play()` clears at once. It now requires `currentTime > 0`.
+- **The a11y failure on `/search` was a scan of an unsettled page, not bad
+  contrast.** The page asks archive.org on mount, and its result cards fade in
+  when the answer lands, on the network's timer. Axe measured them mid-fade:
+  an Add button at 1.29:1, and the card before it at 2.26:1. The results area
+  is now `aria-busy` until the search has answered, which also tells a screen
+  reader the list is still coming. The spec waits for `aria-busy="false"`
+  before it settles and scans. Test: `search-panel-busy.test.tsx`. Mutation:
+  `search-results-busy`.
+
 ## State at hand-over
 
-- **Deployed:** 961c244 (#44, #50, #51, #53, #56), via
-  `nice -n -15 ionice -c2 -n0 bash scripts/deploy.sh`. The lockfile changed
-  twice, and both times it was installed in the staging copy.
-  `/api/build` answers the deployed commit. This handoff's commit is deployed
-  after it.
+- **Deployed:** #57 (the two fixes above and this handoff), on top of #44,
+  #50, #51, #53 and #56, via `nice -n -15 ionice -c2 -n0 bash scripts/deploy.sh`.
+  The lockfile changed twice today, and both times it was installed in the
+  staging copy. `/api/build` answers the deployed commit.
 - **`highdesert-status`:** exit 0. Two WARNs, both expected:
-  - `release` is 1 failure in 13 plays, not a verdict (300 plays needed). The
-    failure is row 585, an iOS stall that the mirror rescued.
+  - `release` is one failure in a handful of plays, not a verdict (300 plays
+    needed). The failure is row 585, an iOS stall that the mirror rescued.
   - `mutations` has no nightly run yet. **The first one is 2026-09-29, 09:30
     UTC**, and the line should read OK from then on. If it reads anything
     else, that is the finding.
@@ -124,5 +150,14 @@ only worth doing if the repo ever goes private.
   fourth, on the #44 handoff's `git push | tail`, came before this request
   and is reported in `docs/handoff-2026-09-28-longlived.md`.)
 - No other hook, classifier or permission refusal. (The Edit tool refused
-  twice because a file had not been read in that worktree; I read it first
-  and edited normally.)
+  a few times because a file had not been read in that worktree; each time I
+  read it first and edited normally.)
+
+## On the Mac
+
+All of this session's docs are in one folder,
+`~/Downloads/high-desert-2026-09-28/`, checksum-verified:
+- this handoff and the long-lived-tabs handoff;
+- `reliability-baseline.md`, `security-exceptions.md` and `digest-README.md`;
+- the digest sample;
+- CLAUDE.md, and `mutations.yml` as text.
