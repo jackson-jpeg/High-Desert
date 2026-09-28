@@ -75,6 +75,8 @@ interface World {
   funnelPhone: { visit: number; live: number; tune: number; call: number } | null;
   /** scripts/funnel-verdict.mjs's status.json; null: the job has never run. `ageH` sets checkedAt. */
   funnelVerdict: ({ ageH: number } & Record<string, unknown>) | null;
+  /** scripts/digest.mjs's status.json; null: never run. `ageH` sets checkedAt. */
+  digest: ({ ageH: number } & Record<string, unknown>) | null;
   liveActive: string;
   /** /live-api/health's body; null answers 502. */
   liveHealth: Record<string, unknown> | null;
@@ -108,6 +110,13 @@ const HEALTHY: World = {
   peaks: { "24h": { online: 4, listening: 2 }, "7d": { online: 9, listening: 5 }, "30d": { online: 9, listening: 6 } },
   funnel: { visit: 40, live: 30, tune: 12, call: 2 },
   funnelPhone: { visit: 30, live: 22, tune: 8, call: 1 },
+  digest: {
+    ageH: 2,
+    due: "2026-10-05",
+    written: { "2026-10-05": { sha: "abc1234", at: "2026-10-05T17:41:00Z" } },
+    copied: { "2026-10-05": "2026-10-05T17:41:05Z" },
+    error: null,
+  },
   funnelVerdict: null,
   liveActive: "active",
   liveHealth: { ok: true, clients: 42, messagesLastHour: 17, slowMode: false, cpu: { pct: 2.5, windowS: 900 } },
@@ -203,6 +212,13 @@ async function run(): Promise<{ code: number; out: string }> {
   } else {
     await rm(verdictFile, { force: true });
   }
+  const digestFile = path.join(dir, "digest.json");
+  if (world.digest) {
+    const { ageH, ...rest } = world.digest;
+    await writeFile(digestFile, JSON.stringify({ checkedAt: new Date(Date.now() - ageH * 3_600_000).toISOString(), ...rest }));
+  } else {
+    await rm(digestFile, { force: true });
+  }
   const head = await git("rev-parse", "--short", "HEAD");
   const deployed = world.deployedIsHead ? head : await git("rev-parse", "--short", "HEAD~1");
   await writeFile(path.join(root, ".deploy/deployed"), `${deployed} 2026-09-21T14:00:00Z\n`);
@@ -239,6 +255,7 @@ async function run(): Promise<{ code: number; out: string }> {
           HD_LIVE: api,
           HD_WARM_STATUS: warmFile,
           HD_FUNNEL_VERDICT: verdictFile,
+          HD_DIGEST_STATUS: digestFile,
         },
         timeout: 30_000,
       },
@@ -785,6 +802,44 @@ describe("highdesert-status", () => {
       const r = await run();
       expect(lineFor(r.out, "cpu")).toMatch(/^WARN\s+cpu\s+no 15-minute CPU figure \(exit 3\): only 240s of samples, need 810s$/);
       expect(r.out).not.toMatch(/^FAIL/m);
+    });
+  });
+
+  describe("digest line (the weekly report, scripts/digest.mjs)", () => {
+    const W = { "2026-10-05": { sha: "abc1234", at: "2026-10-05T17:41:00Z" } };
+
+    it("written and on the Mac: OK, saying which week", async () => {
+      expect(lineFor((await run()).out, "digest")).toBe(
+        "OK    digest    docs/digest/2026-10-05.md written 2026-10-05T17:41:00Z, on the Mac 2026-10-05T17:41:05Z",
+      );
+    });
+
+    it("never run: WARN, naming the timer", async () => {
+      world.digest = null;
+      expect(lineFor((await run()).out, "digest")).toMatch(/^WARN\s+digest\s+the digest job has never run/);
+    });
+
+    it("not run for 36h: WARN (a skipped night leaves no other trace)", async () => {
+      world.digest = { ageH: 40, due: "2026-10-05", written: W, copied: {}, error: null };
+      expect(lineFor((await run()).out, "digest")).toMatch(/^WARN\s+digest\s+the digest job last ran 40h ago/);
+    });
+
+    it("the week's not written: WARN, with the job's error", async () => {
+      world.digest = { ageH: 1, due: "2026-10-12", written: W, copied: {}, error: "git push: rejected" };
+      expect(lineFor((await run()).out, "digest")).toBe("WARN  digest    the digest for 2026-10-12 is not written (last run: git push: rejected)");
+    });
+
+    it("before the first week: OK, saying when the first is", async () => {
+      world.digest = { ageH: 1, due: null, firstDue: "2026-10-05", written: {}, copied: {}, error: null };
+      expect(lineFor((await run()).out, "digest")).toBe("OK    digest    none due yet: the first is 2026-10-05, 17:40 UTC");
+    });
+
+    it("waiting for the Mac: OK for two days (it is often asleep), then WARN", async () => {
+      const at = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+      world.digest = { ageH: 1, due: "2026-10-05", written: { "2026-10-05": { at: at(20) } }, copied: {}, error: "ssh: timed out" };
+      expect(lineFor((await run()).out, "digest")).toMatch(/^OK\s+digest\s+docs\/digest\/2026-10-05\.md written .* \(not on the Mac yet; retried daily\)$/);
+      world.digest = { ageH: 1, due: "2026-10-05", written: { "2026-10-05": { at: at(50) } }, copied: {}, error: "ssh: timed out" };
+      expect(lineFor((await run()).out, "digest")).toMatch(/^WARN\s+digest\s+docs\/digest\/2026-10-05\.md written .*, not on the Mac after 50h \(last run: ssh: timed out\)$/);
     });
   });
 });

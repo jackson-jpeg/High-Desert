@@ -1,0 +1,27 @@
+[Unit]
+Description=High Desert, the weekly digest (Mondays; docs/digest/, copied to the Mac)
+Documentation=file:///root/High-Desert/docs/digest/README.md
+After=network-online.target highdesert.service postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Runs from the production tree but never writes to it: the digest goes into
+# its own checkout under /var/lib/highdesert-digest and is pushed to main from
+# there. root, for the push credentials, the `macbook` ssh alias and
+# highdesert-status. DATABASE_URL (read-only use: the week's rows) comes from
+# the app's own env file.
+WorkingDirectory=/root/High-Desert
+EnvironmentFile=/root/.high-desert.env
+ExecStart=/usr/bin/node /root/High-Desert/scripts/digest.mjs
+Environment=HOME=/root
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=HD_DIGEST_STATE=/var/lib/highdesert-digest
+StateDirectory=highdesert-digest
+# highdesert-status (a headless browser for a minute) and a few reads, once a
+# week: the 10% rule holds, and nothing about it is urgent.
+CPUQuota=10%
+Nice=19
+IOSchedulingClass=idle
+TimeoutStartSec=20min
+SyslogIdentifier=highdesert-digest

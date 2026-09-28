@@ -8,6 +8,25 @@ failed-start rate over the seven days from that instant
 and never FAILs. A trailing 7-day rate can't judge a deploy, because for the
 first week it still includes the old build's failures.
 
+**Counted by the build that wrote each row** (from the long-lived tabs
+release on). Every play (`play_events.build`) and failure
+(`playback_failures.build`) carries the build of the page that sent it: its
+`<meta name="hd-build">`, the short SHA `deploy.sh` built (`src/lib/utils/build-id.ts`).
+The line counts only rows from **this release's builds**: the commit on the
+line above, plus every build `deploy.sh` recorded in `.deploy/history` at or
+after the release instant (a docs deploy is a new build of the same release).
+Rows from any other build, or with none (written before the column existed,
+or by a page that could not say), are printed beside it as `older builds: X
+failures / Y plays, counted apart`, never dropped and never mixed in. That is
+what a tab left open for days on older code used to do to this line: on
+2026-09-28 four of the first eight failures after 15144c1 came from one such
+tab. Tabs now update themselves at a break (`src/services/build/stale-tab.ts`),
+so the older-builds figure should fall to nothing within a day of a deploy.
+
+Under 300 plays the line says `N of 300 for a verdict`: a rate on a few dozen
+plays is a reading, not a verdict. The weekly digest (`docs/digest/`) gives the
+verdict once there are 300.
+
 ## Before
 
 Measured at 2026-09-21T16:02:22Z over the trailing 7 days, on the build this release
