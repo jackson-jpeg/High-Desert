@@ -2,7 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { TOKEN_WORDS, rnd } from "../../e2e/tokens";
+import { TOKEN_WORDS, callToken, rnd } from "../../e2e/tokens";
 import { createModerator } from "../../services/live/lib/moderation/index.mjs";
 import { parseBlocklist } from "../../services/live/lib/moderation/blocklist.mjs";
 
@@ -44,5 +44,18 @@ describe("e2e tokens", () => {
   it("the helper draws three words from the list", () => {
     for (let i = 0; i < 50; i++) expect(every).toContain(rnd());
     expect(every).toHaveLength(TOKEN_WORDS.length ** 3);
+  });
+
+  it("a call's token is two tokens, a space between, and goes out unchanged", () => {
+    // One token is 13,824 values, and every spec and both projects call into
+    // one room: the desktop and mobile runs drew the same one (CI, 2026-09-28).
+    for (let i = 0; i < 500; i++) {
+      const t = callToken();
+      const halves = t.split(" ");
+      expect(halves).toHaveLength(2);
+      for (const h of halves) expect(every).toContain(h);
+      const text = `Renamed caller checking in ${t}`;
+      expect(mod.message(text)).toMatchObject({ ok: true, text });
+    }
   });
 });

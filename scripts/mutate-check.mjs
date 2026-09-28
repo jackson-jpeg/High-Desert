@@ -2908,6 +2908,22 @@ export const MUTATIONS = [
     why: "a token the chat filter masks goes out altered, and the spec cannot find its own call",
   },
   {
+    id: "e2e-call-token-two",
+    test: "scripts/__tests__/e2e-tokens.test.ts",
+    file: "e2e/tokens.ts",
+    find: "  return `${rnd()} ${rnd()}`;",
+    replace: "  return rnd();",
+    why: "one 3-word token is 13,824 values; the desktop and mobile runs drew the same one into one room",
+  },
+  {
+    id: "live-chat-once-by-id",
+    test: "src/hooks/__tests__/live-reducer-once.test.ts",
+    file: "src/hooks/useLiveChat.ts",
+    find: "  for (const m of add) byId.set(m.id, m);\n  return [...byId.values()]",
+    replace: "  return [...byId.values(), ...add]",
+    why: "the POST's 201, its SSE echo and a resumed replay are one call, on screen once",
+  },
+  {
     id: "funnel-status-shares",
     test: "scripts/__tests__/status.test.ts",
     file: "scripts/status.sh",
