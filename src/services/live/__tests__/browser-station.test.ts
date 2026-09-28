@@ -35,14 +35,11 @@ vi.mock("@/audio/live-controller", () => ({
   },
 }));
 vi.mock("@/audio/live-session", () => ({ stopPlayerForLive: () => void (stopped.n += 1) }));
-vi.mock("@/audio/station-id", () => ({
-  prepareStationId: vi.fn(),
-  releaseStationId: vi.fn(),
-  startStationId: vi.fn(),
-  stopStationId: vi.fn(),
-}));
 
-const { installBrowserLiveStation, episodeFromSlot } = await import("../browser-station");
+const { installBrowserLiveStation, episodeFromSlot, prefetchSlotStart, PREFETCH_BYTES } = await import(
+  "../browser-station"
+);
+const { archiveDownFixture, archiveUpFixture, resetOutage } = await import("@/test-support/outage");
 const { usePlayerStore } = await import("@/stores/player-store");
 const { useLiveStore } = await import("@/stores/live-store");
 const { emit } = await import("@/lib/events");
@@ -110,6 +107,63 @@ describe("the station's show gets the library's own row", () => {
     try {
       await flush();
       expect(usePlayerStore.getState().currentEpisode).toBe(other);
+    } finally {
+      stop();
+    }
+  });
+});
+
+describe("the next show's first bytes, fetched ahead of its start", () => {
+  const asked = () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const impl = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return new Response(new Uint8Array(8));
+    }) as unknown as typeof fetch;
+    return { calls, impl };
+  };
+
+  it("from where the start will go: archive.org while it is up, only the first bytes", async () => {
+    archiveUpFixture();
+    try {
+      const { calls, impl } = asked();
+      await prefetchSlotStart(SLOT, impl);
+      expect(calls).toHaveLength(1);
+      expect(calls[0].url).toBe(SLOT.sourceUrl);
+      expect(new Headers(calls[0].init.headers).get("range")).toBe(`bytes=0-${PREFETCH_BYTES - 1}`);
+      expect(calls[0].init.credentials).toBe("omit");
+    } finally {
+      resetOutage();
+    }
+  });
+
+  it("the mirror while archive.org is down, and nothing for a show the mirror cannot play", async () => {
+    archiveDownFixture([SLOT.fileHash]);
+    try {
+      const { calls, impl } = asked();
+      await prefetchSlotStart(SLOT, impl);
+      expect(calls.map((c) => c.url)).toEqual([`/mirror/${encodeURIComponent(SLOT.fileHash)}`]);
+      archiveDownFixture([]);
+      await prefetchSlotStart(SLOT, impl);
+      expect(calls).toHaveLength(1);
+    } finally {
+      resetOutage();
+    }
+  });
+
+  it("a failed fetch is nothing to anyone", async () => {
+    archiveUpFixture();
+    try {
+      await expect(prefetchSlotStart(SLOT, (() => Promise.reject(new Error("offline"))) as unknown as typeof fetch)).resolves.toBeUndefined();
+    } finally {
+      resetOutage();
+    }
+  });
+
+  it("is what the station is given to call", () => {
+    const stop = installBrowserLiveStation();
+    try {
+      expect(typeof (held.deps as { prefetch?: unknown }).prefetch).toBe("function");
     } finally {
       stop();
     }

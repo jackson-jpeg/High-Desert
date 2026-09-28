@@ -74,6 +74,18 @@ export function isAbortError(err: unknown): boolean {
   );
 }
 
+/**
+ * `play()` was refused by the browser's policy (no gesture, a page in the
+ * background), as opposed to failing on the source (NotSupportedError).
+ */
+export function isNotAllowed(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { name?: unknown }).name === "NotAllowedError"
+  );
+}
+
 /** How close to the end a saved position counts as "finished". */
 export const FINISHED_WITHIN_S = 30;
 /** ...or how far through, as a fraction of the duration. */

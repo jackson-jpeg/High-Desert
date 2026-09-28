@@ -9,8 +9,44 @@
 
 import { useEffect } from "react";
 import { usePlayerStore } from "@/stores/player-store";
+import { useLiveStore } from "@/stores/live-store";
 import { getMediaElement } from "@/audio/engine";
 import type { Episode } from "@/db/schema";
+
+const ARTWORK = [
+  { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+  { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+];
+
+export const LIVE_ALBUM = "High Desert Live";
+
+/**
+ * What the lock screen shows. A listener with the screen off sees the station
+ * change shows only here, so it follows every change: each new show by name,
+ * and the break between shows as the station ID (not the show that just
+ * ended). On the live station the album line says so.
+ */
+export function mediaMetadataFor(
+  episode: Episode | null,
+  live: { tuned: boolean; stationBreak: boolean },
+): MediaMetadataInit | null {
+  if (live.tuned && live.stationBreak) {
+    return { title: "Station identification", artist: "Art Bell", album: LIVE_ALBUM, artwork: ARTWORK };
+  }
+  if (!episode) return null;
+  return {
+    title: episode.title || episode.fileName,
+    artist: episode.guestName ? `Art Bell with ${episode.guestName}` : episode.artist || "Art Bell",
+    album: live.tuned
+      ? LIVE_ALBUM
+      : episode.showType === "coast"
+        ? "Coast to Coast AM"
+        : episode.showType === "dreamland"
+          ? "Dreamland"
+          : "Art Bell Radio",
+    artwork: ARTWORK,
+  };
+}
 
 export interface MediaSessionControls {
   currentEpisode: Episode | null;
@@ -31,34 +67,18 @@ export function useMediaSession({
   playPrevious,
   seek,
 }: MediaSessionControls): void {
+  const tuned = useLiveStore((s) => s.tuned);
+  const stationBreak = useLiveStore((s) => s.phase === "station-id");
+
   // Metadata and playback state
   useEffect(() => {
     if (!("mediaSession" in navigator)) return;
 
     const session = navigator.mediaSession;
-
-    if (currentEpisode) {
-      session.metadata = new MediaMetadata({
-        title: currentEpisode.title || currentEpisode.fileName,
-        artist: currentEpisode.guestName
-          ? `Art Bell with ${currentEpisode.guestName}`
-          : currentEpisode.artist || "Art Bell",
-        album: currentEpisode.showType === "coast"
-          ? "Coast to Coast AM"
-          : currentEpisode.showType === "dreamland"
-            ? "Dreamland"
-            : "Art Bell Radio",
-        artwork: [
-          { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-          { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
-        ],
-      });
-    } else {
-      session.metadata = null;
-    }
-
+    const meta = mediaMetadataFor(currentEpisode, { tuned, stationBreak });
+    session.metadata = meta ? new MediaMetadata(meta) : null;
     session.playbackState = playing ? "playing" : "paused";
-  }, [currentEpisode, playing]);
+  }, [currentEpisode, playing, tuned, stationBreak]);
 
   // Action handlers
   useEffect(() => {
@@ -117,6 +137,8 @@ export function useMediaSession({
 
     const push = () => {
       const state = usePlayerStore.getState();
+      // The break between shows has no timeline of its own worth showing.
+      if (useLiveStore.getState().phase === "station-id") return;
       if (state.duration > 0 && isFinite(state.duration)) {
         try {
           navigator.mediaSession.setPositionState({

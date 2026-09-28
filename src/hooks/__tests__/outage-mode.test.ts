@@ -26,6 +26,11 @@ vi.mock("@/services/stats/client", () => ({
   reportPlaybackFailure: vi.fn(),
 }));
 vi.mock("@/audio/engine", () => ({
+  // The live station bridge (engine.ts): never on in these suites.
+  isBridging: () => false,
+  playBridge: () => Promise.resolve(),
+  endBridge: () => {},
+  stopBridge: () => {},
   getMediaElement: () => element,
   initEngine: vi.fn(),
   setEngineVolume: vi.fn(),

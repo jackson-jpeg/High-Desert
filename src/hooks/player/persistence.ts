@@ -5,7 +5,7 @@
 
 import { usePlayerStore } from "@/stores/player-store";
 import { useProgressStore } from "@/stores/progress-store";
-import { getMediaElement } from "@/audio/engine";
+import { getMediaElement, isBridging } from "@/audio/engine";
 import { reportStopBeacon } from "@/services/stats/client";
 import { writeProgress } from "@/services/episodes/progress";
 import { noteListenTick, breakListenTick, flushListenSeconds } from "@/services/episodes/listen-time";
@@ -53,7 +53,9 @@ export function installPositionTimer(): () => void {
     if (timer) return;
     timer = window.setInterval(() => {
       const audio = getMediaElement();
-      if (audio && !audio.paused) {
+      // The live station's bridge is playing between shows: its seconds are
+      // nobody's position and nobody's listening time.
+      if (audio && !audio.paused && !isBridging()) {
         usePlayerStore.getState().setPosition(audio.currentTime);
         noteListenTick(audio.currentTime);
       }

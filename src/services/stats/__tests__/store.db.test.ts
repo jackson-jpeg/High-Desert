@@ -134,11 +134,13 @@ describeDb("stats store (Postgres)", () => {
       }
       // Advisory: recorded, never stopped playback, so not a failed start.
       await fail(from.getTime() + 1000, "empty-media-suspected");
+      // A refused handover stopped the station: it counts on the release line.
+      await fail(from.getTime() + 2000, "handover-rejected");
       // Five plays in all inside the window, for a denominator that differs from the numerator.
       await q("INSERT INTO play_events (episode_id, played_at) VALUES ($1, $2), ($1, $2)", [TAG, at(from.getTime() + 5000)]);
 
       const w = await store.getFailureWindow(from, to);
-      expect(w).toEqual({ from: from.toISOString(), to: to.toISOString(), failures: 3, plays: 5 });
+      expect(w).toEqual({ from: from.toISOString(), to: to.toISOString(), failures: 4, plays: 5 });
     } finally {
       await clean();
     }

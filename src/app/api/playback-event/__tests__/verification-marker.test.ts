@@ -112,6 +112,16 @@ describe("the verification marker is refused", () => {
     );
   });
 
+  it("accepts a refused handover as its own kind, with its detail", async () => {
+    // The station's change of show refused with the screen off: counted, not advisory.
+    const res = await post({ ...VALID, kind: "handover-rejected", detail: "handover to=show hidden" });
+
+    expect(res.status).toBe(200);
+    expect(recordPlaybackFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "handover-rejected", detail: "handover to=show hidden" }),
+    );
+  });
+
   it("still accepts a report with no detail at all", async () => {
     const res = await post(VALID);
 

@@ -34,12 +34,17 @@ function setPlayhead(v: number) {
   anchor = { pos: v, at: Date.now() };
 }
 
+const reportPlaybackFailure = vi.hoisted(() => vi.fn());
 vi.mock("@/services/stats/client", () => ({
   reportPlay: (episodeId: string, sessionId: string) => reportPlay(episodeId, sessionId),
   reportStop: vi.fn(),
   reportStopBeacon: vi.fn(),
-  reportPlaybackFailure: vi.fn(),
+  reportPlaybackFailure,
 }));
+/** The browser's answer to the next play(): refused, as a backgrounded iPhone refuses it. */
+let refusePlay = false;
+/** Every pause() of the element, in order: a handover must never make one. */
+let pauses = 0;
 
 vi.mock("@/audio/engine", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/audio/engine")>();
@@ -66,6 +71,18 @@ vi.mock("@/audio/engine", async (importOriginal) => {
     onEngineEvent: (type: Parameters<typeof real.onEngineEvent>[0], fn: () => void) => {
       bound();
       return real.onEngineEvent(type, fn);
+    },
+    playBridge: () => {
+      bound();
+      return real.playBridge();
+    },
+    endBridge: () => {
+      bound();
+      real.endBridge();
+    },
+    stopBridge: () => {
+      bound();
+      real.stopBridge();
     },
   };
 });
@@ -113,6 +130,7 @@ const { useLiveStore } = await import("@/stores/live-store");
 const { createLiveStation, DRIFT_CHECK_MS, TUNED_MARK } = await import("../live-controller");
 const liveSession = await import("../live-session");
 const { __testing: playSessionTesting } = await import("../play-session");
+const engine = await import("@/audio/engine");
 
 const T0 = Date.UTC(2026, 8, 25, 18, 0, 0);
 const GAP = 8_000;
@@ -158,11 +176,28 @@ let B: ProgramSlot;
 let player: Mounted<ReturnType<typeof useAudioPlayer>>;
 let station: ReturnType<typeof createLiveStation>;
 let uninstall: () => void;
-const stationId = { prepare: vi.fn(), start: vi.fn(), stop: vi.fn(), release: vi.fn() };
+// The real bridge (the ID and the quiet on the player's element), watched.
+const stationId = {
+  start: vi.fn(() => engine.playBridge()),
+  stop: vi.fn(() => engine.endBridge()),
+  release: vi.fn(() => engine.stopBridge()),
+};
+const prefetch = vi.fn<(slot: ProgramSlot) => void>();
 const episodes = new Map<string, Episode>();
 
 function makeElement(): HTMLAudioElement {
-  const el = makeMediaElement(vi.fn(() => Promise.resolve()));
+  const el = makeMediaElement(
+    vi.fn(() =>
+      refusePlay
+        ? Promise.reject(new DOMException("The request is not allowed by the user agent.", "NotAllowedError"))
+        : Promise.resolve(),
+    ),
+  );
+  const pause = el.pause.bind(el);
+  el.pause = () => {
+    pauses += 1;
+    pause();
+  };
   // What the player last asked for. jsdom's own playbackRate is reset by its
   // load algorithm, which hid whether the player set 1× or the listener's rate.
   let rate = 1;
@@ -201,10 +236,28 @@ beforeEach(async () => {
   anchor = { pos: 0, at: T0 };
   flowing = false;
   watching = false;
+  refusePlay = false;
+  pauses = 0;
+  reportPlaybackFailure.mockClear();
+  prefetch.mockClear();
+  // The lock screen: jsdom has no Media Session.
+  Object.defineProperty(navigator, "mediaSession", {
+    value: { metadata: null, playbackState: "none", setActionHandler: () => {}, setPositionState: () => {} },
+    configurable: true,
+  });
+  vi.stubGlobal(
+    "MediaMetadata",
+    class {
+      constructor(init: MediaMetadataInit) {
+        Object.assign(this, init);
+      }
+    },
+  );
   liveSession.__testing.reset();
   playSessionTesting.reset();
   useProgressStore.getState().reset();
   element = makeElement();
+  engine.endBridge();
   usePlayerStore.setState({
     currentEpisode: null,
     queue: [],
@@ -254,6 +307,7 @@ beforeEach(async () => {
     startEpisode: (ep) => void player.api.playEpisode(ep),
     resolveEpisode: (s) => episodes.get(s.fileHash)!,
     stationId,
+    prefetch,
   });
   uninstall = station.install();
 });
@@ -261,6 +315,7 @@ beforeEach(async () => {
 afterEach(() => {
   uninstall();
   player.unmount();
+  vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
@@ -404,11 +459,11 @@ describe("one listen per show", () => {
     expect(seeks.length).toBeGreaterThan(3);
     expect(reportPlay).toHaveBeenCalledTimes(1);
 
-    // A ends: the station ID, not the queue — and no play in the gap.
+    // A ends: the station ID, not the queue — and no play counted in the gap.
     await flush(A.end - Date.now());
     expect(useLiveStore.getState().phase).toBe("station-id");
-    expect(stationId.start).toHaveBeenCalledWith(0.6);
-    expect(element.paused).toBe(true);
+    expect(stationId.start).toHaveBeenCalledTimes(1);
+    expect(element.src).toMatch(/\/audio\/station-id\.mp3$/);
     expect(reportPlay).toHaveBeenCalledTimes(1);
 
     // B starts on its minute, from its top.
@@ -452,6 +507,152 @@ describe("one listen per show", () => {
     await flush(3_000 + GAP);
     expect(usePlayerStore.getState().currentEpisode?.fileHash).toBe(B.fileHash);
     expect(reportPlay).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("with the screen off: one element, never paused, from one show to the next", () => {
+  /** Every 250 ms from `from` to `to`: was the element paused at that instant? */
+  async function sampleFrom(to: number) {
+    const paused: number[] = [];
+    while (Date.now() < to) {
+      await flush(250);
+      if (element.paused) paused.push(Date.now());
+    }
+    return paused;
+  }
+
+  it("the ID, the quiet, and the next show are each played over the last, with no pause between", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    streaming();
+    await flush(A.end - Date.now() - 2_000);
+    const plays = vi.mocked(element.play).mock.calls.length;
+    pauses = 0;
+
+    // Across the boundary and the whole gap, the element is never paused.
+    const pausedDuringID = await sampleFrom(A.end + 8_000 - 500);
+    expect(pausedDuringID).toEqual([]);
+    expect(element.src).toMatch(/\/audio\/station-id\.mp3$/);
+    expect(vi.mocked(element.play).mock.calls.length).toBe(plays + 1);
+
+    // The ID's file ends: quiet on a loop, on the same element.
+    act(() => {
+      element.dispatchEvent(new Event("ended"));
+    });
+    expect(element.src).toMatch(/\/audio\/station-quiet\.mp3$/);
+    expect(element.loop).toBe(true);
+    // The ID's `ended` was not the show's: no failure, nothing from the queue.
+    expect(usePlayerStore.getState().loadState).not.toBe("failed");
+    expect(usePlayerStore.getState().error).toBeNull();
+    expect(usePlayerStore.getState().currentEpisode?.fileHash).toBe(A.fileHash);
+
+    const pausedToB = await sampleFrom(B.start + 2_000);
+    expect(pausedToB).toEqual([]);
+    expect(pauses).toBe(0);
+    // B took the element over: its own source, not looping, counted once.
+    expect(usePlayerStore.getState().currentEpisode?.fileHash).toBe(B.fileHash);
+    expect(element.src).toBe(B.sourceUrl);
+    expect(element.loop).toBe(false);
+    expect(engine.isBridging()).toBe(false);
+    expect(reportPlay).toHaveBeenCalledTimes(2);
+  });
+
+  it("the bridge's seconds are nobody's: no duration, no position", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    streaming();
+    await flush(A.end - Date.now());
+    const { position, duration } = usePlayerStore.getState();
+    setPlayhead(3);
+    Object.defineProperty(element, "duration", { value: 8, configurable: true });
+    act(() => {
+      element.dispatchEvent(new Event("loadedmetadata"));
+    });
+    await flush(2_000);
+    expect(usePlayerStore.getState().duration).toBe(duration);
+    expect(usePlayerStore.getState().position).toBe(position);
+  });
+
+  it("the lock screen follows the station: the ID between shows, then the next show by name", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    const meta = () => navigator.mediaSession.metadata as unknown as MediaMetadataInit;
+    expect(meta()).toMatchObject({ title: "show-a", album: "High Desert Live" });
+    await flush(A.end - Date.now() + 1_000);
+    expect(meta()).toMatchObject({ title: "Station identification", album: "High Desert Live" });
+    await flush(B.start - Date.now() + 1_000);
+    expect(meta()).toMatchObject({ title: "show-b", album: "High Desert Live" });
+  });
+
+  it("a minute before a show ends, the next show's first bytes are fetched", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    await flush(A.end - Date.now() - 61_000);
+    expect(prefetch).not.toHaveBeenCalled();
+    await flush(2_000);
+    expect(prefetch).toHaveBeenCalledTimes(1);
+    expect(prefetch.mock.calls[0][0]).toBe(B);
+  });
+
+  it("a change of show the browser refuses is recorded as its own kind, and held for a tap to rejoin", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    streaming();
+    await flush(B.start - Date.now() - 1_000);
+    refusePlay = true;
+    await flush(2_000);
+
+    expect(reportPlaybackFailure).toHaveBeenCalledTimes(1);
+    expect(reportPlaybackFailure.mock.calls[0][0]).toMatchObject({
+      episodeId: B.episodeId,
+      kind: "handover-rejected",
+      recovered: false,
+    });
+    expect(reportPlaybackFailure.mock.calls[0][0].detail).toMatch(/^handover to=show /);
+    expect(useLiveStore.getState()).toMatchObject({ tuned: true, paused: true, rejoin: true, current: B });
+    // Not the error dialog: nobody is looking at the screen.
+    expect(usePlayerStore.getState().loadState).not.toBe("failed");
+    expect(usePlayerStore.getState().error).toBeNull();
+
+    // Back at the phone: ▶ (the lock screen's, the player's) is a gesture,
+    // and lands on the live second of B.
+    refusePlay = false;
+    await flush(30_000);
+    await act(async () => {
+      await player.api.resumePlayback();
+    });
+    await flush();
+    expect(useLiveStore.getState()).toMatchObject({ tuned: true, paused: false, rejoin: false, phase: "show", current: B });
+    expect(usePlayerStore.getState().playing).toBe(true);
+    expect(playhead()).toBeCloseTo(stationAt(B), 3);
+    expect(reportPlay).toHaveBeenCalledTimes(2);
+  });
+
+  it("the station ID refused counts the same way, charged to the show that follows", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    streaming();
+    await flush(A.end - Date.now() - 1_000);
+    refusePlay = true;
+    await flush(2_000);
+    expect(reportPlaybackFailure).toHaveBeenCalledTimes(1);
+    expect(reportPlaybackFailure.mock.calls[0][0]).toMatchObject({ episodeId: B.episodeId, kind: "handover-rejected" });
+    expect(reportPlaybackFailure.mock.calls[0][0].detail).toMatch(/^handover to=station-id /);
+    expect(useLiveStore.getState()).toMatchObject({ paused: true, rejoin: true });
+    // Held: B does not start behind the refusal.
+    await flush(B.start - Date.now() + 5_000);
+    expect(usePlayerStore.getState().currentEpisode?.fileHash).toBe(A.fileHash);
+  });
+
+  it("a refusal of a tap's own play is not a handover: the ordinary path, not a rejoin", async () => {
+    refusePlay = true;
+    act(() => station.tuneIn());
+    await flush();
+    const handovers = reportPlaybackFailure.mock.calls.filter((c) => c[0].kind === "handover-rejected");
+    expect(handovers).toEqual([]);
+    expect(useLiveStore.getState().rejoin).toBe(false);
+    const { noteError } = await import("@/audio/playback-watchdog");
+    expect(noteError).toHaveBeenCalledWith("play-rejected");
   });
 });
 

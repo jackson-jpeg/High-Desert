@@ -168,6 +168,7 @@ function Console({ schedule, listenAbove = false }: { schedule: LiveSchedule; li
   const tuned = useLiveStore((s) => s.tuned);
   const phase = useLiveStore((s) => s.phase);
   const held = useLiveStore((s) => s.tuned && s.paused);
+  const rejoin = useLiveStore((s) => s.tuned && s.paused && s.rejoin);
   const playing = usePlayerStore((s) => s.playing);
   const on = onAirAt(schedule, now);
   const slot = on && "slot" in on ? on.slot : null;
@@ -211,7 +212,7 @@ function Console({ schedule, listenAbove = false }: { schedule: LiveSchedule; li
                   data-testid="live-rejoin"
                   className="w98-raised-dark bg-raised-surface text-desert-amber w98-font text-hd-title px-5 min-h-touch md:min-h-0 md:py-1.5 cursor-pointer"
                 >
-                  Rejoin live
+                  {rejoin ? "Tap to rejoin" : "Rejoin live"}
                 </button>
               )}
               <button
@@ -236,7 +237,9 @@ function Console({ schedule, listenAbove = false }: { schedule: LiveSchedule; li
           <VuMeter live={tuned && !held && (playing || phase === "station-id")} />
           <span className="text-hd-caption text-bevel-dark" data-testid="live-status">
             {tuned
-              ? held
+              ? rejoin
+                ? "Your phone stopped the station at the change of show. Tap to rejoin, or press play on the lock screen."
+                : held
                 ? "Paused. The station carries on; rejoin to hear where it is now."
                 : phase === "station-id"
                 ? "Station identification…"

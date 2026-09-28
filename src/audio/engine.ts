@@ -58,6 +58,14 @@ export function initEngine(audio: HTMLAudioElement): void {
     pendingSeek = null;
     audio.currentTime = clampToDuration(audio, t);
   });
+  // The station ID is over and the next show is not due: quiet, looped, on
+  // the same element, so it never stops playing (see playBridge).
+  audio.addEventListener("ended", () => {
+    if (mediaElement !== audio || !bridging || audio.loop) return;
+    audio.loop = true;
+    audio.src = BRIDGE_QUIET_URL;
+    audio.play().catch(() => {});
+  });
   // Reset connection flag only if we get a brand new element
   if (!elementConnected) {
     analyserNode = null;
@@ -85,6 +93,73 @@ export function setEngineVolume(volume: number): void {
 /** Pause the player's element. No-op when there is none. */
 export function pauseEngine(): void {
   mediaElement?.pause();
+}
+
+// ── The live station's bridge between shows ──
+//
+// At 04:34:25 on 2026-09-27 the station moved to its next show and phones
+// with the tab in the background refused it (`play-rejected`). Between shows
+// the station used to pause this element and play its static through Web
+// Audio. A paused element lets iOS end the page's audio session, and a
+// backgrounded page may not start a new one: the next show's play() was
+// refused, and the screen was off, so nobody was there to tap.
+//
+// So the element never stops. At a slot's end it is handed the station ID (a
+// file, on this origin), then quiet on a loop until the next show, and the
+// next show's source is assigned over it in the same task as its play(). The
+// audio session stays alive from one show to the next.
+//
+// While bridging, the element's events are not the show's: its `ended` is not
+// the show ending, its duration is not the show's, its position is nobody's.
+// isBridging() is how the player's listeners and the position tick know.
+
+/** The station ID: 8 s of static and a tone (STATION_ID_SEC). */
+export const STATION_ID_URL = "/audio/station-id.mp3";
+/** Silence, looped, for whatever is left of the gap after the ID. */
+export const BRIDGE_QUIET_URL = "/audio/station-quiet.mp3";
+
+let bridging = false;
+
+export function isBridging(): boolean {
+  return bridging;
+}
+
+/**
+ * Play the station ID on the player's element, straight over whatever it is
+ * playing: no pause, no teardown. Rejects as play() does (NotAllowedError when
+ * the browser refuses), for the station to handle.
+ */
+export function playBridge(): Promise<void> {
+  const a = mediaElement;
+  if (!a) return Promise.resolve();
+  bridging = true;
+  pendingSeek = null;
+  a.loop = false;
+  a.src = STATION_ID_URL;
+  a.playbackRate = 1;
+  return a.play();
+}
+
+/**
+ * The next show is taking the element: stop treating its events as the
+ * bridge's. Does not pause — the show's own source is assigned next.
+ */
+export function endBridge(): void {
+  if (!bridging) return;
+  bridging = false;
+  if (mediaElement) mediaElement.loop = false;
+}
+
+/** Leaving the station mid-bridge: silence it, and let go of the source. */
+export function stopBridge(): void {
+  if (!bridging) return;
+  bridging = false;
+  const a = mediaElement;
+  if (!a) return;
+  a.loop = false;
+  a.pause();
+  a.removeAttribute("src");
+  a.load();
 }
 
 function clampToDuration(audio: HTMLAudioElement, t: number): number {

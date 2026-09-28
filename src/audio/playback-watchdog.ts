@@ -51,6 +51,13 @@ export type FailureKind =
   /** The file loaded fine and contains no usable broadcast. Never retried. */
   | "empty-media"
   /**
+   * The live station changed shows by itself (no tap: a slot ended, often with
+   * the screen off) and the browser refused to play the next one. Reported by
+   * the station, not the watchdog: it holds and waits for a tap to rejoin.
+   * A failed start like any other, and counted as one on the release line.
+   */
+  | "handover-rejected"
+  /**
    * `loadedmetadata` reported a duration under the floor. Advisory only: it is
    * recorded and playback is *not* stopped. For a VBR rip with no Xing header —
    * most of this catalog — the duration at that point is extrapolated from the

@@ -9,6 +9,11 @@ import { describe, it, expect, vi } from "vitest";
  */
 
 vi.mock("@/audio/engine", () => ({
+  // The live station bridge (engine.ts): never on in these suites.
+  isBridging: () => false,
+  playBridge: () => Promise.resolve(),
+  endBridge: () => {},
+  stopBridge: () => {},
   engineState: () => null,
   onEngineEvent: () => () => {},
   pauseEngine: () => {},
@@ -24,7 +29,7 @@ function deps() {
     fetchServerNow: vi.fn(async () => Date.now()),
     startEpisode: vi.fn(),
     resolveEpisode: vi.fn(),
-    stationId: { prepare: vi.fn(), start: vi.fn(), stop: vi.fn(), release: vi.fn() },
+    stationId: { start: vi.fn(() => Promise.resolve()), stop: vi.fn(), release: vi.fn() },
   };
 }
 

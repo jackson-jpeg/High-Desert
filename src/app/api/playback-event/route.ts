@@ -34,6 +34,10 @@ const KINDS = new Set([
   // exists to answer, later and from real traffic, whether the floor is safe to
   // make authoritative.
   "empty-media-suspected",
+  // The live station changed shows by itself and the browser refused to start
+  // the next one (screen off, tab in the background). A failed start: it is
+  // not advisory, and counts on the release line like every kind above it.
+  "handover-rejected",
 ]);
 
 /**

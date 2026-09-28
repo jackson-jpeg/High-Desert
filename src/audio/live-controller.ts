@@ -23,8 +23,20 @@
  * At a slot's end (or its file's `ended`, whichever comes first) the station
  * ID plays until the next slot's start, and then the next show starts through
  * the same play path. A show whose file runs short leaves the rest of its slot
- * to the station ID, capped at `STATION_ID_SEC` of static and silence after —
- * the next show still starts on the minute it is scheduled.
+ * to the station ID, then quiet — the next show still starts on the minute it
+ * is scheduled.
+ *
+ * ## With the screen off
+ *
+ * The handover never pauses the element (src/audio/engine.ts, "The live
+ * station's bridge"): the station ID and the quiet after it are files played
+ * on the same element, and the next show is assigned over them. A minute
+ * before a slot ends, the next show's first bytes are fetched, so its start
+ * does not wait on a cold connection. If a browser refuses the change anyway,
+ * that is recorded as its own failure kind (`handover-rejected`, counted like
+ * any other failed start) and the station holds with `rejoin` set: the Live
+ * screen says "Tap to rejoin", and ▶ anywhere, the lock screen's included,
+ * lands on the live second.
  *
  * ## Pausing
  *
@@ -51,20 +63,18 @@
 import type { Episode } from "@/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
 import { serverNow, useLiveStore } from "@/stores/live-store";
-import { engineState, onEngineEvent, pauseEngine, seekEngine } from "@/audio/engine";
+import { engineState, isBridging, onEngineEvent, seekEngine } from "@/audio/engine";
 import {
   setLiveEndedHandler,
+  setLiveRefusedHandler,
   setLiveResumeHandler,
   setLiveStart,
   stopPlayerForLive,
 } from "@/audio/live-session";
-import {
-  STATION_ID_SEC,
-  knownSlots,
-  locate,
-  type LiveSchedule,
-  type ProgramSlot,
-} from "@/lib/live/schedule";
+import { knownSlots, locate, type LiveSchedule, type ProgramSlot } from "@/lib/live/schedule";
+import { reportPlaybackFailure } from "@/services/stats/client";
+import { uaClass } from "@/lib/utils/platform";
+import { isNotAllowed } from "@/audio/play-session";
 import { syncClock } from "@/lib/live/time-sync";
 import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/utils/safe-storage";
 import { noteFunnelStep } from "@/services/stats/funnel-client";
@@ -79,6 +89,8 @@ export const SCHEDULE_POLL_MS = 60_000;
 export const CLOCK_STALE_MS = 5 * 60_000;
 /** After a failed schedule read with nothing to play, try again after this. */
 const SCHEDULE_RETRY_MS = 30_000;
+/** How long before a slot ends to fetch the next show's first bytes. */
+export const PREFETCH_LEAD_MS = 60_000;
 /** sessionStorage: this tab is tuned in (held or playing). Survives a reload, not the tab. */
 export const TUNED_MARK = "hd-live-tuned";
 
@@ -92,10 +104,18 @@ function wasTuned(): boolean {
   return safeGetItem("session", TUNED_MARK) === "1";
 }
 
+/** Whether the page was on screen, for a refused handover's record. */
+function visibility(): string {
+  return typeof document === "undefined" ? "unknown" : document.visibilityState;
+}
+
+/** The bridge between shows, on the player's element (engine.ts). */
 export interface StationIdPlayer {
-  prepare(): void;
-  start(volume: number): void;
+  /** The ID, then quiet until the next show takes the element. Rejects as play() does. */
+  start(): Promise<void>;
+  /** The listener paused in the gap: it is no longer the bridge playing. */
   stop(): void;
+  /** Leaving the station: silence the bridge if it is on. */
   release(): void;
 }
 
@@ -112,8 +132,28 @@ export interface LiveDeps {
    */
   leavePlayer?(): void;
   stationId: StationIdPlayer;
+  /** Fetch the first bytes of `slot`'s show, ahead of its start. Best effort. */
+  prefetch?(slot: ProgramSlot): void;
   /** Local clock. Tests replace it. */
   now?(): number;
+}
+
+/**
+ * A change of show the browser refused, recorded as its own kind. Not
+ * advisory: it is a start that failed, and it counts on the release line
+ * like any other (docs/reliability-baseline.md).
+ */
+function reportHandoverRefused(slot: ProgramSlot | null, detail: string): void {
+  if (!slot?.episodeId) return;
+  reportPlaybackFailure({
+    episodeId: slot.episodeId,
+    kind: "handover-rejected",
+    retried: false,
+    recovered: false,
+    elapsedMs: 0,
+    uaClass: uaClass(),
+    detail,
+  });
 }
 
 /** Pure: where to seek to correct drift, or null to leave it alone. */
@@ -153,8 +193,14 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
   const live = () => useLiveStore.getState();
 
   let slotTimer: ReturnType<typeof setTimeout> | undefined;
-  let staticTimer: ReturnType<typeof setTimeout> | undefined;
+  let prefetchTimer: ReturnType<typeof setTimeout> | undefined;
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
+  /**
+   * True while a tap is starting the station (tune in, rejoin): the play()
+   * that follows has a gesture behind it. Every other start is the program
+   * moving on by itself, a handover, whose refusal is ours to handle.
+   */
+  let byTap = false;
   let driftTimer: ReturnType<typeof setInterval> | undefined;
   let pollTimer: ReturnType<typeof setInterval> | undefined;
   /** True while this module is itself changing the player — not the listener. */
@@ -173,9 +219,48 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
 
   function clearTimers() {
     clearTimeout(slotTimer);
-    clearTimeout(staticTimer);
+    clearTimeout(prefetchTimer);
     clearTimeout(retryTimer);
-    slotTimer = staticTimer = retryTimer = undefined;
+    slotTimer = prefetchTimer = retryTimer = undefined;
+  }
+
+  /** The show after `slot`, if the program knows it. */
+  function nextAfter(slot: ProgramSlot): ProgramSlot | null {
+    const schedule = live().schedule;
+    const slots = schedule ? knownSlots(schedule) : [];
+    return slots.find((s) => s.start >= slot.end) ?? null;
+  }
+
+  /** A minute before `slot` ends, warm the start of the show after it. */
+  function schedulePrefetch(slot: ProgramSlot) {
+    clearTimeout(prefetchTimer);
+    if (!deps.prefetch) return;
+    prefetchTimer = setTimeout(
+      () => {
+        const next = nextAfter(slot);
+        if (next && live().tuned && !live().paused) deps.prefetch!(next);
+      },
+      Math.max(0, slot.end - PREFETCH_LEAD_MS - sNow()),
+    );
+  }
+
+  /**
+   * The browser refused a change of show made without a tap. Record it, and
+   * hold: the next ▶ (the Live screen's "Tap to rejoin", the player, the lock
+   * screen) is a gesture, and lands on the live second.
+   */
+  function refused(detail: string) {
+    if (!live().tuned) return;
+    const cur = live().current;
+    reportHandoverRefused(cur ?? nextAfterNow(), detail);
+    hold(true);
+  }
+
+  /** In the gap between shows there is no current slot: charge the next one. */
+  function nextAfterNow(): ProgramSlot | null {
+    const schedule = live().schedule;
+    const t = sNow();
+    return (schedule ? knownSlots(schedule) : []).find((s) => s.start >= t) ?? null;
   }
 
   /** Run `fn` when the server clock reaches `targetServerMs`. */
@@ -227,12 +312,13 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
   function startShow(slot: ProgramSlot) {
     const cur = live().current;
     const same = live().phase === "show" && !!cur && slotKey(cur) === slotKey(slot);
-    clearTimeout(staticTimer);
-    deps.stationId.stop();
+    // No stop of the bridge here: the show's own start takes the element
+    // over it, in one task, without a pause (engine.ts, endBridge).
     setLiveStart({
       fileHash: slot.fileHash,
       slotKey: slotKey(slot),
       startAt: () => stationOffsetSec(slot, sNow()),
+      handover: !byTap,
     });
     live().setPhase("show", slot);
     if (same && playerHas(slot)) {
@@ -241,29 +327,29 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
       transition(() => deps.startEpisode(deps.resolveEpisode(slot)));
     }
     at(slot.end, () => afterShow(slot));
+    schedulePrefetch(slot);
   }
 
   /** `slot` is over (its end, or its file ran out): station ID until the next one. */
   function afterShow(slot: ProgramSlot) {
     const cur = live().current;
     if (!live().tuned || live().phase !== "show" || !cur || slotKey(cur) !== slotKey(slot)) return;
-    const schedule = live().schedule;
-    const slots = schedule ? knownSlots(schedule) : [];
-    const next = slots.find((s) => s.start >= slot.end);
+    const next = nextAfter(slot);
     stationId(next ? next.start : null);
   }
 
+  /**
+   * The gap between shows: the ID, then quiet, on the player's own element.
+   * Never a pause: that is what let iOS drop a backgrounded page's audio and
+   * refuse the next show (engine.ts, "The live station's bridge").
+   */
   function stationId(until: number | null) {
     setLiveStart(null);
-    transition(() => {
-      live().setPhase("station-id", null);
-      const st = engineState();
-      if (st && !st.paused) pauseEngine();
+    transition(() => live().setPhase("station-id", null));
+    const tap = byTap;
+    deps.stationId.start().catch((err: unknown) => {
+      if (!tap && isNotAllowed(err)) refused(`handover to=station-id ${visibility()}`);
     });
-    deps.stationId.start(usePlayerStore.getState().volume);
-    clearTimeout(staticTimer);
-    // An ID, not filler: a long gap (a swapped show that ran short) is quiet.
-    staticTimer = setTimeout(() => deps.stationId.stop(), STATION_ID_SEC * 1000);
     if (until !== null) at(until, go);
   }
 
@@ -290,12 +376,21 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
     pollTimer = setInterval(() => void refreshSchedule(), SCHEDULE_POLL_MS);
   }
 
+  /** go(), from inside a tap: the play() that follows has a gesture behind it. */
+  function goByTap() {
+    byTap = true;
+    try {
+      go();
+    } finally {
+      byTap = false;
+    }
+  }
+
   function tuneIn() {
-    deps.stationId.prepare();
     live().setTuned(true);
     markTuned(true);
     startLoops();
-    go();
+    goByTap();
     // Tuning in plays at once on whatever clock is known — it has to, inside
     // the tap. A sync that lands afterwards is applied by a quiet resync.
     if (now() - lastClockSync > CLOCK_STALE_MS) void refreshClock().then(resync);
@@ -320,9 +415,12 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
     transition(() => (deps.leavePlayer ?? stopPlayerForLive)());
   }
 
-  /** The listener paused: stay in the station, but start nothing behind them. */
-  function hold() {
-    live().setPaused(true);
+  /**
+   * Stay in the station, but start nothing behind a paused player: the
+   * listener paused, or (`rejoin`) the browser refused a change of show.
+   */
+  function hold(rejoin = false) {
+    live().setPaused(true, rejoin);
     clearTimers();
     deps.stationId.stop();
   }
@@ -351,9 +449,10 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
     ) {
       seekEngine(stationOffsetSec(cur, t));
       at(cur.end, () => afterShow(cur));
+      schedulePrefetch(cur);
       return false;
     }
-    go();
+    goByTap();
     return true;
   }
 
@@ -372,6 +471,7 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
       if (cur) afterShow(cur);
     });
     setLiveResumeHandler(resumeHeld);
+    setLiveRefusedHandler(refused);
 
     const offWaiting = onEngineEvent("waiting", () => {
       stalled = true;
@@ -426,9 +526,22 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
             hold();
           });
         }
-      } else if (phase === "station-id" && s.playing && !prev.playing) {
-        // Between shows the listener pressed play on something themselves.
-        tuneOut();
+      } else if (phase === "station-id") {
+        if (s.playing && !prev.playing && !isBridging()) {
+          // Between shows the listener pressed play on something themselves.
+          // (The bridge's own play is the station's, not theirs.)
+          tuneOut();
+        } else if (prev.playing && !s.playing) {
+          // Paused in the gap (the lock screen, a headset): hold, so the next
+          // show does not start behind them. After the current task, like the
+          // show's: a source change clears `playing` for a moment.
+          queueMicrotask(() => {
+            if (!live().tuned || live().phase !== "station-id" || live().paused) return;
+            const st = engineState();
+            if (usePlayerStore.getState().playing || !st || !st.paused) return;
+            hold();
+          });
+        }
       }
     });
 
@@ -437,6 +550,7 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
     return () => {
       setLiveEndedHandler(null);
       setLiveResumeHandler(null);
+      setLiveRefusedHandler(null);
       offWaiting();
       offPlaying();
       document.removeEventListener("visibilitychange", onVisibility);
