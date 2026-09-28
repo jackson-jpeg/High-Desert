@@ -47,7 +47,20 @@ interface World {
   /** What the stub hd-cpu-sample prints and exits with. */
   cpu: { rc: number; out: string };
   /** warm-status.json, with `ageH` turned into its `at`; null writes no file. */
-  warm: { ageH: number; outcome: string; pinned: number; bytes: number; fetched: number; failed: number; steal?: number } | null;
+  warm: {
+    ageH: number;
+    outcome: string;
+    pinned: number;
+    bytes: number;
+    fetched: number;
+    failed: number;
+    steal?: number;
+    targetPinned?: number;
+    targetMissing?: number;
+    targetBytes?: number;
+    freeBytes?: number;
+    floorBytes?: number;
+  } | null;
   /** peakOnline / peakListening /api/stats/traffic answers per range; a missing range answers no peaks. */
   peaks: Partial<Record<"24h" | "7d" | "30d", { online: number; listening: number }>>;
   /** /api/stats/funnel's 7-day totals; null answers 503. */
@@ -562,6 +575,32 @@ describe("highdesert-status", () => {
     it("warm: WARNs when it has never run", async () => {
       world.warm = null;
       expect(lineFor((await run()).out, "warm")).toMatch(/^WARN\s+warm\s+no .* never run/);
+    });
+    it("warm: WARNs when pins are below the target, with the shortfall and the disk", async () => {
+      world.warm = {
+        ...world.warm!,
+        outcome: "stopped-at-floor",
+        pinned: 318,
+        bytes: 14.5 * 2 ** 30,
+        targetPinned: 331,
+        targetMissing: 13,
+        targetBytes: 15 * 2 ** 30,
+        freeBytes: 7.1 * 2 ** 30,
+        floorBytes: 10 * 2 ** 30,
+      };
+      const r = await run();
+      expect(lineFor(r.out, "warm")).toMatch(
+        /^WARN\s+warm\s+pins below target: 318 of the top 331 pinned \(14\.5 GB of 15\.0 GB\); stopped-at-floor, disk free 7\.1 GB against a 10\.0 GB floor/,
+      );
+      expect(r.code).toBe(0);
+    });
+    it("warm: a status from before the target was recorded still WARNs on stopping at the floor", async () => {
+      world.warm = { ...world.warm!, outcome: "stopped-at-floor" };
+      expect(lineFor((await run()).out, "warm")).toMatch(/^WARN\s+warm\s+pins below target: stopped-at-floor/);
+    });
+    it("warm: OK when every top pin is in", async () => {
+      world.warm = { ...world.warm!, targetPinned: 120, targetMissing: 0 };
+      expect(lineFor((await run()).out, "warm")).toMatch(/^OK\s+warm\s/);
     });
   });
 

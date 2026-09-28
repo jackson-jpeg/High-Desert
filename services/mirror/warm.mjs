@@ -155,30 +155,62 @@ export async function runWarm({
     return status;
   }
 
-  const { pins: chosen, bytes } = choosePins(await plays(), index, budgetBytes);
+  const ranked = await plays();
+  const { pins: chosen, bytes } = choosePins(ranked, index, budgetBytes);
   log(`${chosen.length} episodes, ${(bytes / GB).toFixed(1)} GB within ${(budgetBytes / GB).toFixed(1)} GB`);
+  Object.assign(status, { targetPinned: chosen.length, targetBytes: bytes, budgetBytes, floorBytes });
 
-  // Unpin what fell out of the top — but never on an empty choice, which is a
-  // database with no plays in it, not a verdict that nothing is worth keeping.
-  if (chosen.length > 0) {
-    const keep = new Set(chosen.map((p) => p.fileHash));
-    for (const name of await readdir(dirs.pins)) {
-      if (keep.has(name)) continue;
-      await rm(path.join(dirs.pins, name), { force: true });
-      status.pruned++;
-    }
-  } else {
-    status.outcome = "no-plays";
+  // Anything in the pin directory that is not a whole catalog episode (a name
+  // outside the catalog, a wrong length) is not a pin and never was.
+  const present = await readPins(dirs.pins, index);
+  const real = new Set(present.map((p) => p.fileHash));
+  for (const name of await readdir(dirs.pins)) {
+    if (!real.has(name)) await rm(path.join(dirs.pins, name), { force: true });
   }
+
+  // What fell out of the top. It is unpinned only once what replaces it is in,
+  // or to make room for that one: never first. Pruning first is how the pin
+  // set shrank from 339 to 318 on 2026-09-27: thirteen were dropped, then the
+  // disk floor stopped their replacements, and the mirror simply held less.
+  // An empty choice is a database with no plays in it, not a verdict that
+  // nothing is worth keeping, so it unpins nothing at all.
+  const keep = new Set(chosen.map((p) => p.fileHash));
+  const rank = new Map(ranked.map((r, i) => [r.episodeId, i]));
+  const rankOf = (x) => rank.get(communityKeyOf(x.fileHash)) ?? Infinity;
+  // Least played first: the first to go when room is needed.
+  const extras = present.filter((p) => !keep.has(p.fileHash)).sort((a, b) => rankOf(b) - rankOf(a));
+  let pinnedBytes = present.reduce((a, p) => a + p.bytes, 0);
+  const unpin = async (x) => {
+    await rm(path.join(dirs.pins, x.fileHash), { force: true });
+    pinnedBytes -= x.bytes;
+    status.pruned++;
+  };
+  if (chosen.length === 0) status.outcome = "no-plays";
 
   for (const p of chosen) {
     if (!isPinnableName(p.fileHash)) continue;
     const target = path.join(dirs.pins, p.fileHash);
     if ((await sizeOf(target)) === p.length) continue; // already pinned
-    if ((await freeBytes()) - p.length < floorBytes) {
-      log(`disk floor reached; stopping`);
-      status.outcome = "stopped-at-floor";
-      break;
+    // Room in the budget: an out-of-top pin makes way for a top one.
+    while (pinnedBytes + p.length > budgetBytes && extras.length > 0) await unpin(extras.shift());
+    // Room on the disk. nginx's fill cache yields first (its min_free sits
+    // above this floor, lib/nginx.mjs), so what is short here is short for
+    // pins: swap out-of-top pins for this one only when that makes it fit, and
+    // otherwise stop with every pin still in place.
+    const free = await freeBytes();
+    if (free - p.length < floorBytes) {
+      const reclaimable = extras.reduce((a, x) => a + x.bytes, 0);
+      if (free + reclaimable - p.length < floorBytes) {
+        log(`disk floor reached; stopping`);
+        status.outcome = "stopped-at-floor";
+        break;
+      }
+      let freed = 0;
+      while (free + freed - p.length < floorBytes) {
+        const x = extras.shift();
+        await unpin(x);
+        freed += x.bytes;
+      }
     }
     const name = fileNameOf(p.fileHash);
     try {
@@ -191,6 +223,7 @@ export async function runWarm({
         fetchImpl,
       });
       status.fetched++;
+      pinnedBytes += p.length;
       log(`pinned ${name} (${(p.length / 1e6).toFixed(0)} MB)`);
     } catch (err) {
       status.failed++;
@@ -198,9 +231,22 @@ export async function runWarm({
     }
   }
 
+  // Every top pin is in, so what is left over from before has been replaced.
+  const have = new Set((await readPins(dirs.pins, index)).map((p) => p.fileHash));
+  if (chosen.length > 0 && chosen.every((p) => have.has(p.fileHash))) {
+    for (const x of extras.splice(0)) await unpin(x);
+  }
+
   const m = await writeManifest({ stateDir, index });
-  const present = await readPins(dirs.pins, index);
-  Object.assign(status, { pinned: m.count, bytes: present.reduce((a, p) => a + p.bytes, 0) });
+  const pinned = await readPins(dirs.pins, index);
+  Object.assign(status, {
+    pinned: m.count,
+    bytes: pinned.reduce((a, p) => a + p.bytes, 0),
+    // How far the pin set is from what the budget chose. The status line WARNs
+    // on any shortfall rather than letting the mirror shrink silently.
+    targetMissing: chosen.filter((p) => !pinned.some((x) => x.fileHash === p.fileHash)).length,
+    freeBytes: await freeBytes(),
+  });
   await writeStatus();
   log(`${m.count} pinned, ${status.fetched} fetched, ${status.failed} failed, ${status.pruned} unpinned`);
   return status;

@@ -377,6 +377,7 @@ else
   w() { jq -r ".$1 // 0" "$WARM_STATUS" 2>/dev/null; }
   w_failed="$(w failed)"
   w_desc="$(w pinned) pinned ($(gb "$(w bytes)")), $(w fetched) fetched, $w_failed failed"
+  w_missing="$(w targetMissing)"
   w_age=$(( $(date +%s) - $(date -d "$w_at" +%s 2>/dev/null || echo 0) ))
   if [[ -z "$w_at" ]]; then
     line WARN warm "$WARM_STATUS is unreadable"
@@ -384,6 +385,14 @@ else
     line WARN warm "STALE: last run $w_at ($(( w_age / 3600 ))h ago; runs nightly)"
   elif [[ "$w_out" == skipped-steal ]]; then
     line WARN warm "last run $w_at skipped itself: steal $(w steal)% over 20%"
+  elif (( w_missing > 0 )) || [[ "$w_out" == stopped-at-floor ]]; then
+    # Pins below the target the budget chose. Say by how much and why, rather
+    # than let the outage mirror shrink with nobody reading it.
+    if (( $(w targetPinned) > 0 )); then
+      line WARN warm "pins below target: $(( $(w targetPinned) - w_missing )) of the top $(w targetPinned) pinned ($(gb "$(w bytes)") of $(gb "$(w targetBytes)")); $w_out, disk free $(gb "$(w freeBytes)") against a $(gb "$(w floorBytes)") floor; last run $w_at"
+    else
+      line WARN warm "pins below target: $w_out at $w_desc; last run $w_at"
+    fi
   elif (( w_failed > 0 )); then
     line WARN warm "last run $w_at ($w_out): $w_desc"
   else
