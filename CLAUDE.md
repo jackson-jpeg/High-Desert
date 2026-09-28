@@ -532,7 +532,17 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   not go back to archive.org. A mid-show media error (code 2/4) on an archive
   source goes through the same path. If `play()` after the swap is refused (iOS,
   activation expired) the failure is `play-rejected` and `PlaybackErrorDialog`'s
-  *Try Again* is the gesture — the same rule as the retry.
+  *Try Again* is the gesture — the same rule as the retry. (A `NotSupportedError`
+  from `play()` is about the source, not permission: `playRejection()` routes it
+  as a `network-error`, so it fails over.)
+  Two iOS failovers did not recover on 2026-09-27 (rows 541, 545); both are
+  held in `mirror-failover.test.ts`. **A failover nobody was waiting for**
+  (the element was paused, e.g. a primed show) settles quietly (`primed()`),
+  never judged by the stall clock while iOS has stopped loading. **While a
+  failover's `play()` is pending and the page is hidden**, the deadline and
+  stall timers re-arm instead of judging (`deferWhileHidden()`): iOS holds a
+  background `play()` until the phone wakes, and a frozen timer firing on wake
+  gave up on a mirror that was about to play.
 - **The health probe's verdicts are re-probed on different clocks** (`src/services/archive/health.ts`):
   up after 5 min, **down after 30 s**, and a probe that failed to reach *our* server
   is not a verdict at all. It used to hold any failure for 5 minutes, and with the
