@@ -27,8 +27,9 @@ function id3(bodyBytes: number): Buffer {
   const h = Buffer.alloc(10 + bodyBytes, 0);
   h.write("ID3", 0, "latin1"); h[3] = 3;
   h[6] = (bodyBytes >> 21) & 0x7f; h[7] = (bodyBytes >> 14) & 0x7f; h[8] = (bodyBytes >> 7) & 0x7f; h[9] = bodyBytes & 0x7f;
-  // A fake sync word inside the tag, as cover art often holds one.
-  if (bodyBytes > 20) { h[12] = 0xff; h[13] = 0xfb; h[14] = 0x90; }
+  // Two chained fake frame headers inside the tag, as cover art can hold:
+  // each "confirms" the other, so only skipping the tag keeps them out.
+  if (bodyBytes > 1000) for (const at of [12, 12 + 417]) { h[at] = 0xff; h[at + 1] = 0xfb; h[at + 2] = 0x90; }
   return h;
 }
 function id3v1(): Buffer {
