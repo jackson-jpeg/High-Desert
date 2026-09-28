@@ -476,7 +476,7 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   `url-list` = the archive.org file URL, so archive.org is the webseed while it is
   up. Infohashes are deterministic. Output: `data/torrents/episodes.json`
   (`fileHash → {infohash, length, pieceLength}`, committed) and the `.torrent`
-  files in `/var/lib/highdesert-mirror/torrents` (not committed, 1,312 of them;
+  files in `/var/lib/highdesert-mirror/torrents` (not committed, 1,413 of them;
   `deploy-mirror.sh` refuses if any indexed one is missing). Resumable, ≤2 req/s.
 - **There is no mirror process: nginx is the mirror** (since 2026-09-25). The
   webtorrent gateway held ~47% of a core seeding to a swarm with no one in it and
@@ -954,6 +954,13 @@ No third-party hosting. Same shape as `sanger-next`.
 
 - `categorize-library.py` — offline batch AI categorization; output is committed into `public/seed/library.json`. This is the ONLY place AI runs
 - `clean-library.py` — Python script for library cleanup
+- `import-community-sources.mjs` — add-only import of the shows in `data/community-sources.json`
+  (a listener's torrents, used only as a list of names; every show streams from an existing
+  archive.org copy). **Never download a torrent's content or join its swarm, and never host or
+  link its magnet** — a test fails on the three infohashes anywhere in the app. See
+  `docs/community-sources.md`
+- `measure-duration.mjs` — an episode's runtime by walking every frame (see "Is there actually
+  a broadcast in the file?")
 - `schema.sql` — the community stats schema; idempotent, re-run on every deploy that touches it
 - `backfill-traffic-daily.sql` — one-time (and re-runnable) fill of `traffic_daily` from
   whatever `listener_samples` still holds. Only matters when the rollup is deployed after
@@ -1066,7 +1073,8 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
   aborts rather than throwing. They are not optional — they would have prevented that incident
   independently of the key bug.
 - Regression tests live in `src/db/__tests__/`; `dedupKey` must yield one distinct key per row of
-  the real seed catalog (**1,312** — see `docs/broken-episodes.md` for the one that was removed).
+  the real seed catalog (**1,413** since the 2026-09-28 community import, `docs/community-sources.md`;
+  see `docs/broken-episodes.md` for the one that was removed).
   The count is asserted against the catalog rather than hardcoded, so pulling an episode does not
   need the test edited; changing it to a literal would make the next removal look like a bug.
 - **`deleteEpisode()` is covered end to end** against `fake-indexeddb` in
@@ -1156,6 +1164,12 @@ show didn't start" report that began this work.
   file run costs a few seconds until `ended`. Note this code path had **never executed in
   production** before the `withGlobals` fix — the listener that calls it was never attached. The
   advisory rows exist to decide, from real traffic, whether the 5s floor is safe to promote.
+- **A tag's `duration` is not evidence either.** Seven files carry a LAME "Info" tag written
+  for a shorter recording than the file holds; archive.org's `length`, and the catalog's, came
+  from it (1999-01-25 read 18.39 s for a 2.5 h show, and the live station cuts a slot at its
+  duration). Their durations are now frame counts (`scripts/measure-duration.mjs`,
+  `data/duration-corrections.json`, `docs/ios-stalls.md`). Before trusting a new episode's
+  `length`, walk it.
 - **A missing `duration` is not evidence of anything.** Archive.org's VBR derive reports
   `length: "0"` for five episodes here, two of which are full three-hour broadcasts.
 - `empty-media` is the one `FailureKind` that is **never retried** — the same bytes come back, so a
