@@ -190,10 +190,16 @@ mirror serves them straight off disk. Neither is a mirror-side failure.
 
 ## State at hand-over
 
-- **Deployed:** see the PR for this handoff (the tripwire, the memory line and
-  these docs), via `nice -n -15 ionice -c2 -n0 bash scripts/deploy.sh`.
-- **`highdesert-status`:** read after that deploy. See the last line of this
-  section.
+- **Deployed:** 82cc155 (#60: the tripwire, the memory line and these docs),
+  then this one-line follow-up, each via `nice -n -15 ionice -c2 -n0 bash
+  scripts/deploy.sh`.
+- **`highdesert-status` after 82cc155:** exit 0, every line OK except
+  `mutations` (WARN, expected until the first nightly run).
+  - `release`: OK, `2 starts lost in 62 plays on this release's builds so far,
+    no verdict until 300 plays; 1 rescued by the retry or the mirror`.
+  - `memory`: OK, `39.4% available (3.1 of 7.8 GB); swap 2.5 of 12.0 GB used`.
+- **No PRs are open.** The watch for the nightly run is not running, as asked:
+  the next session's `mutations` line is the check.
 
 ## Hook and permission blocks
 
