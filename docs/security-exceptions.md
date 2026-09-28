@@ -33,6 +33,7 @@ Majors that could not be upgraded with the suite and every mutation green are
 closed with a one-line reason here, so the decision is findable.
 
 - **eslint 9 → 10** (PR #14, 2026-09-21): `npm run lint` crashes — the `eslint-plugin-react` bundled by `eslint-config-next` 16.3.5 calls `context.getFilename()`, removed in ESLint 10, and it and `eslint-plugin-import`/`jsx-a11y` declare peer ranges ending at `^9`. Retry when `eslint-config-next` supports 10. Dev-only; no advisory against eslint 9.
+- **eslint 9 → 10.11** (PR #49, 2026-09-28): the same crash (`react/display-name`: `contextOrFilename.getFilename is not a function`) under `eslint-config-next` 16.3.6; `eslint-plugin-react` 7.37.5, its latest, still declares `eslint ^3 … ^9.7`. Retry when it declares 10. Dev-only; no advisory against eslint 9.
 
 ## HD-043 — the admin password hash ships in the client bundle
 
