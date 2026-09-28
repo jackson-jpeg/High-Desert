@@ -38,10 +38,14 @@ export const PRODUCTION = Object.freeze({
   followPattern: "^https://[a-z0-9-]+(\\.[a-z0-9-]+)*\\.archive\\.org/",
   resolver: "127.0.0.53",
   trustedCa: "/etc/ssl/certs/ca-certificates.crt",
-  // 20 GB of filled slices, and never below 10 GB free on the disk (nginx's
-  // cache manager evicts least recently used first to hold both).
+  // 20 GB of filled slices, and never below 12 GB free on the disk (nginx's
+  // cache manager evicts least recently used first to hold both). Pinned
+  // shows come first: min_free sits 2 GB above the warm job's own floor
+  // (MIRROR_DISK_FLOOR_GB, 10), so when the disk is tight it is the fill cache
+  // that gives way, never a pin, and the warm job still has room to restore
+  // the pin set. test/warm.test.mjs holds the two apart.
   maxSize: "20g",
-  minFree: "10g",
+  minFree: "12g",
   slice: "1m",
 });
 

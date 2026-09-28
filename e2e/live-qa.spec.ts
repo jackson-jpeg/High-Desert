@@ -1,6 +1,6 @@
 import type { BrowserContext, Page } from "@playwright/test";
 import { test, expect, anotherClientAddress, busEventName } from "./fixtures";
-import { rnd } from "./tokens";
+import { callToken, rnd } from "./tokens";
 import { ownLiveState, recordBeats } from "./own-presence";
 import { playFromFixtureMirror } from "./fixture-audio";
 
@@ -164,7 +164,7 @@ test("change name: refused and rate-limited names say why inline; a new name is 
     await expect(page.getByTestId("you-name")).toHaveText(fresh);
 
     // My next call carries it, on my screen and on theirs.
-    const text = `Renamed caller checking in ${rnd()}`;
+    const text = `Renamed caller checking in ${callToken()}`;
     expect((await call(page, text)).status()).toBe(201);
     for (const p of [page, listener]) {
       const line = p.getByTestId("live-message").filter({ hasText: text });
@@ -211,7 +211,7 @@ test("a caller keeps one line across a refresh, and the label reads the same in 
   const line = (await header.textContent())!.trim();
   expect(line).toMatch(/^(Line \d+|.+ Line|.+ of the Rockies|First-Time Callers)$/);
 
-  const text = `Which line am I on ${rnd()}`;
+  const text = `Which line am I on ${callToken()}`;
   expect((await call(page, text)).status()).toBe(201);
   const mine = page.getByTestId("live-message").filter({ hasText: text });
   await expect(mine.getByTestId("line-label")).toHaveText(line);

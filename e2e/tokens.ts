@@ -23,3 +23,16 @@ const pick = () => TOKEN_WORDS[Math.floor(Math.random() * TOKEN_WORDS.length)];
 export function rnd(): string {
   return `${pick()}${pick()}${pick()}`;
 }
+
+/**
+ * A token for a call's text: two tokens, a space between. Calls from every
+ * spec and both projects (desktop, mobile) share one room, and the rename
+ * spec finds its call by text: one 3-word token is 13,824 values, and on
+ * 2026-09-28 the desktop and mobile runs drew the same one, so the mobile
+ * page held two callers' identical calls. Two tokens is ~1.9e8. Each half is
+ * a token the moderator already passes, and the space keeps the halves from
+ * running together into new words. Names stay one token: 32 characters.
+ */
+export function callToken(): string {
+  return `${rnd()} ${rnd()}`;
+}

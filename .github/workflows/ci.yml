@@ -1,5 +1,15 @@
 name: CI
-on: [push, pull_request]
+# A branch push used to run twice (push + pull_request), so one broken commit
+# on a PR sent two failure emails. Now: push runs only on main; a branch is
+# checked through its pull request; a newer commit on a PR cancels the run it
+# supersedes (cancelled runs send no failure email). main is never cancelled.
+on:
+  push:
+    branches: [main]
+  pull_request:
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   ci:
     runs-on: ubuntu-24.04

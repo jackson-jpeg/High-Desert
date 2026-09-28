@@ -9,6 +9,9 @@ import type { LiveSchedule, ProgramSlot } from "@/lib/live/schedule";
  *                  src/audio/live-controller.ts
  *   paused         tuned, but the listener paused the player: still in the
  *                  station, and ▶ goes back to where the station is now
+ *   rejoin         held because the browser refused a change of show on its
+ *                  own (screen off, tab in the background), not because the
+ *                  listener paused: the screen says "Tap to rejoin"
  *   phase          "show" while a slot is on, "station-id" in the gap between
  *                  shows, "off" when not tuned
  *   current        the slot this browser is playing (null in the station ID)
@@ -25,6 +28,7 @@ export type LivePhase = "off" | "show" | "station-id";
 interface LiveState {
   tuned: boolean;
   paused: boolean;
+  rejoin: boolean;
   phase: LivePhase;
   current: ProgramSlot | null;
   clockOffsetMs: number | null;
@@ -34,7 +38,8 @@ interface LiveState {
   setSchedule: (schedule: LiveSchedule) => void;
   setClock: (offsetMs: number, rttMs: number) => void;
   setTuned: (tuned: boolean) => void;
-  setPaused: (paused: boolean) => void;
+  /** `rejoin`: held by a refused handover rather than by the listener. */
+  setPaused: (paused: boolean, rejoin?: boolean) => void;
   setPhase: (phase: Exclude<LivePhase, "off">, current: ProgramSlot | null) => void;
   setDrift: (drift: number | null) => void;
 }
@@ -42,6 +47,7 @@ interface LiveState {
 export const useLiveStore = create<LiveState>((set, get) => ({
   tuned: false,
   paused: false,
+  rejoin: false,
   phase: "off",
   current: null,
   clockOffsetMs: null,
@@ -59,10 +65,14 @@ export const useLiveStore = create<LiveState>((set, get) => ({
   },
   setClock: (offsetMs, rttMs) => set({ clockOffsetMs: offsetMs, clockRttMs: rttMs }),
   setTuned: (tuned) =>
-    set(tuned ? { tuned, paused: false } : { tuned, paused: false, phase: "off", current: null, drift: null }),
-  setPaused: (paused) => {
+    set(
+      tuned
+        ? { tuned, paused: false, rejoin: false }
+        : { tuned, paused: false, rejoin: false, phase: "off", current: null, drift: null },
+    ),
+  setPaused: (paused, rejoin = false) => {
     if (!get().tuned) return;
-    set({ paused });
+    set({ paused, rejoin: paused && rejoin });
   },
   setPhase: (phase, current) => {
     if (!get().tuned) return;

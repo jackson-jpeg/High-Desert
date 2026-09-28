@@ -190,7 +190,7 @@ describe("nginx vhost — the archive.org outage mirror", () => {
     expect(httpConf).toMatch(/proxy_ssl_verify on;/);
   });
 
-  it("the cache is bounded: 20 GB and never under 10 GB free", () => {
-    expect(httpConf).toMatch(/proxy_cache_path \/var\/cache\/highdesert-mirror\/proxy .*max_size=20g min_free=10g/);
+  it("the cache is bounded: 20 GB and never under 12 GB free (2 GB above the warm floor, so fills yield before pins)", () => {
+    expect(httpConf).toMatch(/proxy_cache_path \/var\/cache\/highdesert-mirror\/proxy .*max_size=20g min_free=12g/);
   });
 });

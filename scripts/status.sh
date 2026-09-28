@@ -18,7 +18,10 @@
 #   funnel    the last 7 days' arrivals and how far they got, from /api/stats/funnel:
 #             first visits -> saw the Live screen -> tuned in -> called, then the
 #             same shares for the browsers that arrived as phones (docs/funnel.md).
-#             Reported, never judged; WARN only if it cannot be read
+#             Reported, never judged; WARN only if it cannot be read. Then the
+#             before-and-after verdict's progress, or the verdict once written
+#             (scripts/funnel-verdict.mjs, HD_FUNNEL_VERDICT); WARN if that job
+#             has not run for 36h
 #   release   failed-start rate over the 7 days after the release recorded in
 #             docs/reliability-baseline.md (/api/stats/failures?since=), WARN at 3%+
 #   presence  the live site's presence surfaces (Stats badge, status bar, mobile
@@ -53,7 +56,7 @@
 #   HD_PRESENCE_CMD, HD_SITE (https://highdesert.space), HD_SAR_CMD (sar -u),
 #   HD_MIRROR_MANIFEST_URL ($HD_SITE/mirror/manifest), HD_MIRROR_PINS, HD_MIRROR_PROXY_CACHE,
 #   HD_WARM_STATUS, HD_WARM_MAX_AGE_S (129600), HD_CPU_CMD (hd-cpu-sample report --window 900),
-#   HD_LIVE (http://127.0.0.1:3005)
+#   HD_LIVE (http://127.0.0.1:3005), HD_FUNNEL_VERDICT (/var/lib/highdesert-funnel/status.json)
 set -uo pipefail
 
 ROOT="${HD_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -211,6 +214,31 @@ ft="$(jq -r '.totals.tune // empty' <<<"$funnel_json" 2>/dev/null)"
 fc="$(jq -r '.totals.call // empty' <<<"$funnel_json" 2>/dev/null)"
 # Phones on their own: the arrivals were mostly phones, and the fix is for them.
 read -r pv pl pt pc < <(jq -r '.byDevice.phone // empty | "\(.visit) \(.live) \(.tune) \(.call)"' <<<"$funnel_json" 2>/dev/null) || true
+# The before-and-after verdict (scripts/funnel-verdict.mjs, daily): progress
+# toward it, then the verdict itself. Absent until the job first runs.
+verdict=""
+verdict_level=OK
+verdict_file="${HD_FUNNEL_VERDICT:-/var/lib/highdesert-funnel/status.json}"
+if [[ -r "$verdict_file" ]]; then
+  vj="$(cat "$verdict_file")"
+  v_at="$(jq -r '.verdict.writtenAt // empty' <<<"$vj" 2>/dev/null)"
+  v_checked="$(jq -r '.checkedAt // empty' <<<"$vj" 2>/dev/null)"
+  v_err="$(jq -r '.error // empty' <<<"$vj" 2>/dev/null)"
+  if [[ -n "$v_at" ]]; then
+    verdict="; verdict ${v_at:0:10}: $(jq -r '.verdict | "phones tuned in \(.before.tune) of \(.before.visit) before, \(.after.tune) of \(.after.visit) after, \(.cmp.diff) points (\(.cmp.lo) to \(.cmp.hi)): \(.cmp.word)"' <<<"$vj")"
+    [[ -z "$(jq -r '.pushedSha // empty' <<<"$vj")" ]] && verdict+=" (not in docs/funnel.md yet)"
+    [[ -z "$(jq -r '.copiedAt // empty' <<<"$vj")" ]] && verdict+=" (not on the Mac yet)"
+  else
+    verdict="; after (phones from $(jq -r '.since' <<<"$vj")): $(jq -r '.after.visit // 0' <<<"$vj") of $(jq -r '.threshold' <<<"$vj") arrivals for a verdict"
+  fi
+  v_age=$(( $(date +%s) - $(date -d "${v_checked:-1970-01-01}" +%s 2>/dev/null || echo 0) ))
+  if (( v_age > 129600 )); then
+    verdict_level=WARN
+    verdict+=" (verdict job last ran $(( v_age / 3600 ))h ago)"
+  elif [[ -n "$v_err" ]]; then
+    verdict+=" (last run: ${v_err:0:120})"
+  fi
+fi
 if [[ -z "$fv" || -z "$fl" || -z "$ft" || -z "$fc" ]]; then
   line WARN funnel "could not read $API/api/stats/funnel"
 elif (( fv == 0 )); then
@@ -221,7 +249,7 @@ else
   if [[ -n "$pv" && "$pv" != 0 ]]; then
     phones="; phones: $pv > $(fpct "$pl" "$pv") saw Live > $(fpct "$pt" "$pv") tuned in > $(fpct "$pc" "$pv") called"
   fi
-  line OK funnel "7d: $fv first visits > $fl saw Live ($(fpct "$fl")) > $ft tuned in ($(fpct "$ft")) > $fc called ($(fpct "$fc"))$phones"
+  line "$verdict_level" funnel "7d: $fv first visits > $fl saw Live ($(fpct "$fl")) > $ft tuned in ($(fpct "$ft")) > $fc called ($(fpct "$fc"))$phones$verdict"
 fi
 
 # --- release -----------------------------------------------------------------
@@ -377,6 +405,7 @@ else
   w() { jq -r ".$1 // 0" "$WARM_STATUS" 2>/dev/null; }
   w_failed="$(w failed)"
   w_desc="$(w pinned) pinned ($(gb "$(w bytes)")), $(w fetched) fetched, $w_failed failed"
+  w_missing="$(w targetMissing)"
   w_age=$(( $(date +%s) - $(date -d "$w_at" +%s 2>/dev/null || echo 0) ))
   if [[ -z "$w_at" ]]; then
     line WARN warm "$WARM_STATUS is unreadable"
@@ -384,6 +413,14 @@ else
     line WARN warm "STALE: last run $w_at ($(( w_age / 3600 ))h ago; runs nightly)"
   elif [[ "$w_out" == skipped-steal ]]; then
     line WARN warm "last run $w_at skipped itself: steal $(w steal)% over 20%"
+  elif (( w_missing > 0 )) || [[ "$w_out" == stopped-at-floor ]]; then
+    # Pins below the target the budget chose. Say by how much and why, rather
+    # than let the outage mirror shrink with nobody reading it.
+    if (( $(w targetPinned) > 0 )); then
+      line WARN warm "pins below target: $(( $(w targetPinned) - w_missing )) of the top $(w targetPinned) pinned ($(gb "$(w bytes)") of $(gb "$(w targetBytes)")); $w_out, disk free $(gb "$(w freeBytes)") against a $(gb "$(w floorBytes)") floor; last run $w_at"
+    else
+      line WARN warm "pins below target: $w_out at $w_desc; last run $w_at"
+    fi
   elif (( w_failed > 0 )); then
     line WARN warm "last run $w_at ($w_out): $w_desc"
   else

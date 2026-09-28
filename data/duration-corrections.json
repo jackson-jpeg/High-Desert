@@ -1,0 +1,69 @@
+{
+  "about": "Catalog durations measured by walking every MPEG frame (scripts/measure-duration.mjs), replacing values archive.org derived from a LAME Info tag that stops short of the file. docs/ios-stalls.md.",
+  "measuredOn": "2026-09-28",
+  "corrections": [
+    {
+      "fileHash": "archive:ultimate-ultimate-art-bell-collection:2001-08-23 - Coast to Coast AM with Art Bell - Rev. Sean Manchester - Vampire Hunter. R.C. Hoagland - Crop Glyphs.mp3",
+      "airDate": "2001-08-23",
+      "was": 2328.92,
+      "measured": 4294.77,
+      "frames": 164409,
+      "bitrateKbps": 80,
+      "sampleRate": 44100
+    },
+    {
+      "fileHash": "archive:ultimate-ultimate-art-bell-collection:1996-02-23 - Coast to Coast AM with Art Bell - Charles Watson - Earthquakes.mp3",
+      "airDate": "1996-02-23",
+      "was": 2474.68,
+      "measured": 4783.86,
+      "frames": 183132,
+      "bitrateKbps": 80,
+      "sampleRate": 22050
+    },
+    {
+      "fileHash": "archive:ultimate-ultimate-art-bell-collection:1998-01-13 - Coast to Coast AM with Art Bell - Gerald Celente - Trends Research. Steve Bassett & Frances Barwood - Phoenix Lights.mp3",
+      "airDate": "1998-01-13",
+      "was": 2597.8,
+      "measured": 8161.41,
+      "frames": 312429,
+      "bitrateKbps": 64,
+      "sampleRate": 44100
+    },
+    {
+      "fileHash": "archive:ultimate-ultimate-art-bell-collection:1998-03-24 - Coast to Coast AM with Art Bell - Dannion Brinkley - Egypt.mp3",
+      "airDate": "1998-03-24",
+      "was": 4823.57,
+      "measured": 5710.2,
+      "frames": 237925,
+      "bitrateKbps": 128,
+      "sampleRate": 48000
+    },
+    {
+      "fileHash": "archive:ultimate-ultimate-art-bell-collection:1998-12-14 - Coast to Coast AM with Art Bell - Peter Gersten - Attorney for Ufologists. Richard C. Hoagland - Turret Peak.mp3",
+      "airDate": "1998-12-14",
+      "was": 7033.08,
+      "measured": 11085.72,
+      "frames": 461905,
+      "bitrateKbps": 128,
+      "sampleRate": 48000
+    },
+    {
+      "fileHash": "archive:ultimate-ultimate-art-bell-collection:1999-01-25 - Coast to Coast AM with Art Bell -  William Thomas - Chemtrails, HAARP, other topics.mp3",
+      "airDate": "1999-01-25",
+      "was": 18.39,
+      "measured": 9271.2,
+      "frames": 354913,
+      "bitrateKbps": 64,
+      "sampleRate": 22050
+    },
+    {
+      "fileHash": "archive:ultimate-ultimate-art-bell-collection:2000-03-31 - Coast to Coast AM with Art Bell - Ed Dames - Remote Viewing. R.C. Hoagland - Antarctica News.mp3",
+      "airDate": "2000-03-31",
+      "was": 2045.78,
+      "measured": 9383.09,
+      "frames": 390962,
+      "bitrateKbps": 128,
+      "sampleRate": 48000
+    }
+  ]
+}

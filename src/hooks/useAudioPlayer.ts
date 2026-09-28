@@ -24,6 +24,8 @@ import {
   resumeContext,
   getMediaElement,
   seekEngine,
+  endBridge,
+  stopBridge,
 } from "@/audio/engine";
 import {
   beginStart,
@@ -31,6 +33,8 @@ import {
   isAbortError,
   isCurrentStart,
   isListenCounted,
+  isNotAllowed,
+  playRejection,
   startPositionFor,
 } from "@/audio/play-session";
 import type { Episode } from "@/db/schema";
@@ -38,7 +42,13 @@ import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
 import { archiveKnownDown } from "@/services/archive/health";
 import type { SourceKind } from "@/audio/sources";
 import { currentStartPlan, refuseIfUnavailable } from "@/audio/outage-gate";
-import { currentLiveStart, liveStartFor, setLiveStopHandler, takeLiveResume } from "@/audio/live-session";
+import {
+  currentLiveStart,
+  liveStartFor,
+  setLiveStopHandler,
+  takeLiveRefused,
+  takeLiveResume,
+} from "@/audio/live-session";
 import { LIVE_LOCKED_MESSAGE, liveLocked } from "@/stores/live-store";
 import { toast } from "@/stores/toast-store";
 import { disarmWatchdog, isWatching, noteError } from "@/audio/playback-watchdog";
@@ -194,6 +204,10 @@ export function useAudioPlayer() {
       openListen(episode, isObjectUrl ? url : "");
       usePlayerStore.getState().setSource(kind);
 
+      // The live station's bridge (station ID, then quiet) is on the element:
+      // this show takes it over in this same task, with no pause between.
+      endBridge();
+
       // Reset before re-assigning: a stale src plus load() is its own source of
       // hangs, and `src = ""` would make the browser fetch the HTML document
       // and try to decode it as audio. load() also rejects any play() still
@@ -242,6 +256,17 @@ export function useAudioPlayer() {
         // failover to the mirror, or the watchdog's retry. Its rejection is the
         // old source's, already handled by whatever moved it.
         if (audio.src !== new URL(url, window.location.href).href) return;
+        // The station changed shows by itself and the browser would not start
+        // the next one (screen off, tab in the background). Not the error
+        // dialog, which nobody is there to read: the station records it and
+        // waits for a tap to rejoin (src/audio/live-controller.ts).
+        if (isNotAllowed(err)) {
+          const detail = `handover to=show ${document.visibilityState}`;
+          if (takeLiveRefused(episode, detail)) {
+            disarmWatchdog();
+            return;
+          }
+        }
         console.error("[player] Playback failed:", err);
         // Hand it to the watchdog, which owns the one-retry-then-fail policy.
         // Only fall back to the banner if there was no attempt to hand it to.
@@ -251,7 +276,8 @@ export function useAudioPlayer() {
         // (HD-033). The store owns it and revokes it when a new source
         // replaces it or playback stops.
         if (isWatching()) {
-          noteError("play-rejected");
+          const r = playRejection(err);
+          noteError(r.kind, r.detail, { wanted: true });
         } else {
           usePlayerStore.getState().setLoadState("failed");
           setError("Playback failed. The audio source may be unavailable.");
@@ -348,7 +374,8 @@ export function useAudioPlayer() {
       // This catch used to swallow the rejection entirely, so a refused
       // resume left the UI paused with no explanation whatsoever.
       if (isWatching()) {
-        noteError("play-rejected");
+        const r = playRejection(err);
+        noteError(r.kind, r.detail, { wanted: true });
       } else {
         setError("Couldn't resume playback. Try again.");
       }
@@ -398,6 +425,7 @@ export function useAudioPlayer() {
   const stopPlayback = useCallback(() => {
     flushListenTime("stop");
     disarmWatchdog();
+    stopBridge();
     const audio = getAudio();
     audio.pause();
     audio.removeAttribute("src");

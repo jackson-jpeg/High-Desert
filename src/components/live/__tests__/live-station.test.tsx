@@ -242,6 +242,20 @@ describe("Live screen", () => {
     expect(host.querySelector('[data-testid="live-rejoin"]')).toBeNull();
   });
 
+  it("a change of show the phone refused: Tap to rejoin, and the lock screen is named as a way back", async () => {
+    stationAt(B.start + H + 500);
+    await mount();
+    act(() => useLiveStore.setState({ tuned: true, paused: true, rejoin: true, phase: "show", current: B }));
+    expect(q("live-rejoin").textContent).toBe("Tap to rejoin");
+    expect(q("live-status").textContent).toMatch(/lock screen/);
+    expect(q("live-status").textContent).not.toMatch(/\u2014/);
+    act(() => q("live-rejoin").click());
+    expect(controller.tuneIn).toHaveBeenCalledTimes(1);
+    // An ordinary pause keeps the ordinary words.
+    act(() => useLiveStore.setState({ rejoin: false }));
+    expect(q("live-rejoin").textContent).toBe("Rejoin live");
+  });
+
   it("the layout lets each window fit: one shrinkable column on a phone; the chat fills its window", async () => {
     // Measured for real in e2e/live-qa.spec.ts ("wider than the screen", "the
     // call-in box is on screen"); jsdom has no layout, so this holds the two

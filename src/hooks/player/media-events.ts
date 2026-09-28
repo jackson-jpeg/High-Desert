@@ -8,7 +8,7 @@
 // install so that armWatchdog() refuses to supervise blind.
 
 import { usePlayerStore } from "@/stores/player-store";
-import { seekEngine } from "@/audio/engine";
+import { isBridging, seekEngine } from "@/audio/engine";
 import { writeProgress } from "@/services/episodes/progress";
 import { communityKey } from "@/lib/utils/community-key";
 import { checkArchiveHealth } from "@/services/archive/health";
@@ -61,6 +61,9 @@ export function installMediaEvents(
   };
 
   const onEnded = () => {
+    // The live station's ID ending between shows (the engine moves on to the
+    // quiet itself): not the show, and nothing for the queue.
+    if (isBridging()) return;
     // A show that "ended" without ever really starting is the last shape of
     // the reported bug: archive.org serves the file with a clean 206, the
     // element plays a few seconds of nothing and reports itself finished.
@@ -142,6 +145,8 @@ export function installMediaEvents(
     }
   };
   const onLoadedMetadata = () => {
+    // The station ID's eight seconds are not the show's length.
+    if (isBridging()) return;
     setDuration(audio.duration);
 
     // Advisory. For a VBR rip with no Xing header — most of this catalog —
@@ -166,6 +171,9 @@ export function installMediaEvents(
     }
   };
   const onError = () => {
+    // A bridge file that will not play is a quiet gap, not a failed show: the
+    // next show still starts on its minute.
+    if (isBridging()) return;
     setPlaying(false);
     const code = audio.error?.code;
 
@@ -224,6 +232,7 @@ export function installMediaEvents(
     usePlayerStore.getState();
 
   const onWaiting = () => {
+    if (isBridging()) return;
     setBuffering(true);
     noteWaiting();
   };

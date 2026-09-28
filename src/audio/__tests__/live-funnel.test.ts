@@ -8,6 +8,11 @@ import { describe, it, expect, vi } from "vitest";
  */
 
 vi.mock("@/audio/engine", () => ({
+  // The live station bridge (engine.ts): never on in these suites.
+  isBridging: () => false,
+  playBridge: () => Promise.resolve(),
+  endBridge: () => {},
+  stopBridge: () => {},
   engineState: () => null,
   onEngineEvent: () => () => {},
   pauseEngine: () => {},
@@ -26,7 +31,7 @@ function deps() {
     fetchServerNow: vi.fn(async () => Date.now()),
     startEpisode: vi.fn(),
     resolveEpisode: vi.fn(),
-    stationId: { prepare: vi.fn(), start: vi.fn(), stop: vi.fn(), release: vi.fn() },
+    stationId: { start: vi.fn(() => Promise.resolve()), stop: vi.fn(), release: vi.fn() },
   };
 }
 
@@ -42,7 +47,7 @@ describe("tune-in reaches the funnel and the phone lines", () => {
     expect(funnel.noteFunnelStep).toHaveBeenCalledWith("tune");
     expect(lines.announceTuneIn).toHaveBeenCalledTimes(1);
     // Announced after the station had its go at starting, never before.
-    expect(d.stationId.prepare.mock.invocationCallOrder[0]).toBeLessThan(lines.announceTuneIn.mock.invocationCallOrder[0]);
+    expect(d.stationId.start.mock.invocationCallOrder[0]).toBeLessThan(lines.announceTuneIn.mock.invocationCallOrder[0]);
     tuneOut();
     uninstall();
   });

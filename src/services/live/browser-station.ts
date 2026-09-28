@@ -5,12 +5,8 @@ import { stopPlayerForLive } from "@/audio/live-session";
 import { emit, onHdEvent } from "@/lib/events";
 import { usePlayerStore } from "@/stores/player-store";
 import { installLiveStation } from "@/audio/live-controller";
-import {
-  prepareStationId,
-  releaseStationId,
-  startStationId,
-  stopStationId,
-} from "@/audio/station-id";
+import { endBridge, playBridge, stopBridge } from "@/audio/engine";
+import { currentStartPlan } from "@/audio/outage-gate";
 import { fetchServerNow } from "@/lib/live/time-sync";
 import { knownSlots, type LiveSchedule, type ProgramSlot } from "@/lib/live/schedule";
 import { useLiveStore } from "@/stores/live-store";
@@ -89,6 +85,31 @@ export function episodeFromSlot(slot: ProgramSlot): Episode {
   };
 }
 
+/** How much of the next show to fetch ahead: its first seconds at any bitrate here. */
+export const PREFETCH_BYTES = 256 * 1024;
+
+/**
+ * Fetch the first bytes of `slot`'s show from wherever its start will go
+ * (archive.org, or the mirror while archive.org is down), a minute before it
+ * airs. It warms the path the element is about to take: archive.org's redirect
+ * and storage node, or our mirror's slice cache. The bytes are thrown away.
+ * Best effort: a failure here changes nothing.
+ */
+export async function prefetchSlotStart(slot: ProgramSlot, fetchImpl: typeof fetch = fetch): Promise<void> {
+  const plan = currentStartPlan(rows.get(slot.fileHash) ?? episodeFromSlot(slot));
+  if (plan.kind !== "play") return;
+  try {
+    const res = await fetchImpl(plan.source.url, {
+      headers: { Range: `bytes=0-${PREFETCH_BYTES - 1}` },
+      credentials: "omit",
+      signal: AbortSignal.timeout(20_000),
+    });
+    await res.arrayBuffer();
+  } catch {
+    /* best effort */
+  }
+}
+
 async function fetchSchedule(): Promise<LiveSchedule | null> {
   try {
     const res = await fetch("/api/live/schedule", { cache: "no-store" });
@@ -112,12 +133,9 @@ export function installBrowserLiveStation(): () => void {
       stopPlayerForLive();
       void deletePreference(LAST_EPISODE_PREF).catch(() => {});
     },
-    stationId: {
-      prepare: prepareStationId,
-      start: startStationId,
-      stop: stopStationId,
-      release: releaseStationId,
-    },
+    // The bridge between shows is the player's own element (engine.ts).
+    stationId: { start: playBridge, stop: endBridge, release: stopBridge },
+    prefetch: (slot) => void prefetchSlotStart(slot),
   });
   const held = useLiveStore.getState().schedule;
   if (held) void prefetch(held);

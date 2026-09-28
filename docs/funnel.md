@@ -101,6 +101,21 @@ curl -s 'https://highdesert.space/api/stats/funnel?days=7' \
   | jq '.cohorts | map(select(.day >= "2026-09-28" and .device == "phone"))'
 ```
 
-_Not measured yet._ Compare phones with phones, and hold a verdict until
-there are at least a few hundred phone arrivals: at 20, the difference
-between 65% and 75% is two people.
+Compare phones with phones, and hold a verdict until there are at least a
+few hundred phone arrivals: at 20, the difference between 65% and 75% is two
+people.
+
+**The verdict writes itself.** `highdesert-funnel-verdict.timer` (daily,
+17:40 UTC, in the Mac's reachable hours) runs `scripts/funnel-verdict.mjs`.
+Once the phone cohorts from 2026-09-28 on pass 300 arrivals it freezes the
+verdict (tune-in share before and after, the change with a 95% interval, and a
+word that follows the interval, not the point estimate) and writes it below,
+once. It commits this file from its own checkout
+(`/var/lib/highdesert-funnel/repo`, never the production tree), pushes it to
+`main`, and copies it to the Mac's `~/Downloads/high-desert-funnel/`,
+retrying each day until both have happened. `highdesert-status`'s funnel
+line shows the progress toward 300, then the verdict.
+
+<!-- funnel-verdict:start -->
+_Not measured yet._
+<!-- funnel-verdict:end -->

@@ -1,4 +1,509 @@
 {
+ "archive:1993-06-20-coast-to-coast-am-with-art-bell-al-bielek-philadelphia-experiment_202510:1998-03-05 - Coast to Coast AM with Art Bell - Bruce Rux - Hollywood and UFOs.mp3": {
+  "infohash": "42977ff8e18239d81e7bf50ab8b250b757361f35",
+  "length": 68301348,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-07-20 - Art Bell MITD - Graham Hancock.mp3": {
+  "infohash": "4ab7fd55d2d5e4637e15965c34e031c1a0b01d81",
+  "length": 85185005,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-07-21 - Art Bell MITD - Charles Faddis Biological Warfare.mp3": {
+  "infohash": "cb659cc30f158ec9dc6262704ed048722f8d3743",
+  "length": 76572083,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-07-22 - Art Bell MITD - Linda Moulton Howe.mp3": {
+  "infohash": "54247466bcf9891d757a73639df49097f0a59fde",
+  "length": 85459312,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-07-23 - Art Bell MITD - Nassim Haramein.mp3": {
+  "infohash": "e6eda7bbb014bd4d8f8728cc449ebadd8c5b6a3c",
+  "length": 98935648,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-07-24 - Art Bell MITD - Open Lines.mp3": {
+  "infohash": "8b412aff5848b89d3aab4f40a4fee3e154b78c7e",
+  "length": 94854619,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-07-27 - Art Bell MITD - Grant Cameron.mp3": {
+  "infohash": "ba10076dfb54367cf71c501358009603b965dde9",
+  "length": 72308778,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-07-28 - Art Bell MITD - Richard Dolan.mp3": {
+  "infohash": "428aacd3166fd8e9f4e4d9c62759cd0f444a6fc5",
+  "length": 72628061,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-07-29 - Art Bell MITD - Preston Dennett UFOs Paranormal.mp3": {
+  "infohash": "ce3a0e76230ee6815a9d02333106a4b91875ebc9",
+  "length": 71690472,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-07-30 - Art Bell MITD - John Dvorak Life Beyond Earth.mp3": {
+  "infohash": "a40a8e7616100d2d3deede00a16a9896a152964a",
+  "length": 77162024,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-07-31 - Art Bell MITD - Open Lines Paranormal Stories.mp3": {
+  "infohash": "aeb235c12ac08bab9211872532099945dfe2975f",
+  "length": 67813949,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-01 - Art Bell MITD - Blanche Barton Church Of Satan.mp3": {
+  "infohash": "d9885de7244726bf3ce33715a8717b63c9b161e8",
+  "length": 52849600,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-03 - Art Bell MITD - Open Lines Shadow People Stories.mp3": {
+  "infohash": "fafa7e6d4fc94eb25a4d53d9939489e8cfc1b4e3",
+  "length": 69711376,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-04 - Art Bell MITD - Jay Weidner Stanton Friedman.mp3": {
+  "infohash": "22968307e0b3dd3a2861048158e287b2121e65af",
+  "length": 59642848,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-05 - Art Bell MITD - Jon The Morgile Josh Grindlay Flat Earth Debate.mp3": {
+  "infohash": "ede7b03d204f036ff5fb8c6b075e824789a8c3c0",
+  "length": 64976494,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-06 - Art Bell MITD - Michael Rugg Bigfoot Discovery Museum.mp3": {
+  "infohash": "1184c2048aab8911cdb56cd0ebff314ea9c5dde5",
+  "length": 61293955,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-07 - Art Bell MITD - Travis Walton Alien Abductions.mp3": {
+  "infohash": "938ffb1a90b0fedc8366e288a9314a250bbc606c",
+  "length": 63013646,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-10 - Art Bell MITD - Joe Mcmoneagle Remote Viewing.mp3": {
+  "infohash": "c6dd26575547ac38b62cc34cb7d94f7df6b12467",
+  "length": 55266941,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-11 - Art Bell MITD - Seth Shostak SETI.mp3": {
+  "infohash": "9abbb5f9211be2d27e66991f71dde18d95524ece",
+  "length": 56901320,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-12 - Art Bell MITD - Open Lines September Doom.mp3": {
+  "infohash": "a614065f864c814d5ef12d112f2a65b851615cf5",
+  "length": 55003381,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-14 - Art Bell MITD - Andrew Basiago Time Travel & Teleportation.mp3": {
+  "infohash": "779d1d7f4f5fa534f6d39be826f9ac949ef24664",
+  "length": 58373984,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-17 - Art Bell MITD - Joe Rogan & David Sereda ET Contact.mp3": {
+  "infohash": "326b9607393e89120d7e96ca7088e02cd1a2f904",
+  "length": 50354329,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-18 - Art Bell MITD - Father Jack Ashcraft Exorcism.mp3": {
+  "infohash": "62c8b8bfeb47a6f3603a65e9909d403a2881216b",
+  "length": 50957081,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-19 - Art Bell MITD - Jim Sanders & Bill Birnes TWA Flight 800.mp3": {
+  "infohash": "927c6ce684ea1335ea32e6b3d390d649a9b9bb5a",
+  "length": 50388185,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-20 - Art Bell MITD - Barbara Mcbeath Brendan Cook EVPs.mp3": {
+  "infohash": "9cdeae60409d357d3d8da32f11bfeb3b0231a788",
+  "length": 54066798,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-21 - Art Bell MITD - Open Lines Pact With the Devil.mp3": {
+  "infohash": "3d337fad4101f429e2be90b9b9a98ecc84eba200",
+  "length": 49528950,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-24 - Art Bell MITD - Dean Radin Global Consciousness.mp3": {
+  "infohash": "e153535102135dd4f24747aefa38ed7e43ebb0ed",
+  "length": 57935600,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-25 - Art Bell MITD - Peter Robbins Rendlesham Forest.mp3": {
+  "infohash": "30c337eb658f07717aff9d822201c841a205fddc",
+  "length": 55249866,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-26 - Art Bell MITD - Marcus Hutter Artificial Intelligence.mp3": {
+  "infohash": "2e38bf4deab26dff6e3e490613af6ac469281de9",
+  "length": 53544695,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-27 - Art Bell MITD - Dr Ron Klatz Anti Aging.mp3": {
+  "infohash": "73b03c8637cb14850171556897beef6fe66ff046",
+  "length": 50776404,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-28 - Art Bell MITD - Open Lines Truth Or Trash.mp3": {
+  "infohash": "38ed4e8aa27a02631de60642cdf80ebed3282cd9",
+  "length": 56858072,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-08-31 - Art Bell MITD - David Darling Asteroids & The Cosmos.mp3": {
+  "infohash": "097b495c7ce5186d5d4d432a8d7032485d75562e",
+  "length": 56511824,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-01 - Art Bell MITD - Patrick Burns EVPs.mp3": {
+  "infohash": "69c4e893a578053924e8b3c60824f9a9b01bfcc9",
+  "length": 56176430,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-02 - Art Bell MITD - Open Lines Married To An Alien Line.mp3": {
+  "infohash": "04798b1e9ccb13aeddde548312b043ce1e2efda3",
+  "length": 56127870,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-02 - Art Bell MITD - Peter Davenport UFO Center.mp3": {
+  "infohash": "92658c8f34d6d9ecb8988c207768e76a4ef57083",
+  "length": 52368840,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-03 - Art Bell MITD - Linda Godfrey Weird Creatures.mp3": {
+  "infohash": "0b48cbff8e198b0cddd8ef54703bdde5bf6d8d6f",
+  "length": 54136568,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-04 - Art Bell MITD - Mad Man Markum Time Traveler.mp3": {
+  "infohash": "eb9724f3ddd99251e6872778c096f44a71b90600",
+  "length": 53633682,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-07 - Art Bell MITD - Dave Paulides Missing 411.mp3": {
+  "infohash": "bd3f4f4896e14540ae6e55fba055ddb1ba974e3a",
+  "length": 50422377,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-08 - Art Bell MITD - Debbie Anderson Witchcraft.mp3": {
+  "infohash": "06cc23ad9ccb36a8115b09e1b506e20a96deb07a",
+  "length": 52941904,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-09 - Art Bell MITD - Elaine Bigfoot in Back Yard.mp3": {
+  "infohash": "bede3ad4dc7c8b1f877b546c96eac0a5983f7b3f",
+  "length": 54825344,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-10 - Art Bell MITD - David Pares Space Warp Technology.mp3": {
+  "infohash": "448bfbe5b1579f0a89c18bbb8fc86b4fed54034c",
+  "length": 57821424,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-11 - Art Bell MITD - Open Lines Atheist Debate & Planet X.mp3": {
+  "infohash": "68a5520a482a1c1f550b1e81e56a5a7bc8d84f31",
+  "length": 59345096,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-14 - Art Bell MITD - Charles Maxwell Crop Circles.mp3": {
+  "infohash": "1428dcfa8da67729d81949c5d073487ad2458e5c",
+  "length": 62420562,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-15 - Art Bell MITD - Loyd Auerbach.mp3": {
+  "infohash": "c2738abb2e759e126add4e943da58eb0d70c8224",
+  "length": 50615281,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-16 - Art Bell MITD - David Weatherly Shadow People.mp3": {
+  "infohash": "0048f36990e1feef50dd901d383f5f27cd16b008",
+  "length": 57786838,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-17 - Art Bell MITD - John Burroughs Rendlesham Forest UFO.mp3": {
+  "infohash": "74719c28c99a841c2fa2315d1905d8f2d824eeb6",
+  "length": 62316440,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-21 - Art Bell MITD - Dr Jeffrey Long NDEs.mp3": {
+  "infohash": "e76c87ef76487a1d824902bcc7f9b2d2c291a904",
+  "length": 56350459,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-22 - Art Bell MITD - Dr Kevin Trenberth Climate Change.mp3": {
+  "infohash": "851d0d27e97b577183e399df6ea235da5d41ddd3",
+  "length": 54420284,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-24 - Art Bell MITD - David Jacobs UFOs Alien Abductions.mp3": {
+  "infohash": "241a55096d34b90e21f6170b7ea5e3d5a1e1cd2d",
+  "length": 56004408,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-25 - Art Bell MITD - Open Lines Anything Goes & I'm Losing My Mind Line.mp3": {
+  "infohash": "8365e9c885e3c5a69efe6a075409eb0700009ed6",
+  "length": 54310823,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-28 - Art Bell MITD - Nick Redfern Unsolved Mysteries.mp3": {
+  "infohash": "65e951236336c72bcbc60c4721202c20223b73b9",
+  "length": 59571192,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-29 - Art Bell MITD - Steven Starr Nuclear War.mp3": {
+  "infohash": "0f2ad4db1253d201f7a26d5d77ea3ed749f5be6b",
+  "length": 58277849,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-09-30 - Art Bell MITD - Albert Taylor OBEs.mp3": {
+  "infohash": "412dfac9cc0d250c694838e8c4d27480886f6445",
+  "length": 60686528,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-01 - Art Bell MITD - Father Michael Maginot.mp3": {
+  "infohash": "43ac61720cad5fba907d52c5d4a5fe500bc227a4",
+  "length": 54048181,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-02 - Art Bell MITD - I Married An Alien.mp3": {
+  "infohash": "f346d507a0d0598b7b26f2c96e93c9cfa82b256a",
+  "length": 48951639,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-05 - Art Bell MITD - Tess Gerritsen Gravity.mp3": {
+  "infohash": "62d4f5b273038a981a0885bfa4a26457f918d1da",
+  "length": 51289613,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-06 - Art Bell MITD - Professor Ronald Mallett Time Travel.mp3": {
+  "infohash": "558eb05ad09fff378c223c6b3d5d1f100edb0863",
+  "length": 55695248,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-07 - Art Bell MITD - Ron Morehead & Scott Nelson Sounds of Sasquatch.mp3": {
+  "infohash": "6bbfae5b171df646317d4cbeb0187e512873eba2",
+  "length": 53280903,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-08 - Art Bell MITD - Kevin Mitnick Hacking.mp3": {
+  "infohash": "bfd3f5ce41e8850e9b704535e47304750977854b",
+  "length": 52289672,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-09 - Art Bell MITD - Open Lines Scott Free Line.mp3": {
+  "infohash": "b33922535baea58079a2954e2a6c09f96f61bc56",
+  "length": 52396001,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-10 - Art Bell MITD - Ron Morehead & Scott Nelson Bigfoot Sounds.mp3": {
+  "infohash": "549a53b7852ce91d49dc71e46eb64c5c61d10923",
+  "length": 76373816,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-12 - Art Bell MITD - Dr Dennis Mckenna Psychedelic Research.mp3": {
+  "infohash": "d4493f04a919521d6b76df7ceed006eb0bc02ffc",
+  "length": 54299266,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-13 - Art Bell MITD - Dr Barry Taff.mp3": {
+  "infohash": "20c4066b2625f125601168ce11aa21da6ba71ff1",
+  "length": 52699787,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-14 - Art Bell MITD - Steven Greer Disclosure.mp3": {
+  "infohash": "22c5d185e1275d831475f0b6152f86bdcb74646e",
+  "length": 53855474,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-15 - Art Bell MITD - Cynthia Larson Reality Shifting.mp3": {
+  "infohash": "4b00f14fc407c9c34487966549babbf12e3adea1",
+  "length": 53066960,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-16 - Art Bell MITD - Open Lines Super Power Line.mp3": {
+  "infohash": "a0403e2bdec469926f86106d9743b803a83105ef",
+  "length": 51890380,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-20 - Art Bell MITD - David Jacobs Hubrids Part II.mp3": {
+  "infohash": "d3b4642276272209f9a5156f65c334061c3a715b",
+  "length": 56477648,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-21 - Art Bell MITD - Dr William Forstchen Space Elevator EMPs.mp3": {
+  "infohash": "cde7938db2e6ab6635fd3490b24e6bd2beff923d",
+  "length": 53088481,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-22 - Art Bell MITD - Douglas Mulhall Nanotechnology.mp3": {
+  "infohash": "54a31dfb9671753b93ef3b9733acea5ebb281ece",
+  "length": 53823465,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-23 - Art Bell MITD - Open Lines Future 30 Year Prediction Line.mp3": {
+  "infohash": "fd5fbbb4fcd1370e6afe7391b110e50addb2a766",
+  "length": 50471958,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-26 - Art Bell MITD - Dr Michael Lynch The Ghost Phenomenon.mp3": {
+  "infohash": "f9a20d0ee31bbfb788413c4ba36e6b807ee84022",
+  "length": 56694981,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-27 - Art Bell MITD - Tish Owen.mp3": {
+  "infohash": "60264a68400d5959e74e8930549822424f121a2d",
+  "length": 51825831,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-28 - Art Bell MITD - Joel Martin Bill Birnes The Amityville Horror Hoax.mp3": {
+  "infohash": "9d46b3c01cb817b5299576fc52bbf9d001a9ebc4",
+  "length": 54169314,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-29 - Art Bell MITD - Neil deGrasse Tyson.mp3": {
+  "infohash": "38e7771feeec85bf23ef7a8bed9698472dfbdf72",
+  "length": 51990255,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-10-30 - Art Bell MITD - Halloween Special Dead Air.mp3": {
+  "infohash": "2f3496cd6b8b86f10449fe3dccc0b745c317977b",
+  "length": 54575818,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-11-02 - Art Bell MITD - Cody Lundin Survival.mp3": {
+  "infohash": "febf116c70bc945a75e8bdad89a4eb07742fd314",
+  "length": 54857242,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-11-03 - Art Bell MITD - Linda Moulton Howe Mega Structure Cerius and More.mp3": {
+  "infohash": "b4ef7744824c6d23a479ed85dc968aed7fae4654",
+  "length": 53654101,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-11-04 - Art Bell MITD - Deborah Moffitt A True Haunting.mp3": {
+  "infohash": "cecbdb2c476e0a2375f22e3ea1142b592e8f25f4",
+  "length": 51843342,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-11-05 - Art Bell MITD - Gregory Paxson Past Life Regressions.mp3": {
+  "infohash": "ecc390fc365fd68381667d72a80b7a765cfd2387",
+  "length": 62764544,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-11-06 - Art Bell MITD - Open Lines Past Lives Line.mp3": {
+  "infohash": "0e1fa885ac7af207daaf242d939214a882dee797",
+  "length": 52144609,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-11-09 - Art Bell MITD - Ralph Sarchie.mp3": {
+  "infohash": "ce02d9ad60ddf5f1393e9a2fa2f57e1d3d70d2d1",
+  "length": 53261054,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-11-10 - Art Bell MITD - Jim Elvidge Digital Simulated Reality.mp3": {
+  "infohash": "91023bd888ed16310d4b0ecbacc8e3b1bc27459a",
+  "length": 61474680,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-11-11 - Art Bell MITD - Warren Faidley Storm Chasing.mp3": {
+  "infohash": "57bffe73ee661eea0382090d94975870d5678090",
+  "length": 67700766,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-11-12 - Art Bell MITD - Dr Gillian Holloway Lucid Dreaming.mp3": {
+  "infohash": "f14b19753aba822fd1b4d52dc759a5256d0867ec",
+  "length": 57549870,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-11-13 - Art Bell MITD - Open Lines Paris Attacks.mp3": {
+  "infohash": "720e56d2de3220434e1cc0fb877ab02cc0bf865b",
+  "length": 57102919,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-11-16 - Art Bell MITD - Jill Heinerth Underwater Cave Exploration.mp3": {
+  "infohash": "ac4789cb1cff573df42d20b63f04f1e0d55d8f81",
+  "length": 59765273,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-11-17 - Art Bell MITD - Kevin Randle 100 Years of UFO Coverups.mp3": {
+  "infohash": "d06c6a57156abc60993e147fc0347a9ac665da25",
+  "length": 52736255,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-11-18 - Art Bell MITD - Jeffrey Scott Holland Feral Humans.mp3": {
+  "infohash": "96e8477aeab7ab8614e3289d91aceca1dd054fdd",
+  "length": 57819584,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-11-20 - Art Bell MITD - Open Prepper's Line.mp3": {
+  "infohash": "4bc5ff629790cf13a10ba89a619c28c20a1314f3",
+  "length": 52804022,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-11-23 - Art Bell MITD - Michio Kaku.mp3": {
+  "infohash": "c2ec2da237c690a9bde2f405632a41a170fb6646",
+  "length": 59006660,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-11-25 - Art Bell MITD - R. Scott Lemriel The Seres Agenda.mp3": {
+  "infohash": "c2c4db982cded868196dd41b107fe02a96944a4e",
+  "length": 59744768,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-11-27 - Art Bell MITD - Open Lines Anything Goes.mp3": {
+  "infohash": "9d9435d1cf0fdaf4365fbdda4dc87e528c563a31",
+  "length": 56161665,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-11-30 - Art Bell MITD - Ken Gerhard Flying Humanoids.mp3": {
+  "infohash": "86cb37dfa25a89ee6b45b87f971c90505771ece5",
+  "length": 59431214,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-12-01 - Art Bell MITD - Todd Robbins Master of the Macabre.mp3": {
+  "infohash": "48da60dcc8177e85aea852aa9646de31f2e87a02",
+  "length": 58061004,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-12-02 - Art Bell MITD - Open Lines San Bernardino Shooting.mp3": {
+  "infohash": "b60ca0d6da35183e1096bd37ce44c49e8cda7206",
+  "length": 46322067,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-12-03 - Art Bell MITD - Sally Vander Veer Legal Marijuana.mp3": {
+  "infohash": "d1971a879f6e368154c730cc814f47dffd414ffc",
+  "length": 56685447,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-12-04 - Art Bell MITD - Open Lines Inhuman Encounter Line.mp3": {
+  "infohash": "238226c430e1167230fa59dab836b2bd84c4456d",
+  "length": 50308527,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-12-07 - Art Bell MITD - Neil Sanders Modern Mind Control.mp3": {
+  "infohash": "e224ed9b57e9d40a0df686b45ed1e35b54d1a6f8",
+  "length": 53772325,
+  "pieceLength": 262144
+ },
+ "archive:Art-Bell_Midnight_In_the_Desert:2015-12-08 - Art Bell MITD - Dr David Jacobs Alien Experimentation on Humans.mp3": {
+  "infohash": "315cfd3c4e9d8b22f405cab9152a49fac8072b3c",
+  "length": 49845797,
+  "pieceLength": 262144
+ },
+ "archive:art-bell-1990-2000:1997-02-19-Art-Bell-SIT-Jim-Forbes-Strange-Universe.mp3": {
+  "infohash": "fbb82adbbdbce1135090e327fba12a68f332fb1d",
+  "length": 38039524,
+  "pieceLength": 262144
+ },
+ "archive:art-bell-2001-to-2010:1994-07-04 - Dreamland with Art Bell - The Reptilian Connection - John Rhodes.mp3": {
+  "infohash": "d552787091161d931164b09e2aa505853b3ce56e",
+  "length": 31821306,
+  "pieceLength": 262144
+ },
  "archive:ultimate-ultimate-art-bell-collection:1992-12-12 - Coast to Coast AM with Art Bell - Area 51 - John Lear - Bob Lazar.mp3": {
   "infohash": "e87eef95c2bc7eb2d502097d4a4d4f5634368f1f",
   "length": 23473241,

@@ -28,6 +28,13 @@ against the e2e database (`/root/.high-desert-e2e.env`), never `TEST_DATABASE_UR
 (Quick Start is for a *development* checkout. In `/root/High-Desert`, which is
 production, never `npm install` — see "Deploying to the VPS".)
 
+**CI is the gate**, and it runs once per change: on pull requests and on `main`, never
+twice per push, and a newer commit on a PR cancels the older run. There is no pre-push
+hook: **no git hooks in production trees** (2026-09-28: a local pre-push gate ran the suite
+with git's hook variables set, and the tests' throwaway repositories wrote into the real
+one, setting `core.bare = true` under `/root/High-Desert`). Every test that runs git
+clears the `GIT_*` variables first (`src/test-support/git-env.ts`).
+
 **Database-backed tests** (`*.db.test.ts`, `scripts/__tests__/backup-db.test.ts`) need
 `TEST_DATABASE_URL`, a `*_test` database — enforced by `src/test-support/test-db.ts`. CI
 provides one; on the VPS: `set -a; . /root/.high-desert-test.env; set +a`. Without it they
@@ -89,7 +96,7 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/now` | GET | **The one presence endpoint.** Presence **plus what is playing**. Returns **`{online, listening, live, onAir: [{episodeId, listeners}], recent: [{episodeId, at}]}`**. `online` is distinct *clients* (not sessions) with a heartbeat inside 5 min; `listening` is the subset with a playing session; `live` the subset tuned in to the live station (`live_at` inside the window); `listeners` is distinct clients per episode. `no-store` — a stale on-air list is worse than none. Aggregate only: no query joins `session_id` to `episode_id`, and `recent_plays` stores no session at all |
 | `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, onlineMax, listeningMax, plays}], peakOnline, peakListening, playsInRange, totalPlays, peakAt, hourly: [{hour, online, listening, plays, samples}]}`**. A point's `online`/`listening` are the bucket's **mean**, `onlineMax`/`listeningMax` its highest sample — the chart's main lines. **`peakOnline`, `peakListening` and `peakAt` come from the raw 2-minute samples**, never from the buckets: a max of averages shrinks as the bucket widens, and 30 days once read a lower peak than 24 hours (`docs/stats-audit.md`, finding 12). `traffic_daily` keeps `peak_online`/`peak_listening`/`peak_at` past the 90-day sample prune; `highdesert-status`'s `peaks` line FAILs unless peak(30d) ≥ peak(7d) ≥ peak(24h). `hourly` is always a 24-entry, zero-filled, **UTC**-hour profile over the last 30 days and does *not* vary with `range`; the client rotates it into local time. `samples: 0` means *never observed*, which is not the same as "observed, nobody here" — the UI hides the profile until 8 hours have been sampled, or a day-old deployment draws 23 empty columns and looks like a dead site. **`playsBySource: {archive, mirror, …, unknown}`** counts `play_events` in the range by `source` — what `highdesert-status` reads for "mirror plays in 24h" |
 | `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Also prunes `weekly_plays` past 3 weeks. Returns `{ok, online, listening, live, totalPlays, rolledUp, anonymized, prunedWeeks}` (`live` is reported, not sampled — `listener_samples` has no column for it) |
-| `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass, detail?}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`network-error`/`decode-error`/`empty-media`/`empty-media-suspected`; `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. `detail` is short (≤200 char) free text: the reported duration on an advisory row, or `MediaError.code` plus its message on a `decode-error`/`network-error`/`empty-media`. That message is a browser pipeline diagnostic (`DEMUXER_ERROR_COULD_NOT_OPEN: …`) and is the **only** way an empty file is distinguishable from an unreachable one on Chromium, which errors on the missing frames rather than reporting a short duration. A `detail` containing `HD-VERIFY` (any case, checked after truncation) is **rejected with 400** — this table is the instrument that decides whether the 5s duration floor is safe to promote, and verification rows have polluted it twice; intercept the POST in the page instead. No session id, no IP. `episodeId` must be in the community-key allowlist. Optional `source` as on `/api/stats/play`, but an unknown value is stored NULL rather than refused — losing a failure row costs more than losing its source. A failover row carries the source that *failed* (`archive`) and `recovered: true` once the mirror plays |
+| `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass, detail?}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`handover-rejected`/`network-error`/`decode-error`/`empty-media`/`empty-media-suspected` (`handover-rejected`: the live station's change of show refused, counted like any failed start); `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. `detail` is short (≤200 char) free text: the reported duration on an advisory row, or `MediaError.code` plus its message on a `decode-error`/`network-error`/`empty-media`. That message is a browser pipeline diagnostic (`DEMUXER_ERROR_COULD_NOT_OPEN: …`) and is the **only** way an empty file is distinguishable from an unreachable one on Chromium, which errors on the missing frames rather than reporting a short duration. A `detail` containing `HD-VERIFY` (any case, checked after truncation) is **rejected with 400** — this table is the instrument that decides whether the 5s duration floor is safe to promote, and verification rows have polluted it twice; intercept the POST in the page instead. No session id, no IP. `episodeId` must be in the community-key allowlist. Optional `source` as on `/api/stats/play`, but an unknown value is stored NULL rather than refused — losing a failure row costs more than losing its source. A failover row carries the source that *failed* (`archive`) and `recovered: true` once the mirror plays |
 | `/api/live/schedule` | GET | **The live station's program.** Returns **`{day, tz: "America/Los_Angeles", serverNow, stationIdSec: 8, now, upNext: [Slot, Slot], rest: [Slot], guide: [Slot], outage}`**. `now` is `{slot, startedAt, offsetSec, endsAt}` (a show: start and offset into it) or `{stationId: true, endsAt}` (the gap between shows). `Slot` is `{fileHash, episodeId, title, airDate, guestName, showType, duration, sourceUrl, kind: "on-this-date"\|"fan-favorite"\|"outage-swap", start, end, replaces?}`, times epoch ms. `upNext` reaches into tomorrow during the day's last show; `rest` is the rest of *today* after it; `guide` is all of today, past included. `outage: true` when archive.org is down and the swap was applied. `no-store`, 30/min, **503** without a database |
 | `/api/live/time` | GET | The server clock for the client's time sync: **`{now}`** (epoch ms). `no-store`, 60/min. The client takes 5 samples and keeps the one with the smallest round trip |
 | `/mirror/{fileHash}` | GET | **Not Next.js — nginx alone** (`services/mirror/lib/nginx.mjs`). The episode's MP3: a pinned one off disk, anything else in the catalog filled from archive.org through nginx's slice cache. Byte ranges: `206` + `Content-Range`, `416` for an unsatisfiable range. **404** for anything not in the catalog; **502** when a fill cannot reach archive.org. GET/HEAD only. See "archive.org outage mirror" |
@@ -476,7 +483,7 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   `url-list` = the archive.org file URL, so archive.org is the webseed while it is
   up. Infohashes are deterministic. Output: `data/torrents/episodes.json`
   (`fileHash → {infohash, length, pieceLength}`, committed) and the `.torrent`
-  files in `/var/lib/highdesert-mirror/torrents` (not committed, 1,312 of them;
+  files in `/var/lib/highdesert-mirror/torrents` (not committed, 1,413 of them;
   `deploy-mirror.sh` refuses if any indexed one is missing). Resumable, ≤2 req/s.
 - **There is no mirror process: nginx is the mirror** (since 2026-09-25). The
   webtorrent gateway held ~47% of a core seeding to a swarm with no one in it and
@@ -506,8 +513,13 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   `Nice=19`, idle I/O) pins the most-played episodes by 90-day `play_events`, whole
   files only, up to 15 GB: a plain HTTP download into `/var/lib/highdesert-mirror/tmp`,
   **verified against the `.torrent`'s piece SHA-1s**, then renamed into `pins/` — a
-  name in `pins/` is always a whole, verified episode. Episodes that fell out of the
-  top are unpinned first, never on an empty play list. It rewrites
+  name in `pins/` is always a whole, verified episode. **Pins come first**: an
+  episode that fell out of the top is unpinned only to make room for a top one
+  that then fits (or once every top one is present), never up front and never on
+  an empty play list; nginx's `min_free` (12g) sits 2 GB above the warm floor so
+  fill slices give way before any pin. The disk does not currently hold the
+  15 GiB target (`docs/torrent-mirror-feasibility.md`, "The real disk budget"),
+  and `highdesert-status`'s `warm` line WARNs while pins are below it. It rewrites
   `/var/lib/highdesert-mirror/manifest.json` **atomically** (temp + rename: nginx may
   be mid-send). **It skips itself while hypervisor steal is above 20%** and records
   why in `/var/cache/highdesert-mirror/warm-status.json`.
@@ -527,7 +539,17 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   not go back to archive.org. A mid-show media error (code 2/4) on an archive
   source goes through the same path. If `play()` after the swap is refused (iOS,
   activation expired) the failure is `play-rejected` and `PlaybackErrorDialog`'s
-  *Try Again* is the gesture — the same rule as the retry.
+  *Try Again* is the gesture — the same rule as the retry. (A `NotSupportedError`
+  from `play()` is about the source, not permission: `playRejection()` routes it
+  as a `network-error`, so it fails over.)
+  Two iOS failovers did not recover on 2026-09-27 (rows 541, 545); both are
+  held in `mirror-failover.test.ts`. **A failover nobody was waiting for**
+  (the element was paused, e.g. a primed show) settles quietly (`primed()`),
+  never judged by the stall clock while iOS has stopped loading. **While a
+  failover's `play()` is pending and the page is hidden**, the deadline and
+  stall timers re-arm instead of judging (`deferWhileHidden()`): iOS holds a
+  background `play()` until the phone wakes, and a frozen timer firing on wake
+  gave up on a mirror that was about to play.
 - **The health probe's verdicts are re-probed on different clocks** (`src/services/archive/health.ts`):
   up after 5 min, **down after 30 s**, and a probe that failed to reach *our* server
   is not a verdict at all. It used to hold any failure for 5 minutes, and with the
@@ -626,8 +648,21 @@ same offset, computed from a synced clock.
   Drift is checked every 10 s and corrected by one seek past **2 s**; a stall
   (`waiting` then `playing`) and returning to the tab resync at once. At a
   slot's end (or the file's own `ended`, via `takeLiveEnded`) the station ID
-  plays the radio static (`src/audio/station-id.ts`, capped at 8 s) until the
-  next slot starts.
+  plays until the next slot starts.
+- **The handover never pauses the element** (2026-09-28; `src/audio/engine.ts`,
+  "The live station's bridge"). At 04:34:25 on 2026-09-27, phones with the
+  screen off got `play-rejected` when the station paused for Web Audio static
+  and then asked for the next show: iOS had ended the audio session in between.
+  Now the station ID (`public/audio/station-id.mp3`) and a looped quiet file
+  (`station-quiet.mp3`) play **on the same engine element**, and the next show's
+  `src` is assigned over them; `isBridging()` keeps the media handlers and the
+  position tick from reading the bridge as the show. The next show's first
+  bytes are fetched `PREFETCH_LEAD_MS` (60 s) before the boundary, and
+  MediaSession metadata follows each show (`mediaMetadataFor`). **A refusal is
+  its own kind, `handover-rejected`, and counts** in `/api/stats/failures` and
+  the release line like any failed start; the station then holds with `rejoin`
+  set, `/live` shows **Tap to rejoin**, and ▶ anywhere (the lock screen's
+  included) lands on the live second.
 - **Pause holds, Leave leaves** (`docs/live-qa.md`). Pausing keeps the tab
   tuned with `paused: true` and stops the program timers, so nothing starts
   behind a paused player; any resume goes through `takeLiveResume()` at the top
@@ -949,6 +984,13 @@ No third-party hosting. Same shape as `sanger-next`.
 
 - `categorize-library.py` — offline batch AI categorization; output is committed into `public/seed/library.json`. This is the ONLY place AI runs
 - `clean-library.py` — Python script for library cleanup
+- `import-community-sources.mjs` — add-only import of the shows in `data/community-sources.json`
+  (a listener's torrents, used only as a list of names; every show streams from an existing
+  archive.org copy). **Never download a torrent's content or join its swarm, and never host or
+  link its magnet** — a test fails on the three infohashes anywhere in the app. See
+  `docs/community-sources.md`
+- `measure-duration.mjs` — an episode's runtime by walking every frame (see "Is there actually
+  a broadcast in the file?")
 - `schema.sql` — the community stats schema; idempotent, re-run on every deploy that touches it
 - `backfill-traffic-daily.sql` — one-time (and re-runnable) fill of `traffic_daily` from
   whatever `listener_samples` still holds. Only matters when the rollup is deployed after
@@ -1061,7 +1103,8 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
   aborts rather than throwing. They are not optional — they would have prevented that incident
   independently of the key bug.
 - Regression tests live in `src/db/__tests__/`; `dedupKey` must yield one distinct key per row of
-  the real seed catalog (**1,312** — see `docs/broken-episodes.md` for the one that was removed).
+  the real seed catalog (**1,413** since the 2026-09-28 community import, `docs/community-sources.md`;
+  see `docs/broken-episodes.md` for the one that was removed).
   The count is asserted against the catalog rather than hardcoded, so pulling an episode does not
   need the test edited; changing it to a literal would make the next removal look like a bug.
 - **`deleteEpisode()` is covered end to end** against `fake-indexeddb` in
@@ -1151,6 +1194,12 @@ show didn't start" report that began this work.
   file run costs a few seconds until `ended`. Note this code path had **never executed in
   production** before the `withGlobals` fix — the listener that calls it was never attached. The
   advisory rows exist to decide, from real traffic, whether the 5s floor is safe to promote.
+- **A tag's `duration` is not evidence either.** Seven files carry a LAME "Info" tag written
+  for a shorter recording than the file holds; archive.org's `length`, and the catalog's, came
+  from it (1999-01-25 read 18.39 s for a 2.5 h show, and the live station cuts a slot at its
+  duration). Their durations are now frame counts (`scripts/measure-duration.mjs`,
+  `data/duration-corrections.json`, `docs/ios-stalls.md`). Before trusting a new episode's
+  `length`, walk it.
 - **A missing `duration` is not evidence of anything.** Archive.org's VBR derive reports
   `length: "0"` for five episodes here, two of which are full three-hour broadcasts.
 - `empty-media` is the one `FailureKind` that is **never retried** — the same bytes come back, so a

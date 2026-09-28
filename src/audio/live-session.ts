@@ -31,6 +31,12 @@ export interface LiveStart {
   slotKey: string;
   /** Seconds into the show the station is at *now*. Called at play time. */
   startAt: () => number;
+  /**
+   * The program started this show (a slot change), not a tap. Its play() has
+   * no gesture behind it, and a refusal is the station's to handle
+   * (`takeLiveRefused`), not the error dialog's.
+   */
+  handover?: boolean;
 }
 
 let live: LiveStart | null = null;
@@ -96,6 +102,25 @@ export function takeLiveEnded(episode: Pick<Episode, "fileHash"> | null): boolea
   return true;
 }
 
+let refusedHandler: ((detail: string) => void) | null = null;
+
+/** The live controller's handler for a handover the browser refused. */
+export function setLiveRefusedHandler(fn: ((detail: string) => void) | null): void {
+  refusedHandler = fn;
+}
+
+/**
+ * The browser refused play() for `episode`. If that was the station changing
+ * shows by itself (screen off, tab in the background), hand it to the station
+ * and return true: it records the refusal and waits for a tap to rejoin. The
+ * caller must then leave the failure dialog out of it.
+ */
+export function takeLiveRefused(episode: Pick<Episode, "fileHash"> | null, detail: string): boolean {
+  if (!matches(episode) || !live!.handover || !refusedHandler) return false;
+  refusedHandler(detail);
+  return true;
+}
+
 /** The live controller's resume handler. */
 export function setLiveResumeHandler(fn: (() => boolean) | null): void {
   resumeHandler = fn;
@@ -127,6 +152,7 @@ export const __testing = {
     counted.clear();
     endedHandler = null;
     resumeHandler = null;
+    refusedHandler = null;
     stopHandler = null;
   },
 };

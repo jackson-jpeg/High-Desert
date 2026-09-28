@@ -47,13 +47,28 @@ interface World {
   /** What the stub hd-cpu-sample prints and exits with. */
   cpu: { rc: number; out: string };
   /** warm-status.json, with `ageH` turned into its `at`; null writes no file. */
-  warm: { ageH: number; outcome: string; pinned: number; bytes: number; fetched: number; failed: number; steal?: number } | null;
+  warm: {
+    ageH: number;
+    outcome: string;
+    pinned: number;
+    bytes: number;
+    fetched: number;
+    failed: number;
+    steal?: number;
+    targetPinned?: number;
+    targetMissing?: number;
+    targetBytes?: number;
+    freeBytes?: number;
+    floorBytes?: number;
+  } | null;
   /** peakOnline / peakListening /api/stats/traffic answers per range; a missing range answers no peaks. */
   peaks: Partial<Record<"24h" | "7d" | "30d", { online: number; listening: number }>>;
   /** /api/stats/funnel's 7-day totals; null answers 503. */
   funnel: { visit: number; live: number; tune: number; call: number } | null;
   /** Its `byDevice.phone`; null leaves `byDevice` out, as a build before the split did. */
   funnelPhone: { visit: number; live: number; tune: number; call: number } | null;
+  /** scripts/funnel-verdict.mjs's status.json; null: the job has never run. `ageH` sets checkedAt. */
+  funnelVerdict: ({ ageH: number } & Record<string, unknown>) | null;
   liveActive: string;
   /** /live-api/health's body; null answers 502. */
   liveHealth: Record<string, unknown> | null;
@@ -85,6 +100,7 @@ const HEALTHY: World = {
   peaks: { "24h": { online: 4, listening: 2 }, "7d": { online: 9, listening: 5 }, "30d": { online: 9, listening: 6 } },
   funnel: { visit: 40, live: 30, tune: 12, call: 2 },
   funnelPhone: { visit: 30, live: 22, tune: 8, call: 1 },
+  funnelVerdict: null,
   liveActive: "active",
   liveHealth: { ok: true, clients: 42, messagesLastHour: 17, slowMode: false, cpu: { pct: 2.5, windowS: 900 } },
 };
@@ -172,6 +188,13 @@ async function run(): Promise<{ code: number; out: string }> {
   } else {
     await rm(warmFile, { force: true });
   }
+  const verdictFile = path.join(dir, "funnel-verdict.json");
+  if (world.funnelVerdict) {
+    const { ageH, ...rest } = world.funnelVerdict;
+    await writeFile(verdictFile, JSON.stringify({ checkedAt: new Date(Date.now() - ageH * 3_600_000).toISOString(), ...rest }));
+  } else {
+    await rm(verdictFile, { force: true });
+  }
   const head = await git("rev-parse", "--short", "HEAD");
   const deployed = world.deployedIsHead ? head : await git("rev-parse", "--short", "HEAD~1");
   await writeFile(path.join(root, ".deploy/deployed"), `${deployed} 2026-09-21T14:00:00Z\n`);
@@ -206,6 +229,7 @@ async function run(): Promise<{ code: number; out: string }> {
           HD_CPU_CMD: path.join(bin, "cpu"),
           HD_LIVE: api,
           HD_WARM_STATUS: warmFile,
+          HD_FUNNEL_VERDICT: verdictFile,
         },
         timeout: 30_000,
       },
@@ -338,6 +362,32 @@ describe("highdesert-status", () => {
     it("no arrivals is not a division by zero", async () => {
       world.funnel = { visit: 0, live: 0, tune: 0, call: 0 };
       expect(lineFor((await run()).out, "funnel")).toBe("OK    funnel    no first visits in 7 days");
+    });
+
+    const FUNNEL = "OK    funnel    7d: 40 first visits > 30 saw Live (75%) > 12 tuned in (30%) > 2 called (5%); phones: 30 > 73% saw Live > 27% tuned in > 3% called";
+
+    it("before the verdict: how far the after cohort has got toward it", async () => {
+      world.funnelVerdict = { ageH: 2, since: "2026-09-28", threshold: 300, after: { visit: 44, live: 42, tune: 28, call: 2, days: 1 }, error: null };
+      expect(lineFor((await run()).out, "funnel")).toBe(`${FUNNEL}; after (phones from 2026-09-28): 44 of 300 arrivals for a verdict`);
+    });
+
+    it("once written: the verdict itself, and whether it has reached the doc and the Mac", async () => {
+      const verdict = {
+        writtenAt: "2026-10-01T17:40:00Z",
+        before: { visit: 20, tune: 13 },
+        after: { visit: 310, tune: 215 },
+        cmp: { diff: 4, lo: -17, hi: 25, word: "no difference the data can see" },
+      };
+      world.funnelVerdict = { ageH: 2, since: "2026-09-28", threshold: 300, after: { visit: 320 }, verdict, pushedSha: "abc1234", copiedAt: "2026-10-01T17:40:05Z", error: null };
+      const said = "; verdict 2026-10-01: phones tuned in 13 of 20 before, 215 of 310 after, 4 points (-17 to 25): no difference the data can see";
+      expect(lineFor((await run()).out, "funnel")).toBe(`${FUNNEL}${said}`);
+      world.funnelVerdict = { ...world.funnelVerdict, copiedAt: null, error: "ssh: connect to host macbook: timed out" };
+      expect(lineFor((await run()).out, "funnel")).toBe(`${FUNNEL}${said} (not on the Mac yet) (last run: ssh: connect to host macbook: timed out)`);
+    });
+
+    it("WARNs when the verdict job has stopped running", async () => {
+      world.funnelVerdict = { ageH: 40, since: "2026-09-28", threshold: 300, after: { visit: 44 }, error: null };
+      expect(lineFor((await run()).out, "funnel")).toMatch(/^WARN\s+funnel\s+.*44 of 300 arrivals for a verdict \(verdict job last ran 40h ago\)$/);
     });
 
     it("WARNs, and does not fail the run, when the funnel cannot be read", async () => {
@@ -562,6 +612,32 @@ describe("highdesert-status", () => {
     it("warm: WARNs when it has never run", async () => {
       world.warm = null;
       expect(lineFor((await run()).out, "warm")).toMatch(/^WARN\s+warm\s+no .* never run/);
+    });
+    it("warm: WARNs when pins are below the target, with the shortfall and the disk", async () => {
+      world.warm = {
+        ...world.warm!,
+        outcome: "stopped-at-floor",
+        pinned: 318,
+        bytes: 14.5 * 2 ** 30,
+        targetPinned: 331,
+        targetMissing: 13,
+        targetBytes: 15 * 2 ** 30,
+        freeBytes: 7.1 * 2 ** 30,
+        floorBytes: 10 * 2 ** 30,
+      };
+      const r = await run();
+      expect(lineFor(r.out, "warm")).toMatch(
+        /^WARN\s+warm\s+pins below target: 318 of the top 331 pinned \(14\.5 GB of 15\.0 GB\); stopped-at-floor, disk free 7\.1 GB against a 10\.0 GB floor/,
+      );
+      expect(r.code).toBe(0);
+    });
+    it("warm: a status from before the target was recorded still WARNs on stopping at the floor", async () => {
+      world.warm = { ...world.warm!, outcome: "stopped-at-floor" };
+      expect(lineFor((await run()).out, "warm")).toMatch(/^WARN\s+warm\s+pins below target: stopped-at-floor/);
+    });
+    it("warm: OK when every top pin is in", async () => {
+      world.warm = { ...world.warm!, targetPinned: 120, targetMissing: 0 };
+      expect(lineFor((await run()).out, "warm")).toMatch(/^OK\s+warm\s/);
     });
   });
 

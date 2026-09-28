@@ -51,6 +51,13 @@ export type FailureKind =
   /** The file loaded fine and contains no usable broadcast. Never retried. */
   | "empty-media"
   /**
+   * The live station changed shows by itself (no tap: a slot ended, often with
+   * the screen off) and the browser refused to play the next one. Reported by
+   * the station, not the watchdog: it holds and waits for a tap to rejoin.
+   * A failed start like any other, and counted as one on the release line.
+   */
+  | "handover-rejected"
+  /**
    * `loadedmetadata` reported a duration under the floor. Advisory only: it is
    * recorded and playback is *not* stopped. For a VBR rip with no Xing header —
    * most of this catalog — the duration at that point is extrapolated from the
@@ -95,6 +102,12 @@ interface Attempt {
    * short duration, so `empty-media-suspected` can never fire there.
    */
   detail: string | null;
+  /**
+   * A failover's play() has been asked for and has neither resolved nor
+   * rejected. With the screen off, iOS holds it: no rejection, no `playing`,
+   * until the page is back. See deferWhileHidden().
+   */
+  playPending: boolean;
 }
 
 let current: Attempt | null = null;
@@ -202,6 +215,20 @@ function standDownIfPlaying(attempt: Attempt): boolean {
 }
 
 /**
+ * With the screen off a failover's play() can sit unanswered: iOS neither
+ * refuses it nor starts it until the page is visible, and the page's own
+ * timers are frozen meanwhile. The deadline that then fires on waking is
+ * judging minutes it never watched, and it fired first: on 2026-09-27 a
+ * Philadelphia Experiment failover waited 295 s behind the lock screen and
+ * was given up the moment the phone woke, before its play() could land.
+ * While that play is pending and the page is hidden, a clock that runs out
+ * starts again instead of judging.
+ */
+function deferWhileHidden(attempt: Attempt): boolean {
+  return attempt.playPending && typeof document !== "undefined" && document.visibilityState === "hidden";
+}
+
+/**
  * (Re)start the no-progress deadline. Called on arm, on retry, and every time
  * bytes arrive — so a download that is merely slow is never interrupted.
  */
@@ -210,6 +237,7 @@ function resetLoadDeadline(attempt: Attempt) {
   loadTimer = window.setTimeout(() => {
     if (attempt.settled) return;
     if (standDownIfPlaying(attempt)) return;
+    if (deferWhileHidden(attempt)) return resetLoadDeadline(attempt);
     if (failover("timeout", attempt)) return;
     if (!attempt.retried) retry("timeout", attempt);
     else giveUp("timeout", attempt);
@@ -365,11 +393,11 @@ function giveUp(kind: FailureKind, attempt: Attempt) {
  * failing. The failover spends the attempt's retry: if the mirror fails too,
  * the next failure gives up and raises the dialog rather than re-asking.
  */
-function failover(kind: FailureKind, attempt: Attempt): boolean {
+function failover(kind: FailureKind, attempt: Attempt, wantedHint?: boolean): boolean {
   if (!isFailoverKind(kind) || !onFailover || attempt.fallbacks.length === 0) return false;
   const next = attempt.fallbacks.shift()!;
   const { audio } = attempt;
-  const wanted = audio.paused === false;
+  const wanted = wantedHint ?? audio.paused === false;
   // Where the listener is: mid-load that is the start position (a seek is held
   // until metadata, so currentTime may still read 0); later, wherever they got to.
   const position = Math.max(audio.currentTime || 0, attempt.startAt);
@@ -381,17 +409,37 @@ function failover(kind: FailureKind, attempt: Attempt): boolean {
   attempt.retried = true;
   clearTimers();
   attempt.startedAt = performance.now();
+  attempt.playPending = wanted;
   resetLoadDeadline(attempt);
 
   onFailover({ ...next }, { position, wanted }).then(
     (ok) => {
+      attempt.playPending = false;
       if (!ok && !attempt.settled) giveUp("play-rejected", attempt);
+      // Nobody was playing (a refused or paused start): the mirror is loaded
+      // and waiting for the next press of play, which arms its own attempt.
+      // Supervising it here read iOS stopping after the metadata, as it does
+      // for an element nobody plays, as a stall of the mirror: the 04:34:38
+      // row, ten seconds after a refused change of show.
+      else if (ok && !wanted && !attempt.settled) primed(attempt);
     },
     () => {
+      attempt.playPending = false;
       if (!attempt.settled) giveUp("play-rejected", attempt);
     },
   );
   return true;
+}
+
+/**
+ * A failover that only had to move the source: settled, not reported. The
+ * element was not playing, so no listener waited on it; whatever stopped them
+ * (a refusal, a pause) is recorded where it happened.
+ */
+function primed(attempt: Attempt) {
+  attempt.settled = true;
+  clearTimers();
+  if (current === attempt) current = null;
 }
 
 function retry(kind: FailureKind, attempt: Attempt) {
@@ -477,6 +525,7 @@ export function armWatchdog(opts: {
     retried: false,
     settled: false,
     detail: null,
+    playPending: false,
   };
   current = attempt;
 
@@ -503,8 +552,10 @@ export function noteWaiting(): void {
   if (!attempt || attempt.settled || stallTimer) return;
 
   stallTimer = window.setTimeout(() => {
+    stallTimer = 0;
     if (attempt.settled) return;
     if (standDownIfPlaying(attempt)) return;
+    if (deferWhileHidden(attempt)) return noteWaiting();
     if (failover("stall", attempt)) return;
     if (!attempt.retried) retry("stall", attempt);
     else giveUp("stall", attempt);
@@ -526,13 +577,22 @@ export function noteProgress(): void {
  * The element reported a hard error. Unlike a timeout this is definitive, so
  * it consumes the retry immediately rather than waiting out the clock.
  */
-export function noteError(kind: FailureKind, detail?: string | null): void {
+export function noteError(
+  kind: FailureKind,
+  detail?: string | null,
+  /**
+   * `wanted`: the failure is a play() the listener asked for, rejected. The
+   * element's `paused` cannot say so: engines differ on whether a rejected
+   * play() leaves it paused.
+   */
+  opts?: { wanted?: boolean },
+): void {
   const attempt = current;
   if (!attempt || attempt.settled) return;
   // Kept even if the retry rescues it and the eventual report is a recovery —
   // "what did it say the first time" is the useful half of a flaky episode.
   attempt.detail = shortDetail(detail) ?? attempt.detail;
-  if (failover(kind, attempt)) return;
+  if (failover(kind, attempt, opts?.wanted)) return;
   if (!attempt.retried) retry(kind, attempt);
   else giveUp(kind, attempt);
 }

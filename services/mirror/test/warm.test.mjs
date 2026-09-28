@@ -209,5 +209,77 @@ describe("runWarm", () => {
     const status = await w.run({ floorBytes: 1e9, freeBytes: async () => 1e9 + GOOD.length - 1 });
     expect(status.outcome).toBe("stopped-at-floor");
     expect(await w.pins()).toEqual([]);
+    expect(status).toMatchObject({ targetPinned: 2, targetMissing: 2, floorBytes: 1e9 });
+  });
+
+  // 2026-09-27: 13 pins that fell out of the top were removed first, then the
+  // floor stopped their replacements, and the mirror went from 339 to 318.
+  const oldAndGood = async () => [{ episodeId: communityKeyOf(fh(names.old)), plays: 5 }, { episodeId: communityKeyOf(fh(names.good)), plays: 4 }];
+
+  it("keeps a pin that fell out of the top when the disk cannot take its replacement", async () => {
+    const w = await world();
+    await w.run({ plays: oldAndGood });
+    const floorBytes = 1e9;
+    // Short for OTHER even if OLD were removed: nothing may go.
+    const status = await w.run({ floorBytes, freeBytes: async () => floorBytes + OTHER.length - OLD.length - 1 });
+    expect(status).toMatchObject({ outcome: "stopped-at-floor", pruned: 0, fetched: 0, targetMissing: 1, pinned: 2 });
+    expect(await w.pins()).toEqual([fh(names.good), fh(names.old)].sort());
+    expect((await w.manifest()).fileHashes).toContain(fh(names.old));
+  });
+
+  it("swaps an out-of-top pin for a top one when that is what makes it fit", async () => {
+    const w = await world();
+    await w.run({ plays: oldAndGood });
+    const floorBytes = 1e9;
+    const status = await w.run({ floorBytes, freeBytes: async () => floorBytes + OTHER.length - 1 });
+    expect(status).toMatchObject({ outcome: "ok", pruned: 1, fetched: 1, targetMissing: 0 });
+    expect(await w.pins()).toEqual([fh(names.good), fh(names.other)].sort());
+  });
+
+  it("an out-of-top pin makes way when the budget is full, and only then", async () => {
+    const w = await world();
+    await w.run({ plays: oldAndGood });
+    // The budget is a cap on what is on disk, not only on what is chosen: OLD
+    // must be gone before OTHER lands, not after.
+    let duringFetch = null;
+    const status = await w.run({
+      budgetBytes: GOOD.length + OTHER.length,
+      fetchImpl: async () => {
+        duringFetch = await w.pins();
+        return new Response(OTHER);
+      },
+    });
+    expect(duringFetch).toEqual([fh(names.good)]);
+    expect(status).toMatchObject({ outcome: "ok", pruned: 1, fetched: 1 });
+    expect(await w.pins()).toEqual([fh(names.good), fh(names.other)].sort());
+  });
+
+  it("a failed fetch keeps what it would have replaced", async () => {
+    const w = await world({ serve: { "https://archive.test/other": Buffer.from("not it") } });
+    await w.run({ plays: oldAndGood });
+    const status = await w.run();
+    expect(status).toMatchObject({ failed: 1, pruned: 0, targetMissing: 1 });
+    expect(await w.pins()).toEqual([fh(names.good), fh(names.old)].sort());
+  });
+
+  it("clears names in the pin directory that are not whole catalog episodes", async () => {
+    const w = await world();
+    await w.run();
+    await writeFile(path.join(w.stateDir, "pins", "archive:c:stray.mp3"), "x");
+    await writeFile(path.join(w.stateDir, "pins", fh(names.old)), "short");
+    await w.run();
+    expect(await w.pins()).toEqual([fh(names.good), fh(names.other)].sort());
+  });
+});
+
+describe("pinned shows come first", () => {
+  it("nginx's fill cache keeps more free than the warm job's floor, so fill gives way before any pin", async () => {
+    const { PRODUCTION } = await import("../lib/nginx.mjs");
+    const unit = await readFile(new URL("../../../deploy/highdesert-mirror-warm.service", import.meta.url), "utf8");
+    const floorGb = Number(/MIRROR_DISK_FLOOR_GB=(\d+)/.exec(unit)[1]);
+    const minFreeGb = Number(/^(\d+)g$/.exec(PRODUCTION.minFree)[1]);
+    expect(floorGb).toBe(10);
+    // At least a day's worth of pins above the floor: room to restore the set.
+    expect(minFreeGb - floorGb).toBeGreaterThanOrEqual(2);
   });
 });

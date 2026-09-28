@@ -1,6 +1,6 @@
 import type { Browser, BrowserContext, Page, TestInfo } from "@playwright/test";
 import { test, expect, anotherClientAddress, answerServerWrites } from "./fixtures";
-import { rnd } from "./tokens";
+import { callToken, rnd } from "./tokens";
 
 /**
  * One browser, one caller (docs/live-chat.md, "Who is calling").
@@ -93,8 +93,8 @@ test("two browsers behind one address are two callers: their own names and lines
     await expect(youName(b)).toHaveText(freshB);
 
     // Each call carries its own caller's name, on both screens.
-    const textA = `from the porch ${rnd()}`;
-    const textB = `from the kitchen ${rnd()}`;
+    const textA = `from the porch ${callToken()}`;
+    const textB = `from the kitchen ${callToken()}`;
     expect((await call(a, textA)).status()).toBe(201);
     expect((await call(b, textB)).status()).toBe(201);
     for (const p of [a, b]) {
@@ -120,13 +120,13 @@ test("muting one browser does not mute the other behind the same address", async
   try {
     await openLines(a, mobile);
     await openLines(b, mobile);
-    const posted = await call(a, `about to be muted ${rnd()}`);
+    const posted = await call(a, `about to be muted ${callToken()}`);
     expect(posted.status()).toBe(201);
     await admin(a, "mute", { messageId: (await posted.json()).id, minutes: 5 });
 
-    expect((await call(a, `still here ${rnd()}`)).status()).toBe(403);
+    expect((await call(a, `still here ${callToken()}`)).status()).toBe(403);
     await expect(a.getByTestId("live-rejection")).toContainText(/on hold/i);
-    expect((await call(b, `the other one ${rnd()}`)).status()).toBe(201);
+    expect((await call(b, `the other one ${callToken()}`)).status()).toBe(201);
   } finally {
     for (const c of contexts) await c.close();
   }
@@ -140,22 +140,22 @@ test("a banned browser that clears its cookies meets the address hold; the other
   try {
     await openLines(a, mobile);
     await openLines(b, mobile);
-    expect((await call(b, `already on the line ${rnd()}`)).status()).toBe(201);
-    const posted = await call(a, `about to be banned ${rnd()}`);
+    expect((await call(b, `already on the line ${callToken()}`)).status()).toBe(201);
+    const posted = await call(a, `about to be banned ${callToken()}`);
     await admin(a, "ban", { messageId: (await posted.json()).id });
 
     // Clearing cookies makes a new caller, who can listen...
     await contexts[0].clearCookies();
     await openLines(a, mobile);
     // ...but cannot start talking while the address is held.
-    const again = await call(a, `back again ${rnd()}`);
+    const again = await call(a, `back again ${callToken()}`);
     expect(again.status()).toBe(429);
     expect((await again.json()).error).toBe("address-hold");
     await expect(a.getByTestId("live-rejection")).toContainText("New callers from your network are on hold for a while.");
 
     // The browser that was already calling is untouched.
     await b.waitForTimeout(3_100); // its own 3 s pace
-    expect((await call(b, `still on the line ${rnd()}`)).status()).toBe(201);
+    expect((await call(b, `still on the line ${callToken()}`)).status()).toBe(201);
   } finally {
     for (const c of contexts) await c.close();
   }

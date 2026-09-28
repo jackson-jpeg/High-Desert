@@ -40,6 +40,11 @@ vi.mock("@/audio/engine", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/audio/engine")>();
   const bound = () => real.initEngine(element);
   return {
+  // The live station bridge (engine.ts): never on in these suites.
+  isBridging: () => false,
+  playBridge: () => Promise.resolve(),
+  endBridge: () => {},
+  stopBridge: () => {},
     getMediaElement: () => element,
     initEngine: vi.fn(),
     setEngineVolume: vi.fn(),
