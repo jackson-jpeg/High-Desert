@@ -86,6 +86,23 @@ export function isNotAllowed(err: unknown): boolean {
   );
 }
 
+/**
+ * What a rejected play() is, for the watchdog: `play-rejected` when the
+ * browser refused sound, a source failure when the element could not use the
+ * source (NotSupportedError: iOS rejects play() that way, seconds before the
+ * element's own code=4 error). Either way the rejection's name is the detail,
+ * so a row says which it was. Before this every rejection was filed as a
+ * refusal, which never fails over, and the code=4 that followed arrived after
+ * the tap's activation was spent.
+ */
+export function playRejection(err: unknown): { kind: "play-rejected" | "network-error"; detail: string } {
+  const name =
+    typeof err === "object" && err !== null && typeof (err as { name?: unknown }).name === "string"
+      ? (err as { name: string }).name
+      : "unknown";
+  return { kind: name === "NotSupportedError" ? "network-error" : "play-rejected", detail: `play ${name}` };
+}
+
 /** How close to the end a saved position counts as "finished". */
 export const FINISHED_WITHIN_S = 30;
 /** ...or how far through, as a fraction of the duration. */

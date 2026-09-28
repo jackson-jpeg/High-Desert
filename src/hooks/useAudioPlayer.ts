@@ -34,6 +34,7 @@ import {
   isCurrentStart,
   isListenCounted,
   isNotAllowed,
+  playRejection,
   startPositionFor,
 } from "@/audio/play-session";
 import type { Episode } from "@/db/schema";
@@ -275,7 +276,8 @@ export function useAudioPlayer() {
         // (HD-033). The store owns it and revokes it when a new source
         // replaces it or playback stops.
         if (isWatching()) {
-          noteError("play-rejected");
+          const r = playRejection(err);
+          noteError(r.kind, r.detail, { wanted: true });
         } else {
           usePlayerStore.getState().setLoadState("failed");
           setError("Playback failed. The audio source may be unavailable.");
@@ -372,7 +374,8 @@ export function useAudioPlayer() {
       // This catch used to swallow the rejection entirely, so a refused
       // resume left the UI paused with no explanation whatsoever.
       if (isWatching()) {
-        noteError("play-rejected");
+        const r = playRejection(err);
+        noteError(r.kind, r.detail, { wanted: true });
       } else {
         setError("Couldn't resume playback. Try again.");
       }

@@ -24,7 +24,7 @@ const seekSpy = vi.fn();
 let element: HTMLAudioElement;
 let archiveDown = false;
 /** play() outcomes, in call order; unlisted calls hang (a load that never answers). */
-let plays: Array<"resolve" | "reject-not-allowed" | "hang"> = [];
+let plays: Array<"resolve" | "reject-not-allowed" | "reject-not-supported" | "hang" | (() => Promise<void>)> = [];
 
 vi.mock("@/services/stats/client", () => ({
   reportPlay: (...a: unknown[]) => reportPlay(...a),
@@ -121,7 +121,9 @@ beforeEach(() => {
   let call = 0;
   element = makeMediaElement(() => {
     const what = plays[call++] ?? "hang";
+    if (typeof what === "function") return what();
     if (what === "resolve") return Promise.resolve();
+    if (what === "reject-not-supported") return Promise.reject(new DOMException("no supported sources", "NotSupportedError"));
     if (what === "reject-not-allowed") return Promise.reject(new DOMException("denied", "NotAllowedError"));
     return new Promise<void>(() => {});
   });
@@ -133,6 +135,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
+  Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
   disarmWatchdog();
   for (const i of instances) i.unmount();
   instances = [];
@@ -339,5 +343,90 @@ describe("archive.org fails → the mirror", () => {
     expect(element.src).toBe(MIRROR);
     expect(usePlayerStore.getState().loadState).toBe("failed");
     expect(reportPlaybackFailure.mock.calls.at(-1)![0]).toMatchObject({ recovered: false, source: "mirror" });
+  });
+});
+
+describe("why two iOS failovers to the mirror did not recover (2026-09-27)", () => {
+  /** Playing from archive.org, 72 minutes in, then archive.org errors. */
+  async function playingThenArchiveErrors(opts: { paused?: boolean; hidden?: boolean }) {
+    plays = ["resolve", ...plays];
+    await act(async () => {
+      await api().playEpisode(episode());
+    });
+    setReadyState(element, 4);
+    act(() => element.dispatchEvent(new Event("canplay")));
+    reportPlaybackFailure.mockClear();
+    Object.defineProperty(element, "currentTime", { value: 4321, writable: true, configurable: true });
+    if (opts.paused) act(() => void api().pausePlayback());
+    if (opts.hidden) Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    act(() => mediaError(4));
+    await settle();
+    setReadyState(element, 1);
+  }
+
+  it("04:34:38: nobody was playing, so the mirror is loaded for the next play, not supervised into a false stall", async () => {
+    await playingThenArchiveErrors({ paused: true });
+    expect(element.src).toBe(MIRROR);
+    const calls = vi.mocked(element.play).mock.calls.length;
+    // iOS loads the metadata of an element nobody plays, then suspends.
+    act(() => element.dispatchEvent(new Event("suspend")));
+    act(() => void vi.advanceTimersByTime(30_000));
+    expect(reportPlaybackFailure).not.toHaveBeenCalled();
+    expect(usePlayerStore.getState().loadState).not.toBe("failed");
+    expect(vi.mocked(element.play).mock.calls.length, "no sound nobody asked for").toBe(calls);
+  });
+
+  it("05:02:09: with the screen off the mirror's play() waits for the page; the clock waits with it", async () => {
+    let start: () => void = () => {};
+    plays = [() => new Promise<void>((r) => (start = r))];
+    await playingThenArchiveErrors({ hidden: true });
+    expect(element.src).toBe(MIRROR);
+    // Five minutes behind the lock screen, with the element saying nothing
+    // useful: nothing is judged while play() is still being held.
+    act(() => element.dispatchEvent(new Event("waiting")));
+    for (let i = 0; i < 30; i++) act(() => void vi.advanceTimersByTime(10_000));
+    expect(reportPlaybackFailure).not.toHaveBeenCalled();
+    expect(usePlayerStore.getState().loadState).not.toBe("failed");
+    // The phone wakes: iOS starts the held play(), and the failover is what
+    // it was, archive.org's failure rescued by the mirror.
+    Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
+    await act(async () => {
+      start();
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+    });
+    setReadyState(element, 4);
+    act(() => element.dispatchEvent(new Event("playing")));
+    expect(reportPlaybackFailure).toHaveBeenCalledTimes(1);
+    expect(reportPlaybackFailure.mock.calls[0][0]).toMatchObject({ kind: "network-error", recovered: true, source: "archive" });
+  });
+
+  it("control: on screen, a mirror that never starts is still given up on", async () => {
+    await playingThenArchiveErrors({});
+    act(() => element.dispatchEvent(new Event("waiting")));
+    act(() => void vi.advanceTimersByTime(30_000));
+    expect(usePlayerStore.getState().loadState).toBe("failed");
+    expect(reportPlaybackFailure.mock.calls.at(-1)![0]).toMatchObject({ recovered: false, source: "mirror" });
+  });
+
+  it("iOS rejecting play() with NotSupportedError is the source failing: straight to the mirror", async () => {
+    plays = ["reject-not-supported", "resolve"];
+    act(() => void api().playEpisode(episode()));
+    await settle();
+    await settle();
+    expect(element.src).toBe(MIRROR);
+    expect(usePlayerStore.getState().playing).toBe(true);
+  });
+
+  it("a refusal's row says it was a refusal, by the rejection's own name", async () => {
+    plays = ["reject-not-allowed", "reject-not-allowed"];
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    act(() => void api().playEpisode(episode()));
+    await settle();
+    act(() => void vi.advanceTimersByTime(30_000));
+    await settle();
+    // However the attempt ends, its row carries what play() was told.
+    expect(usePlayerStore.getState().loadState).toBe("failed");
+    expect(reportPlaybackFailure.mock.calls.at(-1)![0].detail).toContain("play NotAllowedError");
   });
 });

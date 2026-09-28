@@ -657,7 +657,7 @@ describe("with the screen off: one element, never paused, from one show to the n
     expect(handovers).toEqual([]);
     expect(useLiveStore.getState().rejoin).toBe(false);
     const { noteError } = await import("@/audio/playback-watchdog");
-    expect(noteError).toHaveBeenCalledWith("play-rejected");
+    expect(noteError).toHaveBeenCalledWith("play-rejected", "play NotAllowedError", { wanted: true });
   });
 });
 
