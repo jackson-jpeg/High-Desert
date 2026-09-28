@@ -74,18 +74,31 @@ export function parseStatus(text) {
   return out;
 }
 
-/** The numbers in status's release line (scripts/status.sh writes it). Null if it has none. */
+/**
+ * The numbers in status's release line (scripts/status.sh writes it). Null if it has none.
+ *
+ * `lost` is the headline: failed starts the retry or the mirror did not rescue.
+ * `rescued` is the ones they did, counted beside it. `pct` is lost / plays, and
+ * is only ever printed at VERDICT_PLAYS or more (docs/reliability-baseline.md).
+ */
 export function parseRelease(line) {
   if (!line) return null;
   const t = line.text;
-  const older = /older builds: (\d+) failures \/ (\d+) plays/.exec(t);
-  const o = older ? { failures: Number(older[1]), plays: Number(older[2]) } : null;
+  const older = /older builds: (\d+) lost, (\d+) rescued \/ (\d+) plays/.exec(t);
+  const o = older ? { lost: Number(older[1]), rescued: Number(older[2]), plays: Number(older[3]) } : null;
   // Whose rows: a status.sh from before the build split counts every build.
   const whose = /this release's builds/.test(t) ? "on this release's builds" : "across all builds";
-  if (/^no plays yet/.test(t)) return { pct: 0, failures: 0, plays: 0, older: o, whose, level: line.level, text: t };
-  const m = /^([\d.]+)% of starts failed.*?\((\d+) failures \/ (\d+) plays/.exec(t);
-  if (!m) return { pct: null, failures: null, plays: null, older: o, whose, level: line.level, text: t };
-  return { pct: Number(m[1]), failures: Number(m[2]), plays: Number(m[3]), older: o, whose, level: line.level, text: t };
+  const base = { older: o, whose, level: line.level, text: t };
+  if (/^no plays yet/.test(t)) return { pct: 0, lost: 0, rescued: 0, plays: 0, ...base };
+  const counts = /^(\d+) starts? lost in (\d+) plays?\b/.exec(t);
+  const rate = /^[\d.]+% of starts lost.*?\((\d+) lost \/ (\d+) plays/.exec(t);
+  const rescued = /(\d+) rescued by the retry or the mirror/.exec(t);
+  const m = counts ?? rate;
+  if (!m || !rescued) return { pct: null, lost: null, rescued: null, plays: null, ...base };
+  const lost = Number(m[1]);
+  const plays = Number(m[2]);
+  const pct = plays > 0 ? Math.round((1000 * lost) / plays) / 10 : 0;
+  return { pct, lost, rescued: Number(rescued[1]), plays, ...base };
 }
 
 /** "pass" / "fail" once there are VERDICT_PLAYS plays, else null (not yet). */
@@ -257,6 +270,8 @@ export function evidenceReasons(status, release) {
 }
 
 const fmtN = (n) => Number(n ?? 0).toLocaleString("en-US");
+const plural = (n, word) => (n === 1 ? word : `${word}s`);
+const pctOf = (n, of) => (of > 0 ? Math.round((1000 * n) / of) / 10 : 0);
 const DAY_FMT = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 const SHORT_FMT = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" });
 /** Table cells: no pipes, no newlines, short. */
@@ -275,7 +290,7 @@ export function render(d) {
   const actions = [];
   for (const l of status.filter((x) => x.level === "FAIL")) actions.push(`**FAIL ${l.area}:** ${cell(l.text, 160)} ${FAIL_ACTIONS[l.area] ?? ""}`.trim());
   const verdict = releaseVerdict(release);
-  if (verdict === "fail") actions.push(`**Release over target:** ${release.pct}% of starts failed on ${fmtN(release.plays)} plays (target under ${TARGET_PCT}%).`);
+  if (verdict === "fail") actions.push(`**Release over target:** ${release.pct}% of starts lost on ${fmtN(release.plays)} plays (target under ${TARGET_PCT}%).`);
   if (missing.length) actions.push(`**Could not read:** ${missing.join(", ")}. The digest job's journal says why.`);
   if (evidence) actions.push("The evidence for a fix session is at the bottom.");
   L.push("## Needs you");
@@ -290,11 +305,15 @@ export function render(d) {
     L.push(`No reading: ${release ? cell(release.text, 200) : "highdesert-status gave no release line"}.`);
   } else if (release.plays === 0) {
     L.push(`No plays ${release.whose} since the release yet.`);
+  } else if (release.plays < VERDICT_PLAYS) {
+    // Counts only: a percentage on a handful of plays reads as a verdict it is not.
+    L.push(`${release.lost} ${plural(release.lost, "start")} lost in ${fmtN(release.plays)} ${plural(release.plays, "play")} ${release.whose} so far, no verdict until ${VERDICT_PLAYS}. ${release.rescued} more rescued by the retry or the mirror.`);
   } else {
-    const word = verdict === "pass" ? "Under target: pass." : verdict === "fail" ? "Over target: fail." : `No verdict yet: ${fmtN(release.plays)} of ${VERDICT_PLAYS} plays.`;
-    L.push(`${release.pct}% of starts failed ${release.whose} (${release.failures} of ${fmtN(release.plays)} plays; target under ${TARGET_PCT}%). ${word}`);
+    const word = verdict === "pass" ? "Under target: pass." : "Over target: fail.";
+    L.push(`${release.pct}% of starts lost ${release.whose} (${release.lost} of ${fmtN(release.plays)} plays; target under ${TARGET_PCT}%). ${word}`);
+    L.push(`Rescued by the retry or the mirror: ${release.rescued} (${pctOf(release.rescued, release.plays)}%), shown beside the target, not held to it.`);
   }
-  if (release?.older) L.push(`Tabs on older builds: ${release.older.failures} failures in ${fmtN(release.older.plays)} plays, counted apart.`);
+  if (release?.older) L.push(`Tabs on older builds: ${release.older.lost} lost and ${release.older.rescued} rescued in ${fmtN(release.older.plays)} plays, counted apart.`);
   L.push("");
 
   L.push("## Funnel");
@@ -612,7 +631,7 @@ export async function main(env = process.env, sources = productionSources(env)) 
           const d = await gather(sources, now);
           summary = {
             fails: d.status.filter((l) => l.level === "FAIL").map((l) => l.area),
-            release: d.release && { pct: d.release.pct, plays: d.release.plays, verdict: releaseVerdict(d.release) },
+            release: d.release && { lost: d.release.lost, rescued: d.release.rescued, plays: d.release.plays, pct: d.release.pct, verdict: releaseVerdict(d.release) },
             evidence: !!d.evidence,
           };
           return render({ day, writtenAt: now, ...d });

@@ -33,7 +33,7 @@ const {
 
 const STATUS_OK = [
   "OK    deploy    live = HEAD = abc1234 (deployed 2026-10-01T10:00:00Z)",
-  "OK    release   1.2% of starts failed on this release's builds in the 4.0 of 7 days since 2026-10-01T10:00:00Z (4 failures / 340 plays; target <3%); older builds: 3 failures / 20 plays, counted apart",
+  "OK    release   1.2% of starts lost on this release's builds in the 4.0 of 7 days since 2026-10-01T10:00:00Z (4 lost / 340 plays; target <3%); 5 rescued by the retry or the mirror (1.5%); older builds: 3 lost, 1 rescued / 20 plays, counted apart",
   "OK    mirror    nginx: 332 pinned (15.0 GB), fill cache 0.0 GB, manifest 7a3e, 11 mirror play(s) in 24h",
   "OK    cpu       every High Desert unit under 10% of a core over 15 min (highest: highdesert 0.7%)",
 ].join("\n");
@@ -68,7 +68,16 @@ describe("reading highdesert-status", () => {
     const s = parseStatus(STATUS_OK + "\nnot a status line");
     expect(s.map((l: { area: string }) => l.area)).toEqual(["deploy", "release", "mirror", "cpu"]);
     const r = parseRelease(s[1]);
-    expect(r).toMatchObject({ pct: 1.2, failures: 4, plays: 340, older: { failures: 3, plays: 20 }, whose: "on this release's builds" });
+    expect(r).toMatchObject({ pct: 1.2, lost: 4, rescued: 5, plays: 340, older: { lost: 3, rescued: 1, plays: 20 }, whose: "on this release's builds" });
+    expect(releaseVerdict(r)).toBe("pass");
+  });
+
+  it("the headline is starts lost: a release with many rescued starts passes on what the listener lost", () => {
+    const [l] = parseStatus(
+      "OK    release   1.0% of starts lost on this release's builds in the 7 of 7 days since 2026-10-01T10:00:00Z (3 lost / 300 plays; target <3%); 20 rescued by the retry or the mirror (6.7%)",
+    );
+    const r = parseRelease(l);
+    expect(r).toMatchObject({ pct: 1, lost: 3, rescued: 20, plays: 300 });
     expect(releaseVerdict(r)).toBe("pass");
   });
 
@@ -78,9 +87,11 @@ describe("reading highdesert-status", () => {
     expect(releaseVerdict({ pct: 2.9, plays: 300 })).toBe("pass");
   });
 
-  it("a status.sh from before the build split is read as all builds, not claimed as the release's", () => {
-    const [l] = parseStatus("WARN  release   14.3% of starts failed in the 0.2 of 7 days since 2026-09-28T06:46:22Z (13 failures / 91 plays; target <3%)");
-    expect(parseRelease(l)).toMatchObject({ pct: 14.3, plays: 91, whose: "across all builds", older: null });
+  it("an API from before the build split is read as all builds, not claimed as the release's", () => {
+    const [l] = parseStatus(
+      "WARN  release   13 starts lost in 91 plays (all builds: the API gave no build split) so far, no verdict until 300 plays; 4 rescued by the retry or the mirror (0.2 of 7 days since 2026-09-28T06:46:22Z; target <3% lost)",
+    );
+    expect(parseRelease(l)).toMatchObject({ pct: 14.3, lost: 13, rescued: 4, plays: 91, whose: "across all builds", older: null });
     const [z] = parseStatus("OK    release   no plays yet on this release's builds since the release (2026-10-01T10:00:00Z); target <3%");
     expect(parseRelease(z)).toMatchObject({ plays: 0, whose: "on this release's builds" });
   });
@@ -181,8 +192,9 @@ describe("the digest itself", () => {
   it("a quiet week: nothing needs you, every section says something, one screen, no em dash", async () => {
     const md = render({ day: "2026-10-05", writtenAt: NOW, ...(await gather(sources(), NOW)) });
     expect(md).toContain("## Needs you\n\nNothing this week.");
-    expect(md).toContain("1.2% of starts failed on this release's builds (4 of 340 plays; target under 3%). Under target: pass.");
-    expect(md).toContain("Tabs on older builds: 3 failures in 20 plays, counted apart.");
+    expect(md).toContain("1.2% of starts lost on this release's builds (4 of 340 plays; target under 3%). Under target: pass.");
+    expect(md).toContain("Rescued by the retry or the mirror: 5 (1.5%), shown beside the target, not held to it.");
+    expect(md).toContain("Tabs on older builds: 3 lost and 1 rescued in 20 plays, counted apart.");
     expect(md).toContain("82 of 300 phone arrivals so far; 60% tuned in, 5% called.");
     expect(md).toContain("None this week: no phone refused a change of show.");
     expect(md).toContain("Peak 38 online and 26 listening");
@@ -193,6 +205,19 @@ describe("the digest itself", () => {
     expect(md).not.toMatch(/—/);
     expect(md).not.toContain("Evidence for a fix session");
     expect(screenLines(md)).toBeLessThanOrEqual(dg.SCREEN_LINES);
+  });
+
+  it("under 300 plays the release is counts, never a percentage", async () => {
+    const status = async () =>
+      STATUS_OK.replace(
+        /OK    release .*/,
+        "WARN  release   1 start lost in 1 play on this release's builds so far, no verdict until 300 plays; 0 rescued by the retry or the mirror (0.1 of 7 days since 2026-10-01T10:00:00Z; target <3% lost)",
+      );
+    const md = render({ day: "2026-10-05", writtenAt: NOW, ...(await gather(sources({ status }), NOW)) });
+    const rel = md.slice(md.indexOf("## Release"), md.indexOf("## Funnel"));
+    expect(rel).toContain("1 start lost in 1 play on this release's builds so far, no verdict until 300. 0 more rescued by the retry or the mirror.");
+    expect(rel).not.toMatch(/%/);
+    expect(md).not.toContain("Release over target");
   });
 
   it("the funnel's verdict, once written, is what it says", async () => {
@@ -215,7 +240,10 @@ describe("the digest itself", () => {
 
   it("the release over 3% on 300 plays: at the top, and the evidence below, from the release's own rows", async () => {
     const status = async () =>
-      STATUS_OK.replace(/OK    release .*/, "WARN  release   4.1% of starts failed on this release's builds in the 7 of 7 days since 2026-10-01T10:00:00Z (14 failures / 340 plays; target <3%)");
+      STATUS_OK.replace(
+        /OK    release .*/,
+        "WARN  release   4.1% of starts lost on this release's builds in the 7 of 7 days since 2026-10-01T10:00:00Z (14 lost / 340 plays; target <3%); 9 rescued by the retry or the mirror (2.6%)",
+      );
     const failures = async () => [
       ...Array.from({ length: 12 }, (_, i) => row({ id: 100 + i, at: T(`2026-10-0${2 + (i % 3)}T0${i % 10}:00:00Z`) })),
       row({ id: 200, build: "0000000", kind: "play-rejected" }), // an older build's row: not the release's
@@ -223,7 +251,7 @@ describe("the digest itself", () => {
     ];
     const md = render({ day: "2026-10-05", writtenAt: NOW, ...(await gather(sources({ status, failures }), NOW)) });
     const top = md.slice(md.indexOf("## Needs you"), md.indexOf("## Release"));
-    expect(top).toContain("**Release over target:** 4.1% of starts failed on 340 plays");
+    expect(top).toContain("**Release over target:** 4.1% of starts lost on 340 plays");
     expect(top).toContain("The evidence for a fix session is at the bottom.");
     expect(md).toContain("Over target: fail.");
     const ev = md.slice(md.indexOf("## Evidence for a fix session"));

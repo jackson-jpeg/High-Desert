@@ -237,6 +237,13 @@ export interface FailureWindow {
   from: string;
   to: string;
   failures: number;
+  /**
+   * Of `failures`, the ones the retry or the mirror got playing
+   * (`recovered: true`). The listener heard the show; `failures - recovered`
+   * is the starts the listener lost, which is what the release line leads with
+   * (docs/reliability-baseline.md, 2026-09-28).
+   */
+  recovered: number;
   plays: number;
   /**
    * The same window split by the build that wrote each row, `build: null` for
@@ -251,6 +258,7 @@ export interface FailureWindow {
 export interface BuildCounts {
   build: string | null;
   failures: number;
+  recovered: number;
   plays: number;
 }
 
@@ -265,14 +273,15 @@ export interface BuildCounts {
  * `playsInRange`, which is what the baseline was measured with.
  */
 export async function getFailureWindow(from: Date, to: Date): Promise<FailureWindow> {
-  const { rows } = await pool().query<{ build: string | null; failures: string; plays: string }>(
+  const { rows } = await pool().query<{ build: string | null; failures: string; recovered: string; plays: string }>(
     `
-    SELECT build, sum(failures) AS failures, sum(plays) AS plays FROM (
-      SELECT build, count(*) AS failures, 0 AS plays FROM playback_failures
+    SELECT build, sum(failures) AS failures, sum(recovered) AS recovered, sum(plays) AS plays FROM (
+      SELECT build, count(*) AS failures, count(*) FILTER (WHERE recovered) AS recovered, 0 AS plays
+        FROM playback_failures
        WHERE at >= $1 AND at < $2 AND NOT (kind = ANY($3))
        GROUP BY build
       UNION ALL
-      SELECT build, 0, count(*) FROM play_events
+      SELECT build, 0, 0, count(*) FROM play_events
        WHERE played_at >= $1 AND played_at < $2
        GROUP BY build
     ) x
@@ -284,12 +293,14 @@ export async function getFailureWindow(from: Date, to: Date): Promise<FailureWin
   const byBuild = rows.map((r) => ({
     build: r.build,
     failures: Number(r.failures),
+    recovered: Number(r.recovered),
     plays: Number(r.plays),
   }));
   return {
     from: from.toISOString(),
     to: to.toISOString(),
     failures: byBuild.reduce((n, b) => n + b.failures, 0),
+    recovered: byBuild.reduce((n, b) => n + b.recovered, 0),
     plays: byBuild.reduce((n, b) => n + b.plays, 0),
     byBuild,
   };
