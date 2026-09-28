@@ -143,7 +143,7 @@ jobs:
           npm run test:e2e || { echo "--- next start log ---"; cat next-start.log; echo "--- live ---"; cat live-start.log; exit 1; }
       - name: Upload e2e traces
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-test-results
           path: test-results/
