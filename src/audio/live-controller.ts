@@ -16,7 +16,9 @@
  * `waiting` → `playing`), and on returning to the tab, the element's position
  * is compared with the station's. Within ±`DRIFT_LIMIT_SEC` it is left alone —
  * a seek is audible, and small drift is what buffering does. Past it, one quiet
- * `seekEngine()`: no toast, no state churn, no new listen.
+ * `seekEngine()`: no toast, no state churn, no new listen. Never while the
+ * element is buffering or a start is unsettled: that correction waits for
+ * `playing` (see `correctDrift`).
  *
  * ## Following the program
  *
@@ -73,6 +75,7 @@ import type { Episode } from "@/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
 import { serverNow, useLiveStore } from "@/stores/live-store";
 import { engineState, isBridging, onEngineEvent, seekEngine } from "@/audio/engine";
+import { isWatching } from "@/audio/playback-watchdog";
 import {
   setLiveEndedHandler,
   setLiveRefusedHandler,
@@ -92,6 +95,8 @@ import { announceTuneIn } from "@/services/live/client";
 /** Drift beyond this, in seconds, is corrected with a seek. The owner's number. */
 export const DRIFT_LIMIT_SEC = 2;
 export const DRIFT_CHECK_MS = 10_000;
+/** HTMLMediaElement.HAVE_FUTURE_DATA: enough buffered to play on from here. */
+const HAVE_FUTURE_DATA = 3;
 /** While tuned in, re-read the schedule this often (a cheap, frozen read). */
 export const SCHEDULE_POLL_MS = 60_000;
 /** Re-sync the clock on tab return only if the last sync is older than this. */
@@ -368,10 +373,26 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
   }
 
   function resync() {
+    correctDrift(false);
+  }
+
+  /**
+   * Compare the element with the station, and seek if they are more than
+   * `DRIFT_LIMIT_SEC` apart. Not while the element is buffering or a start is
+   * still being supervised (`atPlaying` false: the ten-second check, the
+   * return to the tab): its `currentTime` stands still while the station
+   * moves on, so a seek there abandons the range in flight and starts a new
+   * one from nothing, and on a slow connection that repeats every ten seconds
+   * and never plays. That was row 586 (2026-09-28): a new, cut-short mirror
+   * request every 10 s until the watchdog gave up. The correction waits for
+   * `playing` instead (`atPlaying` true), which says the element has the data.
+   */
+  function correctDrift(atPlaying: boolean) {
     const cur = live().current;
     if (!live().tuned || live().phase !== "show" || !cur) return;
     const st = engineState();
     if (!st || st.paused || st.readyState < 1 || st.hasError) return;
+    if (!atPlaying && (st.readyState < HAVE_FUTURE_DATA || isWatching())) return;
     const t = sNow();
     if (t >= cur.end) {
       afterShow(cur);
@@ -513,7 +534,7 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
       afterReload = false;
       if (!stalled) return;
       stalled = false;
-      resync();
+      correctDrift(true);
     });
 
     const onVisibility = () => {
