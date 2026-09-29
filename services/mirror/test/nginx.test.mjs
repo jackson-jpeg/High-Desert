@@ -138,6 +138,7 @@ async function setup() {
     stateDir,
     cacheDir: path.join(tmp, "cache"),
     fillSocket: path.join(tmp, "fill.sock"),
+    accessLog: path.join(tmp, "logs", "mirror.log"),
     upstream: up,
     followPattern: "^http://127\\.0\\.0\\.1:[0-9]+/node/",
   });
@@ -326,6 +327,21 @@ describe.skipIf(!HAVE_NGINX)("the mirror, served by a real nginx", () => {
       const res = await fetch(url(fh(FILLED_NAME)), { method: "POST", body: "x" });
       expect(res.status).toBe(403);
       expect(stubHits.length).toBe(before);
+    });
+  });
+
+  describe("the access log", () => {
+    it("logs each /mirror/ request with the Range it asked for, how long it took, and whether the bytes were a pin or the fill cache", async () => {
+      await get(url(fh(PINNED_NAME)), { range: "bytes=600002-700124" });
+      await get(url(fh(FILLED_NAME)), { range: "bytes=10-20000" });
+      const log = await readFile(path.join(tmp, "logs", "mirror.log"), "utf8");
+      const pinned = log.split("\n").filter((l) => l.includes(encodeURIComponent(fh(PINNED_NAME)).slice(0, 40)) && l.includes('range="bytes=600002-700124"'));
+      expect(pinned).toHaveLength(1);
+      // Combined format first, field for field: anything that reads the vhost's log as combined still can.
+      expect(pinned[0]).toMatch(/^127\.0\.0\.1 - - \[[^\]]+\] "GET \/mirror\/\S+ HTTP\/1\.1" 206 100123 "-" "[^"]*" range="bytes=600002-700124" rt=\d+\.\d{3} cache=-$/);
+      const filled = log.split("\n").filter((l) => l.includes('range="bytes=10-20000"'));
+      expect(filled.length).toBeGreaterThanOrEqual(1);
+      expect(filled.at(-1)).toMatch(/ 206 19991 .* rt=\d+\.\d{3} cache=(HIT|MISS)$/);
     });
   });
 

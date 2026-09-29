@@ -19,13 +19,13 @@
   ],
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "bash scripts/heavy.sh next build",
     "start": "next start",
-    "lint": "eslint",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "lint": "bash scripts/heavy.sh eslint",
+    "typecheck": "bash scripts/heavy.sh tsc --noEmit",
+    "test": "bash scripts/heavy.sh vitest run",
     "test:watch": "vitest",
-    "test:mutations": "node scripts/mutate-check.mjs",
+    "test:mutations": "bash scripts/heavy.sh node scripts/mutate-check.mjs",
     "check:csp": "node scripts/csp-check.mjs",
     "test:e2e": "playwright test"
   },

@@ -25,6 +25,12 @@ worker, whose fetches bypass `page.route()`. Without it, a spec that starts a sh
 permanent play to whatever server it points at — this broke the test DB once. Run e2e servers
 against the e2e database (`/root/.high-desert-e2e.env`), never `TEST_DATABASE_URL`.
 
+**On the VPS, heavy scripts take turns.** `build`, `lint`, `typecheck`, `test` and
+`test:mutations` (and each mutation's vitest, and `deploy.sh`'s `npm ci` and build) run
+through `scripts/heavy.sh`, i.e. the box-wide `heavy` semaphore (2 slots, `heavy status`);
+where `heavy` is absent (CI) they run directly. Memory fell to 13% on 2026-09-28 with five
+at once (`docs/memory-2026-09-28.md`). Watch modes are deliberately not wrapped.
+
 (Quick Start is for a *development* checkout. In `/root/High-Desert`, which is
 production, never `npm install` — see "Deploying to the VPS".)
 
@@ -522,6 +528,9 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
     Not a `map`: 200-byte keys need `map_hash_bucket_size`, which
     `conf.d/sogojet-prerender-map.conf` has already fixed by declaring a map first
     — a later one is a "duplicate" error that takes down every site's config.
+  - **Its access log records `range=`, `rt=` (`$request_time`) and `cache=`**
+    (log format `hd_mirror`, pinned and fill locations alike), so a failover that
+    did not recover can be read from the log rather than inferred (row 587).
   - `test/nginx.test.mjs` starts a **real nginx** from the rendered text against a
     stub archive.org (302 included) and asserts "from disk" and "from cache" as *no
     request reached the stub*. It fails in CI if nginx is missing.
@@ -663,7 +672,11 @@ same offset, computed from a synced clock.
   the start position (station offset computed at the moment `src` is
   assigned), so the engine, watchdog and mirror failover are the same ones.
   Drift is checked every 10 s and corrected by one seek past **2 s**; a stall
-  (`waiting` then `playing`) and returning to the tab resync at once. At a
+  (`waiting` then `playing`) and returning to the tab resync at once. **The
+  10 s check never seeks a buffering element** (`readyState` below
+  `HAVE_FUTURE_DATA`) or one whose watchdog attempt is unsettled: each seek
+  abandoned the range in flight, so a slow link never got ahead (row 586,
+  2026-09-28). The correction waits for `playing` (`correctDrift`). At a
   slot's end (or the file's own `ended`, via `takeLiveEnded`) the station ID
   plays until the next slot starts.
 - **The handover never pauses the element** (2026-09-28; `src/audio/engine.ts`,

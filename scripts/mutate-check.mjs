@@ -37,7 +37,7 @@
 
 import { readFile, writeFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
@@ -1024,9 +1024,65 @@ export const MUTATIONS = [
     id: "deploy-staging-dist",
     test: "scripts/__tests__/deploy.test.ts",
     file: "scripts/deploy.sh",
-    find: 'HD_DIST_DIR="$STAGING" $BUILD_CMD || BUILD_OK=0',
-    replace: 'HD_DIST_DIR="$LIVE" $BUILD_CMD || BUILD_OK=0',
+    find: 'HD_DIST_DIR="$STAGING" bash "$HEAVY_SH" $BUILD_CMD || BUILD_OK=0',
+    replace: 'HD_DIST_DIR="$LIVE" bash "$HEAVY_SH" $BUILD_CMD || BUILD_OK=0',
     why: "next build empties its distDir first — building into the live .next is the outage where a failed build left the site serving deleted chunks",
+  },
+  {
+    id: "deploy-build-takes-turn",
+    test: "scripts/__tests__/deploy.test.ts",
+    file: "scripts/deploy.sh",
+    find: 'HD_DIST_DIR="$STAGING" bash "$HEAVY_SH" $BUILD_CMD || BUILD_OK=0',
+    replace: 'HD_DIST_DIR="$STAGING" $BUILD_CMD || BUILD_OK=0',
+    why: "a deploy's next build must wait for a heavy slot; five overlapping builds and test runs took memory to 13% on 2026-09-28",
+  },
+  {
+    id: "deploy-npm-ci-takes-turn",
+    test: "scripts/__tests__/deploy.test.ts",
+    file: "scripts/deploy.sh",
+    find: '(cd "$STAGE" && bash "$HEAVY_SH" npm ci --no-audit --no-fund)',
+    replace: '(cd "$STAGE" && npm ci --no-audit --no-fund)',
+    why: "npm ci in the staging copy is as heavy as the build and must take its turn too",
+  },
+  {
+    id: "heavy-sh-uses-heavy",
+    test: "scripts/__tests__/heavy-sh.test.ts",
+    file: "scripts/heavy.sh",
+    find: 'exec "$HEAVY" --label "high-desert $(basename "$1")" -- "$@"',
+    replace: 'exec "$@"',
+    why: "with heavy installed the command must go through it, or every wrapped script runs unqueued and nothing says so",
+  },
+  {
+    id: "heavy-sh-direct-fallback",
+    test: "scripts/__tests__/heavy-sh.test.ts",
+    file: "scripts/heavy.sh",
+    find: 'fi\nexec "$@"',
+    replace: 'fi\nexit 0',
+    why: "without heavy (CI) the command must still run, and its exit status must come back",
+  },
+  {
+    id: "package-test-takes-turn",
+    test: "scripts/__tests__/heavy-sh.test.ts",
+    file: "package.json",
+    find: '"test": "bash scripts/heavy.sh vitest run"',
+    replace: '"test": "vitest run"',
+    why: "npm run test on the VPS must wait for a heavy slot",
+  },
+  {
+    id: "mutate-no-run-not-green",
+    test: "scripts/__tests__/mutate-select.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: 'return /Tests\\s+\\d+ passed/.test(out) ? "GREEN" : "NO-RUN";',
+    replace: 'return "GREEN";',
+    why: "exit 0 with no tests run is not a pass; on 2026-09-29 an unrun test read green",
+  },
+  {
+    id: "mutate-runner-takes-turn",
+    test: "scripts/__tests__/heavy-sh.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: '"--silent"];\n  return hasHeavy ? ["heavy", ["--label", "high-desert mutation", "--", ...vitest]]',
+    replace: '"--silent"];\n  return false ? ["heavy", ["--label", "high-desert mutation", "--", ...vitest]]',
+    why: "each mutation's vitest must take a heavy slot on the VPS",
   },
   {
     id: "deploy-zero-chunks",
@@ -2284,6 +2340,30 @@ export const MUTATIONS = [
     why: "the day's mean is not the last 30 minutes; a morning spike would read as current",
   },
   // ---- The mirror as nginx serves it (services/mirror; the torrent client is gone) ----
+  {
+    id: "mirror-log-range-and-time",
+    test: "services/mirror/test/nginx.test.mjs",
+    file: "services/mirror/lib/nginx.mjs",
+    find: `'range="$http_range" rt=$request_time cache=$upstream_cache_status';`,
+    replace: `'cache=$upstream_cache_status';`,
+    why: "the mirror's log lost the Range and the request time, so a cut-short range was inference again (rows 586, 587)",
+  },
+  {
+    id: "mirror-log-pins",
+    test: "services/mirror/test/nginx.test.mjs",
+    file: "services/mirror/lib/nginx.mjs",
+    find: "    limit_conn hd_mirror 6;\n    access_log ${accessLog} hd_mirror;",
+    replace: "    limit_conn hd_mirror 6;",
+    why: "requests for pinned episodes went to the plain combined log, without Range or time",
+  },
+  {
+    id: "mirror-log-fills",
+    test: "services/mirror/test/nginx.test.mjs",
+    file: "services/mirror/lib/nginx.mjs",
+    find: "    access_log ${accessLog} hd_mirror;\n    slice ${o.slice};",
+    replace: "    slice ${o.slice};",
+    why: "fills from archive.org went to the plain combined log, without Range, time or cache status",
+  },
   {
     id: "mirror-pinned-from-disk",
     test: "services/mirror/test/nginx.test.mjs",
@@ -4048,7 +4128,7 @@ export const MUTATIONS = [
     id: "live-stall-resync",
     test: "src/audio/__tests__/live-station.test.ts",
     file: "src/audio/live-controller.ts",
-    find: "      stalled = false;\n      resync();",
+    find: "      stalled = false;\n      correctDrift(true);",
     replace: "      stalled = false;",
     why: "after a stall the listener is behind the station until the next 10 s check",
   },
@@ -5073,6 +5153,30 @@ export const MUTATIONS = [
     why: "the release line led with a percentage on a handful of plays (one failure on one play read \"100%\")",
   },
   {
+    id: "live-drift-skip-buffering",
+    test: "src/audio/__tests__/live-station.test.ts",
+    file: "src/audio/live-controller.ts",
+    find: "if (!atPlaying && (st.readyState < HAVE_FUTURE_DATA || isWatching())) return;",
+    replace: "if (!atPlaying && (isWatching())) return;",
+    why: "the drift check seeked a buffering element every ten seconds, so a slow connection never played (row 586)",
+  },
+  {
+    id: "live-drift-skip-unsettled",
+    test: "src/audio/__tests__/live-station.test.ts",
+    file: "src/audio/live-controller.ts",
+    find: "if (!atPlaying && (st.readyState < HAVE_FUTURE_DATA || isWatching())) return;",
+    replace: "if (!atPlaying && (st.readyState < HAVE_FUTURE_DATA)) return;",
+    why: "the drift check seeked a start the watchdog was still supervising",
+  },
+  {
+    id: "live-drift-corrects-at-playing",
+    test: "src/audio/__tests__/live-station.test.ts",
+    file: "src/audio/live-controller.ts",
+    find: "      correctDrift(true);",
+    replace: "      correctDrift(false);",
+    why: "the correction after a stall waited on the watchdog's listener running first, and was skipped when it had not",
+  },
+  {
     id: "status-release-tripwire",
     test: "scripts/__tests__/status.test.ts",
     file: "scripts/status.sh",
@@ -5561,6 +5665,29 @@ export function parseShard(text) {
  * @param {string} [root]
  * @returns {Promise<{changed: string[], base: {id: string, file: string, test: string, find: string, replace: string, needs?: string}[]}>}
  */
+/**
+ * A mutation's verdict from its test run. Exit 0 counts as GREEN (a survivor)
+ * only when vitest printed its summary, i.e. tests ran and passed. Exit 0 with
+ * no summary is NO-RUN, and still a failure: on 2026-09-29 a run went through
+ * the very script under mutation (scripts/heavy.sh), the mutated script exited
+ * 0 without starting vitest, and an unrun test was read as a pass.
+ */
+export function judgeRun(code, out) {
+  if (code !== 0) return "red";
+  return /Tests\s+\d+ passed/.test(out) ? "GREEN" : "NO-RUN";
+}
+
+/**
+ * How a mutation's test is started: through the box-wide `heavy` semaphore
+ * when it is installed, directly where it is not (CI). Decided here, never by
+ * calling scripts/heavy.sh, which is itself a mutation target: breaking it
+ * would break the instrument measuring it.
+ */
+export function vitestCommand(testFile, hasHeavy) {
+  const vitest = ["npx", "vitest", "run", testFile, "--reporter=dot", "--silent"];
+  return hasHeavy ? ["heavy", ["--label", "high-desert mutation", "--", ...vitest]] : [vitest[0], vitest.slice(1)];
+}
+
 export async function changesSince(ref, root = ROOT) {
   const { stdout } = await execFileP("git", ["diff", "--name-only", ref, "HEAD"], { cwd: root });
   const changed = stdout.split("\n").filter(Boolean);
@@ -5642,13 +5769,13 @@ if (IS_MAIN) {
     }
   }
 
+  const HAS_HEAVY = spawnSync("sh", ["-c", "command -v heavy"], { stdio: "ignore" }).status === 0;
+
   function runVitest(testFile) {
     return new Promise((resolve) => {
-      const child = spawn(
-        "npx",
-        ["vitest", "run", testFile, "--reporter=dot", "--silent"],
-        { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] },
-      );
+      // Each run takes its turn on the box (heavy), directly in CI.
+      const [cmd, args] = vitestCommand(testFile, HAS_HEAVY);
+      const child = spawn(cmd, args, { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] });
       let out = "";
       child.stdout.on("data", (d) => (out += d));
       child.stderr.on("data", (d) => (out += d));
@@ -5705,12 +5832,11 @@ if (IS_MAIN) {
     originals.set(m.file, original);
     try {
       await writeFile(abs, original.replace(m.find, m.replace), "utf8");
-      const { code } = await runVitest(m.test);
-      const verdict = code === 0 ? "GREEN" : "red";
+      const { code, out } = await runVitest(m.test);
+      const verdict = judgeRun(code, out);
       results.push({ ...m, verdict });
-      console.log(
-        `  ${verdict === "red" ? "red   " : "GREEN "} ${m.id.padEnd(24)} ${m.test}`,
-      );
+      console.log(`  ${verdict.padEnd(6)} ${m.id.padEnd(24)} ${m.test}`);
+      if (verdict === "NO-RUN") console.log(`         exit 0 without a vitest summary; output:\n${out.slice(-400)}`);
     } finally {
       await writeFile(abs, original, "utf8");
       originals.delete(m.file);

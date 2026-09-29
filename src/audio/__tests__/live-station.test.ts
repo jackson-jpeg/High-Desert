@@ -114,7 +114,10 @@ vi.mock("@/audio/playback-watchdog", () => ({
   noteListenersAttached: vi.fn(),
   noteListenersDetached: vi.fn(),
   noteProgress: vi.fn(),
-  noteReady: vi.fn(),
+  // As the real one: the element has data, so the start is no longer supervised.
+  noteReady: vi.fn(() => {
+    watching = false;
+  }),
   noteSuspectDuration: vi.fn(),
   noteUnplayable: vi.fn(),
   noteWaiting: vi.fn(),
@@ -319,11 +322,14 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-/** The element has data and its playhead moves with the clock. */
+/** The element has data and its playhead moves with the clock; it says so (`canplay`). */
 function streaming() {
   setReadyState(element, 4);
   setPlayhead(playhead());
   flowing = true;
+  act(() => {
+    element.dispatchEvent(new Event("canplay"));
+  });
 }
 /** The network stops delivering: the playhead freezes where it is. */
 function stall() {
@@ -407,6 +413,84 @@ describe("staying in sync", () => {
     // Corrected at once, not at the next ten-second check.
     expect(seeks).toHaveLength(1);
     expect(seeks[0]).toBeCloseTo(stationAt(A), 3);
+  });
+
+  it("never seeks an element that is buffering; corrects once it plays (row 586)", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    streaming();
+    await flush(1_000);
+    // The connection slows: the element is waiting for data it does not have
+    // (HAVE_CURRENT_DATA), unpaused, and its playhead stands still.
+    setReadyState(element, 2);
+    stall();
+    act(() => {
+      element.dispatchEvent(new Event("waiting"));
+    });
+    seeks = [];
+    // Three drift checks go by, 25 s behind the station by the last: a seek at
+    // any of them would throw away the range in flight and start again.
+    await flush(3 * DRIFT_CHECK_MS);
+    expect(stationAt(A) - playhead()).toBeGreaterThan(20);
+    expect(seeks).toEqual([]);
+    // It plays again: one correction, at once, to where the station is.
+    streaming();
+    act(() => {
+      element.dispatchEvent(new Event("playing"));
+    });
+    expect(seeks).toHaveLength(1);
+    expect(seeks[0]).toBeCloseTo(stationAt(A), 3);
+  });
+
+  it("never seeks while the start is still supervised; corrects at the next check once it has settled", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    // Data enough (the element reports HAVE_ENOUGH_DATA), but the watchdog has
+    // not seen it settle: the start is still unsettled, and the playhead has
+    // not moved while the station has.
+    setReadyState(element, 4);
+    seeks = [];
+    await flush(2 * DRIFT_CHECK_MS);
+    expect(stationAt(A) - playhead()).toBeGreaterThan(15);
+    expect(seeks).toEqual([]);
+    // It settles (`canplay`): the next check corrects it.
+    streaming();
+    await flush(DRIFT_CHECK_MS);
+    expect(seeks).toHaveLength(1);
+    expect(seeks[0]).toBeCloseTo(stationAt(A), 3);
+  });
+
+  it("the correction at `playing` does not wait for the watchdog to hear it first (listeners run in either order)", async () => {
+    const watchdog = await import("@/audio/playback-watchdog");
+    act(() => station.tuneIn());
+    await flush();
+    streaming();
+    await flush(1_000);
+    setReadyState(element, 2);
+    stall();
+    act(() => {
+      element.dispatchEvent(new Event("waiting"));
+    });
+    await flush(7_000);
+    // A failover's new attempt is outstanding, and the watchdog's own `playing`
+    // listener has not run yet when the station's does.
+    watching = true;
+    vi.mocked(watchdog.noteReady).mockImplementation(() => {});
+    try {
+      seeks = [];
+      setReadyState(element, 4);
+      setPlayhead(playhead());
+      flowing = true;
+      act(() => {
+        element.dispatchEvent(new Event("playing"));
+      });
+      expect(seeks).toHaveLength(1);
+      expect(seeks[0]).toBeCloseTo(stationAt(A), 3);
+    } finally {
+      vi.mocked(watchdog.noteReady).mockImplementation(() => {
+        watching = false;
+      });
+    }
   });
 
   it("does not resync on a `playing` that follows no stall", async () => {
