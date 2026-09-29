@@ -11,7 +11,18 @@ import {
   selectMutations,
   parseShard,
   changesSince,
+  judgeRun,
 } from "../mutate-check.mjs";
+
+describe("judgeRun: a pass needs evidence the tests ran", () => {
+  it("non-zero is red; zero with vitest's summary is GREEN; zero without it is NO-RUN", () => {
+    expect(judgeRun(1, " Tests  1 failed | 3 passed (4)")).toBe("red");
+    expect(judgeRun(0, " Test Files  1 passed (1)\n      Tests  4 passed (4)")).toBe("GREEN");
+    // 2026-09-29: the runner went through the mutated scripts/heavy.sh, which
+    // exited 0 without starting vitest.
+    expect(judgeRun(0, "")).toBe("NO-RUN");
+  });
+});
 
 /**
  * Which mutations a CI run checks (.github/workflows/mutations.yml). A pull

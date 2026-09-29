@@ -37,7 +37,7 @@
 
 import { readFile, writeFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
@@ -1067,6 +1067,22 @@ export const MUTATIONS = [
     find: '"test": "bash scripts/heavy.sh vitest run"',
     replace: '"test": "vitest run"',
     why: "npm run test on the VPS must wait for a heavy slot",
+  },
+  {
+    id: "mutate-no-run-not-green",
+    test: "scripts/__tests__/mutate-select.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: 'return /Tests\\s+\\d+ passed/.test(out) ? "GREEN" : "NO-RUN";',
+    replace: 'return "GREEN";',
+    why: "exit 0 with no tests run is not a pass; on 2026-09-29 an unrun test read green",
+  },
+  {
+    id: "mutate-runner-takes-turn",
+    test: "scripts/__tests__/heavy-sh.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: '"--silent"];\n  return hasHeavy ? ["heavy", ["--label", "high-desert mutation", "--", ...vitest]]',
+    replace: '"--silent"];\n  return false ? ["heavy", ["--label", "high-desert mutation", "--", ...vitest]]',
+    why: "each mutation's vitest must take a heavy slot on the VPS",
   },
   {
     id: "deploy-zero-chunks",
@@ -5649,6 +5665,29 @@ export function parseShard(text) {
  * @param {string} [root]
  * @returns {Promise<{changed: string[], base: {id: string, file: string, test: string, find: string, replace: string, needs?: string}[]}>}
  */
+/**
+ * A mutation's verdict from its test run. Exit 0 counts as GREEN (a survivor)
+ * only when vitest printed its summary, i.e. tests ran and passed. Exit 0 with
+ * no summary is NO-RUN, and still a failure: on 2026-09-29 a run went through
+ * the very script under mutation (scripts/heavy.sh), the mutated script exited
+ * 0 without starting vitest, and an unrun test was read as a pass.
+ */
+export function judgeRun(code, out) {
+  if (code !== 0) return "red";
+  return /Tests\s+\d+ passed/.test(out) ? "GREEN" : "NO-RUN";
+}
+
+/**
+ * How a mutation's test is started: through the box-wide `heavy` semaphore
+ * when it is installed, directly where it is not (CI). Decided here, never by
+ * calling scripts/heavy.sh, which is itself a mutation target: breaking it
+ * would break the instrument measuring it.
+ */
+export function vitestCommand(testFile, hasHeavy) {
+  const vitest = ["npx", "vitest", "run", testFile, "--reporter=dot", "--silent"];
+  return hasHeavy ? ["heavy", ["--label", "high-desert mutation", "--", ...vitest]] : [vitest[0], vitest.slice(1)];
+}
+
 export async function changesSince(ref, root = ROOT) {
   const { stdout } = await execFileP("git", ["diff", "--name-only", ref, "HEAD"], { cwd: root });
   const changed = stdout.split("\n").filter(Boolean);
@@ -5730,14 +5769,13 @@ if (IS_MAIN) {
     }
   }
 
+  const HAS_HEAVY = spawnSync("sh", ["-c", "command -v heavy"], { stdio: "ignore" }).status === 0;
+
   function runVitest(testFile) {
     return new Promise((resolve) => {
-      // Each run takes its turn on the box (scripts/heavy.sh; direct in CI).
-      const child = spawn(
-        "bash",
-        ["scripts/heavy.sh", "npx", "vitest", "run", testFile, "--reporter=dot", "--silent"],
-        { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] },
-      );
+      // Each run takes its turn on the box (heavy), directly in CI.
+      const [cmd, args] = vitestCommand(testFile, HAS_HEAVY);
+      const child = spawn(cmd, args, { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] });
       let out = "";
       child.stdout.on("data", (d) => (out += d));
       child.stderr.on("data", (d) => (out += d));
@@ -5794,12 +5832,11 @@ if (IS_MAIN) {
     originals.set(m.file, original);
     try {
       await writeFile(abs, original.replace(m.find, m.replace), "utf8");
-      const { code } = await runVitest(m.test);
-      const verdict = code === 0 ? "GREEN" : "red";
+      const { code, out } = await runVitest(m.test);
+      const verdict = judgeRun(code, out);
       results.push({ ...m, verdict });
-      console.log(
-        `  ${verdict === "red" ? "red   " : "GREEN "} ${m.id.padEnd(24)} ${m.test}`,
-      );
+      console.log(`  ${verdict.padEnd(6)} ${m.id.padEnd(24)} ${m.test}`);
+      if (verdict === "NO-RUN") console.log(`         exit 0 without a vitest summary; output:\n${out.slice(-400)}`);
     } finally {
       await writeFile(abs, original, "utf8");
       originals.delete(m.file);

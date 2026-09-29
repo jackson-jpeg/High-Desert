@@ -59,8 +59,14 @@ describe("scripts/heavy.sh", () => {
     }
   });
 
-  it("each mutation's vitest run goes through it", () => {
+  it("mutate-check takes turns through heavy itself, never through heavy.sh (a mutation target)", async () => {
+    const { vitestCommand } = await import("../mutate-check.mjs");
+    expect(vitestCommand("t.test.ts", true)).toEqual([
+      "heavy",
+      ["--label", "high-desert mutation", "--", "npx", "vitest", "run", "t.test.ts", "--reporter=dot", "--silent"],
+    ]);
+    expect(vitestCommand("t.test.ts", false)).toEqual(["npx", ["vitest", "run", "t.test.ts", "--reporter=dot", "--silent"]]);
     const src = readFileSync(path.join(ROOT, "scripts/mutate-check.mjs"), "utf8");
-    expect(src).toContain('["scripts/heavy.sh", "npx", "vitest", "run", testFile');
+    expect(src).not.toMatch(/spawn\([^)]*heavy\.sh/);
   });
 });
