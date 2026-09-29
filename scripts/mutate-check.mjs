@@ -2336,7 +2336,7 @@ export const MUTATIONS = [
     id: "mirror-log-pins",
     test: "services/mirror/test/nginx.test.mjs",
     file: "services/mirror/lib/nginx.mjs",
-    find: "    access_log ${accessLog} hd_mirror;\n    limit_conn hd_mirror 6;",
+    find: "    limit_conn hd_mirror 6;\n    access_log ${accessLog} hd_mirror;",
     replace: "    limit_conn hd_mirror 6;",
     why: "requests for pinned episodes went to the plain combined log, without Range or time",
   },

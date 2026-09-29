@@ -155,8 +155,8 @@ server {
 # Nothing here sets add_header, so the server's Strict-Transport-Security is
 # inherited; Cache-Control comes from \`expires\`.
 location ^~ /mirror/ {
-    access_log ${accessLog} hd_mirror;
     limit_conn hd_mirror 6;
+    access_log ${accessLog} hd_mirror;
     limit_conn_status 429;
 
     location = /mirror/manifest {
