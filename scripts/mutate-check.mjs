@@ -1024,9 +1024,49 @@ export const MUTATIONS = [
     id: "deploy-staging-dist",
     test: "scripts/__tests__/deploy.test.ts",
     file: "scripts/deploy.sh",
-    find: 'HD_DIST_DIR="$STAGING" $BUILD_CMD || BUILD_OK=0',
-    replace: 'HD_DIST_DIR="$LIVE" $BUILD_CMD || BUILD_OK=0',
+    find: 'HD_DIST_DIR="$STAGING" bash "$HEAVY_SH" $BUILD_CMD || BUILD_OK=0',
+    replace: 'HD_DIST_DIR="$LIVE" bash "$HEAVY_SH" $BUILD_CMD || BUILD_OK=0',
     why: "next build empties its distDir first — building into the live .next is the outage where a failed build left the site serving deleted chunks",
+  },
+  {
+    id: "deploy-build-takes-turn",
+    test: "scripts/__tests__/deploy.test.ts",
+    file: "scripts/deploy.sh",
+    find: 'HD_DIST_DIR="$STAGING" bash "$HEAVY_SH" $BUILD_CMD || BUILD_OK=0',
+    replace: 'HD_DIST_DIR="$STAGING" $BUILD_CMD || BUILD_OK=0',
+    why: "a deploy's next build must wait for a heavy slot; five overlapping builds and test runs took memory to 13% on 2026-09-28",
+  },
+  {
+    id: "deploy-npm-ci-takes-turn",
+    test: "scripts/__tests__/deploy.test.ts",
+    file: "scripts/deploy.sh",
+    find: '(cd "$STAGE" && bash "$HEAVY_SH" npm ci --no-audit --no-fund)',
+    replace: '(cd "$STAGE" && npm ci --no-audit --no-fund)',
+    why: "npm ci in the staging copy is as heavy as the build and must take its turn too",
+  },
+  {
+    id: "heavy-sh-uses-heavy",
+    test: "scripts/__tests__/heavy-sh.test.ts",
+    file: "scripts/heavy.sh",
+    find: 'exec "$HEAVY" --label "high-desert $(basename "$1")" -- "$@"',
+    replace: 'exec "$@"',
+    why: "with heavy installed the command must go through it, or every wrapped script runs unqueued and nothing says so",
+  },
+  {
+    id: "heavy-sh-direct-fallback",
+    test: "scripts/__tests__/heavy-sh.test.ts",
+    file: "scripts/heavy.sh",
+    find: 'fi\nexec "$@"',
+    replace: 'fi\nexit 0',
+    why: "without heavy (CI) the command must still run, and its exit status must come back",
+  },
+  {
+    id: "package-test-takes-turn",
+    test: "scripts/__tests__/heavy-sh.test.ts",
+    file: "package.json",
+    find: '"test": "bash scripts/heavy.sh vitest run"',
+    replace: '"test": "vitest run"',
+    why: "npm run test on the VPS must wait for a heavy slot",
   },
   {
     id: "deploy-zero-chunks",
@@ -5692,9 +5732,10 @@ if (IS_MAIN) {
 
   function runVitest(testFile) {
     return new Promise((resolve) => {
+      // Each run takes its turn on the box (scripts/heavy.sh; direct in CI).
       const child = spawn(
-        "npx",
-        ["vitest", "run", testFile, "--reporter=dot", "--silent"],
+        "bash",
+        ["scripts/heavy.sh", "npx", "vitest", "run", testFile, "--reporter=dot", "--silent"],
         { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] },
       );
       let out = "";

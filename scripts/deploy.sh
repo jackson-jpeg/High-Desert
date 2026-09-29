@@ -42,6 +42,7 @@
 #   HD_SERVICE    systemd unit                  (default: highdesert)
 #   HD_SYSTEMCTL  systemctl binary              (default: systemctl)
 #   HD_BUILD_CMD  build command                 (default: npm run build)
+#   HD_HEAVY      the box-wide turn semaphore   (default: heavy; see scripts/heavy.sh)
 #   HD_WAIT_SECS  how long to wait for the port (default: 60)
 #   HD_STAGE_DIR  parent of the dependency staging copy (default: /root/.hd-deploy-stage)
 #
@@ -52,6 +53,10 @@ PORT="${HD_PORT:-3003}"
 SERVICE="${HD_SERVICE:-highdesert}"
 SYSTEMCTL="${HD_SYSTEMCTL:-systemctl}"
 BUILD_CMD="${HD_BUILD_CMD:-npm run build}"
+# The install and the build take their turn with the box's other heavy work
+# (2 slots, /root/vps-tools/bin/heavy): memory fell to 13% on 2026-09-28 with
+# five builds and test runs at once (docs/memory-2026-09-28.md).
+HEAVY_SH="$(cd "$(dirname "$0")" && pwd)/heavy.sh"
 WAIT_SECS="${HD_WAIT_SECS:-60}"
 STAGE_PARENT="${HD_STAGE_DIR:-/root/.hd-deploy-stage}"
 PAGES=(/ /library /radio /stats)
@@ -208,11 +213,11 @@ if (( DEPS_CHANGED )); then
   mkdir -p "$STAGE"
   rsync -a --exclude=/node_modules --exclude='/node_modules.*' --exclude='/.next*' \
     --exclude="/$STATE_DIR" ./ "$STAGE/"
-  if ! (cd "$STAGE" && npm ci --no-audit --no-fund); then
+  if ! (cd "$STAGE" && bash "$HEAVY_SH" npm ci --no-audit --no-fund); then
     rm -rf "$STAGE"
     die "npm ci failed in the staging copy. The live site is untouched."
   fi
-  if ! (cd "$STAGE" && HD_DIST_DIR="$STAGING" $BUILD_CMD); then
+  if ! (cd "$STAGE" && HD_DIST_DIR="$STAGING" bash "$HEAVY_SH" $BUILD_CMD); then
     rm -rf "$STAGE"
     die "Build failed in the staging copy. The live site is untouched."
   fi
@@ -227,7 +232,7 @@ else
   NEXT_ENV_SAVED=""
   [[ -f next-env.d.ts ]] && NEXT_ENV_SAVED="$(cat next-env.d.ts)"
   BUILD_OK=1
-  HD_DIST_DIR="$STAGING" $BUILD_CMD || BUILD_OK=0
+  HD_DIST_DIR="$STAGING" bash "$HEAVY_SH" $BUILD_CMD || BUILD_OK=0
   [[ -n "$NEXT_ENV_SAVED" ]] && printf '%s\n' "$NEXT_ENV_SAVED" > next-env.d.ts
   if (( ! BUILD_OK )); then
     rm -rf "$STAGING"

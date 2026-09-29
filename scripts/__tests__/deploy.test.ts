@@ -56,6 +56,7 @@ function run(
           HD_BUILD_CMD: `bash ${path.join(h.root, "..", "fake-build.sh")}`,
           HD_WAIT_SECS: "3",
           HD_STAGE_DIR: path.join(h.root, "..", "stage"),
+          HD_HEAVY: path.join(h.root, "..", "heavy-stub"),
           ...env,
         },
         timeout: 60_000,
@@ -151,6 +152,20 @@ beforeEach(async () => {
     ].join("\n"),
   );
 
+  // The box-wide turn semaphore (scripts/heavy.sh): logs what took a turn, then
+  // runs it. `npm ci` is faked here: it only has to leave a node_modules.
+  await writeFile(
+    path.join(base, "heavy-stub"),
+    [
+      "#!/bin/bash",
+      `echo "$*" >> "${path.join(base, "heavy.log")}"`,
+      'while [ "$1" != "--" ]; do shift; done; shift',
+      'if [ "$1" = npm ]; then mkdir -p node_modules; exit 0; fi',
+      'exec "$@"',
+    ].join("\n"),
+    { mode: 0o755 },
+  );
+
   await writeFile(path.join(root, "package-lock.json"), "{}\n");
   await writeFile(path.join(root, ".gitignore"), "/node_modules\n/.next*\n/.deploy\n");
   await git("init", "-q");
@@ -241,6 +256,27 @@ describe("deploy.sh", () => {
     expect(await marker(".next")).toBe("good:new");
     expect(await marker(".next.prev")).toBe("good:old");
     expect(await restarts()).toBe(1);
+  });
+
+  it("the build takes its turn on the box through heavy", async () => {
+    // Memory fell to 13% on 2026-09-28 with five builds and test runs at once
+    // (docs/memory-2026-09-28.md); a deploy's build now waits for a slot.
+    await startServer();
+    expect((await run([])).code).toBe(0);
+    const log = await readFile(path.join(h.root, "..", "heavy.log"), "utf8");
+    expect(log).toContain(`--label high-desert bash -- bash ${path.join(h.root, "..", "fake-build.sh")}`);
+  });
+
+  it("with a changed lockfile, npm ci and the build both take their turn", async () => {
+    await startServer();
+    await writeFile(path.join(h.root, "package-lock.json"), '{"changed":true}\n');
+    await git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qam", "deps");
+    const r = await run([]);
+    expect(r.code).toBe(0);
+    expect(await marker(".next")).toBe("good:new");
+    const log = (await readFile(path.join(h.root, "..", "heavy.log"), "utf8")).split("\n");
+    expect(log.some((l) => l.includes("--label high-desert npm -- npm ci"))).toBe(true);
+    expect(log.some((l) => l.includes("-- bash ") && l.includes("fake-build.sh"))).toBe(true);
   });
 
   it("every deploy is appended to .deploy/history; a failed build adds nothing", async () => {
