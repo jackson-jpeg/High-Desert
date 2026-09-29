@@ -91,6 +91,22 @@ mirror log showed a new cut-short range every 10 s.
   `deploy-staging-dist` was re-anchored and is still red.
 - **This PR changes `package.json`, so its CI checks the whole mutation
   list** (`RUN_ALL_WHEN_CHANGED`).
+- **That full run caught a mistake of mine** (run 36622907016, shard 4/4).
+  - What survived was `heavy-sh-direct-fallback`, even though it was red
+    locally. I had made `mutate-check` start each vitest *through*
+    `scripts/heavy.sh`, the file that mutation breaks.
+  - In CI there is no `heavy`, so the mutated script ran `exit 0` without
+    starting vitest, and an unrun test read as a pass. On the VPS the real
+    `heavy` took the other branch, so the mutation went red.
+  - **The fix:** `mutate-check` now decides "heavy or direct" itself
+    (`vitestCommand`), never through `heavy.sh`.
+  - **And more generally:** exit 0 without vitest's summary line is
+    **NO-RUN**, a failure, not GREEN (`judgeRun`).
+  - Mutations, each red alone: `mutate-no-run-not-green` and
+    `mutate-runner-takes-turn`. The three `heavy.sh`/`package.json` mutations
+    were also run with `heavy` removed from `PATH`, as in CI, and all were red.
+  - This is the `docs/disconnected-checks.md` pattern again: the instrument
+    depended on its own subject.
 - `test:watch` is deliberately not wrapped: it would hold a slot for hours.
 
 **SoGoJet's runner** (approved):
