@@ -192,6 +192,7 @@ export function StatusBar({ episodeCount, presence }: StatusBarProps) {
   return (
     <Win98StatusBar
       variant="dark"
+      className="flex-shrink-0 relative z-10"
       panels={[
         { content: statusContent, flex: 1 },
         ...(isHalloweenSeason ? [{

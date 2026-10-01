@@ -52,6 +52,31 @@ const ROOT = path.resolve(import.meta.dirname, "..");
  * enforced below and is the reason these are written as full lines.
  */
 export const MUTATIONS = [
+  // 2026-10-01 (b): a phone's failure dialog, its single message, one bottom bar.
+  {
+    id: "media-error-dialog-owns-failure",
+    test: "src/hooks/__tests__/global-listeners.test.ts",
+    file: "src/hooks/player/media-events.ts",
+    find: '} else if (usePlayerStore.getState().loadState === "failed") {',
+    replace: "} else if (false) {",
+    why: "a late error while the failure dialog is up must not raise the banner beside it",
+  },
+  {
+    id: "dialog-opaque",
+    test: "src/components/win98/__tests__/dialog-opaque.test.tsx",
+    file: "src/components/win98/Dialog.tsx",
+    find: "<Window onClose={onClose} titleId={titleId} opaque {...windowProps}>",
+    replace: "<Window onClose={onClose} titleId={titleId} {...windowProps}>",
+    why: "a dialog's body is opaque; the glass let the page read through it",
+  },
+  {
+    id: "status-bar-footer-hidden-on-phone",
+    test: "src/components/desktop/__tests__/shell-render-pressure.test.tsx",
+    file: "src/components/desktop/DesktopShell.tsx",
+    find: '<footer className="hidden md:block">',
+    replace: "<footer>",
+    why: "a phone shows its tab bar only, not the desktop status bar under it",
+  },
   // 2026-10-01: a file name or key can never be shown as a title.
   {
     id: "display-title-extension",

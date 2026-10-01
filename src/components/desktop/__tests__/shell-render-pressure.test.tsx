@@ -140,3 +140,16 @@ describe("DesktopShell under the status bar's timers", () => {
     expect(menuBarRenders.mock.calls.length).toBeGreaterThan(rendersBefore);
   });
 });
+
+describe("the desktop status bar on a phone", () => {
+  it("sits in a footer hidden below md, so a phone shows only its tab bar (2026-10-01)", () => {
+    // Hidden on the footer, not on the bar: .w98-statusbar-dark is unlayered
+    // CSS whose display: flex beats a `hidden` utility on the same element.
+    // The browser half is e2e/phone-chrome.spec.ts.
+    const bar = container.querySelector(".w98-statusbar-dark");
+    expect(bar).not.toBeNull();
+    const footer = bar!.closest("footer");
+    expect(footer).not.toBeNull();
+    expect(footer!.className.split(/\s+/)).toEqual(expect.arrayContaining(["hidden", "md:block"]));
+  });
+});

@@ -423,6 +423,28 @@ describe("globals installed by useAudioPlayer", () => {
     );
   });
 
+  it("a late error while the failure dialog is up raises no banner; the same error without the dialog does", () => {
+    // WebKit fires one more `error` after the watchdog has given up (2026-10-01):
+    // the dialog is already the message, and the banner beside it was a second one.
+    mountBoth();
+    watching = false;
+    Object.defineProperty(element, "error", { value: { code: 4, message: "" }, configurable: true });
+    const ep = makeEpisode();
+
+    usePlayerStore.setState({ currentEpisode: ep, source: "mirror", loadState: "failed", error: null });
+    act(() => {
+      element.dispatchEvent(new Event("error"));
+    });
+    expect(usePlayerStore.getState().error).toBeNull();
+
+    // Control: no dialog up, so the banner is the message.
+    usePlayerStore.setState({ currentEpisode: ep, source: "mirror", loadState: "idle", error: null });
+    act(() => {
+      element.dispatchEvent(new Event("error"));
+    });
+    expect(usePlayerStore.getState().error).toBe("Audio source not supported or unavailable.");
+  });
+
   it("keeps the globals alive while one of the two instances unmounts", () => {
     mountBoth();
 

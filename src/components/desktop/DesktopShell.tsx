@@ -360,8 +360,11 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         </section>
       )}
 
-      {/* Bottom status bar — desktop only */}
-      <footer>
+      {/* Bottom status bar — desktop only. Hidden on the footer, not the bar:
+          .w98-statusbar-dark is unlayered CSS and its display: flex beats a
+          `hidden` utility on the same element. Phones drew it under the tab
+          bar until 2026-10-01 (e2e/phone-chrome.spec.ts). */}
+      <footer className="hidden md:block">
         <StatusBar episodeCount={episodeCount} presence={presence} />
       </footer>
 

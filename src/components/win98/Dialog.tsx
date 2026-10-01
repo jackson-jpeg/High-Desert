@@ -59,7 +59,8 @@ export function Dialog({
         tabIndex={-1}
         onKeyDown={handleKeyDown}
       >
-        <Window onClose={onClose} titleId={titleId} {...windowProps}>
+        {/* Opaque: a dialog over content must be legible on its own (2026-10-01). */}
+        <Window onClose={onClose} titleId={titleId} opaque {...windowProps}>
           {children}
         </Window>
       </div>
