@@ -395,12 +395,15 @@ test.describe("tuned in", () => {
       await callIn.tap();
       const box = page.getByPlaceholder(/^Call in/);
       await expect(box).toBeVisible({ timeout: 30_000 });
-      const fits = await box.evaluate((el, inset) => {
-        const r = el.getBoundingClientRect();
-        const vh = window.visualViewport?.height ?? window.innerHeight;
-        return r.top >= inset && r.bottom <= vh;
-      }, INSET);
-      expect(fits, `the call box in the sheet at ${height}`).toBe(true);
+      // Polled: the sheet slides up (animate-glass-sheet), and a measure
+      // taken mid-slide has the box below the screen (CI's first run).
+      const fits = () =>
+        box.evaluate((el, inset) => {
+          const r = el.getBoundingClientRect();
+          const vh = window.visualViewport?.height ?? window.innerHeight;
+          return r.top >= inset && r.bottom <= vh;
+        }, INSET);
+      await expect.poll(fits, { message: `the call box in the sheet at ${height}`, timeout: 5_000 }).toBe(true);
       await page.getByRole("button", { name: "Close phone lines" }).tap();
       await leaveButton(page).tap();
     }
