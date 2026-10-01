@@ -46,6 +46,7 @@
 
 import { communityKey } from "@/lib/utils/community-key";
 import { REMOVED_FROM_CATALOG } from "@/lib/library/removed-episodes";
+import { episodeTitle } from "@/lib/library/display-title";
 
 export const STATION_TZ = "America/Los_Angeles";
 /** The gap between shows, filled by the station ID. Part of the timeline math. */
@@ -243,7 +244,7 @@ export function toSlot(row: CatalogRow, kind: SlotKind, start: number, end: numb
   return {
     fileHash: row.fileHash,
     episodeId: communityKey({ archiveIdentifier: row.archiveIdentifier, fileName: row.fileName }),
-    title: row.title || row.fileName,
+    title: episodeTitle(row),
     airDate: row.airDate ?? null,
     guestName: row.guestName ?? null,
     showType: row.showType ?? null,

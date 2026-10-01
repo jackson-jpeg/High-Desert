@@ -339,7 +339,12 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       <main
         id="hd-main"
         tabIndex={-1}
-        className="flex-1 overflow-hidden relative md:pb-0"
+        // The top inset on a phone, for every page (2026-10-01). viewportFit is
+        // "cover", and an in-app browser (WKWebView) or Chrome on iOS can draw
+        // the page under the status bar, where Safari reports no inset. Only
+        // the radio padded it, so on /live "Call in", once Listen live left the
+        // top of the column, sat under the status bar.
+        className="flex-1 overflow-hidden relative pt-[var(--safe-top)] md:pt-0 md:pb-0"
         style={{ paddingBottom: `calc(${bottomPadding}px + var(--safe-bottom))` }}
       >
         <PageTransition>{children}</PageTransition>

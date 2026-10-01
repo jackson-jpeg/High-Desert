@@ -6,6 +6,8 @@ import { db } from "@/db";
 import type { Episode } from "@/db/schema";
 import { Window } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
+import { episodeTitle } from "@/lib/library/display-title";
+import { shownGuest } from "@/lib/library/guest";
 
 interface OnThisDayProps {
   onPlay: (episode: Episode) => void;
@@ -52,7 +54,7 @@ export function OnThisDay({ onPlay, compact, className }: OnThisDayProps) {
               className="flex items-center gap-1.5 text-left px-1.5 py-1 w98-raised-dark bg-card-surface cursor-pointer hover:bg-title-bar-blue/15 transition-colors-fast"
             >
               <span className="text-hd-8 text-desert-amber tabular-nums">{year}</span>
-              <span className="text-hd-9 text-desktop-gray truncate flex-1">{ep.title || ep.fileName}</span>
+              <span className="text-hd-9 text-desktop-gray truncate flex-1">{episodeTitle(ep)}</span>
             </button>
           );
         })}
@@ -77,8 +79,8 @@ export function OnThisDay({ onPlay, compact, className }: OnThisDayProps) {
             >
               <span className="text-hd-10 text-desert-amber tabular-nums w-[32px] flex-shrink-0">{year}</span>
               <div className="flex-1 min-w-0">
-                <div className="text-hd-10 text-desktop-gray truncate">{ep.title || ep.fileName}</div>
-                {ep.guestName && <div className="text-hd-10 md:text-hd-8 text-static-green/85 truncate">{ep.guestName}</div>}
+                <div className="text-hd-10 text-desktop-gray truncate">{episodeTitle(ep)}</div>
+                {shownGuest(ep) && <div className="text-hd-10 md:text-hd-8 text-static-green/85 truncate">{shownGuest(ep)}</div>}
               </div>
               {ep.showType && ep.showType !== "unknown" && (
                 <span className="text-hd-9 md:text-hd-7 text-bevel-dark/85 flex-shrink-0 uppercase">

@@ -10,6 +10,7 @@ import { Window } from "@/components/win98";
 import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
 import { shuffle } from "@/lib/utils/shuffle";
+import { episodeTitle } from "@/lib/library/display-title";
 
 interface SmartPlaylistsProps {
   onPlay: (episode: Episode) => void;
@@ -164,7 +165,7 @@ export function SmartPlaylists({ onPlay, className }: SmartPlaylistsProps) {
                   >
                     <div className="flex-1 min-w-0">
                       <div className="text-hd-11 md:text-hd-9 text-desktop-gray/85 truncate">
-                        {ep.title || ep.fileName}
+                        {episodeTitle(ep)}
                       </div>
                     </div>
                     {ep.airDate && (

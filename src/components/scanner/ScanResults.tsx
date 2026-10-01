@@ -4,6 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
 import { Window } from "@/components/win98";
 import { formatTime } from "@/lib/utils/format";
+import { episodeTitle } from "@/lib/library/display-title";
 
 interface ScanResultsProps {
   className?: string;
@@ -43,7 +44,7 @@ export function ScanResults({ className }: ScanResultsProps) {
                   {ep.airDate ?? "Unknown"}
                 </td>
                 <td className="px-2 py-1 text-desktop-gray truncate max-w-[200px]">
-                  {ep.title || ep.fileName}
+                  {episodeTitle(ep)}
                 </td>
                 <td className="px-2 py-1 text-static-green truncate max-w-[150px]">
                   {ep.guestName ?? "·"}
@@ -75,7 +76,7 @@ export function ScanResults({ className }: ScanResultsProps) {
                 </span>
               </div>
               <div className="text-hd-13 text-desktop-gray font-bold truncate mt-0.5">
-                {ep.title || ep.fileName}
+                {episodeTitle(ep)}
               </div>
               <div className="flex items-center justify-between gap-2 mt-0.5">
                 <span className="text-hd-12 text-static-green truncate">

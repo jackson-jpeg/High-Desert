@@ -6,6 +6,8 @@ import { recentlyPlayedEpisodes } from "@/services/episodes/progress";
 import type { Episode } from "@/db/schema";
 import { usePlayerStore } from "@/stores/player-store";
 import { cn } from "@/lib/utils/cn";
+import { episodeTitle } from "@/lib/library/display-title";
+import { shownGuest } from "@/lib/library/guest";
 
 interface ContinueListeningProps {
   onPlay: (episode: Episode) => void;
@@ -66,11 +68,11 @@ export function ContinueListening({ onPlay, className }: ContinueListeningProps)
                 )}
               >
                 <div className="text-hd-12 md:text-hd-11 text-desktop-gray font-bold truncate">
-                  {ep.title || ep.fileName}
+                  {episodeTitle(ep)}
                 </div>
-                {ep.guestName && (
+                {shownGuest(ep) && (
                   <div className="text-hd-10 text-static-green/85 truncate mt-0.5">
-                    {ep.guestName}
+                    {shownGuest(ep)}
                   </div>
                 )}
                 <div className="flex items-center gap-2 mt-1">

@@ -12,6 +12,8 @@ import { presenceAttrs, type LivePresence } from "@/services/stats/now-feed";
 import { MirrorBadge } from "@/components/player/MirrorBadge";
 import { emit, useHdEvent } from "@/lib/events";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
+import { episodeTitle } from "@/lib/library/display-title";
+import { shownGuest } from "@/lib/library/guest";
 
 export const CALLER_MESSAGES = [
   "East of the Rockies, you’re on the air...",
@@ -66,8 +68,8 @@ export function StatusBar({ episodeCount, presence }: StatusBarProps) {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const actionTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const nowPlayingTitle = usePlayerStore((s) => s.currentEpisode?.title ?? s.currentEpisode?.fileName);
-  const nowPlayingGuest = usePlayerStore((s) => s.currentEpisode?.guestName);
+  const nowPlayingTitle = usePlayerStore((s) => (s.currentEpisode ? episodeTitle(s.currentEpisode) : undefined));
+  const nowPlayingGuest = usePlayerStore((s) => shownGuest(s.currentEpisode));
   const isPlaying = usePlayerStore((s) => s.playing);
   const hasEpisode = usePlayerStore((s) => !!s.currentEpisode);
 

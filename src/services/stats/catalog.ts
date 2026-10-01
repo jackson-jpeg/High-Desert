@@ -18,6 +18,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { communityKey } from "@/lib/utils/community-key";
+import { episodeTitle } from "@/lib/library/display-title";
 
 export interface CatalogEntry {
   title: string;
@@ -61,7 +62,7 @@ async function load(): Promise<Map<string, CatalogEntry> | null> {
       const key = communityKey(ep);
       if (!key) continue;
       map.set(key, {
-        title: ep.title || ep.fileName,
+        title: episodeTitle(ep),
         airDate: ep.airDate ?? null,
         guestName: ep.guestName ?? null,
         showType: ep.showType ?? null,

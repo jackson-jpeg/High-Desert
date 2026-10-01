@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils/cn";
 import { archiveDetailsUrl } from "@/lib/library/episode-detail";
 import { EpisodeShareButton } from "@/components/library/EpisodeShareButton";
 import { mirrorUrl } from "@/audio/sources";
+import { episodeTitle } from "@/lib/library/display-title";
 
 const manageClass = "text-hd-body md:text-hd-caption cursor-pointer transition-colors-fast min-h-touch md:min-h-0 flex items-center";
 
@@ -38,7 +39,7 @@ export function EpisodePlayControls({
         size="sm"
         onClick={() => {
           usePlayerStore.getState().enqueueNext(episode);
-          toast.info(`"${episode.title || episode.fileName}" plays next`);
+          toast.info(`"${episodeTitle(episode)}" plays next`);
         }}
         disabled={isPlaying}
       >

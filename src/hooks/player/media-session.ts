@@ -12,6 +12,7 @@ import { usePlayerStore } from "@/stores/player-store";
 import { useLiveStore } from "@/stores/live-store";
 import { getMediaElement } from "@/audio/engine";
 import type { Episode } from "@/db/schema";
+import { episodeTitle } from "@/lib/library/display-title";
 
 const ARTWORK = [
   { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
@@ -35,7 +36,7 @@ export function mediaMetadataFor(
   }
   if (!episode) return null;
   return {
-    title: episode.title || episode.fileName,
+    title: episodeTitle(episode),
     artist: episode.guestName ? `Art Bell with ${episode.guestName}` : episode.artist || "Art Bell",
     album: live.tuned
       ? LIVE_ALBUM

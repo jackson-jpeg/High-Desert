@@ -5,6 +5,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
 import type { Episode } from "@/db/schema";
 import { cn } from "@/lib/utils/cn";
+import { episodeTitle } from "@/lib/library/display-title";
 
 interface MoreLikeThisProps {
   episode: Episode;
@@ -131,7 +132,7 @@ export function MoreLikeThis({ episode, onPlay, className }: MoreLikeThisProps) 
         >
           <div className="flex-1 min-w-0">
             <div className="text-hd-13 md:text-hd-9 text-desktop-gray/85 truncate">
-              {ep.title || ep.fileName}
+              {episodeTitle(ep)}
             </div>
             {ep.guestName && (
               <div className="text-hd-11 md:text-hd-7 text-static-green/85 truncate">

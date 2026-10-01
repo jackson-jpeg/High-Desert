@@ -9,6 +9,7 @@ import {
   UNAVAILABLE_BODY,
   UNAVAILABLE_TITLE,
 } from "@/lib/library/removed-episodes";
+import { episodeTitle } from "@/lib/library/display-title";
 
 /**
  * What pressing play on a pulled episode says (src/lib/library/removed-episodes.ts).
@@ -33,7 +34,7 @@ export function UnavailableEpisodeDialog() {
         <div className="text-hd-body text-desktop-gray">
           {UNAVAILABLE_BODY}
           <span className="block mt-2 text-hd-caption text-bevel-dark break-words">
-            {episode.title || episode.fileName}
+            {episodeTitle(episode)}
           </span>
           {removed && (
             <span className="block mt-1 text-hd-caption text-bevel-dark/85">{removed.reason}</span>

@@ -7,8 +7,13 @@ import { withSeedLock } from "./seed-lock";
 /**
  * Bump to force every user to re-run reconcileLibrary() once.
  * Only do this when the shipped catalog actually changes.
+ *
+ * It was not bumped for the 2026-09-28 import of 101 shows, so nobody seeded
+ * before then ever received them, and On Air printed their ids (2026-10-01).
+ * `seed-version.test.ts` now fails when the catalog's set of shows changes and
+ * this does not.
  */
-export const SEED_VERSION = "2026-07-27-a";
+export const SEED_VERSION = "2026-10-01-a";
 
 const RECONCILED_PREF = "seed-reconciled";
 const TOMBSTONE_PREF = "deleted-hashes";

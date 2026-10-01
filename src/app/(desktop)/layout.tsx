@@ -35,6 +35,7 @@ import { beginStart, isCurrentStart } from "@/audio/play-session";
 import { toast } from "@/stores/toast-store";
 import { emit, onHdEvent, SW_OFFLINE_FALLBACK } from "@/lib/events";
 import { isKeyOwnedByTarget } from "@/lib/utils/key-ownership";
+import { episodeTitle } from "@/lib/library/display-title";
 
 export default function DesktopLayout({
   children,
@@ -281,7 +282,7 @@ export default function DesktopLayout({
           episodeId: ep.id!,
           timestamp: Date.now(),
           duration: 0,
-          episodeTitle: ep.title || ep.fileName,
+          episodeTitle: episodeTitle(ep),
           guestName: ep.guestName,
         }).catch((err) => { console.warn("[layout] Failed to record history:", err); });
       }

@@ -346,6 +346,66 @@ test.describe("tuned in", () => {
     await expect.poll(() => serverWrites.includes("/live-api/tuned")).toBe(true);
   });
 
+  test("after Listen live, Call in and the call box stay on screen: under a top inset, toolbar up or down, column scrolled", async ({ page }, info) => {
+    test.skip(!info.project.use.isMobile, "Call in is the phone's button");
+    test.setTimeout(150_000);
+    // A caller on iPhone, 2026-09-30: "after I click Listen live and can hear
+    // the show, the Call in button goes too far north and is off the screen."
+    // Safari reports no top inset in portrait; an in-app browser (WKWebView)
+    // or Chrome on iOS can draw the page under the status bar and report one.
+    // env() cannot be set from Playwright, so the inset is given to the one
+    // property the app reads it through, --safe-top.
+    const INSET = 47;
+    await page.addInitScript((px) => {
+      document.addEventListener("DOMContentLoaded", () => {
+        const s = document.createElement("style");
+        s.textContent = `:root { --safe-top: ${px}px !important; }`;
+        document.head.appendChild(s);
+      });
+    }, INSET);
+    // By its name, not a test id: the test must run against the build it fails on.
+    const callIn = page.getByRole("button", { name: /phone lines are open/i });
+    const onScreen = async () =>
+      callIn.evaluate((el, inset) => {
+        const r = el.getBoundingClientRect();
+        const vh = window.visualViewport?.height ?? window.innerHeight;
+        return { top: Math.round(r.top), bottom: Math.round(r.bottom), ok: r.height > 0 && r.top >= inset && r.bottom <= vh };
+      }, INSET);
+
+    // 664: Safari's toolbar up on a 390 x 844 phone; 750: collapsed.
+    for (const height of [664, 750]) {
+      await page.setViewportSize({ width: 390, height });
+      await page.goto("/live");
+      const listen = page.getByTestId("live-tune-in");
+      await expect(listen).toBeInViewport({ timeout: 30_000 });
+      await listen.tap();
+      await expect.poll(async () => (await element(page))?.paused === false, { timeout: 60_000 }).toBe(true);
+      await expect(listen).toHaveCount(0);
+      expect(await onScreen(), `Call in after Listen live at ${height}`).toMatchObject({ ok: true });
+
+      // Scrolled to the end of the column (the day's log, the player below it).
+      await callIn.evaluate((el) => {
+        for (let p = el.parentElement; p; p = p.parentElement) {
+          if (p.scrollHeight > p.clientHeight && getComputedStyle(p).overflowY === "auto") p.scrollTop = p.scrollHeight;
+        }
+      });
+      expect(await onScreen(), `Call in with the column scrolled at ${height}`).toMatchObject({ ok: true });
+
+      // The call box itself, in the sheet.
+      await callIn.tap();
+      const box = page.getByPlaceholder(/^Call in/);
+      await expect(box).toBeVisible({ timeout: 30_000 });
+      const fits = await box.evaluate((el, inset) => {
+        const r = el.getBoundingClientRect();
+        const vh = window.visualViewport?.height ?? window.innerHeight;
+        return r.top >= inset && r.bottom <= vh;
+      }, INSET);
+      expect(fits, `the call box in the sheet at ${height}`).toBe(true);
+      await page.getByRole("button", { name: "Close phone lines" }).tap();
+      await leaveButton(page).tap();
+    }
+  });
+
   test("Leave the station stops the audio and clears the player, and it stays cleared after a refresh", async ({ page }) => {
     test.setTimeout(150_000);
     await tuneIn(page);

@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { getNowPlaying } from "@/services/stats/store";
+import { catalog } from "@/services/stats/catalog";
 
 /**
  * What the community is doing right now.
  *
  * Response shape:
  *   { online, listening, live,
- *     onAir:  [{ episodeId, listeners }],
- *     recent: [{ episodeId, at }] }
+ *     onAir:  [{ episodeId, listeners, title }],
+ *     recent: [{ episodeId, at, title }] }
+ *
+ * `title` is the catalog's (null for an id the catalog lacks). A browser
+ * seeded before a catalog import has no row for the new shows, and On Air
+ * printed their ids instead (2026-10-01, src/lib/library/display-title.ts).
  *
  * `live` is the clients, of `online`, tuned in to the live station (a
  * heartbeat with `live: true` inside the window — `getPresence()`).
@@ -33,8 +38,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const now = await getNowPlaying();
-    return NextResponse.json(now, {
+    const [now, titles] = await Promise.all([getNowPlaying(), catalog()]);
+    const title = (id: string) => titles.get(id)?.title ?? null;
+    const body = {
+      ...now,
+      onAir: now.onAir.map((e) => ({ ...e, title: title(e.episodeId) })),
+      recent: now.recent.map((r) => ({ ...r, title: title(r.episodeId) })),
+    };
+    return NextResponse.json(body, {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (err) {

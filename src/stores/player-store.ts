@@ -6,6 +6,7 @@ import { toast } from "@/stores/toast-store";
 import { startPositionFor } from "@/audio/play-session";
 import { positionOf } from "@/stores/progress-store";
 import { emit } from "@/lib/events";
+import { episodeTitle } from "@/lib/library/display-title";
 
 export type RepeatMode = "off" | "one" | "all";
 
@@ -251,7 +252,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({ queue: [...queue, episode] });
     // "Area 51 Caller" toast when adding to queue (not on first play)
     if (queue.length > 0) {
-      toast.caller(episode.title || episode.fileName);
+      toast.caller(episodeTitle(episode));
     }
   },
 

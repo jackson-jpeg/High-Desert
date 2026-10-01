@@ -19,6 +19,8 @@ import { formatTime, formatAirDate } from "@/lib/utils/format";
 import { PositionTime, SeekRange, ProgressFill, BufferedFill } from "./PositionReadouts";
 import { emit, useHdEvent } from "@/lib/events";
 import { MirrorBadge } from "./MirrorBadge";
+import { episodeTitle } from "@/lib/library/display-title";
+import { shownGuest } from "@/lib/library/guest";
 
 interface AudioPlayerProps {
   className?: string;
@@ -171,12 +173,12 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
 
             {/* Now Playing metadata */}
             <div className="text-center px-4">
-              <div className="text-hd-18 text-desktop-gray font-bold leading-snug line-clamp-2 font-sans" title={currentEpisode.title || currentEpisode.fileName}>
-                {currentEpisode.title || currentEpisode.fileName}
+              <div className="text-hd-18 text-desktop-gray font-bold leading-snug line-clamp-2 font-sans" title={episodeTitle(currentEpisode)}>
+                {episodeTitle(currentEpisode)}
               </div>
-              {currentEpisode.guestName && (
+              {shownGuest(currentEpisode) && (
                 <div className="text-hd-14 text-static-green/85 truncate mt-2">
-                  {currentEpisode.guestName}
+                  {shownGuest(currentEpisode)}
                 </div>
               )}
               {currentEpisode.airDate && (
@@ -314,7 +316,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
         {/* Cassette icon + title */}
         <CassetteTape className="flex-shrink-0" />
         <span className="text-hd-10 text-desktop-gray/85 truncate flex-1 min-w-0">
-          {currentEpisode.title || currentEpisode.fileName}
+          {episodeTitle(currentEpisode)}
         </span>
         {/* Compact seek */}
         <SeekRange
@@ -355,9 +357,9 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           <Oscilloscope className="w-[72px] h-[32px] rounded-sm flex-shrink-0" />
           <NowPlaying className="flex-1 min-w-0" />
           {nextEpisode && !showQueue && (
-            <div className="hidden lg:flex items-center gap-1 text-hd-10 text-bevel-dark/85 flex-shrink-0 max-w-[160px] truncate" title={`Up next: ${nextEpisode.title || nextEpisode.fileName}`}>
+            <div className="hidden lg:flex items-center gap-1 text-hd-10 text-bevel-dark/85 flex-shrink-0 max-w-[160px] truncate" title={`Up next: ${episodeTitle(nextEpisode)}`}>
               <span className="flex-shrink-0">Next:</span>
-              <span className="truncate">{nextEpisode.title || nextEpisode.fileName}</span>
+              <span className="truncate">{episodeTitle(nextEpisode)}</span>
             </div>
           )}
           <PlaybackControls

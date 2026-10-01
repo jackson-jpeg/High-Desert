@@ -1,5 +1,6 @@
 import type { Episode, Progress } from "@/db/schema";
 import { communityKey } from "@/lib/utils/community-key";
+import { episodeTitle } from "@/lib/library/display-title";
 
 /**
  * Pure helpers behind the library's episode detail panel (HD-018): the edit
@@ -151,5 +152,5 @@ export function shareUrl(origin: string, episode: Episode): string {
 }
 
 export function shareText(episode: Episode): string {
-  return `🎙️ ${episode.title || episode.fileName}${episode.guestName ? `, Art Bell with ${episode.guestName}` : ""}${episode.airDate ? ` (${episode.airDate})` : ""}. Listen on High Desert`;
+  return `🎙️ ${episodeTitle(episode)}${episode.guestName ? `, Art Bell with ${episode.guestName}` : ""}${episode.airDate ? ` (${episode.airDate})` : ""}. Listen on High Desert`;
 }

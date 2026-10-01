@@ -10,6 +10,7 @@ import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
 import { emit } from "@/lib/events";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { episodeTitle } from "@/lib/library/display-title";
 
 interface Result {
   id: string;
@@ -127,7 +128,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
               .filter(Boolean)
               .join(" ")
               .toLowerCase(),
-            label: e.title || e.fileName,
+            label: episodeTitle(e),
             sub: [e.guestName, e.airDate].filter(Boolean).join(" · "),
           }));
         setIndexReady(true);

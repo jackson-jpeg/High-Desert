@@ -3,6 +3,8 @@
 import type { Episode } from "@/db/schema";
 import { cn } from "@/lib/utils/cn";
 import { useProgressIndex } from "@/stores/progress-store";
+import { episodeTitle } from "@/lib/library/display-title";
+import { shownGuest } from "@/lib/library/guest";
 
 interface RecentlyPlayedProps {
   episodes: Episode[];
@@ -61,14 +63,14 @@ export function RecentlyPlayed({ episodes, onPlay, compact, className }: Recentl
                 "text-desktop-gray font-bold truncate w-full text-left",
                 compact ? "text-hd-9" : "text-hd-12 md:text-hd-10",
               )}>
-                {ep.title || ep.fileName}
+                {episodeTitle(ep)}
               </span>
-              {ep.guestName && (
+              {shownGuest(ep) && (
                 <span className={cn(
                   "text-static-green/85 truncate w-full text-left",
                   compact ? "text-hd-8" : "text-hd-11 md:text-hd-9",
                 )}>
-                  {ep.guestName}
+                  {shownGuest(ep)}
                 </span>
               )}
               {hasProgress && (
