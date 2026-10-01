@@ -154,4 +154,20 @@ front, or without the pipe. No other hook blocked anything.
 
 ## Deploy
 
-See "Deploy record" at the end, written after CI and the deploy.
+**Deploy record.** CI's first run on PR #64 failed one check: the new test
+measured the call box while the phone-lines sheet was still sliding up (CI's
+screenshot shows it fitting once settled), and the Call in checks themselves
+passed. `319054d` polls that measure. The rerun was green: checks, browser and
+mutations. Merged as `4071321` and deployed with `heavy -- nice -n 10 ionice
+-c2 -n7 bash scripts/deploy.sh` at 03:36:56Z. The client verification was
+clean.
+
+After the deploy, on production:
+- the new e2e test **passes** (it failed there before the deploy);
+- `check:csp`: 7 routes, no violations, no console errors, no em dashes;
+- `/api/stats/now` sends catalog titles;
+- `highdesert-status`: OK except `warm` (the disk floor, above) and the Mac
+  copy of the backup (the Mac's disk).
+
+Visitors seeded before 2026-09-28 get the 101 missing shows on their next
+load (reconcile under `2026-10-01-a`).
