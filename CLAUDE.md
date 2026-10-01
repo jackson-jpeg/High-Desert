@@ -114,7 +114,7 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/leaderboard` | GET | Top episodes. **`?period=alltime\|week` is required.** Returns **`{entries: [{episodeId, plays}]}`**. `alltime` is `episode_plays` — the same numbers as `/api/stats/community` and the library's "Most played" |
 | `/api/stats/active` | GET | **Legacy alias**, read by no surface in the current build. Returns **`{count, online, listening}`** from the same `getPresence()` as `/now` — `count` is a synonym for `listening` |
 | `/api/stats/heartbeat` | POST | Mark a session present. Body `{sessionId, episodeId?, live?}`. `live: true` (only a literal true) sets `active_sessions.live_at` — sent while tuned in to the live station and playing, or in its station ID; any beat without it clears the mark at once. Returns `{ok}`. Every open tab posts on a 60s interval. `episodeId` is sent **only while that tab is actually playing** and renews `listening_at` — it is what keeps a show on air for its whole runtime instead of for five minutes after someone pressed play. Omitting it leaves the listening mark alone rather than clearing it, so a pause does not yank the show off the air; the mark decays on its own. Same allowlist gate as `/api/stats/play`, but a bad id drops the mark instead of failing the beat — presence is the primary job. A client past `SESSIONS_PER_CLIENT` new sessions gets the same `{ok}` and is not counted |
-| `/api/stats/now` | GET | **The one presence endpoint.** Presence **plus what is playing**. Returns **`{online, listening, live, onAir: [{episodeId, listeners}], recent: [{episodeId, at}]}`**. `online` is distinct *clients* (not sessions) with a heartbeat inside 5 min; `listening` is the subset with a playing session; `live` the subset tuned in to the live station (`live_at` inside the window); `listeners` is distinct clients per episode. `no-store` — a stale on-air list is worse than none. Aggregate only: no query joins `session_id` to `episode_id`, and `recent_plays` stores no session at all |
+| `/api/stats/now` | GET | **The one presence endpoint.** Presence **plus what is playing**. Returns **`{online, listening, live, onAir: [{episodeId, listeners, title}], recent: [{episodeId, at, title}]}`**; `title` is the catalog's (null for an id it lacks), for a browser whose library has no row for the show. `online` is distinct *clients* (not sessions) with a heartbeat inside 5 min; `listening` is the subset with a playing session; `live` the subset tuned in to the live station (`live_at` inside the window); `listeners` is distinct clients per episode. `no-store` — a stale on-air list is worse than none. Aggregate only: no query joins `session_id` to `episode_id`, and `recent_plays` stores no session at all |
 | `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, onlineMax, listeningMax, plays}], peakOnline, peakListening, playsInRange, totalPlays, peakAt, hourly: [{hour, online, listening, plays, samples}]}`**. A point's `online`/`listening` are the bucket's **mean**, `onlineMax`/`listeningMax` its highest sample — the chart's main lines. **`peakOnline`, `peakListening` and `peakAt` come from the raw 2-minute samples**, never from the buckets: a max of averages shrinks as the bucket widens, and 30 days once read a lower peak than 24 hours (`docs/stats-audit.md`, finding 12). `traffic_daily` keeps `peak_online`/`peak_listening`/`peak_at` past the 90-day sample prune; `highdesert-status`'s `peaks` line FAILs unless peak(30d) ≥ peak(7d) ≥ peak(24h). `hourly` is always a 24-entry, zero-filled, **UTC**-hour profile over the last 30 days and does *not* vary with `range`; the client rotates it into local time. `samples: 0` means *never observed*, which is not the same as "observed, nobody here" — the UI hides the profile until 8 hours have been sampled, or a day-old deployment draws 23 empty columns and looks like a dead site. **`playsBySource: {archive, mirror, …, unknown}`** counts `play_events` in the range by `source` — what `highdesert-status` reads for "mirror plays in 24h" |
 | `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Also prunes `weekly_plays` past 3 weeks. Returns `{ok, online, listening, live, totalPlays, rolledUp, anonymized, prunedWeeks}` (`live` is reported, not sampled — `listener_samples` has no column for it) |
 | `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass, detail?}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`handover-rejected`/`network-error`/`decode-error`/`empty-media`/`empty-media-suspected` (`handover-rejected`: the live station's change of show refused, counted like any failed start); `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. `detail` is short (≤200 char) free text: the reported duration on an advisory row, or `MediaError.code` plus its message on a `decode-error`/`network-error`/`empty-media`. That message is a browser pipeline diagnostic (`DEMUXER_ERROR_COULD_NOT_OPEN: …`) and is the **only** way an empty file is distinguishable from an unreachable one on Chromium, which errors on the missing frames rather than reporting a short duration. A `detail` containing `HD-VERIFY` (any case, checked after truncation) is **rejected with 400** — this table is the instrument that decides whether the 5s duration floor is safe to promote, and verification rows have polluted it twice; intercept the POST in the page instead. No session id, no IP. `episodeId` must be in the community-key allowlist. Optional `source` as on `/api/stats/play`, but an unknown value is stored NULL rather than refused — losing a failure row costs more than losing its source. A failover row carries the source that *failed* (`archive`) and `recovered: true` once the mirror plays. Optional `build`, as on `/api/stats/play` |
@@ -221,6 +221,25 @@ had been overwritten too, muting and unmuting could not recover it either. The a
 simply quiet the next morning with nothing on screen to explain it. `useSleepTimerStore`
 now captures `fadeFrom` once and hands exactly that back — on expiry, and on cancel. A
 timer that expires without ever fading does not touch the volume at all.
+
+## A show's name, and its guest (2026-10-01)
+
+- **A file name or a key is never shown as a title.** Every surface names a row
+  with `episodeTitle()` and an id from the stats API with `keyTitle()`
+  (`src/lib/library/display-title.ts`). On Air printed
+  `Art-Bell_Midnight_In_the_Desert--2015-12-08_--_Ar…` for a show the
+  listener's library lacked. `display-title.test.ts` fails on any `title ||
+  fileName` spelled elsewhere in `src/` (`dedupKey` is identity and exempt).
+- **Bump `SEED_VERSION` whenever the catalog's set of shows changes.**
+  Reconcile runs once per version; the 2026-09-28 import of 101 shows did not
+  bump it, so nobody seeded before then received them.
+  `src/db/__tests__/seed-version.test.ts` records the set's digest against the
+  version and fails when one moves without the other.
+- **A guest field that only repeats the title is not a guest.** 136 were
+  removed from the seed (`docs/catalog-guests.md`, `scripts/clean-guest-repeats.mjs`);
+  libraries seeded earlier keep them, so surfaces show a guest through
+  `shownGuest()` (`src/lib/library/guest.ts`). A person whose name is the
+  title is a real guest and stays.
 
 ## Library sorts — whose numbers, and one of them
 
@@ -713,6 +732,14 @@ same offset, computed from a synced clock.
   heartbeat carries `live: true` → `active_sessions.live_at` →
   `getPresence().live` → `/api/stats/now` `live`. The Live screen reads it from
   the shared feed like every other surface (`data-presence="live"`, with `data-live`).
+- **On a phone, `<main>` pads the top safe-area inset** (2026-10-01).
+  `viewportFit` is `cover`, and an in-app browser (WKWebView) or Chrome on iOS
+  can draw the page under the status bar where Safari reports no inset: once
+  Listen live left the top of the column, Call in sat under it. Call in is also
+  sticky in the Live column. `e2e/live-qa.spec.ts` ("after Listen live, Call in
+  and the call box stay on screen") sets `--safe-top` itself, since Playwright
+  cannot set `env()`. Report sits beside a call's time as a small word with a
+  44 px `::after` target.
 - **A phone's first screen is one tap** (`docs/funnel.md`). On a phone, `/live`
   opens with a "Listen live" card (`ListenLive`, `data-testid="live-tune-in"`)
   above everything else: the show on the air, its guest and "N tuned in now".
