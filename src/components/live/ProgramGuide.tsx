@@ -6,6 +6,7 @@ import { formatAirDate } from "@/lib/utils/format";
 import { formatLength, formatStationTime } from "@/lib/live/format";
 import type { ProgramSlot } from "@/lib/live/schedule";
 import { OnAirLamp } from "./OnAirLamp";
+import { shownGuest } from "@/lib/library/guest";
 
 export type GuideState = "past" | "now" | "future";
 
@@ -88,7 +89,7 @@ export function ProgramGuide({ slots, now }: { slots: readonly ProgramSlot[]; no
                 {slot.title}
               </span>
               <span className={cn("text-hd-micro truncate", state === "past" ? "text-bevel-dark/85" : "text-bevel-dark")}>
-                {[slot.guestName, slot.airDate ? formatAirDate(slot.airDate) : null, KIND_LABEL[slot.kind]]
+                {[shownGuest(slot), slot.airDate ? formatAirDate(slot.airDate) : null, KIND_LABEL[slot.kind]]
                   .filter(Boolean)
                   .join(" · ")}
               </span>

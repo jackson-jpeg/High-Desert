@@ -243,6 +243,23 @@ describe("LiveChat (desktop)", () => {
     done();
   });
 
+  it("Report is a quiet word beside the timestamp, not a button under the call, and keeps a 44 px target", () => {
+    const { host, es, done } = render();
+    act(() => es().emit("hello", { you, slowMode: slowOff, recent: [msg(7)], resumed: false, hidden: [] }));
+    const report = q(host, "report")!;
+    const row = all(host, "live-message").find((r) => r.dataset.id === "7")!;
+    // In the header line with the time, before the body.
+    expect(report.parentElement!.querySelector("time")).not.toBeNull();
+    expect(report.compareDocumentPosition(q(row, "message-body")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Small text, no button chrome; the target is the ::after, 44 x 44.
+    expect(report.className).toContain("text-hd-micro");
+    const tokens = report.className.split(/\s+/);
+    expect(tokens.filter((t) => /^(min-h-touch|min-w-touch)$|w98-raised|glass/.test(t))).toEqual([]);
+    expect(report.className).toContain("after:min-h-touch");
+    expect(report.className).toContain("after:min-w-touch");
+    done();
+  });
+
   it("admin controls appear only when the server says this session is an admin's", () => {
     const { host, es, done } = render();
     act(() => es().emit("hello", { you, slowMode: slowOff, recent: [msg(6)], resumed: false, hidden: [] }));

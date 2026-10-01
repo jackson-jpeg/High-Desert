@@ -17,6 +17,8 @@ import { emit } from "@/lib/events";
 import { useOutageStore, availabilityOf } from "@/stores/outage-store";
 import { useProgress } from "@/stores/progress-store";
 import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
+import { episodeTitle } from "@/lib/library/display-title";
+import { shownGuest } from "@/lib/library/guest";
 
 interface EpisodeCardProps {
   episode: Episode;
@@ -161,7 +163,7 @@ export const EpisodeCard = memo(function EpisodeCard({
     s.swiping = false;
   }, [episode, onQueue, onToggleFavorite]);
 
-  const title = episode.title || episode.fileName;
+  const title = episodeTitle(episode);
   // Pulled from the catalog but still in this visitor's library
   // (removed-episodes.ts). Only ever the listed rows — never a local file.
   const removed = isRemovedFromCatalog(episode);
@@ -177,7 +179,8 @@ export const EpisodeCard = memo(function EpisodeCard({
 
   const showGuest = (e: React.SyntheticEvent) => {
     e.stopPropagation();
-    if (episode.guestName) emit("show-guest", episode.guestName);
+    const g = shownGuest(episode);
+    if (g) emit("show-guest", g);
   };
   const filterSeries = (e: React.SyntheticEvent) => {
     e.stopPropagation();
@@ -343,14 +346,14 @@ export const EpisodeCard = memo(function EpisodeCard({
 
         {/* Guest */}
         <div className="min-w-0">
-          {episode.guestName ? (
+          {shownGuest(episode) ? (
             <span
               data-row-action="guest"
               onClick={showGuest}
-              title={`View guest profile: ${episode.guestName}`}
+              title={`View guest profile: ${shownGuest(episode)}`}
               className="text-hd-11 text-static-green/85 truncate max-w-full block text-left hover:text-static-green hover:underline cursor-pointer transition-colors-fast"
             >
-              {episode.guestName}
+              {shownGuest(episode)}
             </span>
           ) : (
             <span className="text-hd-11 text-static-green/85 truncate block">
@@ -449,13 +452,13 @@ export const EpisodeCard = memo(function EpisodeCard({
         )}
 
         <div className="flex items-center justify-between gap-2 mt-0.5">
-          {episode.guestName ? (
+          {shownGuest(episode) ? (
             <span
               data-row-action="guest"
               onClick={showGuest}
               className="text-hd-14 text-static-green/90 truncate min-w-0 text-left py-0.5 -my-0.5 cursor-pointer"
             >
-              {episode.guestName}
+              {shownGuest(episode)}
             </span>
           ) : (
             <span className="text-hd-13 text-static-green/85 truncate min-w-0">

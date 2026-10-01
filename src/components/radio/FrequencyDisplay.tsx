@@ -5,6 +5,7 @@ import { useIsMobile } from "@/hooks/useMediaQuery";
 import { StaticVisualizer } from "./StaticVisualizer";
 import { cn } from "@/lib/utils/cn";
 import type { DialStation } from "@/hooks/useRadioDial";
+import { episodeTitle } from "@/lib/library/display-title";
 
 interface FrequencyDisplayProps {
   frequency: number;
@@ -117,7 +118,7 @@ export function FrequencyDisplay({
                 className="text-hd-16 font-semibold text-desktop-gray/90 truncate leading-tight"
                 style={{ fontFamily: "'Space Grotesk', sans-serif", letterSpacing: "-0.01em" }}
               >
-                {currentStation.episode.title || currentStation.episode.fileName}
+                {episodeTitle(currentStation.episode)}
               </span>
               {/* Sub-station dots */}
               {sameDateCount > 1 && (
@@ -194,7 +195,7 @@ export function FrequencyDisplay({
         {isLocked && currentStation ? (
           <div className="flex flex-col gap-0.5">
             <div className="crt-text text-hd-11 truncate leading-tight">
-              {currentStation.episode.title || currentStation.episode.fileName}
+              {episodeTitle(currentStation.episode)}
             </div>
             {currentStation.episode.guestName && (
               <div className="crt-text text-hd-9 opacity-85 truncate">

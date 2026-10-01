@@ -19,6 +19,8 @@ import { toast } from "@/stores/toast-store";
 import { computeLibraryStats } from "@/lib/stats/library-stats";
 import { emit } from "@/lib/events";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
+import { episodeTitle } from "@/lib/library/display-title";
+import { shownGuest } from "@/lib/library/guest";
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -403,7 +405,7 @@ export default function StatsPage() {
                   className="flex items-center gap-2 text-left px-2 py-1.5 w98-raised-dark bg-card-surface cursor-pointer hover:bg-title-bar-blue/15 transition-colors-fast"
                 >
                   <span className="text-hd-9 text-red-400">⚑</span>
-                  <span className="text-hd-10 text-desktop-gray truncate flex-1">{ep.title || ep.fileName}</span>
+                  <span className="text-hd-10 text-desktop-gray truncate flex-1">{episodeTitle(ep)}</span>
                   <span className="text-hd-8 text-bevel-dark/85 tabular-nums flex-shrink-0">
                     {ep.airDate ? formatAirDate(ep.airDate) : ""}
                   </span>
@@ -465,14 +467,14 @@ export default function StatsPage() {
                       </span>
                       <div className="flex-1 min-w-0">
                         <div className="text-hd-12 md:text-hd-10 text-desktop-gray truncate font-bold">
-                          {ep.title || ep.fileName}
+                          {episodeTitle(ep)}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           {ep.airDate && (
                             <span className="text-hd-9 md:text-hd-8 text-desert-amber tabular-nums">{ep.airDate}</span>
                           )}
-                          {ep.guestName && (
-                            <span className="text-hd-9 md:text-hd-8 text-static-green/85 truncate">{ep.guestName}</span>
+                          {shownGuest(ep) && (
+                            <span className="text-hd-9 md:text-hd-8 text-static-green/85 truncate">{shownGuest(ep)}</span>
                           )}
                         </div>
                       </div>

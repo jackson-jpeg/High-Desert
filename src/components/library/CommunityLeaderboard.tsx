@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils/cn";
 import { communityKey } from "@/lib/utils/community-key";
 import { emit } from "@/lib/events";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
+import { keyTitle } from "@/lib/library/display-title";
 
 type Period = "alltime" | "week";
 
@@ -116,7 +117,7 @@ export function CommunityLeaderboard() {
                   </span>
                   <div className="flex flex-col min-w-0 w-[120px] md:w-[160px] flex-shrink-0">
                     <span className="text-hd-10 text-desktop-gray truncate">
-                      {ep?.title || ep?.fileName || entry.episodeId}
+                      {keyTitle(ep, entry.episodeId)}
                     </span>
                     {ep?.airDate && (
                       <span className="text-hd-8 text-bevel-dark/85 tabular-nums">

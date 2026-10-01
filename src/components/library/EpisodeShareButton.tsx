@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Episode } from "@/db/schema";
 import { toast } from "@/stores/toast-store";
 import { shareText as buildShareText, shareUrl } from "@/lib/library/episode-detail";
+import { episodeTitle } from "@/lib/library/display-title";
 
 const linkClass = "text-hd-body md:text-hd-caption text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-touch md:min-h-0 flex items-center";
 const menuItemClass = "w-full text-left px-3 py-3 md:px-2 md:py-1.5 text-hd-title md:text-hd-caption text-desktop-gray/85 hover:bg-title-bar-blue/20 active:bg-title-bar-blue/20 cursor-pointer transition-colors-fast";
@@ -32,7 +33,7 @@ export function EpisodeShareButton({ episode }: { episode: Episode }) {
 
   const webShare = async () => {
     try {
-      await navigator.share({ title: episode.title || episode.fileName, text: shareText, url });
+      await navigator.share({ title: episodeTitle(episode), text: shareText, url });
     } catch { /* user cancelled */ }
     setMenuOpen(false);
   };

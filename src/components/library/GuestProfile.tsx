@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils/cn";
 import { shuffle } from "@/lib/utils/shuffle";
 import { formatDuration } from "@/lib/utils/format";
 import { emit } from "@/lib/events";
+import { episodeTitle } from "@/lib/library/display-title";
 
 interface GuestProfileProps {
   guestName: string;
@@ -163,7 +164,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
                     )}
                   </div>
                   <div className="text-hd-13 md:text-hd-10 text-desktop-gray truncate mt-0.5">
-                    {ep.title || ep.fileName}
+                    {episodeTitle(ep)}
                   </div>
                   {hasProgress && (
                     <div className="h-[2px] mt-1 bg-inset-well w98-inset-dark overflow-hidden">

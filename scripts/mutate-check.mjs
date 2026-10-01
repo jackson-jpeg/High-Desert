@@ -52,6 +52,63 @@ const ROOT = path.resolve(import.meta.dirname, "..");
  * enforced below and is the reason these are written as full lines.
  */
 export const MUTATIONS = [
+  // 2026-10-01: a file name or key can never be shown as a title.
+  {
+    id: "display-title-extension",
+    test: "src/lib/library/__tests__/display-title.test.ts",
+    file: "src/lib/library/display-title.ts",
+    find: "if (AUDIO_EXT.test(t)) return true;",
+    replace: "if (false) return true;",
+    why: "a title that is a file name (with its extension) is passed over",
+  },
+  {
+    id: "display-title-key-shape",
+    test: "src/lib/library/__tests__/display-title.test.ts",
+    file: "src/lib/library/display-title.ts",
+    find: "if (!/\\s/.test(t) && /[_]|--/.test(t)) return true;",
+    replace: "if (false) return true;",
+    why: "a community key (underscores, `--`, no spaces) is not a title: what On Air printed",
+  },
+  {
+    id: "now-catalog-title",
+    test: "src/app/api/stats/now/__tests__/now-titles.test.ts",
+    file: "src/app/api/stats/now/route.ts",
+    find: "onAir: now.onAir.map((e) => ({ ...e, title: title(e.episodeId) })),",
+    replace: "onAir: now.onAir,",
+    why: "/api/stats/now names each show from the catalog, for a library that lacks it",
+  },
+  {
+    id: "seed-version-follows-catalog",
+    test: "src/db/__tests__/seed-version.test.ts",
+    file: "src/db/seed.ts",
+    find: 'export const SEED_VERSION = "2026-10-01-a";',
+    replace: 'export const SEED_VERSION = "2026-07-27-a";',
+    why: "the version must move with the catalog's shows, or reconcile never delivers them",
+  },
+  {
+    id: "guest-repeat",
+    test: "src/lib/library/__tests__/guest.test.ts",
+    file: "src/lib/library/guest.ts",
+    find: "return subject.every((w) => g.includes(w)) || g.every((w) => subject.includes(w));",
+    replace: "return false;",
+    why: "a guest field that only repeats the title is hidden in an old library",
+  },
+  {
+    id: "guest-person-kept",
+    test: "src/lib/library/__tests__/guest.test.ts",
+    file: "src/lib/library/guest.ts",
+    find: "if (!guest || !title || !NOT_A_PERSON.test(guest)) return false;",
+    replace: "if (!guest || !title) return false;",
+    why: "a person whose name is the title is a real guest, never hidden",
+  },
+  {
+    id: "live-chat-report-target",
+    test: "src/components/live/__tests__/live-chat.test.tsx",
+    file: "src/components/live/LiveChat.tsx",
+    find: '"after:w-full after:h-full after:min-w-touch after:min-h-touch",',
+    replace: '"",',
+    why: "Report is visually small but keeps its 44 px tap target",
+  },
   {
     id: "duration-sanity",
     test: "src/audio/__tests__/duration-sanity.test.ts",

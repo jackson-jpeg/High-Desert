@@ -427,19 +427,19 @@ function MessageRow({ m, chat, variant }: { m: LiveMessage; chat: Chat; variant:
         <time className="ml-auto shrink-0 text-hd-micro text-bevel-dark/85" dateTime={m.at}>
           {time}
         </time>
+        {!mine &&
+          (reported ? (
+            <span className="shrink-0 text-hd-micro text-bevel-dark/85" data-testid="reported">
+              Reported
+            </span>
+          ) : (
+            <ReportLink onClick={() => void chat.report(m.id)} label={`Report call from ${m.name}`} />
+          ))}
       </div>
       <p className="text-hd-body text-desktop-gray break-words whitespace-pre-wrap" data-testid="message-body">
         {m.body}
       </p>
-      <div className="flex flex-wrap gap-2">
-        {!mine &&
-          (reported ? (
-            <span className="text-hd-micro text-bevel-dark/85">Reported</span>
-          ) : (
-            <InlineButton variant={variant} onClick={() => void chat.report(m.id)} testId="report" label={`Report call from ${m.name}`}>
-              Report
-            </InlineButton>
-          ))}
+      <div className="flex flex-wrap gap-2 empty:hidden">
         {chat.you?.admin && (
           <span className="flex flex-wrap gap-2" data-testid="admin-controls">
             <InlineButton variant={variant} onClick={() => void chat.admin("hide", { messageId: m.id })}>
@@ -639,6 +639,33 @@ function inputClass(variant: Variant) {
     variant === "w98"
       ? "w98-font w98-inset-dark bg-inset-well text-desktop-gray placeholder:text-bevel-dark px-2 py-1"
       : "rounded-xl bg-inset-well/85 text-desktop-gray placeholder:text-bevel-dark px-3 py-2",
+  );
+}
+
+/**
+ * Report, beside the timestamp: a quiet word, not a button under every call
+ * (2026-10-01: a full 44 px button under each line made the room read as a
+ * form). The tap target is still 44 x 44, from a centred ::after that adds
+ * nothing to the layout; calls are taller than 44 px apart, so two targets
+ * never overlap.
+ */
+function ReportLink({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-testid="report"
+      aria-label={label}
+      className={cn(
+        "relative shrink-0 text-hd-micro text-bevel-dark/85 cursor-pointer",
+        "hover:text-desktop-gray hover:underline active:text-desktop-gray",
+        "focus-visible:outline focus-visible:outline-1 focus-visible:outline-signal-blue",
+        "after:content-[''] after:absolute after:left-1/2 after:top-1/2 after:-translate-x-1/2 after:-translate-y-1/2",
+        "after:w-full after:h-full after:min-w-touch after:min-h-touch",
+      )}
+    >
+      Report
+    </button>
   );
 }
 

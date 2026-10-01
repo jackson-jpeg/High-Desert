@@ -10,6 +10,7 @@ import { deleteEpisode, toggleFavorite, toggleFlag, addToPlaylist } from "@/serv
 import { shuffle } from "@/lib/utils/shuffle";
 import { emit } from "@/lib/events";
 import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
+import { episodeTitle } from "@/lib/library/display-title";
 
 /**
  * What can be done to an episode from the library: play, queue, favourite,
@@ -97,7 +98,7 @@ export function useLibraryActions({
         label: "Play Next",
         onClick: () => {
           store.enqueueNext(episode);
-          toast.info(`"${episode.title || episode.fileName}" plays next`);
+          toast.info(`"${episodeTitle(episode)}" plays next`);
         },
         disabled: isPlaying,
       },

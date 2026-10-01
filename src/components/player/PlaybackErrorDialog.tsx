@@ -6,6 +6,7 @@ import { usePlayerStore } from "@/stores/player-store";
 import { db } from "@/db";
 import { toast } from "@/stores/toast-store";
 import { emit } from "@/lib/events";
+import { episodeTitle } from "@/lib/library/display-title";
 
 /**
  * Shown when a show will not start.
@@ -104,7 +105,7 @@ export function PlaybackErrorDialog() {
             : "This broadcast isn't coming through. The signal may be weak on this end."}
           {currentEpisode && (
             <span className="block mt-2 text-hd-caption text-bevel-dark break-words">
-              {currentEpisode.title || currentEpisode.fileName}
+              {episodeTitle(currentEpisode)}
             </span>
           )}
         </div>

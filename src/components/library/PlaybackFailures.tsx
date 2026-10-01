@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Window, Button } from "@/components/win98";
+import { keyTitle } from "@/lib/library/display-title";
 
 /**
  * Which shows are failing to start, worst first. Admin-only panel on /stats.
@@ -145,7 +146,7 @@ export function PlaybackFailures() {
               >
                 <div className="flex items-baseline gap-2">
                   <span className="text-hd-caption text-desktop-gray truncate flex-1 min-w-0">
-                    {e.title ?? e.episodeId}
+                    {keyTitle(null, e.episodeId, e.title)}
                   </span>
                   <span className="text-hd-caption text-red-400/85 tabular-nums flex-shrink-0">
                     {e.failures}

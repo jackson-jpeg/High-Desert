@@ -238,7 +238,7 @@ export function RadioDial({ episodes }: RadioDialProps) {
   if (isMobile) {
     return (
       <div
-        className="flex flex-col h-full pt-[var(--safe-top)]"
+        className="flex flex-col h-full"
         role="application"
         aria-label="AM Radio Dial"
         onClick={handleInteraction}

@@ -25,6 +25,7 @@ import {
   sortValue,
   type CommunityIndex,
 } from "@/lib/library/sort-keys";
+import { episodeTitle } from "@/lib/library/display-title";
 
 /**
  * "date" is newest first (Dexie's order, kept as is); "date-asc" is oldest
@@ -242,8 +243,8 @@ export function sortEpisodes(
     });
   } else if (sortMode === "name") {
     return [...list].sort((a, b) => {
-      const nameA = (a.title || a.fileName).toLowerCase();
-      const nameB = (b.title || b.fileName).toLowerCase();
+      const nameA = episodeTitle(a).toLowerCase();
+      const nameB = episodeTitle(b).toLowerCase();
       return nameA.localeCompare(nameB);
     });
   } else if (sortMode === "guest") {

@@ -8,6 +8,7 @@ import { EpisodeDetail } from "@/components/library/EpisodeDetail";
 import { cn } from "@/lib/utils/cn";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { episodeTitle } from "@/lib/library/display-title";
 
 /**
  * The episode detail panel: a slide-up sheet with swipe-down-to-close on
@@ -48,7 +49,7 @@ export function DetailSheet({
   // sidebar beside the list — not modal, and the library's own Escape closes it.
   const isMobile = useIsMobile();
   const { ref: detailRef, onKeyDown: trapKeyDown } = useFocusTrap({ active: isMobile, onEscape: onClose });
-  const title = selectedEpisode.title || selectedEpisode.fileName;
+  const title = episodeTitle(selectedEpisode);
 
   // Detail panel swipe-down-to-close
   const detailSwipe = useRef({ startY: 0, currentY: 0, swiping: false });

@@ -3,6 +3,8 @@
 import type { Episode } from "@/db/schema";
 import { formatDuration, formatAirDate } from "@/lib/utils/format";
 import { emit } from "@/lib/events";
+import { episodeTitle } from "@/lib/library/display-title";
+import { shownGuest } from "@/lib/library/guest";
 
 /**
  * The read-only top of the detail panel: title, air date, length, community
@@ -15,7 +17,7 @@ export function EpisodeOverview({ episode, communityPlays }: { episode: Episode;
       {/* Title + date + duration */}
       <div>
         <div className="text-hd-h3 md:text-hd-body text-desktop-gray font-bold leading-snug break-words font-sans">
-          {episode.title || episode.fileName}
+          {episodeTitle(episode)}
         </div>
         <div className="flex items-center gap-2 mt-1.5">
           {episode.airDate && (
@@ -37,28 +39,30 @@ export function EpisodeOverview({ episode, communityPlays }: { episode: Episode;
       </div>
 
       {/* Guest */}
-      {episode.guestName && (
+      {shownGuest(episode) && (
         <div
           className="text-hd-title md:text-hd-body text-static-green/85 hover:text-static-green hover:underline cursor-pointer w-fit"
           onClick={() => {
-            if (episode.guestName) emit("show-guest", episode.guestName);
+            const g = shownGuest(episode);
+    if (g) emit("show-guest", g);
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
-              if (episode.guestName) emit("show-guest", episode.guestName);
+              const g = shownGuest(episode);
+    if (g) emit("show-guest", g);
             }
           }}
           role="button"
           tabIndex={0}
-          aria-label={`View guest profile: ${episode.guestName}`}
+          aria-label={`View guest profile: ${shownGuest(episode)}`}
         >
-          {episode.guestName}
+          {shownGuest(episode)}
         </div>
       )}
 
       {/* Topic */}
-      {episode.topic && !episode.guestName && (
+      {episode.topic && !shownGuest(episode) && (
         <div className="text-hd-title md:text-hd-body text-desktop-gray/85">
           {episode.topic}
         </div>

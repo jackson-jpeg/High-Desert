@@ -8,6 +8,7 @@ import { useOutageStore } from "@/stores/outage-store";
 import { emit } from "@/lib/events";
 import { formatAirDate } from "@/lib/utils/format";
 import { suggestPlayable, REASON_LABEL } from "@/lib/library/playable-suggestions";
+import { episodeTitle } from "@/lib/library/display-title";
 
 /**
  * A start refused because archive.org is down and the mirror does not hold
@@ -54,7 +55,7 @@ export function OutageDialog() {
           archive.org is down, and the High Desert mirror doesn&rsquo;t keep a copy of this one. It will play again
           when archive.org is back.
           <span className="block mt-2 text-hd-caption text-bevel-dark break-words">
-            {target.title || target.fileName}
+            {episodeTitle(target)}
           </span>
         </div>
         {suggestions && suggestions.length > 0 && (
@@ -70,7 +71,7 @@ export function OutageDialog() {
                     className="w-full text-left px-2 py-1.5 min-h-touch md:min-h-0 w98-raised-dark bg-card-surface hover:bg-title-bar-blue/15 cursor-pointer flex flex-col"
                   >
                     <span className="text-hd-caption text-desktop-gray font-bold truncate">
-                      {episode.title || episode.fileName}
+                      {episodeTitle(episode)}
                     </span>
                     <span className="text-hd-micro text-bevel-dark truncate">
                       {REASON_LABEL[reason]}

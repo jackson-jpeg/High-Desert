@@ -215,11 +215,14 @@ export function reportHeartbeat(
 export interface OnAirEntry {
   episodeId: string;
   listeners: number;
+  /** The catalog title, for a show this browser's library does not hold (null if the catalog lacks it). */
+  title?: string | null;
 }
 
 export interface RecentPlay {
   episodeId: string;
   at: string;
+  title?: string | null;
 }
 
 export interface NowPlaying extends Presence {

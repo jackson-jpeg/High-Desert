@@ -10,6 +10,7 @@ import { formatTime, formatAirDate } from "@/lib/utils/format";
 import { toast } from "@/stores/toast-store";
 import { LIVE_LOCKED_MESSAGE, liveLocked } from "@/stores/live-store";
 import { PositionTime, SeekRange, ProgressFill } from "./PositionReadouts";
+import { episodeTitle } from "@/lib/library/display-title";
 
 /** Tooltip showing the next episode info on hover */
 function NextEpisodeTooltip() {
@@ -298,7 +299,7 @@ function NextButtonWithTooltip({ onNext, hasNext }: { onNext: () => void; hasNex
         <div className="hidden md:block absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
           <div className="w98-raised-dark bg-raised-surface px-2 py-1.5 max-w-[200px] whitespace-nowrap">
             <div className="text-hd-10 text-bevel-dark/85 mb-0.5">Up Next</div>
-            <div className="text-hd-10 text-desktop-gray truncate">{nextEp.title || nextEp.fileName}</div>
+            <div className="text-hd-10 text-desktop-gray truncate">{episodeTitle(nextEp)}</div>
             {nextEp.guestName && <div className="text-hd-9 text-static-green/85 truncate">{nextEp.guestName}</div>}
             {nextEp.airDate && <div className="text-hd-9 text-bevel-dark/85">{formatAirDate(nextEp.airDate)}</div>}
           </div>

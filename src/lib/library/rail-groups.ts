@@ -23,6 +23,7 @@ import type { Episode } from "@/db/schema";
 import type { SortMode } from "@/lib/library/filter-episodes";
 import { NO_COMMUNITY, sortValue, type CommunityIndex } from "@/lib/library/sort-keys";
 import { NO_PROGRESS, type ProgressIndex } from "@/stores/progress-store";
+import { episodeTitle } from "@/lib/library/display-title";
 
 /**
  * "plays" and "rating" bucket the community's numbers; "my-plays" and
@@ -120,7 +121,7 @@ function keyFor(
       return y ? { key: y, label: `’${y.slice(2)}`, title: y } : { key: "Unknown", label: "?", title: "Unknown date" };
     }
     case "letter": {
-      const k = initial(ep.title || ep.fileName);
+      const k = initial(episodeTitle(ep));
       return { key: k || "#", label: k || "#", title: k === "#" || !k ? "Titles starting with a digit or symbol" : `Titles starting with ${k}` };
     }
     case "guest-letter": {

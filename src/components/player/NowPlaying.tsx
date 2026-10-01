@@ -4,6 +4,8 @@ import { usePlayerStore } from "@/stores/player-store";
 import { cn } from "@/lib/utils/cn";
 import { getShowLabel, formatAirDate } from "@/lib/utils/format";
 import { CassetteTape } from "./CassetteTape";
+import { episodeTitle } from "@/lib/library/display-title";
+import { shownGuest } from "@/lib/library/guest";
 
 interface NowPlayingProps {
   expanded?: boolean;
@@ -21,7 +23,7 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
     );
   }
 
-  const displayTitle = episode.title || episode.fileName;
+  const displayTitle = episodeTitle(episode);
   const showLabel = getShowLabel(episode.showType) ?? "";
 
   return (
@@ -31,9 +33,9 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
       <div className="text-hd-15 md:text-hd-12 text-desktop-gray font-bold truncate" title={displayTitle}>
         {displayTitle}
       </div>
-      {episode.guestName && (
-        <div className="hidden md:block text-hd-11 text-static-green/85 truncate" title={episode.guestName}>
-          {episode.guestName}
+      {shownGuest(episode) && (
+        <div className="hidden md:block text-hd-11 text-static-green/85 truncate" title={shownGuest(episode)}>
+          {shownGuest(episode)}
         </div>
       )}
       <div className="text-hd-12 md:text-hd-11 text-bevel-dark/85 truncate" title={[showLabel, formatAirDate(episode.airDate)].filter(Boolean).join(" \u00B7 ")}>

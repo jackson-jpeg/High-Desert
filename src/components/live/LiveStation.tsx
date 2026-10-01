@@ -18,6 +18,7 @@ import { KIND_LABEL, ProgramGuide } from "./ProgramGuide";
 import { LiveChat } from "./LiveChat";
 import { LiveChatSheet } from "./LiveChatSheet";
 import { noteFunnelStep } from "@/services/stats/funnel-client";
+import { shownGuest } from "@/lib/library/guest";
 
 /**
  * The Live screen: a late-night studio. The ON AIR sign, the wall clock, the
@@ -58,10 +59,14 @@ export function LiveStation() {
           <button
             type="button"
             onClick={() => setLinesOpen(true)}
+            data-testid="live-call-in"
             className={cn(
               // First on a phone: below the studio it sat under the tab bar,
-              // where nobody would find the phone lines.
-              "order-first w98-raised-dark bg-raised-surface min-h-touch px-4 flex items-center justify-between gap-3 cursor-pointer",
+              // where nobody would find the phone lines. Sticky, so no scroll
+              // of the column can carry it off the top (2026-10-01: tuning in
+              // removes the Listen live card above it, and WebKit has no
+              // scroll anchoring to hold the column's place).
+              "order-first sticky top-0 z-10 w98-raised-dark bg-raised-surface min-h-touch px-4 flex items-center justify-between gap-3 cursor-pointer",
               "w98-font text-hd-body text-desktop-gray",
             )}
           >
@@ -140,9 +145,9 @@ function ListenLive({ schedule }: { schedule: LiveSchedule }) {
             <span className="text-hd-body text-desktop-gray leading-snug line-clamp-2" data-testid="listen-title">
               {episode}
             </span>
-            {slot.guestName && (
+            {shownGuest(slot) && (
               <span className="text-hd-caption text-bevel-dark truncate" data-testid="listen-guest">
-                with {slot.guestName}
+                with {shownGuest(slot)}
               </span>
             )}
           </>
@@ -283,7 +288,7 @@ function NowPlaying({ slot, now }: { slot: ProgramSlot; now: number }) {
         {episode}
       </h2>
       <span className="text-hd-body text-bevel-dark">
-        {[slot.guestName, slot.airDate ? `Originally aired ${formatAirDate(slot.airDate)}` : null]
+        {[shownGuest(slot), slot.airDate ? `Originally aired ${formatAirDate(slot.airDate)}` : null]
           .filter(Boolean)
           .join(" · ")}
       </span>
@@ -331,9 +336,9 @@ function UpNext({ slot }: { slot: ProgramSlot }) {
         Up next · {formatStationTime(slot.start)} PT
       </span>
       <span className="text-hd-body text-desktop-gray truncate">{slot.title}</span>
-      {(slot.guestName || slot.airDate) && (
+      {(shownGuest(slot) || slot.airDate) && (
         <span className="text-hd-micro text-bevel-dark truncate">
-          {[slot.guestName, slot.airDate ? formatAirDate(slot.airDate) : null].filter(Boolean).join(" · ")}
+          {[shownGuest(slot), slot.airDate ? formatAirDate(slot.airDate) : null].filter(Boolean).join(" · ")}
         </span>
       )}
     </div>

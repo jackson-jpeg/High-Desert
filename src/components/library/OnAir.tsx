@@ -10,6 +10,8 @@ import { presenceAttrs } from "@/services/stats/now-feed";
 import { useCommunityKeyIndex } from "@/hooks/useCommunityKeyIndex";
 import type { OnAirEntry, RecentPlay } from "@/services/stats/client";
 import { emit } from "@/lib/events";
+import { keyTitle } from "@/lib/library/display-title";
+import { shownGuest } from "@/lib/library/guest";
 
 /** Animated level meter, matching the status bar's signal bars. */
 function LevelMeter({ live }: { live: boolean }) {
@@ -36,21 +38,24 @@ function LevelMeter({ live }: { live: boolean }) {
 function AirRow({
   episode,
   fallbackId,
+  catalogTitle,
   live,
   meta,
   onPlay,
 }: {
   episode: Episode | undefined;
   fallbackId: string;
+  /** The catalog title the server sent with the id (/api/stats/now). */
+  catalogTitle?: string | null;
   live: boolean;
   meta: string;
   onPlay: (episode: Episode) => void;
 }) {
-  const title = episode?.title || episode?.fileName || fallbackId;
+  const title = keyTitle(episode, fallbackId, catalogTitle);
   const show = getShowLabel(episode?.showType);
   const sub = [
     episode?.airDate ? formatAirDate(episode.airDate) : null,
-    episode?.guestName,
+    shownGuest(episode),
     show,
   ]
     .filter(Boolean)
@@ -180,6 +185,7 @@ export function OnAir() {
                 key={e.episodeId}
                 episode={index.get(e.episodeId)}
                 fallbackId={e.episodeId}
+                catalogTitle={e.title}
                 live
                 meta={listeners(e.listeners)}
                 onPlay={handlePlay}
@@ -203,6 +209,7 @@ export function OnAir() {
                   key={r.episodeId}
                   episode={index.get(r.episodeId)}
                   fallbackId={r.episodeId}
+                  catalogTitle={r.title}
                   live={false}
                   meta={formatRelativeTime(r.at)}
                   onPlay={handlePlay}
