@@ -117,5 +117,18 @@ retrying each day until both have happened. `highdesert-status`'s funnel
 line shows the progress toward 300, then the verdict.
 
 <!-- funnel-verdict:start -->
-_Not measured yet._
+**Verdict, written automatically at 2026-10-03T17:42:44.448Z** by `scripts/funnel-verdict.mjs`, when the
+phone cohorts from 2026-09-28 on passed 300 arrivals (6 cohort days).
+
+| Phones | First visits | Saw Live | Tuned in | Called |
+|---|---|---|---|---|
+| Before | 20 | 20 (100%) | 13 (65%) | 0 (0%) |
+| After | 310 | 287 (93%) | 162 (52%) | 22 (7%) |
+
+Tuned in: 65% before, 52% after, a change of
+-13 points (95% interval -34 to 9). **No difference the data can see.**
+
+The "before" is 20 phones over 78 minutes, so the interval is wide; the later
+cohort days in "after" are still filling in, which can only raise their shares.
+This section is frozen: the job writes it once and never recomputes it.
 <!-- funnel-verdict:end -->
