@@ -52,6 +52,31 @@ const ROOT = path.resolve(import.meta.dirname, "..");
  * enforced below and is the reason these are written as full lines.
  */
 export const MUTATIONS = [
+  // 2026-10-01 (b): a phone's failure dialog, its single message, one bottom bar.
+  {
+    id: "media-error-dialog-owns-failure",
+    test: "src/hooks/__tests__/global-listeners.test.ts",
+    file: "src/hooks/player/media-events.ts",
+    find: '} else if (usePlayerStore.getState().loadState === "failed") {',
+    replace: "} else if (false) {",
+    why: "a late error while the failure dialog is up must not raise the banner beside it",
+  },
+  {
+    id: "dialog-opaque",
+    test: "src/components/win98/__tests__/dialog-opaque.test.tsx",
+    file: "src/components/win98/Dialog.tsx",
+    find: "<Window onClose={onClose} titleId={titleId} opaque {...windowProps}>",
+    replace: "<Window onClose={onClose} titleId={titleId} {...windowProps}>",
+    why: "a dialog's body is opaque; the glass let the page read through it",
+  },
+  {
+    id: "status-bar-footer-hidden-on-phone",
+    test: "src/components/desktop/__tests__/shell-render-pressure.test.tsx",
+    file: "src/components/desktop/DesktopShell.tsx",
+    find: '<footer className="hidden md:block">',
+    replace: "<footer>",
+    why: "a phone shows its tab bar only, not the desktop status bar under it",
+  },
   // 2026-10-01: a file name or key can never be shown as a title.
   {
     id: "display-title-extension",
@@ -81,8 +106,9 @@ export const MUTATIONS = [
     id: "seed-version-follows-catalog",
     test: "src/db/__tests__/seed-version.test.ts",
     file: "src/db/seed.ts",
-    find: 'export const SEED_VERSION = "2026-10-01-a";',
-    replace: 'export const SEED_VERSION = "2026-07-27-a";',
+    // The prefix, not the value: the anchor must survive every bump.
+    find: 'export const SEED_VERSION = "',
+    replace: 'export const SEED_VERSION = "stale-',
     why: "the version must move with the catalog's shows, or reconcile never delivers them",
   },
   {
@@ -100,6 +126,22 @@ export const MUTATIONS = [
     find: "if (!guest || !title || !NOT_A_PERSON.test(guest)) return false;",
     replace: "if (!guest || !title) return false;",
     why: "a person whose name is the title is a real guest, never hidden",
+  },
+  {
+    id: "guest-moved-to-topic",
+    test: "src/lib/library/__tests__/guest.test.ts",
+    file: "src/lib/library/guest.ts",
+    find: "if (ep?.fileHash && MOVED_TO_TOPIC[ep.fileHash] === g) return undefined;",
+    replace: "",
+    why: "a library seeded before 2026-10-09 keeps the ten moved guests; they must not show",
+  },
+  {
+    id: "supporters-listed",
+    test: "src/components/library/__tests__/supporters.test.tsx",
+    file: "src/components/library/Supporters.tsx",
+    find: "{s.name} <span",
+    replace: "{\"\"} <span",
+    why: "the panel exists to thank people by name",
   },
   {
     id: "live-chat-report-target",

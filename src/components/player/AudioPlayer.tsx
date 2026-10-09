@@ -90,8 +90,13 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
     }
   };
 
-  const errorBanner = error && (
-    <div className="flex items-center justify-between px-3 py-1.5 bg-red-900/30 border-b border-red-400/20">
+  // One message per failure: while PlaybackErrorDialog is up (loadState
+  // "failed"), the banner stays down (2026-10-01).
+  const errorBanner = error && loadState !== "failed" && (
+    <div
+      data-testid="player-error-banner"
+      className="flex items-center justify-between px-3 py-1.5 bg-red-900/30 border-b border-red-400/20"
+    >
       <span className="text-hd-13 md:text-hd-11 text-red-400 break-words min-w-0">{error}</span>
       <div className="flex items-center gap-2 ml-2">
         <button

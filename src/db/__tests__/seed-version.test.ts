@@ -12,7 +12,7 @@ import { SEED_VERSION } from "@/db/seed";
  * shipped it: change the set, bump SEED_VERSION, and update both lines.
  */
 const SHIPPED = {
-  version: "2026-10-01-a",
+  version: "2026-10-09-a",
   shows: 1413,
   digest: "ca150ca272c40b22c7c46eb6a63e6e49b78c3b2cf3e80baab0d16b219e582898",
 };

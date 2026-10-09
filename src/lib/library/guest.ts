@@ -37,9 +37,39 @@ export function guestRepeatsTitle(title: string | null | undefined, guest: strin
   return subject.every((w) => g.includes(w)) || g.every((w) => subject.includes(w));
 }
 
-/** The guest to show for a row, or undefined when the field only repeats the title. */
-export function shownGuest(ep: { title?: string | null; guestName?: string | null } | null | undefined): string | undefined {
+const BELL = "archive:ultimate-ultimate-art-bell-collection:";
+
+/**
+ * Ten guest fields that describe the programme rather than repeat the title
+ * (2026-10-09, docs/catalog-guests.md "Moved to the topic"). The seed moved
+ * each into the row's `topic` and left the guest empty
+ * (scripts/move-guest-topics.mjs); a library seeded earlier keeps the old
+ * guest, so `shownGuest()` hides exactly this value on exactly this row.
+ */
+export const MOVED_TO_TOPIC: Readonly<Record<string, string>> = {
+  [`${BELL}1997-06-30 - Coast to Coast AM with Art Bell - News, Commentary, Open Lines (hour 1).mp3`]: "News, Commentary, Open Lines (hour 1)",
+  [`${BELL}1997-08-11 - Coast to Coast AM with Art Bell - UPS strike (hour 1).mp3`]: "UPS strike (hour 1)",
+  [`${BELL}1997-08-18 - Coast to Coast AM with Art Bell - News, Commentary, Open Lines (hour 1).mp3`]: "News, Commentary, Open Lines (hour 1)",
+  [`${BELL}1997-11-26 - Coast to Coast AM with Art Bell - News, Commentary, Open Lines (hour 1).mp3`]: "News, Commentary, Open Lines (hour 1)",
+  [`${BELL}1997-12-02 - Coast to Coast AM with Art Bell - News, Commentary, Open Lines (hour 1).mp3`]: "News, Commentary, Open Lines (hour 1)",
+  [`${BELL}1997-12-31 - Coast to Coast AM with Art Bell - New Year's Predictions Night 2 (1st hour).mp3`]: "New Year's Predictions Night 2 (1st hour)",
+  [`${BELL}1999-05-27 - Coast to Coast AM with Art Bell - Art's Secret - Internet Defamation.mp3`]: "Art's Secret",
+  [`${BELL}2001-02-28 - Coast to Coast AM with Art Bell - Ghost To Ghost Stories.mp3`]: "Ghost To Ghost Stories",
+  [`${BELL}2001-08-31 - Coast to Coast AM with Art Bell - Area 51, Earthquakes, and Crop Circles - Open Lines.mp3`]: "Area 51, Earthquakes, and Crop Circles",
+  [`${BELL}2003-12-31 - Coast to Coast AM with Art Bell - Annual Predictions Show - Open Lines.mp3`]: "Annual Predictions Show",
+};
+
+/** A moved guest as a topic: the file's hour note dropped ("(hour 1)", "(1st hour)"). */
+export function topicFromGuest(guest: string): string {
+  return guest.replace(/\s*\((?:hour \d+|\d+(?:st|nd|rd|th) hour)\)\s*$/i, "").trim();
+}
+
+/** The guest to show for a row, or undefined when the field is not a guest. */
+export function shownGuest(
+  ep: { title?: string | null; guestName?: string | null; fileHash?: string | null } | null | undefined,
+): string | undefined {
   const g = ep?.guestName?.trim();
   if (!g) return undefined;
+  if (ep?.fileHash && MOVED_TO_TOPIC[ep.fileHash] === g) return undefined;
   return guestRepeatsTitle(ep?.title, g) ? undefined : g;
 }

@@ -37,24 +37,36 @@ node scripts/clean-guest-repeats.mjs --write   # removes them from the seed
 `src/lib/library/__tests__/guest.test.ts` fails if a matching field comes back
 into the seed, and if any guest still in the seed would be hidden.
 
-## Left for a decision: not a person, but not a repeat of the title
+## Moved to the topic (2026-10-09)
 
-These ten guest fields are programme descriptions too, but they say something
-the title does not, so the rule leaves them. Clearing them or moving the text
-to `topic` is a catalog call, not a cleanup.
+Ten guest fields described the programme without repeating the title, so the
+rule above left them. Jackson's call: move each into the row's `topic` and
+leave the guest empty. `scripts/move-guest-topics.mjs --write` did it, from the
+list `MOVED_TO_TOPIC` in `src/lib/library/guest.ts`:
 
-| Air date | Title | Guest field |
-|---|---|---|
-| 1997-06-30 | Coast to Coast AM - News, Commentary, and Open Lines | News, Commentary, Open Lines (hour 1) |
-| 1997-08-11 | Coast to Coast AM - UPS Strike Discussion | UPS strike (hour 1) |
-| 1997-08-18 | Coast to Coast AM - News, Commentary and Open Lines | News, Commentary, Open Lines (hour 1) |
-| 1997-11-26 | Coast to Coast AM - News, Commentary, and Open Lines | News, Commentary, Open Lines (hour 1) |
-| 1997-12-02 | Coast to Coast AM - News, Commentary, and Open Lines | News, Commentary, Open Lines (hour 1) |
-| 1997-12-31 | Special - New Year's Predictions Special | New Year's Predictions Night 2 (1st hour) |
-| 1999-05-27 | Coast to Coast AM - Internet Defamation and Personal Matters | Art's Secret |
-| 2001-02-28 | Coast to Coast AM - Ghost to Ghost Special | Ghost To Ghost Stories |
-| 2001-08-31 | Coast to Coast AM - Open Lines | Area 51, Earthquakes, and Crop Circles |
-| 2003-12-31 | Coast to Coast AM - New Year's Eve Predictions | Annual Predictions Show |
+- the guest, less the file's hour note ("(hour 1)", "(1st hour)"), became `topic`;
+- the old `topic`, lowercased, joined `aiTags` unless it was there already;
+- `guestName` was removed. Nothing else on the row changed.
+
+SEED_VERSION went to `2026-10-09-a`. A library seeded earlier keeps its old
+row (reconcile only adds, never rewrites), so it keeps the old guest and the
+old topic; `shownGuest()` hides that guest by exact `fileHash` and value, so
+no surface shows it. To undo one: put `"guestName": "<old guest>"` back, set
+`topic` to the old topic, drop the added tag, and remove its entry from
+`MOVED_TO_TOPIC`.
+
+| Air date | Old guest field | New topic | Old topic | Added to aiTags |
+|---|---|---|---|---|
+| 1997-06-30 | News, Commentary, Open Lines (hour 1) | News, Commentary, Open Lines | News and Open Lines | news and open lines |
+| 1997-08-11 | UPS strike (hour 1) | UPS strike | UPS Strike and Labor Issues | ups strike and labor issues |
+| 1997-08-18 | News, Commentary, Open Lines (hour 1) | News, Commentary, Open Lines | News and Open Lines | news and open lines |
+| 1997-11-26 | News, Commentary, Open Lines (hour 1) | News, Commentary, Open Lines | Open Lines | (already a tag) |
+| 1997-12-02 | News, Commentary, Open Lines (hour 1) | News, Commentary, Open Lines | Open Lines | (already a tag) |
+| 1997-12-31 | New Year's Predictions Night 2 (1st hour) | New Year's Predictions Night 2 | New Year's Predictions | new year's predictions |
+| 1999-05-27 | Art's Secret | Art's Secret | Internet Defamation | internet defamation |
+| 2001-02-28 | Ghost To Ghost Stories | Ghost To Ghost Stories | Ghost Stories from Listeners | ghost stories from listeners |
+| 2001-08-31 | Area 51, Earthquakes, and Crop Circles | Area 51, Earthquakes, and Crop Circles | Area 51 Earthquakes Crop Circles | area 51 earthquakes crop circles |
+| 2003-12-31 | Annual Predictions Show | Annual Predictions Show | New Year Predictions | new year predictions |
 
 ## The 136 fields removed
 

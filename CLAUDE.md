@@ -239,7 +239,25 @@ timer that expires without ever fading does not touch the volume at all.
   removed from the seed (`docs/catalog-guests.md`, `scripts/clean-guest-repeats.mjs`);
   libraries seeded earlier keep them, so surfaces show a guest through
   `shownGuest()` (`src/lib/library/guest.ts`). A person whose name is the
-  title is a real guest and stays.
+  title is a real guest and stays. Ten more that described the programme
+  ("Area 51, Earthquakes, and Crop Circles") moved into `topic` on 2026-10-09
+  (`MOVED_TO_TOPIC`, `scripts/move-guest-topics.mjs`); `shownGuest()` hides
+  those by exact `fileHash` and value on older libraries.
+
+## A phone's chrome around a failed show (2026-10-09, `e2e/phone-chrome.spec.ts`)
+
+- **A dialog's body is opaque.** `Dialog` passes `opaque` to `Window`, which
+  drops `glass-heavy` (72% and a backdrop blur) for the solid
+  `bg-raised-surface`; the studio's text read through "Transmission
+  Interrupted" on a phone.
+- **One message per failure.** Once `loadState` is `"failed"`, the dialog is
+  the message: `media-events.ts` ignores a later `error` (WebKit fires one
+  after the watchdog gives up) and `AudioPlayer` draws no red banner.
+- **One bar at the bottom of a phone.** The desktop status bar sits in
+  `<footer className="hidden md:block">` in `DesktopShell`. `hidden` on the bar
+  itself does nothing: `win98.css` is unlayered, so `.w98-statusbar-dark
+  {display:flex}` beats every layered Tailwind utility. Hide a w98 element
+  from its wrapper.
 
 ## Library sorts — whose numbers, and one of them
 
@@ -266,6 +284,10 @@ holds the page to that function. Findings and fixes: `docs/stats-audit.md`.
 - **Personal lists say so.** "My Most Played" is this browser's `playCount`; Community
   Top 20 is everyone's. Each drills into the library sort that uses its own numbers
   (`my-plays`, `played`).
+- **Supporters** (2026-10-09): the panel after Signal Traffic thanks listeners who
+  chipped in, from `src/lib/support/supporters.ts`, **first name and last initial
+  only** (a test fails on a full name, and on either full surname anywhere in
+  `src/`), and links the Venmo. Add a gift at the top of the list.
 - **"Plays all time" exceeds every range total by design** — the counter predates the
   `play_events` log (2026-07-28). The page says so.
 

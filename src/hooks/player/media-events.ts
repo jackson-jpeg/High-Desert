@@ -203,6 +203,10 @@ export function installMediaEvents(
       const ep = usePlayerStore.getState().currentEpisode!;
       armListen(ep, audio, audio.currentTime);
       noteError("network-error", describeMediaError(audio.error));
+    } else if (usePlayerStore.getState().loadState === "failed") {
+      // The failure dialog is already up for this show and is the one message
+      // (2026-10-01). WebKit fires one more `error` after the watchdog has
+      // given up, which used to raise the red banner beside the dialog.
     } else {
       const messages: Record<number, string> = {
         1: "Playback aborted.",

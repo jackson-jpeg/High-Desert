@@ -20,6 +20,12 @@ export interface WindowProps {
   headingLevel?: 1 | 2 | 3 | 4 | 5 | 6;
   /** id for the title element, so a Dialog can point aria-labelledby at it. */
   titleId?: string;
+  /**
+   * The dark surface without the phone's glass: `glass-heavy` is 72% opaque
+   * and leans on a backdrop blur, so where the blur does not render, text
+   * behind the window reads through. Dialogs set it (2026-10-01).
+   */
+  opaque?: boolean;
 }
 
 export function Window({
@@ -36,13 +42,14 @@ export function Window({
   footer,
   headingLevel,
   titleId,
+  opaque = false,
 }: WindowProps) {
   return (
     <div
       className={cn(
         "flex flex-col animate-window-open",
         variant === "classic" && "w98-raised bg-[var(--w98-surface)]",
-        variant === "dark" && "w98-raised-dark bg-raised-surface glass-heavy",
+        variant === "dark" && cn("w98-raised-dark bg-raised-surface", !opaque && "glass-heavy"),
         className,
       )}
     >

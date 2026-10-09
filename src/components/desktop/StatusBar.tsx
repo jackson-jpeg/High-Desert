@@ -248,7 +248,7 @@ export function StatusBar({ episodeCount, presence }: StatusBarProps) {
         { content: signalBars, width: "24px" },
         { content: clock, width: "72px" },
       ]}
-      className="flex-shrink-0 relative z-10 hidden md:flex"
+      className="flex-shrink-0 relative z-10"
     />
   );
 }
