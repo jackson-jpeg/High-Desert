@@ -7309,9 +7309,8 @@
     "title": "Coast to Coast AM - News, Commentary, and Open Lines",
     "artist": "Art Bell",
     "airDate": "1997-06-30",
-    "guestName": "News, Commentary, Open Lines (hour 1)",
     "showType": "coast",
-    "topic": "News and Open Lines",
+    "topic": "News, Commentary, Open Lines",
     "duration": 2540.43,
     "format": "mp3",
     "source": "archive",
@@ -7323,7 +7322,8 @@
       "news",
       "current events",
       "callers",
-      "commentary"
+      "commentary",
+      "news and open lines"
     ],
     "aiStatus": "completed",
     "aiCategory": "Open Lines"
@@ -8078,9 +8078,8 @@
     "title": "Coast to Coast AM - UPS Strike Discussion",
     "artist": "Art Bell",
     "airDate": "1997-08-11",
-    "guestName": "UPS strike (hour 1)",
     "showType": "coast",
-    "topic": "UPS Strike and Labor Issues",
+    "topic": "UPS strike",
     "duration": 2568.15,
     "format": "mp3",
     "source": "archive",
@@ -8092,7 +8091,8 @@
       "strike",
       "economics",
       "current events",
-      "politics"
+      "politics",
+      "ups strike and labor issues"
     ],
     "aiStatus": "completed",
     "aiCategory": "Other"
@@ -8186,9 +8186,8 @@
     "title": "Coast to Coast AM - News, Commentary and Open Lines",
     "artist": "Art Bell",
     "airDate": "1997-08-18",
-    "guestName": "News, Commentary, Open Lines (hour 1)",
     "showType": "coast",
-    "topic": "News and Open Lines",
+    "topic": "News, Commentary, Open Lines",
     "duration": 2464.47,
     "format": "mp3",
     "source": "archive",
@@ -8200,7 +8199,8 @@
       "news",
       "current events",
       "commentary",
-      "callers"
+      "callers",
+      "news and open lines"
     ],
     "aiStatus": "completed",
     "aiCategory": "Open Lines"
@@ -9435,9 +9435,8 @@
     "title": "Coast to Coast AM - News, Commentary, and Open Lines",
     "artist": "Art Bell",
     "airDate": "1997-11-26",
-    "guestName": "News, Commentary, Open Lines (hour 1)",
     "showType": "coast",
-    "topic": "Open Lines",
+    "topic": "News, Commentary, Open Lines",
     "duration": 2716.26,
     "format": "mp3",
     "source": "archive",
@@ -9489,9 +9488,8 @@
     "title": "Coast to Coast AM - News, Commentary, and Open Lines",
     "artist": "Art Bell",
     "airDate": "1997-12-02",
-    "guestName": "News, Commentary, Open Lines (hour 1)",
     "showType": "coast",
-    "topic": "Open Lines",
+    "topic": "News, Commentary, Open Lines",
     "duration": 2485.39,
     "format": "mp3",
     "source": "archive",
@@ -9920,9 +9918,8 @@
     "title": "Special - New Year's Predictions Special",
     "artist": "Art Bell",
     "airDate": "1997-12-31",
-    "guestName": "New Year's Predictions Night 2 (1st hour)",
     "showType": "special",
-    "topic": "New Year's Predictions",
+    "topic": "New Year's Predictions Night 2",
     "duration": 2354.73,
     "format": "mp3",
     "source": "archive",
@@ -9934,7 +9931,8 @@
       "new years",
       "prophecy",
       "special",
-      "psychic"
+      "psychic",
+      "new year's predictions"
     ],
     "aiStatus": "completed",
     "aiCategory": "Prophecy & Predictions"
@@ -15185,9 +15183,8 @@
     "title": "Coast to Coast AM - Internet Defamation and Personal Matters",
     "artist": "Art Bell",
     "airDate": "1999-05-27",
-    "guestName": "Art's Secret",
     "showType": "coast",
-    "topic": "Internet Defamation",
+    "topic": "Art's Secret",
     "duration": 6834.55,
     "format": "mp3",
     "source": "archive",
@@ -15199,7 +15196,8 @@
       "internet",
       "defamation",
       "privacy",
-      "personal"
+      "personal",
+      "internet defamation"
     ],
     "aiStatus": "completed",
     "aiCategory": "Other"
@@ -18574,9 +18572,8 @@
     "title": "Coast to Coast AM - Ghost to Ghost Special",
     "artist": "Art Bell",
     "airDate": "2001-02-28",
-    "guestName": "Ghost To Ghost Stories",
     "showType": "coast",
-    "topic": "Ghost Stories from Listeners",
+    "topic": "Ghost To Ghost Stories",
     "duration": 9989.47,
     "format": "mp3",
     "source": "archive",
@@ -18588,7 +18585,8 @@
       "paranormal",
       "listener stories",
       "hauntings",
-      "spirits"
+      "spirits",
+      "ghost stories from listeners"
     ],
     "aiStatus": "completed",
     "aiCategory": "Paranormal & Ghosts",
@@ -20826,9 +20824,8 @@
     "title": "Coast to Coast AM - Open Lines",
     "artist": "Art Bell",
     "airDate": "2001-08-31",
-    "guestName": "Area 51, Earthquakes, and Crop Circles",
     "showType": "coast",
-    "topic": "Area 51 Earthquakes Crop Circles",
+    "topic": "Area 51, Earthquakes, and Crop Circles",
     "duration": 10152.52,
     "format": "mp3",
     "source": "archive",
@@ -20840,7 +20837,8 @@
       "area 51",
       "earthquakes",
       "crop circles",
-      "caller stories"
+      "caller stories",
+      "area 51 earthquakes crop circles"
     ],
     "aiStatus": "completed",
     "aiCategory": "Open Lines"
@@ -26515,9 +26513,8 @@
     "title": "Coast to Coast AM - New Year's Eve Predictions",
     "artist": "Art Bell",
     "airDate": "2003-12-31",
-    "guestName": "Annual Predictions Show",
     "showType": "coast",
-    "topic": "New Year Predictions",
+    "topic": "Annual Predictions Show",
     "duration": 9751.22,
     "format": "mp3",
     "source": "archive",
@@ -26529,7 +26526,8 @@
       "prophecy",
       "open lines",
       "new year",
-      "psychic"
+      "psychic",
+      "new year predictions"
     ],
     "aiStatus": "completed",
     "aiCategory": "Prophecy & Predictions"

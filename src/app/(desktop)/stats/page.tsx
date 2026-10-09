@@ -12,6 +12,7 @@ import { CommunityLeaderboard } from "@/components/library/CommunityLeaderboard"
 import { SignalTraffic } from "@/components/library/SignalTraffic";
 import { OnAir } from "@/components/library/OnAir";
 import { PlaybackFailures } from "@/components/library/PlaybackFailures";
+import { Supporters } from "@/components/library/Supporters";
 import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
 import { getCacheSize, clearAudioCache } from "@/audio/cache";
@@ -117,6 +118,12 @@ export default function StatsPage() {
           unavailable. */}
       <WidgetErrorBoundary name="Signal Traffic">
         <SignalTraffic />
+      </WidgetErrorBoundary>
+
+      {/* ── Supporters ── the listeners who chipped in, and how to join them
+          (2026-10-09). Static: src/lib/support/supporters.ts. */}
+      <WidgetErrorBoundary name="Supporters">
+        <Supporters />
       </WidgetErrorBoundary>
 
       {/* ── Your Listening ──

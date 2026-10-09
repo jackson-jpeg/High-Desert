@@ -127,6 +127,22 @@ export const MUTATIONS = [
     why: "a person whose name is the title is a real guest, never hidden",
   },
   {
+    id: "guest-moved-to-topic",
+    test: "src/lib/library/__tests__/guest.test.ts",
+    file: "src/lib/library/guest.ts",
+    find: "if (ep?.fileHash && MOVED_TO_TOPIC[ep.fileHash] === g) return undefined;",
+    replace: "",
+    why: "a library seeded before 2026-10-09 keeps the ten moved guests; they must not show",
+  },
+  {
+    id: "supporters-listed",
+    test: "src/components/library/__tests__/supporters.test.tsx",
+    file: "src/components/library/Supporters.tsx",
+    find: "{s.name} <span",
+    replace: "{\"\"} <span",
+    why: "the panel exists to thank people by name",
+  },
+  {
     id: "live-chat-report-target",
     test: "src/components/live/__tests__/live-chat.test.tsx",
     file: "src/components/live/LiveChat.tsx",

@@ -13,7 +13,7 @@ import { withSeedLock } from "./seed-lock";
  * `seed-version.test.ts` now fails when the catalog's set of shows changes and
  * this does not.
  */
-export const SEED_VERSION = "2026-10-01-a";
+export const SEED_VERSION = "2026-10-09-a";
 
 const RECONCILED_PREF = "seed-reconciled";
 const TOMBSTONE_PREF = "deleted-hashes";

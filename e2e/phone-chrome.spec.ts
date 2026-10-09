@@ -10,8 +10,8 @@ import { test, expect, type Page } from "./fixtures";
  * 2. the dialog and the player's red error banner were on screen at once for
  *    the same failure;
  * 3. the desktop status bar was drawn under the phone's tab bar, both visible
- *    at the bottom. The status bar lost its `hidden md:flex` when it moved out
- *    of DesktopShell on 2026-09-21 (ebeb4f7).
+ *    at the bottom. The bar carried `hidden md:flex`, but win98.css is
+ *    unlayered, so `.w98-statusbar-dark {display:flex}` beat it.
  *
  * The failed start is made in the page: every episode's audio, at archive.org
  * and at /mirror, is refused, so the watchdog fails over, the mirror fails
