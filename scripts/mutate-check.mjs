@@ -106,8 +106,9 @@ export const MUTATIONS = [
     id: "seed-version-follows-catalog",
     test: "src/db/__tests__/seed-version.test.ts",
     file: "src/db/seed.ts",
-    find: 'export const SEED_VERSION = "2026-10-01-a";',
-    replace: 'export const SEED_VERSION = "2026-07-27-a";',
+    // The prefix, not the value: the anchor must survive every bump.
+    find: 'export const SEED_VERSION = "',
+    replace: 'export const SEED_VERSION = "stale-',
     why: "the version must move with the catalog's shows, or reconcile never delivers them",
   },
   {
