@@ -17,6 +17,13 @@
  * The outage swap is NOT frozen. It is applied per read from the current
  * archive.org verdict and mirror manifest (`buildSchedule`), and is itself
  * deterministic in those.
+ *
+ * The verify swap IS frozen (2026-10-11): before a day is stored, any slot
+ * whose file failed its frame walk (`audio_checks`) is replaced by a fan
+ * favorite that passed one (`applyVerifySwap`), and the swap is logged. The
+ * nightly scripts/verify-live-day.mjs walks the next day's files first, so
+ * the freeze has the answers. Breaker trips (`live_overrides`) are applied at
+ * read time, like the outage swap.
  */
 
 import { readFile } from "node:fs/promises";
@@ -28,12 +35,16 @@ import {
   STATION_TZ,
   addDays,
   applyOutageSwap,
+  applyOverrides,
+  applyVerifySwap,
   buildDays,
   locate,
   pacificDay,
   upcoming,
+  type AudioChecks,
   type BuildInputs,
   type CatalogRow,
+  type LiveOverride,
   type DayProgram,
   type LiveSchedule,
   type ManifestSet,
@@ -86,9 +97,38 @@ export async function loadPlays(): Promise<Map<string, number>> {
   return new Map(rows.map((r) => [r.episode_id, Number(r.plays)]));
 }
 
+/** What the frame walks found (`audio_checks`). A database without the table knows nothing. */
+export async function loadAudioChecks(): Promise<AudioChecks> {
+  try {
+    const { rows } = await pool().query<{ file_hash: string; ok: boolean }>("SELECT file_hash, ok FROM audio_checks");
+    return {
+      bad: new Set(rows.filter((r) => !r.ok).map((r) => r.file_hash)),
+      ok: new Set(rows.filter((r) => r.ok).map((r) => r.file_hash)),
+    };
+  } catch (err) {
+    if ((err as { code?: string }).code === "42P01") return { bad: new Set(), ok: new Set() };
+    throw err;
+  }
+}
+
 export interface DayDeps {
   loadCatalog?: () => Promise<readonly CatalogRow[]>;
   loadPlays?: () => Promise<ReadonlyMap<string, number>>;
+  loadAudioChecks?: () => Promise<AudioChecks>;
+  /** The mirror's pinned set, for choosing a verify swap. Null: not known. */
+  loadPinned?: () => Promise<ReadonlySet<string> | null>;
+  log?: (line: string) => void;
+  loadOverrides?: (days: readonly string[]) => Promise<LiveOverride[]>;
+}
+
+async function pinnedFromManifest(): Promise<ReadonlySet<string> | null> {
+  const { mirrorManifest } = await import("@/services/live/manifest");
+  return (await mirrorManifest())?.fileHashes ?? null;
+}
+
+/** The swaps a verify pass made, for the log and the verify route. */
+export function verifySwaps(p: DayProgram): { start: number; replaces: string; fileHash: string }[] {
+  return p.slots.filter((s) => s.kind === "verify-swap" && s.replaces).map((s) => ({ start: s.start, replaces: s.replaces!, fileHash: s.fileHash }));
 }
 
 // ---------------------------------------------------------------------------
@@ -128,11 +168,15 @@ export async function frozenDay(day: string, deps: DayDeps = {}): Promise<DayPro
 
   // Inputs are read before taking the lock, to keep it short. If another
   // process wins the race, these are simply not used.
-  const [catalog, plays] = await Promise.all([
+  const [catalog, plays, checks, pinned] = await Promise.all([
     (deps.loadCatalog ?? loadCatalog)(),
     (deps.loadPlays ?? loadPlays)(),
+    (deps.loadAudioChecks ?? loadAudioChecks)(),
+    (deps.loadPinned ?? pinnedFromManifest)().catch(() => null),
   ]);
   const inputs: BuildInputs = { catalog, plays };
+  const rowByHash = new Map(catalog.map((r) => [r.fileHash, r]));
+  const log = deps.log ?? ((line: string) => console.warn(line));
 
   const client = await pool().connect();
   try {
@@ -149,7 +193,12 @@ export async function frozenDay(day: string, deps: DayDeps = {}): Promise<DayPro
       await client.query("COMMIT");
       return remember(won);
     }
-    const built = buildDays(day, inputs, frozen);
+    // Never air a file known to be broken: swap before freezing, and say so.
+    const built = buildDays(day, inputs, frozen).map((p) => {
+      const swapped = applyVerifySwap(p, checks, rowByHash, pinned);
+      for (const w of verifySwaps(swapped)) log(`[live] verify-swap ${p.day} ${new Date(w.start).toISOString()}: ${w.replaces} -> ${w.fileHash}`);
+      return swapped;
+    });
     // Return the day as the database holds it, not the object just built:
     // jsonb normalises key order, and the first answer must be byte-for-byte
     // what every later read returns.
@@ -171,6 +220,55 @@ export async function frozenDay(day: string, deps: DayDeps = {}): Promise<DayPro
   } finally {
     client.release();
   }
+}
+
+/**
+ * The day as it would be frozen now, without freezing it: for the nightly
+ * verify job, which walks these files first. The frozen day, if there is one.
+ */
+export async function plannedDay(day: string, deps: DayDeps = {}): Promise<{ frozen: boolean; program: DayProgram }> {
+  const existing = (await readFrozen(day, day)).get(day);
+  if (existing) return { frozen: true, program: existing };
+  const [catalog, plays, checks, pinned] = await Promise.all([
+    (deps.loadCatalog ?? loadCatalog)(),
+    (deps.loadPlays ?? loadPlays)(),
+    (deps.loadAudioChecks ?? loadAudioChecks)(),
+    (deps.loadPinned ?? pinnedFromManifest)().catch(() => null),
+  ]);
+  const frozen = await readFrozen(addDays(day, -2 * REPEAT_WINDOW_DAYS), day);
+  const built = buildDays(day, { catalog, plays }, frozen);
+  const target = built.find((p) => p.day === day)!;
+  return { frozen: false, program: applyVerifySwap(target, checks, new Map(catalog.map((r) => [r.fileHash, r])), pinned) };
+}
+
+// ---------------------------------------------------------------------------
+// Breaker overrides (read time)
+// ---------------------------------------------------------------------------
+
+const overrideCache = { at: 0, rows: [] as LiveOverride[], days: "" };
+const OVERRIDE_TTL_MS = 15_000;
+
+/** Overrides for these days, cached briefly; a trip in this process clears the cache. */
+export async function loadOverrides(days: readonly string[]): Promise<LiveOverride[]> {
+  const key = days.join(",");
+  if (overrideCache.days === key && Date.now() - overrideCache.at < OVERRIDE_TTL_MS) return overrideCache.rows;
+  try {
+    const { rows } = await pool().query<{ slot_start: string; file_hash: string; cut_at: string; replacement: string | null }>(
+      "SELECT slot_start, file_hash, cut_at, replacement FROM live_overrides WHERE day = ANY($1::date[])",
+      [days],
+    );
+    overrideCache.rows = rows.map((r) => ({ slotStart: Number(r.slot_start), fileHash: r.file_hash, cutAt: Number(r.cut_at), replacement: r.replacement }));
+  } catch (err) {
+    if ((err as { code?: string }).code !== "42P01") throw err;
+    overrideCache.rows = [];
+  }
+  overrideCache.at = Date.now();
+  overrideCache.days = key;
+  return overrideCache.rows;
+}
+
+export function forgetOverrides(): void {
+  overrideCache.at = 0;
 }
 
 /** Tests only: forget the in-process copies (the database keeps them). */
@@ -196,9 +294,12 @@ export function assembleSchedule(
   tomorrow: DayProgram | null,
   ctx: ScheduleContext,
   byHash: ReadonlyMap<string, CatalogRow>,
+  overrides: readonly LiveOverride[] = [],
 ): LiveSchedule {
-  const swap = (p: DayProgram) =>
-    ctx.archiveDown && ctx.manifest ? applyOutageSwap(p, ctx.manifest, byHash) : p;
+  const swap = (p: DayProgram): DayProgram => {
+    const q = ctx.archiveDown && ctx.manifest ? applyOutageSwap(p, ctx.manifest, byHash) : p;
+    return overrides.length ? { ...q, slots: applyOverrides(q.slots, overrides, byHash) } : q;
+  };
   const t = swap(today);
   const n = tomorrow ? swap(tomorrow) : null;
   const run = n ? [...t.slots, ...n.slots] : t.slots;
@@ -230,5 +331,6 @@ export async function buildSchedule(
   const day = pacificDay(now);
   const today = await frozenDay(day, deps);
   const tomorrow = needsTomorrow(today, now) ? await frozenDay(addDays(day, 1), deps) : null;
-  return assembleSchedule(now, today, tomorrow, await ctx(), await catalogByHash());
+  const overrides = await (deps.loadOverrides ?? loadOverrides)(tomorrow ? [day, tomorrow.day] : [day]);
+  return assembleSchedule(now, today, tomorrow, await ctx(), await catalogByHash(), overrides);
 }

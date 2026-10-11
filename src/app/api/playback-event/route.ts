@@ -4,6 +4,7 @@ import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { recordPlaybackFailure, isPlaySource } from "@/services/stats/store";
 import { isKnownEpisodeId } from "@/services/stats/allowlist";
 import { readJsonObject } from "@/lib/utils/json-body";
+import { stationBreaker } from "@/services/live/breaker";
 
 /**
  * A show failed to start.
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
   if (parsed.error) return parsed.error;
   const body = parsed.body;
 
-  const { episodeId, kind, retried, recovered, elapsedMs, uaClass, detail, source, build } =
+  const { episodeId, kind, retried, recovered, elapsedMs, uaClass, detail, source, build, live } =
     body;
 
   if (typeof episodeId !== "string" || !episodeId) {
@@ -146,6 +147,13 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
+
+  // The station's breaker (src/services/live/breaker.ts): a failure on the
+  // show on the air, from a tab tuned in to it. Judged whether or not the row
+  // below can be written; never fails the request.
+  void stationBreaker()
+    .note({ episodeId, client: ip, kind, recovered: recovered === true, live: live === true, at: Date.now() })
+    .catch((err) => console.warn("[playback-event] breaker:", err instanceof Error ? err.message : err));
 
   try {
     await recordPlaybackFailure({
