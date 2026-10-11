@@ -1,5 +1,85 @@
 [
   {
+    "fileHash": "archive:ultimate-ultimate-art-bell-collection:1994-10-28 - Coast to Coast AM with Art Bell - Ghost To Ghost 1994.mp3",
+    "airDate": "1994-10-28",
+    "reason": "midstream-change",
+    "original": {
+      "bytes": 49544677,
+      "sha256": "3a4cf1c3c20cbe8575aecd47d309c03b5999ea6bc58c8eac047ca73aa642f8a6",
+      "seconds": 12362.62,
+      "segments": [
+        {
+          "atSeconds": 0,
+          "sampleRate": 22050,
+          "mono": true,
+          "frames": 10030
+        },
+        {
+          "atSeconds": 262.01,
+          "sampleRate": 16000,
+          "mono": false,
+          "frames": 1
+        },
+        {
+          "atSeconds": 262.04,
+          "sampleRate": 22050,
+          "mono": true,
+          "frames": 463225
+        }
+      ]
+    },
+    "repaired": {
+      "bytes": 49449550,
+      "sha256": "f61fe410e2e451d0256f832e8b95b3fdbe452b89f5648fa0a7f2e5b117769fe4",
+      "seconds": 12362.29,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitrateKbps": 32,
+      "encoder": "ffmpeg -nostdin -hide_banner -loglevel error -y -i <original> -map 0:a:0 -map_metadata 0 -af aresample=22050:async=1 -ac 1 -ar 22050 -c:a libmp3lame -b:a 32k -id3v2_version 3 -write_xing 1 <copy>"
+    },
+    "repairedAt": "2026-10-11"
+  },
+  {
+    "fileHash": "archive:ultimate-ultimate-art-bell-collection:1996-09-09 - Coast to Coast AM with Art Bell - Open Lines - TWA 800, Arts Parts, Crop Circles.mp3",
+    "airDate": "1996-09-09",
+    "reason": "midstream-change",
+    "original": {
+      "bytes": 40337853,
+      "sha256": "c67bfac869654e4ab1e815dcf4a54c94ce1ca19a3557ec15b6f0cad0602c35e6",
+      "seconds": 10064.98,
+      "segments": [
+        {
+          "atSeconds": 0,
+          "sampleRate": 22050,
+          "mono": true,
+          "frames": 321194
+        },
+        {
+          "atSeconds": 8390.37,
+          "sampleRate": 22050,
+          "mono": false,
+          "frames": 1
+        },
+        {
+          "atSeconds": 8390.4,
+          "sampleRate": 22050,
+          "mono": true,
+          "frames": 64105
+        }
+      ]
+    },
+    "repaired": {
+      "bytes": 40260563,
+      "sha256": "bd3f7516d4e90851a5485cd23c9107e63d0430eb8b7fdf2a62e79a525220dff3",
+      "seconds": 10065.03,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitrateKbps": 32,
+      "encoder": "ffmpeg -nostdin -hide_banner -loglevel error -y -i <original> -map 0:a:0 -map_metadata 0 -af aresample=22050:async=1 -ac 1 -ar 22050 -c:a libmp3lame -b:a 32k -id3v2_version 3 -write_xing 1 <copy>"
+    },
+    "repairedAt": "2026-10-11"
+  },
+  {
     "fileHash": "archive:ultimate-ultimate-art-bell-collection:2001-11-26 - Coast to Coast AM with Art Bell - Glenn Kimball - Egypt Illinois Cave.mp3",
     "airDate": "2001-11-26",
     "reason": "midstream-change",

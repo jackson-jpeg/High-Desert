@@ -150,8 +150,11 @@ and its size, sha256 and segments are recorded beside the copy's in
 
 The copy is accepted only if a full frame walk finds one configuration, the
 layout asked for, and a runtime within 2 s of the original's frame count.
-Mono at 44.1 kHz, 64 kbps CBR: right for AM talk radio, and smaller than the
-original. To repair another (run niced, under heavy):
+Mono, at the rate most of the original is in (44.1 kHz at 64 kbps, or
+22.05 kHz at 32 kbps for the 22.05 kHz rips), CBR: right for AM talk radio,
+and no larger than the original. A single stray frame counts: Chromium's
+decoder is configured from each frame header, and one frame of another
+layout is the same "midstream configuration change" as a sustained one. To repair another (run niced, under heavy):
 
 ```
 heavy -- nice -n 19 ionice -c3 node scripts/repair-episode.mjs '<fileHash>'
@@ -160,6 +163,8 @@ heavy -- nice -n 19 ionice -c3 node scripts/repair-episode.mjs '<fileHash>'
 | Episode | What the original does | Copy | Repaired |
 |---|---|---|---|
 | 2001-11-26 Egyptian Cave in Illinois (Glenn Kimball) | stereo 0:00 to 43:59, then mono to the end, 44.1 kHz | mono 44.1 kHz 64 kbps, 66,266,927 B, 8,283.32 s, one configuration | 2026-10-11 |
+| 1994-10-28 Ghost To Ghost 1994 | 22.05 kHz mono, one stray 16 kHz stereo frame at 4:22 (and 13 runs of junk) | mono 22.05 kHz 32 kbps, 49,449,550 B, 12,362.29 s, one configuration | 2026-10-11 |
+| 1996-09-09 Open Lines: TWA 800, Art's Parts, Crop Circles | 22.05 kHz mono, one stray stereo frame at 2:19:50 | mono 22.05 kHz 32 kbps, 40,260,563 B, 10,065.03 s, one configuration | 2026-10-11 |
 
 ### 2001-11-26 — Coast to Coast AM: Egyptian Cave in Illinois (Glenn Kimball)
 
