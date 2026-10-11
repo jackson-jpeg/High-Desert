@@ -34,7 +34,7 @@ describe("resolveSources", () => {
 });
 
 describe("a repaired episode plays from the mirror only (docs/broken-episodes.md)", () => {
-  const catalog = JSON.parse(readFileSync("public/seed/library.json", "utf8")) as { fileHash: string; sourceUrl: string }[];
+  const catalog = JSON.parse(readFileSync("public/seed/library.json", "utf8")) as { fileHash: string; sourceUrl: string; airDate: string }[];
   const egypt = catalog.find((r) => r.airDate === "2001-11-26" && /Egypt/.test(r.fileHash))!;
 
   it("the 2001-11-26 Egyptian Cave show is in the catalog and repaired", () => {

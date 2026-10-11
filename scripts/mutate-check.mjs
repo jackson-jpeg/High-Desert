@@ -5528,6 +5528,14 @@ export const MUTATIONS = [
     why: "the radio would preview a repaired show from archive.org's broken file",
   },
   {
+    id: "play-rejection-media-error",
+    test: "src/hooks/__tests__/mirror-failover.test.ts",
+    file: "src/hooks/useAudioPlayer.ts",
+    find: "const r = playRejection(err, describeMediaError(audio.error));",
+    replace: "const r = playRejection(err);",
+    why: "a NotSupportedError row would again say nothing of why the source failed (docs/firefox-notsupportederror.md)",
+  },
+  {
     id: "digest-release-counts-under-300",
     test: "scripts/__tests__/digest.test.ts",
     file: "scripts/digest.mjs",

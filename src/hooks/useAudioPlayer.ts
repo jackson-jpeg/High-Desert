@@ -51,7 +51,7 @@ import {
 } from "@/audio/live-session";
 import { LIVE_LOCKED_MESSAGE, liveLocked } from "@/stores/live-store";
 import { toast } from "@/stores/toast-store";
-import { disarmWatchdog, isWatching, noteError } from "@/audio/playback-watchdog";
+import { describeMediaError, disarmWatchdog, isWatching, noteError } from "@/audio/playback-watchdog";
 import { emit } from "@/lib/events";
 import { withGlobals } from "./player/globals";
 import {
@@ -278,7 +278,7 @@ export function useAudioPlayer() {
         // (HD-033). The store owns it and revokes it when a new source
         // replaces it or playback stops.
         if (isWatching()) {
-          const r = playRejection(err);
+          const r = playRejection(err, describeMediaError(audio.error));
           noteError(r.kind, r.detail, { wanted: true });
         } else {
           usePlayerStore.getState().setLoadState("failed");
@@ -376,7 +376,7 @@ export function useAudioPlayer() {
       // This catch used to swallow the rejection entirely, so a refused
       // resume left the UI paused with no explanation whatsoever.
       if (isWatching()) {
-        const r = playRejection(err);
+        const r = playRejection(err, describeMediaError(getAudio().error));
         noteError(r.kind, r.detail, { wanted: true });
       } else {
         setError("Couldn't resume playback. Try again.");
