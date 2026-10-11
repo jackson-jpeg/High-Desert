@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-// @ts-expect-error plain .mjs
 import { candidatesFor, check, communityKey as scriptKey, importable, monthDays, nextPacificDay, sourceFor } from "../verify-live-day.mjs";
 import { communityKey } from "@/lib/utils/community-key";
 import { onThisDateKeys, rankByPlays, type CatalogRow } from "@/lib/live/schedule";
@@ -54,7 +53,7 @@ describe("what can air on a day", () => {
 
   it("a frozen day's own slots come first", () => {
     const slots = [{ fileHash: CATALOG[900].fileHash }];
-    const todo: CatalogRow[] = candidatesFor("2026-10-12", { catalog: CATALOG, plays, checked: new Set(), frozen: { slots, ranking: [] }, favorites: 5 });
+    const todo: CatalogRow[] = candidatesFor("2026-10-12", { catalog: CATALOG, plays, checked: new Set(), frozen: { slots, ranking: [] } as never, favorites: 5 });
     expect(todo[0].fileHash).toBe(CATALOG[900].fileHash);
   });
 

@@ -8,7 +8,7 @@ import { NextRequest } from "next/server";
  * breaker would be a check connected to nothing (docs/disconnected-checks.md).
  */
 
-const note = vi.fn((..._a: unknown[]) => Promise.resolve(null));
+const note = vi.fn<(f: Record<string, unknown>) => Promise<null>>(() => Promise.resolve(null));
 vi.mock("@/services/live/breaker", () => ({ stationBreaker: () => ({ note }) }));
 vi.mock("@/services/stats/store", async () => ({
   isPlaySource: (await vi.importActual<typeof import("@/services/stats/store")>("@/services/stats/store")).isPlaySource,
