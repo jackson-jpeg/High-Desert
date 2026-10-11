@@ -2996,8 +2996,11 @@ export const MUTATIONS = [
     id: "offsite-no-history",
     test: "scripts/__tests__/backup-db.test.ts",
     file: "scripts/backup-offsite.sh",
-    find: "rm -rf \"$repo\"\nmkdir -p \"$repo\"",
-    replace: "mkdir -p \"$repo\"",
+    // Builds on the last published commit instead of an orphan. (Dropping the
+    // first `rm -rf "$repo"` is equivalent code: the script removes the repo
+    // after every push too. CI found that.)
+    find: "git init -q -b main &&",
+    replace: "git init -q -b main && { git fetch -q \"$REMOTE\" main && git reset -q --soft FETCH_HEAD || true; } &&",
     why: "one orphan commit, so no dump outlives retention in git history",
   },
   {
