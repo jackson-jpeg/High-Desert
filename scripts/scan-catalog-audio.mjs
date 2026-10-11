@@ -8,14 +8,14 @@
  * (docs/broken-episodes.md). Nothing at the HTTP layer, and no 64 KB sample,
  * can see it: the whole file has to be walked.
  *
- *   node scripts/scan-catalog-audio.mjs --out <file.jsonl> [--limit N] [--pins DIR] [--catalog FILE]
+ *   node scripts/scan-catalog-audio.mjs --out <file.jsonl> [--limit N] [--concurrency N] [--pins DIR] [--catalog FILE]
  *
  * - A pinned episode is walked from the mirror's disk (no download); the rest
  *   stream from archive.org and are never saved.
  * - Resumable: an episode already in --out is skipped, so it runs in batches
  *   (--limit) and each batch can take its turn under `heavy`.
- * - One file at a time, at most one request every 2 s (a 100 MB walk takes
- *   far longer anyway). A stalled download (60 s without a byte) is an error
+ * - `--concurrency N` walks at once (default 1), request starts at least 2 s
+ *   apart. A stalled download (60 s without a byte) is an error
  *   row, retried by --retry-errors.
  *
  * Read-only. Run it niced, in the idle IO class.
@@ -94,26 +94,36 @@ async function main() {
   });
   console.error(`[scan] ${catalog.length} in the catalog, ${catalog.length - todo.length} done, ${todo.length} to walk${Number.isFinite(limit) ? `, this batch ${Math.min(limit, todo.length)}` : ""}`);
 
+  // A pool of `--concurrency` walks (default 1): archive.org serves one
+  // connection at well under 1 MB/s, so a catalog walk one file at a time is
+  // most of a day. Request starts stay at least GAP_MS apart.
+  const concurrency = Math.max(1, Number(arg("--concurrency", "1")));
+  const batch = todo.slice(0, Number.isFinite(limit) ? limit : todo.length);
+  let next = 0;
   let n = 0;
   let last = 0;
-  for (const row of todo) {
-    if (n >= limit) break;
-    n++;
-    const wait = last + GAP_MS - Date.now();
-    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-    last = Date.now();
-    let rec;
-    try {
-      const r = await walk(row, pinsDir);
-      const v = audioVerdict(r, row.duration ?? 0);
-      rec = { fileHash: row.fileHash, airDate: row.airDate, catalogSeconds: row.duration ?? null, ...r, ...v };
-    } catch (err) {
-      rec = { fileHash: row.fileHash, airDate: row.airDate, error: String(err?.message ?? err), ok: false, reason: "unreadable" };
+  async function worker() {
+    for (;;) {
+      const row = batch[next++];
+      if (!row) return;
+      const wait = last + GAP_MS - Date.now();
+      last = Math.max(Date.now(), last + GAP_MS);
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      let rec;
+      try {
+        const r = await walk(row, pinsDir);
+        const v = audioVerdict(r, row.duration ?? 0);
+        rec = { fileHash: row.fileHash, airDate: row.airDate, catalogSeconds: row.duration ?? null, ...r, ...v };
+      } catch (err) {
+        rec = { fileHash: row.fileHash, airDate: row.airDate, error: String(err?.message ?? err), ok: false, reason: "unreadable" };
+      }
+      rec.at = new Date().toISOString();
+      appendFileSync(out, JSON.stringify(rec) + "\n");
+      n++;
+      console.error(`[scan] ${n} ${row.airDate} ${rec.ok ? "ok" : rec.reason}${rec.segments?.length > 1 ? ` (${rec.segments.length} segments)` : ""}`);
     }
-    rec.at = new Date().toISOString();
-    appendFileSync(out, JSON.stringify(rec) + "\n");
-    console.error(`[scan] ${n} ${row.airDate} ${rec.ok ? "ok" : rec.reason}${rec.segments?.length > 1 ? ` (${rec.segments.length} segments)` : ""}`);
   }
+  await Promise.all(Array.from({ length: concurrency }, worker));
   // Exit 3 while anything is left, so a driving loop knows to run another batch.
   const remaining = todo.length - n;
   console.error(`[scan] batch done: ${n} walked, ${remaining} left`);
