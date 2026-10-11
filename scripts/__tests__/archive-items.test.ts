@@ -13,7 +13,9 @@ import { directFromItems } from "../../services/mirror/lib/nginx.mjs";
  * the collection's own servers from data/archive-items.json.
  */
 
-const ITEMS = JSON.parse(readFileSync(path.resolve(import.meta.dirname, "../../data/archive-items.json"), "utf8"));
+const ITEMS: Record<string, { servers: string[]; dir: string }> = JSON.parse(
+  readFileSync(path.resolve(import.meta.dirname, "../../data/archive-items.json"), "utf8"),
+);
 const CATALOG = JSON.parse(readFileSync(path.resolve(import.meta.dirname, "../../public/seed/library.json"), "utf8"));
 
 function mp3(frames: number): Buffer {
@@ -24,7 +26,7 @@ function mp3(frames: number): Buffer {
 
 describe("data/archive-items.json", () => {
   it("names a server and a directory for every collection in the catalog", () => {
-    const ids = new Set(CATALOG.map((r: { archiveIdentifier?: string }) => r.archiveIdentifier).filter(Boolean));
+    const ids = new Set<string>(CATALOG.map((r: { archiveIdentifier?: string }) => r.archiveIdentifier).filter(Boolean));
     for (const id of ids) {
       expect(ITEMS[id], id).toBeTruthy();
       expect(ITEMS[id].servers[0]).toMatch(/^[a-z0-9.-]+\.archive\.org$/);
@@ -33,7 +35,7 @@ describe("data/archive-items.json", () => {
   });
 
   it("the mirror's nginx gets each collection's first server", () => {
-    const d = directFromItems(ITEMS);
+    const d = directFromItems(ITEMS) as Record<string, string>;
     expect(d["ultimate-ultimate-art-bell-collection"]).toBe(`https://${ITEMS["ultimate-ultimate-art-bell-collection"].servers[0]}${ITEMS["ultimate-ultimate-art-bell-collection"].dir}`);
   });
 
