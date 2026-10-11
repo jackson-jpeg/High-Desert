@@ -8,7 +8,7 @@
  * (docs/broken-episodes.md). Nothing at the HTTP layer, and no 64 KB sample,
  * can see it: the whole file has to be walked.
  *
- *   node scripts/scan-catalog-audio.mjs --out <file.jsonl> [--limit N] [--pins DIR]
+ *   node scripts/scan-catalog-audio.mjs --out <file.jsonl> [--limit N] [--pins DIR] [--catalog FILE]
  *
  * - A pinned episode is walked from the mirror's disk (no download); the rest
  *   stream from archive.org and are never saved.
@@ -86,7 +86,7 @@ async function main() {
   const limit = Number(arg("--limit", "Infinity"));
   const pinsDir = arg("--pins", "/var/lib/highdesert-mirror/pins");
   const retryErrors = process.argv.includes("--retry-errors");
-  const catalog = JSON.parse(readFileSync(join(ROOT, "public/seed/library.json"), "utf8"));
+  const catalog = JSON.parse(readFileSync(arg("--catalog", join(ROOT, "public/seed/library.json")), "utf8"));
   const done = readDone(out);
   const todo = catalog.filter((r) => {
     const d = done.get(r.fileHash);
