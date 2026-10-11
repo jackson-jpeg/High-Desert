@@ -169,6 +169,18 @@ heavy -- nice -n 19 ionice -c3 node scripts/repair-episode.mjs '<fileHash>'
 | 2001-11-26 Egyptian Cave in Illinois (Glenn Kimball) | stereo 0:00 to 43:59, then mono to the end, 44.1 kHz | mono 44.1 kHz 64 kbps, 66,266,927 B, 8,283.32 s, one configuration | 2026-10-11 |
 | 1994-10-28 Ghost To Ghost 1994 | 22.05 kHz mono, one stray 16 kHz stereo frame at 4:22 (and 13 runs of junk) | mono 22.05 kHz 32 kbps, 49,449,550 B, 12,362.29 s, one configuration | 2026-10-11 |
 | 1996-09-09 Open Lines: TWA 800, Art's Parts, Crop Circles | 22.05 kHz mono, one stray stereo frame at 2:19:50 | mono 22.05 kHz 32 kbps, 40,260,563 B, 10,065.03 s, one configuration | 2026-10-11 |
+| 2001-09-11 The September 11, 2001 Show | 22.05 kHz mono, one stray stereo frame at 2:53:09 | mono 22.05 kHz 32 kbps, 42,032,254 B, 10,507.96 s, one configuration | 2026-10-11 |
+| 2001-12-04 Joshua P. Warren: Ghost Hunting, Brown Mountain Lights | 22.05 kHz mono, one stray stereo frame at 39:35 | mono 22.05 kHz 32 kbps, 38,235,812 B, 9,558.83 s, one configuration | 2026-10-11 |
+
+**Cross-check against the failure rows** (`playback_failures`, all time, read
+2026-10-11). A decode error (`code=3 PIPELINE_ERROR_DECODE`) has been
+recorded on exactly two episodes, and both are hits above: 2001-11-26 (35
+rows, android-chrome) and 2001-09-11 (1 row, android-chrome, on 2026-09-11,
+the show's anniversary). Every other "Format error" row (87 episodes) is
+`code=4 MEDIA_ELEMENT_ERROR`, the element failing to load its source, which
+is archive.org's storage-node 500 (docs/firefox-notsupportederror.md), not
+the file. A hit with no decode row was played rarely, or not past its stray
+frame.
 
 ### 2001-11-26 — Coast to Coast AM: Egyptian Cave in Illinois (Glenn Kimball)
 

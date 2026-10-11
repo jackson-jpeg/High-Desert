@@ -80,6 +80,46 @@
     "repairedAt": "2026-10-11"
   },
   {
+    "fileHash": "archive:ultimate-ultimate-art-bell-collection:2001-09-11 - Coast to Coast AM with Art Bell - The September 11, 2001 Show.mp3",
+    "airDate": "2001-09-11",
+    "reason": "midstream-change",
+    "original": {
+      "bytes": 42109506,
+      "sha256": "02ce7ccf9b9076fb577eaa751293ab934a166f1806a1d6340c51de50bc286c40",
+      "seconds": 10507.91,
+      "segments": [
+        {
+          "atSeconds": 0,
+          "sampleRate": 22050,
+          "mono": true,
+          "frames": 397735
+        },
+        {
+          "atSeconds": 10389.81,
+          "sampleRate": 22050,
+          "mono": false,
+          "frames": 1
+        },
+        {
+          "atSeconds": 10389.84,
+          "sampleRate": 22050,
+          "mono": true,
+          "frames": 4520
+        }
+      ]
+    },
+    "repaired": {
+      "bytes": 42032254,
+      "sha256": "696cf1a39266e0e983c4c026fdd24be56e97bcdc0c7e3d06cb992590696d747a",
+      "seconds": 10507.96,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitrateKbps": 32,
+      "encoder": "ffmpeg -nostdin -hide_banner -loglevel error -y -i <original> -map 0:a:0 -map_metadata 0 -af aresample=22050:async=1 -ac 1 -ar 22050 -c:a libmp3lame -b:a 32k -id3v2_version 3 -write_xing 1 <copy>"
+    },
+    "repairedAt": "2026-10-11"
+  },
+  {
     "fileHash": "archive:ultimate-ultimate-art-bell-collection:2001-11-26 - Coast to Coast AM with Art Bell - Glenn Kimball - Egypt Illinois Cave.mp3",
     "airDate": "2001-11-26",
     "reason": "midstream-change",
@@ -110,6 +150,46 @@
       "channels": 1,
       "bitrateKbps": 64,
       "encoder": "ffmpeg -nostdin -hide_banner -loglevel error -y -i <original> -map 0:a:0 -map_metadata 0 -af aresample=44100:async=1 -ac 1 -ar 44100 -c:a libmp3lame -b:a 64k -id3v2_version 3 -write_xing 1 <copy>"
+    },
+    "repairedAt": "2026-10-11"
+  },
+  {
+    "fileHash": "archive:ultimate-ultimate-art-bell-collection:2001-12-04 - Coast to Coast AM with Art Bell - Joshua P. Warren - Ghost Hunting, North Carolina's Brown Mountain Lights.mp3",
+    "airDate": "2001-12-04",
+    "reason": "midstream-change",
+    "original": {
+      "bytes": 38178721,
+      "sha256": "af1b483a1c473c1661171b7de5484f6be18bba557fa0b62fd741acf3b1648d6c",
+      "seconds": 9558.83,
+      "segments": [
+        {
+          "atSeconds": 0,
+          "sampleRate": 22050,
+          "mono": true,
+          "frames": 90931
+        },
+        {
+          "atSeconds": 2375.34,
+          "sampleRate": 22050,
+          "mono": false,
+          "frames": 1
+        },
+        {
+          "atSeconds": 2375.37,
+          "sampleRate": 22050,
+          "mono": true,
+          "frames": 274992
+        }
+      ]
+    },
+    "repaired": {
+      "bytes": 38235812,
+      "sha256": "1b163cda40fef1390983b5bf4d1c86a5e8b0899084e44a72e4bd732dc4d8b146",
+      "seconds": 9558.83,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitrateKbps": 32,
+      "encoder": "ffmpeg -nostdin -hide_banner -loglevel error -y -i <original> -map 0:a:0 -map_metadata 0 -af aresample=22050:async=1 -ac 1 -ar 22050 -c:a libmp3lame -b:a 32k -id3v2_version 3 -write_xing 1 <copy>"
     },
     "repairedAt": "2026-10-11"
   }
