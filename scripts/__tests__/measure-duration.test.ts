@@ -58,7 +58,15 @@ describe("the walker counts the file, not a tag", () => {
   const seconds = Math.round(((N * 1152) / 44100) * 100) / 100;
 
   it("every frame, past an ID3v2 tag holding a false sync word, before an ID3v1 tag", () => {
-    expect(walk(file)).toEqual({ frames: N, seconds, audioBytes: N * 417, resyncs: 0, bitrates: [128], sampleRates: [44100] });
+    expect(walk(file)).toEqual({
+      frames: N,
+      seconds,
+      audioBytes: N * 417,
+      resyncs: 0,
+      bitrates: [128],
+      sampleRates: [44100],
+      segments: [{ atSeconds: 0, sampleRate: 44100, mono: false, frames: N }],
+    });
   });
 
   it("the same answer however the stream is chunked", () => {
@@ -73,6 +81,23 @@ describe("the walker counts the file, not a tag", () => {
     expect(r.resyncs).toBe(1);
     expect(r.bitrates).toEqual([64, 128]);
     expect(r.sampleRates).toEqual([22050, 44100]);
+  });
+
+  it("a switch from stereo to mono midstream is a second segment, with the second it starts at", () => {
+    // 2001-11-26 (docs/broken-episodes.md): stereo, then mono from 43:59.
+    const mono = () => {
+      const b = frame();
+      b[3] = 0xc0; // channel mode 3, single channel
+      return b;
+    };
+    expect(frameAt(mono(), 0)).toMatchObject({ mono: true, len: 417 });
+    const switched = Buffer.concat([...Array.from({ length: 100 }, frame), ...Array.from({ length: 50 }, mono)]);
+    const r = walk(switched, 1000);
+    expect(r.frames).toBe(150);
+    expect(r.segments).toEqual([
+      { atSeconds: 0, sampleRate: 44100, mono: false, frames: 100 },
+      { atSeconds: Math.round(((100 * 1152) / 44100) * 100) / 100, sampleRate: 44100, mono: true, frames: 50 },
+    ]);
   });
 
   it("a partial frame at the end is not counted", () => {

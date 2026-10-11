@@ -32,7 +32,7 @@ catalogued. Left alone; the player reads duration from the element anyway.
 | 1999-01-25 — Chemtrails and HAARP | 18s | ~2h35m |
 | 1998-01-13 — Trends Research and Phoenix Lights | 43m | ~2h16m |
 | 2000-03-31 — Remote Viewing and Antarctica | 34m | ~2h36m |
-| 2001-11-26 — Egyptian Cave in Illinois | 2h18m | ~6h58m |
+| 2001-11-26 — Egyptian Cave in Illinois | 2h18m | ~6h58m (wrong: a full frame walk on 2026-10-11 counts 8,283 s, 2h18m, as catalogued. The 64KB sample extrapolated. This file was later repaired for another reason, below) |
 
 ---
 
@@ -126,3 +126,98 @@ and detail panel, refuses to play with an explanation instead of fetching the
 empty file, and offers **Remove from my library** — the listener's decision,
 through the library's delete confirmation and `deleteEpisode()`. Nothing deletes
 it automatically. **Adding a section here means adding its hash there.**
+
+---
+
+## Repaired, not pulled: re-encoded copies on the mirror
+
+A file that changes stream configuration midstream (channel layout or sample
+rate) is **repaired, not pulled** (Jackson, 2026-10-11): it is re-encoded once
+to one layout and one rate (`scripts/repair-episode.mjs`), and the mirror
+serves the copy ahead of everything else
+(`/var/lib/highdesert-mirror/repaired/<fileHash>`, tried before `pins/` in
+`services/mirror/lib/nginx.mjs`). **The original on archive.org is untouched**,
+and its size, sha256 and segments are recorded beside the copy's in
+`src/data/repaired-episodes.json`. That record is what the rest reads:
+
+- the player sends a repaired show to `/mirror/{fileHash}` only, never to
+  archive.org (`isRepaired()` in `src/audio/sources.ts`; the restored-show
+  prime and the radio's scan preview use the same choice);
+- the mirror's manifest lists it, so it stays playable in an outage, and the
+  warm job never pins the broken original (`services/mirror/lib/pins.mjs`);
+- the station's pre-air check walks the copy, not the original
+  (`scripts/verify-live-day.mjs`).
+
+The copy is accepted only if a full frame walk finds one configuration, the
+layout asked for, and a runtime within 2 s of the original's frame count.
+Mono, at the rate most of the original is in (44.1 kHz at 64 kbps, or
+22.05 kHz at 32 kbps for the 22.05 kHz rips), CBR: right for AM talk radio,
+and no larger than the original. **A single stray frame is
+enough to stop Chromium.** Measured 2026-10-11 in headless Chromium,
+seeking 6 s before the stray frame and playing through it: both 1994-10-28
+(at 262.01 s) and 1996-09-09 (at 8,390.37 s) stopped with
+`code=3 PIPELINE_ERROR_DECODE: … malformed stream: mpa: invalid audio buffer
+signal spec for packet` within 0.25 s of the frame. The control, a clean
+pinned show played across the same offset, kept playing. To repair another (run niced, under heavy):
+
+```
+heavy -- nice -n 19 ionice -c3 node scripts/repair-episode.mjs '<fileHash>'
+```
+
+| Episode | What the original does | Copy | Repaired |
+|---|---|---|---|
+| 2001-11-26 Egyptian Cave in Illinois (Glenn Kimball) | stereo 0:00 to 43:59, then mono to the end, 44.1 kHz | mono 44.1 kHz 64 kbps, 66,266,927 B, 8,283.32 s, one configuration | 2026-10-11 |
+| 1994-10-28 Ghost To Ghost 1994 | 22.05 kHz mono, one stray 16 kHz stereo frame at 4:22 (and 13 runs of junk) | mono 22.05 kHz 32 kbps, 49,449,550 B, 12,362.29 s, one configuration | 2026-10-11 |
+| 1996-09-09 Open Lines: TWA 800, Art's Parts, Crop Circles | 22.05 kHz mono, one stray stereo frame at 2:19:50 | mono 22.05 kHz 32 kbps, 40,260,563 B, 10,065.03 s, one configuration | 2026-10-11 |
+| 2001-09-11 The September 11, 2001 Show | 22.05 kHz mono, one stray stereo frame at 2:53:09 | mono 22.05 kHz 32 kbps, 42,032,254 B, 10,507.96 s, one configuration | 2026-10-11 |
+| 2001-12-04 Joshua P. Warren: Ghost Hunting, Brown Mountain Lights | 22.05 kHz mono, one stray stereo frame at 39:35 | mono 22.05 kHz 32 kbps, 38,235,812 B, 9,558.83 s, one configuration | 2026-10-11 |
+
+**Cross-check against the failure rows** (`playback_failures`, all time, read
+2026-10-11). A decode error (`code=3 PIPELINE_ERROR_DECODE`) has been
+recorded on exactly two episodes, and both are hits above: 2001-11-26 (35
+rows, android-chrome) and 2001-09-11 (1 row, android-chrome, on 2026-09-11,
+the show's anniversary). Every other "Format error" row (87 episodes) is
+`code=4 MEDIA_ELEMENT_ERROR`, the element failing to load its source, which
+is archive.org's storage-node 500 (docs/firefox-notsupportederror.md), not
+the file. A hit with no decode row was played rarely, or not past its stray
+frame.
+
+### 2001-11-26 — Coast to Coast AM: Egyptian Cave in Illinois (Glenn Kimball)
+
+**Pulled on 2026-10-11 and restored the same day as a repair** (the pull was
+never deployed, so no visitor saw it marked unavailable). `SEED_VERSION`
+`2026-10-11-b`, catalog 1,413. The file changes from stereo to mono 43
+minutes 59 seconds in, and Chromium refuses that midstream.
+
+| | |
+|---|---|
+| File | `2001-11-26 - Coast to Coast AM with Art Bell - Glenn Kimball - Egypt Illinois Cave.mp3` |
+| Item | `ultimate-ultimate-art-bell-collection` (the original collection, not the 2026-09-28 community import) |
+| Original | 100,935,721 bytes, sha256 `6128c7f9…cd63`, identical from archive.org and through the mirror's fill |
+| MPEG frames | 317,096 (8,283.32 s), all 44,100 Hz |
+| Configuration | **stereo for frames 1 to 101,037 (0:00 to 43:59), mono from 43:59 to the end** (216,059 frames) |
+| Copy | 66,266,927 bytes, sha256 `2d75fd7d…0442`, mono 44.1 kHz 64 kbps, 8,283.32 s, decodes with no errors (`ffmpeg -v error … -f null -`) |
+
+Every Chromium-engine browser that reaches 43:59, or starts past it (a
+resumed position), failed on the original with:
+
+```
+code=3 PipelineStatus::PIPELINE_ERROR_DECODE: Unsupported midstream configuration change!
+Sample Rate: 44100 vs 44100, Channels: 1 vs 2
+```
+
+It was 37 of the 119 failure rows in the week to 2026-10-05 (the digest's
+"most failing show"): 35 `decode-error` on `android-chrome`, all on
+2026-10-01 between 17:54 and 19:44 UTC, in bursts about a second apart, each
+failing within ~100 ms of starting. That cadence is a listener pressing Try
+Again, not the station: the station aired this show on 09-22, 09-24 and
+09-27, never on 10-01 (`live_days`). Since 2026-10-11 the release line counts
+that as one lost start per tab per show (`docs/reliability-baseline.md`).
+
+**No lossless repair exists.** An MPEG Layer III mono frame cannot be
+rewritten as a stereo one (or the reverse) without decoding and re-encoding,
+and splitting the file at 43:59 would make one broadcast two catalog rows. So
+the copy is a lossy re-encode, made once. ffmpeg reported a few "Header
+missing" packets in the original (junk between frames, which the walker
+counts as resyncs); the copy's runtime matches the original's frame count to
+the hundredth of a second, so nothing audible was dropped.

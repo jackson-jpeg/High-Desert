@@ -418,6 +418,25 @@ describe("why two iOS failovers to the mirror did not recover (2026-09-27)", () 
     expect(usePlayerStore.getState().playing).toBe(true);
   });
 
+  it("a NotSupportedError row carries the element's own MediaError, which says why (2026-10-11, Firefox)", async () => {
+    // archive.org's storage node answered 500 with no CORS header: the element
+    // sets code=4 and only then rejects play(). The row used to say only
+    // "play NotSupportedError"; the failover's row now names the cause first.
+    Object.defineProperty(element, "error", { value: { code: 4, message: "R1: Received 500 HTTP error code" }, configurable: true });
+    plays = ["reject-not-supported", "resolve"];
+    act(() => void api().playEpisode(episode()));
+    await settle();
+    await settle();
+    expect(element.src).toBe(MIRROR);
+    // The mirror plays: the archive's failure is recorded, rescued.
+    Object.defineProperty(element, "error", { value: null, configurable: true });
+    setReadyState(element, 4);
+    act(() => element.dispatchEvent(new Event("canplay")));
+    const row = reportPlaybackFailure.mock.calls.at(-1)![0];
+    expect(row.detail).toContain("code=4 R1: Received 500 HTTP error code (play NotSupportedError)");
+    expect(row).toMatchObject({ kind: "network-error", recovered: true });
+  });
+
   it("a refusal's row says it was a refusal, by the rejection's own name", async () => {
     plays = ["reject-not-allowed", "reject-not-allowed"];
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });

@@ -2,6 +2,8 @@ import { fetchWithRetry } from "@/lib/utils/retry";
 import type { FailureKind } from "@/audio/playback-watchdog";
 import type { SourceKind } from "@/audio/sources";
 import { pageBuild } from "@/lib/utils/build-id";
+import { FAILURE_TAB_ID } from "@/lib/utils/session-id";
+import { useLiveStore } from "@/stores/live-store";
 
 const RETRY_OPTS = { retries: 1, timeout: 5000 } as const;
 
@@ -68,20 +70,32 @@ export interface PlaybackFailure {
 /**
  * A show failed to start. Fire-and-forget, like reportPlay.
  *
- * Carries no session id and no identifier of any kind beyond the episode and a
- * coarse platform bucket. The point is to turn "it's a bit consistent for me"
- * into a ranked list of specific episodes, which needs counts per episode and
- * nothing per person.
+ * Carries no session id. Beyond the episode and a coarse platform bucket it
+ * carries only `tab`, a random id for this page load that nothing else sends
+ * (`FAILURE_TAB_ID`), so one tab pressing Try Again counts as one lost start
+ * rather than thirty-five. The point is to turn "it's a bit consistent for
+ * me" into a ranked list of specific episodes, which needs counts per episode
+ * and nothing per person.
  */
 export function reportPlaybackFailure(failure: PlaybackFailure): void {
   fetch("/api/playback-event", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...failure, ...buildTag() }),
+    body: JSON.stringify({ ...failure, ...buildTag(), tab: FAILURE_TAB_ID, ...(onTheStation(failure.episodeId) ? { live: true } : {}) }),
     // A failure reported at the moment the user gives up and closes the tab is
     // the most interesting kind, and is exactly the one a plain fetch drops.
     keepalive: true,
   }).catch(() => {});
+}
+
+/**
+ * The failure is on the live station's show, in a tab tuned in to it: what
+ * the station's breaker counts (src/services/live/breaker.ts). A library play
+ * of the same show is not the station's.
+ */
+export function onTheStation(episodeId: string): boolean {
+  const { tuned, phase, current } = useLiveStore.getState();
+  return tuned && phase === "show" && !!current && current.episodeId === episodeId;
 }
 
 export function reportStopBeacon(sessionId: string): void {

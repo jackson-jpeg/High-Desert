@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
-import { buildSchedule, type ScheduleContext } from "@/services/live/days";
-import { archiveVerdictPrompt } from "@/services/archive/server-verdict";
-import { mirrorManifest } from "@/services/live/manifest";
+import { buildSchedule } from "@/services/live/days";
+import { scheduleContext } from "@/services/live/context";
 
 /**
  * The live station's program, and what is on it right now.
@@ -18,15 +17,18 @@ import { mirrorManifest } from "@/services/live/manifest";
  *
  *   slot = { fileHash, episodeId, title, airDate, guestName, showType,
  *            duration, sourceUrl, start, end,
- *            kind: "on-this-date" | "fan-favorite" | "outage-swap",
+ *            kind: "on-this-date" | "fan-favorite" | "outage-swap"
+ *                | "verify-swap" | "breaker-swap",
  *            replaces? }
  *
  * `rest` is today's program after `upNext`; `guide` is all of today's,
  * past slots included. `upNext` may reach into tomorrow.
  *
  * The day is frozen in Postgres the first time it is asked for
- * (src/services/live/days.ts). The outage swap is applied here, per request,
- * from the shared archive.org verdict and the mirror manifest.
+ * (src/services/live/days.ts), with any file that failed its frame walk
+ * swapped out first (`verify-swap`). The outage swap and the breaker's
+ * overrides (`breaker-swap`, src/services/live/breaker.ts) are applied here,
+ * per request.
  *
  * `no-store`: `now` and `offsetSec` are stale the moment they are cached.
  * Clients must not use `offsetSec` for playback — it is this server's instant,
@@ -40,14 +42,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Rate limited" }, { status: 429 });
   }
 
-  const context = async (): Promise<ScheduleContext> => {
-    const verdict = await archiveVerdictPrompt();
-    const archiveDown = verdict ? !verdict.up : false;
-    return { archiveDown, manifest: archiveDown ? await mirrorManifest() : null };
-  };
-
   try {
-    const schedule = await buildSchedule(Date.now(), context);
+    const schedule = await buildSchedule(Date.now(), scheduleContext);
     return NextResponse.json(schedule, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     console.error("[live/schedule] error:", err);

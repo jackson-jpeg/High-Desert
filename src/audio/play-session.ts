@@ -95,12 +95,23 @@ export function isNotAllowed(err: unknown): boolean {
  * refusal, which never fails over, and the code=4 that followed arrived after
  * the tap's activation was spent.
  */
-export function playRejection(err: unknown): { kind: "play-rejected" | "network-error"; detail: string } {
+export function playRejection(
+  err: unknown,
+  mediaError?: string | null,
+): { kind: "play-rejected" | "network-error"; detail: string } {
   const name =
     typeof err === "object" && err !== null && typeof (err as { name?: unknown }).name === "string"
       ? (err as { name: string }).name
       : "unknown";
-  return { kind: name === "NotSupportedError" ? "network-error" : "play-rejected", detail: `play ${name}` };
+  // The element's own MediaError, when it has one, leads: the rejection only
+  // says play() could not use the source, the error says why. A load that
+  // failed before metadata (archive.org's storage node answering 500 with no
+  // CORS header, 2026-10-11) sets it and fires `error` before the pending
+  // play() is rejected, so it is there to read. Firefox wrote 16 rows of a bare
+  // "play NotSupportedError" without it. Leading with `code=N …` also keeps the
+  // row in the public route's diagnostic shape (failure-detail.ts).
+  const detail = mediaError ? `${mediaError} (play ${name})` : `play ${name}`;
+  return { kind: name === "NotSupportedError" ? "network-error" : "play-rejected", detail };
 }
 
 /** How close to the end a saved position counts as "finished". */

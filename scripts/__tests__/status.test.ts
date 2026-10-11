@@ -32,7 +32,8 @@ interface World {
   /** The `**Release deployed:**` timestamp in docs/reliability-baseline.md; null writes no doc. */
   releaseAt: string | null;
   /** `recovered` of `failures` were rescued by the retry or the mirror; the rest were lost. */
-  release: { failures: number; recovered: number; plays: number; days: number };
+  /** `lost`/`repeats`: the per-tab count (2026-10-11); absent, the API predates it. */
+  release: { failures: number; recovered: number; plays: number; days: number; lost?: number; repeats?: number };
   /** Rows in the window from builds that are not the release's, and untagged rows. */
   releaseOther: { build: string | null; failures: number; recovered: number; plays: number }[];
   /** .deploy/history lines ("<ref> <ISO>"); the release commit in the doc is abc1234. */
@@ -372,7 +373,13 @@ beforeEach(async () => {
                 ? {}
                 : {
                     byBuild: [
-                      { build: "abc1234", failures: world.release.failures, recovered: world.release.recovered, plays: world.release.plays },
+                      {
+                        build: "abc1234",
+                        failures: world.release.failures,
+                        recovered: world.release.recovered,
+                        plays: world.release.plays,
+                        ...(world.release.lost === undefined ? {} : { lost: world.release.lost, repeats: world.release.repeats ?? 0 }),
+                      },
                       ...world.releaseOther,
                     ],
                   }),
@@ -581,6 +588,15 @@ describe("highdesert-status", () => {
       const r = await run();
       expect(lineFor(r.out, "release")).toBe(
         "OK    release   1.0% of starts lost on this release's builds in the 7 of 7 days since 2026-09-21T15:50:00Z (3 lost / 300 plays; target <3%); 17 rescued by the retry or the mirror (5.7%)",
+      );
+    });
+
+    it("one tab pressing Try Again is one lost start: the repeats are shown, not counted (2026-10-11)", async () => {
+      // 02db307's line: 57 unrecovered rows read 4.3%; one per tab per show, 23 (1.7%).
+      world.release = { failures: 118, recovered: 61, lost: 23, repeats: 34, plays: 1329, days: 7 };
+      const r = await run();
+      expect(lineFor(r.out, "release")).toBe(
+        "OK    release   1.7% of starts lost on this release's builds in the 7 of 7 days since 2026-09-21T15:50:00Z (23 lost / 1329 plays; target <3%); 61 rescued by the retry or the mirror (4.6%); 34 repeats of a lost start in the same tab, not counted",
       );
     });
 

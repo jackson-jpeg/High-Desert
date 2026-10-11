@@ -18,6 +18,7 @@
  * or sent.
  */
 
+import { createArchiveVoice, loadMoments, scheduleReader } from "./archive.mjs";
 import { randomInt } from "node:crypto";
 import { hashClientKey } from "./shared/client-key.ts";
 import {
@@ -47,6 +48,7 @@ import {
   TUNEIN_REPEAT_MS,
   TUNEIN_PLACES_SHOWN,
   TUNEIN_ON_HELLO,
+  ARCHIVE_SCHEDULE_URL,
 } from "./config.mjs";
 import { createStore } from "./store.mjs";
 import { createHub } from "./sse.mjs";
@@ -152,6 +154,11 @@ export function createLiveApp({
   log = (msg) => console.log(msg),
   /** Tests only: a private live_settings key, so parallel test apps do not share forced slow mode. */
   settingsKey,
+  /**
+   * Archive moments (lib/archive.mjs). `false` turns them off (tests); an
+   * object overrides the moments, the schedule reader or the timing.
+   */
+  archive = {},
 }) {
   if (!clientSecret || clientSecret.length < 32) throw new Error("CHAT_CLIENT_SECRET must be set (32+ chars)");
   const store = createStore(pool, { settingsKey });
@@ -259,6 +266,22 @@ export function createLiveApp({
     const t = now();
     for (const [ref, at] of tuneinSeen) if (t - at >= TUNEIN_REPEAT_MS) tuneinSeen.delete(ref);
   }
+
+  // ---- archive moments ---------------------------------------------------
+  // A line from the show's history when the room has gone quiet (archive.mjs).
+  // Its own event, never a message: nothing stored, nothing counted.
+  const voice =
+    archive === false
+      ? null
+      : createArchiveVoice({
+          moments: archive.moments ?? loadMoments(),
+          onAir: archive.onAir ?? scheduleReader(archive.scheduleUrl ?? ARCHIVE_SCHEDULE_URL),
+          broadcast: (line) => hub.broadcast("archive", line),
+          listeners: () => hub.size,
+          now,
+          log,
+          ...(archive.timing ?? {}),
+        });
 
   // ---- identity ----------------------------------------------------------
 
@@ -462,7 +485,15 @@ export function createLiveApp({
     hub.send(
       client,
       "hello",
-      { you: me, slowMode: limits.slowMode(), recent, resumed: !!lastId, hidden, tuneins: [...tuneinRecent] },
+      {
+        you: me,
+        slowMode: limits.slowMode(),
+        recent,
+        resumed: !!lastId,
+        hidden,
+        tuneins: [...tuneinRecent],
+        archive: voice?.recent() ?? [],
+      },
       lastSent,
     );
   }
@@ -496,6 +527,7 @@ export function createLiveApp({
     const { name, line, place } = await ensureCaller(caller);
     const msg = await store.insertMessage({ clientRef: ref, addrRef: addr, name, place, line, body: verdict.text });
     spoken.add(ref);
+    voice?.noteCall();
     const turnedSlow = limits.record(ref, key);
     hub.broadcast("message", msg, msg.id);
     if (turnedSlow) announceSlowIfChanged();
@@ -755,6 +787,7 @@ export function createLiveApp({
     hub,
     limits,
     store,
+    voice,
     ready,
     sweep,
     addrRefOf,
@@ -763,6 +796,7 @@ export function createLiveApp({
       clearInterval(retentionTimer);
       clearInterval(slowTimer);
       clearTimeout(tuneinTimer);
+      voice?.close();
       cpu.stop();
       hub.close();
     },

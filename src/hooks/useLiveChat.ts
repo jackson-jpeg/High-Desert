@@ -14,6 +14,7 @@ import {
   type LiveYou,
   type SlowMode,
   type TuneinNotice,
+  type ArchiveLine,
 } from "@/services/live/client";
 import { noteFunnelStep } from "@/services/stats/funnel-client";
 
@@ -21,6 +22,8 @@ import { noteFunnelStep } from "@/services/stats/funnel-client";
 export const KEEP_MESSAGES = 200;
 /** How many tune-in notices the lines keep on screen. */
 export const KEEP_NOTICES = 20;
+/** How many archive lines the lines keep on screen. */
+export const KEEP_ARCHIVE = 10;
 
 export interface LiveChatState {
   status: LiveStatus;
@@ -32,25 +35,34 @@ export interface LiveChatState {
   reported: number[];
   /** Tune-in notices, oldest first. */
   notices: TuneinNotice[];
+  /** Archive lines, oldest first. */
+  archive: ArchiveLine[];
 }
 
 type Action =
   | { type: "status"; status: LiveStatus }
-  | { type: "hello"; you: LiveYou; slowMode: SlowMode; recent: LiveMessage[]; resumed: boolean; hidden: number[]; tuneins?: TuneinNotice[] }
+  | { type: "hello"; you: LiveYou; slowMode: SlowMode; recent: LiveMessage[]; resumed: boolean; hidden: number[]; tuneins?: TuneinNotice[]; archive?: ArchiveLine[] }
   | { type: "message"; message: LiveMessage; mine?: boolean }
   | { type: "hide"; ids: number[] }
   | { type: "rename"; ids: number[]; name: string; place?: string | null }
   | { type: "slow"; slowMode: SlowMode }
   | { type: "you"; patch: Partial<LiveYou> }
   | { type: "tunein"; notice: TuneinNotice }
+  | { type: "archive"; line: ArchiveLine }
   | { type: "reported"; id: number };
 
-export const INITIAL_LIVE: LiveChatState = { status: "connecting", you: null, slowMode: null, messages: [], mine: [], reported: [], notices: [] };
+export const INITIAL_LIVE: LiveChatState = { status: "connecting", you: null, slowMode: null, messages: [], mine: [], reported: [], notices: [], archive: [] };
 
 function addNotices(list: TuneinNotice[], add: TuneinNotice[]): TuneinNotice[] {
   const byAt = new Map(list.map((n) => [n.at, n]));
   for (const n of add) byAt.set(n.at, n);
   return [...byAt.values()].sort((a, b) => Date.parse(a.at) - Date.parse(b.at)).slice(-KEEP_NOTICES);
+}
+
+function addArchive(list: ArchiveLine[], add: ArchiveLine[]): ArchiveLine[] {
+  const byAt = new Map(list.map((l) => [`${l.at} ${l.id}`, l]));
+  for (const l of add) byAt.set(`${l.at} ${l.id}`, l);
+  return [...byAt.values()].sort((a, b) => Date.parse(a.at) - Date.parse(b.at)).slice(-KEEP_ARCHIVE);
 }
 
 function merge(list: LiveMessage[], add: LiveMessage[]): LiveMessage[] {
@@ -78,6 +90,7 @@ export function liveReducer(state: LiveChatState, a: Action): LiveChatState {
         slowMode: a.slowMode,
         messages: merge(kept, a.recent.filter((m) => !hidden.has(m.id))),
         notices: addNotices(state.notices, a.tuneins ?? []),
+        archive: addArchive(state.archive, a.archive ?? []),
       };
     }
     case "message":
@@ -106,6 +119,8 @@ export function liveReducer(state: LiveChatState, a: Action): LiveChatState {
       return state.you ? { ...state, you: { ...state.you, ...a.patch } } : state;
     case "tunein":
       return { ...state, notices: addNotices(state.notices, [a.notice]) };
+    case "archive":
+      return { ...state, archive: addArchive(state.archive, [a.line]) };
     case "reported":
       return { ...state, reported: [...state.reported, a.id] };
   }
@@ -124,6 +139,7 @@ export function useLiveChat() {
       hide: (ids) => dispatch({ type: "hide", ids }),
       rename: (ids, name, place) => dispatch({ type: "rename", ids, name, place }),
       tunein: (notice) => dispatch({ type: "tunein", notice }),
+      archive: (line) => dispatch({ type: "archive", line }),
       slow: (slowMode) => dispatch({ type: "slow", slowMode }),
       status: (status) => dispatch({ type: "status", status }),
     });

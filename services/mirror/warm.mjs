@@ -19,7 +19,10 @@
  * - Episodes that fell out of the top are unpinned first (an unpinned episode
  *   still plays through nginx's fill cache while archive.org is up).
  * - Never lets free space fall below MIRROR_DISK_FLOOR_GB.
- * - Rewrites `<stateDir>/manifest.json` atomically at the end.
+ * - Rewrites `<stateDir>/manifest.json` atomically at the end: the pins plus
+ *   the repaired copies in `<stateDir>/repaired` (never written here).
+ * - Never pins an episode in the repaired record (MIRROR_REPAIRED): its
+ *   archive.org file is the broken one.
  *
  * Reads plays straight from Postgres (DATABASE_URL, the app's env file) via
  * psql: one aggregate query over play_events, no session refs touched.
@@ -34,7 +37,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseTorrent, verifyAgainst } from "./lib/torrent-file.mjs";
 import { currentSteal } from "./lib/steal.mjs";
-import { layout, fileNameOf, isPinnableName, readPins, writeManifest } from "./lib/pins.mjs";
+import { layout, fileNameOf, isPinnableName, readPins, writeManifest, repairedSet } from "./lib/pins.mjs";
 
 const execFileP = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -128,7 +131,10 @@ export async function runWarm({
   stateDir,
   statusPath,
   torrentDir,
-  index,
+  index: catalogIndex,
+  // src/data/repaired-episodes.json: their archive.org files are the broken
+  // ones, so they are never pinned; the manifest lists the repaired copies.
+  repairs = [],
   budgetBytes,
   floorBytes,
   maxSteal,
@@ -142,6 +148,8 @@ export async function runWarm({
   log = (m) => console.log(`[warm] ${m}`),
 }) {
   const dirs = layout(stateDir);
+  const skip = repairedSet(repairs);
+  const index = Object.fromEntries(Object.entries(catalogIndex).filter(([h]) => !skip.has(h)));
   const status = { at: new Date().toISOString(), outcome: "ok", pinned: 0, bytes: 0, fetched: 0, failed: 0, pruned: 0 };
   const writeStatus = () => writeFile(statusPath, JSON.stringify(status) + "\n");
   await mkdir(dirs.pins, { recursive: true, mode: 0o755 });
@@ -237,7 +245,7 @@ export async function runWarm({
     for (const x of extras.splice(0)) await unpin(x);
   }
 
-  const m = await writeManifest({ stateDir, index });
+  const m = await writeManifest({ stateDir, index, repairs });
   const pinned = await readPins(dirs.pins, index);
   Object.assign(status, {
     pinned: m.count,
@@ -259,6 +267,7 @@ async function main() {
     statusPath: path.join(cacheDir, "warm-status.json"),
     torrentDir: env("MIRROR_TORRENT_DIR", "/var/lib/highdesert-mirror/torrents"),
     index: JSON.parse(await readFile(env("MIRROR_INDEX", path.join(here, "episodes.json")), "utf8")),
+    repairs: await readFile(env("MIRROR_REPAIRED", path.join(here, "repaired.json")), "utf8").then(JSON.parse, () => []),
     budgetBytes: Number(env("MIRROR_PIN_MAX_GB", "15")) * GB,
     floorBytes: Number(env("MIRROR_DISK_FLOOR_GB", "10")) * GB,
     maxSteal: Number(env("MIRROR_WARM_MAX_STEAL", "20")),

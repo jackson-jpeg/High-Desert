@@ -46,6 +46,8 @@ function backupEnv(extra: Record<string, string> = {}): Record<string, string> {
     HD_BACKUP_SSH: path.join(dir, "ssh-stub"),
     HD_BACKUP_RSYNC: path.join(dir, "rsync-stub"),
     FAKE_FREE_MB: "99999",
+    // Never GitHub from a test: the offsite leg has its own block below, against a local bare repo.
+    HD_BACKUP_OFFSITE: "",
     ...extra,
   };
 }
@@ -220,3 +222,98 @@ describe("backup-status.sh", () => {
     expect(r.code).not.toBe(0);
   });
 });
+
+/**
+ * The encrypted off-box copy (scripts/backup-offsite.sh), run for real: real
+ * age, a real dump from the test database, pushed to a local bare repository
+ * standing in for GitHub, then cloned, decrypted and restored.
+ */
+describeDb("backup-offsite.sh (encrypted copy, restore test)", () => {
+  const marker = `offsite-test-${process.pid}-${Date.now()}`;
+  let bare: string;
+  let key: string;
+  let pub: string;
+
+  const run = (cmd: string, args: string[], env: Record<string, string> = {}) =>
+    new Promise<{ code: number; out: string }>((resolve) =>
+      execFile(cmd, args, { env: { ...process.env, ...env }, timeout: 60_000, maxBuffer: 64 << 20 }, (err, out, errOut) =>
+        resolve({ code: err ? Number((err as { code?: number }).code ?? 1) : 0, out: String(out) + String(errOut) }),
+      ),
+    );
+  const offsiteEnv = (extra: Record<string, string> = {}) =>
+    backupEnv({
+      HD_BACKUP_OFFSITE: path.resolve(__dirname, "../backup-offsite.sh"),
+      HD_OFFSITE_RECIPIENT: pub,
+      HD_OFFSITE_IDENTITY: key,
+      HD_OFFSITE_REMOTE: bare,
+      HD_OFFSITE_WORK: path.join(dir, "offsite"),
+      ...extra,
+    });
+  async function cloned(): Promise<{ files: string[]; commits: number; at: string }> {
+    const at = path.join(dir, `clone-${Math.random().toString(36).slice(2)}`);
+    await run("git", ["clone", "-q", bare, at]);
+    const log = await run("git", ["-C", at, "rev-list", "--count", "HEAD"]);
+    return { files: (await readdir(at)).filter((f) => f !== ".git").sort(), commits: Number(log.out.trim()), at };
+  }
+
+  beforeEach(async () => {
+    await psql(`INSERT INTO play_events (episode_id, played_at) VALUES ('${marker}', '2001-01-01T00:00:00Z')`);
+    bare = path.join(dir, "remote.git");
+    await run("git", ["init", "-q", "--bare", "-b", "main", bare]);
+    key = path.join(dir, "age.key");
+    pub = path.join(dir, "age.pub");
+    await run("age-keygen", ["-o", key]);
+    const r = await run("age-keygen", ["-y", key]);
+    await writeFile(pub, r.out.trim() + "\n");
+  });
+  afterEach(async () => {
+    await psql(`DELETE FROM play_events WHERE episode_id = '${marker}'`);
+  });
+
+  it("pushes the dump encrypted, and the pushed copy restores the rows", async () => {
+    const r = await sh(BACKUP, offsiteEnv());
+    expect(r.code, r.out).toBe(0);
+    const status = await readFile(statusFile, "utf8");
+    expect(status).toMatch(/offsite_result=ok, 1 kept \(1 new, 0 dropped\), restore test ok/);
+    const { files, at } = await cloned();
+    const [enc] = files.filter((f) => f.endsWith(".dump.age"));
+    expect(files).toEqual(expect.arrayContaining(["README.md", enc, enc.replace(/\.age$/, ".sha256")]));
+    // Ciphertext: the marker is nowhere in what was pushed.
+    expect((await readFile(path.join(at, enc))).includes(Buffer.from(marker))).toBe(false);
+    // The restore: decrypt the pushed copy, then pg_restore reads the row back.
+    const plain = path.join(dir, "restored.dump");
+    expect((await run("age", ["-d", "-i", key, "-o", plain, path.join(at, enc)])).code).toBe(0);
+    const sql = await run("pg_restore", ["--data-only", "--table=play_events", "-f", "-", plain]);
+    expect(sql.out).toContain(marker);
+  });
+
+  it("keeps what the VPS keeps and no history: a pruned dump leaves the repo, one commit", async () => {
+    expect((await sh(BACKUP, offsiteEnv())).code).toBe(0);
+    const [first] = await dumps();
+    await age(first, 15 * 24);
+    await new Promise((res) => setTimeout(res, 1100)); // a new stamp
+    expect((await sh(BACKUP, offsiteEnv())).code).toBe(0);
+    const { files, commits } = await cloned();
+    expect(files.filter((f) => f.endsWith(".age"))).toEqual([`${(await dumps())[0]}.age`]);
+    expect(files.some((f) => f.startsWith(first))).toBe(false);
+    expect(commits).toBe(1);
+  });
+
+  it("a copy that does not decrypt to its dump fails the leg, and the status says so", async () => {
+    expect((await sh(BACKUP, offsiteEnv())).code).toBe(0);
+    const [d] = await dumps();
+    const enc = path.join(dir, "offsite", "files", `${d}.age`);
+    const other = path.join(dir, "other");
+    await writeFile(other, "not the dump");
+    await run("age", ["-R", pub, "-o", enc, other]);
+    // The next run makes a newer dump, so the bad copy is not the newest: every
+    // copy is checked, not only the one pg_restore reads (CI found this).
+    await new Promise((res) => setTimeout(res, 1100));
+    const r = await sh(BACKUP, offsiteEnv());
+    expect(r.code).toBe(0); // the VPS dump stands; the leg is a warning
+    expect(await readFile(statusFile, "utf8")).toMatch(/offsite_result=skipped: failed: .* decrypts to different bytes/);
+    const s = await sh(STATUS, statusEnv());
+    expect(s.out).toMatch(/WARN  encrypted off-box \(GitHub\) copy skipped: failed/);
+  });
+});
+

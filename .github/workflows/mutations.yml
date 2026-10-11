@@ -65,6 +65,9 @@ jobs:
         run: npm ci
       - name: nginx for the mirror's integration test
         run: command -v nginx >/dev/null || test -x /usr/sbin/nginx || sudo apt-get install -y --no-install-recommends nginx-core
+      # scripts/backup-offsite.sh encrypts with age; its test decrypts a real copy.
+      - name: age for the encrypted backup's test
+        run: command -v age >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends age)
       - name: Install live chat dependencies
         run: npm ci --prefix services/live --no-audit --no-fund
       - name: Apply schema

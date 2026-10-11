@@ -27,6 +27,8 @@ vi.mock("@/services/stats/db/pool", () => ({
   pool: () => ({
     query: async (sql: string, params: string[]) => {
       if (failDb) throw new Error("database down");
+      // No breaker trips here (the overrides are tested in live-days.db.test.ts).
+      if (sql.includes("FROM live_overrides")) return { rows: [] };
       if (!sql.includes("FROM live_days")) throw new Error(`unexpected query: ${sql}`);
       const [from, to] = params;
       const rows = [];

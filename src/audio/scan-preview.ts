@@ -19,12 +19,15 @@
  * is still pending does nothing when that promise settles.
  */
 
+import { resolveSources } from "@/audio/sources";
+
 export const PREVIEW_WINDOW_MS = 2500;
 export const PREVIEW_VOLUME = 0.3;
 const FADE_STEP_MS = 30;
 const QUICK_FADE_STEP_MS = 20;
 
 export interface PreviewEpisode {
+  fileHash?: string;
   sourceUrl?: string;
   duration?: number;
 }
@@ -116,7 +119,9 @@ export function createScanPreview(
       },
       { once: true },
     );
-    el.src = episode.sourceUrl;
+    // archive.org, or the mirror for a repaired show, whose archive.org file
+    // Chromium refuses (src/audio/sources.ts).
+    el.src = resolveSources({ fileHash: episode.fileHash ?? "", sourceUrl: episode.sourceUrl })[0]?.url ?? episode.sourceUrl;
     current = el;
 
     try {

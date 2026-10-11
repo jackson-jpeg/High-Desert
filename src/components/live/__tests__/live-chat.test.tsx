@@ -52,6 +52,13 @@ vi.mock("@/hooks/useCommunityNow", () => ({
   useCommunityNow: () => ({ ...presence, onAir: [], recent: [], loading: false, poll: 1 }),
 }));
 
+// The archive card's "Find the show" opens a library intent through the router.
+const routerPush = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: routerPush, replace: vi.fn() }),
+  usePathname: () => "/live",
+}));
+
 const { LiveChat } = await import("../LiveChat");
 
 const you = { name: "Night Owl in Pahrump", line: "Line 3", admin: false };
@@ -625,5 +632,74 @@ describe("the room, where people decide to speak", () => {
     act(() => q(again.host, "toggle-tuneins")!.click());
     expect(all(again.host, "tunein-notice")).toHaveLength(1);
     again.done();
+  });
+});
+
+describe("archive lines (2026-10-11): a moment from the show's history, never a call", () => {
+  const moment = {
+    id: "area-51-caller",
+    at: "2026-09-25T06:01:00.000Z",
+    text: "A caller who said he had worked at Area 51 broke down on the air.",
+    form: "moment",
+    speaker: null,
+    episode: { airDate: "1997-09-11", title: "Coast to Coast AM - Open Lines with Area 51 Employees" },
+    reason: "on-air",
+  };
+  const quote = {
+    id: "sign-on",
+    at: "2026-09-25T06:03:00.000Z",
+    text: "From the high desert and the great American Southwest\u2026",
+    form: "quote",
+    speaker: "Art Bell",
+    episode: null,
+    reason: "archive",
+  };
+
+  it("in time order among the calls, marked as the archive, with no line, no caller and no Report", () => {
+    const { host, es, done } = render();
+    act(() =>
+      es().emit("hello", {
+        you,
+        slowMode: slowOff,
+        recent: [msg(1, { at: "2026-09-25T06:00:00.000Z" }), msg(2, { at: "2026-09-25T06:02:00.000Z" })],
+        resumed: false,
+        hidden: [],
+        archive: [moment],
+      }),
+    );
+    act(() => es().emit("archive", quote));
+    const rows = [...host.querySelectorAll('[data-testid="live-messages"] > li')].map((li) =>
+      li.getAttribute("data-testid") === "archive-line" ? `archive ${li.getAttribute("data-form")}` : `call ${li.getAttribute("data-id")}`,
+    );
+    expect(rows).toEqual(["call 1", "archive moment", "call 2", "archive quote"]);
+
+    const [first, second] = all(host, "archive-line");
+    expect(first.querySelector('[data-testid="archive-label"]')!.textContent).toBe("From the archive: this show");
+    expect(second.querySelector('[data-testid="archive-label"]')!.textContent).toBe("From the archive");
+    for (const card of [first, second]) {
+      expect(card.querySelector('[data-testid="line-label"]')).toBeNull();
+      expect(card.querySelector('[data-testid="caller-name"]')).toBeNull();
+      expect(card.textContent).not.toMatch(/Report/);
+    }
+    // A description is never put in quotation marks; a quote is, with its speaker.
+    expect(first.querySelector('[data-testid="archive-text"]')!.textContent).toBe(moment.text);
+    expect(second.querySelector('[data-testid="archive-text"]')!.textContent).toBe(
+      "\u201CFrom the high desert and the great American Southwest\u2026\u201D (Art Bell)",
+    );
+    expect(all(host, "live-message")).toHaveLength(2);
+    done();
+  });
+
+  it("one from a show in the catalog finds it in the library", () => {
+    routerPush.mockClear();
+    const { host, es, done } = render();
+    act(() => es().emit("hello", { you, slowMode: slowOff, recent: [], resumed: false, hidden: [], archive: [moment] }));
+    const find = q(host, "archive-episode")!;
+    expect(find.textContent).toBe("Find the show: Sep 11, 1997");
+    act(() => find.click());
+    expect(routerPush).toHaveBeenCalledWith(
+      `/library?q=${encodeURIComponent(moment.episode.title).replace(/%20/g, "+")}`,
+    );
+    done();
   });
 });

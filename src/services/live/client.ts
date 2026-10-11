@@ -38,6 +38,24 @@ export interface TuneinNotice {
   places: string[];
 }
 
+/**
+ * A moment from the show's history (services/live/lib/archive.mjs), sent when
+ * the room has gone quiet. Not a caller: no name, no line, nothing to report.
+ */
+export interface ArchiveLine {
+  id: string;
+  /** ISO 8601 */
+  at: string;
+  text: string;
+  /** "quote": the speaker's own words, drawn in quotation marks. "moment": a description. */
+  form: "quote" | "moment";
+  speaker: string | null;
+  /** The show it is from, when there is one in the catalog. */
+  episode: { airDate: string; title: string } | null;
+  /** Why it was picked: "on-air" (this show), "topic", "this-date" or "archive". */
+  reason: string;
+}
+
 export interface SlowMode {
   on: boolean;
   until: number | null;
@@ -62,7 +80,8 @@ export interface LiveHello {
   resumed: boolean;
   hidden: number[];
   /** The last few tune-in notices, oldest first. */
-  tuneins?: TuneinNotice[];
+  tuneins?: TuneinNotice[];  /** The last few archive lines, oldest first. */
+  archive?: ArchiveLine[];
 }
 
 export type LiveStatus = "connecting" | "live" | "reconnecting";
@@ -75,6 +94,8 @@ export interface LiveHandlers {
   rename(ids: number[], name: string, place?: string | null): void;
   slow(s: SlowMode): void;
   tunein(n: TuneinNotice): void;
+  /** Optional: a surface that does not draw archive lines need not listen. */
+  archive?(a: ArchiveLine): void;
   status(s: LiveStatus): void;
 }
 
@@ -123,6 +144,7 @@ export function connectLive(
     on<{ ids: number[]; name: string; place?: string | null }>("rename", (d) => handlers.rename(d.ids, d.name, d.place));
     on<SlowMode>("slow", handlers.slow);
     on<TuneinNotice>("tunein", handlers.tunein);
+    if (handlers.archive) on<ArchiveLine>("archive", handlers.archive);
     es.onerror = () => {
       if (closed || !es) return;
       if (es.readyState === EventSource.CLOSED) {

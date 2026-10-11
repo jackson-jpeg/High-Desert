@@ -120,3 +120,18 @@ export const BAN_HOLD_MS = 24 * 60 * 60_000;
 export const BAN_HOLD_INTERVAL_MS = 60 * 60_000;
 /** A legacy (address-keyed) caller is adopted by the first browser from its address only if seen this recently. */
 export const LEGACY_ADOPT_MS = 30 * 24 * 60 * 60_000;
+
+/**
+ * Archive moments (lib/archive.mjs): a line from the show's history, at most
+ * once per ARCHIVE_INTERVAL_MS, only after ARCHIVE_QUIET_MS without a call,
+ * only while a stream is open. Checked every ARCHIVE_CHECK_MS.
+ */
+export const ARCHIVE_QUIET_MS = 20 * 60_000;
+export const ARCHIVE_INTERVAL_MS = 60 * 60_000;
+export const ARCHIVE_CHECK_MS = 60_000;
+/** Moments not picked again while another candidate exists. */
+export const ARCHIVE_NO_REPEAT = 30;
+/** Lines a new stream is sent in its hello, newest last. */
+export const ARCHIVE_ON_HELLO = 3;
+/** Where the show on the air is read from: the app's own schedule, over loopback. */
+export const ARCHIVE_SCHEDULE_URL = "http://127.0.0.1:3003/api/live/schedule";

@@ -38,6 +38,8 @@ export const DIGEST_DIR = "docs/digest";
 /** The release line's target, and the plays it needs before it is a verdict (scripts/status.sh). */
 export const TARGET_PCT = 3;
 export const VERDICT_PLAYS = 300;
+/** One lost start per tab per show within this many minutes (src/services/stats/db/failures.ts). */
+export const LOST_START_GAP_MINUTES = 10;
 /** The first week with a digest: the job went in on 2026-09-28, and a digest for the week before it would be mislabelled. */
 export const FIRST_DUE = "2026-10-05";
 /** When the week's digest is due: Monday, 17:40 UTC. */
@@ -93,12 +95,14 @@ export function parseRelease(line) {
   const counts = /^(\d+) starts? lost in (\d+) plays?\b/.exec(t);
   const rate = /^[\d.]+% of starts lost.*?\((\d+) lost \/ (\d+) plays/.exec(t);
   const rescued = /(\d+) rescued by the retry or the mirror/.exec(t);
+  // One tab's Try Again presses on one show are one lost start (2026-10-11); the rest are repeats.
+  const repeats = /(\d+) repeats? of a lost start/.exec(t);
   const m = counts ?? rate;
   if (!m || !rescued) return { pct: null, lost: null, rescued: null, plays: null, ...base };
   const lost = Number(m[1]);
   const plays = Number(m[2]);
   const pct = plays > 0 ? Math.round((1000 * lost) / plays) / 10 : 0;
-  return { pct, lost, rescued: Number(rescued[1]), plays, ...base };
+  return { pct, lost, rescued: Number(rescued[1]), repeats: repeats ? Number(repeats[1]) : 0, plays, ...base };
 }
 
 /** "pass" / "fail" once there are VERDICT_PLAYS plays, else null (not yet). */
@@ -199,6 +203,18 @@ export function patternOf(rows, titleOf = (id) => id) {
   };
 }
 
+/** A show, device or hour with this share of the rows is a lead. */
+export const LEAD_SHARE = 0.2;
+
+/** Text cut to n characters at a word boundary, with an ellipsis when cut. */
+export function wordCut(v, n) {
+  const t = String(v ?? "").replace(/[|\n\r]/g, " ").trim();
+  if (t.length <= n) return t;
+  const head = t.slice(0, n - 1);
+  const at = head.lastIndexOf(" ");
+  return `${(at > n / 3 ? head.slice(0, at) : head).replace(/[\s,;:.-]+$/, "")}\u2026`;
+}
+
 /** A first guess at the fix, from the pattern. A proposal for a fix session, not a diagnosis. */
 export function proposeFix(p, titleOf = (id) => id) {
   const out = [];
@@ -234,6 +250,16 @@ export function proposeFix(p, titleOf = (id) => id) {
   }
   if (topUaN / p.n >= 0.7 && p.uas.length > 1) {
     out.push(`${share(topUaN, p.n)}% on ${topUa}: reproduce on that browser before changing anything shared.`);
+  }
+  // Leads (2026-10-11): any one show, device or hour holding LEAD_SHARE of the
+  // rows is named, whatever the kinds say. The 2026-10-05 digest called a week
+  // "no single cause" while one show held 37 of 119 rows.
+  for (const [what, top, hint] of [
+    ["show", p.eps[0] && [titleOf(p.eps[0][0]), p.eps[0][1]], "walk its file (scripts/measure-duration.mjs) and read its details"],
+    ["device", p.uas[0], "reproduce on that browser"],
+    ["hour", p.hours?.[0] && [`${p.hours[0][0]} UTC`, p.hours[0][1]], "read that hour's rows: one listener retrying looks like this"],
+  ]) {
+    if (top && top[1] / p.n >= LEAD_SHARE) out.push(`Lead (${what}): ${top[0]} holds ${top[1]} of ${p.n} rows (${share(top[1], p.n)}%). ${hint[0].toUpperCase()}${hint.slice(1)}.`);
   }
   if (!out.length) out.push(`No single cause stands out (top kind ${topKind}, ${topKindN} of ${p.n}). Start from the rows, oldest first.`);
   return out;
@@ -277,9 +303,54 @@ const SHORT_FMT = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "num
 /** Table cells: no pipes, no newlines, short. */
 const cell = (v, n = 60) => String(v ?? "").replace(/[|\n\r]/g, " ").slice(0, n);
 
+/** A fileHash (`archive:{identifier}:{fileName}`) to the community key titleOf reads. */
+export function keyOfHash(fileHash) {
+  const m = /^archive:([^:]+):(.+)$/.exec(String(fileHash ?? ""));
+  if (!m) return String(fileHash ?? "");
+  return `${m[1]}--${m[2].replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120)}`;
+}
+
+/** The pre-air walk's status is stale past this: the next day may freeze unwalked. */
+export const VERIFY_STALE_HOURS = 36;
+
+/**
+ * The station guard's week (2026-10-11): shows the breaker cut on air
+ * (`live_overrides`), shows the pre-air walk kept off the air (verify swaps
+ * in the frozen days), and the walk's own last run.
+ */
+export function stationGuardLines(g, titleOf, now) {
+  if (!g) return { lines: ["No reading."], actions: [] };
+  const t = (h) => cell(titleOf(keyOfHash(h)), 48);
+  const lines = [];
+  const actions = [];
+  for (const x of g.trips ?? []) {
+    lines.push(
+      `- Cut on air: ${t(x.fileHash)}, ${SHORT_FMT.format(new Date(Number(x.cutAt)))} UTC, ${x.clients} listeners failing (${(x.kinds ?? []).join(", ")}). ${
+        x.replacement ? `${t(x.replacement)} played the rest of the slot.` : "No walked show to put on: the station ID held to the next slot."
+      }`,
+    );
+  }
+  for (const x of g.swaps ?? []) lines.push(`- Kept off the air: ${t(x.replaces)} on ${x.day} failed its walk; ${t(x.fileHash)} aired instead.`);
+  if (g.trips?.length) actions.push(`**Station breaker:** ${g.trips.length} ${plural(g.trips.length, "show")} cut on air. Walk each file (scripts/measure-duration.mjs) and repair a broken one (docs/broken-episodes.md).`);
+  const v = g.verify;
+  if (!lines.length) lines.push("No show cut on air and none kept off it.");
+  if (!v) {
+    lines.push("Pre-air walk: never ran (highdesert-verify-live.timer).");
+    actions.push("**Pre-air walk:** has never run. `systemctl status highdesert-verify-live.timer`.");
+  } else {
+    const age = (new Date(now).getTime() - new Date(v.at).getTime()) / 3_600_000;
+    lines.push(
+      `Pre-air walk for ${v.day}: ${v.walked} of ${v.candidates} walked, ${v.bad?.length ?? 0} bad, ${v.unreadable ?? 0} unreadable, ${v.left ?? 0} left (${String(v.at).slice(0, 16).replace("T", " ")} UTC).`,
+    );
+    if (age > VERIFY_STALE_HOURS) actions.push(`**Pre-air walk:** last ran ${Math.round(age)}h ago. \`journalctl -u highdesert-verify-live\`.`);
+  }
+  return { lines, actions };
+}
+
 /** The digest as markdown. No em dashes anywhere (CLAUDE.md, user-facing copy). */
 export function render(d) {
-  const { day, writtenAt, status, release, funnel, handover, traffic, topShows, places, disk, evidence, titleOf, missing = [] } = d;
+  const { day, writtenAt, status, release, funnel, handover, traffic, topShows, places, disk, evidence, titleOf, missing = [], guard } = d;
+  const station = stationGuardLines(guard, titleOf, writtenAt);
   const L = [];
   L.push(`# High Desert, week to ${DAY_FMT.format(new Date(`${day}T00:00:00Z`))}`);
   L.push("");
@@ -291,6 +362,7 @@ export function render(d) {
   for (const l of status.filter((x) => x.level === "FAIL")) actions.push(`**FAIL ${l.area}:** ${cell(l.text, 160)} ${FAIL_ACTIONS[l.area] ?? ""}`.trim());
   const verdict = releaseVerdict(release);
   if (verdict === "fail") actions.push(`**Release over target:** ${release.pct}% of starts lost on ${fmtN(release.plays)} plays (target under ${TARGET_PCT}%).`);
+  actions.push(...station.actions);
   if (missing.length) actions.push(`**Could not read:** ${missing.join(", ")}. The digest job's journal says why.`);
   if (evidence) actions.push("The evidence for a fix session is at the bottom.");
   L.push("## Needs you");
@@ -313,6 +385,7 @@ export function render(d) {
     L.push(`${release.pct}% of starts lost ${release.whose} (${release.lost} of ${fmtN(release.plays)} plays; target under ${TARGET_PCT}%). ${word}`);
     L.push(`Rescued by the retry or the mirror: ${release.rescued} (${pctOf(release.rescued, release.plays)}%), shown beside the target, not held to it.`);
   }
+  if (release?.repeats) L.push(`Repeats: ${release.repeats} more ${plural(release.repeats, "failure")} were one tab trying the same show again within ${LOST_START_GAP_MINUTES} minutes (Try Again pressed again). Each such run is one lost start above.`);
   if (release?.older) L.push(`Tabs on older builds: ${release.older.lost} lost and ${release.older.rescued} rescued in ${fmtN(release.older.plays)} plays, counted apart.`);
   L.push("");
 
@@ -332,6 +405,11 @@ export function render(d) {
   L.push("## Locked phones");
   L.push("");
   for (const l of handover.lines) L.push(l);
+  L.push("");
+
+  L.push("## Station guard");
+  L.push("");
+  for (const l of station.lines) L.push(l);
   L.push("");
 
   L.push("## The week");
@@ -388,7 +466,7 @@ export function render(d) {
       L.push("|---|---|---|---|---|---|---|");
       for (const r of evidence.rows) {
         L.push(
-          `| ${new Date(r.at).toISOString().slice(5, 16).replace("T", " ")} | ${cell(r.kind, 20)} | ${cell(r.uaClass, 16)} | ${cell(r.source ?? "unknown", 8)} | ${r.recovered ? "yes" : "no"} | ${cell(titleOf(r.episodeId), 40)} | ${cell(r.detail, 60)} |`,
+          `| ${new Date(r.at).toISOString().slice(5, 16).replace("T", " ")} | ${cell(r.kind, 20)} | ${cell(r.uaClass, 16)} | ${cell(r.source ?? "unknown", 8)} | ${r.recovered ? "yes" : "no"} | ${wordCut(titleOf(r.episodeId), 40)} | ${cell(r.detail, 60)} |`,
         );
       }
     } else {
@@ -526,6 +604,21 @@ export function productionSources(env) {
         [since, ADVISORY_KINDS],
       );
     },
+    async guard(since) {
+      const trips = await q(
+        `SELECT file_hash AS "fileHash", cut_at AS "cutAt", replacement, clients, kinds
+           FROM live_overrides WHERE created_at >= $1 ORDER BY cut_at`,
+        [since],
+      );
+      const swaps = await q(
+        `SELECT d.day::text AS day, s->>'replaces' AS replaces, s->>'fileHash' AS "fileHash"
+           FROM live_days d, jsonb_array_elements(d.program->'slots') s
+          WHERE d.day >= ($1::timestamptz AT TIME ZONE 'America/Los_Angeles')::date AND s->>'kind' = 'verify-swap'
+          ORDER BY d.day, (s->>'start')::bigint`,
+        [since],
+      );
+      return { trips, swaps, verify: await readJson(env.HD_VERIFY_STATUS ?? "/var/lib/highdesert-verify-live/status.json") };
+    },
     async close() {
       if (poolP) await (await poolP).end();
     },
@@ -574,6 +667,7 @@ export async function gather(sources, now) {
     topShows: await safe("plays", () => sources.topShows(weekAgo), null),
     places: await safe("the phone lines", () => sources.places(weekAgo), null),
     disk: await safe("disk", () => sources.disk(), null),
+    guard: await safe("the station guard", () => sources.guard(weekAgo), null),
     evidence,
     titleOf,
     missing,

@@ -60,7 +60,12 @@ export const REPEAT_WINDOW_DAYS = 14;
  */
 export const RANKING_KEEP = 200;
 
-export type SlotKind = "on-this-date" | "fan-favorite" | "outage-swap";
+/**
+ * `verify-swap`: the scheduled file failed its frame walk before the day was
+ * frozen (`applyVerifySwap`). `breaker-swap`: listeners failed on the show
+ * while it aired, and the rest of its slot went to another (`applyOverrides`).
+ */
+export type SlotKind = "on-this-date" | "fan-favorite" | "outage-swap" | "verify-swap" | "breaker-swap";
 
 /** The catalog fields the schedule reads (a `public/seed/library.json` row). */
 export interface CatalogRow {
@@ -95,7 +100,7 @@ export interface ProgramSlot {
    * slot's end. The station ID fills from here to the next slot's `start`.
    */
   end: number;
-  /** For an outage swap: the fileHash this slot was scheduled with. */
+  /** For a swap of any kind: the fileHash this slot was scheduled with. */
   replaces?: string;
 }
 
@@ -389,29 +394,121 @@ export function applyOutageSwap(
   const candidates = [...program.ranking.filter(playable), ...rest]
     .map((h) => catalogByHash.get(h))
     .filter((r): r is CatalogRow => !!r && isAirable(r));
+  return swapSlots(program, playable, candidates, "outage-swap");
+}
+
+/**
+ * Replace every slot `keep` refuses with the first of `candidates` not
+ * already on the day, preferring one at least as long as the slot. **Slot
+ * times never move**: a shorter substitute ends early and the station ID fills
+ * the rest; a longer one is cut at the slot's end. With no candidates the
+ * program is returned as it was.
+ */
+export function swapSlots(
+  program: DayProgram,
+  keep: (fileHash: string) => boolean,
+  candidates: readonly CatalogRow[],
+  kind: SlotKind,
+): DayProgram {
+  if (program.slots.every((s) => keep(s.fileHash))) return program;
   if (candidates.length === 0) return program;
 
-  const used = new Set(program.slots.filter((s) => playable(s.fileHash)).map((s) => s.fileHash));
+  const used = new Set(program.slots.filter((s) => keep(s.fileHash)).map((s) => s.fileHash));
   const slots = program.slots.map((slot) => {
-    if (playable(slot.fileHash)) return slot;
+    if (keep(slot.fileHash)) return slot;
     // The slot's length is to the next slot's start minus the gap — i.e. what
     // the scheduled show would have had. `end` may already be clipped at midnight.
     const length = slot.end - slot.start;
     let pool = candidates.filter((c) => !used.has(c.fileHash));
     if (pool.length === 0) {
       used.clear();
-      pool = candidates;
+      pool = [...candidates];
     }
     const pick =
       pool.find((c) => durationMs(c) >= length) ??
       pool.reduce((best, c) => (durationMs(c) > durationMs(best) ? c : best), pool[0]);
     used.add(pick.fileHash);
     return {
-      ...toSlot(pick, "outage-swap", slot.start, Math.min(slot.end, slot.start + durationMs(pick))),
+      ...toSlot(pick, kind, slot.start, Math.min(slot.end, slot.start + durationMs(pick))),
       replaces: slot.fileHash,
     };
   });
   return { ...program, slots };
+}
+
+/**
+ * What the pre-air check knows of each file (Postgres `audio_checks`, written
+ * by scripts/verify-live-day.mjs from a full frame walk).
+ */
+export interface AudioChecks {
+  /** Walked and failed: never to air. */
+  bad: ReadonlySet<string>;
+  /** Walked and passed: safe to put on in a bad one's place. */
+  ok: ReadonlySet<string>;
+}
+
+/**
+ * The station never airs a file known to be broken (2026-10-11). Every slot
+ * whose file failed its walk is replaced by a fan favorite that passed one,
+ * pinned on the mirror first (`pinned`, when the manifest is known), in the
+ * frozen ranking's order. Slot times stay where they were (`swapSlots`).
+ */
+export function applyVerifySwap(
+  program: DayProgram,
+  checks: AudioChecks,
+  catalogByHash: ReadonlyMap<string, CatalogRow>,
+  pinned: ReadonlySet<string> | null,
+): DayProgram {
+  const keep = (h: string) => !checks.bad.has(h);
+  if (program.slots.every((s) => keep(s.fileHash))) return program;
+  const verified = program.ranking.filter((h) => checks.ok.has(h) && !checks.bad.has(h));
+  const ordered = pinned ? [...verified.filter((h) => pinned.has(h)), ...verified.filter((h) => !pinned.has(h))] : verified;
+  const candidates = ordered.map((h) => catalogByHash.get(h)).filter((r): r is CatalogRow => !!r && isAirable(r));
+  return swapSlots(program, keep, candidates, "verify-swap");
+}
+
+/**
+ * A trip of the station's circuit breaker (Postgres `live_overrides`,
+ * src/services/live/breaker.ts): from `cutAt` the slot that started at
+ * `slotStart` with `fileHash` is off the air, and after one station ID
+ * `replacement` plays to the slot's original end (or nothing does, when
+ * `replacement` is null and no verified show was available).
+ */
+export interface LiveOverride {
+  slotStart: number;
+  fileHash: string;
+  cutAt: number;
+  replacement: string | null;
+}
+
+/**
+ * The slots with every override applied: the tripped slot ends at `cutAt`,
+ * and the replacement starts one station ID later and ends where the tripped
+ * slot would have. Nothing else moves. An override naming a slot that is not
+ * there (another day, an outage swap since) changes nothing.
+ */
+export function applyOverrides(
+  slots: readonly ProgramSlot[],
+  overrides: readonly LiveOverride[],
+  catalogByHash: ReadonlyMap<string, CatalogRow>,
+): ProgramSlot[] {
+  if (!overrides.length) return [...slots];
+  const out: ProgramSlot[] = [];
+  for (const slot of slots) {
+    const o = overrides.find((x) => x.slotStart === slot.start && x.fileHash === slot.fileHash);
+    if (!o || o.cutAt >= slot.end) {
+      out.push(slot);
+      continue;
+    }
+    const cutAt = Math.max(slot.start, o.cutAt);
+    out.push({ ...slot, end: cutAt });
+    const row = o.replacement ? catalogByHash.get(o.replacement) : undefined;
+    const start = cutAt + STATION_ID_SEC * 1000;
+    if (row && isAirable(row) && start < slot.end) {
+      out.push({ ...toSlot(row, "breaker-swap", start, Math.min(slot.end, start + durationMs(row))), replaces: slot.fileHash });
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------

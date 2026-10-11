@@ -60,7 +60,7 @@ async function place(src, dst, tmpDir, length) {
   await rm(src);
 }
 
-export async function migrate({ cacheDir, stateDir, index, dropPartials = false, log = () => {} }) {
+export async function migrate({ cacheDir, stateDir, index, repairs = [], dropPartials = false, log = () => {} }) {
   const dirs = layout(stateDir);
   await mkdir(dirs.pins, { recursive: true, mode: 0o755 });
   await mkdir(dirs.tmp, { recursive: true, mode: 0o700 });
@@ -130,7 +130,7 @@ export async function migrate({ cacheDir, stateDir, index, dropPartials = false,
     await rm(path.join(cacheDir, "pins.json"), { force: true });
     await rm(path.join(cacheDir, "state.json"), { force: true });
   }
-  const m = await writeManifest({ stateDir, index });
+  const m = await writeManifest({ stateDir, index, repairs });
   report.manifest = { version: m.version, count: m.count };
   log(JSON.stringify(report));
   return report;
@@ -190,6 +190,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     cacheDir: env("MIRROR_CACHE_DIR", "/var/cache/highdesert-mirror"),
     stateDir: env("MIRROR_STATE_DIR", "/var/lib/highdesert-mirror"),
     index,
+    // The repaired copies stay in the manifest across a deploy (lib/pins.mjs).
+    repairs: await readFile(env("MIRROR_REPAIRED", path.join(here, "repaired.json")), "utf8").then(JSON.parse, () => []),
     dropPartials: process.argv.includes("--drop-partials"),
   });
   console.log(`[migrate] moved ${r.moved}, already in place ${r.already}, partials dropped ${r.partialsDropped} / kept ${r.partialsKept}, ` +

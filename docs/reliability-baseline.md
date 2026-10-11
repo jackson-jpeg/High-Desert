@@ -65,6 +65,55 @@ what a tab left open for days on older code used to do to this line: on
 tab. Tabs now update themselves at a break (`src/services/build/stale-tab.ts`),
 so the older-builds figure should fall to nothing within a day of a deploy.
 
+## One lost start per tab per show (2026-10-11)
+
+On 2026-10-01 one Android phone pressed Try Again on the 2001-11-26 Egyptian
+Cave show 33 times in two minutes (the file changes from stereo to mono
+midstream, which Chromium refuses; `docs/broken-episodes.md`), and came back
+to it once more at 19:44. Each press was a failure row, so one listener's bad
+afternoon was 35 of the 57 starts "lost" on 02db307's line, and moved it from
+under target to over it.
+
+From 2026-10-11 a lost start is counted **once per tab per show**: an
+unrecovered failure within **10 minutes** of the same tab's previous
+unrecovered failure on the same show is a **repeat** of that lost start, not
+another (`LOST_START_GAP_MINUTES`, `getFailureWindow` in
+`src/services/stats/db/failures.ts`). The chain is by gap, so the 33 presses
+are one loss and the return at 19:44 (1 h 48 min later) is a second.
+Repeats are shown beside the headline, never counted in it: status prints
+`N repeats of a lost start in the same tab, not counted`, and the digest a
+"Repeats" line.
+
+- **The tab** is `tab_ref`, a random id per page load that failure reports
+  alone carry (`FAILURE_TAB_ID` in `src/lib/utils/session-id.ts`). It is not
+  the presence session, so a failure row cannot be joined to a play.
+- **Rows from before 2026-10-11 have no `tab_ref`.** They are grouped by
+  (`ua_class`, build) instead, so two phones of the same kind on the same
+  build failing the same show within ten minutes of each other read as one
+  loss. That can only undercount, and only on old rows.
+- Rescued starts (`recovered: true`) are not chained: each still counts as
+  rescued, as before.
+
+### 02db307's line recomputed both ways
+
+The release's seven days (2026-09-28T14:49:18Z to 2026-10-05T14:49:18Z), this
+release's builds, 1,329 plays, computed on 2026-10-11 from production:
+
+| | Every unrecovered row (to 2026-10-10) | One per tab per show (from 2026-10-11) |
+|---|---|---|
+| Failure rows | 118 | 118 |
+| Rescued by the retry or the mirror | 61 | 61 |
+| **Starts lost** | **57 (4.3%), over target** | **23 (1.7%), under target** |
+| Repeats (not counted) | | 34 |
+| Older builds | 4 lost, 3 rescued / 128 plays | 3 lost (1 repeat), 3 rescued |
+
+The 34 repeats: 33 on the Egyptian Cave show (`android-chrome`,
+`decode-error`), 1 on 2005-02-19 (`ios-pwa`, a `play-rejected` then a `stall`),
+1 on 2013-09-16 (`android-chrome`, `timeout`). **The verdict stands as given
+on 2026-10-01 (under target), and the 4.3% reading that followed it was one
+phone, not a regression.** The Egyptian Cave file itself is fixed separately:
+it now plays a re-encoded copy from the mirror (`docs/broken-episodes.md`).
+
 ## Before
 
 Measured at 2026-09-21T16:02:22Z over the trailing 7 days, on the build this release
@@ -104,6 +153,7 @@ Each session records what `highdesert-status` printed for `release`.
 | 2026-09-28T06:48Z | `WARN release 4.4% of starts failed in the 3.2 of 7 days since 2026-09-25T00:30:52Z (49 failures / 1126 plays; target <3%)`: the closing reading for b2feecc's line, above target on enough plays to mean it. 31 of the 49 recovered (the retry or the mirror got the show playing) and count here by design. 14 of the 49 fell in one night: 2026-09-27 04:30 to 07:30 UTC, when the station aired the Philadelphia Experiment to 55 listeners and phones with the screen off failed at the slot change (`play-rejected`) and in failovers that did not recover while the page was hidden (`docs/ios-stalls.md`). Next line starts from 15144c1, the overnight reliability release (#41): the slot change on one never-paused element, `handover-rejected` as its own counted kind (it stays on this line), the hidden-page failover fixes, pins first, and the 1,413-episode catalog |
 | 2026-09-28T14:52Z | `WARN release 13.3% of starts failed in the 0.3 of 7 days since 2026-09-28T06:46:22Z (15 failures / 113 plays; target <3%)` (computed from the rows at the swap; the last reading status printed was 14.1%, 13 / 92): the closing reading for 15144c1's line, and 113 plays is not a verdict. Of the 15, **7 recovered** (the mirror got the show playing) and count by design. **4 came from one tab on code older than 15144c1** (rows 574 to 577: `play-rejected` with an empty detail, which only pre-4490dcc code writes, one Android tab, one show, 8 seconds). That tab is why rows now carry their build. The rest: stalls and timeouts after a failover (572, 573, 581) and an Android `code=4 Format error` that the mirror did not rescue (584). Next line starts from 02db307, the long-lived tabs release (#43): tabs update themselves at a break, every row names its build, and this line counts only this release's builds |
 | 2026-10-01T02:35Z | **Verdict for 02db307's line (the long-lived tabs release, since 2026-09-28T14:49:18Z): under target.** Jackson's reading at the 300-play mark: **1.9% of starts lost on 321 plays**, against the 3% target, the first line since the headline changed (2026-09-28) to reach 300 plays and so the first with a verdict. What status printed at this session's start, 2.4 of the 7 days in: `OK release 1.6% of starts lost on this release's builds in the 2.4 of 7 days since 2026-09-28T14:49:18Z (9 lost / 557 plays; target <3%); 17 rescued by the retry or the mirror (3.1%); older builds: 1 lost, 2 rescued / 95 plays, counted apart`. The line runs to its 7 days; a later reading above 3% on these builds would reopen it |
+| 2026-10-11T15:30Z | Closing reading for 02db307's line, at this session's start: `WARN release 4.3% of starts lost on this release's builds in the 7 of 7 days since 2026-09-28T14:49:18Z (57 lost / 1329 plays; target <3%); 61 rescued by the retry or the mirror (4.6%); older builds: 4 lost, 3 rescued / 128 plays, counted apart`. Recomputed one lost start per tab per show (above): **23 lost / 1,329 plays, 1.7%, under target**, with 34 repeats; 33 of them one Android phone pressing Try Again on the Egyptian Cave show |
 
 ## Android "code=4 MEDIA_ELEMENT_ERROR: Format error"
 

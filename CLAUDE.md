@@ -122,9 +122,9 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/build` | GET | **`{build}`**: the build this server runs (`NEXT_PUBLIC_BUILD_ID`, the short SHA). `no-store`, 30/min. What an open tab compares its own `<meta name="hd-build">` with (`src/services/build/stale-tab.ts`) |
 | `/api/live/time` | GET | The server clock for the client's time sync: **`{now}`** (epoch ms). `no-store`, 60/min. The client takes 5 samples and keeps the one with the smallest round trip |
 | `/mirror/{fileHash}` | GET | **Not Next.js — nginx alone** (`services/mirror/lib/nginx.mjs`). The episode's MP3: a pinned one off disk, anything else in the catalog filled from archive.org through nginx's slice cache. Byte ranges: `206` + `Content-Range`, `416` for an unsatisfiable range. **404** for anything not in the catalog; **502** when a fill cannot reach archive.org. GET/HEAD only. See "archive.org outage mirror" |
-| `/mirror/manifest` | GET | **Not Next.js** — a static file (`/var/lib/highdesert-mirror/manifest.json`, written atomically by the warm job). What the mirror can play with archive.org gone: **`{version, count, pinned, fileHashes: [...]}`** — every pinned episode whole on disk (`count` = `pinned`). `version` is a digest of the list; the **`ETag` is nginx's**, and `If-None-Match` with it gets a 304. `Cache-Control: max-age=60`. Outage mode's input (`src/services/mirror/manifest.ts`) |
+| `/mirror/manifest` | GET | **Not Next.js** — a static file (`/var/lib/highdesert-mirror/manifest.json`, written atomically by the warm job). What the mirror can play with archive.org gone: **`{version, count, pinned, repaired, fileHashes: [...]}`** — every pinned episode whole on disk, plus every repaired copy (`count` = `pinned` + `repaired`). `version` is a digest of the list; the **`ETag` is nginx's**, and `If-None-Match` with it gets a 304. `Cache-Control: max-age=60`. Outage mode's input (`src/services/mirror/manifest.ts`) |
 | `/mirror/magnet/{fileHash}` | GET | Static: **`{infohash, magnet}`** for the episode's own single-file torrent (trackers, the archive.org webseed as `ws=`; no `x.pe` — nothing here seeds). 404 outside the catalog. The episode sheet's "Magnet link" |
-| `/live-api/stream` | GET | **Not Next.js** — `highdesert-live` on 127.0.0.1:3005, the phone lines (`docs/live-chat.md`). SSE: `hello {you: {name, line, place, firstCall, admin}, slowMode, recent, resumed, hidden, tuneins}`, then `message {id, at, name, place, line, body}` (SSE `id:` = message id; `place` is "calling from" as sent, or null), `hide {ids}`, `slow`, `rename {ids, name, place?}` (`place: null` when an admin's clear-name cleared it), `tunein {at, count, places}` (batched: at most one a minute, one per caller an hour; `tuneins` in hello is the last 3). `Last-Event-ID` resumes. nginx: buffering off, `limit_conn` 200 per address (one address can be a carrier NAT; nginx is never tighter than the service, `nginx-vhost.test.ts`) |
+| `/live-api/stream` | GET | **Not Next.js** — `highdesert-live` on 127.0.0.1:3005, the phone lines (`docs/live-chat.md`). SSE: `hello {you: {name, line, place, firstCall, admin}, slowMode, recent, resumed, hidden, tuneins}`, then `message {id, at, name, place, line, body}` (SSE `id:` = message id; `place` is "calling from" as sent, or null), `hide {ids}`, `slow`, `rename {ids, name, place?}` (`place: null` when an admin's clear-name cleared it), `tunein {at, count, places}` (batched: at most one a minute, one per caller an hour; `tuneins` in hello is the last 3). `archive {id, at, text, form, speaker, episode, reason}`: a moment from the show's history, posted into a quiet room (below); `archive` in hello is the last 3. `Last-Event-ID` resumes. nginx: buffering off, `limit_conn` 200 per address (one address can be a carrier NAT; nginx is never tighter than the service, `nginx-vhost.test.ts`) |
 | `/live-api/messages` | POST | **Not Next.js.** `{body}` → **201** `{id, at, name, place, line, body}` (body as stored — mild profanity masked). **400** `{error: "rejected", reason, message}`, **429** `{error: "rate", retryAfter, slowMode}`, **403** muted/banned. Every `/live-api` POST needs `Content-Type: application/json` (415) and a highdesert.space `Origin` (403) |
 | `/live-api/name`, `/live-api/report`, `/live-api/me` | POST/POST/GET | **Not Next.js.** Rename `{name}` → `{name, line, nextChangeInS}` / 409 taken / 429; report `{messageId}` → `{ok, hidden}`; me → `{name, line, place, firstCall, admin, mutedUntil, nextNameChangeInS, nextPlaceChangeInS, slowMode}` |
 | `/live-api/place`, `/live-api/tuned` | POST/POST | **Not Next.js.** "Calling from": `{place}` → `{place, nextChangeInS}`; filtered like a name (400 `place-*` reasons), a change at most every 10 min (429), `""`/null clears it at once and never waits. Suggested in the browser from its time zone only, never from an address. Tuned: `{}` → `{announced}`; the caller tuned in to the station (sent by `tuneIn()`), announced to the room as a `tunein` line with their place |
@@ -554,6 +554,15 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   `docs/torrent-mirror-feasibility.md` §6. `services/mirror/lib/nginx.mjs` renders
   two includes, installed to `/etc/nginx/highdesert-mirror/` by
   `deploy-mirror.sh` and pulled into the vhost:
+  - **Repaired first** (2026-10-11): `try_files /repaired/{fileHash} /pins/{fileHash}
+    @fill`. A show whose archive.org file changes channels or sample rate midstream
+    (Chromium refuses it) is re-encoded once to one layout by `scripts/repair-episode.mjs`
+    and served from `repaired/`; the original is never touched. Recorded in
+    `src/data/repaired-episodes.json` (sizes, digests, segments, the ffmpeg line),
+    which `deploy-mirror.sh` checks against disk, the warm job reads (a repaired show is
+    never pinned) and the player reads: **a repaired show plays from the mirror only**
+    (`resolveSources`, `isRepaired`), the scan preview and a primed show too. List and
+    why: `docs/broken-episodes.md`, "Repaired, not pulled".
   - **Pinned** `/mirror/{fileHash}` is `/var/lib/highdesert-mirror/pins/{fileHash}`
     served straight off disk (nginx's own 206/416, no app CPU).
   - **Unpinned** is filled from archive.org through `proxy_cache`
@@ -564,6 +573,22 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
     `error_page` redirect clears a slice subrequest's context. Nothing of the listener
     goes upstream (`proxy_pass_request_headers off` on both hops). With archive.org
     down the fill has no source and fails; outage mode refuses those at the tap.
+  - **A storage node's 500 is retried per slice** (2026-10-11). archive.org's nodes
+    answer ~3% of slice Range requests with a bare 500, and nginx 1.24's slice module
+    aborts the whole response on a non-206 subrequest: a full-file request was cut at
+    13.6 MB of 100.9 MB. The fill upstream is the same socket three times
+    (`max_fails=0`) with `proxy_next_upstream … http_500 http_502 http_503 http_504`,
+    3 tries in 30 s. `test/nginx.test.mjs` (`FLAKY`) streams a file whose stub fails
+    two slices once each, to the end. It did not explain the Android mirror timeouts
+    (none of 22 in the log window hit a slice abort).
+  - **When `/download` fails, the collection's own server** (2026-10-11,
+    `docs/archive-outage-2026-10-11.md`). A 5xx from `/download` or the node it
+    names goes to `@hd_mirror_direct`: `https://{d1}{dir}/{file}` from
+    `data/archive-items.json` (`scripts/archive-items.mjs`; re-run and commit if a
+    collection moves). That day `/download` sent everyone to one failing cache node
+    and then served "Sorry, we're kinda busy" while the item's servers answered.
+    The health probe checks the metadata API, so it said up throughout; that is
+    deliberate now (outage mode would refuse shows the fallback can serve).
   - **The allowlist is a directory**, `/var/lib/highdesert-mirror/catalog/{fileHash}`,
     one file per catalog episode (its magnet JSON, generated by `build-static.mjs`).
     Not a `map`: 200-byte keys need `map_hash_bucket_size`, which
@@ -698,6 +723,25 @@ same offset, computed from a synced clock.
   plays move; the returned program is the stored jsonb (`INSERT … RETURNING`),
   so the first answer is byte-identical to every later one. The program also keeps
   the top-200 `ranking` it was built from, for the outage swap.
+- **The station never airs a file known to be broken** (2026-10-11). Two guards:
+  - **Before air, frozen:** `highdesert-verify-live.timer` (15:20 UTC, Nice=19, idle
+    IO, CPUQuota=10%) runs `scripts/verify-live-day.mjs`, which walks every frame of
+    the next Pacific day's on-this-date shows and top favorites (a repaired show's
+    mirror copy, a pin from disk, the rest from archive.org) into `audio_checks`. A
+    file's bytes do not change, so a walked file is never walked again. `frozenDay()`
+    swaps any slot whose file failed (`applyVerifySwap`, kind `verify-swap`) for a
+    walked fan favorite, pinned first, slot times unchanged, and logs it.
+  - **On air, at read time:** the breaker (`src/services/live/breaker.ts`). 3
+    distinct clients tuned in to the show on the air (`live: true` on the failure
+    report, `onTheStation()`), failing on it within 2 minutes with a kind about the
+    file or the connection (never `play-rejected`/`handover-rejected`), cut it:
+    a `live_overrides` row, applied by `applyOverrides` in every schedule read. The
+    slot ends at the cut; after one station ID a walked favorite (`pickReplacement`,
+    kind `breaker-swap`) plays to the slot's old end. The client key is HMAC'd in
+    memory only. A tuned-in tab polls the schedule each minute and **follows a
+    changed slot** (`followChanges` in `live-controller.ts`); a held tab is left alone.
+  - The digest's **Station guard** section lists cuts and swaps and the walk's last
+    run (stale past 36 h needs you).
 - **Outage swap at read time**, never frozen (`applyOutageSwap`). While
   archive.org is down (`archiveVerdictPrompt`, the same memo as
   `/api/archive/health`), slots the mirror manifest (`LIVE_MIRROR_MANIFEST_URL`,
@@ -805,6 +849,13 @@ release came from one tab still running the build before it.
   300 plays it is counts, never a percentage** ("2 starts lost in 55 plays so
   far, no verdict until 300 plays"), and reads OK save one tripwire: WARN once
   at least 30 plays show 10% or more lost. From 300 it leads with the share.
+- **One lost start per tab per show** (2026-10-11). A failure row carries the
+  page's own random `tab_ref` (`FAILURE_TAB_ID`, never the presence session).
+  An unrescued failure is a new lost start only when the same tab's previous
+  unrescued failure on that show is more than `LOST_START_GAP_MINUTES` (10)
+  earlier; the rest are **repeats** (Try Again pressed again), shown beside the
+  line, never added to it. Rows without a tab fall back to UA class and build.
+  One phone pressing Try Again 33 times read as 33 losses before.
 - **A tab updates itself at a natural break** (`src/services/build/stale-tab.ts`,
   installed by `(desktop)/layout.tsx`). It asks `/api/build` 30 s after load,
   every 5 min, and on coming back on screen, focus and `online`. A newer build
@@ -864,6 +915,17 @@ deploy never drops a chat stream. The full account is in `docs/live-chat.md`.
   geolocation.** `tuneIn()` posts `/live-api/tuned`; the service batches
   tune-ins into at most one line a minute, one per caller an hour. A viewer
   can hide them.
+- **Archive moments** (2026-10-11, `services/live/lib/archive.mjs`,
+  `docs/live-chat.md`). A line from the show's history, only into a quiet
+  room: someone connected, no call for 20 min, none posted for 60 min.
+  Picked against the show on the air (that episode, its topic, today's
+  date, then any). Its own event and its own card ("From the archive"),
+  never a caller: no name, no line, no Report, **nothing stored or counted**.
+  **Every moment cites a public source** (`source: {title, url, supports}`,
+  the standard of `data/notable.md`; a test fails on one without). A moment
+  that cannot be sourced is cut, never softened: 30 of the first 50 survived.
+  All but the sign-on are descriptions, never presented as quotes;
+  `form: "quote"` needs a sourced transcript.
 - **One browser, one caller** (2026-09-26). A caller is a random id in the
   signed `hd_live_caller` cookie (HttpOnly, Secure, Path=/live-api, 400 days,
   `services/live/lib/caller.mjs`); `client_ref` is an HMAC of it. Names,
@@ -1044,7 +1106,12 @@ No third-party hosting. Same shape as `sanger-next`.
 - **Backup:** `highdesert-backup.timer` (17:30 UTC) pg_dumps to `/root/backups/highdesert`
   (14 days) and rsyncs to the MacBook over Tailscale (skipped under 5 GB free).
   `highdesert-backup-status` → OK / FAILED / STALE (>36h). Restore procedure and the
-  rehearsal: `docs/backup.md`
+  rehearsal: `docs/backup.md`. **Encrypted off-box copy** (2026-10-11,
+  `scripts/backup-offsite.sh`): every kept dump, age-encrypted to
+  `deploy/backup-age-recipient.txt`, force-pushed as one orphan commit to the private
+  repo `jackson-jpeg/highdesert-backups` (14 days, no history), with a
+  decrypt-compare-`pg_restore --list` restore test every run. The private key is
+  `/root/.high-desert-backup-age.key`, never on GitHub
 - **Traffic sampler:** `highdesert-sample.timer` POSTs `/api/stats/sample` every 2 minutes,
   authenticated with `STATS_SAMPLE_SECRET` from the same env file. This is the only writer to
   `listener_samples`, and the only reason any *history* exists — `active_sessions` is a live
@@ -1243,8 +1310,9 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
   aborts rather than throwing. They are not optional — they would have prevented that incident
   independently of the key bug.
 - Regression tests live in `src/db/__tests__/`; `dedupKey` must yield one distinct key per row of
-  the real seed catalog (**1,413** since the 2026-09-28 community import, `docs/community-sources.md`;
-  see `docs/broken-episodes.md` for the one that was removed).
+  the real seed catalog (**1,413**: the 2026-09-28 community import made it 1,413,
+  `docs/community-sources.md`; one removal on 2026-10-11 was undone the same day when the
+  Egyptian Cave show was repaired instead, `docs/broken-episodes.md`).
   The count is asserted against the catalog rather than hardcoded, so pulling an episode does not
   need the test edited; changing it to a literal would make the next removal look like a bug.
 - **`deleteEpisode()` is covered end to end** against `fake-indexeddb` in

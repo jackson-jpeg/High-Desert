@@ -1,5 +1,6 @@
 import type { Episode } from "@/db/schema";
 import type { FailureKind } from "@/audio/playback-watchdog";
+import repairedEpisodes from "@/data/repaired-episodes.json";
 
 /**
  * Where an episode's audio can come from, in the order to try it.
@@ -15,6 +16,12 @@ import type { FailureKind } from "@/audio/playback-watchdog";
  * When the health probe has recently seen archive.org down, the mirror is the
  * only source offered: sending the element to a host known to be dead costs the
  * listener a twelve-second timeout before failover could even begin.
+ *
+ * A **repaired** episode (src/data/repaired-episodes.json) plays from the
+ * mirror only, always: its archive.org file changes channel layout or sample
+ * rate midstream, which every Chromium engine refuses, and the mirror serves a
+ * re-encoded copy with one configuration throughout (scripts/repair-episode.mjs,
+ * docs/broken-episodes.md). archive.org's file is not a fallback for it.
  */
 
 export type SourceKind = "archive" | "mirror" | "cache" | "local";
@@ -29,13 +36,20 @@ export function mirrorUrl(episode: Pick<Episode, "fileHash">): string | null {
   return `/mirror/${encodeURIComponent(episode.fileHash)}`;
 }
 
+const REPAIRED: ReadonlySet<string> = new Set(repairedEpisodes.map((e) => e.fileHash));
+
+/** The mirror holds a re-encoded copy of this episode, and only it plays (above). */
+export function isRepaired(episode: Pick<Episode, "fileHash">): boolean {
+  return !!episode.fileHash && REPAIRED.has(episode.fileHash);
+}
+
 export function resolveSources(
   episode: Pick<Episode, "fileHash" | "sourceUrl">,
   { archiveDown = false }: { archiveDown?: boolean } = {},
 ): PlaySource[] {
   const mirror = mirrorUrl(episode);
   const archive = episode.sourceUrl ?? null;
-  if (archiveDown && mirror) return [{ kind: "mirror", url: mirror }];
+  if ((archiveDown || isRepaired(episode)) && mirror) return [{ kind: "mirror", url: mirror }];
   const out: PlaySource[] = [];
   if (archive) out.push({ kind: "archive", url: archive });
   if (mirror) out.push({ kind: "mirror", url: mirror });

@@ -1,0 +1,196 @@
+[
+  {
+    "fileHash": "archive:ultimate-ultimate-art-bell-collection:1994-10-28 - Coast to Coast AM with Art Bell - Ghost To Ghost 1994.mp3",
+    "airDate": "1994-10-28",
+    "reason": "midstream-change",
+    "original": {
+      "bytes": 49544677,
+      "sha256": "3a4cf1c3c20cbe8575aecd47d309c03b5999ea6bc58c8eac047ca73aa642f8a6",
+      "seconds": 12362.62,
+      "segments": [
+        {
+          "atSeconds": 0,
+          "sampleRate": 22050,
+          "mono": true,
+          "frames": 10030
+        },
+        {
+          "atSeconds": 262.01,
+          "sampleRate": 16000,
+          "mono": false,
+          "frames": 1
+        },
+        {
+          "atSeconds": 262.04,
+          "sampleRate": 22050,
+          "mono": true,
+          "frames": 463225
+        }
+      ]
+    },
+    "repaired": {
+      "bytes": 49449550,
+      "sha256": "f61fe410e2e451d0256f832e8b95b3fdbe452b89f5648fa0a7f2e5b117769fe4",
+      "seconds": 12362.29,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitrateKbps": 32,
+      "encoder": "ffmpeg -nostdin -hide_banner -loglevel error -y -i <original> -map 0:a:0 -map_metadata 0 -af aresample=22050:async=1 -ac 1 -ar 22050 -c:a libmp3lame -b:a 32k -id3v2_version 3 -write_xing 1 <copy>"
+    },
+    "repairedAt": "2026-10-11"
+  },
+  {
+    "fileHash": "archive:ultimate-ultimate-art-bell-collection:1996-09-09 - Coast to Coast AM with Art Bell - Open Lines - TWA 800, Arts Parts, Crop Circles.mp3",
+    "airDate": "1996-09-09",
+    "reason": "midstream-change",
+    "original": {
+      "bytes": 40337853,
+      "sha256": "c67bfac869654e4ab1e815dcf4a54c94ce1ca19a3557ec15b6f0cad0602c35e6",
+      "seconds": 10064.98,
+      "segments": [
+        {
+          "atSeconds": 0,
+          "sampleRate": 22050,
+          "mono": true,
+          "frames": 321194
+        },
+        {
+          "atSeconds": 8390.37,
+          "sampleRate": 22050,
+          "mono": false,
+          "frames": 1
+        },
+        {
+          "atSeconds": 8390.4,
+          "sampleRate": 22050,
+          "mono": true,
+          "frames": 64105
+        }
+      ]
+    },
+    "repaired": {
+      "bytes": 40260563,
+      "sha256": "bd3f7516d4e90851a5485cd23c9107e63d0430eb8b7fdf2a62e79a525220dff3",
+      "seconds": 10065.03,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitrateKbps": 32,
+      "encoder": "ffmpeg -nostdin -hide_banner -loglevel error -y -i <original> -map 0:a:0 -map_metadata 0 -af aresample=22050:async=1 -ac 1 -ar 22050 -c:a libmp3lame -b:a 32k -id3v2_version 3 -write_xing 1 <copy>"
+    },
+    "repairedAt": "2026-10-11"
+  },
+  {
+    "fileHash": "archive:ultimate-ultimate-art-bell-collection:2001-09-11 - Coast to Coast AM with Art Bell - The September 11, 2001 Show.mp3",
+    "airDate": "2001-09-11",
+    "reason": "midstream-change",
+    "original": {
+      "bytes": 42109506,
+      "sha256": "02ce7ccf9b9076fb577eaa751293ab934a166f1806a1d6340c51de50bc286c40",
+      "seconds": 10507.91,
+      "segments": [
+        {
+          "atSeconds": 0,
+          "sampleRate": 22050,
+          "mono": true,
+          "frames": 397735
+        },
+        {
+          "atSeconds": 10389.81,
+          "sampleRate": 22050,
+          "mono": false,
+          "frames": 1
+        },
+        {
+          "atSeconds": 10389.84,
+          "sampleRate": 22050,
+          "mono": true,
+          "frames": 4520
+        }
+      ]
+    },
+    "repaired": {
+      "bytes": 42032254,
+      "sha256": "696cf1a39266e0e983c4c026fdd24be56e97bcdc0c7e3d06cb992590696d747a",
+      "seconds": 10507.96,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitrateKbps": 32,
+      "encoder": "ffmpeg -nostdin -hide_banner -loglevel error -y -i <original> -map 0:a:0 -map_metadata 0 -af aresample=22050:async=1 -ac 1 -ar 22050 -c:a libmp3lame -b:a 32k -id3v2_version 3 -write_xing 1 <copy>"
+    },
+    "repairedAt": "2026-10-11"
+  },
+  {
+    "fileHash": "archive:ultimate-ultimate-art-bell-collection:2001-11-26 - Coast to Coast AM with Art Bell - Glenn Kimball - Egypt Illinois Cave.mp3",
+    "airDate": "2001-11-26",
+    "reason": "midstream-change",
+    "original": {
+      "bytes": 100935721,
+      "sha256": "6128c7f9a3ca225d43fc5b9a9dc638d58ec79421a705b272b2e5785999d1cd63",
+      "seconds": 8283.32,
+      "segments": [
+        {
+          "atSeconds": 0,
+          "sampleRate": 44100,
+          "mono": false,
+          "frames": 101037
+        },
+        {
+          "atSeconds": 2639.33,
+          "sampleRate": 44100,
+          "mono": true,
+          "frames": 216059
+        }
+      ]
+    },
+    "repaired": {
+      "bytes": 66266927,
+      "sha256": "2d75fd7d9b4b67ec7e4b410418b0a3f6b75de6402813392471d4097c32cc0442",
+      "seconds": 8283.32,
+      "sampleRate": 44100,
+      "channels": 1,
+      "bitrateKbps": 64,
+      "encoder": "ffmpeg -nostdin -hide_banner -loglevel error -y -i <original> -map 0:a:0 -map_metadata 0 -af aresample=44100:async=1 -ac 1 -ar 44100 -c:a libmp3lame -b:a 64k -id3v2_version 3 -write_xing 1 <copy>"
+    },
+    "repairedAt": "2026-10-11"
+  },
+  {
+    "fileHash": "archive:ultimate-ultimate-art-bell-collection:2001-12-04 - Coast to Coast AM with Art Bell - Joshua P. Warren - Ghost Hunting, North Carolina's Brown Mountain Lights.mp3",
+    "airDate": "2001-12-04",
+    "reason": "midstream-change",
+    "original": {
+      "bytes": 38178721,
+      "sha256": "af1b483a1c473c1661171b7de5484f6be18bba557fa0b62fd741acf3b1648d6c",
+      "seconds": 9558.83,
+      "segments": [
+        {
+          "atSeconds": 0,
+          "sampleRate": 22050,
+          "mono": true,
+          "frames": 90931
+        },
+        {
+          "atSeconds": 2375.34,
+          "sampleRate": 22050,
+          "mono": false,
+          "frames": 1
+        },
+        {
+          "atSeconds": 2375.37,
+          "sampleRate": 22050,
+          "mono": true,
+          "frames": 274992
+        }
+      ]
+    },
+    "repaired": {
+      "bytes": 38235812,
+      "sha256": "1b163cda40fef1390983b5bf4d1c86a5e8b0899084e44a72e4bd732dc4d8b146",
+      "seconds": 9558.83,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitrateKbps": 32,
+      "encoder": "ffmpeg -nostdin -hide_banner -loglevel error -y -i <original> -map 0:a:0 -map_metadata 0 -af aresample=22050:async=1 -ac 1 -ar 22050 -c:a libmp3lame -b:a 32k -id3v2_version 3 -write_xing 1 <copy>"
+    },
+    "repairedAt": "2026-10-11"
+  }
+]

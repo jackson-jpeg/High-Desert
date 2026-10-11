@@ -231,6 +231,14 @@ ALTER TABLE playback_failures ADD COLUMN IF NOT EXISTS build text
 -- database that predates it is still a no-op.
 ALTER TABLE playback_failures
   ADD COLUMN IF NOT EXISTS detail text;
+-- The reporting tab's random id, one per page load and never the presence
+-- session (so a failure cannot be joined to a play). It is what lets one tab
+-- pressing Try Again 35 times count as one lost start (LOST_START_GAP_MINUTES
+-- in src/services/stats/db/failures.ts, 2026-10-11). NULL on older rows; the
+-- row itself is pruned at 90 days.
+ALTER TABLE playback_failures
+  ADD COLUMN IF NOT EXISTS tab_ref text
+  CHECK (tab_ref IS NULL OR tab_ref ~ '^[A-Za-z0-9_-]{8,64}$');
 
 CREATE INDEX IF NOT EXISTS playback_failures_at_idx
   ON playback_failures (at DESC);
@@ -259,6 +267,38 @@ CREATE TABLE IF NOT EXISTS live_days (
   program    jsonb       NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- The station never airs a broken file (2026-10-11). `audio_checks` is one
+-- full frame walk per file (scripts/verify-live-day.mjs, nightly before the
+-- next Pacific day is frozen): a file fails on a midstream change of sample
+-- rate or channels, no audio, or far less audio than catalogued. A file's
+-- bytes do not change, so a row is never re-walked. frozenDay() swaps any
+-- slot whose file is `ok = false` for a fan favorite that passed.
+CREATE TABLE IF NOT EXISTS audio_checks (
+  file_hash  text        PRIMARY KEY,
+  ok         boolean     NOT NULL,
+  reason     text,
+  seconds    real,
+  segments   jsonb,
+  checked_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- The station's circuit breaker (src/services/live/breaker.ts): 3 listeners
+-- failing on the show on the air within 2 minutes cut it there, and the
+-- schedule puts `replacement` on after one station ID. Applied at read time
+-- (applyOverrides); the frozen day is untouched. Kept: the digest reports them.
+CREATE TABLE IF NOT EXISTS live_overrides (
+  slot_start  bigint      NOT NULL,
+  file_hash   text        NOT NULL,
+  day         date        NOT NULL,
+  cut_at      bigint      NOT NULL,
+  replacement text,
+  clients     integer     NOT NULL,
+  kinds       text[]      NOT NULL DEFAULT '{}',
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (slot_start, file_hash)
+);
+CREATE INDEX IF NOT EXISTS live_overrides_day ON live_overrides (day);
 
 -- ---------------------------------------------------------------------------
 -- The arrival funnel (src/services/stats/db/funnel.ts, docs/funnel.md)

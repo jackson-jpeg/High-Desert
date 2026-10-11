@@ -40,7 +40,7 @@ import {
 import type { Episode } from "@/db/schema";
 import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
 import { archiveKnownDown } from "@/services/archive/health";
-import type { SourceKind } from "@/audio/sources";
+import { resolveSources, type SourceKind } from "@/audio/sources";
 import { currentStartPlan, refuseIfUnavailable } from "@/audio/outage-gate";
 import {
   currentLiveStart,
@@ -51,7 +51,7 @@ import {
 } from "@/audio/live-session";
 import { LIVE_LOCKED_MESSAGE, liveLocked } from "@/stores/live-store";
 import { toast } from "@/stores/toast-store";
-import { disarmWatchdog, isWatching, noteError } from "@/audio/playback-watchdog";
+import { describeMediaError, disarmWatchdog, isWatching, noteError } from "@/audio/playback-watchdog";
 import { emit } from "@/lib/events";
 import { withGlobals } from "./player/globals";
 import {
@@ -145,8 +145,10 @@ export function useAudioPlayer() {
       // A new source is a new start: its listen has not been counted.
       beginStart();
       audio.preload = "none";
-      audio.src = episode.sourceUrl;
-      usePlayerStore.getState().setSource("archive");
+      // archive.org, or the mirror for a repaired show (src/audio/sources.ts).
+      const source = resolveSources(episode)[0] ?? { kind: "archive" as const, url: episode.sourceUrl };
+      audio.src = source.url;
+      usePlayerStore.getState().setSource(source.kind);
       // readyState is 0 here, so this is held until loadedmetadata (engine.ts).
       seekEngine(startPositionFor(positionOf(episode.fileHash), episode.duration));
       audio.playbackRate = usePlayerStore.getState().playbackRate;
@@ -276,7 +278,7 @@ export function useAudioPlayer() {
         // (HD-033). The store owns it and revokes it when a new source
         // replaces it or playback stops.
         if (isWatching()) {
-          const r = playRejection(err);
+          const r = playRejection(err, describeMediaError(audio.error));
           noteError(r.kind, r.detail, { wanted: true });
         } else {
           usePlayerStore.getState().setLoadState("failed");
@@ -374,7 +376,7 @@ export function useAudioPlayer() {
       // This catch used to swallow the rejection entirely, so a refused
       // resume left the UI paused with no explanation whatsoever.
       if (isWatching()) {
-        const r = playRejection(err);
+        const r = playRejection(err, describeMediaError(getAudio().error));
         noteError(r.kind, r.detail, { wanted: true });
       } else {
         setError("Couldn't resume playback. Try again.");

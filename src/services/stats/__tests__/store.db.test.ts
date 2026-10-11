@@ -157,15 +157,63 @@ describeDb("stats store (Postgres)", () => {
         to: to.toISOString(),
         failures: 5,
         recovered: 1,
+        // The three untagged timeouts are a day or more apart: three losses.
+        lost: 4,
+        repeats: 0,
         plays: 5,
         // Nothing dropped: the split sums to the totals, and untagged rows are
         // their own row rather than folded into a build.
         byBuild: [
-          { build: "abc1234", failures: 1, recovered: 0, plays: 2 },
-          { build: "def5678", failures: 1, recovered: 1, plays: 0 },
-          { build: null, failures: 3, recovered: 0, plays: 3 },
+          { build: "abc1234", failures: 1, recovered: 0, lost: 1, repeats: 0, plays: 2 },
+          { build: "def5678", failures: 1, recovered: 1, lost: 0, repeats: 0, plays: 0 },
+          { build: null, failures: 3, recovered: 0, lost: 3, repeats: 0, plays: 3 },
         ],
       });
+    } finally {
+      await clean();
+    }
+  });
+
+  it("getFailureWindow counts one lost start per tab per show: Try Again within 10 minutes is a repeat", async () => {
+    // Another 2001 window, clear of the test above.
+    const from = new Date(Date.UTC(2001, 5, 1) + process.pid * 1000);
+    const to = new Date(from.getTime() + 7 * 86_400_000);
+    const min = 60_000;
+    const OTHER = `${TAG}-other`;
+    const fail = (t: number, o: { tab?: string | null; ep?: string; recovered?: boolean; ua?: string; build?: string | null } = {}) =>
+      q(
+        `INSERT INTO playback_failures (episode_id, kind, retried, recovered, elapsed_ms, ua_class, at, build, tab_ref)
+         VALUES ($1, 'decode-error', false, $2, 0, $3, $4, $5, $6)`,
+        [o.ep ?? TAG, o.recovered ?? false, o.ua ?? "android-chrome", new Date(from.getTime() + t).toISOString(), o.build ?? "abc1234", o.tab ?? null],
+      );
+    const clean = async () => {
+      await q("DELETE FROM playback_failures WHERE episode_id = ANY($1)", [[TAG, OTHER]]);
+    };
+    await clean();
+    try {
+      // Tab A presses Try Again 33 times, a second apart, then comes back 108 minutes later.
+      for (let i = 0; i < 33; i++) await fail(i * 1000, { tab: "tab-aaaaaaaa" });
+      await fail(108 * min, { tab: "tab-aaaaaaaa" });
+      // The chain is by gap: three presses nine minutes apart are still one loss.
+      for (let i = 0; i < 3; i++) await fail(200 * min + i * 9 * min, { tab: "tab-cccccccc" });
+      // Tab B fails the same show at the same moment: its own loss.
+      await fail(2000, { tab: "tab-bbbbbbbb" });
+      // Tab A on another show: its own loss.
+      await fail(3000, { tab: "tab-aaaaaaaa", ep: OTHER });
+      // A rescued start inside A's burst is rescued, not a loss and not a repeat.
+      await fail(4000, { tab: "tab-aaaaaaaa", recovered: true });
+      // Rows from before tab_ref: grouped by (ua_class, build).
+      await fail(300 * min, { ua: "ios-safari" });
+      await fail(301 * min, { ua: "ios-safari" });
+      await fail(301 * min, { ua: "desktop-firefox" });
+
+      const w = await store.getFailureWindow(from, to);
+      expect(w.failures).toBe(33 + 1 + 3 + 1 + 1 + 1 + 3);
+      expect(w.recovered).toBe(1);
+      // A: 2 (the burst, the return), C: 1, B: 1, A on OTHER: 1, legacy: ios 1 + firefox 1.
+      expect(w.lost).toBe(7);
+      expect(w.repeats).toBe(32 + 2 + 1);
+      expect(w.lost + w.repeats).toBe(w.failures - w.recovered);
     } finally {
       await clean();
     }
@@ -242,7 +290,7 @@ describeDb("stats store (Postgres)", () => {
       await store.recordPlay(TAG, sid, client, "archive");
       await store.recordPlaybackFailure({
         episodeId: TAG, kind: "stall", retried: true, recovered: false,
-        elapsedMs: 10, uaClass: "ios-safari", build: "1ff3416",
+        elapsedMs: 10, uaClass: "ios-safari", build: "1ff3416", tab: "tab-1234abcd",
       });
       await store.recordPlaybackFailure({
         episodeId: TAG, kind: "stall", retried: true, recovered: false, elapsedMs: 10, uaClass: "ios-safari",
@@ -252,6 +300,12 @@ describeDb("stats store (Postgres)", () => {
       // Not sent is NULL: unknown, never guessed to be the current build.
       expect(plays.map((r) => r.build)).toEqual(["1ff3416", null]);
       expect(fails.map((r) => r.build)).toEqual(["1ff3416", null]);
+      // The tab's id is stored as sent (one lost start per tab), and is not free text either.
+      const tabs = await q<{ tab_ref: string | null }>("SELECT tab_ref FROM playback_failures WHERE episode_id = $1 ORDER BY id", [TAG]);
+      expect(tabs.map((r) => r.tab_ref)).toEqual(["tab-1234abcd", null]);
+      await expect(
+        q("INSERT INTO playback_failures (episode_id, kind, tab_ref) VALUES ($1, 'stall', $2)", [TAG, "not a tab id!"]),
+      ).rejects.toThrow(/check/i);
       // The column cannot be used as free-text storage.
       await expect(
         q("INSERT INTO play_events (episode_id, build) VALUES ($1, $2)", [TAG, "not a build"]),

@@ -16,12 +16,15 @@ const {
   dueDay,
   parseStatus,
   parseRelease,
+  LOST_START_GAP_MINUTES: digestGap,
   releaseVerdict,
   releaseBuilds,
   isReleaseBuild,
   lockedPhones,
   patternOf,
   proposeFix,
+  wordCut,
+  LEAD_SHARE,
   evidenceReasons,
   render,
   screenLines,
@@ -79,6 +82,18 @@ describe("reading highdesert-status", () => {
     const r = parseRelease(l);
     expect(r).toMatchObject({ pct: 1, lost: 3, rescued: 20, plays: 300 });
     expect(releaseVerdict(r)).toBe("pass");
+  });
+
+  it("one tab's Try Again presses are one lost start; the repeats are read and shown, never counted (2026-10-11)", async () => {
+    const [l] = parseStatus(
+      "OK    release   1.7% of starts lost on this release's builds in the 7 of 7 days since 2026-09-28T14:49:18Z (23 lost / 1329 plays; target <3%); 61 rescued by the retry or the mirror (4.6%); 34 repeats of a lost start in the same tab, not counted",
+    );
+    const r = parseRelease(l);
+    expect(r).toMatchObject({ pct: 1.7, lost: 23, rescued: 61, repeats: 34, plays: 1329 });
+    expect(releaseVerdict(r)).toBe("pass");
+    // The gap is the one the database uses.
+    const { LOST_START_GAP_MINUTES } = await import("../../src/services/stats/db/failures");
+    expect(LOST_START_GAP_MINUTES).toBe(digestGap);
   });
 
   it("no verdict under 300 plays; a fail at 3% or more on 300", () => {
@@ -159,6 +174,47 @@ describe("the pattern and the proposed fix", () => {
     expect(fix).toMatch(/75% on ios-safari/);
   });
 
+  it("the 2026-10-05 week: a show with 37 of 119 rows is the lead, not 'no single cause'", () => {
+    const kinds = ["stall", "decode-error", "network-error", "timeout"];
+    const uas = ["android-chrome", "desktop-chromium", "ios-safari", "desktop-firefox", "android-firefox"];
+    const rows = Array.from({ length: 119 }, (_, i) =>
+      row({
+        episodeId: i < 37 ? "coll--egypt" : `coll--other-${i}`,
+        kind: kinds[i % 4],
+        uaClass: uas[i % 5],
+        at: new Date(Date.parse("2026-09-29T00:00:00Z") + i * 3_600_000).toISOString(),
+      }),
+    );
+    const fix = proposeFix(patternOf(rows), (id: string) => (id === "coll--egypt" ? "Egyptian Cave in Illinois" : id)).join(" ");
+    expect(fix).toContain("Lead (show): Egyptian Cave in Illinois holds 37 of 119 rows (31%)");
+    expect(fix).toContain("Lead (device): android-chrome holds 24 of 119 rows (20%)");
+    expect(fix).not.toMatch(/No single cause/);
+    expect(fix).not.toMatch(/Lead \(hour\)/);
+  });
+
+  it("a lead is 20% of the rows: an hour at exactly a fifth is one, under a fifth is not", () => {
+    expect(LEAD_SHARE).toBe(0.2);
+    const make = (n: number) =>
+      Array.from({ length: n }, (_, i) =>
+        row({
+          episodeId: `e${i}`,
+          uaClass: `ua${i}`,
+          kind: ["stall", "timeout", "decode-error"][i % 3],
+          at: new Date(Date.parse("2026-10-01T00:10:00Z") + (i < 2 ? 0 : i) * 3_600_000).toISOString(),
+        }),
+      );
+    expect(proposeFix(patternOf(make(10))).join(" ")).toMatch(/Lead \(hour\): 2026-10-01 00:00 UTC holds 2 of 10/);
+    expect(proposeFix(patternOf(make(11))).join(" ")).toMatch(/No single cause/);
+  });
+
+  it("a show's title is cut at a word, never mid-word", () => {
+    const t = "Coast to Coast AM - Egyptian Cave in Illinois";
+    expect(wordCut(t, 60)).toBe(t);
+    expect(wordCut(t, 40)).toBe("Coast to Coast AM - Egyptian Cave in\u2026");
+    expect(wordCut(t, 40).length).toBeLessThanOrEqual(40);
+    expect(wordCut("Supercalifragilisticexpialidocious", 10)).toBe("Supercali\u2026");
+  });
+
   it("evidence is opened for any FAIL, and for the release over 3% on 300 plays, and not otherwise", () => {
     const ok = parseStatus(STATUS_OK);
     expect(evidenceReasons(ok, parseRelease(ok[1]))).toEqual([]);
@@ -181,6 +237,7 @@ function sources(over: Partial<Record<string, () => Promise<unknown>>> = {}) {
     topShows: async () => [{ episodeId: "coll--ep_a", plays: 139 }],
     places: async () => ({ calls: 135, callers: 65, unplaced: 95, top: [{ place: "Los Angeles", calls: 5 }] }),
     failures: async () => [],
+    guard: async () => ({ trips: [], swaps: [], verify: { at: "2026-10-05T15:21:00Z", day: "2026-10-06", candidates: 64, walked: 3, bad: [], unreadable: 0, left: 0 } }),
     close: async () => {},
     ...over,
   };
@@ -201,10 +258,40 @@ describe("the digest itself", () => {
     expect(md).toContain("Area 51 , John Lear (139)"); // the catalog's em dash, taken out
     expect(md).toContain("Calling from: Los Angeles 5 (95 calls gave no place)");
     expect(md).toContain("highdesert-status: all 4 checks OK.");
+    expect(md).toContain("## Station guard\n\nNo show cut on air and none kept off it.\nPre-air walk for 2026-10-06: 3 of 64 walked, 0 bad, 0 unreadable, 0 left (2026-10-05 15:21 UTC).");
     expect(md).toContain("Disk: 62% used, 38 GB free. Pins: 332 shows (15.0 GB). CPU: busiest unit highdesert 0.7% of a core.");
     expect(md).not.toMatch(/—/);
     expect(md).not.toContain("Evidence for a fix session");
     expect(screenLines(md)).toBeLessThanOrEqual(dg.SCREEN_LINES);
+  });
+
+  it("the station guard: a cut show needs you, a kept-off one is reported, a stale walk is raised", async () => {
+    const guard = async () => ({
+      trips: [{ fileHash: "archive:coll:ep a.mp3", cutAt: Date.parse("2026-10-03T04:10:00Z"), replacement: "archive:coll:ep b.mp3", clients: 3, kinds: ["decode-error"] }],
+      swaps: [{ day: "2026-10-04", replaces: "archive:coll:ep c.mp3", fileHash: "archive:coll:ep b.mp3" }],
+      verify: { at: "2026-10-02T15:21:00Z", day: "2026-10-03", candidates: 60, walked: 60, bad: [{ fileHash: "x", reason: "midstream-change" }], unreadable: 1, left: 0 },
+    });
+    const catalog = async () => [
+      { archiveIdentifier: "coll", fileName: "ep a.mp3", title: "Area 51" },
+      { archiveIdentifier: "coll", fileName: "ep b.mp3", title: "Ghosts" },
+      { archiveIdentifier: "coll", fileName: "ep c.mp3", title: "Comets" },
+    ];
+    const md = render({ day: "2026-10-05", writtenAt: NOW, ...(await gather(sources({ guard, catalog }), NOW)) });
+    const top = md.slice(md.indexOf("## Needs you"), md.indexOf("## Release"));
+    expect(top).toContain("**Station breaker:** 1 show cut on air.");
+    expect(top).toContain("**Pre-air walk:** last ran 74h ago.");
+    const g = md.slice(md.indexOf("## Station guard"), md.indexOf("## The week"));
+    expect(g).toContain("- Cut on air: Area 51, Sat 3 Oct, 04:10 UTC, 3 listeners failing (decode-error). Ghosts played the rest of the slot.");
+    expect(g).toContain("- Kept off the air: Comets on 2026-10-04 failed its walk; Ghosts aired instead.");
+    expect(g).toContain("1 bad, 1 unreadable");
+    expect(md).not.toMatch(/—/);
+    expect(screenLines(md)).toBeLessThanOrEqual(dg.SCREEN_LINES);
+  });
+
+  it("a station guard that cannot be read is named, never passed off as quiet", async () => {
+    const md = render({ day: "2026-10-05", writtenAt: NOW, ...(await gather(sources({ guard: async () => Promise.reject(new Error("x")) }), NOW)) });
+    expect(md).toContain("**Could not read:** the station guard.");
+    expect(md).not.toContain("No show cut on air");
   });
 
   it("under 300 plays the release is counts, never a percentage", async () => {
