@@ -92,22 +92,28 @@ if (( kept == 0 )); then
   exit 1
 fi
 
-# 2. Restore test of the newest copy.
+# 2. Restore test. Every copy must decrypt to its dump's bytes (a dozen
+#    small files: checking only the newest let a bad older copy sit there
+#    unnoticed); the newest must also read as a database.
 restore="not tested (no identity on this box)"
 if [[ -n "$IDENTITY" && -s "$IDENTITY" ]]; then
+  plain="$WORK/restore-test.dump"
+  for enc in "$files"/highdesert-*.dump.age; do
+    name="$(basename "$enc" .age)"
+    if ! age -d -i "$IDENTITY" -o "$plain" "$enc"; then
+      rm -f "$plain"
+      echo "offsite: failed: $name.age does not decrypt with $IDENTITY"
+      exit 1
+    fi
+    if [[ "$(sha256sum "$plain" | cut -d' ' -f1)" != "$(cat "$files/$name.sha256")" ]]; then
+      rm -f "$plain"
+      echo "offsite: failed: $name.age decrypts to different bytes than the dump"
+      exit 1
+    fi
+  done
   newest="$(ls -1 "$files"/highdesert-*.dump.age | sort | tail -1)"
   name="$(basename "$newest" .age)"
-  plain="$WORK/restore-test.dump"
-  if ! age -d -i "$IDENTITY" -o "$plain" "$newest"; then
-    rm -f "$plain"
-    echo "offsite: failed: $name.age does not decrypt with $IDENTITY"
-    exit 1
-  fi
-  if [[ "$(sha256sum "$plain" | cut -d' ' -f1)" != "$(cat "$files/$name.sha256")" ]]; then
-    rm -f "$plain"
-    echo "offsite: failed: $name.age decrypts to different bytes than the dump"
-    exit 1
-  fi
+  age -d -i "$IDENTITY" -o "$plain" "$newest"
   toc="$(pg_restore --list "$plain" 2>/dev/null || true)"
   rm -f "$plain"
   for table in play_events traffic_daily; do
@@ -116,7 +122,7 @@ if [[ -n "$IDENTITY" && -s "$IDENTITY" ]]; then
       exit 1
     fi
   done
-  restore="restore test ok ($name)"
+  restore="restore test ok ($kept copies match their dumps; $name read by pg_restore)"
 fi
 
 # 3. One orphan commit of exactly this set, force-pushed.

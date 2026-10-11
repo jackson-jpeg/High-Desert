@@ -2985,6 +2985,15 @@ export const MUTATIONS = [
     why: "the nightly restore test must compare the decrypted bytes with the dump",
   },
   {
+    id: "offsite-checks-every-copy",
+    test: "scripts/__tests__/backup-db.test.ts",
+    file: "scripts/backup-offsite.sh",
+    // Only the newest copy checked: a bad older copy sat in the repo unnoticed.
+    find: "  for enc in \"$files\"/highdesert-*.dump.age; do\n    name=\"$(basename \"$enc\" .age)\"\n    if ! age -d",
+    replace: "  for enc in \"$(ls -1 \"$files\"/highdesert-*.dump.age | sort | tail -1)\"; do\n    name=\"$(basename \"$enc\" .age)\"\n    if ! age -d",
+    why: "every encrypted copy, not just the newest, must decrypt to its dump",
+  },
+  {
     id: "offsite-drops-pruned",
     test: "scripts/__tests__/backup-db.test.ts",
     file: "scripts/backup-offsite.sh",

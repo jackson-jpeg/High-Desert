@@ -306,6 +306,9 @@ describeDb("backup-offsite.sh (encrypted copy, restore test)", () => {
     const other = path.join(dir, "other");
     await writeFile(other, "not the dump");
     await run("age", ["-R", pub, "-o", enc, other]);
+    // The next run makes a newer dump, so the bad copy is not the newest: every
+    // copy is checked, not only the one pg_restore reads (CI found this).
+    await new Promise((res) => setTimeout(res, 1100));
     const r = await sh(BACKUP, offsiteEnv());
     expect(r.code).toBe(0); // the VPS dump stands; the leg is a warning
     expect(await readFile(statusFile, "utf8")).toMatch(/offsite_result=skipped: failed: .* decrypts to different bytes/);
