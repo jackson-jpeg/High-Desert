@@ -37,6 +37,13 @@ export const REMOVED_FROM_CATALOG: ReadonlyMap<string, RemovedEpisode> = new Map
       reason: "The archive's copy of this broadcast contains no audio, only its cover art.",
     },
   ],
+  [
+    "archive:ultimate-ultimate-art-bell-collection:2001-11-26 - Coast to Coast AM with Art Bell - Glenn Kimball - Egypt Illinois Cave.mp3",
+    {
+      pulled: "2026-10-11",
+      reason: "The archive's copy of this broadcast switches from stereo to mono partway through, and most browsers stop playing there.",
+    },
+  ],
 ]);
 
 /** The removal record for this row, if it is one of the pulled episodes. */

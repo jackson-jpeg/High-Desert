@@ -199,6 +199,18 @@ export function patternOf(rows, titleOf = (id) => id) {
   };
 }
 
+/** A show, device or hour with this share of the rows is a lead. */
+export const LEAD_SHARE = 0.2;
+
+/** Text cut to n characters at a word boundary, with an ellipsis when cut. */
+export function wordCut(v, n) {
+  const t = String(v ?? "").replace(/[|\n\r]/g, " ").trim();
+  if (t.length <= n) return t;
+  const head = t.slice(0, n - 1);
+  const at = head.lastIndexOf(" ");
+  return `${(at > n / 3 ? head.slice(0, at) : head).replace(/[\s,;:.-]+$/, "")}\u2026`;
+}
+
 /** A first guess at the fix, from the pattern. A proposal for a fix session, not a diagnosis. */
 export function proposeFix(p, titleOf = (id) => id) {
   const out = [];
@@ -234,6 +246,16 @@ export function proposeFix(p, titleOf = (id) => id) {
   }
   if (topUaN / p.n >= 0.7 && p.uas.length > 1) {
     out.push(`${share(topUaN, p.n)}% on ${topUa}: reproduce on that browser before changing anything shared.`);
+  }
+  // Leads (2026-10-11): any one show, device or hour holding LEAD_SHARE of the
+  // rows is named, whatever the kinds say. The 2026-10-05 digest called a week
+  // "no single cause" while one show held 37 of 119 rows.
+  for (const [what, top, hint] of [
+    ["show", p.eps[0] && [titleOf(p.eps[0][0]), p.eps[0][1]], "walk its file (scripts/measure-duration.mjs) and read its details"],
+    ["device", p.uas[0], "reproduce on that browser"],
+    ["hour", p.hours?.[0] && [`${p.hours[0][0]} UTC`, p.hours[0][1]], "read that hour's rows: one listener retrying looks like this"],
+  ]) {
+    if (top && top[1] / p.n >= LEAD_SHARE) out.push(`Lead (${what}): ${top[0]} holds ${top[1]} of ${p.n} rows (${share(top[1], p.n)}%). ${hint[0].toUpperCase()}${hint.slice(1)}.`);
   }
   if (!out.length) out.push(`No single cause stands out (top kind ${topKind}, ${topKindN} of ${p.n}). Start from the rows, oldest first.`);
   return out;
@@ -388,7 +410,7 @@ export function render(d) {
       L.push("|---|---|---|---|---|---|---|");
       for (const r of evidence.rows) {
         L.push(
-          `| ${new Date(r.at).toISOString().slice(5, 16).replace("T", " ")} | ${cell(r.kind, 20)} | ${cell(r.uaClass, 16)} | ${cell(r.source ?? "unknown", 8)} | ${r.recovered ? "yes" : "no"} | ${cell(titleOf(r.episodeId), 40)} | ${cell(r.detail, 60)} |`,
+          `| ${new Date(r.at).toISOString().slice(5, 16).replace("T", " ")} | ${cell(r.kind, 20)} | ${cell(r.uaClass, 16)} | ${cell(r.source ?? "unknown", 8)} | ${r.recovered ? "yes" : "no"} | ${wordCut(titleOf(r.episodeId), 40)} | ${cell(r.detail, 60)} |`,
         );
       }
     } else {

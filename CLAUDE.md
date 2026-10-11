@@ -870,9 +870,11 @@ deploy never drops a chat stream. The full account is in `docs/live-chat.md`.
   Picked against the show on the air (that episode, its topic, today's
   date, then any). Its own event and its own card ("From the archive"),
   never a caller: no name, no line, no Report, **nothing stored or counted**.
-  The 50 moments in `archive-moments.json` were written from general
-  knowledge, so all but the sign-on are descriptions, never presented as
-  quotes; `form: "quote"` is only for words checked against the audio.
+  **Every moment cites a public source** (`source: {title, url, supports}`,
+  the standard of `data/notable.md`; a test fails on one without). A moment
+  that cannot be sourced is cut, never softened: 31 of the first 50 survived.
+  All but the sign-on are descriptions, never presented as quotes;
+  `form: "quote"` needs a sourced transcript.
 - **One browser, one caller** (2026-09-26). A caller is a random id in the
   signed `hd_live_caller` cookie (HttpOnly, Secure, Path=/live-api, 400 days,
   `services/live/lib/caller.mjs`); `client_ref` is an HMAC of it. Names,
@@ -1252,8 +1254,8 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
   aborts rather than throwing. They are not optional — they would have prevented that incident
   independently of the key bug.
 - Regression tests live in `src/db/__tests__/`; `dedupKey` must yield one distinct key per row of
-  the real seed catalog (**1,413** since the 2026-09-28 community import, `docs/community-sources.md`;
-  see `docs/broken-episodes.md` for the one that was removed).
+  the real seed catalog (**1,412** since 2026-10-11: the 2026-09-28 community import made it 1,413,
+  `docs/community-sources.md`; see `docs/broken-episodes.md` for the two that were removed).
   The count is asserted against the catalog rather than hardcoded, so pulling an episode does not
   need the test edited; changing it to a literal would make the next removal look like a bug.
 - **`deleteEpisode()` is covered end to end** against `fake-indexeddb` in

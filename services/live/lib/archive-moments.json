@@ -1,52 +1,465 @@
 [
-  { "id": "sign-on", "form": "quote", "speaker": "Art Bell", "text": "From the high desert and the great American Southwest…", "tags": [] },
-  { "id": "area-51-caller", "text": "A caller who said he had worked at Area 51 broke down on the air, rushing to tell what he knew before he was found. Moments into the call, the show's satellite link failed.", "tags": ["area 51"], "episode": { "airDate": "1997-09-11", "title": "Coast to Coast AM - Open Lines with Area 51 Employees" } },
-  { "id": "area-51-line", "text": "Art set aside a line for current and former Area 51 employees, and only them.", "tags": ["area 51"], "episode": { "airDate": "1998-08-07", "title": "Coast to Coast AM - Area 51 Government Employee Lines" } },
-  { "id": "lazar-lear", "text": "Bob Lazar, who said he had worked on recovered craft at a site called S-4 near Area 51, joined John Lear on the show.", "tags": ["area 51", "lazar", "lear"], "episode": { "airDate": "1992-12-12", "title": "Coast to Coast AM - Area 51" } },
-  { "id": "glenn-campbell", "text": "Glenn Campbell, who watched Area 51 from the town of Rachel, Nevada, and wrote a guide for people who wanted to see it for themselves.", "tags": ["area 51"], "episode": { "airDate": "1995-08-06", "title": "Dreamland - Glenn Campbell on Area 51" } },
-  { "id": "david-adair", "text": "David Adair said that as a young rocket builder he had been shown an engine inside Area 51 that no one on Earth had built.", "tags": ["area 51", "adair"], "episode": { "airDate": "1997-11-17", "title": "Coast to Coast AM - Area 51 and UFO Technology" } },
-  { "id": "hale-bopp-remote-viewing", "text": "Courtney Brown of the Farsight Institute said his remote viewers had targeted the object reported trailing Comet Hale-Bopp.", "tags": ["hale-bopp", "remote viewing", "courtney brown"], "episode": { "airDate": "1996-11-14", "title": "Coast to Coast AM - Remote Viewing the Hale-Bopp Anomaly" } },
-  { "id": "hale-bopp-controversy", "text": "When the promised photograph of the Hale-Bopp companion never appeared, Whitley Strieber came on to talk the controversy through.", "tags": ["hale-bopp", "strieber", "courtney brown"], "episode": { "airDate": "1997-01-16", "title": "Coast to Coast AM - Whitley Strieber and the Courtney Brown Controversy" } },
-  { "id": "alan-hale", "text": "Alan Hale, one of the two astronomers who discovered Comet Hale-Bopp, came on as it neared its brightest.", "tags": ["hale-bopp"], "episode": { "airDate": "1997-03-07", "title": "Coast to Coast AM - Comet Hale-Bopp" } },
-  { "id": "mel-first", "text": "Mel Waters first called to describe a hole on his land in Washington State that seemed to have no bottom. He said he had lowered miles of fishing line into it without reaching anything.", "tags": ["mel's hole", "mel waters"], "episode": { "airDate": "1997-02-21", "title": "Coast to Coast AM - Contact and Disclosure with Dr. Steven Greer, Mel Waters First Appearance" } },
-  { "id": "mel-returns", "text": "Mel Waters came back to the show, years after his first calls, with a new chapter of the Mel's Hole story.", "tags": ["mel's hole", "mel waters"], "episode": { "airDate": "2002-01-29", "title": "Coast to Coast AM - Mel's Hole Returns" } },
-  { "id": "greer-disclosure", "text": "Dr. Steven Greer on CSETI and his campaign for the government to open its UFO files.", "tags": ["greer", "disclosure"], "episode": { "airDate": "1997-02-21", "title": "Coast to Coast AM - Contact and Disclosure with Dr. Steven Greer, Mel Waters First Appearance" } },
-  { "id": "phoenix-first-night", "text": "The night of the Phoenix Lights, callers across Arizona described a vast V of lights crossing the sky, with Peter Davenport of the National UFO Reporting Center on the line.", "tags": ["phoenix lights"], "episode": { "airDate": "1997-03-13", "title": "Coast to Coast AM - The Phoenix Lights (First Night Coverage) with Peter Davenport & Sean David Morton" } },
-  { "id": "phoenix-analysis", "text": "Jim Dilettoso on his analysis of the videotapes of the Phoenix Lights.", "tags": ["phoenix lights"], "episode": { "airDate": "1997-06-20", "title": "Coast to Coast AM - Phoenix Lights Analysis" } },
-  { "id": "time-traveler-line", "text": "Art opened a line for time travelers, and only time travelers.", "tags": ["time travel"], "episode": { "airDate": "1997-07-15", "title": "Coast to Coast AM - Open Lines with Time Traveler Hotline" } },
-  { "id": "steven-gibbs", "text": "Steven Gibbs on his Hyperdimensional Resonator, a device he said could carry a person through time.", "tags": ["time travel", "gibbs"], "episode": { "airDate": "1997-01-13", "title": "Coast to Coast AM - Time Travel Technology" } },
-  { "id": "hoagland-mars", "text": "Richard C. Hoagland on the Face on Mars and the Cydonia region, a subject he and Art came back to for years.", "tags": ["hoagland", "mars"], "episode": { "airDate": "1994-06-07", "title": "Coast to Coast AM - Richard C. Hoagland on Mars" } },
-  { "id": "hoagland-count", "text": "Richard C. Hoagland is on more than 80 of the shows in this archive, more than any other guest.", "tags": ["hoagland"] },
-  { "id": "howe-mutilations", "text": "Linda Moulton Howe on cattle mutilations, the story she investigated for decades.", "tags": ["moulton howe", "mutilation"], "episode": { "airDate": "1994-07-31", "title": "Dreamland - Linda Moulton Howe on Cattle Mutilations" } },
-  { "id": "howe-crop-circles", "text": "Linda Moulton Howe on crop circles, with Dr. Steven Greer on CSETI, on a Sunday night Dreamland.", "tags": ["crop circle", "moulton howe"], "episode": { "airDate": "1996-09-01", "title": "Dreamland - Crop Circles with Linda Moulton Howe and Dr. Steven Greer on CSETI" } },
-  { "id": "brinkley", "text": "Dannion Brinkley, struck by lightning in 1975, described what he saw while he was clinically dead.", "tags": ["brinkley", "near-death"], "episode": { "airDate": "1995-12-22", "title": "Coast to Coast AM - Near-Death Experiences" } },
-  { "id": "kaku", "text": "Theoretical physicist Michio Kaku, one of the show's most frequent scientific guests.", "tags": ["kaku", "physics"], "episode": { "airDate": "1997-08-22", "title": "Coast to Coast AM - Theoretical Physics" } },
-  { "id": "mckenna-timewave", "text": "Terence McKenna on Timewave Zero, his theory that novelty in the universe would peak on December 21, 2012.", "tags": ["mckenna", "2012"], "episode": { "airDate": "1997-05-22", "title": "Coast to Coast AM - TimeWave Zero" } },
-  { "id": "gary-north-y2k", "text": "Gary North warned that the Y2K bug could take down the power grid and the banks.", "tags": ["y2k"], "episode": { "airDate": "1998-05-25", "title": "Coast to Coast AM - Y2K Crisis" } },
-  { "id": "millennium", "text": "The night the year 2000 arrived, after months of Y2K warnings on the show.", "tags": ["y2k", "millennium"], "episode": { "airDate": "1999-12-31", "title": "Special - Millennium New Year's Special" } },
-  { "id": "dames-remote-viewing", "text": "Major Ed Dames on remote viewing, the technique he said he learned in a US Army program.", "tags": ["dames", "remote viewing"], "episode": { "airDate": "1995-12-07", "title": "Coast to Coast AM - Remote Viewing" } },
-  { "id": "dames-kill-shot", "text": "The Kill Shot: Ed Dames's long-running prediction of a solar event that would devastate the world's crops.", "tags": ["dames", "remote viewing"] },
-  { "id": "malachi-martin", "text": "Father Malachi Martin, the former Jesuit and author of Hostage to the Devil, on exorcism.", "tags": ["malachi martin", "exorcism"], "episode": { "airDate": "1996-11-15", "title": "Coast to Coast AM - Exorcism and Remote Viewing with Malachi Martin and Ed Dames" } },
-  { "id": "superstorm", "text": "Art and Whitley Strieber wrote The Coming Global Superstorm together. It became the basis for the film The Day After Tomorrow.", "tags": ["strieber", "weather"] },
-  { "id": "quickening", "text": "The Quickening: Art's sense that the pace of change in the world, natural and human, was speeding up. It became his book of the same name.", "tags": ["quickening"], "episode": { "airDate": "1996-03-20", "title": "Coast to Coast AM - The Quickening and Open Lines" } },
-  { "id": "ham-radio", "text": "Art was a ham radio operator all his life. His call sign was W6OBB.", "tags": ["radio"] },
-  { "id": "okinawa-marathon", "text": "Before talk radio, Art set a record as a disc jockey in Okinawa: a single broadcast of more than 116 hours, raising money for Vietnamese refugees.", "tags": ["radio"] },
-  { "id": "pahrump", "text": "The show came from Art's home in Pahrump, Nevada, in the high desert west of Las Vegas.", "tags": [] },
-  { "id": "the-lines", "text": "The lines had names: East of the Rockies, West of the Rockies, the Wildcard Line and the First-Time Callers line.", "tags": ["open lines"] },
-  { "id": "open-lines", "text": "Open Lines: no guest and no topic, just whoever got through.", "tags": ["open lines"] },
-  { "id": "dreamland", "text": "Dreamland was Art's Sunday night program, given over to UFOs and the paranormal.", "tags": ["dreamland"] },
-  { "id": "the-chase", "text": "The bumper music that opened the show was The Chase, Giorgio Moroder's theme from Midnight Express.", "tags": [] },
-  { "id": "ghost-to-ghost", "text": "Ghost to Ghost: every Halloween the lines opened for nothing but listeners' own ghost stories.", "tags": ["ghost to ghost", "ghost"] },
-  { "id": "ghost-to-ghost-1993", "text": "Ghost to Ghost 1993 is the earliest Halloween ghost story night in this archive.", "tags": ["ghost to ghost"], "episode": { "airDate": "1993-10-30", "title": "Coast to Coast AM - Ghost to Ghost 1993" } },
-  { "id": "shadow-people", "text": "The shadow people: in 2001 the lines filled with listeners' accounts of dark human shapes at the edge of sight.", "tags": ["shadow people"], "episode": { "airDate": "2001-05-31", "title": "Coast to Coast AM - Shadow People Phenomenon" } },
-  { "id": "scallion", "text": "Gordon Michael Scallion and his map of a future United States reshaped by the earth changes he predicted.", "tags": ["predictions", "earth changes"], "episode": { "airDate": "1997-09-19", "title": "Coast to Coast AM - Earth Changes Predictions" } },
-  { "id": "morton-predictions", "text": "Sean David Morton with his predictions for the coming year.", "tags": ["predictions", "morton"], "episode": { "airDate": "1997-12-29", "title": "Coast to Coast AM - Predictions" } },
-  { "id": "ramona", "text": "Ramona Bell, Art's wife, joined the show with travel tips.", "tags": ["ramona"], "episode": { "airDate": "1997-09-25", "title": "Coast to Coast AM - Life of Learning with Guy Finley and Travel Tips with Ramona Bell" } },
-  { "id": "resignation-1998", "text": "Art made a statement on the air about his sudden decision to step away from the show.", "tags": ["farewell"], "episode": { "airDate": "1998-10-23", "title": "Coast to Coast AM - Art's Statement on Sudden Resignation" } },
-  { "id": "farewell-2000", "text": "Art's farewell in April 2000. Mike Siegel took over Coast to Coast AM, and Art was back the next year.", "tags": ["farewell", "kaku"], "episode": { "airDate": "2000-04-26", "title": "Coast to Coast AM - Art's Farewell" } },
-  { "id": "farewell-2002", "text": "Art's farewell as the weeknight host, closing out 2002 with listeners' predictions for the year ahead.", "tags": ["farewell", "predictions"], "episode": { "airDate": "2002-12-31", "title": "Coast to Coast AM - Art's Farewell Show with Predictions" } },
-  { "id": "noory", "text": "George Noory took over the weeknights in 2003, and Art kept hosting on weekends for several more years.", "tags": [] },
-  { "id": "mitd-first", "text": "Midnight in the Desert, Art's return to the air in 2015, opened with Graham Hancock.", "tags": ["midnight in the desert", "hancock"], "episode": { "airDate": "2015-07-20", "title": "Midnight in the Desert - Graham Hancock" } },
-  { "id": "mitd-end", "text": "Art ended Midnight in the Desert in December 2015, saying he had to put his family's safety first.", "tags": ["midnight in the desert", "farewell"] },
-  { "id": "archive-span", "text": "This archive runs from December 1992 to December 2015: twenty-three years from the high desert.", "tags": [] }
+  {
+    "id": "sign-on",
+    "form": "quote",
+    "speaker": "Art Bell",
+    "text": "From the high desert and the great American Southwest…",
+    "tags": [],
+    "source": {
+      "title": "The Truth Was Out There: On the Legacy of Art Bell, Los Angeles Review of Books",
+      "url": "https://lareviewofbooks.org/article/the-truth-was-out-there-on-the-legacy-of-art-bell/",
+      "supports": "Quotes the sign-on: \"From the high desert and the great American Southwest,\" Bell intoned over the pulse of Giorgio Moroder's paranoid instrumental."
+    }
+  },
+  {
+    "id": "area-51-caller",
+    "text": "On a night of open lines with a line set aside for Area 51 insiders, a frantic caller, audibly crying, warned that they would triangulate his position really soon. During his call the satellite uplink failed and the show went silent.",
+    "tags": [
+      "area 51"
+    ],
+    "episode": {
+      "airDate": "1997-09-11",
+      "title": "Coast to Coast AM - Open Lines with Area 51 Employees"
+    },
+    "source": {
+      "title": "The Truth Was Out There: On the Legacy of Art Bell, Los Angeles Review of Books",
+      "url": "https://lareviewofbooks.org/article/the-truth-was-out-there-on-the-legacy-of-art-bell/",
+      "supports": "Dates the call to September 11, 1997, with lines open and a line for Area 51 informants; the caller was \"audibly crying\", said \"They'll triangulate on this position really, really soon\", was cut off mid-sentence, and \"The satellite uplink transmitter had failed without explanation.\""
+    }
+  },
+  {
+    "id": "david-adair",
+    "text": "Rocket scientist David Adair talked with Art about UFOs and Area 51.",
+    "tags": [
+      "area 51",
+      "adair"
+    ],
+    "episode": {
+      "airDate": "1997-11-17",
+      "title": "Coast to Coast AM - Area 51 and UFO Technology"
+    },
+    "source": {
+      "title": "Rebroadcast: David Adair, Coast to Coast AM (aired 2006-01-08)",
+      "url": "https://www.coasttocoastam.com/show/2006-01-08-show/",
+      "supports": "\"In this rebroadcast from 11/17/97, Art Bell spoke with rocket scientist David Adair on UFOs and Area 51.\""
+    }
+  },
+  {
+    "id": "hale-bopp-remote-viewing",
+    "text": "Courtney Brown of the Farsight Institute joined Art and Chuck Shramek, whose new photograph of Comet Hale-Bopp seemed to show a bright object near it.",
+    "tags": [
+      "hale-bopp",
+      "remote viewing",
+      "courtney brown"
+    ],
+    "episode": {
+      "airDate": "1996-11-14",
+      "title": "Coast to Coast AM - Remote Viewing the Hale-Bopp Anomaly"
+    },
+    "source": {
+      "title": "Exposing PseudoAstronomy Podcast, Shownotes Episode 127 (Stuart Robbins)",
+      "url": "https://podcast.sjrdesign.net/shownotes_127.php",
+      "supports": "Cites \"Coast to Coast AM from November 14, 1996 -- Art Bell interviewing Chuck Shramek and Courtney Brown\"; Shramek's picture \"showed the comet but it also showed a bright object near it\"; Brown directed the Farsight Institute."
+    }
+  },
+  {
+    "id": "hale-bopp-controversy",
+    "text": "Courtney Brown came back on with Art and Whitley Strieber after the Hale-Bopp companion photo he said came from an unnamed astronomer proved fraudulent. Pressed to name the source, he refused.",
+    "tags": [
+      "hale-bopp",
+      "strieber",
+      "courtney brown"
+    ],
+    "episode": {
+      "airDate": "1997-01-16",
+      "title": "Coast to Coast AM - Whitley Strieber and the Courtney Brown Controversy"
+    },
+    "source": {
+      "title": "Exposing PseudoAstronomy Podcast, Shownotes Episode 127 (Stuart Robbins)",
+      "url": "https://podcast.sjrdesign.net/shownotes_127.php",
+      "supports": "Cites \"Coast to Coast AM from January 16, 1997 -- Art Bell and Whitley Strieber interviewing Courtney Brown\", where Brown says \"It does appear that the picture is fraudulent\" and refuses to identify the astronomer despite Bell demanding it."
+    }
+  },
+  {
+    "id": "mel-first",
+    "text": "Mel Waters first came on the show to describe a hole on his land in Washington State that seemed to have no bottom. He said he had lowered miles of fishing line into it without reaching anything.",
+    "tags": [
+      "mel's hole",
+      "mel waters"
+    ],
+    "episode": {
+      "airDate": "1997-02-21",
+      "title": "Coast to Coast AM - Contact and Disclosure with Dr. Steven Greer, Mel Waters First Appearance"
+    },
+    "source": {
+      "title": "Mel's Hole, Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Mel%27s_Hole",
+      "supports": "\"The legend of the bottomless hole started on February 21, 1997, when a man identifying himself as Mel Waters appeared as a guest on Coast to Coast AM\"; rural property in Kittitas County, Washington; no bottom \"by the time 80,000 feet (15 mi; 24 km) of line had been used.\""
+    }
+  },
+  {
+    "id": "mel-returns",
+    "text": "Mel Waters came back with an update on his bottomless hole, and described a second hole he was investigating.",
+    "tags": [
+      "mel's hole",
+      "mel waters"
+    ],
+    "episode": {
+      "airDate": "2002-01-29",
+      "title": "Coast to Coast AM - Mel's Hole Returns"
+    },
+    "source": {
+      "title": "The Return of Mel's Hole, Coast to Coast AM (original air date January 29, 2002)",
+      "url": "https://www.coasttocoastam.com/show/the-return-of-mels-hole/",
+      "supports": "\"Mel Waters returned with an update on the 'bottomless hole' on his property... He described a second hole that he was investigating.\""
+    }
+  },
+  {
+    "id": "greer-disclosure",
+    "text": "Dr. Steven Greer on the beginnings of his Disclosure Project.",
+    "tags": [
+      "greer",
+      "disclosure"
+    ],
+    "episode": {
+      "airDate": "1997-02-21",
+      "title": "Coast to Coast AM - Contact and Disclosure with Dr. Steven Greer, Mel Waters First Appearance"
+    },
+    "source": {
+      "title": "Art Bell: Somewhere in Time, Coast to Coast AM (2025-09-27)",
+      "url": "https://www.coasttocoastam.com/show/2025-09-27/",
+      "supports": "\"returned to February 21, 1997, when Dr. Steven Greer discussed the beginnings of the Disclosure Project, and Mel Waters of 'Mel's Hole' shared an update.\""
+    }
+  },
+  {
+    "id": "phoenix-first-night",
+    "text": "The night of the Phoenix Lights, dozens of frantic callers told Art of a very busy night in the skies above Arizona. One was Peter Davenport of the National UFO Reporting Center.",
+    "tags": [
+      "phoenix lights"
+    ],
+    "episode": {
+      "airDate": "1997-03-13",
+      "title": "Coast to Coast AM - The Phoenix Lights (First Night Coverage) with Peter Davenport & Sean David Morton"
+    },
+    "source": {
+      "title": "Phoenix Lights UFO sightings in 1997: An oral history, Phoenix New Times (2025-03-13)",
+      "url": "https://www.phoenixnewtimes.com/arts-culture/the-phoenix-lights-ufo-sightings-in-1997-an-oral-history-25th-anniversary-13176244/",
+      "supports": "On the night of March 13, 1997, \"On that night's episode of... 'Coast to Coast AM,' the late Art Bell fielded dozens of 'frantic' callers describing 'a very busy night in the skies above Arizona.' One was from NUFORC director Peter Davenport.\""
+    }
+  },
+  {
+    "id": "steven-gibbs",
+    "text": "Steven Gibbs on the time machine he said he had invented, one he claimed would let a person physically visit any time in the past or future.",
+    "tags": [
+      "time travel",
+      "gibbs"
+    ],
+    "episode": {
+      "airDate": "1997-01-13",
+      "title": "Coast to Coast AM - Time Travel Technology"
+    },
+    "source": {
+      "title": "Inventing a Time Machine, Coast to Coast AM (original air date January 13, 1997)",
+      "url": "https://www.coasttocoastam.com/show/inventing-a-time-machine/",
+      "supports": "\"Steven Gibbs... talked about his claims of inventing a time machine that would allow users to physically visit any time in the past or future.\""
+    }
+  },
+  {
+    "id": "kaku",
+    "text": "Professor Michio Kaku joins Art for the first time, on how our Type Zero civilization might reach Type One status when we harvest the true power of the planet.",
+    "tags": [
+      "kaku",
+      "physics"
+    ],
+    "episode": {
+      "airDate": "1997-08-22",
+      "title": "Coast to Coast AM - Theoretical Physics"
+    },
+    "source": {
+      "title": "Art Bell: Somewhere in Time, Coast to Coast AM, 2021-08-21",
+      "url": "https://www.coasttocoastam.com/show/2021-08-21/",
+      "supports": "Date, person and topic: \"Art Bell: Somewhere in Time returned to 8/22/97, when professor Michio Kaku joined Art for the first time to speculate on how our Type Zero civilization might reach Type One status\"."
+    }
+  },
+  {
+    "id": "mckenna-timewave",
+    "text": "Terence McKenna on the nature of time, which he likened to a constant struggle between habit and novelty.",
+    "tags": [
+      "mckenna",
+      "2012"
+    ],
+    "episode": {
+      "airDate": "1997-05-22",
+      "title": "Coast to Coast AM - TimeWave Zero"
+    },
+    "source": {
+      "title": "Art Bell Vault: Remote Viewing Predictions / End of Time & Psychedelics, Coast to Coast AM, 2025-02-26",
+      "url": "https://www.coasttocoastam.com/alternate/amp/article/art-bell-vault-remote-viewing-predictions-end-of-time-psychedelics/",
+      "supports": "Dates the McKenna show to 5/22/1997 and says he spoke on \"the nature of time, which he likened to a constant struggle between 'habit and novelty.'\""
+    }
+  },
+  {
+    "id": "millennium",
+    "text": "New Year's Eve 1999: Art marked the change of the millennium and addressed fears about whether or not Y2K would cause huge problems worldwide.",
+    "tags": [
+      "y2k",
+      "millennium"
+    ],
+    "episode": {
+      "airDate": "1999-12-31",
+      "title": "Special - Millennium New Year's Special"
+    },
+    "source": {
+      "title": "New Year's Eve 1999, Coast to Coast AM show page (Friday, December 31, 1999)",
+      "url": "https://www.coasttocoastam.com/show/new-years-eve-1999/",
+      "supports": "Date and event: \"In Art Bell's New Year's Eve 1999 special, he marked the change of the millennium, and addressed fears about whether or not Y2K would cause huge problems worldwide.\""
+    }
+  },
+  {
+    "id": "dames-remote-viewing",
+    "text": "Major Ed Dames joins Art to discuss remote viewing as well as many black op projects.",
+    "tags": [
+      "dames",
+      "remote viewing"
+    ],
+    "episode": {
+      "airDate": "1995-12-07",
+      "title": "Coast to Coast AM - Remote Viewing"
+    },
+    "source": {
+      "title": "Art Bell: Somewhere in Time, Coast to Coast AM, 2009-04-11 (the source data/notable.md already uses)",
+      "url": "https://www.coasttocoastam.com/alternate/amp/show/2009-04-11-art/",
+      "supports": "Date, person and topic: replays \"12/7/95\" with \"Maj. Ed Dames\"; \"They discussed remote viewing as well as many black op projects.\""
+    }
+  },
+  {
+    "id": "dames-kill-shot",
+    "text": "The Killshot: Ed Dames's long-running prediction of a series of solar flares that he and his remote viewing team believed would hit Earth, causing great destruction and death.",
+    "tags": [
+      "dames",
+      "remote viewing"
+    ],
+    "source": {
+      "title": "Major Ed Dames, Coast to Coast AM guest page",
+      "url": "https://www.coasttocoastam.com/guest/dames-major-ed-5589/",
+      "supports": "July 17, 2004 'The Killshot': \"a series of solar flares that he and his remote viewing research team believe will hit earth causing an extreme amount of destruction and death\"; it is still discussed in 2011, 2012 and 2019 entries (long-running)."
+    }
+  },
+  {
+    "id": "superstorm",
+    "text": "Art and Whitley Strieber wrote The Coming Global Superstorm together. It became the basis for the film The Day After Tomorrow.",
+    "tags": [
+      "strieber",
+      "weather"
+    ],
+    "source": {
+      "title": "The Coming Global Superstorm, Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/The_Coming_Global_Superstorm",
+      "supports": "\"a 1999 book by Art Bell and Whitley Strieber\" whose scenarios \"were the basis of the 2004 science fiction film The Day After Tomorrow.\""
+    }
+  },
+  {
+    "id": "ham-radio",
+    "text": "Art became a licensed amateur radio operator at 13. His call sign was W6OBB.",
+    "tags": [
+      "radio"
+    ],
+    "source": {
+      "title": "Art Bell, Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Art_Bell",
+      "supports": "\"at the age of 13, he became a licensed amateur radio operator\"; \"His call sign was W6OBB.\""
+    }
+  },
+  {
+    "id": "okinawa-marathon",
+    "text": "Before talk radio, Art was a disc jockey in Okinawa, where he was said to have set a record for continuous broadcasting, 116 hours and 15 minutes, to raise money to ferry stranded Vietnamese orphans to the United States.",
+    "tags": [
+      "radio"
+    ],
+    "source": {
+      "title": "Art Bell, Radio Host Who Tuned In to the Dark Side, Dies at 72, Sam Roberts, New York Times (via WRAL), 2018-04-17",
+      "url": "https://www.wral.com/art-bell-radio-host-who-tuned-in-to-the-dark-side-dies-at-72/17493624/",
+      "supports": "\"a disc jockey for an English-language station in Okinawa\"; \"said to have set a record for continuous broadcasting, 116 hours and 15 minutes, to raise money to ferry stranded Vietnamese orphans from Saigon to the United States\"."
+    }
+  },
+  {
+    "id": "pahrump",
+    "text": "The show came from Art's home in Pahrump, Nevada, in the high desert west of Las Vegas.",
+    "tags": [],
+    "source": {
+      "title": "Art Bell, Radio Host Who Tuned In to the Dark Side, Dies at 72, Sam Roberts, New York Times (via WRAL), 2018-04-17",
+      "url": "https://www.wral.com/art-bell-radio-host-who-tuned-in-to-the-dark-side-dies-at-72/17493624/",
+      "supports": "\"From a home studio 65 miles west of Las Vegas\"; \"his home in Pahrump, Nevada\". ARRL's obituary (arrl.org, 2018-04-14) also has him producing the show from his own studio in the High Desert of Nevada."
+    }
+  },
+  {
+    "id": "the-lines",
+    "text": "The lines had names: East of the Rockies, West of the Rockies, the Wildcard Line and the First-Time Callers line.",
+    "tags": [
+      "open lines"
+    ],
+    "source": {
+      "title": "Art Bell turned conspiracy theories into a theater of the mind, The Outline, Michael Powell, 2018-04-28",
+      "url": "https://theoutline.com/post/4343/art-bell-coast-to-coast-am-obitiuary",
+      "supports": "\"one for Americans to the east of the Rockies, one for everyone to the west of the Rockies, a line for international callers, another for first-time callers, and a 'Wild Card' line\"."
+    }
+  },
+  {
+    "id": "dreamland",
+    "text": "Dreamland with Art Bell was his Sunday night show.",
+    "tags": [
+      "dreamland"
+    ],
+    "source": {
+      "title": "Art Bell Has Heard It All, From 'Coast To Coast', The Spokesman-Review, 1997-03-13",
+      "url": "https://www.spokesman.com/stories/1997/mar/13/art-bell-has-heard-it-all-from-coast-to-coast/",
+      "supports": "Gives the schedule: \"Dreamland with Art Bell\" airs at 10 p.m. Sundays."
+    }
+  },
+  {
+    "id": "the-chase",
+    "text": "Coast to Coast AM opened with Chase, Giorgio Moroder's theme from Midnight Express.",
+    "tags": [],
+    "source": {
+      "title": "Coast to Coast AM, Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Coast_to_Coast_AM",
+      "supports": "Gives the opening theme as \"Chase (Theme from Midnight Express) by Giorgio Moroder\"."
+    }
+  },
+  {
+    "id": "ghost-to-ghost",
+    "text": "Ghost to Ghost was one of Art's yearly Halloween traditions: listeners emailed, faxed and called in with their best ghost stories.",
+    "tags": [
+      "ghost to ghost",
+      "ghost"
+    ],
+    "source": {
+      "title": "Ghost-to-Ghost 1994, Coast to Coast AM (show page, 1994-10-28)",
+      "url": "https://www.coasttocoastam.com/show/ghost-to-ghost-1994/",
+      "supports": "\"One of the first of Art's yearly Halloween traditions, listeners emailed, faxed, and called in with their best ghost stories.\""
+    }
+  },
+  {
+    "id": "ghost-to-ghost-1993",
+    "text": "Ghost to Ghost 1993 is the earliest Halloween ghost story night in this archive.",
+    "tags": [
+      "ghost to ghost"
+    ],
+    "episode": {
+      "airDate": "1993-10-30",
+      "title": "Coast to Coast AM - Ghost to Ghost 1993"
+    },
+    "source": {
+      "title": "The Ultimate Ultimate Art Bell Collection, file listing, Internet Archive",
+      "url": "https://archive.org/download/ultimate-ultimate-art-bell-collection/",
+      "supports": "In date order, the earliest Ghost to Ghost file is \"1993-10-30 - Coast to Coast AM with Art Bell - Ghost to Ghost 1993\", ahead of 1994-10-28 and 1995-10-30."
+    }
+  },
+  {
+    "id": "shadow-people",
+    "text": "Paranormal researcher Dr. Morgan Spence came on in 2001 to discuss the real possibilities for the existence of shadow people.",
+    "tags": [
+      "shadow people"
+    ],
+    "episode": {
+      "airDate": "2001-05-31",
+      "title": "Coast to Coast AM - Shadow People Phenomenon"
+    },
+    "source": {
+      "title": "Art Bell: Somewhere in Time, Coast to Coast AM (show page, 2013-02-02)",
+      "url": "https://www.coasttocoastam.com/show/2013-02-02-art/",
+      "supports": "\"returned to 5/31/01 when paranormal expert Dr. Morgan Spence discussed the real possibilities for the existence of Shadow People\"."
+    }
+  },
+  {
+    "id": "scallion",
+    "text": "Gordon-Michael Scallion, the intuitive, with his predictions of major earth changes.",
+    "tags": [
+      "predictions",
+      "earth changes"
+    ],
+    "episode": {
+      "airDate": "1997-09-19",
+      "title": "Coast to Coast AM - Earth Changes Predictions"
+    },
+    "source": {
+      "title": "Gordon-Michael Scallion, Coast to Coast AM guest page",
+      "url": "https://www.coasttocoastam.com/guest/scallion-gordon-michael-5658/",
+      "supports": "\"Art Bell: Somewhere in Time returned to 9/19/97 when intuitive Gordon-Michael Scallion rocked the house with predictions of major earth changes.\""
+    }
+  },
+  {
+    "id": "farewell-2000",
+    "text": "Art's farewell in April 2000. Mike Siegel took over Coast to Coast AM, and Art was back the next year.",
+    "tags": [
+      "farewell",
+      "kaku"
+    ],
+    "episode": {
+      "airDate": "2000-04-26",
+      "title": "Coast to Coast AM - Art's Farewell"
+    },
+    "source": {
+      "title": "Art Bell, Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Art_Bell",
+      "supports": "\"On April 11, 2000, Mike Siegel was introduced as the new host of Coast to Coast AM, taking over on April 27\" and \"Bell returned to Coast to Coast AM in February 2001.\""
+    }
+  },
+  {
+    "id": "farewell-2002",
+    "text": "Art's last official show as host of Coast to Coast AM, closing out 2002 by reviewing the year's predictions and taking new ones for 2003.",
+    "tags": [
+      "farewell",
+      "predictions"
+    ],
+    "episode": {
+      "airDate": "2002-12-31",
+      "title": "Coast to Coast AM - Art's Farewell Show with Predictions"
+    },
+    "source": {
+      "title": "Art's Farewell Show, Coast to Coast AM (show page, 2002-12-31)",
+      "url": "https://www.coasttocoastam.com/show/2002-12-31-show/",
+      "supports": "Art Bell's \"last official show as the host of Coast to Coast\", \"reviewing predictions from the year 2002, and soliciting new ones for 2003.\""
+    }
+  },
+  {
+    "id": "noory",
+    "text": "George Noory took over the weeknights in January 2003. Art came back that September as a weekend host and kept it up until 2007.",
+    "tags": [],
+    "source": {
+      "title": "Art Bell, Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Art_Bell",
+      "supports": "\"Bell was replaced by George Noory as weekday host of Coast to Coast AM on January 1, 2003\"; \"Bell returned in September 2003 as a weekend host\"; on July 1, 2007 he announced his retirement from weekend hosting."
+    }
+  },
+  {
+    "id": "mitd-first",
+    "text": "Midnight in the Desert, Art's return to the air in 2015, opened with Graham Hancock.",
+    "tags": [
+      "midnight in the desert",
+      "hancock"
+    ],
+    "episode": {
+      "airDate": "2015-07-20",
+      "title": "Midnight in the Desert - Graham Hancock"
+    },
+    "source": {
+      "title": "Art Bell, Graham Hancock Official Website, 2015-07-20",
+      "url": "https://grahamhancock.com/art-bell/",
+      "supports": "\"Join me and Art Bell, Monday night 20 July\", linking to a FAQ on \"the new show, Midnight in the Desert\"."
+    }
+  },
+  {
+    "id": "mitd-end",
+    "text": "Art stepped down from Midnight in the Desert in December 2015, citing concerns about his family's safety.",
+    "tags": [
+      "midnight in the desert",
+      "farewell"
+    ],
+    "source": {
+      "title": "Art Bell, Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Art_Bell",
+      "supports": "\"On December 11, 2015, Bell permanently stepped down as host of Midnight in the Desert due to concerns about his family's safety\", after armed trespassers fired gunshots on his property."
+    }
+  }
 ]

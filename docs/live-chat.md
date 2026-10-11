@@ -159,13 +159,19 @@ a caller and never looks like one.
   guest, then one from an episode that aired on today's date (Pacific), then
   any. The last 30 used are not picked again while another candidate exists.
   A schedule that cannot be read leaves the room a line from anywhere.
-- **The moments.** 50, written 2026-10-11 from general knowledge of the
-  show, not transcribed. So only one is a `quote` (the sign-on's opening
-  words); the rest are descriptions of moments, worded as such. Every linked
-  episode is checked against the catalog (`test/archive.test.mjs`). A
-  moment that turns out to be wrong is fixed or removed in the JSON. A real
-  quote, checked against the audio, can be added as `form: "quote"` with its
-  `speaker`.
+- **The moments, and their sources.** 50 were written on 2026-10-11 from
+  general knowledge of the show. The same day each was checked against a
+  public page, the standard of `data/notable.md`: a fact-checkable page (an
+  encyclopedia article, contemporary press, Coast to Coast AM's own show
+  pages) that supports the date, the people and the event. 31 survived, 23
+  of them reworded to say only what the page says; 19 were cut, mostly
+  because only uploads and fan listings dated them (the cut list and why is
+  in `docs/handoff-2026-10-11/handoff.md`). Each moment carries
+  `source: {title, url, supports}`, and `test/archive.test.mjs` fails on one
+  without. Only the sign-on is a `quote` (LARB quotes it); another needs a
+  sourced transcript. Every linked episode is checked against the catalog.
+  A moment that turns out wrong is fixed or removed in the JSON, never
+  softened.
 
 ## Who is calling
 

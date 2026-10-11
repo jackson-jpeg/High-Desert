@@ -36,7 +36,8 @@ export function frameAt(b, i) {
   const br = BR[ver === 3 ? 1 : 2][bri] * 1000;
   const sr = SR[ver][sri];
   const spf = ver === 3 ? 1152 : 576;
-  return { br, sr, spf, len: Math.floor(((spf / 8) * br) / sr) + ((b[i + 2] >> 1) & 1) };
+  const mono = ((b[i + 3] >> 6) & 3) === 3;
+  return { br, sr, spf, mono, len: Math.floor(((spf / 8) * br) / sr) + ((b[i + 2] >> 1) & 1) };
 }
 
 /**
@@ -50,6 +51,12 @@ export function createWalker() {
   let started = false;
   let junk = false;
   const st = { frames: 0, seconds: 0, bytes: 0, resyncs: 0, bitrates: new Set(), sampleRates: new Set() };
+  /**
+   * Runs of one stream configuration (sample rate, mono or stereo). A change
+   * midstream is what Chromium refuses ("Unsupported midstream configuration
+   * change"): the 2001-11-26 file switches mid-show (docs/broken-episodes.md).
+   */
+  const segments = [];
 
   function push(chunk, final = false) {
     let b = carry.length ? Buffer.concat([carry, chunk]) : chunk;
@@ -86,6 +93,10 @@ export function createWalker() {
           st.bytes += f.len;
           st.bitrates.add(f.br / 1000);
           st.sampleRates.add(f.sr);
+          const seg = segments[segments.length - 1];
+          if (!seg || seg.sampleRate !== f.sr || seg.mono !== f.mono) {
+            segments.push({ atSeconds: Math.round((st.seconds - f.spf / f.sr) * 100) / 100, sampleRate: f.sr, mono: f.mono, frames: 1 });
+          } else seg.frames++;
           junk = false;
           i = next;
           continue;
@@ -111,6 +122,8 @@ export function createWalker() {
         resyncs: st.resyncs,
         bitrates: [...st.bitrates].sort((a, b) => a - b),
         sampleRates: [...st.sampleRates].sort((a, b) => a - b),
+        /** One entry per run of a configuration; more than one is a midstream change. */
+        segments: segments.map((g) => ({ ...g })),
       };
     },
   };

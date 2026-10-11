@@ -168,6 +168,14 @@ export const MUTATIONS = [
     why: "a moment from the show on the air comes first",
   },
   {
+    id: "archive-moment-sourced",
+    test: "services/live/test/archive.test.mjs",
+    file: "services/live/lib/archive-moments.json",
+    find: '"url": "https://lareviewofbooks.org/article/the-truth-was-out-there-on-the-legacy-of-art-bell/",\n      "supports": "Quotes the sign-on',
+    replace: '"url": "",\n      "supports": "Quotes the sign-on',
+    why: "every archive moment must cite a public page; the test must notice one that does not",
+  },
+  {
     id: "archive-moment-not-quoted",
     test: "src/components/live/__tests__/live-chat.test.tsx",
     file: "src/components/live/LiveChat.tsx",
@@ -4765,6 +4773,14 @@ export const MUTATIONS = [
     why: "imported rows keyed by the item alone: every show in one item was one episode (the v8 bug again)",
   },
   {
+    id: "measure-duration-sees-mono-switch",
+    test: "scripts/__tests__/measure-duration.test.ts",
+    file: "scripts/measure-duration.mjs",
+    find: "if (!seg || seg.sampleRate !== f.sr || seg.mono !== f.mono) {",
+    replace: "if (!seg || seg.sampleRate !== f.sr) {",
+    why: "a file that switches stereo to mono midstream (2001-11-26) failed 35 starts on Chromium and the walker did not see it",
+  },
+  {
     id: "measure-duration-skips-id3",
     test: "scripts/__tests__/measure-duration.test.ts",
     file: "scripts/measure-duration.mjs",
@@ -5413,6 +5429,22 @@ export const MUTATIONS = [
     why: "a docs deploy after the release was not counted as the release",
   },
   // ── The weekly digest (scripts/digest.mjs) ──
+  {
+    id: "digest-lead-at-a-fifth",
+    test: "scripts/__tests__/digest.test.ts",
+    file: "scripts/digest.mjs",
+    find: "if (top && top[1] / p.n >= LEAD_SHARE)",
+    replace: "if (top && top[1] / p.n >= 0.5)",
+    why: "the 2026-10-05 digest said no single cause stood out while one show held 37 of 119 rows",
+  },
+  {
+    id: "digest-title-cut-at-a-word",
+    test: "scripts/__tests__/digest.test.ts",
+    file: "scripts/digest.mjs",
+    find: "return `${(at > n / 3 ? head.slice(0, at) : head)",
+    replace: "return `${(head)",
+    why: "the digest cut show titles mid-word",
+  },
   {
     id: "digest-due-monday-1740",
     test: "scripts/__tests__/digest.test.ts",

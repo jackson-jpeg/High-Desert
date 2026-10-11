@@ -22,6 +22,8 @@ const {
   lockedPhones,
   patternOf,
   proposeFix,
+  wordCut,
+  LEAD_SHARE,
   evidenceReasons,
   render,
   screenLines,
@@ -157,6 +159,47 @@ describe("the pattern and the proposed fix", () => {
     const fix = proposeFix(patternOf(rows)).join(" ");
     expect(fix).toMatch(/outside a tap/);
     expect(fix).toMatch(/75% on ios-safari/);
+  });
+
+  it("the 2026-10-05 week: a show with 37 of 119 rows is the lead, not 'no single cause'", () => {
+    const kinds = ["stall", "decode-error", "network-error", "timeout"];
+    const uas = ["android-chrome", "desktop-chromium", "ios-safari", "desktop-firefox", "android-firefox"];
+    const rows = Array.from({ length: 119 }, (_, i) =>
+      row({
+        episodeId: i < 37 ? "coll--egypt" : `coll--other-${i}`,
+        kind: kinds[i % 4],
+        uaClass: uas[i % 5],
+        at: new Date(Date.parse("2026-09-29T00:00:00Z") + i * 3_600_000).toISOString(),
+      }),
+    );
+    const fix = proposeFix(patternOf(rows), (id: string) => (id === "coll--egypt" ? "Egyptian Cave in Illinois" : id)).join(" ");
+    expect(fix).toContain("Lead (show): Egyptian Cave in Illinois holds 37 of 119 rows (31%)");
+    expect(fix).toContain("Lead (device): android-chrome holds 24 of 119 rows (20%)");
+    expect(fix).not.toMatch(/No single cause/);
+    expect(fix).not.toMatch(/Lead \(hour\)/);
+  });
+
+  it("a lead is 20% of the rows: an hour at exactly a fifth is one, under a fifth is not", () => {
+    expect(LEAD_SHARE).toBe(0.2);
+    const make = (n: number) =>
+      Array.from({ length: n }, (_, i) =>
+        row({
+          episodeId: `e${i}`,
+          uaClass: `ua${i}`,
+          kind: ["stall", "timeout", "decode-error"][i % 3],
+          at: new Date(Date.parse("2026-10-01T00:10:00Z") + (i < 2 ? 0 : i) * 3_600_000).toISOString(),
+        }),
+      );
+    expect(proposeFix(patternOf(make(10))).join(" ")).toMatch(/Lead \(hour\): 2026-10-01 00:00 UTC holds 2 of 10/);
+    expect(proposeFix(patternOf(make(11))).join(" ")).toMatch(/No single cause/);
+  });
+
+  it("a show's title is cut at a word, never mid-word", () => {
+    const t = "Coast to Coast AM - Egyptian Cave in Illinois";
+    expect(wordCut(t, 60)).toBe(t);
+    expect(wordCut(t, 40)).toBe("Coast to Coast AM - Egyptian Cave in\u2026");
+    expect(wordCut(t, 40).length).toBeLessThanOrEqual(40);
+    expect(wordCut("Supercalifragilisticexpialidocious", 10)).toBe("Supercali\u2026");
   });
 
   it("evidence is opened for any FAIL, and for the release over 3% on 300 plays, and not otherwise", () => {

@@ -21,7 +21,8 @@
  * while another candidate in the same rank exists.
  *
  * The moments are archive-moments.json, beside this file (deploy-live.sh
- * copies lib/ whole). Each is `{id, text, tags, form?, speaker?, episode?}`;
+ * copies lib/ whole). Each is `{id, text, tags, source, form?, speaker?, episode?}`;
+ * `source` is the public page that supports it (`{title, url, supports}`);
  * `form: "quote"` is a speaker's own words and is drawn in quotation marks,
  * anything else is a description of a moment and never is.
  */

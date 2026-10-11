@@ -10,13 +10,34 @@ import { ARCHIVE_INTERVAL_MS, ARCHIVE_QUIET_MS, MAX_MESSAGE_CHARS } from "../lib
  */
 
 const MIN = 60_000;
+const hasSource = (m) =>
+  typeof m.source?.title === "string" &&
+  m.source.title.trim().length > 0 &&
+  /^https:\/\/[^\s/]+\.[^\s/]+\/\S*$/.test(m.source?.url ?? "") &&
+  typeof m.source?.supports === "string" &&
+  m.source.supports.trim().length > 0;
 const moments = loadMoments();
 const catalog = JSON.parse(readFileSync(path.join(process.cwd(), "public", "seed", "library.json"), "utf8"));
 
 describe("the moments", () => {
-  it("fifty, each with its own id", () => {
-    expect(moments).toHaveLength(50);
-    expect(new Set(moments.map((m) => m.id)).size).toBe(50);
+  it("each has its own id", () => {
+    expect(moments.length).toBeGreaterThan(0);
+    expect(new Set(moments.map((m) => m.id)).size).toBe(moments.length);
+  });
+
+  // The standard of data/notable.md (2026-10-11): a fact-checkable public page
+  // that supports the date, the people and the event. A moment without one is
+  // cut, never softened.
+  it("every moment cites a public source: a title, an https page, and what it supports", () => {
+    const missing = moments.filter((m) => !hasSource(m)).map((m) => m.id);
+    expect(missing).toEqual([]);
+  });
+
+  it("the source check fails a moment without one", () => {
+    expect(hasSource({ id: "x", text: "t" })).toBe(false);
+    expect(hasSource({ id: "x", text: "t", source: { title: "T", url: "http://example.com", supports: "s" } })).toBe(false);
+    expect(hasSource({ id: "x", text: "t", source: { title: "T", url: "https://example.com/p", supports: "" } })).toBe(false);
+    expect(hasSource({ id: "x", text: "t", source: { title: "T", url: "https://example.com/p", supports: "s" } })).toBe(true);
   });
 
   it("every linked episode is exactly one show in the catalog", () => {
@@ -76,8 +97,9 @@ describe("pickMoment: tied to the show on the air", () => {
   it("otherwise anything, and nothing used recently while there is a choice", () => {
     const { reason } = pickMoment(moments, null, { now: night, random: () => 0 });
     expect(reason).toBe("archive");
-    const recent = moments.slice(0, 49).map((m) => m.id);
-    expect(pickMoment(moments, null, { now: night, recent, random: () => 0 }).moment.id).toBe(moments[49].id);
+    const last = moments.length - 1;
+    const recent = moments.slice(0, last).map((m) => m.id);
+    expect(pickMoment(moments, null, { now: night, recent, random: () => 0 }).moment.id).toBe(moments[last].id);
   });
 
   it("a quote keeps its speaker on the line; a description has none", () => {
