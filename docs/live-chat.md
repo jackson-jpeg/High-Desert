@@ -170,6 +170,12 @@ a caller and never looks like one.
   `source: {title, url, supports}`, and `test/archive.test.mjs` fails on one
   without. Only the sign-on is a `quote` (LARB quotes it); another needs a
   sourced transcript. Every linked episode is checked against the catalog.
+  Revised the same day on Jackson's review: the two Hale-Bopp moments cite
+  what `data/notable.md` cites (Exposing PseudoAstronomy, and Wikipedia's
+  Comet Hale-Bopp "UFO claims"), not podcast show notes, and say only what
+  those pages say (the Farsight affiliation and "refused to name the
+  astronomer" went). "Ghost to Ghost 1993 is the earliest" was cut: a file
+  listing cannot prove a first. 30 remain.
   A moment that turns out wrong is fixed or removed in the JSON, never
   softened.
 

@@ -46,7 +46,7 @@
   },
   {
     "id": "hale-bopp-remote-viewing",
-    "text": "Courtney Brown of the Farsight Institute joined Art and Chuck Shramek, whose new photograph of Comet Hale-Bopp seemed to show a bright object near it.",
+    "text": "Courtney Brown joined Art and Chuck Shramek, whose new photograph of Comet Hale-Bopp seemed to show a bright object near it.",
     "tags": [
       "hale-bopp",
       "remote viewing",
@@ -57,14 +57,14 @@
       "title": "Coast to Coast AM - Remote Viewing the Hale-Bopp Anomaly"
     },
     "source": {
-      "title": "Exposing PseudoAstronomy Podcast, Shownotes Episode 127 (Stuart Robbins)",
-      "url": "https://podcast.sjrdesign.net/shownotes_127.php",
-      "supports": "Cites \"Coast to Coast AM from November 14, 1996 -- Art Bell interviewing Chuck Shramek and Courtney Brown\"; Shramek's picture \"showed the comet but it also showed a bright object near it\"; Brown directed the Farsight Institute."
+      "title": "Exposing PseudoAstronomy, Chuck Shramek (Stuart Robbins); see also Wikipedia, Comet Hale-Bopp, UFO claims",
+      "url": "https://pseudoastro.wordpress.com/tag/chuck-shramek/",
+      "supports": "Robbins: \"I realized early in the episode (November 14, 1996) that I was listening to THE interview that started the whole thing\", and Courtney Brown \"and his remote viewing claims\". Wikipedia (https://en.wikipedia.org/wiki/Comet_Hale%E2%80%93Bopp#UFO_claims): Shramek photographed an object near the comet and called Coast to Coast AM to report a \"Saturn-like object\"; Brown concluded a spacecraft was trailing it."
     }
   },
   {
     "id": "hale-bopp-controversy",
-    "text": "Courtney Brown came back on with Art and Whitley Strieber after the Hale-Bopp companion photo he said came from an unnamed astronomer proved fraudulent. Pressed to name the source, he refused.",
+    "text": "Art and Whitley Strieber talked with Courtney Brown about the Hale-Bopp companion photo, which astronomers showed was an altered copy of one of their own comet images.",
     "tags": [
       "hale-bopp",
       "strieber",
@@ -75,9 +75,9 @@
       "title": "Coast to Coast AM - Whitley Strieber and the Courtney Brown Controversy"
     },
     "source": {
-      "title": "Exposing PseudoAstronomy Podcast, Shownotes Episode 127 (Stuart Robbins)",
-      "url": "https://podcast.sjrdesign.net/shownotes_127.php",
-      "supports": "Cites \"Coast to Coast AM from January 16, 1997 -- Art Bell and Whitley Strieber interviewing Courtney Brown\", where Brown says \"It does appear that the picture is fraudulent\" and refuses to identify the astronomer despite Bell demanding it."
+      "title": "Exposing PseudoAstronomy, Chuck Shramek (Stuart Robbins); see also Wikipedia, Comet Hale-Bopp, UFO claims",
+      "url": "https://pseudoastro.wordpress.com/tag/chuck-shramek/",
+      "supports": "Robbins: Brown \"provided the hoaxed photographs to Art Bell and Whitley Strieber\". Wikipedia (https://en.wikipedia.org/wiki/Comet_Hale%E2%80%93Bopp#UFO_claims): Hainaut and Tholen revealed \"the alleged photo was an altered copy of one of their own comet images\"."
     }
   },
   {
@@ -337,22 +337,6 @@
       "title": "Ghost-to-Ghost 1994, Coast to Coast AM (show page, 1994-10-28)",
       "url": "https://www.coasttocoastam.com/show/ghost-to-ghost-1994/",
       "supports": "\"One of the first of Art's yearly Halloween traditions, listeners emailed, faxed, and called in with their best ghost stories.\""
-    }
-  },
-  {
-    "id": "ghost-to-ghost-1993",
-    "text": "Ghost to Ghost 1993 is the earliest Halloween ghost story night in this archive.",
-    "tags": [
-      "ghost to ghost"
-    ],
-    "episode": {
-      "airDate": "1993-10-30",
-      "title": "Coast to Coast AM - Ghost to Ghost 1993"
-    },
-    "source": {
-      "title": "The Ultimate Ultimate Art Bell Collection, file listing, Internet Archive",
-      "url": "https://archive.org/download/ultimate-ultimate-art-bell-collection/",
-      "supports": "In date order, the earliest Ghost to Ghost file is \"1993-10-30 - Coast to Coast AM with Art Bell - Ghost to Ghost 1993\", ahead of 1994-10-28 and 1995-10-30."
     }
   },
   {

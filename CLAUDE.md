@@ -872,7 +872,7 @@ deploy never drops a chat stream. The full account is in `docs/live-chat.md`.
   never a caller: no name, no line, no Report, **nothing stored or counted**.
   **Every moment cites a public source** (`source: {title, url, supports}`,
   the standard of `data/notable.md`; a test fails on one without). A moment
-  that cannot be sourced is cut, never softened: 31 of the first 50 survived.
+  that cannot be sourced is cut, never softened: 30 of the first 50 survived.
   All but the sign-on are descriptions, never presented as quotes;
   `form: "quote"` needs a sourced transcript.
 - **One browser, one caller** (2026-09-26). A caller is a random id in the
