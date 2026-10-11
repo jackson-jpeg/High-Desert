@@ -1,7 +1,41 @@
-# High Desert handoff, 2026-10-11 (branch `session/2026-10-11-archive`)
+# High Desert handoff, 2026-10-11 (PR #68, merged as `8f8118c`)
 
-Status: **in progress.** This file is rewritten as the session goes. The
-"Left to do" section at the bottom is the truth about what is not done.
+Status: **shipped.** PR #68 is merged, and the app, mirror and chat are
+deployed at `8f8118c`, with the schema applied and the pre-air timer
+enabled. The catalog scan was still running when this was first written.
+The "Left to do" section at the bottom is the truth about what is not done.
+
+## Ship
+
+- **PR #68** (approved in the brief): CI and Mutations green on its last
+  head, `2d11d4a`. The Mutations run checked the whole list, because the
+  lockfile changed. Merged with a merge commit, as #63, #64 and #67 were.
+- **Production, in order:**
+  1. `psql -f scripts/schema.sql`: `audio_checks`, `live_overrides` and
+     `playback_failures.tab_ref` now exist.
+  2. `heavy -- nice -n 10 ionice -c2 -n7 bash scripts/deploy.sh`: built in
+     staging and swapped in the new `node_modules` (next 16.3.8). /,
+     /library, /radio and /stats all 200 with every chunk.
+  3. `deploy-mirror.sh` the same way: 318 pins plus 5 repaired copies in the
+     manifest, every repaired copy answers 206, and the unpinned fill
+     works. `/mirror/<2001-09-11>` serves 42,032,254 B, the copy.
+  4. `deploy-live.sh`: the 30 sourced archive moments. It verified health,
+     an SSE hello and a POST round trip.
+  5. `highdesert-verify-live.timer` installed and enabled. Its first run is
+     2026-10-12 at 15:22 UTC.
+  6. The scan's verdicts so far went into `audio_checks`
+     (`verify-live-day.mjs --import`): 1,031 rows, so the nightly walk
+     never re-walks them.
+- **Screenshots** of production at 390 wide and at 1440×900 (/live,
+  /library, /stats) are in this folder's `screenshots/`. They were taken with
+  the funnel marked excluded, the service worker blocked and every stats
+  POST answered in the page, so production recorded nothing.
+- **The encrypted backup's first scheduled run (17:30 UTC) worked:** 1 new,
+  1 dropped, 15 kept, restore test ok. CI then found a gap: the restore
+  test checked only the newest copy, so a bad older copy could sit there
+  unnoticed. Every copy is now decrypted and compared
+  (`offsite-checks-every-copy`). That fix is deployed with the tree, so it
+  runs from tonight.
 
 ## Decisions carried out
 
@@ -46,9 +80,8 @@ Status: **in progress.** This file is rewritten as the session goes. The
   Mutations: `failure-window-recovered`, `lost-start-gap`,
   `lost-start-per-tab`, `lost-start-tab-stored`, `lost-start-tab-sent`,
   `status-release-repeats`, `digest-release-repeats`. All went red.
-- **Production needs `scripts/schema.sql` applied** for the `tab_ref` column.
-  Until then, the insert of a failure row with a tab fails. This is part of
-  the deploy below.
+- `scripts/schema.sql` was applied to production before the deploy, so
+  `tab_ref` exists. Rows from today's release on carry it.
 
 ## 2. The mirror cut a full file at 13.6 MB
 
@@ -79,10 +112,56 @@ Status: **in progress.** This file is rewritten as the session goes. The
 ## 3. The whole-catalog frame scan
 
 `scripts/scan-catalog-audio.mjs` (resumable, `--concurrency`, pins read from
-disk) is walking all 1,413 files, under heavy, `nice 19`, `ionice -c3`. It runs
-from a frozen copy in `/root/hd-scan/bin`, and its results are in
-`/root/hd-scan/scan.jsonl`. **Results: see "Scan results" below** (filled in
-when it finishes).
+disk) walks every frame of all 1,413 files, under heavy, `nice 19`,
+`ionice -c3`. It runs from a frozen copy in `/root/hd-scan/bin`, driven by
+`/root/hd-scan/run3.sh` (batches of 60, then one `--retry-errors` pass over
+the rows archive.org failed today), and writes `/root/hd-scan/scan.jsonl`.
+
+**Hits, every one repaired, served from the mirror and listed in
+`docs/broken-episodes.md`:**
+
+| Episode | What the file does | Copy |
+|---|---|---|
+| 1994-10-28 Ghost To Ghost 1994 | one stray 16 kHz stereo frame at 4:22 | 22.05 kHz mono 32 kbps |
+| 1996-09-09 Open Lines: TWA 800 | one stray stereo frame at 2:19:50 | 22.05 kHz mono 32 kbps |
+| 2001-09-11 The September 11, 2001 Show | one stray stereo frame at 2:53:09 | 22.05 kHz mono 32 kbps |
+| 2001-11-26 Egyptian Cave (the brief's) | stereo, then mono from 43:59 | 44.1 kHz mono 64 kbps |
+| 2001-12-04 Joshua P. Warren | one stray stereo frame at 39:35 | 22.05 kHz mono 32 kbps |
+| 2005-06-12 Dr. Claude Swanson | 11 kHz stereo, 22 kHz mono for 37 min, 11 kHz stereo | 22.05 kHz mono 32 kbps |
+
+A single stray frame is enough: headless Chromium stops at it with
+`code=3 PIPELINE_ERROR_DECODE`, and a clean control plays through
+(measured, `docs/broken-episodes.md`).
+
+**Cross-check against the Android "Format error" rows.** A decode error
+(`code=3`) has been recorded on exactly two episodes in the table's whole
+history, and both are hits: 2001-11-26 (35 rows) and 2001-09-11 (1 row, on
+its anniversary). Every other "Format error" row (87 episodes) is
+`code=4 MEDIA_ELEMENT_ERROR`, meaning the source failed to load. That is
+archive.org's storage-node 500 (section 2 and section 6), not the file.
+
+**Results at the time of writing:** see "Scan: final numbers" at the end,
+filled in when the run finished.
+
+## The archive.org outage of 2026-10-11 (found by the scan)
+
+From about 15:45 UTC, archive.org's `/download` sent every caller to one
+failing cache node, then served its own "Sorry, we're kinda busy" 502. The
+collection's own storage servers (`ia800503`/`ia600503`) kept serving
+throughout. The health probe checks the metadata API, so it said up the
+whole time, and I left it that way on purpose: outage mode would refuse
+shows the fallback below can serve. The full account is in
+`docs/archive-outage-2026-10-11.md`.
+
+- **The mirror's fill falls back** to the item's own server on a 5xx from
+  `/download` or from the node it names (`@hd_mirror_direct`, from
+  `data/archive-items.json`). This is deployed: an unpinned show plays
+  through the mirror even while `/download` is failing.
+- The scan, the pre-air walk and `repair-episode.mjs` fall back the same
+  way (`archiveUrls`).
+- nginx tests: a node that always 502s, a `/download` that 502s, and the
+  decoded file name. Mutations `mirror-direct-*`, `archive-urls-own-servers`
+  and `verify-walk-fallback`.
 
 ## 4. The station guard
 
@@ -181,6 +260,11 @@ same command with `set -o pipefail;` in front, and nothing else changed:
    file.
 7. `git diff package-lock.json | grep …`, while checking the incident below.
    Re-run with `set -o pipefail;` and a file.
+8. The 2005-06-12 repair (`heavy … repair-episode.mjs … | tail -3`, in
+   the background). Re-run with `set -o pipefail;` in front.
+
+The new npm hook blocked `false && npm ci` once. That was on purpose: it was
+the live test of the hook, and the command could not have run npm either way.
 
 The harness also blocked a foreground `sleep 240` chain. I probed the state
 without the sleep instead. The auto-mode classifier denied one action: the
@@ -250,4 +334,22 @@ lockfile.
 
 ## Left to do
 
-(Updated as the session continues.)
+- **The scan's last rows and its retry pass.** When the run ends, read
+  "Scan: final numbers" below. If it found any new hit, repair it the same
+  way, add it to `docs/broken-episodes.md`, and commit to `main`. Then
+  `deploy.sh` (the player reads `src/data/repaired-episodes.json`),
+  `deploy-mirror.sh` (the manifest), and `verify-live-day.mjs --import
+  /root/hd-scan/scan.jsonl`.
+- **The fill cache keeps nothing** (section 2): free disk is below nginx's
+  `min_free`. Raising the disk or lowering the floors is your call.
+- **The Android mirror timeouts** are not nginx's (section 2). The next
+  look belongs in the client's failover path on Android.
+- **The age private key** is in this folder. Move it into your password
+  manager and delete the copy.
+- **Dependabot ran on `main` after the merge** ("Dependabot Updates" for
+  next, pg, eslint-config-next, vitest and @types/node). I left whatever
+  it opened alone: merging or closing needs your okay.
+- **Old worktrees:** `/root/hd-deps` (`deps/2026-09-28`), `/root/hd-ci`,
+  `/root/hd-stats-split`, and today's `/root/hd-deps-1011`. I removed none
+  of them. `/root/hd-deps-1011` holds only today's bump, which is already
+  on `main`.

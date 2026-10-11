@@ -192,5 +192,45 @@
       "encoder": "ffmpeg -nostdin -hide_banner -loglevel error -y -i <original> -map 0:a:0 -map_metadata 0 -af aresample=22050:async=1 -ac 1 -ar 22050 -c:a libmp3lame -b:a 32k -id3v2_version 3 -write_xing 1 <copy>"
     },
     "repairedAt": "2026-10-11"
+  },
+  {
+    "fileHash": "archive:ultimate-ultimate-art-bell-collection:2005-06-12 - Coast to Coast AM with Art Bell - Dr. Claude Swanson - Science and the Paranormal.mp3",
+    "airDate": "2005-06-12",
+    "reason": "midstream-change",
+    "original": {
+      "bytes": 26564173,
+      "sha256": "aa4c3c2cef897640a3bfe24b3e44c92dca46b181a9188f5911e6ade985e09fb1",
+      "seconds": 8859.9,
+      "segments": [
+        {
+          "atSeconds": 0,
+          "sampleRate": 11025,
+          "mono": false,
+          "frames": 86923
+        },
+        {
+          "atSeconds": 4541.28,
+          "sampleRate": 22050,
+          "mono": true,
+          "frames": 84144
+        },
+        {
+          "atSeconds": 6739.33,
+          "sampleRate": 11025,
+          "mono": false,
+          "frames": 40589
+        }
+      ]
+    },
+    "repaired": {
+      "bytes": 35439824,
+      "sha256": "34002c8bacfa609ee0a919a004493f5cd1192d1cf8f52a8d8e7936c87511ff95",
+      "seconds": 8859.85,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitrateKbps": 32,
+      "encoder": "ffmpeg -nostdin -hide_banner -loglevel error -y -i <original> -map 0:a:0 -map_metadata 0 -af aresample=22050:async=1 -ac 1 -ar 22050 -c:a libmp3lame -b:a 32k -id3v2_version 3 -write_xing 1 <copy>"
+    },
+    "repairedAt": "2026-10-11"
   }
 ]

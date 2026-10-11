@@ -171,6 +171,7 @@ heavy -- nice -n 19 ionice -c3 node scripts/repair-episode.mjs '<fileHash>'
 | 1996-09-09 Open Lines: TWA 800, Art's Parts, Crop Circles | 22.05 kHz mono, one stray stereo frame at 2:19:50 | mono 22.05 kHz 32 kbps, 40,260,563 B, 10,065.03 s, one configuration | 2026-10-11 |
 | 2001-09-11 The September 11, 2001 Show | 22.05 kHz mono, one stray stereo frame at 2:53:09 | mono 22.05 kHz 32 kbps, 42,032,254 B, 10,507.96 s, one configuration | 2026-10-11 |
 | 2001-12-04 Joshua P. Warren: Ghost Hunting, Brown Mountain Lights | 22.05 kHz mono, one stray stereo frame at 39:35 | mono 22.05 kHz 32 kbps, 38,235,812 B, 9,558.83 s, one configuration | 2026-10-11 |
+| 2005-06-12 Dr. Claude Swanson: Science and the Paranormal | 11.025 kHz stereo to 1:15:41, 22.05 kHz mono to 1:52:19, then 11.025 kHz stereo again | mono 22.05 kHz 32 kbps (the higher rate, so the middle hour keeps its own), 35,439,824 B, 8,859.85 s, one configuration | 2026-10-11 |
 
 **Cross-check against the failure rows** (`playback_failures`, all time, read
 2026-10-11). A decode error (`code=3 PIPELINE_ERROR_DECODE`) has been
