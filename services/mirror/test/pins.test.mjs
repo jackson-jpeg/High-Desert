@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, stat, open } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { readPins, writeManifest, manifestOf, layout } from "../lib/pins.mjs";
+import { readPins, readRepaired, writeManifest, manifestOf, layout } from "../lib/pins.mjs";
 
 /**
  * /mirror/manifest is the episodes the mirror can play with archive.org gone.
@@ -48,6 +48,24 @@ describe("the manifest writer", () => {
     expect(m.pinned).toBe(2);
     expect(m.version).toMatch(/^[0-9a-f]{16}$/);
     expect(JSON.parse(await readFile(layout(stateDir).manifest, "utf8"))).toEqual(m);
+  });
+
+  it("lists a repaired copy only when it is whole, and never twice", async () => {
+    const { stateDir } = await state();
+    const { repaired } = layout(stateDir);
+    await mkdir(repaired, { recursive: true });
+    await writeFile(path.join(repaired, "archive:coll:1997-01-01 Whole.mp3"), Buffer.alloc(6, 9));
+    await writeFile(path.join(repaired, "archive:coll:1999-03-03 Short.mp3"), Buffer.alloc(4, 9));
+    const repairs = [
+      { fileHash: "archive:coll:1997-01-01 Whole.mp3", repaired: { bytes: 6 } },
+      // Cut short: listed in the record, not playable, so not in the manifest.
+      { fileHash: "archive:coll:1999-03-03 Short.mp3", repaired: { bytes: 5 } },
+    ];
+    expect((await readRepaired(repaired, repairs)).map((r) => r.fileHash)).toEqual(["archive:coll:1997-01-01 Whole.mp3"]);
+    const m = await writeManifest({ stateDir, index: INDEX, repairs });
+    // 1997 is both pinned (the original) and repaired: one entry, counted as repaired.
+    expect(m.fileHashes).toEqual(["archive:coll:1997-01-01 Whole.mp3", "archive:coll:1998-02-02 Also whole.mp3"]);
+    expect(m).toMatchObject({ count: 2, pinned: 1, repaired: 1 });
   });
 
   it("readPins reports each pin's size, for the status line", async () => {

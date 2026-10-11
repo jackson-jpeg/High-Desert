@@ -93,8 +93,17 @@ log_format hd_mirror '$remote_addr - $remote_user [$time_local] "$request" '
 # recently used first to stay under max_size and above min_free.
 proxy_cache_path ${cacheDir} levels=1:2 keys_zone=hd_mirror_cache:16m max_size=${o.maxSize} min_free=${o.minFree} inactive=30d use_temp_path=off;
 
+# The same socket three times, so proxy_next_upstream (in @hd_mirror_fill) has a
+# "next" to retry. archive.org's storage nodes answer a valid Range with a bare
+# 500 about 3% of the time (dn720703, 2026-10-11: 3 of 97 slices through the
+# fill hop, 2 of 60 straight to the node), and the slice module aborts the
+# whole response on any slice that is not a 206: one bad slice of a ~97-slice
+# show cut the listener off mid-file. max_fails=0: a 500 must never mark the
+# only real path down ("no live upstreams" for 10 s).
 upstream hd_mirror_fill {
-    server unix:${sock};
+    server unix:${sock} max_fails=0;
+    server unix:${sock} max_fails=0;
+    server unix:${sock} max_fails=0;
     keepalive 4;
 }
 
@@ -149,7 +158,8 @@ server {
 #
 #   /mirror/manifest            ${stateDir}/manifest.json (the warm job writes it)
 #   /mirror/magnet/{fileHash}   ${stateDir}/catalog/{fileHash}
-#   /mirror/{fileHash}          ${stateDir}/pins/{fileHash} if pinned, else filled
+#   /mirror/{fileHash}          ${stateDir}/repaired/{fileHash} if repaired, else
+#                               ${stateDir}/pins/{fileHash} if pinned, else filled
 #                               from archive.org through the cache
 #
 # Nothing here sets add_header, so the server's Strict-Transport-Security is
@@ -183,10 +193,12 @@ location ^~ /mirror/ {
         if (!-f ${stateDir}/catalog/$hd_mirror_fh) {
             return 404;
         }
-        root ${stateDir}/pins;
+        # A repaired copy first (scripts/repair-episode.mjs: the archive.org
+        # file changes configuration midstream), then a pin, then the fill.
+        root ${stateDir};
         types { }
         default_type audio/mpeg;
-        try_files /$hd_mirror_fh @hd_mirror_fill;
+        try_files /repaired/$hd_mirror_fh /pins/$hd_mirror_fh @hd_mirror_fill;
     }
 
     return 404;
@@ -212,6 +224,12 @@ location @hd_mirror_fill {
     proxy_set_header Connection "";
     proxy_connect_timeout 5s;
     proxy_read_timeout 30s;
+    # Retry a slice whose fill answered 5xx or did not answer, before a byte of
+    # it is sent (a retry is only possible then, which for a 1 MiB slice is
+    # where every 500 seen so far happened). Bounded: three tries, 30 s.
+    proxy_next_upstream error timeout http_500 http_502 http_503 http_504;
+    proxy_next_upstream_tries 3;
+    proxy_next_upstream_timeout 30s;
     proxy_pass http://hd_mirror_fill;
 }
 `;

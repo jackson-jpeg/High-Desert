@@ -120,6 +120,7 @@ if [[ "$ngx_build" != *--with-http_slice_module* ]]; then log "this nginx has no
 id hdmirror >/dev/null 2>&1 || useradd --system --home-dir "$STATE" --shell /usr/sbin/nologin hdmirror
 install -d -o hdmirror -g hdmirror -m 755 "$CACHE" "$STATE" "$STATE/pins"
 install -d -o hdmirror -g hdmirror -m 700 "$STATE/tmp"
+install -d -o hdmirror -g hdmirror -m 755 "$STATE/repaired"
 install -d -o hdmirror -g hdmirror -m 750 "$STATE/torrents"
 install -d -o www-data -g www-data -m 700 "$CACHE/proxy"
 missing=$(node -e '
@@ -127,6 +128,15 @@ missing=$(node -e '
   let n=0;for(const e of Object.values(i)) if(!fs.existsSync(process.argv[2]+"/"+e.infohash+".torrent")) n++;
   console.log(n)' "$ROOT/data/torrents/episodes.json" "$STATE/torrents")
 [ "$missing" = 0 ] || { log "$missing indexed torrents missing from $STATE/torrents (run scripts/build-torrent-index.mjs --hash)"; exit 1; }
+# Every repaired copy the record names is installed, whole: the player sends
+# those shows to the mirror only (src/audio/sources.ts), so a missing one
+# would not play anywhere.
+unrepaired=$(node -e '
+  const fs=require("fs");const r=require(process.argv[1]);
+  const bad=r.filter(e=>{try{return fs.statSync(process.argv[2]+"/"+e.fileHash).size!==e.repaired.bytes}catch{return true}});
+  for(const e of bad) console.error("  missing or wrong size: "+e.fileHash);
+  console.log(bad.length)' "$ROOT/src/data/repaired-episodes.json" "$STATE/repaired")
+[ "$unrepaired" = 0 ] || { log "$unrepaired repaired copies missing from $STATE/repaired (run scripts/repair-episode.mjs)"; exit 1; }
 
 # Stage. No dependencies: nothing to install.
 rm -rf "$STAGE"
@@ -134,6 +144,7 @@ mkdir -p "$STAGE"
 cp -r "$ROOT/services/mirror/warm.mjs" "$ROOT/services/mirror/migrate.mjs" "$ROOT/services/mirror/build-static.mjs" \
       "$ROOT/services/mirror/verify.mjs" "$ROOT/services/mirror/lib" "$ROOT/services/mirror/package.json" "$STAGE/"
 cp "$ROOT/data/torrents/episodes.json" "$STAGE/episodes.json"
+cp "$ROOT/src/data/repaired-episodes.json" "$STAGE/repaired.json"
 git -C "$ROOT" rev-parse HEAD > "$STAGE/COMMIT"
 chown -R root:root "$STAGE"
 # The gateway's unit, kept beside its code so --rollback can put it back.

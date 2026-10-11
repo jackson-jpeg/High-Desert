@@ -32,7 +32,7 @@ catalogued. Left alone; the player reads duration from the element anyway.
 | 1999-01-25 — Chemtrails and HAARP | 18s | ~2h35m |
 | 1998-01-13 — Trends Research and Phoenix Lights | 43m | ~2h16m |
 | 2000-03-31 — Remote Viewing and Antarctica | 34m | ~2h36m |
-| 2001-11-26 — Egyptian Cave in Illinois | 2h18m | ~6h58m (wrong: a full frame walk on 2026-10-11 counts 8,283 s, 2h18m, as catalogued. The 64KB sample extrapolated. This file was later pulled for another reason, below) |
+| 2001-11-26 — Egyptian Cave in Illinois | 2h18m | ~6h58m (wrong: a full frame walk on 2026-10-11 counts 8,283 s, 2h18m, as catalogued. The 64KB sample extrapolated. This file was later repaired for another reason, below) |
 
 ---
 
@@ -129,21 +129,56 @@ it automatically. **Adding a section here means adding its hash there.**
 
 ---
 
-## 2001-11-26 — Coast to Coast AM: Egyptian Cave in Illinois (Glenn Kimball)
+## Repaired, not pulled: re-encoded copies on the mirror
 
-**Pulled 2026-10-11.** The file changes from stereo to mono 43 minutes 59
-seconds in, and Chromium refuses that midstream.
+A file that changes stream configuration midstream (channel layout or sample
+rate) is **repaired, not pulled** (Jackson, 2026-10-11): it is re-encoded once
+to one layout and one rate (`scripts/repair-episode.mjs`), and the mirror
+serves the copy ahead of everything else
+(`/var/lib/highdesert-mirror/repaired/<fileHash>`, tried before `pins/` in
+`services/mirror/lib/nginx.mjs`). **The original on archive.org is untouched**,
+and its size, sha256 and segments are recorded beside the copy's in
+`src/data/repaired-episodes.json`. That record is what the rest reads:
+
+- the player sends a repaired show to `/mirror/{fileHash}` only, never to
+  archive.org (`isRepaired()` in `src/audio/sources.ts`; the restored-show
+  prime and the radio's scan preview use the same choice);
+- the mirror's manifest lists it, so it stays playable in an outage, and the
+  warm job never pins the broken original (`services/mirror/lib/pins.mjs`);
+- the station's pre-air check walks the copy, not the original
+  (`scripts/verify-live-day.mjs`).
+
+The copy is accepted only if a full frame walk finds one configuration, the
+layout asked for, and a runtime within 2 s of the original's frame count.
+Mono at 44.1 kHz, 64 kbps CBR: right for AM talk radio, and smaller than the
+original. To repair another (run niced, under heavy):
+
+```
+heavy -- nice -n 19 ionice -c3 node scripts/repair-episode.mjs '<fileHash>'
+```
+
+| Episode | What the original does | Copy | Repaired |
+|---|---|---|---|
+| 2001-11-26 Egyptian Cave in Illinois (Glenn Kimball) | stereo 0:00 to 43:59, then mono to the end, 44.1 kHz | mono 44.1 kHz 64 kbps, 66,266,927 B, 8,283.32 s, one configuration | 2026-10-11 |
+
+### 2001-11-26 — Coast to Coast AM: Egyptian Cave in Illinois (Glenn Kimball)
+
+**Pulled on 2026-10-11 and restored the same day as a repair** (the pull was
+never deployed, so no visitor saw it marked unavailable). `SEED_VERSION`
+`2026-10-11-b`, catalog 1,413. The file changes from stereo to mono 43
+minutes 59 seconds in, and Chromium refuses that midstream.
 
 | | |
 |---|---|
 | File | `2001-11-26 - Coast to Coast AM with Art Bell - Glenn Kimball - Egypt Illinois Cave.mp3` |
 | Item | `ultimate-ultimate-art-bell-collection` (the original collection, not the 2026-09-28 community import) |
-| Size | 100,935,721 bytes, identical from archive.org and through the mirror |
-| MPEG frames | 317,096 (8,283 s), all 44,100 Hz |
+| Original | 100,935,721 bytes, sha256 `6128c7f9…cd63`, identical from archive.org and through the mirror's fill |
+| MPEG frames | 317,096 (8,283.32 s), all 44,100 Hz |
 | Configuration | **stereo for frames 1 to 101,037 (0:00 to 43:59), mono from 43:59 to the end** (216,059 frames) |
+| Copy | 66,266,927 bytes, sha256 `2d75fd7d…0442`, mono 44.1 kHz 64 kbps, 8,283.32 s, decodes with no errors (`ffmpeg -v error … -f null -`) |
 
 Every Chromium-engine browser that reaches 43:59, or starts past it (a
-resumed position), fails with:
+resumed position), failed on the original with:
 
 ```
 code=3 PipelineStatus::PIPELINE_ERROR_DECODE: Unsupported midstream configuration change!
@@ -154,46 +189,14 @@ It was 37 of the 119 failure rows in the week to 2026-10-05 (the digest's
 "most failing show"): 35 `decode-error` on `android-chrome`, all on
 2026-10-01 between 17:54 and 19:44 UTC, in bursts about a second apart, each
 failing within ~100 ms of starting. That cadence is a listener pressing Try
-Again, not the station: the station aired this show on 09-22, 09-24 and 09-27,
-never on 10-01 (`live_days`). The rows hold no session, so whether it was one
-phone or a few cannot be told.
+Again, not the station: the station aired this show on 09-22, 09-24 and
+09-27, never on 10-01 (`live_days`). Since 2026-10-11 the release line counts
+that as one lost start per tab per show (`docs/reliability-baseline.md`).
 
 **No lossless repair exists.** An MPEG Layer III mono frame cannot be
 rewritten as a stereo one (or the reverse) without decoding and re-encoding,
-and splitting the file at 43:59 would make one broadcast two catalog rows.
-Walked with `scripts/measure-duration.mjs`, which now reports configuration
-`segments`.
-
-**To re-source:** find another rip of the 2001-11-26 broadcast with one
-channel layout throughout, or re-encode this one to a single layout (lossy)
-and host it as a new item.
-
-```json
-{
-  "fileHash": "archive:ultimate-ultimate-art-bell-collection:2001-11-26 - Coast to Coast AM with Art Bell - Glenn Kimball - Egypt Illinois Cave.mp3",
-  "fileName": "2001-11-26 - Coast to Coast AM with Art Bell - Glenn Kimball - Egypt Illinois Cave.mp3",
-  "filePath": "https://archive.org/download/ultimate-ultimate-art-bell-collection/2001-11-26%20-%20Coast%20to%20Coast%20AM%20with%20Art%20Bell%20-%20Glenn%20Kimball%20-%20Egypt%20Illinois%20Cave.mp3",
-  "fileSize": 100935721,
-  "title": "Coast to Coast AM - Egyptian Cave in Illinois",
-  "artist": "Art Bell",
-  "airDate": "2001-11-26",
-  "guestName": "Glenn Kimball",
-  "showType": "coast",
-  "topic": "Egyptian Artifacts Illinois",
-  "duration": 8308.86,
-  "format": "mp3",
-  "source": "archive",
-  "sourceUrl": "https://archive.org/download/ultimate-ultimate-art-bell-collection/2001-11-26%20-%20Coast%20to%20Coast%20AM%20with%20Art%20Bell%20-%20Glenn%20Kimball%20-%20Egypt%20Illinois%20Cave.mp3",
-  "archiveIdentifier": "ultimate-ultimate-art-bell-collection",
-  "aiSummary": "Researcher Glenn Kimball discusses claims of an Egyptian-style cave system discovered in Illinois, suggesting ancient trans-oceanic contact and challenging conventional archaeological narratives about pre-Columbian America.",
-  "aiTags": [
-    "archaeology",
-    "ancient-mysteries",
-    "egypt",
-    "alternative-history",
-    "artifacts"
-  ],
-  "aiStatus": "completed",
-  "aiCategory": "Ancient Mysteries"
-}
-```
+and splitting the file at 43:59 would make one broadcast two catalog rows. So
+the copy is a lossy re-encode, made once. ffmpeg reported a few "Header
+missing" packets in the original (junk between frames, which the walker
+counts as resyncs); the copy's runtime matches the original's frame count to
+the hundredth of a second, so nothing audible was dropped.

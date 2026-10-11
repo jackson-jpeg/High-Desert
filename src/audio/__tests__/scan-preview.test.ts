@@ -35,6 +35,16 @@ async function started(p: Promise<void>): Promise<void> {
 }
 
 describe("scan preview", () => {
+  it("previews a repaired show from the mirror's copy, never archive.org's file (src/audio/sources.ts)", async () => {
+    const preview = createScanPreview(newElement, () => 0.5);
+    const fileHash = "archive:ultimate-ultimate-art-bell-collection:2001-11-26 - Coast to Coast AM with Art Bell - Glenn Kimball - Egypt Illinois Cave.mp3";
+    await started(preview.start({ fileHash, sourceUrl: "https://archive.org/download/x/egypt.mp3", duration: 8283 }));
+    expect(made[0].src).toContain(`/mirror/${encodeURIComponent(fileHash)}`);
+    await started(preview.start(ep(2)));
+    expect(made[1].src).toBe("https://archive.org/download/coll/p2.mp3");
+    preview.stop();
+  });
+
   it("rapid dial scanning plays each preview for its full window", async () => {
     const preview = createScanPreview(newElement, () => 0.5);
 

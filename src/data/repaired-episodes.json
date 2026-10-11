@@ -1,0 +1,36 @@
+[
+  {
+    "fileHash": "archive:ultimate-ultimate-art-bell-collection:2001-11-26 - Coast to Coast AM with Art Bell - Glenn Kimball - Egypt Illinois Cave.mp3",
+    "airDate": "2001-11-26",
+    "reason": "midstream-change",
+    "original": {
+      "bytes": 100935721,
+      "sha256": "6128c7f9a3ca225d43fc5b9a9dc638d58ec79421a705b272b2e5785999d1cd63",
+      "seconds": 8283.32,
+      "segments": [
+        {
+          "atSeconds": 0,
+          "sampleRate": 44100,
+          "mono": false,
+          "frames": 101037
+        },
+        {
+          "atSeconds": 2639.33,
+          "sampleRate": 44100,
+          "mono": true,
+          "frames": 216059
+        }
+      ]
+    },
+    "repaired": {
+      "bytes": 66266927,
+      "sha256": "2d75fd7d9b4b67ec7e4b410418b0a3f6b75de6402813392471d4097c32cc0442",
+      "seconds": 8283.32,
+      "sampleRate": 44100,
+      "channels": 1,
+      "bitrateKbps": 64,
+      "encoder": "ffmpeg -nostdin -hide_banner -loglevel error -y -i <original> -map 0:a:0 -map_metadata 0 -af aresample=44100:async=1 -ac 1 -ar 44100 -c:a libmp3lame -b:a 64k -id3v2_version 3 -write_xing 1 <copy>"
+    },
+    "repairedAt": "2026-10-11"
+  }
+]

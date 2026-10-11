@@ -16,6 +16,7 @@ Environment=MIRROR_STATE_DIR=/var/lib/highdesert-mirror
 Environment=MIRROR_CACHE_DIR=/var/cache/highdesert-mirror
 Environment=MIRROR_TORRENT_DIR=/var/lib/highdesert-mirror/torrents
 Environment=MIRROR_INDEX=/opt/highdesert-mirror/episodes.json
+Environment=MIRROR_REPAIRED=/opt/highdesert-mirror/repaired.json
 Environment=MIRROR_PIN_MAX_GB=15
 Environment=MIRROR_DISK_FLOOR_GB=10
 Environment=MIRROR_WARM_MAX_STEAL=20

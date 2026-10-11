@@ -40,7 +40,7 @@ import {
 import type { Episode } from "@/db/schema";
 import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
 import { archiveKnownDown } from "@/services/archive/health";
-import type { SourceKind } from "@/audio/sources";
+import { resolveSources, type SourceKind } from "@/audio/sources";
 import { currentStartPlan, refuseIfUnavailable } from "@/audio/outage-gate";
 import {
   currentLiveStart,
@@ -145,8 +145,10 @@ export function useAudioPlayer() {
       // A new source is a new start: its listen has not been counted.
       beginStart();
       audio.preload = "none";
-      audio.src = episode.sourceUrl;
-      usePlayerStore.getState().setSource("archive");
+      // archive.org, or the mirror for a repaired show (src/audio/sources.ts).
+      const source = resolveSources(episode)[0] ?? { kind: "archive" as const, url: episode.sourceUrl };
+      audio.src = source.url;
+      usePlayerStore.getState().setSource(source.kind);
       // readyState is 0 here, so this is held until loadedmetadata (engine.ts).
       seekEngine(startPositionFor(positionOf(episode.fileHash), episode.duration));
       audio.playbackRate = usePlayerStore.getState().playbackRate;

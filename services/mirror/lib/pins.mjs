@@ -16,6 +16,10 @@ import path from "node:path";
 
 export const layout = (stateDir) => ({
   pins: path.join(stateDir, "pins"),
+  // Re-encoded copies of episodes whose archive.org file changes configuration
+  // midstream (scripts/repair-episode.mjs, docs/broken-episodes.md). nginx tries
+  // here before pins/; the warm job never writes here and never pins one.
+  repaired: path.join(stateDir, "repaired"),
   tmp: path.join(stateDir, "tmp"),
   catalog: path.join(stateDir, "catalog"),
   manifest: path.join(stateDir, "manifest.json"),
@@ -67,11 +71,40 @@ export async function readPins(pinDir, index) {
   return out.sort((a, b) => (a.fileHash < b.fileHash ? -1 : a.fileHash > b.fileHash ? 1 : 0));
 }
 
-/** `{version, count, pinned, fileHashes}`; `version` is a digest of the sorted list. */
-export function manifestOf(fileHashes) {
-  const sorted = [...fileHashes].sort();
+/**
+ * The repaired copies that are really there: listed in the record
+ * (src/data/repaired-episodes.json, `[{fileHash, repaired: {bytes}}]`), a
+ * regular file, exactly the recorded length. Same rule as a pin: a listed
+ * episode that cannot play sends a listener into a wait for nothing.
+ */
+export async function readRepaired(dir, repairs = []) {
+  const out = [];
+  for (const r of repairs) {
+    if (!isPinnableName(r.fileHash)) continue;
+    try {
+      const s = await stat(path.join(dir, r.fileHash));
+      if (s.isFile() && s.size === r.repaired?.bytes) out.push({ fileHash: r.fileHash, bytes: s.size });
+    } catch {
+      /* not installed here */
+    }
+  }
+  return out.sort((a, b) => (a.fileHash < b.fileHash ? -1 : a.fileHash > b.fileHash ? 1 : 0));
+}
+
+/** The record's hashes: never pinned, since their archive.org file is the broken one. */
+export function repairedSet(repairs = []) {
+  return new Set(repairs.map((r) => r.fileHash));
+}
+
+/**
+ * `{version, count, pinned, repaired, fileHashes}`; `version` is a digest of
+ * the sorted list. `count` is everything the mirror can play with archive.org
+ * gone: the pins plus the repaired copies (`repaired` of them).
+ */
+export function manifestOf(fileHashes, repaired = 0) {
+  const sorted = [...new Set(fileHashes)].sort();
   const version = createHash("sha256").update(sorted.join("\n")).digest("hex").slice(0, 16);
-  return { version, count: sorted.length, pinned: sorted.length, fileHashes: sorted };
+  return { version, count: sorted.length, pinned: sorted.length - repaired, repaired, fileHashes: sorted };
 }
 
 /** Write `body` to `target` by rename from a sibling temp file, fsynced first. */
@@ -97,9 +130,12 @@ export async function writeAtomic(target, body) {
  * may be half way through sending the previous one, and a reader holding the
  * old file keeps the old bytes.
  */
-export async function writeManifest({ stateDir, index }) {
-  const { pins, manifest } = layout(stateDir);
-  const m = manifestOf((await readPins(pins, index)).map((p) => p.fileHash));
+export async function writeManifest({ stateDir, index, repairs = [] }) {
+  const { pins, repaired, manifest } = layout(stateDir);
+  const skip = repairedSet(repairs);
+  const pinned = (await readPins(pins, index)).map((p) => p.fileHash).filter((h) => !skip.has(h));
+  const fixed = (await readRepaired(repaired, repairs)).map((p) => p.fileHash);
+  const m = manifestOf([...pinned, ...fixed], fixed.length);
   await writeAtomic(manifest, JSON.stringify(m) + "\n");
   return m;
 }

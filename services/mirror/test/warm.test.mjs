@@ -129,6 +129,25 @@ describe("runWarm", () => {
     return { stateDir, statusPath, index, run, pins, manifest, fetched };
   }
 
+  it("never pins a repaired show's archive.org original, and lists the repaired copy instead (docs/broken-episodes.md)", async () => {
+    const w = await world();
+    // "good" is the most played, and its archive.org file changes configuration midstream.
+    const copy = fixtureMp3(14, 500);
+    await mkdir(path.join(w.stateDir, "repaired"), { recursive: true });
+    await writeFile(path.join(w.stateDir, "repaired", fh(names.good)), copy);
+    // A pin of the original from before the repair is cleared, not kept.
+    await mkdir(path.join(w.stateDir, "pins"), { recursive: true });
+    await writeFile(path.join(w.stateDir, "pins", fh(names.good)), GOOD);
+    const repairs = [{ fileHash: fh(names.good), repaired: { bytes: copy.length } }];
+    const status = await w.run({ repairs });
+    expect(w.fetched).toEqual(["https://archive.test/other"]);
+    expect(await w.pins()).toEqual([fh(names.other)]);
+    const m = await w.manifest();
+    expect(m.fileHashes).toEqual([fh(names.good), fh(names.other)].sort());
+    expect(m).toMatchObject({ count: 2, pinned: 1, repaired: 1 });
+    expect(status).toMatchObject({ outcome: "ok", fetched: 1 });
+  });
+
   it("downloads, verifies and pins the top episodes; the manifest lists exactly them", async () => {
     const w = await world();
     const status = await w.run();

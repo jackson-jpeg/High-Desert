@@ -6,12 +6,13 @@
  * the deploy's own check is known to pass on a working mirror and — the
  * mutations in scripts/mutate-check.mjs — to fail on a broken one.
  *
- *   node verify.mjs <site> [--index episodes.json]
+ *   node verify.mjs <site> [--index episodes.json] [--repaired repaired.json]
  *
  * Checks: the manifest (200, its shape, at least one pin) and a 304 for its
  * ETag; a pinned episode's first 4 KiB (206, exact Content-Range) and a range
  * past its end (416); an unpinned episode's first 4 KiB, which is a fill from
- * archive.org (206); its magnet link; and an unknown fileHash (404).
+ * archive.org (206); its magnet link; each repaired copy (206 at the copy's
+ * length, and listed in the manifest); and an unknown fileHash (404).
  *
  * The fill needs archive.org. If it fails *and* archive.org is not answering
  * from here either, that is reported and does not fail the check: a deploy
@@ -33,7 +34,7 @@ async function archiveAnswers() {
   }
 }
 
-export async function verifyMirror(site, index, { archiveUp = archiveAnswers, timeoutMs = 30_000 } = {}) {
+export async function verifyMirror(site, index, { archiveUp = archiveAnswers, timeoutMs = 30_000, repairs = [] } = {}) {
   const lines = [];
   let ok = true;
   const pass = (m) => lines.push(`ok    ${m}`);
@@ -64,8 +65,10 @@ export async function verifyMirror(site, index, { archiveUp = archiveAnswers, ti
     fail(`manifest: ${err.message}`);
   }
 
+  const fixed = new Set(repairs.map((r) => r.fileHash));
   if (manifest) {
-    const fh = manifest.fileHashes[0];
+    // A pin, not a repaired copy: the index holds the original's length.
+    const fh = manifest.fileHashes.find((h) => !fixed.has(h)) ?? manifest.fileHashes[0];
     const len = index[fh]?.length;
     const r = await get(ep(fh), { range: "bytes=0-4095" }).catch((e) => ({ status: e.message, headers: new Headers() }));
     const body = r.arrayBuffer ? Buffer.from(await r.arrayBuffer()) : Buffer.alloc(0);
@@ -77,6 +80,19 @@ export async function verifyMirror(site, index, { archiveUp = archiveAnswers, ti
     const past = await get(ep(fh), { range: `bytes=${len}-` }).catch((e) => ({ status: e.message }));
     if (past.status === 416) pass("pinned 416 past the end");
     else fail(`past the end: HTTP ${past.status}, expected 416`);
+  }
+
+  // Each repaired copy is what /mirror/ serves for that show, not the
+  // archive.org original: the copy's length, in the manifest.
+  for (const rep of repairs) {
+    const r = await get(ep(rep.fileHash), { range: "bytes=0-4095" }).catch((e) => ({ status: e.message, headers: new Headers() }));
+    if (r.arrayBuffer) await r.arrayBuffer();
+    const want = `bytes 0-4095/${rep.repaired.bytes}`;
+    if (r.status === 206 && r.headers.get("content-range") === want && manifest?.fileHashes.includes(rep.fileHash)) {
+      pass(`repaired 206: ${rep.fileHash}`);
+    } else {
+      fail(`repaired: HTTP ${r.status} ${r.headers.get("content-range")}, in manifest: ${!!manifest?.fileHashes.includes(rep.fileHash)}; expected 206 ${want}, listed`);
+    }
   }
 
   const held = new Set(manifest?.fileHashes ?? []);
@@ -108,7 +124,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const site = process.argv[2] ?? "https://highdesert.space";
   const i = process.argv.indexOf("--index");
   const index = JSON.parse(await readFile(i > 0 ? process.argv[i + 1] : path.join(here, "episodes.json"), "utf8"));
-  const { ok, lines } = await verifyMirror(site, index);
+  const j = process.argv.indexOf("--repaired");
+  const repairs = await readFile(j > 0 ? process.argv[j + 1] : path.join(here, "repaired.json"), "utf8").then(JSON.parse, () => []);
+  const { ok, lines } = await verifyMirror(site, index, { repairs });
   for (const l of lines) console.log(`[verify] ${l}`);
   process.exit(ok ? 0 : 1);
 }

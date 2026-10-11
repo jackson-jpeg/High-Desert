@@ -33,14 +33,29 @@ const COLL = "fixture-coll";
 const PINNED_NAME = "1995-08-21 - Coast to Coast AM - $95,000 Junk Mail #2 [h1] (Art's).mp3";
 const FILLED_NAME = "1997-05-26 - Coast to Coast AM - Open Lines, Ramona's UFO #3 [x].mp3";
 const ROGUE_NAME = "1998-01-01 - Coast to Coast AM - Redirects elsewhere.mp3";
+const FLAKY_NAME = "2003-10-11 - Coast to Coast AM - A storage node that 500s.mp3";
+const REPAIRED_NAME = "2001-11-26 - Coast to Coast AM - Egypt Illinois Cave (stereo to mono).mp3";
 const fh = (name) => `archive:${COLL}:${name}`;
 
 const PINNED = fixtureMp3(1); // on our disk
 const PINNED_UPSTREAM = fixtureMp3(99, 3200); // what archive.org would say for the same name: must never be served
 const FILLED = fixtureMp3(2, 3300); // ~1.38 MB: crosses the 1 MiB slice boundary
 const ROGUE = fixtureMp3(3, 100);
+// A whole show's worth of slices, streamed to the end (2026-10-11: a full read
+// of the 100.9 MB 2001-11-26 show was cut at 13.6 MB). archive.org's storage
+// nodes answer a valid Range with a bare nginx 500 about 3% of the time
+// (dn720703.ca.archive.org), and the slice module aborts the whole response on
+// any slice that is not a 206. The stub does it once each to a middle slice
+// and to the last one.
+const FLAKY = fixtureMp3(6, 20000); // ~8 MB: nine 1 MiB slices
+const SLICE = 1 << 20;
+const FLAKY_SLICES = [2, Math.floor((FLAKY.length - 1) / SLICE)];
+const NODE_500 =
+  "<html>\r\n<head><title>500 Internal Server Error</title></head>\r\n<body>\r\n<center><h1>500 Internal Server Error</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>\r\n";
+const REPAIRED_ORIGINAL = fixtureMp3(4, 200); // archive.org's broken file: must never be served
+const REPAIRED_COPY = fixtureMp3(5, 150); // the re-encoded copy in <state>/repaired (scripts/repair-episode.mjs)
 
-let tmp, stub, stubHits, nginx, base, index, manifestBody;
+let tmp, stub, stubHits, nginx, base, index, manifestBody, repairs;
 
 async function freePort() {
   return new Promise((resolve) => {
@@ -58,8 +73,11 @@ function startStub() {
     [PINNED_NAME, PINNED_UPSTREAM],
     [FILLED_NAME, FILLED],
     [ROGUE_NAME, ROGUE],
+    [REPAIRED_NAME, REPAIRED_ORIGINAL],
+    [FLAKY_NAME, FLAKY],
   ]);
   stubHits = [];
+  const flakyFailed = new Set();
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, "http://stub");
     const p = decodeURIComponent(url.pathname);
@@ -85,6 +103,12 @@ function startStub() {
       return res.end(body);
     }
     const start = Number(m[1]);
+    const slice = start / SLICE;
+    if (node[1] === FLAKY_NAME && FLAKY_SLICES.includes(slice) && !flakyFailed.has(slice)) {
+      flakyFailed.add(slice);
+      res.writeHead(500, { server: "nginx", "content-length": NODE_500.length });
+      return res.end(NODE_500);
+    }
     const end = Math.min(m[2] === "" ? body.length - 1 : Number(m[2]), body.length - 1);
     if (start >= body.length) {
       res.writeHead(416, { "content-range": `bytes */${body.length}` });
@@ -118,21 +142,26 @@ async function setup() {
   await chmod(tmp, 0o755);
   const stateDir = path.join(tmp, "state");
   const torrentDir = path.join(tmp, "torrents");
-  for (const d of [stateDir, torrentDir, path.join(stateDir, "pins"), path.join(tmp, "logs"), path.join(tmp, "temp")]) {
+  for (const d of [stateDir, torrentDir, path.join(stateDir, "pins"), path.join(stateDir, "repaired"), path.join(tmp, "logs"), path.join(tmp, "temp")]) {
     await mkdir(d, { recursive: true });
   }
   stub = await startStub();
   const up = `http://127.0.0.1:${stub.address().port}`;
 
   index = {};
-  for (const [name, bytes] of [[PINNED_NAME, PINNED], [FILLED_NAME, FILLED], [ROGUE_NAME, ROGUE]]) {
+  for (const [name, bytes] of [[PINNED_NAME, PINNED], [FILLED_NAME, FILLED], [ROGUE_NAME, ROGUE], [REPAIRED_NAME, REPAIRED_ORIGINAL], [FLAKY_NAME, FLAKY]]) {
     const t = await torrentOf(name, bytes, `https://archive.org/download/${COLL}/${encodeURIComponent(name)}`);
     await writeFile(path.join(torrentDir, `${t.infohash}.torrent`), t.buf);
     index[fh(name)] = { infohash: t.infohash, length: t.length, pieceLength: t.parsed.pieceLength };
   }
   await buildCatalog({ index, torrentDir, outDir: path.join(stateDir, "catalog") });
   await writeFile(path.join(stateDir, "pins", fh(PINNED_NAME)), PINNED);
-  manifestBody = await writeManifest({ stateDir, index });
+  // A repaired show, also pinned as the original (as if the warm job had
+  // pinned it before the repair): the copy must win over the pin and the fill.
+  await writeFile(path.join(stateDir, "pins", fh(REPAIRED_NAME)), REPAIRED_ORIGINAL);
+  await writeFile(path.join(stateDir, "repaired", fh(REPAIRED_NAME)), REPAIRED_COPY);
+  repairs = [{ fileHash: fh(REPAIRED_NAME), repaired: { bytes: REPAIRED_COPY.length } }];
+  manifestBody = await writeManifest({ stateDir, index, repairs });
 
   const { http: httpConf, locations } = renderMirrorNginx({
     stateDir,
@@ -256,6 +285,28 @@ describe.skipIf(!HAVE_NGINX)("the mirror, served by a real nginx", () => {
     });
   });
 
+  describe("a repaired episode is its re-encoded copy, never archive.org's file (docs/broken-episodes.md)", () => {
+    const U = () => url(fh(REPAIRED_NAME));
+
+    it("no Range → 200, every byte of the copy, ahead of a pin of the original — and archive.org is never asked", async () => {
+      const r = await get(U());
+      expect(r.status).toBe(200);
+      expect(r.headers.get("content-type")).toBe("audio/mpeg");
+      expect(r.body.equals(REPAIRED_COPY)).toBe(true);
+      expect(hitsFor(REPAIRED_NAME)).toEqual([]);
+    });
+
+    it("byte ranges work on the copy: 206 at the copy's length, 416 past its end", async () => {
+      const r = await get(U(), { range: "bytes=1000-1999" });
+      expect(r.status).toBe(206);
+      expect(r.headers.get("content-range")).toBe(`bytes 1000-1999/${REPAIRED_COPY.length}`);
+      expect(r.body.equals(REPAIRED_COPY.subarray(1000, 2000))).toBe(true);
+      const past = await get(U(), { range: `bytes=${REPAIRED_COPY.length}-` });
+      expect(past.status).toBe(416);
+      expect(hitsFor(REPAIRED_NAME)).toEqual([]);
+    });
+  });
+
   describe("an unpinned episode is filled from archive.org through the cache", () => {
     const U = () => url(fh(FILLED_NAME));
     // Straddles the 1 MiB slice boundary: two slices, two upstream ranges.
@@ -299,6 +350,19 @@ describe.skipIf(!HAVE_NGINX)("the mirror, served by a real nginx", () => {
       const r = await get(U(), { range: `bytes=${FILLED.length}-` });
       expect(r.status).toBe(416);
       expect(r.headers.get("content-range")).toBe(`bytes */${FILLED.length}`);
+    });
+
+    it("a large unpinned show streams to the end: a slice the storage node answers 500 is fetched again", async () => {
+      expect(FLAKY_SLICES[1]).toBeGreaterThanOrEqual(7);
+      const r = await get(url(fh(FLAKY_NAME)));
+      expect(r.status).toBe(200);
+      expect(r.body.length).toBe(FLAKY.length);
+      expect(r.body.equals(FLAKY)).toBe(true);
+      for (const n of FLAKY_SLICES) {
+        const range = `bytes=${n * SLICE}-${(n + 1) * SLICE - 1}`;
+        const asked = hitsFor(FLAKY_NAME).filter((h) => h.path.startsWith(`/node/${COLL}/`) && h.range === range);
+        expect(asked, range).toHaveLength(2); // the 500, then the retry
+      }
     });
 
     it("a redirect anywhere but a storage node is refused (502), not followed", async () => {
@@ -354,9 +418,11 @@ describe.skipIf(!HAVE_NGINX)("the mirror, served by a real nginx", () => {
       expect(res.headers.get("cache-control")).toBe("max-age=60");
       const m = await res.json();
       expect(m).toEqual(manifestBody);
-      expect(m.fileHashes).toEqual([fh(PINNED_NAME)]);
-      expect(m.count).toBe(1);
+      // The pin and the repaired copy; not the repaired show's pinned original twice.
+      expect(m.fileHashes).toEqual([fh(PINNED_NAME), fh(REPAIRED_NAME)].sort());
+      expect(m.count).toBe(2);
       expect(m.pinned).toBe(1);
+      expect(m.repaired).toBe(1);
     });
 
     it("answers 304 to the ETag a client echoes back verbatim (src/services/mirror/manifest.ts)", async () => {
@@ -388,11 +454,19 @@ describe.skipIf(!HAVE_NGINX)("the mirror, served by a real nginx", () => {
   });
 
   describe("scripts/deploy-mirror.sh's verification (verify.mjs)", () => {
-    it("passes every check on this mirror: manifest + 304, pinned 206 + 416, unpinned fill, magnet, unknown 404", async () => {
-      const { ok, lines } = await verifyMirror(base, index, { archiveUp: async () => true });
+    it("passes every check on this mirror: manifest + 304, pinned 206 + 416, repaired 206, unpinned fill, magnet, unknown 404", async () => {
+      const { ok, lines } = await verifyMirror(base, index, { archiveUp: async () => true, repairs });
       expect(lines.filter((l) => !l.startsWith("ok"))).toEqual([]);
       expect(ok).toBe(true);
-      expect(lines).toHaveLength(7);
+      expect(lines).toHaveLength(8);
+    });
+
+    it("fails when a repaired show is served as archive.org's original", async () => {
+      // A record claiming another length: what /mirror/ serves is not the copy it names.
+      const wrong = [{ fileHash: repairs[0].fileHash, repaired: { bytes: REPAIRED_COPY.length + 1 } }];
+      const { ok, lines } = await verifyMirror(base, index, { archiveUp: async () => true, repairs: wrong });
+      expect(ok).toBe(false);
+      expect(lines.some((l) => l.startsWith("FAIL  repaired"))).toBe(true);
     });
 
     it("fails when an unpinned episode cannot be served while archive.org is up", async () => {

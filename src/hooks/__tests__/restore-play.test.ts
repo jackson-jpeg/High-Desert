@@ -150,6 +150,17 @@ describe("restoring the last-played episode", () => {
     expect(element.currentTime).toBe(615);
   });
 
+  it("a restored repaired show is pointed at the mirror's copy, never archive.org's broken file", () => {
+    const fileHash = "archive:ultimate-ultimate-art-bell-collection:2001-11-26 - Coast to Coast AM with Art Bell - Glenn Kimball - Egypt Illinois Cave.mp3";
+    const ep = makeEpisode({ fileHash, sourceUrl: "https://archive.org/download/x/egypt.mp3" });
+    act(() => {
+      usePlayerStore.getState().loadEpisode(ep, "");
+      player.api.primeEpisode(ep);
+    });
+    expect(element.src).toContain(`/mirror/${encodeURIComponent(fileHash)}`);
+    expect(usePlayerStore.getState().source).toBe("mirror");
+  });
+
   it("costs no network — a restored episode nobody plays must not be fetched", () => {
     act(() => {
       player.api.primeEpisode(makeEpisode());
