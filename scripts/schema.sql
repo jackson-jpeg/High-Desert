@@ -231,6 +231,14 @@ ALTER TABLE playback_failures ADD COLUMN IF NOT EXISTS build text
 -- database that predates it is still a no-op.
 ALTER TABLE playback_failures
   ADD COLUMN IF NOT EXISTS detail text;
+-- The reporting tab's random id, one per page load and never the presence
+-- session (so a failure cannot be joined to a play). It is what lets one tab
+-- pressing Try Again 35 times count as one lost start (LOST_START_GAP_MINUTES
+-- in src/services/stats/db/failures.ts, 2026-10-11). NULL on older rows; the
+-- row itself is pruned at 90 days.
+ALTER TABLE playback_failures
+  ADD COLUMN IF NOT EXISTS tab_ref text
+  CHECK (tab_ref IS NULL OR tab_ref ~ '^[A-Za-z0-9_-]{8,64}$');
 
 CREATE INDEX IF NOT EXISTS playback_failures_at_idx
   ON playback_failures (at DESC);

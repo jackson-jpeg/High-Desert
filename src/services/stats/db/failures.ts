@@ -23,7 +23,28 @@ export interface PlaybackFailureInput {
   source?: PlaySource | null;
   /** The build that wrote the row (src/lib/utils/build-id.ts); null when unknown. */
   build?: string | null;
+  /**
+   * The reporting tab's random id (`FAILURE_TAB_ID`, src/lib/utils/session-id.ts):
+   * one per page load, never the presence session, so a failure cannot be
+   * joined to a play. What lets one tab pressing Try Again count once
+   * (`LOST_START_GAP_MINUTES`). Null on rows from before 2026-10-11.
+   */
+  tab?: string | null;
 }
+
+/**
+ * One lost start per tab per show: an unrecovered failure within this many
+ * minutes of the same tab's previous unrecovered failure on the same show is a
+ * **repeat** of that lost start (Try Again pressed again), not another one.
+ * The chain is by gap, so a tab hammering one show for half an hour is one
+ * loss, and the same tab coming back to it an hour later is a second.
+ *
+ * Rows from before `tab_ref` existed are grouped by (ua_class, build) instead:
+ * two phones of one kind on one build failing one show within ten minutes of
+ * each other read as one. That undercounts, and only on old rows
+ * (docs/reliability-baseline.md, 2026-10-11).
+ */
+export const LOST_START_GAP_MINUTES = 10;
 
 /**
  * Kinds that are recorded but are not failures, and must never be counted as
@@ -50,8 +71,8 @@ export async function recordPlaybackFailure(
       DELETE FROM playback_failures WHERE at < now() - interval '90 days'
     )
     INSERT INTO playback_failures
-      (episode_id, kind, retried, recovered, elapsed_ms, ua_class, detail, source, build)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      (episode_id, kind, retried, recovered, elapsed_ms, ua_class, detail, source, build, tab_ref)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     `,
     [
       f.episodeId,
@@ -63,6 +84,7 @@ export async function recordPlaybackFailure(
       f.detail ?? null,
       f.source ?? null,
       f.build ?? null,
+      f.tab ?? null,
     ],
   );
 }
@@ -244,6 +266,14 @@ export interface FailureWindow {
    * (docs/reliability-baseline.md, 2026-09-28).
    */
   recovered: number;
+  /**
+   * Starts the listener lost, counted once per tab per show
+   * (`LOST_START_GAP_MINUTES`): the release line's headline since 2026-10-11.
+   * `lost + repeats = failures - recovered`.
+   */
+  lost: number;
+  /** Unrecovered failures that repeated a lost start in the same tab: shown, never counted as losses. */
+  repeats: number;
   plays: number;
   /**
    * The same window split by the build that wrote each row, `build: null` for
@@ -259,6 +289,8 @@ export interface BuildCounts {
   build: string | null;
   failures: number;
   recovered: number;
+  lost: number;
+  repeats: number;
   plays: number;
 }
 
@@ -273,35 +305,64 @@ export interface BuildCounts {
  * `playsInRange`, which is what the baseline was measured with.
  */
 export async function getFailureWindow(from: Date, to: Date): Promise<FailureWindow> {
-  const { rows } = await pool().query<{ build: string | null; failures: string; recovered: string; plays: string }>(
+  const { rows } = await pool().query<{
+    build: string | null;
+    failures: string;
+    recovered: string;
+    lost: string;
+    repeats: string;
+    plays: string;
+  }>(
     `
-    SELECT build, sum(failures) AS failures, sum(recovered) AS recovered, sum(plays) AS plays FROM (
-      SELECT build, count(*) AS failures, count(*) FILTER (WHERE recovered) AS recovered, 0 AS plays
-        FROM playback_failures
-       WHERE at >= $1 AND at < $2 AND NOT (kind = ANY($3))
+    WITH f AS (
+      SELECT build, recovered,
+             -- An unrecovered failure starts a lost start unless the same tab
+             -- failed the same show, unrecovered, within the gap before it.
+             NOT recovered AND (
+               lag(at) OVER w IS NULL OR at - lag(at) OVER w > make_interval(mins => $4)
+             ) AS starts_loss
+        FROM (
+          SELECT build, recovered, at, episode_id,
+                 COALESCE('tab:' || tab_ref, 'ua:' || ua_class || ':' || COALESCE(build, '-')) AS tab
+            FROM playback_failures
+           WHERE at >= $1 AND at < $2 AND NOT (kind = ANY($3))
+        ) r
+      WINDOW w AS (PARTITION BY tab, episode_id, recovered ORDER BY at)
+    )
+    SELECT build, sum(failures) AS failures, sum(recovered) AS recovered,
+           sum(lost) AS lost, sum(repeats) AS repeats, sum(plays) AS plays FROM (
+      SELECT build, count(*) AS failures, count(*) FILTER (WHERE recovered) AS recovered,
+             count(*) FILTER (WHERE starts_loss) AS lost,
+             count(*) FILTER (WHERE NOT recovered AND NOT starts_loss) AS repeats, 0 AS plays
+        FROM f
        GROUP BY build
       UNION ALL
-      SELECT build, 0, 0, count(*) FROM play_events
+      SELECT build, 0, 0, 0, 0, count(*) FROM play_events
        WHERE played_at >= $1 AND played_at < $2
        GROUP BY build
     ) x
     GROUP BY build
     ORDER BY build NULLS LAST
     `,
-    [from.toISOString(), to.toISOString(), ADVISORY_KINDS],
+    [from.toISOString(), to.toISOString(), ADVISORY_KINDS, LOST_START_GAP_MINUTES],
   );
   const byBuild = rows.map((r) => ({
     build: r.build,
     failures: Number(r.failures),
     recovered: Number(r.recovered),
+    lost: Number(r.lost),
+    repeats: Number(r.repeats),
     plays: Number(r.plays),
   }));
+  const sum = (k: "failures" | "recovered" | "lost" | "repeats" | "plays") => byBuild.reduce((n, b) => n + b[k], 0);
   return {
     from: from.toISOString(),
     to: to.toISOString(),
-    failures: byBuild.reduce((n, b) => n + b.failures, 0),
-    recovered: byBuild.reduce((n, b) => n + b.recovered, 0),
-    plays: byBuild.reduce((n, b) => n + b.plays, 0),
+    failures: sum("failures"),
+    recovered: sum("recovered"),
+    lost: sum("lost"),
+    repeats: sum("repeats"),
+    plays: sum("plays"),
     byBuild,
   };
 }

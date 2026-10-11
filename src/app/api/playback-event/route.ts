@@ -59,6 +59,9 @@ const KINDS = new Set([
  */
 const VERIFICATION_MARKER = "HD-VERIFY";
 
+/** The schema's CHECK on playback_failures.tab_ref. */
+const TAB_ID = /^[A-Za-z0-9_-]{8,64}$/;
+
 const UA_CLASSES = new Set([
   "ios-safari",
   "ios-pwa",
@@ -92,7 +95,7 @@ export async function POST(request: NextRequest) {
   if (parsed.error) return parsed.error;
   const body = parsed.body;
 
-  const { episodeId, kind, retried, recovered, elapsedMs, uaClass, detail, source, build, live } =
+  const { episodeId, kind, retried, recovered, elapsedMs, uaClass, detail, source, build, live, tab } =
     body;
 
   if (typeof episodeId !== "string" || !episodeId) {
@@ -169,6 +172,9 @@ export async function POST(request: NextRequest) {
       // The build that wrote it, so the release line counts it against that
       // build (docs/reliability-baseline.md). Unknown values are dropped.
       build: isBuildId(build) ? build : null,
+      // The tab's random id (FAILURE_TAB_ID), so a Try Again burst counts as
+      // one lost start. Anything else is dropped, not rejected.
+      tab: typeof tab === "string" && TAB_ID.test(tab) ? tab : null,
     });
   } catch (err) {
     // No DATABASE_URL, or Postgres is down. Losing a failure report is not

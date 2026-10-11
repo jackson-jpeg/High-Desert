@@ -16,6 +16,7 @@ const {
   dueDay,
   parseStatus,
   parseRelease,
+  LOST_START_GAP_MINUTES: digestGap,
   releaseVerdict,
   releaseBuilds,
   isReleaseBuild,
@@ -81,6 +82,18 @@ describe("reading highdesert-status", () => {
     const r = parseRelease(l);
     expect(r).toMatchObject({ pct: 1, lost: 3, rescued: 20, plays: 300 });
     expect(releaseVerdict(r)).toBe("pass");
+  });
+
+  it("one tab's Try Again presses are one lost start; the repeats are read and shown, never counted (2026-10-11)", async () => {
+    const [l] = parseStatus(
+      "OK    release   1.7% of starts lost on this release's builds in the 7 of 7 days since 2026-09-28T14:49:18Z (23 lost / 1329 plays; target <3%); 61 rescued by the retry or the mirror (4.6%); 34 repeats of a lost start in the same tab, not counted",
+    );
+    const r = parseRelease(l);
+    expect(r).toMatchObject({ pct: 1.7, lost: 23, rescued: 61, repeats: 34, plays: 1329 });
+    expect(releaseVerdict(r)).toBe("pass");
+    // The gap is the one the database uses.
+    const { LOST_START_GAP_MINUTES } = await import("../../src/services/stats/db/failures");
+    expect(LOST_START_GAP_MINUTES).toBe(digestGap);
   });
 
   it("no verdict under 300 plays; a fail at 3% or more on 300", () => {

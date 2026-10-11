@@ -38,6 +38,8 @@ export const DIGEST_DIR = "docs/digest";
 /** The release line's target, and the plays it needs before it is a verdict (scripts/status.sh). */
 export const TARGET_PCT = 3;
 export const VERDICT_PLAYS = 300;
+/** One lost start per tab per show within this many minutes (src/services/stats/db/failures.ts). */
+export const LOST_START_GAP_MINUTES = 10;
 /** The first week with a digest: the job went in on 2026-09-28, and a digest for the week before it would be mislabelled. */
 export const FIRST_DUE = "2026-10-05";
 /** When the week's digest is due: Monday, 17:40 UTC. */
@@ -93,12 +95,14 @@ export function parseRelease(line) {
   const counts = /^(\d+) starts? lost in (\d+) plays?\b/.exec(t);
   const rate = /^[\d.]+% of starts lost.*?\((\d+) lost \/ (\d+) plays/.exec(t);
   const rescued = /(\d+) rescued by the retry or the mirror/.exec(t);
+  // One tab's Try Again presses on one show are one lost start (2026-10-11); the rest are repeats.
+  const repeats = /(\d+) repeats? of a lost start/.exec(t);
   const m = counts ?? rate;
   if (!m || !rescued) return { pct: null, lost: null, rescued: null, plays: null, ...base };
   const lost = Number(m[1]);
   const plays = Number(m[2]);
   const pct = plays > 0 ? Math.round((1000 * lost) / plays) / 10 : 0;
-  return { pct, lost, rescued: Number(rescued[1]), plays, ...base };
+  return { pct, lost, rescued: Number(rescued[1]), repeats: repeats ? Number(repeats[1]) : 0, plays, ...base };
 }
 
 /** "pass" / "fail" once there are VERDICT_PLAYS plays, else null (not yet). */
@@ -335,6 +339,7 @@ export function render(d) {
     L.push(`${release.pct}% of starts lost ${release.whose} (${release.lost} of ${fmtN(release.plays)} plays; target under ${TARGET_PCT}%). ${word}`);
     L.push(`Rescued by the retry or the mirror: ${release.rescued} (${pctOf(release.rescued, release.plays)}%), shown beside the target, not held to it.`);
   }
+  if (release?.repeats) L.push(`Repeats: ${release.repeats} more ${plural(release.repeats, "failure")} were one tab trying the same show again within ${LOST_START_GAP_MINUTES} minutes (Try Again pressed again). Each such run is one lost start above.`);
   if (release?.older) L.push(`Tabs on older builds: ${release.older.lost} lost and ${release.older.rescued} rescued in ${fmtN(release.older.plays)} plays, counted apart.`);
   L.push("");
 
