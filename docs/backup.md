@@ -83,6 +83,54 @@ insert fell between the dump and the count. `traffic_daily` ran through
 2026-09-21 in both. The scratch database was then dropped
 (`dropdb highdesert_restore_test`; verified absent).
 
+## The encrypted off-box copy (2026-10-11)
+
+The Mac copy is often asleep, and it was the only copy off this box. Leg 4 of
+`backup-db.sh` runs `scripts/backup-offsite.sh` every night:
+
+- Every dump the VPS keeps is encrypted with [age](https://age-encryption.org)
+  to the public key in `deploy/backup-age-recipient.txt`
+  (`age1n4afss2u57hdray3u92wu0qz6vcdqzqrpmaezsgjs3yxtv8l5ccqnqf0dj`) and pushed
+  to the **private** repo `jackson-jpeg/highdesert-backups`, with each dump's
+  sha256 beside it.
+- **14 days kept, and no history.** Each run force-pushes one orphan commit of
+  exactly the set the VPS holds, so no dump outlives retention in git.
+- **A restore test every run:** the newest copy is decrypted with the private
+  key and must equal the dump byte for byte, and `pg_restore` must find
+  `play_events` and `traffic_daily` in it.
+- A failure is a WARN in `highdesert-backup-status` ("encrypted off-box
+  (GitHub) copy"), like the Mac leg: the VPS dump stands.
+
+**The private key** is `/root/.high-desert-backup-age.key` (chmod 600) on the
+VPS, and a copy went to the Mac with the 2026-10-11 handoff. It is not on
+GitHub. If the VPS is lost, that key is the only way into these copies: keep
+it in a password manager.
+
+Restore from GitHub:
+
+```bash
+git clone https://github.com/jackson-jpeg/highdesert-backups.git && cd highdesert-backups
+age -d -i ~/highdesert-backup-age.key -o db.dump highdesert-<stamp>.dump.age
+sha256sum db.dump; cat highdesert-<stamp>.dump.sha256    # must match
+pg_restore --no-owner --no-privileges -d <empty database> db.dump
+```
+
+### Rehearsal from GitHub, 2026-10-11
+
+Cloned the repo, decrypted the newest copy (`highdesert-20261010T173057Z`):
+sha256 `b3f72881…1c235d`, equal to the dump's. Restored into a scratch
+database (`highdesert_restore_rehearsal`, dropped after). Restored against
+production at the time of the check (the dump is 22 h older):
+
+| table | restored | production |
+|---|---|---|
+| play_events | 5,720 | 5,854 |
+| traffic_daily | 76 | 77 |
+| episode_plays | 1,218 | 1,219 |
+| live_days | 30 | 31 |
+
+Newest restored play: 2026-10-10 17:07:43 UTC, minutes before the dump.
+
 ## Tests
 
 `scripts/__tests__/backup-db.test.ts` runs the real scripts:
@@ -96,4 +144,11 @@ insert fell between the dump and the count. `traffic_daily` ran through
   leaves no dump behind.
 - **Status script.** It reports OK, STALE (37h, and no dump at all) and FAILED.
 
-Mutations: `backup-retention`, `backup-mac-floor` and `backup-status-stale`.
+- **The encrypted copy.** Real age, a local bare repo for GitHub: the pushed
+  copy is cloned, decrypted and restored, and the inserted row comes back; the
+  marker is not in the ciphertext; a pruned dump leaves the repo, which holds
+  one commit; a copy that decrypts to other bytes fails the leg as a WARN.
+
+Mutations: `backup-retention`, `backup-mac-floor`, `backup-status-stale`,
+`offsite-restore-compare`, `offsite-drops-pruned`, `offsite-no-history` and
+`backup-runs-offsite`.
