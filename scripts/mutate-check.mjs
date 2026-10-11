@@ -2961,6 +2961,22 @@ export const MUTATIONS = [
     why: "the digest reads the station guard's week",
   },
   {
+    id: "breaker-fed-by-route",
+    test: "src/app/api/playback-event/__tests__/breaker-feed.test.ts",
+    file: "src/app/api/playback-event/route.ts",
+    find: "live: live === true, at: Date.now() })",
+    replace: "live: false, at: Date.now() })",
+    why: "the breaker hears a station failure only through the route",
+  },
+  {
+    id: "breaker-station-show-only",
+    test: "src/services/stats/__tests__/on-the-station.test.ts",
+    file: "src/services/stats/client.ts",
+    find: "return tuned && phase === \"show\" && !!current && current.episodeId === episodeId;",
+    replace: "return tuned;",
+    why: "a library play of another show must not count toward the station's breaker",
+  },
+  {
     id: "live-setup-nonce-stored",
     test: "scripts/__tests__/live-setup.db.test.ts",
     file: "scripts/live-setup.sh",
