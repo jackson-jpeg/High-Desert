@@ -179,6 +179,12 @@ same command with `set -o pipefail;` in front, and nothing else changed:
 5. a `kill` command line that contained a pipe
 6. `cat <task output>; ps aux | grep …`. Re-run without the pipe, through a
    file.
+7. `git diff package-lock.json | grep …`, while checking the incident below.
+   Re-run with `set -o pipefail;` and a file.
+
+The harness also blocked a foreground `sleep 240` chain. I probed the state
+without the sleep instead. The auto-mode classifier denied one action: the
+dependency commit described under "Incident" below.
 
 The parallel investigation agents hit 4 and 7 pipefail blocks of their own and
 handled them the same way. The macOS hook did not block anything.
@@ -189,6 +195,58 @@ Two other incidents:
   line. I kill by PID now.
 - A `createdb` with no password prompted in a loop in the background. I killed
   it by PID and created the scratch database as the postgres user instead.
+
+## Incident: `npm update` ran in the production tree (16:50 UTC)
+
+`highdesert-status` showed three new high advisories: `next` <16.3.8,
+`sharp` <0.35.5 and `source-map-js` <1.2.2. All three have patch fixes. I
+meant to bump them in a worktree. `git worktree add ../hd-deps` failed
+because that directory already exists (an old worktree on
+`deps/2026-09-28`). The `cd` was chained with `&&`, but the next command
+came after a `;`, so `npm update sharp source-map-js` **ran in
+`/root/High-Desert`** and rewrote the live `node_modules` and the
+lockfile.
+
+- **What changed:** sharp 0.35.4 → 0.35.5 (and its `@img/sharp-libvips-*`
+  binaries, 1.3.3 → 1.3.4), and source-map-js 1.2.1 → 1.2.2. Nothing else.
+- **Effect on the live site: none found.**
+  - `deploy.sh --verify-only` straight after: /, /library, /radio and
+    /stats all 200, every chunk 200.
+  - The running server's processes map no sharp or libvips (checked in
+    `/proc/<pid>/maps`); `images.unoptimized` means nothing loads it.
+- **What I did next:**
+  - I did not run npm in the production tree again.
+  - I bumped `next` to 16.3.8 in a fresh worktree, `/root/hd-deps-1011`.
+    There, `npm audit --omit=dev` finds 0 vulnerabilities.
+  - I tried to commit that bump, fast-forward the production tree to it and
+    push. **The auto-mode classifier denied it ("Modify Shared Resources"),
+    and I left it there.**
+- **What you decided, and what I did:**
+  1. Reverted the lockfile in `/root/High-Desert` (`git checkout --
+     package-lock.json`). The tree was clean apart from this handoff, and
+     `--verify-only` passed again. `node_modules` was left alone: until the
+     deploy's staging install replaced it, it held sharp 0.35.5 under a
+     lockfile that said 0.35.4.
+  2. Made the bump properly. In the worktree I installed next 16.3.8, sharp
+     0.35.5 and source-map-js 1.2.2, and `npm audit --omit=dev` found 0
+     vulnerabilities. `tsc` and `eslint` were clean against those packages.
+     I committed it as `d5f977c` on this branch, so it went through PR #68's
+     CI and `deploy.sh` like everything else.
+  3. **Built a mechanical guard,** `block-npm-in-prod.py`, a Claude Code
+     PreToolUse hook (vps-tools `1e9ea85`, installed in
+     `~/.claude/hooks`, registered in `~/.claude/settings.json`):
+     - It blocks npm, pnpm and yarn installs, ci, updates, uninstalls and
+       the like whose directory resolves to `/root/High-Desert` or below.
+     - It follows `cd` through `&&`, `;` and `||` the way the shell would,
+       and handles `--prefix`/`-C` and the usual wrappers.
+     - `tests/block-npm-in-prod.test.py`: 68 cases both ways, including
+       this incident verbatim. Three deliberate breaks of the hook each
+       failed the test.
+     - Live in this session: `false && npm ci` was blocked.
+     - Documented in `/root/CLAUDE.md`.
+- **Lesson:** a command that must run in another directory goes in one
+  `&&` chain, or uses `npm --prefix`/`git -C`. It never comes after a `;`
+  that follows a `cd` which might fail.
 
 ## Left to do
 
