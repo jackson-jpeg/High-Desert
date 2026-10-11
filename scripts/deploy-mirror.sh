@@ -145,6 +145,8 @@ cp -r "$ROOT/services/mirror/warm.mjs" "$ROOT/services/mirror/migrate.mjs" "$ROO
       "$ROOT/services/mirror/verify.mjs" "$ROOT/services/mirror/lib" "$ROOT/services/mirror/package.json" "$STAGE/"
 cp "$ROOT/data/torrents/episodes.json" "$STAGE/episodes.json"
 cp "$ROOT/src/data/repaired-episodes.json" "$STAGE/repaired.json"
+# Each collection's own server: the fill's fallback when /download fails.
+cp "$ROOT/data/archive-items.json" "$STAGE/items.json"
 git -C "$ROOT" rev-parse HEAD > "$STAGE/COMMIT"
 chown -R root:root "$STAGE"
 # The gateway's unit, kept beside its code so --rollback can put it back.

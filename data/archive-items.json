@@ -1,0 +1,36 @@
+{
+  "1993-06-20-coast-to-coast-am-with-art-bell-al-bielek-philadelphia-experiment_202510": {
+    "servers": [
+      "ia601003.us.archive.org",
+      "ia801003.us.archive.org"
+    ],
+    "dir": "/23/items/1993-06-20-coast-to-coast-am-with-art-bell-al-bielek-philadelphia-experiment_202510"
+  },
+  "Art-Bell_Midnight_In_the_Desert": {
+    "servers": [
+      "dn601202.us.archive.org"
+    ],
+    "dir": "/0/items/Art-Bell_Midnight_In_the_Desert"
+  },
+  "art-bell-1990-2000": {
+    "servers": [
+      "ia601604.us.archive.org",
+      "ia801604.us.archive.org"
+    ],
+    "dir": "/31/items/art-bell-1990-2000"
+  },
+  "art-bell-2001-to-2010": {
+    "servers": [
+      "ia601605.us.archive.org",
+      "ia801605.us.archive.org"
+    ],
+    "dir": "/22/items/art-bell-2001-to-2010"
+  },
+  "ultimate-ultimate-art-bell-collection": {
+    "servers": [
+      "ia600503.us.archive.org",
+      "ia800503.us.archive.org"
+    ],
+    "dir": "/35/items/ultimate-ultimate-art-bell-collection"
+  }
+}
