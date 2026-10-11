@@ -303,9 +303,54 @@ const SHORT_FMT = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "num
 /** Table cells: no pipes, no newlines, short. */
 const cell = (v, n = 60) => String(v ?? "").replace(/[|\n\r]/g, " ").slice(0, n);
 
+/** A fileHash (`archive:{identifier}:{fileName}`) to the community key titleOf reads. */
+export function keyOfHash(fileHash) {
+  const m = /^archive:([^:]+):(.+)$/.exec(String(fileHash ?? ""));
+  if (!m) return String(fileHash ?? "");
+  return `${m[1]}--${m[2].replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120)}`;
+}
+
+/** The pre-air walk's status is stale past this: the next day may freeze unwalked. */
+export const VERIFY_STALE_HOURS = 36;
+
+/**
+ * The station guard's week (2026-10-11): shows the breaker cut on air
+ * (`live_overrides`), shows the pre-air walk kept off the air (verify swaps
+ * in the frozen days), and the walk's own last run.
+ */
+export function stationGuardLines(g, titleOf, now) {
+  if (!g) return { lines: ["No reading."], actions: [] };
+  const t = (h) => cell(titleOf(keyOfHash(h)), 48);
+  const lines = [];
+  const actions = [];
+  for (const x of g.trips ?? []) {
+    lines.push(
+      `- Cut on air: ${t(x.fileHash)}, ${SHORT_FMT.format(new Date(Number(x.cutAt)))} UTC, ${x.clients} listeners failing (${(x.kinds ?? []).join(", ")}). ${
+        x.replacement ? `${t(x.replacement)} played the rest of the slot.` : "No walked show to put on: the station ID held to the next slot."
+      }`,
+    );
+  }
+  for (const x of g.swaps ?? []) lines.push(`- Kept off the air: ${t(x.replaces)} on ${x.day} failed its walk; ${t(x.fileHash)} aired instead.`);
+  if (g.trips?.length) actions.push(`**Station breaker:** ${g.trips.length} ${plural(g.trips.length, "show")} cut on air. Walk each file (scripts/measure-duration.mjs) and repair a broken one (docs/broken-episodes.md).`);
+  const v = g.verify;
+  if (!lines.length) lines.push("No show cut on air and none kept off it.");
+  if (!v) {
+    lines.push("Pre-air walk: never ran (highdesert-verify-live.timer).");
+    actions.push("**Pre-air walk:** has never run. `systemctl status highdesert-verify-live.timer`.");
+  } else {
+    const age = (new Date(now).getTime() - new Date(v.at).getTime()) / 3_600_000;
+    lines.push(
+      `Pre-air walk for ${v.day}: ${v.walked} of ${v.candidates} walked, ${v.bad?.length ?? 0} bad, ${v.unreadable ?? 0} unreadable, ${v.left ?? 0} left (${String(v.at).slice(0, 16).replace("T", " ")} UTC).`,
+    );
+    if (age > VERIFY_STALE_HOURS) actions.push(`**Pre-air walk:** last ran ${Math.round(age)}h ago. \`journalctl -u highdesert-verify-live\`.`);
+  }
+  return { lines, actions };
+}
+
 /** The digest as markdown. No em dashes anywhere (CLAUDE.md, user-facing copy). */
 export function render(d) {
-  const { day, writtenAt, status, release, funnel, handover, traffic, topShows, places, disk, evidence, titleOf, missing = [] } = d;
+  const { day, writtenAt, status, release, funnel, handover, traffic, topShows, places, disk, evidence, titleOf, missing = [], guard } = d;
+  const station = stationGuardLines(guard, titleOf, writtenAt);
   const L = [];
   L.push(`# High Desert, week to ${DAY_FMT.format(new Date(`${day}T00:00:00Z`))}`);
   L.push("");
@@ -317,6 +362,7 @@ export function render(d) {
   for (const l of status.filter((x) => x.level === "FAIL")) actions.push(`**FAIL ${l.area}:** ${cell(l.text, 160)} ${FAIL_ACTIONS[l.area] ?? ""}`.trim());
   const verdict = releaseVerdict(release);
   if (verdict === "fail") actions.push(`**Release over target:** ${release.pct}% of starts lost on ${fmtN(release.plays)} plays (target under ${TARGET_PCT}%).`);
+  actions.push(...station.actions);
   if (missing.length) actions.push(`**Could not read:** ${missing.join(", ")}. The digest job's journal says why.`);
   if (evidence) actions.push("The evidence for a fix session is at the bottom.");
   L.push("## Needs you");
@@ -359,6 +405,11 @@ export function render(d) {
   L.push("## Locked phones");
   L.push("");
   for (const l of handover.lines) L.push(l);
+  L.push("");
+
+  L.push("## Station guard");
+  L.push("");
+  for (const l of station.lines) L.push(l);
   L.push("");
 
   L.push("## The week");
@@ -553,6 +604,21 @@ export function productionSources(env) {
         [since, ADVISORY_KINDS],
       );
     },
+    async guard(since) {
+      const trips = await q(
+        `SELECT file_hash AS "fileHash", cut_at AS "cutAt", replacement, clients, kinds
+           FROM live_overrides WHERE created_at >= $1 ORDER BY cut_at`,
+        [since],
+      );
+      const swaps = await q(
+        `SELECT d.day::text AS day, s->>'replaces' AS replaces, s->>'fileHash' AS "fileHash"
+           FROM live_days d, jsonb_array_elements(d.program->'slots') s
+          WHERE d.day >= ($1::timestamptz AT TIME ZONE 'America/Los_Angeles')::date AND s->>'kind' = 'verify-swap'
+          ORDER BY d.day, (s->>'start')::bigint`,
+        [since],
+      );
+      return { trips, swaps, verify: await readJson(env.HD_VERIFY_STATUS ?? "/var/lib/highdesert-verify-live/status.json") };
+    },
     async close() {
       if (poolP) await (await poolP).end();
     },
@@ -601,6 +667,7 @@ export async function gather(sources, now) {
     topShows: await safe("plays", () => sources.topShows(weekAgo), null),
     places: await safe("the phone lines", () => sources.places(weekAgo), null),
     disk: await safe("disk", () => sources.disk(), null),
+    guard: await safe("the station guard", () => sources.guard(weekAgo), null),
     evidence,
     titleOf,
     missing,

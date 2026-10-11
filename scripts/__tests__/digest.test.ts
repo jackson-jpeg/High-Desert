@@ -237,6 +237,7 @@ function sources(over: Partial<Record<string, () => Promise<unknown>>> = {}) {
     topShows: async () => [{ episodeId: "coll--ep_a", plays: 139 }],
     places: async () => ({ calls: 135, callers: 65, unplaced: 95, top: [{ place: "Los Angeles", calls: 5 }] }),
     failures: async () => [],
+    guard: async () => ({ trips: [], swaps: [], verify: { at: "2026-10-05T15:21:00Z", day: "2026-10-06", candidates: 64, walked: 3, bad: [], unreadable: 0, left: 0 } }),
     close: async () => {},
     ...over,
   };
@@ -257,10 +258,40 @@ describe("the digest itself", () => {
     expect(md).toContain("Area 51 , John Lear (139)"); // the catalog's em dash, taken out
     expect(md).toContain("Calling from: Los Angeles 5 (95 calls gave no place)");
     expect(md).toContain("highdesert-status: all 4 checks OK.");
+    expect(md).toContain("## Station guard\n\nNo show cut on air and none kept off it.\nPre-air walk for 2026-10-06: 3 of 64 walked, 0 bad, 0 unreadable, 0 left (2026-10-05 15:21 UTC).");
     expect(md).toContain("Disk: 62% used, 38 GB free. Pins: 332 shows (15.0 GB). CPU: busiest unit highdesert 0.7% of a core.");
     expect(md).not.toMatch(/—/);
     expect(md).not.toContain("Evidence for a fix session");
     expect(screenLines(md)).toBeLessThanOrEqual(dg.SCREEN_LINES);
+  });
+
+  it("the station guard: a cut show needs you, a kept-off one is reported, a stale walk is raised", async () => {
+    const guard = async () => ({
+      trips: [{ fileHash: "archive:coll:ep a.mp3", cutAt: Date.parse("2026-10-03T04:10:00Z"), replacement: "archive:coll:ep b.mp3", clients: 3, kinds: ["decode-error"] }],
+      swaps: [{ day: "2026-10-04", replaces: "archive:coll:ep c.mp3", fileHash: "archive:coll:ep b.mp3" }],
+      verify: { at: "2026-10-02T15:21:00Z", day: "2026-10-03", candidates: 60, walked: 60, bad: [{ fileHash: "x", reason: "midstream-change" }], unreadable: 1, left: 0 },
+    });
+    const catalog = async () => [
+      { archiveIdentifier: "coll", fileName: "ep a.mp3", title: "Area 51" },
+      { archiveIdentifier: "coll", fileName: "ep b.mp3", title: "Ghosts" },
+      { archiveIdentifier: "coll", fileName: "ep c.mp3", title: "Comets" },
+    ];
+    const md = render({ day: "2026-10-05", writtenAt: NOW, ...(await gather(sources({ guard, catalog }), NOW)) });
+    const top = md.slice(md.indexOf("## Needs you"), md.indexOf("## Release"));
+    expect(top).toContain("**Station breaker:** 1 show cut on air.");
+    expect(top).toContain("**Pre-air walk:** last ran 74h ago.");
+    const g = md.slice(md.indexOf("## Station guard"), md.indexOf("## The week"));
+    expect(g).toContain("- Cut on air: Area 51, Sat 3 Oct, 04:10 UTC, 3 listeners failing (decode-error). Ghosts played the rest of the slot.");
+    expect(g).toContain("- Kept off the air: Comets on 2026-10-04 failed its walk; Ghosts aired instead.");
+    expect(g).toContain("1 bad, 1 unreadable");
+    expect(md).not.toMatch(/—/);
+    expect(screenLines(md)).toBeLessThanOrEqual(dg.SCREEN_LINES);
+  });
+
+  it("a station guard that cannot be read is named, never passed off as quiet", async () => {
+    const md = render({ day: "2026-10-05", writtenAt: NOW, ...(await gather(sources({ guard: async () => Promise.reject(new Error("x")) }), NOW)) });
+    expect(md).toContain("**Could not read:** the station guard.");
+    expect(md).not.toContain("No show cut on air");
   });
 
   it("under 300 plays the release is counts, never a percentage", async () => {

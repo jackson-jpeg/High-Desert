@@ -1,0 +1,25 @@
+[Unit]
+Description=High Desert, the station's pre-air walk of the next day's files (audio_checks)
+Documentation=file:///root/High-Desert/scripts/verify-live-day.mjs
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Reads the catalog from the production tree and the mirror's pins and
+# repaired copies from its disk; writes only audio_checks and its status file.
+# A byte walk, not a decode, mostly waiting on archive.org: the 10% rule holds.
+WorkingDirectory=/root/High-Desert
+EnvironmentFile=/root/.high-desert.env
+ExecStart=/usr/bin/node /root/High-Desert/scripts/verify-live-day.mjs --budget-min 90
+Environment=HD_VERIFY_STATUS=/var/lib/highdesert-verify-live/status.json
+StateDirectory=highdesert-verify-live
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+CPUQuota=10%
+Nice=19
+IOSchedulingClass=idle
+TimeoutStartSec=2h
+SyslogIdentifier=highdesert-verify-live

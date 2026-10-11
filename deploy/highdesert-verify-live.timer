@@ -1,0 +1,13 @@
+[Unit]
+Description=High Desert, nightly pre-air walk of the next Pacific day's files
+
+[Timer]
+# 15:20 UTC is 08:20 in Los Angeles: the next station day is frozen at the
+# earliest during today's last show, hours later, so the freeze has the
+# verdicts. Clear of the 17:15 repo-bundle and the 17:30 backup.
+OnCalendar=*-*-* 15:20:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

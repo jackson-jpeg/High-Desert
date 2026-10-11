@@ -40,3 +40,20 @@ describe("highdesert.service", () => {
     expect(unit).not.toMatch(/DATABASE_URL=|_SECRET=/);
   });
 });
+
+describe("highdesert-verify-live.service (the station's nightly pre-air walk)", () => {
+  const u = readFileSync(path.resolve(__dirname, "../../deploy/highdesert-verify-live.service"), "utf8");
+  const d = (name: string) => u.split("\n").filter((l) => l.startsWith(`${name}=`)).map((l) => l.slice(name.length + 1).trim());
+
+  it("keeps to the 10% rule for High Desert background jobs: niced, idle IO, a quota", () => {
+    expect(d("Nice")).toEqual(["19"]);
+    expect(d("IOSchedulingClass")).toEqual(["idle"]);
+    expect(Number(d("CPUQuota")[0]?.replace("%", ""))).toBeLessThanOrEqual(10);
+  });
+
+  it("runs the walk with a time budget and writes its status for the digest", () => {
+    expect(d("ExecStart")[0]).toMatch(/verify-live-day\.mjs --budget-min \d+/);
+    expect(d("Environment")).toContain("HD_VERIFY_STATUS=/var/lib/highdesert-verify-live/status.json");
+    expect(d("EnvironmentFile")).toEqual(["/root/.high-desert.env"]);
+  });
+});
