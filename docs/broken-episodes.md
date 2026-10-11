@@ -152,9 +152,10 @@ The copy is accepted only if a full frame walk finds one configuration, the
 layout asked for, and a runtime within 2 s of the original's frame count.
 Mono, at the rate most of the original is in (44.1 kHz at 64 kbps, or
 22.05 kHz at 32 kbps for the 22.05 kHz rips), CBR: right for AM talk radio,
-and no larger than the original. A single stray frame counts: Chromium's
-decoder is configured from each frame header, and one frame of another
-layout is the same "midstream configuration change" as a sustained one. To repair another (run niced, under heavy):
+and no larger than the original. A single stray frame is repaired too.
+Whether Chromium refuses one frame of another layout the way it refused the
+Egyptian Cave's sustained switch has not been tested; every hit gets a copy
+regardless, since a copy costs nothing a listener can hear. To repair another (run niced, under heavy):
 
 ```
 heavy -- nice -n 19 ionice -c3 node scripts/repair-episode.mjs '<fileHash>'
