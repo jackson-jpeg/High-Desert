@@ -32,6 +32,9 @@ afterAll(async () => {
 const FROM = "2099-01-01";
 afterEach(async () => {
   await poolMod.pool().query("DELETE FROM live_days WHERE day >= $1::date", [FROM]);
+  await poolMod.pool().query("DELETE FROM live_overrides WHERE day >= $1::date", [FROM]);
+  await poolMod.pool().query("DELETE FROM audio_checks WHERE reason = 'test-2099'");
+  days.forgetOverrides();
   days.forgetFrozenDaysForTests();
 });
 
@@ -97,5 +100,52 @@ describeDb("frozen station days (Postgres)", () => {
     ]);
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
     expect(JSON.stringify(await stored(day))).toBe(JSON.stringify(a));
+  });
+
+  it("never freezes a file that failed its walk: the swap is stored with the day, and logged", async () => {
+    const day = "2099-09-14";
+    const plan = buildDay(day, { catalog, plays: ranked(1) }, []);
+    const badHash = plan.slots[1].fileHash;
+    // Through the real table: one failed walk, and every off-day favorite passed.
+    const okHashes = plan.ranking.filter((h) => !plan.slots.some((s) => s.fileHash === h)).slice(0, 50);
+    await poolMod.pool().query(
+      `INSERT INTO audio_checks (file_hash, ok, reason) SELECT h, h = ANY($2::text[]), 'test-2099' FROM unnest($1::text[]) h
+       ON CONFLICT (file_hash) DO NOTHING`,
+      [[badHash, ...okHashes], okHashes],
+    );
+    const lines: string[] = [];
+    const p = await days.frozenDay(day, { loadPlays: async () => ranked(1), loadPinned: async () => null, log: (l) => lines.push(l) });
+    expect(p.slots.some((s) => s.fileHash === badHash)).toBe(false);
+    const swap = p.slots.find((s) => s.replaces === badHash)!;
+    expect(swap).toMatchObject({ kind: "verify-swap", start: plan.slots[1].start });
+    expect(okHashes).toContain(swap.fileHash);
+    expect((await stored(day))!.slots[1]).toEqual(swap);
+    expect(lines.some((l) => l.includes(`verify-swap ${day}`) && l.includes(badHash))).toBe(true);
+    // The planned day for the nightly walk agrees with what was frozen.
+    expect((await days.plannedDay(day)).frozen).toBe(true);
+  });
+
+  it("a breaker trip cuts the show on the air at the next schedule read, and the replacement follows a station ID", async () => {
+    const day = "2099-10-02";
+    const p = await days.frozenDay(day, { loadPlays: async () => ranked(1), loadPinned: async () => null });
+    const A = p.slots[3];
+    const cutAt = A.start + 30 * 60_000;
+    const replacement = p.ranking.find((h) => !p.slots.some((s) => s.fileHash === h))!;
+    const ctx = async () => ({ archiveDown: false, manifest: null });
+    const before = await days.buildSchedule(cutAt + 1000, ctx);
+    expect("slot" in before.now && before.now.slot.fileHash).toBe(A.fileHash);
+
+    await poolMod.pool().query(
+      "INSERT INTO live_overrides (slot_start, file_hash, day, cut_at, replacement, clients, kinds) VALUES ($1, $2, $3::date, $4, $5, 3, '{decode-error}')",
+      [A.start, A.fileHash, day, cutAt, replacement],
+    );
+    days.forgetOverrides();
+    const after = await days.buildSchedule(cutAt + 1000, ctx);
+    expect(after.now).toMatchObject({ stationId: true });
+    expect(after.upNext[0]).toMatchObject({ fileHash: replacement, kind: "breaker-swap", replaces: A.fileHash });
+    const later = await days.buildSchedule(cutAt + 60_000, ctx);
+    expect("slot" in later.now && later.now.slot.fileHash).toBe(replacement);
+    // The frozen day itself is untouched.
+    expect(JSON.stringify(await stored(day))).toBe(JSON.stringify(p));
   });
 });
