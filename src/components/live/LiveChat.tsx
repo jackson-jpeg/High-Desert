@@ -7,7 +7,17 @@ import { useIsMobile } from "@/hooks/useMediaQuery";
 import { useCommunityNow } from "@/hooks/useCommunityNow";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { useLiveChat } from "@/hooks/useLiveChat";
-import { charCount, MAX_CHARS, suggestedPlace, tuneinText, type LiveMessage, type TuneinNotice } from "@/services/live/client";
+import {
+  charCount,
+  MAX_CHARS,
+  suggestedPlace,
+  tuneinText,
+  type ArchiveLine,
+  type LiveMessage,
+  type TuneinNotice,
+} from "@/services/live/client";
+import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
+import { formatAirDate } from "@/lib/utils/format";
 import { presenceAttrs } from "@/services/stats/now-feed";
 import { safeGetItem, safeSetItem } from "@/lib/utils/safe-storage";
 
@@ -33,6 +43,12 @@ import { safeGetItem, safeSetItem } from "@/lib/utils/safe-storage";
  * browser's time zone and nothing else; the header changes or clears it.
  * Tune-ins are quiet lines among the calls ("A listener just tuned in from
  * Ohio"), batched by the service, and a listener can hide them.
+ *
+ * Archive lines (2026-10-11) are moments from the show's history the service
+ * posts into a quiet room, at most one an hour (services/live/lib/archive.mjs).
+ * They are drawn as a card marked "From the archive", never as a call: no
+ * line label, no caller name, no Report. One from a show in the catalog links
+ * to it in the library.
  */
 
 type Chat = ReturnType<typeof useLiveChat>;
@@ -339,18 +355,22 @@ function PlaceEditor({ chat, variant, onDone }: { chat: Chat; variant: Variant; 
   );
 }
 
-type Row = { kind: "call"; at: number; m: LiveMessage } | { kind: "tunein"; at: number; n: TuneinNotice };
+type Row =
+  | { kind: "call"; at: number; m: LiveMessage }
+  | { kind: "tunein"; at: number; n: TuneinNotice }
+  | { kind: "archive"; at: number; a: ArchiveLine };
 
-/** Calls and tune-in lines, in time order; calls keep their own (id) order among themselves. */
-export function listRows(messages: LiveMessage[], notices: TuneinNotice[]): Row[] {
+/** Calls, tune-in lines and archive lines, in time order; calls keep their own (id) order among themselves. */
+export function listRows(messages: LiveMessage[], notices: TuneinNotice[], archive: ArchiveLine[] = []): Row[] {
   const rows: Row[] = messages.map((m) => ({ kind: "call", at: Date.parse(m.at), m }));
-  for (const n of notices) {
-    const at = Date.parse(n.at);
-    // After every call at or before it: a stable place, whatever the calls' clock.
+  const place = (row: Row) => {
+    // After every row at or before it: a stable place, whatever the calls' clock.
     let i = rows.length;
-    while (i > 0 && rows[i - 1].at > at) i--;
-    rows.splice(i, 0, { kind: "tunein", at, n });
-  }
+    while (i > 0 && rows[i - 1].at > row.at) i--;
+    rows.splice(i, 0, row);
+  };
+  for (const n of notices) place({ kind: "tunein", at: Date.parse(n.at), n });
+  for (const a of archive) place({ kind: "archive", at: Date.parse(a.at), a });
   return rows;
 }
 
@@ -361,13 +381,14 @@ function MessageList({ chat, variant, hideTuneins }: { chat: Chat; variant: Vari
   const lastId = chat.messages[count - 1]?.id;
   const notices = hideTuneins ? [] : chat.notices;
   const lastNotice = notices[notices.length - 1]?.at;
+  const lastArchive = chat.archive[chat.archive.length - 1]?.at;
 
   // Follow new calls only while the listener is at the bottom: scrolling back
   // through the night must not be yanked away by the next message.
   useLayoutEffect(() => {
     const el = listRef.current;
     if (el && pinned.current) el.scrollTop = el.scrollHeight;
-  }, [lastId, lastNotice]);
+  }, [lastId, lastNotice, lastArchive]);
 
   return (
     <ol
@@ -387,9 +408,11 @@ function MessageList({ chat, variant, hideTuneins }: { chat: Chat; variant: Vari
       {count === 0 && (
         <li className="text-hd-caption text-bevel-dark p-2">The lines are open. Be the first caller tonight.</li>
       )}
-      {listRows(chat.messages, notices).map((r) =>
+      {listRows(chat.messages, notices, chat.archive).map((r) =>
         r.kind === "call" ? (
           <MessageRow key={r.m.id} m={r.m} chat={chat} variant={variant} />
+        ) : r.kind === "archive" ? (
+          <ArchiveRow key={`a-${r.a.at}-${r.a.id}`} a={r.a} variant={variant} />
         ) : (
           <li key={`t-${r.n.at}`} data-testid="tunein-notice" className="px-1 py-0.5 text-hd-caption text-bevel-dark">
             {tuneinText(r.n)}
@@ -397,6 +420,47 @@ function MessageList({ chat, variant, hideTuneins }: { chat: Chat; variant: Vari
         ),
       )}
     </ol>
+  );
+}
+
+/** A moment from the show's history: a card, never a call. */
+export function ArchiveRow({ a, variant }: { a: ArchiveLine; variant: Variant }) {
+  const openLibrary = useOpenLibraryIntent();
+  const time = new Date(a.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const quote = a.form === "quote";
+  return (
+    <li
+      data-testid="archive-line"
+      data-form={a.form}
+      data-reason={a.reason}
+      className={cn(
+        "my-1 flex flex-col gap-0.5 border-l-2 border-static-green bg-raised-surface px-2 py-1",
+        variant === "glass" && "rounded-r-lg",
+      )}
+    >
+      <div className="flex items-baseline gap-2">
+        <span className="text-hd-micro uppercase tracking-wider text-static-green" data-testid="archive-label">
+          {a.reason === "on-air" ? "From the archive: this show" : "From the archive"}
+        </span>
+        <time className="ml-auto shrink-0 text-hd-micro text-bevel-dark/85" dateTime={a.at}>
+          {time}
+        </time>
+      </div>
+      <p className="text-hd-caption text-desktop-gray" data-testid="archive-text">
+        {quote ? `\u201C${a.text}\u201D` : a.text}
+        {quote && a.speaker && <span className="text-bevel-dark">{` (${a.speaker})`}</span>}
+      </p>
+      {a.episode && (
+        <button
+          type="button"
+          onClick={() => openLibrary({ q: a.episode!.title })}
+          className="self-start inline-flex items-center min-h-touch md:min-h-0 text-hd-micro text-signal-blue underline underline-offset-2"
+          data-testid="archive-episode"
+        >
+          {`Find the show: ${formatAirDate(a.episode.airDate)}`}
+        </button>
+      )}
+    </li>
   );
 }
 

@@ -132,6 +132,41 @@ room" cases in `src/components/live/__tests__/live-chat.test.tsx`, and
 `src/services/live/__tests__/client.test.ts`. Mutations: the `live-place-*`,
 `live-tunein-*`, `client-*` and `chat-*` ids in `scripts/mutate-check.mjs`.
 
+## Archive moments (2026-10-11)
+
+A line from the show's history, posted by the service into a quiet room
+(`lib/archive.mjs`, the moments in `lib/archive-moments.json`). It is never
+a caller and never looks like one.
+
+- **Its own event**: `archive {id, at, text, form, speaker, episode, reason}`,
+  and the last 3 in `hello` as `archive`. `form` is `"quote"` (a speaker's
+  own words, drawn in quotation marks with the speaker) or `"moment"` (a
+  description, never in quotation marks). `episode` is `{airDate, title}`
+  when the moment is from a show in the catalog; the card's "Find the show"
+  opens `/library?q=<title>`.
+- **Nothing stored.** It never reaches `live_messages`, so retention,
+  reports, mutes, the chat's message counts and every presence figure are
+  untouched by construction. It has no name, no line and no Report.
+- **The rules** (`config.mjs`), all required:
+  - a stream is open;
+  - no call for `ARCHIVE_QUIET_MS` (20 min), measured from the later of the
+    last call and the service's start, so a restart is not a quiet room;
+  - none posted for `ARCHIVE_INTERVAL_MS` (60 min).
+  Checked every minute.
+- **Tied to the broadcast.** The show on the air comes from the app's own
+  `/api/live/schedule` over loopback (`ARCHIVE_SCHEDULE_URL`). Best first:
+  a moment from that very episode, then one whose tags are in its title or
+  guest, then one from an episode that aired on today's date (Pacific), then
+  any. The last 30 used are not picked again while another candidate exists.
+  A schedule that cannot be read leaves the room a line from anywhere.
+- **The moments.** 50, written 2026-10-11 from general knowledge of the
+  show, not transcribed. So only one is a `quote` (the sign-on's opening
+  words); the rest are descriptions of moments, worded as such. Every linked
+  episode is checked against the catalog (`test/archive.test.mjs`). A
+  moment that turns out to be wrong is fixed or removed in the JSON. A real
+  quote, checked against the audio, can be added as `form: "quote"` with its
+  `speaker`.
+
 ## Who is calling
 
 **One browser, one caller** (since 2026-09-26). Before that a caller was an
