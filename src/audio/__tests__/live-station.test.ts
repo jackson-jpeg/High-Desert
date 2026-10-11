@@ -176,6 +176,8 @@ function episodeFor(s: ProgramSlot): Episode {
 
 let A: ProgramSlot;
 let B: ProgramSlot;
+/** What the server answers from now on, when a test changes the program (a breaker trip). */
+let served: LiveSchedule | null = null;
 let player: Mounted<ReturnType<typeof useAudioPlayer>>;
 let station: ReturnType<typeof createLiveStation>;
 let uninstall: () => void;
@@ -274,6 +276,7 @@ beforeEach(async () => {
     playbackRate: 1,
   });
   sessionStorage.clear();
+  served = null;
   useLiveStore.setState({
     tuned: false,
     paused: false,
@@ -304,7 +307,7 @@ beforeEach(async () => {
 
   player = mountHook(useAudioPlayer);
   station = createLiveStation({
-    fetchSchedule: async () => schedule,
+    fetchSchedule: async () => served ?? schedule,
     fetchServerNow: async () => Date.now(),
     // What the layout's play-episode handler does with a streamed episode.
     startEpisode: (ep) => void player.api.playEpisode(ep),
@@ -591,6 +594,81 @@ describe("one listen per show", () => {
     await flush(3_000 + GAP);
     expect(usePlayerStore.getState().currentEpisode?.fileHash).toBe(B.fileHash);
     expect(reportPlay).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("the program changes under a tuned-in tab (the station's breaker, 2026-10-11)", () => {
+  /** The schedule as the server serves it after a trip: A cut at `cut`, R on after one ID to A's old end. */
+  function tripped(cut: number, R: ProgramSlot): LiveSchedule {
+    const cutA = { ...A, end: cut };
+    const base = useLiveStore.getState().schedule!;
+    return { ...base, serverNow: Date.now(), now: { stationId: true, endsAt: R.start }, upNext: [R, B], guide: [cutA, R, B] };
+  }
+
+  it("a cut show stops at the next schedule read, and the replacement plays where the station is", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    streaming();
+    expect(useLiveStore.getState()).toMatchObject({ phase: "show", current: A });
+    // Three listeners failed on A; the server cut it now. R runs to A's old end.
+    const cut = Date.now();
+    const R = { ...slot("replacement", cut + GAP, 7200), end: A.end, kind: "breaker-swap" as const, replaces: A.fileHash };
+    episodes.set(R.fileHash, episodeFor(R));
+    served = tripped(cut, R);
+    // The next poll (once a minute) follows it: A is off within the minute, not at its old end.
+    await flush(60_000);
+    expect(useLiveStore.getState()).toMatchObject({ phase: "show" });
+    expect(useLiveStore.getState().current?.fileHash).toBe(R.fileHash);
+    expect(usePlayerStore.getState().currentEpisode?.fileHash).toBe(R.fileHash);
+    // Mid-slot, like real radio: where the station is in R, not its start.
+    expect(playhead()).toBeCloseTo(stationAt(R), 0);
+    expect(reportPlay).toHaveBeenCalledTimes(2);
+  });
+
+  it("a trip just before a poll: the station ID to the replacement's moment, then the replacement", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    streaming();
+    // The poll runs once a minute from tuning in. The cut lands a second before it.
+    await flush(58_000);
+    const cut = Date.now() + 1_000;
+    const R = { ...slot("replacement", cut + GAP, 7200), end: A.end, kind: "breaker-swap" as const, replaces: A.fileHash };
+    episodes.set(R.fileHash, episodeFor(R));
+    served = tripped(cut, R);
+    await flush(2_100);
+    expect(useLiveStore.getState().phase).toBe("station-id");
+    await flush(R.start - Date.now() + 10);
+    expect(useLiveStore.getState().current?.fileHash).toBe(R.fileHash);
+    expect(usePlayerStore.getState().currentEpisode?.fileHash).toBe(R.fileHash);
+    expect(reportPlay).toHaveBeenCalledTimes(2);
+  });
+
+  it("an unchanged program changes nothing (control: no restart, no second listen)", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    streaming();
+    const plays = vi.mocked(element.play).mock.calls.length;
+    await flush(60_000 * 3);
+    expect(vi.mocked(element.play).mock.calls.length).toBe(plays);
+    expect(useLiveStore.getState()).toMatchObject({ phase: "show", current: A });
+    expect(reportPlay).toHaveBeenCalledTimes(1);
+  });
+
+  it("a held (paused) tab is left alone until its ▶", async () => {
+    act(() => station.tuneIn());
+    await flush();
+    streaming();
+    act(() => player.api.pausePlayback());
+    await flush();
+    expect(useLiveStore.getState().paused).toBe(true);
+    const cut = Date.now();
+    const R = { ...slot("replacement", cut + GAP, 7200), end: A.end, kind: "breaker-swap" as const };
+    episodes.set(R.fileHash, episodeFor(R));
+    served = tripped(cut, R);
+    const plays = vi.mocked(element.play).mock.calls.length;
+    await flush(60_000);
+    expect(vi.mocked(element.play).mock.calls.length).toBe(plays);
+    expect(element.paused).toBe(true);
   });
 });
 

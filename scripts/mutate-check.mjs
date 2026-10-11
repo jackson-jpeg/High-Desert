@@ -2833,6 +2833,22 @@ export const MUTATIONS = [
     why: "the dialog offers the same guest first",
   },
   {
+    id: "live-follows-changed-slot",
+    test: "src/audio/__tests__/live-station.test.ts",
+    file: "src/audio/live-controller.ts",
+    find: "pollTimer = setInterval(() => void refreshSchedule().then((s) => s && followChanges()), SCHEDULE_POLL_MS);",
+    replace: "pollTimer = setInterval(() => void refreshSchedule(), SCHEDULE_POLL_MS);",
+    why: "a show the breaker cut stays on a tuned-in tab until its old end unless the poll follows the new program",
+  },
+  {
+    id: "live-follows-held-tab",
+    test: "src/audio/__tests__/live-station.test.ts",
+    file: "src/audio/live-controller.ts",
+    find: "if (!live().tuned || live().paused) return;\n    const schedule = live().schedule;",
+    replace: "if (!live().tuned) return;\n    const schedule = live().schedule;",
+    why: "a paused (held) tab must not start sound when the program changes",
+  },
+  {
     id: "live-setup-nonce-stored",
     test: "scripts/__tests__/live-setup.db.test.ts",
     file: "scripts/live-setup.sh",

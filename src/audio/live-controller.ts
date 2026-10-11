@@ -240,6 +240,7 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
     clearTimeout(prefetchTimer);
     clearTimeout(retryTimer);
     slotTimer = prefetchTimer = retryTimer = undefined;
+    idUntil = null;
   }
 
   /** The show after `slot`, if the program knows it. */
@@ -282,10 +283,48 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
     return (schedule ? knownSlots(schedule) : []).find((s) => s.start >= t) ?? null;
   }
 
+  /** When the station ID is waiting for, if it is waiting (the slot timer's target). */
+  let idUntil: number | null = null;
+
   /** Run `fn` when the server clock reaches `targetServerMs`. */
   function at(targetServerMs: number, fn: () => void) {
     clearTimeout(slotTimer);
+    idUntil = null;
     slotTimer = setTimeout(fn, Math.max(0, targetServerMs - sNow()));
+  }
+
+  /**
+   * The program changed under a tuned-in tab (2026-10-11): the station's
+   * breaker cut the show on the air and put another on after one station ID
+   * (src/services/live/breaker.ts), or an outage swap replaced it. Every
+   * listener follows on the next read of the schedule, instead of playing the
+   * cut show to its old end. Checked after each poll:
+   *
+   *   - on a show: if the program no longer has it (same start and file) with
+   *     the same end, put the station on what is scheduled now (`go`);
+   *   - in the station ID: if the next show now starts at another moment, wait
+   *     for that one instead. The ID itself is not restarted.
+   *
+   * Held (paused) tabs are left alone: their ▶ lands on the live second anyway.
+   */
+  function followChanges() {
+    if (!live().tuned || live().paused) return;
+    const schedule = live().schedule;
+    if (!schedule) return;
+    const slots = knownSlots(schedule);
+    const cur = live().current;
+    if (live().phase === "show" && cur) {
+      const same = slots.find((s) => slotKey(s) === slotKey(cur));
+      if (!same || same.end !== cur.end) go();
+      return;
+    }
+    if (live().phase === "station-id" && idUntil !== null) {
+      const next = nextAfterNow();
+      if (next && next.start !== idUntil) {
+        at(next.start, go);
+        idUntil = next.start;
+      }
+    }
   }
 
   async function refreshSchedule(): Promise<LiveSchedule | null> {
@@ -369,7 +408,10 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
     deps.stationId.start().catch((err: unknown) => {
       if (!tap && isNotAllowed(err)) refused(`handover to=station-id ${visibility()}`);
     });
-    if (until !== null) at(until, go);
+    if (until !== null) {
+      at(until, go);
+      idUntil = until;
+    }
   }
 
   function resync() {
@@ -408,7 +450,7 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
     clearInterval(driftTimer);
     clearInterval(pollTimer);
     driftTimer = setInterval(resync, DRIFT_CHECK_MS);
-    pollTimer = setInterval(() => void refreshSchedule(), SCHEDULE_POLL_MS);
+    pollTimer = setInterval(() => void refreshSchedule().then((s) => s && followChanges()), SCHEDULE_POLL_MS);
   }
 
   /** go(), from inside a tap: the play() that follows has a gesture behind it. */
