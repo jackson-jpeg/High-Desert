@@ -129,7 +129,27 @@ export function createWalker() {
   };
 }
 
-async function measure(src) {
+/**
+ * Whether a walked file can air (2026-10-11). Shared by the catalog scan
+ * (scripts/scan-catalog-audio.mjs) and the station's nightly pre-air check
+ * (scripts/verify-live-day.mjs), so both judge a file the same way:
+ *
+ *   - `no-audio`: under 5 s of frames (the 2002-03-19 cover-art-only file);
+ *   - `midstream-change`: more than one run of sample rate and channel
+ *     layout, which every Chromium engine refuses at the change;
+ *   - `short`: under half of a catalogued duration of ten minutes or more.
+ *     A tag can understate a duration (docs/ios-stalls.md), never the frames,
+ *     so only a file shorter than its catalog row is judged.
+ */
+export function audioVerdict(result, catalogSeconds) {
+  if (!result || result.error) return { ok: false, reason: "unreadable" };
+  if (result.seconds < 5) return { ok: false, reason: "no-audio" };
+  if (result.segments.length > 1) return { ok: false, reason: "midstream-change" };
+  if (catalogSeconds >= 600 && result.seconds < catalogSeconds / 2) return { ok: false, reason: "short" };
+  return { ok: true, reason: null };
+}
+
+export async function measure(src) {
   const w = createWalker();
   if (/^https?:/.test(src)) {
     const res = await fetch(src, { headers: { "user-agent": "HighDesert-duration-audit/1 (highdesert.space)" } });
