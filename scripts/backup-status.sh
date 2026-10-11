@@ -46,6 +46,21 @@ mac_line() {
   fi
 }
 
+offsite_line() {
+  local ok_epoch r
+  ok_epoch="$(field offsite_last_ok_epoch)"
+  r="$(field offsite_result)"
+  [[ -z "$r" ]] && return 0
+  if [[ "$r" == skipped* ]]; then
+    echo "WARN  encrypted off-box (GitHub) copy ${r}"
+  fi
+  if [[ -n "$ok_epoch" && "$ok_epoch" != 0 ]]; then
+    echo "  encrypted off-box (GitHub) copy: last succeeded $(( (now - ok_epoch) / 3600 ))h ago; last run: $r"
+  else
+    echo "  encrypted off-box (GitHub) copy: never succeeded; last run: $r"
+  fi
+}
+
 if [[ -z "$newest" ]]; then
   echo "DB BACKUP STALE — no dump in $BACKUP_DIR."
   echo "  Run: systemctl start highdesert-backup.service"
@@ -60,6 +75,7 @@ if (( age_s > MAX_AGE_H * 3600 )); then
   echo "  A missed run writes nothing: timer disabled, box down, or the job died."
   echo "  Check: systemctl status highdesert-backup.timer; tail -20 /var/log/highdesert-backup.log"
   mac_line
+  offsite_line
   exit 1
 fi
 
@@ -68,9 +84,11 @@ if [[ "$(field result)" == "FAILED" ]]; then
   echo "  Newest good dump: $(basename "$newest") (${age_h}h old)."
   echo "  Log: tail -20 /var/log/highdesert-backup.log"
   mac_line
+  offsite_line
   exit 1
 fi
 
 echo "DB BACKUP OK — newest dump $(basename "$newest") (${age_h}h old, $(stat -c %s "$newest") bytes, $(ls -1 "$BACKUP_DIR"/highdesert-*.dump | wc -l) kept)."
 mac_line
+offsite_line
 exit 0

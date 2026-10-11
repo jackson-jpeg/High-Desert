@@ -20,7 +20,11 @@
 #      being written rather than a fixed number of gigabytes. The Mac is
 #      the off-box copy, and it is often asleep: an unreachable Mac is a warning,
 #      not a failure. The next run carries everything across.
-#   4. Writes $STATUS_FILE on every run, success or failure. A run that never
+#   4. The encrypted off-box copy (scripts/backup-offsite.sh): every kept dump,
+#      age-encrypted, force-pushed as one commit to the private GitHub repo
+#      highdesert-backups, with a decrypt-and-compare restore test each run.
+#      A failure is a WARN in the status, like the Mac leg: the VPS copy stands.
+#   5. Writes $STATUS_FILE on every run, success or failure. A run that never
 #      happened cannot log its own absence, so `highdesert-backup-status`
 #      reports STALE when the newest dump is older than 36h.
 #
@@ -38,6 +42,7 @@
 #   HD_BACKUP_MAC_MIN_MB    5120
 #   HD_BACKUP_SSH           ssh
 #   HD_BACKUP_RSYNC         rsync
+#   HD_BACKUP_OFFSITE       scripts/backup-offsite.sh ("" disables; its own HD_OFFSITE_* settings)
 #
 set -uo pipefail
 
@@ -52,6 +57,7 @@ MAC_DEST="${HD_BACKUP_MAC_DEST:-/Users/jackson/Downloads/highdesert-db-backups}"
 MAC_HEADROOM_MB="${HD_BACKUP_MAC_HEADROOM_MB:-500}"
 SSH="${HD_BACKUP_SSH:-ssh}"
 RSYNC="${HD_BACKUP_RSYNC:-rsync}"
+OFFSITE="${HD_BACKUP_OFFSITE-$(dirname "${BASH_SOURCE[0]}")/backup-offsite.sh}"
 
 umask 077
 mkdir -p "$BACKUP_DIR" "$(dirname "$STATUS_FILE")" "$(dirname "$LOG_FILE")"
@@ -62,6 +68,8 @@ log() { printf '%s %s\n' "$(date -u +%FT%TZ)" "$*" | tee -a "$LOG_FILE"; }
 # Carry the last successful Mac copy forward, so the status file can say how
 # old the off-box copy is even on a night the Mac was asleep.
 prev_mac_ok_epoch="$(sed -n 's/^mac_last_ok_epoch=//p' "$STATUS_FILE" 2>/dev/null || true)"
+prev_offsite_ok_epoch="$(sed -n 's/^offsite_last_ok_epoch=//p' "$STATUS_FILE" 2>/dev/null || true)"
+offsite_result=""
 
 result=OK
 detail=""
@@ -86,6 +94,8 @@ write_status() {
     echo "dumps_kept=$(ls -1 "$BACKUP_DIR"/highdesert-*.dump 2>/dev/null | wc -l)"
     echo "mac_result=$mac_result"
     echo "mac_last_ok_epoch=${prev_mac_ok_epoch:-0}"
+    echo "offsite_result=$offsite_result"
+    echo "offsite_last_ok_epoch=${prev_offsite_ok_epoch:-0}"
   } > "$tmp"
   mv "$tmp" "$STATUS_FILE"
 }
@@ -167,7 +177,25 @@ else
   fi
 fi
 
-detail="$(basename "$dump_file") ${dump_bytes}B; mac: $mac_result"
+# ---------------------------------------------------------------------------
+# 4. Encrypted off-box copy (GitHub)
+# ---------------------------------------------------------------------------
+if [[ -z "$OFFSITE" ]]; then
+  offsite_result="disabled"
+else
+  offsite_out="$(HD_BACKUP_DIR="$BACKUP_DIR" bash "$OFFSITE" 2>>"$LOG_FILE")"
+  offsite_rc=$?
+  offsite_result="$(tail -1 <<<"$offsite_out" | sed 's/^offsite: //')"
+  if (( offsite_rc == 0 )) && [[ "$offsite_result" == ok* ]]; then
+    prev_offsite_ok_epoch="$(date +%s)"
+    log "OK offsite $offsite_result"
+  else
+    offsite_result="skipped: ${offsite_result:-no output}"
+    log "WARN offsite $offsite_result"
+  fi
+fi
+
+detail="$(basename "$dump_file") ${dump_bytes}B; mac: $mac_result; offsite: $offsite_result"
 write_status
 log "DONE $detail"
 exit 0
