@@ -25,6 +25,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createReadStream } from "node:fs";
 import { createWalker, audioVerdict } from "./measure-duration.mjs";
+import { archiveUrls, loadItems } from "./archive-items.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UA = "HighDesert-audio-scan/1 (highdesert.space)";
@@ -68,16 +69,29 @@ async function walkUrl(url, w) {
   }
 }
 
-async function walk(row, pinsDir) {
-  const w = createWalker();
+/**
+ * /download first, then the collection's own servers (data/archive-items.json):
+ * on 2026-10-11 /download failed for most of the catalog while those served.
+ * Each attempt walks from the first byte with a fresh walker.
+ */
+async function walk(row, pinsDir, items = loadItems()) {
   const pin = pinsDir && join(pinsDir, row.fileHash);
-  const fromPin = pin && existsSync(pin);
-  if (fromPin) {
+  if (pin && existsSync(pin)) {
+    const w = createWalker();
     for await (const chunk of createReadStream(pin)) w.push(chunk);
-  } else {
-    await walkUrl(row.sourceUrl || row.filePath, w);
+    return { from: "pin", ...w.end() };
   }
-  return { from: fromPin ? "pin" : "archive", ...w.end() };
+  let last;
+  for (const [i, u] of archiveUrls(row, items).entries()) {
+    const w = createWalker();
+    try {
+      await walkUrl(u, w);
+      return { from: i === 0 ? "archive" : "archive-direct", ...w.end() };
+    } catch (err) {
+      last = err;
+    }
+  }
+  throw last ?? new Error("no URL");
 }
 
 async function main() {

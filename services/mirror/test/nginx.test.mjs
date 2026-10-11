@@ -34,6 +34,11 @@ const PINNED_NAME = "1995-08-21 - Coast to Coast AM - $95,000 Junk Mail #2 [h1] 
 const FILLED_NAME = "1997-05-26 - Coast to Coast AM - Open Lines, Ramona's UFO #3 [x].mp3";
 const ROGUE_NAME = "1998-01-01 - Coast to Coast AM - Redirects elsewhere.mp3";
 const FLAKY_NAME = "2003-10-11 - Coast to Coast AM - A storage node that 500s.mp3";
+// 2026-10-11: archive.org's /download sent everyone to one cache node that
+// answered 502 to everything, or answered 502 itself; the item's own server
+// served the file at once. Both must come through the collection's server.
+const DEAD_NODE_NAME = "1998-03-11 - Coast to Coast AM - Peter Davenport - Tampa Sightings Update. Sonic Testing.mp3";
+const DOWN_NAME = "1997-12-31 - Coast to Coast AM - Predictions (download 502).mp3";
 const REPAIRED_NAME = "2001-11-26 - Coast to Coast AM - Egypt Illinois Cave (stereo to mono).mp3";
 const fh = (name) => `archive:${COLL}:${name}`;
 
@@ -52,6 +57,8 @@ const SLICE = 1 << 20;
 const FLAKY_SLICES = [2, Math.floor((FLAKY.length - 1) / SLICE)];
 const NODE_500 =
   "<html>\r\n<head><title>500 Internal Server Error</title></head>\r\n<body>\r\n<center><h1>500 Internal Server Error</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>\r\n";
+const DEAD_NODE = fixtureMp3(7, 3000); // ~1.25 MB: two slices, both from the item's server
+const DOWN = fixtureMp3(8, 900);
 const REPAIRED_ORIGINAL = fixtureMp3(4, 200); // archive.org's broken file: must never be served
 const REPAIRED_COPY = fixtureMp3(5, 150); // the re-encoded copy in <state>/repaired (scripts/repair-episode.mjs)
 
@@ -75,6 +82,8 @@ function startStub() {
     [ROGUE_NAME, ROGUE],
     [REPAIRED_NAME, REPAIRED_ORIGINAL],
     [FLAKY_NAME, FLAKY],
+    [DEAD_NODE_NAME, DEAD_NODE],
+    [DOWN_NAME, DOWN],
   ]);
   stubHits = [];
   const flakyFailed = new Set();
@@ -83,6 +92,10 @@ function startStub() {
     const p = decodeURIComponent(url.pathname);
     stubHits.push({ path: p, range: req.headers.range ?? null, headers: req.headers });
     const dl = new RegExp(`^/download/${COLL}/(.+)$`).exec(p);
+    if (dl && dl[1] === DOWN_NAME) {
+      res.writeHead(502, { "content-type": "text/html" });
+      return res.end("Sorry, we're kinda busy");
+    }
     if (dl) {
       const port = server.address().port;
       // The rogue episode redirects somewhere reachable that is not a storage
@@ -91,7 +104,11 @@ function startStub() {
       res.writeHead(302, { location: to });
       return res.end();
     }
-    const node = new RegExp(`^/(?:node|evil)/${COLL}/(.+)$`).exec(p);
+    const node = new RegExp(`^/(?:node|evil|direct)/${COLL}/(.+)$`).exec(p);
+    if (node && p.startsWith("/node/") && node[1] === DEAD_NODE_NAME) {
+      res.writeHead(502, { server: "nginx" });
+      return res.end("bad gateway");
+    }
     const body = node && files.get(node[1]);
     if (!body) {
       res.writeHead(404);
@@ -104,8 +121,12 @@ function startStub() {
     }
     const start = Number(m[1]);
     const slice = start / SLICE;
-    if (node[1] === FLAKY_NAME && FLAKY_SLICES.includes(slice) && !flakyFailed.has(slice)) {
-      flakyFailed.add(slice);
+    // The node and the collection's own server each fail these slices once,
+    // so the slice is only whole if the fill hop's next try (proxy_next_upstream)
+    // runs after the direct fallback has failed too.
+    const where = p.startsWith("/direct/") ? "direct" : "node";
+    if (node[1] === FLAKY_NAME && FLAKY_SLICES.includes(slice) && !flakyFailed.has(`${where}:${slice}`)) {
+      flakyFailed.add(`${where}:${slice}`);
       res.writeHead(500, { server: "nginx", "content-length": NODE_500.length });
       return res.end(NODE_500);
     }
@@ -149,7 +170,7 @@ async function setup() {
   const up = `http://127.0.0.1:${stub.address().port}`;
 
   index = {};
-  for (const [name, bytes] of [[PINNED_NAME, PINNED], [FILLED_NAME, FILLED], [ROGUE_NAME, ROGUE], [REPAIRED_NAME, REPAIRED_ORIGINAL], [FLAKY_NAME, FLAKY]]) {
+  for (const [name, bytes] of [[PINNED_NAME, PINNED], [FILLED_NAME, FILLED], [ROGUE_NAME, ROGUE], [REPAIRED_NAME, REPAIRED_ORIGINAL], [FLAKY_NAME, FLAKY], [DEAD_NODE_NAME, DEAD_NODE], [DOWN_NAME, DOWN]]) {
     const t = await torrentOf(name, bytes, `https://archive.org/download/${COLL}/${encodeURIComponent(name)}`);
     await writeFile(path.join(torrentDir, `${t.infohash}.torrent`), t.buf);
     index[fh(name)] = { infohash: t.infohash, length: t.length, pieceLength: t.parsed.pieceLength };
@@ -170,6 +191,7 @@ async function setup() {
     accessLog: path.join(tmp, "logs", "mirror.log"),
     upstream: up,
     followPattern: "^http://127\\.0\\.0\\.1:[0-9]+/node/",
+    direct: { [COLL]: `${up}/direct/${COLL}` },
   });
   await writeFile(path.join(tmp, "http.conf"), httpConf);
   await writeFile(path.join(tmp, "locations.conf"), locations);
@@ -361,14 +383,36 @@ describe.skipIf(!HAVE_NGINX)("the mirror, served by a real nginx", () => {
       for (const n of FLAKY_SLICES) {
         const range = `bytes=${n * SLICE}-${(n + 1) * SLICE - 1}`;
         const asked = hitsFor(FLAKY_NAME).filter((h) => h.path.startsWith(`/node/${COLL}/`) && h.range === range);
-        expect(asked, range).toHaveLength(2); // the 500, then the retry
+        expect(asked, range).toHaveLength(2); // the 500, then the next try
+        const direct = hitsFor(FLAKY_NAME).filter((h) => h.path.startsWith(`/direct/${COLL}/`) && h.range === range);
+        expect(direct, range).toHaveLength(1); // the fallback, which also failed once
       }
     });
 
-    it("a redirect anywhere but a storage node is refused (502), not followed", async () => {
+    it("a redirect anywhere but a storage node is never followed: the collection's own server answers instead", async () => {
       const r = await get(url(fh(ROGUE_NAME)), { range: "bytes=0-99" });
-      expect(r.status).toBe(502);
       expect(stubHits.some((h) => h.path.startsWith("/evil/"))).toBe(false);
+      expect(r.status).toBe(206);
+      expect(r.body.equals(ROGUE.subarray(0, 100))).toBe(true);
+      expect(hitsFor(ROGUE_NAME).some((h) => h.path.startsWith(`/direct/${COLL}/`))).toBe(true);
+    });
+
+    it("a storage node that answers 502 to everything: the whole show comes from the collection's own server", async () => {
+      const r = await get(url(fh(DEAD_NODE_NAME)));
+      expect(r.status).toBe(200);
+      expect(r.body.equals(DEAD_NODE)).toBe(true);
+      // Exactly the file's name (decoded once by the stub): encoded once by nginx, never twice.
+      const direct = hitsFor(DEAD_NODE_NAME).filter((h) => h.path === `/direct/${COLL}/${DEAD_NODE_NAME}`);
+      expect(direct.map((h) => h.range)).toEqual([`bytes=0-${SLICE - 1}`, `bytes=${SLICE}-${2 * SLICE - 1}`]);
+      // The dead node was tried first.
+      expect(stubHits.filter((h) => h.path.startsWith("/node/") && h.path.endsWith(DEAD_NODE_NAME)).length).toBeGreaterThan(0);
+    });
+
+    it("/download itself answering 502 (\"Sorry, we're kinda busy\"): the collection's own server", async () => {
+      const r = await get(url(fh(DOWN_NAME)), { range: "bytes=100-4099" });
+      expect(r.status).toBe(206);
+      expect(r.body.equals(DOWN.subarray(100, 4100))).toBe(true);
+      expect(hitsFor(DOWN_NAME).some((h) => h.path.startsWith("/node/"))).toBe(false);
     });
   });
 

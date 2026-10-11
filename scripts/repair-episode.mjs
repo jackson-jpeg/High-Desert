@@ -29,6 +29,7 @@ import { pipeline } from "node:stream/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createWalker } from "./measure-duration.mjs";
+import { archiveUrls, loadItems } from "./archive-items.mjs";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const RECORD = path.join(ROOT, "src/data/repaired-episodes.json");
@@ -92,9 +93,21 @@ async function main() {
     if (pinned) {
       await pipeline(createReadStream(pin), createWriteStream(orig));
     } else {
-      const res = await fetch(row.sourceUrl, { headers: { "user-agent": UA } });
-      if (!res.ok) throw new Error(`${row.sourceUrl}: HTTP ${res.status}`);
-      await pipeline(Readable.fromWeb(res.body), createWriteStream(orig));
+      // /download, then the collection's own servers (data/archive-items.json).
+      let got = false;
+      const tried = [];
+      for (const url of archiveUrls(row, loadItems())) {
+        try {
+          const res = await fetch(url, { headers: { "user-agent": UA } });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          await pipeline(Readable.fromWeb(res.body), createWriteStream(orig));
+          got = true;
+          break;
+        } catch (err) {
+          tried.push(`${url}: ${err.message ?? err}`);
+        }
+      }
+      if (!got) throw new Error(`could not fetch the original: ${tried.join("; ")}`);
     }
     const original = await examine(orig);
     if (row.fileSize && original.bytes !== row.fileSize) throw new Error(`original is ${original.bytes} bytes, catalog says ${row.fileSize}`);

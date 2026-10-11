@@ -28,6 +28,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createWalker, audioVerdict } from "./measure-duration.mjs";
 import { readDone } from "./scan-catalog-audio.mjs";
+import { archiveUrls, loadItems } from "./archive-items.mjs";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const UA = "HighDesert-preair/1 (highdesert.space)";
@@ -95,11 +96,11 @@ export function candidatesFor(day, { catalog, plays, checked, frozen = null, fav
 }
 
 /** Where to read a file from: the repaired copy, a pin, or archive.org. */
-export function sourceFor(row, { stateDir, repaired }) {
+export function sourceFor(row, { stateDir, repaired, items = loadItems(), urlsFor = archiveUrls }) {
   if (repaired.has(row.fileHash)) return { kind: "repaired", path: path.join(stateDir, "repaired", row.fileHash) };
   const pin = path.join(stateDir, "pins", row.fileHash);
   if (existsSync(pin)) return { kind: "pin", path: pin };
-  return { kind: "archive", url: row.sourceUrl || row.filePath };
+  return { kind: "archive", urls: urlsFor(row, items) };
 }
 
 async function walkSource(src) {
@@ -108,20 +109,28 @@ async function walkSource(src) {
     for await (const chunk of createReadStream(src.path)) w.push(chunk);
     return w.end();
   }
-  const ac = new AbortController();
-  let timer = setTimeout(() => ac.abort(), STALL_MS);
-  try {
-    const res = await fetch(src.url, { headers: { "user-agent": UA }, signal: ac.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    for await (const chunk of res.body) {
+  // /download, then the collection's own servers; each attempt from the first byte.
+  let last;
+  for (const url of src.urls) {
+    const walker = createWalker();
+    const ac = new AbortController();
+    let timer = setTimeout(() => ac.abort(), STALL_MS);
+    try {
+      const res = await fetch(url, { headers: { "user-agent": UA }, signal: ac.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      for await (const chunk of res.body) {
+        clearTimeout(timer);
+        timer = setTimeout(() => ac.abort(), STALL_MS);
+        walker.push(Buffer.from(chunk));
+      }
+      return walker.end();
+    } catch (err) {
+      last = err;
+    } finally {
       clearTimeout(timer);
-      timer = setTimeout(() => ac.abort(), STALL_MS);
-      w.push(Buffer.from(chunk));
     }
-  } finally {
-    clearTimeout(timer);
   }
-  return w.end();
+  throw last ?? new Error("no URL");
 }
 
 /**

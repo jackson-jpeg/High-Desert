@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 import { parseTorrent } from "./lib/torrent-file.mjs";
 import { magnetFor } from "./lib/magnet.mjs";
 import { isPinnableName } from "./lib/pins.mjs";
-import { renderMirrorNginx } from "./lib/nginx.mjs";
+import { renderMirrorNginx, directFromItems } from "./lib/nginx.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -58,7 +58,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   const nginx = arg("--nginx");
   if (nginx) {
-    await writeNginx({ outDir: nginx });
+    // Each collection's own server (data/archive-items.json, staged as items.json).
+    const items = JSON.parse(await readFile(arg("--items") ?? path.join(here, "items.json"), "utf8"));
+    await writeNginx({ outDir: nginx, direct: directFromItems(items) });
     console.log(`[build-static] nginx includes in ${nginx}`);
   }
 }
