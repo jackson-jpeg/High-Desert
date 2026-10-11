@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- a node script run as CommonJS outside the app */
 // Phone probe, WebKit at 390 wide (2026-10-09). Screenshots of real states on a URL.
 //
 //   node docs/handoff-2026-10-09/probe-phone.cjs <base-url> <out-dir> [--fail]
