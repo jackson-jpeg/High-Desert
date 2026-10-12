@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { Window } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
@@ -20,6 +21,14 @@ import { LiveChatSheet } from "./LiveChatSheet";
 import { noteFunnelStep } from "@/services/stats/funnel-client";
 import { shownGuest } from "@/lib/library/guest";
 import { ShowTitle } from "@/components/library/ShowTitle";
+import { useLook } from "@/hooks/useLook";
+import { onPhoneLinesRequest, takePhoneLinesRequest } from "@/components/looks/win98/phone-lines-request";
+
+// The Win98 preview look's phone lines (docs/looks.md): fetched only in that look.
+const NotepadPhoneLines = dynamic(
+  () => import("@/components/looks/win98/NotepadPhoneLines").then((m) => m.NotepadPhoneLines),
+  { ssr: false },
+);
 
 /**
  * The Live screen: a late-night studio. The ON AIR sign, the wall clock, the
@@ -38,6 +47,19 @@ export function LiveStation() {
   const tuned = useLiveStore((s) => s.tuned);
   // The funnel's second step: the Live screen was on screen (docs/funnel.md).
   useEffect(() => noteFunnelStep("live"), []);
+  const look = useLook();
+  // The Win98 Start menu's "Phone Lines": open the sheet on a phone, or put
+  // the cursor in the call box on a desktop.
+  useEffect(() => {
+    if (look !== "win98") return;
+    const take = () => {
+      if (!takePhoneLinesRequest()) return;
+      if (isMobile) setLinesOpen(true);
+      else document.querySelector<HTMLInputElement>('[data-variant="notepad"] input[aria-label="Your call"]')?.focus();
+    };
+    take();
+    return onPhoneLinesRequest(take);
+  }, [look, isMobile]);
 
   return (
     <div className="h-full min-h-0 p-2 md:p-3 overflow-auto md:overflow-hidden">
@@ -77,6 +99,10 @@ export function LiveStation() {
             </span>
             <span className="text-hd-caption text-desert-amber uppercase tracking-[0.18em]">Call in</span>
           </button>
+        ) : look === "win98" ? (
+          <div id="phone-lines" className="flex flex-col min-h-0">
+            <NotepadPhoneLines />
+          </div>
         ) : (
           <Window title="Phone Lines" variant="dark" headingLevel={2} className="flex flex-col min-h-0">
             {/* h-full, not flex-1: the Window's body is a scrolling block,
@@ -92,7 +118,7 @@ export function LiveStation() {
       </div>
       {isMobile && (
         <LiveChatSheet open={linesOpen} onClose={() => setLinesOpen(false)}>
-          <LiveChat />
+          {look === "win98" ? <NotepadPhoneLines onClose={() => setLinesOpen(false)} /> : <LiveChat />}
         </LiveChatSheet>
       )}
     </div>

@@ -24,6 +24,14 @@ import { shownGuest } from "@/lib/library/guest";
 import { ShowKicker } from "@/components/library/ShowTitle";
 import { splitShowTitle } from "@/lib/live/format";
 import { retryWithPlaySurface } from "@/audio/play-surface";
+import dynamic from "next/dynamic";
+import { useLook } from "@/hooks/useLook";
+
+// The Win98 preview look's Winamp window (docs/looks.md): fetched only in that look.
+const WinampPlayer = dynamic(
+  () => import("@/components/looks/win98/WinampPlayer").then((m) => m.WinampPlayer),
+  { ssr: false },
+);
 
 interface AudioPlayerProps {
   className?: string;
@@ -83,8 +91,14 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
 
   // Listen for double-click on status bar now-playing to toggle ultra-mini
   useHdEvent("toggle-ultra-mini", () => setUltraMini((prev) => !prev));
+  const look = useLook();
 
   if (!currentEpisode) return null;
+
+  // Win98 look: the same controls, drawn as Winamp.
+  if (look === "win98") {
+    return <WinampPlayer controls={{ togglePlay, seek, stopPlayback, playNext, playPrevious }} className={className} />;
+  }
 
   const handleRetry = () => {
     clearError(null);
