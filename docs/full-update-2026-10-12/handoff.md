@@ -18,7 +18,73 @@ the VPS through `heavy`. The PR's head commit and its merge commit carry
 `main` for this merge. The nightly mutation run (09:30 UTC, scheduled) is
 unaffected and is the first Actions run to see this code.
 
-<!-- SECTIONS BELOW ARE FILLED IN AT INTEGRATION -->
+## What shipped, by area
+
+**Looks.** Win98 is everyone's default; Night is the dark option. Switch in
+Win98 at Start > Settings > Display..., in Night at More > Display (phone) or
+View > Display... (desktop). A visitor with no choice on record gets one
+"Prefer dark? Switch to Night" offer in Win98 (never on show/guest pages,
+never over the boot screen, on a phone's /live only after tuning in); "No
+thanks" or Escape ends it for good. The choice is the plain `hd_look` cookie,
+read before rendering. Regulars from before today have no record either, so
+they get the offer once too. `docs/looks.md`.
+
+**Look in the stats.** `arrival_daily.look`, `funnel_daily.look` (+ `again`)
+and `play_events.look`; a new funnel step `return` (first load on a later UTC
+day); `/api/stats/funnel` `byLook` and `/api/stats/usage` `playsByLook`. That is
+what the next audit compares Win98 and Night on (tune-in rate, returns).
+`schema.sql` swaps the funnel/arrival primary keys for `NULLS NOT DISTINCT`
+unique indexes: writes to those two tables fail between the restart and the
+schema, so the deploy applied it right after `deploy.sh` restarted
+(`docs/funnel.md`).
+
+**Leftovers.** Win98 signal meter: navy blocks in a sunken white field (~16:1,
+was 1.4:1). Win98 phone library rows: dense 52 px Details rows, not cards. An
+empty player in both looks shows the show on the air with one Tune in tap
+(not on /live itself).
+
+**iPhone meters** (`src/audio/levels.ts`, `src/audio/level-tap/`). iOS never
+had an analyser: routing the element through Web Audio kills lock-screen
+playback, so the engine skips it there, and every visualizer drew black and
+the needles sat at 0. Now every visualizer (Winamp's included) reads one
+level source: the analyser on desktop and Android, and on iOS a level tap that
+Range-fetches the same file, decodes 10 s chunks in an OfflineAudioContext
+(no output, no audio session, cannot touch the lock screen) and serves
+windows at the element's current time. It fetches only while a visualizer is
+mounted, the page is visible and the show is playing. `e2e/meters.spec.ts`
+was red first (every needle 0.00 on the iPhone profile), and asserts zero
+`createMediaElementSource` calls on the iPhone. Covered sources: mirror,
+archive.org (incl. the storage-node fallback via a sticky node), repaired
+files.
+
+**Growth.**
+- Share sends `/show/<slug>`. Share this moment (both players) sends
+  `/show/<slug>?t=<s>`: the page plays from that second (`#t=` works without
+  JavaScript), canonical stays the plain show, and its card says "Starts at
+  1:23:45". Open in High Desert carries the second into the app.
+- Show and guest pages: one-tap Play, a line saying what the site is, Listen to
+  the station now and Browse the Library, topics, related shows.
+- 70 topic pages (`/topic/<slug>`, `/topics`): categories, 29 named subjects
+  (Mel's Hole, Area 51, Roswell, remote viewing, ...) and tags on 10+ shows.
+  Slugs add-only in `data/topic-slugs.json`.
+- Tonight: `/tonight` redirects to today (Pacific); `/tonight/<day>` has the
+  night's program in Pacific and local time, why each show is worth hearing,
+  the date's broadcasts from other years and a Tune in, with its own card.
+- All in the sitemap; `check:seo` covers topics, Tonight and moments.
+- Fixed on the way: `?show=` told every first visitor "That show is not in this
+  library" (the seed settles one render before its rows arrive).
+
+**Phone.**
+- Live on a phone, both looks: one card at the top with ON AIR, the show, "with
+  Guest, year", a one-line hook (the cited notable reason, else the summary's
+  first sentence; nothing invented) and one Listen live button. Below it Call
+  in and the last three calls.
+- Radio's old phone slot is Phone Lines in both looks (`/live?lines=1`).
+- Continue listening tops the Library and the welcome screen.
+- Install prompt from a second visit: the browser's Install where it offers
+  one, Share then Add to Home Screen instructions on iPhone/iPad Safari,
+  nothing in in-app browsers or the installed app. "Not now" twice ends it.
+
 
 ## How the look is chosen (foundation)
 
@@ -73,10 +139,17 @@ work; the harness's own task notifications cover it.
 
 ## Hook blocks this session
 
-- `require-pipefail.py`, 6 times (a pipe without `set -o pipefail;`): at the
-  live-setup link step, at the status checks, at a `cat ... | head` of the
-  layout, and three earlier. Each was re-run with the prefix; nothing routed
-  around.
+Every one was `require-pipefail.py` (a pipe without `set -o pipefail;`). No
+other hook or permission check blocked anything, and nothing was routed
+around: each blocked command was re-run unchanged but for the prefix.
+
+| Who | Blocks | Notes |
+|---|---|---|
+| me | 6 | live-setup link step, status checks, a `cat \| head` of the layout, three earlier |
+| `feat/looks` agent | 11 | read-only `\| head`/`tail`/`grep` |
+| `fix/meters` agent | 7 | also ran one `npx tsc` without `heavy` (house rule slip; later runs used it) |
+| `feat/phone` agent | 6 | worktree setup, reads, an e2e wait loop |
+| `feat/growth` agent | 7 | one was a heredoc that wrote a test file and piped vitest; the test file was then written with the Write tool and vitest re-run with the prefix. The block was the missing prefix on the pipe, not the file write |
 
 ## Incidents
 
