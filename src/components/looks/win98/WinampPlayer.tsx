@@ -20,6 +20,7 @@ import { MirrorBadge } from "@/components/player/MirrorBadge";
 import { SleepTimer } from "@/components/player/SleepTimer";
 import { BookmarkMarkers } from "@/components/player/BookmarkMarkers";
 import { SeekRange, ProgressFill } from "@/components/player/PositionReadouts";
+import { ShareMomentButton } from "@/components/share/ShareMomentButton";
 import { ledTime, marqueeText, nextRate, streamReadout } from "./winamp";
 
 /**
@@ -385,6 +386,7 @@ export function WinampPlayer({ controls, className }: { controls: WinampControls
                 <button type="button" className="hd-w98-amp-small" onClick={fwd30} aria-label="Seek forward 30 seconds">+30</button>
                 <SleepTimer variant="mobile" />
                 <BookmarkMarkers mode="button" variant="mobile" />
+                <ShareMomentButton className="hd-w98-amp-small" />
               </div>
             </>
           )}
@@ -496,6 +498,7 @@ export function WinampPlayer({ controls, className }: { controls: WinampControls
             <span className="text-hd-11 tabular-nums text-bevel-dark">{formatTime(duration)}</span>
             <SleepTimer variant="desktop" />
             <BookmarkMarkers mode="button" variant="desktop" />
+            <ShareMomentButton className="w98-raised-dark bg-raised-surface px-2 text-hd-11" label="Share moment" />
           </div>
         </div>
       </div>

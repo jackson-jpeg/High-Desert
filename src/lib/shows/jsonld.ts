@@ -149,3 +149,92 @@ export function guestDescription(guest: Guest): string {
 export function jsonLdScript(node: Node): string {
   return JSON.stringify(node).replace(/</g, "\\u003c");
 }
+
+/** Breadcrumbs for a topic page: High Desert › Topics › the topic. */
+export function topicCrumbs(topic: { name: string; slug: string }): Crumb[] {
+  return [
+    { name: SITE_NAME, path: "/" },
+    { name: "Topics", path: "/topics" },
+    { name: topic.name, path: `/topic/${topic.slug}` },
+  ];
+}
+
+/** A list of shows as schema.org ItemList elements, each pointing at its page. */
+export function showListItems(shows: readonly Show[]): Node[] {
+  return shows.map((s, i) => ({
+    "@type": "ListItem",
+    position: i + 1,
+    url: absolute(showPath(s.slug)),
+    name: `${showSubject(s.row)}${headlineGuest(s.row) ? ` with ${headlineGuest(s.row)}` : ""}`,
+  }));
+}
+
+/** A topic page: a collection of shows about one subject. */
+export function topicJsonLd(topic: { name: string; slug: string; intro: string; shows: readonly Show[] }): Node {
+  const url = absolute(`/topic/${topic.slug}`);
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": url,
+    url,
+    name: `${topic.name} on Art Bell`,
+    description: topic.intro,
+    keywords: topic.name,
+    isPartOf: { "@type": "WebSite", name: SITE_NAME, url: SITE_ORIGIN },
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: topic.shows.length,
+      itemListElement: showListItems(topic.shows),
+    },
+  };
+}
+
+/** The topics index: every topic page. */
+export function topicsIndexJsonLd(topics: readonly { name: string; slug: string; shows: readonly Show[] }[]): Node {
+  const url = absolute("/topics");
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": url,
+    url,
+    name: "Art Bell shows by topic",
+    description: "Every topic in the High Desert archive of Art Bell's radio shows.",
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: topics.length,
+      itemListElement: topics.map((t, i) => ({ "@type": "ListItem", position: i + 1, url: absolute(`/topic/${t.slug}`), name: t.name })),
+    },
+  };
+}
+
+/** Breadcrumbs for a Tonight page: High Desert › Tonight › the date. */
+export function tonightCrumbs(day: string, dateName: string): Crumb[] {
+  return [
+    { name: SITE_NAME, path: "/" },
+    { name: "Live", path: "/live" },
+    { name: dateName, path: `/tonight/${day}` },
+  ];
+}
+
+/**
+ * A Tonight page: the day's program, then the on-this-date shows, as one
+ * ItemList of show pages (programme entries with no page are left out).
+ */
+export function tonightJsonLd(day: string, title: string, description: string, shows: readonly Show[]): Node {
+  const url = absolute(`/tonight/${day}`);
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": url,
+    url,
+    name: title,
+    description,
+    datePublished: day,
+    isPartOf: { "@type": "WebSite", name: SITE_NAME, url: SITE_ORIGIN },
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: shows.length,
+      itemListElement: showListItems(shows),
+    },
+  };
+}

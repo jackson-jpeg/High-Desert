@@ -41,6 +41,7 @@ import type { Episode } from "@/db/schema";
 import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
 import { archiveKnownDown } from "@/services/archive/health";
 import { resolveSources, type SourceKind } from "@/audio/sources";
+import { takeRequestedStart } from "@/audio/requested-start";
 import { currentStartPlan, refuseIfUnavailable } from "@/audio/outage-gate";
 import {
   currentLiveStart,
@@ -224,8 +225,11 @@ export function useAudioPlayer() {
       audio.src = url;
       // The live station's show starts where the station is, computed now —
       // the instant the source is assigned — not where this listener left it.
+      // Then a moment someone shared (src/audio/requested-start.ts), then
+      // where this listener left it.
       const startAt =
         liveStartFor(episode) ??
+        takeRequestedStart(episode) ??
         startPositionFor(positionOf(episode.fileHash), episode.duration);
       seekEngine(startAt);
       // The station plays at 1×: at 1.5× the drift check would pull it back

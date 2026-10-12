@@ -7,6 +7,10 @@ import type { LibraryIntent, LibraryView, ShuffleScope } from "@/lib/library/int
 import { scrollListToRow } from "@/lib/library/list-scroll";
 import { communityKey } from "@/lib/utils/community-key";
 import { toast } from "@/stores/toast-store";
+import { requestStartAt } from "@/audio/requested-start";
+import { withPlaySurface } from "@/audio/play-surface";
+import { emit } from "@/lib/events";
+import { momentLabel } from "@/lib/shows/share";
 
 /**
  * Applies library intents (HD-013) — what LibraryIntentReader hands over from
@@ -23,6 +27,25 @@ import { toast } from "@/stores/toast-store";
  * from a show page's "Open in High Desert") once the library holds it, or once
  * seeding has settled without it, which says so.
  */
+/**
+ * A shared moment's "Open in High Desert" (`?show=<key>&t=<seconds>`): the
+ * next start of this show begins at `t` (src/audio/requested-start.ts), and it
+ * starts now if the tap that brought the listener here still counts as one.
+ * Otherwise nothing is started (a `play()` without a gesture is refused, and
+ * the refusal would read as a failure): the show is selected, and its ▶ plays
+ * from the moment. Where `navigator.userActivation` is unknown it is treated
+ * as permitted, as the watchdog's retry does (CLAUDE.md, "Playback").
+ */
+export function startMoment(ep: Episode, t: number): void {
+  requestStartAt(ep.fileHash, t);
+  const activation = typeof navigator !== "undefined" ? navigator.userActivation : undefined;
+  if (activation && !activation.isActive) {
+    toast.info(`Press play to start at ${momentLabel(t)}.`);
+    return;
+  }
+  withPlaySurface("show", () => emit("play-episode", ep));
+}
+
 export function useLibraryIntents({
   allEpisodes,
   visibleEpisodes,
@@ -58,7 +81,7 @@ export function useLibraryIntents({
     scrollListToRow(idx);
   }, [currentEpisodeId, visibleEpisodes, setSelectedEpisode, setFocusedIndex]);
 
-  const pending = useRef<{ shuffle?: ShuffleScope; scroll?: boolean; show?: string }>({});
+  const pending = useRef<{ shuffle?: ShuffleScope; scroll?: boolean; show?: string; t?: number }>({});
   const [received, setReceived] = useState(0);
 
   const applyIntent = useCallback(
@@ -71,7 +94,10 @@ export function useLibraryIntents({
       }
       if (intent.shuffle) pending.current.shuffle = intent.shuffle;
       if (intent.scroll) pending.current.scroll = true;
-      if (intent.show) pending.current.show = intent.show;
+      if (intent.show) {
+        pending.current.show = intent.show;
+        pending.current.t = intent.t;
+      }
       if (intent.view) setView?.(intent.view);
       setReceived((n) => n + 1);
     },
@@ -93,15 +119,23 @@ export function useLibraryIntents({
       const key = p.show;
       const ep = allEpisodes.find((e) => communityKey(e) === key);
       if (ep) {
+        const t = p.t;
         p.show = undefined;
+        p.t = undefined;
         setSelectedEpisode(ep);
         const idx = visibleEpisodes.findIndex((e) => e.id === ep.id);
         if (idx !== -1) {
           setFocusedIndex(idx);
           scrollListToRow(idx);
         }
-      } else if (seedSettled) {
+        if (t !== undefined) startMoment(ep, t);
+      } else if (seedSettled && allEpisodes.length > 0) {
+        // Only once the library's rows are here: on a first visit the seed
+        // settles a render before the live query delivers the rows it wrote,
+        // and "not in this library" fired for every show (a shared link's
+        // whole audience).
         p.show = undefined;
+        p.t = undefined;
         toast.error("That show is not in this library.");
       }
     }

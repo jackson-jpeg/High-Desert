@@ -11,7 +11,12 @@ page, and every guest with two or more shows has a page listing them.
 |---|---|---|
 | `/show/<slug>` | `/show/1992-12-12-area-51-john-lear-bob-lazar` | one broadcast (1,413) |
 | `/guest/<slug>` | `/guest/linda-moulton-howe` | every show with one guest (guests with 2+ shows) |
-| `/show/key/<communityKey>` | `/show/key/ultimate-ultimate-art-bell-collection--1992-12-12_-_...` | 308 to the show's page; what the library links to |
+| `/show/key/<communityKey>` | `/show/key/ultimate-ultimate-art-bell-collection--1992-12-12_-_...` | 308 to the show's page; what the library links to. Carries `?t=` |
+| `/show/<slug>?t=<seconds>` | `/show/1992-12-12-area-51-john-lear-bob-lazar?t=5025` | a shared moment: the show's page, playing from that second (see "Sharing") |
+| `/topic/<slug>` | `/topic/mels-hole` | every show on one topic (70; see "Topic pages") |
+| `/topics` | | every topic, grouped |
+| `/tonight` | | 307 to today's (Pacific) Tonight page, never cached |
+| `/tonight/<yyyy-mm-dd>` | `/tonight/2026-10-12` | one station day: its program and the date's broadcasts (see "Tonight") |
 
 ### Slugs are permanent
 
@@ -181,10 +186,170 @@ claiming). `public/robots.txt` disallows `/api/`, `/scanner`, `/search` and
   `/show/key/<key>` redirects and an unknown slug is a 404.
   CI's browser job runs it after the CSP check, against the same server.
   Run it against production after a deploy: `npm run check:seo -- https://highdesert.space`.
+- **The crawler also covers** (2026-10-12) every topic, `/topics` and today's
+  Tonight in the sitemap; 6 topic pages plus Mel's Hole; today's and the
+  oldest Tonight page; `/tonight` a 307 that is not cacheable; one moment
+  (`?t=` = half the show): canonical the show, og:url the moment, the moment's
+  card, `#t=` on the sources, `data-moment`, Open carrying `t`, `no-store`,
+  while the plain page keeps `s-maxage`; `?t=1h`, `?t=1000000` and a `t` past
+  the end are the plain page; the internal moment path is a 308; 404s for an
+  unknown topic, a day before the station and 2026-02-30. On every page: the
+  intro and its two ways in, and on show pages the Play button and the
+  `<noscript>` rule that hides it.
+- **Growth tests:** `src/lib/topics/__tests__/topics.test.ts`,
+  `src/lib/tonight/__tests__/tonight.test.tsx` (Tonight, and every topic page
+  rendered), `src/lib/shows/__tests__/share-moment.test.ts`,
+  `src/hooks/__tests__/requested-start-play.test.ts` (the real
+  `playEpisode`), the moment case in `src/hooks/__tests__/library-intents.test.tsx`,
+  `src/app/api/shows/link/__tests__/`, `e2e/share-moment.spec.ts`.
 - **Mutations:** the `show-*`, `guest-people-*`, `related-*`, `jsonld-*`,
-  `site-verification-*`, `seo-check-*`, `sitemap-*`, `robots-*` and
-  `intent-show-*` ids in `scripts/mutate-check.mjs`.
+  `site-verification-*`, `seo-check-*`, `sitemap-*`, `robots-*`,
+  `intent-show-*`, and (2026-10-12) `topic-*`, `tonight-*`, `moment-*`,
+  `requested-start-*`, `share-*`, `seo-*` ids in `scripts/mutate-check.mjs`.
 - `scripts/csp-check.mjs` loads one show page too.
+
+## Sharing (2026-10-12)
+
+- **Share sends the show's page.** `EpisodeShareButton` shares
+  `/show/<slug>` once it knows the slug, and the old `/library?ep=<key>` link
+  until then or for a show with no page. Old `?ep=` links keep working
+  (the library still reads them). The slug map stays on the server: the
+  browser asks **`GET /api/shows/link?key=<communityKey>`** →
+  `{slug, path}` (cached a day; 404 `{error: "not-a-show"}` cached an hour;
+  400 for a malformed key), once per show per page load, when the button
+  mounts (`src/hooks/useShowSlug.ts`), so the share sheet opens inside the tap.
+- **Share this moment** (`src/components/share/ShareMomentButton.tsx`) is in
+  both looks' players: Win98's `WinampPlayer` (phone expanded row, desktop
+  details row) and Night's `AudioPlayer` (phone expanded, desktop mini and
+  expanded). It shares `/show/<slug>?t=<seconds>` (the current position, read
+  at the tap), through `navigator.share`, else the clipboard ("Link copied:
+  starts at 1:23:45"), else a toast with the link (`share-link.ts`). Closing the
+  sheet copies nothing. Before the slug has arrived it shares
+  `/show/key/<key>?t=`, which redirects to the same URL. No button for a show
+  with no page.
+- **A moment's page.** `next.config.ts` rewrites `/show/:slug` with a `t` of 1
+  to 5 digits to `/<look>/show/:slug/moment/:t` (before the look rewrites),
+  so the plain show page stays static whatever query it is asked with
+  (`?t=abc` is the cached plain page). The moment page is `force-dynamic`:
+  one cached file per second of every show would fill the disk. The internal
+  path is 308'd back to `?t=` by `src/proxy.ts`: one address per moment. A `t`
+  at or past the show's end renders the plain page (`validMoment`).
+- **Measured on a local build** (2026-10-12): `/show/<slug>` is
+  `s-maxage=31536000` (MISS, then HIT); `?t=5025` is `private, no-cache,
+  no-store, max-age=0, must-revalidate`, with the moment's title, og:url and
+  card in `<head>` for both a browser and `facebookexternalhit`; `?t=abc` is
+  the static HIT; the moment card is 200 `image/png`, cached a week.
+- **What the moment page says.** Canonical: the plain show page. og:url: the
+  moment's URL. Title: "…, from 1:23:45". Card:
+  `/show/<slug>/moment/<t>/opengraph-image` (and `twitter-image`), the show's
+  card with a "Starts at 1:23:45" stamp (`momentCard`). The body says "This
+  link starts at 1:23:45" with a "Play it from the beginning" link.
+- **Plays from t without JavaScript:** each `<source>` carries a `#t=<t>`
+  media fragment. With JavaScript, the page's **Play** button
+  (`ShowPlayButton`) plays the same element and seeks once on
+  `loadedmetadata`.
+- **Open in High Desert** carries it: `/library?show=<key>&t=<seconds>` (`t`
+  means nothing without `show`). Once the library holds the show,
+  `startMoment()` (`src/hooks/library/useLibraryIntents.ts`) records
+  `requestStartAt(fileHash, t)` (`src/audio/requested-start.ts`, one request,
+  one show, consumed by its next start) and, **only if
+  `navigator.userActivation.isActive`** (unknown counts as yes, as the
+  watchdog's retry does), emits `play-episode` with surface `show`. Without a
+  live gesture nothing starts: a `play()` would be refused and read as a
+  failure. It says "Press play to start at 1:23:45." and the show's ▶ starts
+  there. `playEpisode()` reads it synchronously: `liveStartFor() ??
+  takeRequestedStart() ?? startPositionFor()`, so the station still owns its
+  playhead and nothing is awaited before `play()`.
+
+## First screens (2026-10-12)
+
+Show, guest, topic and Tonight pages are the first screen for anyone from a
+search or a shared link, in both looks (`src/styles/show-pages.css` plus the
+looks' own `hd-show-*` rules).
+
+- `ShowShell` header: Live, Library, Tonight, Topics. Under it, one line on
+  what High Desert is (`siteIntro`, with the catalog count) and two ways in:
+  **Listen to the station now** (`/live`) and **Browse the Library**. Footer
+  links the same.
+- Show page: the player first, with a one-tap **Play** (`ShowPlayButton`,
+  hidden by a `<noscript>` rule, so without JavaScript the native controls are
+  the player); then the summary, the facts (the category links to its topic),
+  **Topics** (up to 8, most specific first), then the related lists.
+- Guest page: a **Start with** link to the guest's first notable show (else
+  the newest), "Search the library", and "{Name} talked about" (the topics
+  most of their shows fall under).
+- New class hooks: `hd-show-intro`, `-intro-text`, `-ways`, `-way`,
+  `-way-live`, `-way-library`, `-play`, `-moment`, `-topics`, `-topic`,
+  `-category-link`, `-footer-nav`, `-nav-link`; `hd-topic`, `-intro`,
+  `-first`, `-start`, `-related`, `-links`, `hd-topics-index`; `hd-guest-first`;
+  `hd-tonight`, `-intro`, `-tune`, `-days`, `-program`, `-lineup`, `-slot`,
+  `-kind`, `-show`, `-why`, `-none`, `-dated`; `hd-share-moment`.
+
+## Topic pages (2026-10-12)
+
+**The rule** (`src/lib/topics/rules.ts`, `deriveTopics`), over the catalog's
+rows with show pages:
+
+1. **Every category** (`aiCategory`) but `Other` (15).
+2. **Curated subjects** (`SUBJECTS`, 29): the famous ones a listener searches
+   for by name (Mel's Hole, Area 51, Roswell, the Phoenix Lights, remote
+   viewing, Hale-Bopp, Y2K, Ghost to Ghost, …). Each is a phrase pattern
+   matched against title, topic, guest, summary and tags (`matchText`), so it
+   finds shows its tag missed (Mel's Hole finds Mel Waters' first appearance).
+   A subject replaces the tags it names (`tags`).
+3. **Tags carried by at least `TAG_MIN` (10) shows**, after folding synonyms
+   (`TAG_SYNONYMS`), except a generic tag (`GENERIC_TAGS`: "paranormal",
+   "interview"…), a tag a category already is (`TAG_COVERED_BY_CATEGORY`), a
+   person (`PERSON_TAGS`) or a tag a subject covers. Each needs a display name
+   in `TAG_NAMES` (26): **a tag that crosses the threshold fails the topics
+   test until someone names it or calls it generic**: a new page is a
+   decision, not a default.
+4. Every topic needs at least `TOPIC_MIN` (3) shows.
+
+Today: 70 topics (29 subjects, 15 categories, 26 tags).
+
+- **Slugs are permanent**, like shows': `data/topic-slugs.json` (topic id →
+  slug, ids like `subject:mels-hole`, `category:UFOs & Aliens`, `tag:mars`) is
+  committed and add-only. After a catalog change run
+  `node scripts/gen-topic-slugs.mjs` (`--check` exits 1 when one is missing);
+  it never rewrites an entry. A leading "The" is dropped; collisions take
+  `-2`; a retired topic's slug is never reused. `topics.test.ts` fails on a
+  missing slug, a duplicate, or any committed slug that changed (every git
+  version of the file).
+- **The page** (`/topic/<slug>`, `TopicView`): the name, a one-line intro, the
+  count and years, **Start with** (a notable show, else the newest), **Start
+  here** (up to 4 notable shows with the cited reason), every show newest
+  first, related topics (sharing at least 2 shows, scored by overlap). JSON-LD
+  `CollectionPage` (with an `ItemList` of the show pages) and
+  `BreadcrumbList`; canonical, Open Graph, a card ("ART BELL ON" + name).
+  `/topics` lists every topic by kind. Rendered on first request, cached
+  until the next deploy, like show pages.
+- **Linked from** each show page (Topics), the category fact, guest pages,
+  the header and the sitemap.
+
+## Tonight (2026-10-12)
+
+`/tonight/<yyyy-mm-dd>` is one station day (midnight to midnight Pacific),
+`/tonight` a 307 to today's.
+
+- **Read-only.** `src/services/live/tonight.ts` reads the day and its
+  neighbours from `live_days`. The one write is the station's own: today is
+  frozen (`frozenDay`) if no listener has done it yet. No other day is ever
+  frozen from here.
+- **Which days:** a real date from `FIRST_TONIGHT_DAY` (2026-09-01) to
+  tomorrow, and tomorrow only once its program is frozen; with a database, a
+  past day without a program is a 404.
+- **Without `DATABASE_URL`** (or with it failing) the page still renders: the
+  date's broadcasts from the catalog and a line saying the program cannot be
+  read.
+- **The page** (`TonightView`): a big **Tune in to the station now** (`/live`),
+  the program in air order with each time in Pacific and, after hydration, in
+  the reader's own zone (`LocalTime`), the slot's kind ("On this date",
+  "Listener favorite"), and why to hear it (the cited notable reason, else the
+  summary); then every broadcast of the date in other years; links to the
+  neighbouring days that exist. JSON-LD `CollectionPage` + `BreadcrumbList`,
+  a card per day ("N broadcasts from October 12"). `revalidate` 3600.
+- **Sitemap:** today and the 13 days before it (`tonightSitemapDays`).
 
 ## Search Console
 

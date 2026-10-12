@@ -1,4 +1,5 @@
 import { SORT_MODES, type SortMode } from "@/lib/library/filter-episodes";
+import { parseMomentSeconds } from "@/lib/shows/share";
 
 /**
  * Library intents: things the rest of the app asks the library to do —
@@ -23,6 +24,9 @@ import { SORT_MODES, type SortMode } from "@/lib/library/filter-episodes";
  *   /library?scroll=current
  *   /library?show=<communityKey>   open that show's detail (a show page's
  *                                  "Open in High Desert", docs/show-pages.md)
+ *   /library?show=<key>&t=<s>      ...and play it from that second (a shared
+ *                                  moment's "Open in High Desert"); `t` means
+ *                                  nothing without `show`
  *   /library?view=dial          list | dial (the dial is a preview-look mode,
  *                               src/lib/look/nav.ts; the public look ignores it)
  *
@@ -46,11 +50,13 @@ export interface LibraryIntent {
   scroll?: "current";
   /** A show's community key (src/lib/utils/community-key.ts): select it and bring it into view. */
   show?: string;
+  /** With `show`: play it from this second (a shared moment, src/lib/shows/share.ts). */
+  t?: number;
   view?: LibraryView;
 }
 
 /** The query parameters this module owns. Anything else in the URL is left alone. */
-export const INTENT_PARAMS = ["sort", "shuffle", "q", "scroll", "show", "view"] as const;
+export const INTENT_PARAMS = ["sort", "shuffle", "q", "scroll", "show", "t", "view"] as const;
 
 /**
  * A community key as `communityKey()` builds one: the collection, `--`, the
@@ -83,7 +89,11 @@ export function parseLibraryIntent(params: ParamReader): LibraryIntent {
   if (params.get("scroll") === "current") intent.scroll = "current";
 
   const show = params.get("show");
-  if (show !== null && SHOW_KEY_PATTERN.test(show)) intent.show = show;
+  if (show !== null && SHOW_KEY_PATTERN.test(show)) {
+    intent.show = show;
+    const t = parseMomentSeconds(params.get("t"));
+    if (t !== null) intent.t = t;
+  }
   const view = params.get("view");
   if (view !== null && (LIBRARY_VIEWS as readonly string[]).includes(view)) intent.view = view as LibraryView;
 
@@ -114,6 +124,7 @@ export function libraryIntentHref(intent: LibraryIntent): string {
   if (intent.q?.trim()) params.set("q", intent.q.trim());
   if (intent.scroll) params.set("scroll", intent.scroll);
   if (intent.show) params.set("show", intent.show);
+  if (intent.show && intent.t != null && Number.isInteger(intent.t) && intent.t >= 0) params.set("t", String(intent.t));
   if (intent.view) params.set("view", intent.view);
   const qs = params.toString();
   return qs ? `/library?${qs}` : "/library";

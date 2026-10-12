@@ -1,0 +1,196 @@
+/*
+ * Show, guest, topic and Tonight pages (docs/show-pages.md): the parts added
+ * on 2026-10-12 to make them first screens in each look. The older hooks
+ * (`hd-show-header`, `-article`, `-list`...) are styled in look-win98.css and
+ * look-night.css; this file is the new ones, both looks side by side.
+ * Palette tokens only (no-raw-hex.test.ts); no text below /85.
+ */
+
+/* ---------- Win98: the teal desktop of windows ---------- */
+
+/* The line that says what the site is: a status strip under the menu bar. */
+html[data-look="win98"] .hd-show-intro {
+  background: var(--hd-w98-face);
+  color: var(--hd-ink);
+  border-bottom: 1px solid var(--hd-chrome-dark);
+  box-shadow: 0 1px 0 var(--hd-chrome-lighter);
+}
+
+html[data-look="win98"] .hd-show-intro-text {
+  color: var(--hd-ink);
+}
+
+/* Ways in, and the big Play: real Win98 push buttons. */
+html[data-look="win98"] .hd-show-way,
+html[data-look="win98"] .hd-show-play,
+html[data-look="win98"] .hd-tonight-tune,
+html[data-look="win98"] .hd-topic-first,
+html[data-look="win98"] .hd-guest-first {
+  background: var(--hd-w98-face);
+  color: var(--hd-ink);
+  border: 1px solid;
+  border-color: var(--hd-chrome-lighter) var(--hd-ink) var(--hd-ink) var(--hd-chrome-lighter);
+  box-shadow:
+    inset 1px 1px 0 var(--hd-chrome-light),
+    inset -1px -1px 0 var(--hd-chrome-dark);
+}
+
+html[data-look="win98"] .hd-show-way-live,
+html[data-look="win98"] .hd-show-play,
+html[data-look="win98"] .hd-tonight-tune {
+  font-weight: bold;
+}
+
+html[data-look="win98"] .hd-show-way:active,
+html[data-look="win98"] .hd-show-play:active,
+html[data-look="win98"] .hd-tonight-tune:active,
+html[data-look="win98"] .hd-topic-first:active,
+html[data-look="win98"] .hd-guest-first:active {
+  border-color: var(--hd-ink) var(--hd-chrome-lighter) var(--hd-chrome-lighter) var(--hd-ink);
+  box-shadow:
+    inset 1px 1px 0 var(--hd-chrome-dark),
+    inset -1px -1px 0 var(--hd-chrome-light);
+}
+
+html[data-look="win98"] .hd-show-play[data-state="playing"] {
+  border-color: var(--hd-ink) var(--hd-chrome-lighter) var(--hd-chrome-lighter) var(--hd-ink);
+}
+
+/* A moment: a yellow tooltip balloon over the player. */
+html[data-look="win98"] .hd-show-moment {
+  background: var(--hd-w98-tooltip);
+  color: var(--hd-ink);
+  border: 1px solid var(--hd-ink);
+  padding: 4px 8px;
+}
+
+html[data-look="win98"] .hd-show-moment strong {
+  color: var(--hd-ink);
+}
+
+html[data-look="win98"] .hd-show-topic {
+  color: var(--hd-navy);
+  background: var(--hd-w98-face);
+  border: 1px solid;
+  border-color: var(--hd-chrome-lighter) var(--hd-ink) var(--hd-ink) var(--hd-chrome-lighter);
+}
+
+html[data-look="win98"] .hd-show-topic:hover {
+  background: var(--hd-navy);
+  color: var(--hd-chrome-lighter);
+}
+
+html[data-look="win98"] .hd-show-topic:hover * {
+  color: var(--hd-chrome-lighter);
+}
+
+/* Each window says what it is in its title bar. */
+html[data-look="win98"] .hd-show-article.hd-topic::before {
+  content: "High Desert - Topic";
+}
+
+html[data-look="win98"] .hd-show-article.hd-tonight::before {
+  content: "High Desert - Tonight";
+}
+
+html[data-look="win98"] .hd-topic-links {
+  background: var(--hd-chrome-lighter);
+}
+
+html[data-look="win98"] .hd-tonight-kind {
+  color: var(--hd-w98-maroon);
+}
+
+html[data-look="win98"] .hd-tonight-why,
+html[data-look="win98"] .hd-tonight-local {
+  color: var(--hd-ink);
+}
+
+html[data-look="win98"] .hd-show-footer-nav a {
+  color: var(--hd-navy);
+}
+
+/* ---------- Night: the dark glass of the app ---------- */
+
+html[data-look="night"] .hd-show-intro {
+  border-color: var(--cl-line);
+  background: color-mix(in srgb, var(--hd-raised) 70%, transparent);
+}
+
+html[data-look="night"] .hd-show-intro > div {
+  padding-top: var(--cl-3);
+  padding-bottom: var(--cl-3);
+}
+
+html[data-look="night"] .hd-show-intro-text {
+  color: var(--hd-muted);
+  line-height: 1.5;
+}
+
+html[data-look="night"] .hd-show-way,
+html[data-look="night"] .hd-topic-first,
+html[data-look="night"] .hd-guest-first {
+  border: 1px solid var(--cl-line-strong);
+  border-radius: var(--cl-r);
+  background: transparent;
+  box-shadow: none;
+  color: var(--hd-chrome);
+}
+
+html[data-look="night"] .hd-show-way:hover,
+html[data-look="night"] .hd-topic-first:hover,
+html[data-look="night"] .hd-guest-first:hover {
+  background: var(--cl-hover);
+}
+
+html[data-look="night"] .hd-show-way-live,
+html[data-look="night"] .hd-show-play,
+html[data-look="night"] .hd-tonight-tune {
+  border: 1px solid var(--cl-accent-line);
+  border-radius: var(--cl-r);
+  background: var(--cl-accent-soft);
+  color: var(--hd-amber);
+  box-shadow: none;
+}
+
+html[data-look="night"] .hd-show-play,
+html[data-look="night"] .hd-tonight-tune {
+  border-radius: 999px;
+  padding-inline: var(--cl-6);
+}
+
+html[data-look="night"] .hd-show-play:hover,
+html[data-look="night"] .hd-tonight-tune:hover,
+html[data-look="night"] .hd-show-way-live:hover {
+  background: color-mix(in srgb, var(--hd-amber) 22%, transparent);
+}
+
+html[data-look="night"] .hd-show-moment {
+  border: 1px solid var(--cl-accent-line);
+  border-radius: var(--cl-r);
+  background: var(--cl-accent-soft);
+  padding: var(--cl-3) var(--cl-4);
+}
+
+html[data-look="night"] .hd-show-topic {
+  border: 1px solid var(--cl-line-strong);
+  border-radius: 999px;
+  padding-inline: var(--cl-3);
+}
+
+html[data-look="night"] .hd-show-topic:hover {
+  background: var(--cl-hover);
+}
+
+html[data-look="night"] .hd-tonight-slot {
+  padding-inline: var(--cl-4);
+}
+
+@media (max-width: 767px) {
+  html[data-look="night"] .hd-show-way,
+  html[data-look="night"] .hd-show-play,
+  html[data-look="night"] .hd-tonight-tune {
+    flex: 1;
+    justify-content: center;
+  }
+}

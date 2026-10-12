@@ -11,6 +11,8 @@ import {
 } from "@/lib/shows/describe";
 import { guestDescription } from "@/lib/shows/jsonld";
 import { guestPeople } from "@/lib/shows/people";
+import { momentLabel } from "@/lib/shows/share";
+import { clip as clipText, DESCRIPTION_MAX } from "@/lib/shows/describe";
 
 /**
  * <head> for show and guest pages (docs/show-pages.md). The share images are
@@ -80,12 +82,86 @@ export function guestMetadata(guest: Guest): Metadata {
   };
 }
 
+/**
+ * A shared moment of a show: the show page's head, but its share card says
+ * the time ("Starts at 1:23:45", src/app/show/[slug]/moment/[t]/) and its
+ * og:url is the moment's own URL, so a preview links where it was shared
+ * from. Canonical stays the plain show page: a moment is not a second page.
+ * No moment (a second past the end): exactly the show page's head.
+ */
+export function momentMetadata(show: Show, seconds: number | null): Metadata {
+  const base = showMetadata(show);
+  if (seconds == null) return base;
+  const page = showPath(show.slug);
+  const url = `${page}?t=${seconds}`;
+  const card = `${page}/moment/${seconds}`;
+  const title = `${showPageTitle(show.row)}, from ${momentLabel(seconds)}`;
+  return {
+    ...base,
+    title,
+    openGraph: { ...base.openGraph, title, url, images: [shareImage(card, "opengraph-image", MOMENT_ALT)] },
+    twitter: { ...base.twitter, title, images: [shareImage(card, "twitter-image", MOMENT_ALT)] },
+  };
+}
+
+const MOMENT_ALT = "A High Desert card: the show, and the time the shared moment starts";
+
 /** A page's share card: 1200x630, drawn by the route beside it. */
-function shareImage(pagePath: string, kind: "opengraph-image" | "twitter-image") {
+export function shareImage(
+  pagePath: string,
+  kind: "opengraph-image" | "twitter-image",
+  alt = "A High Desert card: the title, date and guests",
+) {
   return {
     url: `${pagePath}/${kind}`,
     width: 1200,
     height: 630,
-    alt: "A High Desert card: the title, date and guests",
+    alt,
+  };
+}
+
+/** A topic page's head (docs/show-pages.md, "Topic pages"). */
+export function topicMetadata(topic: { name: string; slug: string; intro: string; shows: readonly Show[] }): Metadata {
+  const title = `${topic.name} on Art Bell · ${topic.shows.length} shows`;
+  const description = clipText(`${topic.intro} ${topic.shows.length} shows to play free on High Desert.`, DESCRIPTION_MAX);
+  const url = `/topic/${topic.slug}`;
+  const alt = `A High Desert card: ${topic.name} on Art Bell`;
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    keywords: ["Art Bell", topic.name, "Coast to Coast AM"],
+    openGraph: {
+      type: "website",
+      title,
+      description,
+      url,
+      siteName: SITE_NAME,
+      locale: "en_US",
+      images: [shareImage(url, "opengraph-image", alt)],
+    },
+    twitter: { card: "summary_large_image", title, description, images: [shareImage(url, "twitter-image", alt)] },
+  };
+}
+
+/** A Tonight page's head (docs/show-pages.md, "Tonight"). */
+export function tonightMetadata(day: string, title: string, description: string): Metadata {
+  const url = `/tonight/${day}`;
+  const alt = `A High Desert card: tonight's program for ${day}`;
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    keywords: ["Art Bell", "Coast to Coast AM", "on this date", "live radio", "High Desert Live"],
+    openGraph: {
+      type: "website",
+      title,
+      description,
+      url,
+      siteName: SITE_NAME,
+      locale: "en_US",
+      images: [shareImage(url, "opengraph-image", alt)],
+    },
+    twitter: { card: "summary_large_image", title, description, images: [shareImage(url, "twitter-image", alt)] },
   };
 }

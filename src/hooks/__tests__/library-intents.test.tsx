@@ -201,6 +201,42 @@ describe("useLibraryIntents", () => {
       expect(m.props.setFocusedIndex).not.toHaveBeenCalled();
     });
 
+    it("a moment: once the show is here, its next start is asked to begin at t, and it plays", async () => {
+      const { peekRequestedStart, resetRequestedStartForTests } = await import("@/audio/requested-start");
+      const { onHdEvent } = await import("@/lib/events");
+      resetRequestedStartForTests();
+      const played: Episode[] = [];
+      const off = onHdEvent("play-episode", (e) => played.push(e as Episode));
+      const list = [show(1), show(2)];
+      const m = mountIntents();
+      m.apply({ show: KEY_2, t: 5025 });
+      expect(played).toEqual([]);
+      m.update({ allEpisodes: list, visibleEpisodes: list });
+      expect(m.props.setSelectedEpisode).toHaveBeenCalledWith(list[1]);
+      expect(peekRequestedStart()).toEqual({ fileHash: list[1].fileHash, at: 5025 });
+      expect(played).toEqual([list[1]]);
+      // A plain show intent afterwards starts nothing.
+      m.apply({ show: KEY_2 });
+      m.update({ visibleEpisodes: [...list] });
+      expect(played).toHaveLength(1);
+      off();
+      resetRequestedStartForTests();
+    });
+
+    it("a first visit: the seed settles before its rows arrive, and the show is still found", async () => {
+      const { toast } = await import("@/stores/toast-store");
+      const error = vi.spyOn(toast, "error").mockImplementation(() => {});
+      const m = mountIntents({ allEpisodes: [], visibleEpisodes: [] });
+      m.apply({ show: KEY_2 });
+      m.update({ seedSettled: true });
+      expect(error).not.toHaveBeenCalled();
+      const list = [show(1), show(2)];
+      m.update({ allEpisodes: list, visibleEpisodes: list });
+      expect(m.props.setSelectedEpisode).toHaveBeenCalledWith(list[1]);
+      expect(error).not.toHaveBeenCalled();
+      error.mockRestore();
+    });
+
     it("keeps waiting while seeding may still bring it, then says it is not here", async () => {
       const { toast } = await import("@/stores/toast-store");
       const error = vi.spyOn(toast, "error").mockImplementation(() => {});
