@@ -837,4 +837,250 @@ html[data-look="clean"] {
     background: var(--cl-accent-soft);
     color: var(--hd-amber);
   }
+
+  /* ==========================================================
+     Show and guest pages (src/components/shows/, docs/show-pages.md).
+     Server-rendered and readable with JS off; only the hooks change.
+     ========================================================== */
+  .hd-show-header {
+    border: 0;
+    border-bottom: 1px solid var(--cl-line);
+    border-radius: 0;
+    background: color-mix(in srgb, var(--hd-midnight) 88%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding-top: var(--safe-top);
+  }
+  .hd-show-header > div {
+    padding-top: var(--cl-2);
+    padding-bottom: var(--cl-2);
+  }
+  .hd-show-nav {
+    gap: var(--cl-1);
+  }
+  .hd-show-nav-link {
+    border-radius: var(--cl-r-s);
+    padding-inline: var(--cl-3);
+  }
+  .hd-show-nav-link:hover {
+    background: var(--cl-hover);
+  }
+  .hd-show-main {
+    padding-top: var(--cl-5);
+    padding-bottom: var(--cl-6);
+  }
+  .hd-show-crumbs {
+    margin-bottom: var(--cl-3);
+  }
+  .hd-show-crumbs a {
+    color: var(--hd-muted);
+  }
+  .hd-show-crumbs a:hover {
+    color: var(--hd-chrome-light);
+  }
+  .hd-show-article {
+    border: 1px solid var(--cl-line-strong);
+    border-radius: var(--cl-r-l);
+    background: color-mix(in srgb, var(--hd-raised) 92%, transparent);
+    box-shadow: var(--cl-shadow);
+    padding: var(--cl-5);
+  }
+  .hd-show-series {
+    letter-spacing: 0.12em;
+    margin-bottom: var(--cl-2);
+  }
+  .hd-show-title {
+    line-height: 1.15;
+    text-wrap: balance;
+  }
+  .hd-show-with {
+    color: var(--hd-muted);
+    margin-top: var(--cl-2);
+  }
+  .hd-show-meta {
+    margin-top: var(--cl-5);
+    padding: var(--cl-3) 0;
+    border-top: 1px solid var(--cl-line);
+    border-bottom: 1px solid var(--cl-line);
+    row-gap: var(--cl-2);
+    column-gap: var(--cl-5);
+  }
+  .hd-show-meta dt {
+    font-size: var(--hd-text-12);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    align-self: center;
+  }
+  .hd-show-player {
+    border: 1px solid var(--cl-line);
+    border-radius: var(--cl-r);
+    background: color-mix(in srgb, var(--hd-well) 85%, transparent);
+    padding: var(--cl-4);
+    gap: var(--cl-4);
+  }
+  .hd-show-audio {
+    border-radius: 999px;
+    color-scheme: dark;
+  }
+  .hd-show-open {
+    border: 1px solid var(--cl-accent-line);
+    border-radius: var(--cl-r);
+    background: var(--cl-accent-soft);
+    color: var(--hd-amber);
+    box-shadow: none;
+  }
+  .hd-show-open:hover {
+    background: color-mix(in srgb, var(--hd-amber) 22%, transparent);
+    color: var(--hd-amber);
+  }
+  .hd-show-summary {
+    margin-top: var(--cl-6);
+  }
+  .hd-show-summary p {
+    max-width: 62ch;
+    line-height: 1.65;
+  }
+  .hd-show-summary h2,
+  .hd-show-related-title {
+    font-size: var(--hd-text-12);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: var(--cl-2);
+  }
+  .hd-show-tags {
+    margin-top: var(--cl-5);
+  }
+  .hd-show-tag {
+    border: 1px solid var(--cl-line-strong);
+    border-radius: 999px;
+    padding-inline: var(--cl-3);
+    color: var(--hd-chrome);
+  }
+  .hd-show-tag:hover {
+    background: var(--cl-hover);
+    border-color: var(--hd-muted);
+  }
+  .hd-show-related {
+    gap: var(--cl-6);
+  }
+  .hd-show-list {
+    gap: 0;
+    border: 1px solid var(--cl-line);
+    border-radius: var(--cl-r);
+    overflow: clip;
+    background: color-mix(in srgb, var(--hd-card) 60%, transparent);
+  }
+  .hd-show-list-item + .hd-show-list-item {
+    border-top: 1px solid var(--cl-line);
+  }
+  .hd-show-list-link {
+    padding: var(--cl-3) var(--cl-4);
+    justify-content: space-between;
+  }
+  .hd-show-list-link:hover {
+    background: var(--cl-hover);
+  }
+  .hd-show-footer {
+    border-color: var(--cl-line);
+  }
+  .hd-show-footer > div {
+    padding-top: var(--cl-5);
+    padding-bottom: calc(var(--cl-5) + var(--safe-bottom));
+    line-height: 1.6;
+  }
+  @media (max-width: 767px) {
+    .hd-show-article {
+      padding: var(--cl-4);
+      border-radius: var(--cl-r);
+    }
+    .hd-show-main {
+      padding-left: var(--cl-3);
+      padding-right: var(--cl-3);
+    }
+    .hd-show-list-link {
+      gap: 2px;
+    }
+    .hd-show-open {
+      flex: 1;
+      justify-content: center;
+    }
+  }
+
+  /* ==========================================================
+     Dialogs, banners, the chat sheet.
+     ========================================================== */
+  /* The shortcuts list: rounded groups, keys as chips. */
+  [role="dialog"] fieldset {
+    border-radius: var(--cl-r);
+    border-color: var(--cl-line-strong);
+    padding: var(--cl-2) var(--cl-3) var(--cl-3);
+  }
+  [role="dialog"] fieldset legend {
+    letter-spacing: 0.1em;
+  }
+  [role="dialog"] kbd.w98-raised-dark {
+    border-radius: var(--cl-r-s);
+    min-width: 24px;
+    text-align: center;
+  }
+  /* A centred dialog on a phone keeps a gutter and its corners. */
+  @media (max-width: 767px) {
+    .fixed.inset-0.z-50.flex.items-center.justify-center > .relative.animate-dialog {
+      max-width: calc(100vw - 2 * var(--cl-4));
+    }
+  }
+
+  /* The status banners (OfflineIndicator): a pill under the top edge,
+     not a strip across the menu bar. */
+  div[role="status"].fixed.top-0.inset-x-0.z-50 {
+    top: calc(var(--safe-top) + var(--cl-2));
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: calc(100vw - 2 * var(--cl-4));
+    padding: 6px var(--cl-4);
+    border: 1px solid var(--cl-line-strong);
+    border-radius: 999px;
+    background-color: var(--hd-raised);
+    box-shadow: var(--cl-shadow-s);
+    font-size: var(--hd-text-12);
+    font-weight: normal;
+    line-height: 1.4;
+    z-index: 60;
+  }
+  div[role="status"][data-testid="outage-banner"].fixed.top-0.inset-x-0.z-50 {
+    border-color: var(--cl-accent-line);
+    background-image: linear-gradient(var(--cl-accent-soft), var(--cl-accent-soft));
+  }
+  @media (max-width: 767px) {
+    div[role="status"].fixed.top-0.inset-x-0.z-50 {
+      white-space: normal;
+      text-align: center;
+      border-radius: var(--cl-r-l);
+    }
+  }
+
+  /* The phone lines sheet. */
+  [data-testid="live-chat-sheet"] {
+    border-radius: 16px 16px 0 0;
+    border-top: 1px solid var(--cl-line-strong);
+    box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.45);
+  }
+  [data-testid="live-chat-sheet"] > div:first-child {
+    border-bottom: 1px solid var(--cl-line);
+    padding-bottom: var(--cl-3);
+  }
+
+  /* The error screens (error.tsx): a window like any other; on a phone
+     its buttons are full tap targets. */
+  @media (max-width: 767px) {
+    .w98-raised-dark:has(> .w98-titlebar-gradient) .justify-end > button {
+      min-height: 44px;
+      flex: 1;
+    }
+  }
 }
