@@ -8,6 +8,13 @@ import { clip, headlineGuest, longDate, seriesOf, showSubject, type CatalogRow }
  * says `display: flex`.
  */
 
+/**
+ * How long a browser or a link-preview service may keep a card. Cards are
+ * drawn per request (~0.1 s), not cached on disk: 1,600 of them would cost
+ * the box ~80 MB per deploy for images crawlers fetch rarely.
+ */
+export const CARD_CACHE_CONTROL = "public, max-age=604800, stale-while-revalidate=86400";
+
 export interface CardText {
   kicker: string;
   title: string;
@@ -19,7 +26,7 @@ export interface CardText {
 export function showCard(row: CatalogRow): CardText {
   const guest = headlineGuest(row);
   return {
-    kicker: `${seriesOf(row).short.toUpperCase()} · ${longDate(row.airDate)}`,
+    kicker: `${seriesOf(row).short} · ${longDate(row.airDate)}`.toUpperCase(),
     title: clip(showSubject(row), 70),
     subtitle: guest ? clip(`with ${guest}`, 80) : undefined,
     footer: row.aiCategory,

@@ -14,7 +14,7 @@
  * 200 and pass scripts/lib/seo-page.mjs: title, description, canonical, Open
  * Graph, Twitter card, valid schema.org JSON-LD, the page in the server HTML,
  * nothing hiding it. Every internal link on a checked page must answer 200,
- * and its share images must be 200 image/png.
+ * and its share images must be 200 image/png, cacheable for a day or more.
  *
  * Exits non-zero on any finding.
  */
@@ -154,6 +154,9 @@ await pool([...images.keys()], 3, async (p) => {
     if (res.status !== 200 || !type.startsWith("image/png") || !png) {
       find(images.get(p), `share image ${p}: HTTP ${res.status}, ${type || "no type"}${png ? "" : ", not a PNG"}`);
     }
+    // Drawn per request, so clients must be allowed to keep it (CARD_CACHE_CONTROL).
+    const maxAge = Number(/max-age=(\d+)/.exec(res.headers.get("cache-control") ?? "")?.[1] ?? 0);
+    if (res.status === 200 && maxAge < 86_400) find(images.get(p), `share image ${p}: cache-control "${res.headers.get("cache-control")}" keeps it under a day`);
   } catch (e) {
     find(images.get(p), `share image ${p} failed: ${e.message}`);
   }

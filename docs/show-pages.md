@@ -85,14 +85,27 @@ links and plays with JavaScript off.
   (`article`, `publishedTime`, `og:audio`), Twitter `summary_large_image`.
 - **Share image:** `src/app/show/[slug]/opengraph-image.tsx` (and
   `twitter-image.tsx`) draws a 1200x630 card with `next/og` from
-  `ShowCard` (palette from `src/lib/palette.ts`). Guest pages have their own.
+  `ShowCard` (palette from `src/lib/palette.ts`): programme and date, the
+  subject, the guests, the category. Guest pages have their own.
 
-### Rendered on demand, cached until the next deploy
+### Rendered on demand
 
-Show and guest pages export `generateStaticParams()` returning `[]` with
-`dynamicParams` on: nothing is rendered at build time; each page and each share
-card is rendered on its first request and then served from Next's cache (in
-`.next`, so a deploy starts fresh). The build does not grow with the catalog.
+- **Pages** (show and guest) export `generateStaticParams()` returning `[]` with
+  `dynamicParams` on: nothing is rendered at build time; each page is rendered
+  on its first request (30 to 90 ms measured) and then served from Next's cache
+  (`x-nextjs-cache: HIT`, `Cache-Control: s-maxage=31536000`) until the next
+  deploy. Static, not dynamic, on purpose: a dynamic page streams its metadata
+  to non-crawler user agents, and link-preview services must find the tags in
+  `<head>`. **Disk:** about 175 KB per cached page (HTML, RSC, segments) in
+  `.next/server/route-cache/`, so roughly 280 MB once every page has been
+  crawled, per build (`.next.prev` keeps the previous one).
+- **Share cards** are drawn per request (about 0.1 s, a ~50 KB PNG) and sent
+  with `Cache-Control: public, max-age=604800, stale-while-revalidate=86400`
+  (`CARD_CACHE_CONTROL`), so browsers and preview services keep them a week;
+  none is drawn at build time or stored on disk.
+
+The build does not grow with the catalog: static generation stayed at 37
+routes, in 1.6 s.
 
 ## Structured data
 
@@ -163,7 +176,8 @@ claiming). `public/robots.txt` disallows `/api/`, `/scanner`, `/search` and
   `og:title`/`og:description`/`og:image`/`og:url` or `twitter:card`; JSON-LD
   that does not parse or is not valid schema.org; the page not being in the
   server HTML; the boot screen not hidden; an em dash; any internal link that
-  does not answer 200; a share image that is not 200 `image/png`. Also checks
+  does not answer 200; a share image that is not 200 `image/png` or is cacheable
+  for less than a day. Also checks
   `/show/key/<key>` redirects and an unknown slug is a 404.
   CI's browser job runs it after the CSP check, against the same server.
   Run it against production after a deploy: `npm run check:seo -- https://highdesert.space`.

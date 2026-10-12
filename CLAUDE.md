@@ -360,8 +360,10 @@ Search Console steps: `docs/show-pages.md`.
   AudioObject with the archive.org URL, Art Bell as `creator`, guests as `actor` only when
   `guestPeople()` is sure they are people) and `BreadcrumbList`.
   `scripts/lib/jsonld-check.mjs` holds them to the schema.org vocabulary.
-- **Rendered on first request, cached until the next deploy** (`generateStaticParams`
-  returns `[]`): the build does not render 1,413 pages or cards.
+- **Pages render on first request and are cached until the next deploy**
+  (`generateStaticParams` returns `[]`; about 175 KB of disk per crawled page). **Share
+  cards are drawn per request** with a week-long `Cache-Control` (`CARD_CACHE_CONTROL`),
+  never stored. The build renders neither.
 - `src/app/sitemap.ts` lists every show and guest page; `public/robots.txt` disallows
   `/api/`, `/scanner`, `/search`, `/look`.
 - **`npm run check:seo -- <url>`** (`scripts/seo-check.mjs`) crawls robots, the sitemap and
