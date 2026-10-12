@@ -12,9 +12,7 @@ import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { episodeTitle } from "@/lib/library/display-title";
 import { withPlaySurface } from "@/audio/play-surface";
-import { useLook } from "@/hooks/useLook";
-import { radioRetired, DIAL_HREF } from "@/lib/look/nav";
-import type { Look } from "@/lib/look/look";
+import { DIAL_HREF, DIAL_LABEL } from "@/lib/look/nav";
 
 interface Result {
   id: string;
@@ -43,16 +41,11 @@ const ROUTE_PATHS: Record<string, string> = {
 };
 
 /**
- * The routes for a look. The preview looks have no Radio tab: "Go to" the
- * dial is the Library's Dial mode there (src/lib/look/nav.ts).
+ * There is no Radio tab: "Go to" the dial is the Library's Dial mode
+ * (src/lib/look/nav.ts).
  */
-function routesFor(look: Look): { routes: Result[]; paths: Record<string, string> } {
-  if (!radioRetired(look)) return { routes: ROUTES, paths: ROUTE_PATHS };
-  return {
-    routes: ROUTES.map((r) => (r.id === "nav-radio" ? { ...r, label: "Library Dial" } : r)),
-    paths: { ...ROUTE_PATHS, "nav-radio": DIAL_HREF },
-  };
-}
+const NAV_ROUTES: Result[] = ROUTES.map((r) => (r.id === "nav-radio" ? { ...r, label: DIAL_LABEL } : r));
+const NAV_PATHS: Record<string, string> = { ...ROUTE_PATHS, "nav-radio": DIAL_HREF };
 
 function fuzzyMatch(text: string, query: string): boolean {
   return scoreMatch(text, query) > 0;
@@ -112,8 +105,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   // Library actions navigate to a URL intent: the palette is open on every
   // route, and the library is mounted on one (HD-013).
   const openLibrary = useOpenLibraryIntent();
-  const look = useLook();
-  const { routes, paths: routePaths } = useMemo(() => routesFor(look), [look]);
+  const routes = NAV_ROUTES;
+  const routePaths = NAV_PATHS;
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   /**

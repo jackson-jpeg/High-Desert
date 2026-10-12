@@ -68,11 +68,8 @@ import { useUserDataTransfer } from "@/hooks/useUserDataTransfer";
 import { useHdEvent } from "@/lib/events";
 import { useLook } from "@/hooks/useLook";
 
-// The Win98 preview look's taskbar (docs/looks.md): fetched only in that look.
-const Win98Taskbar = dynamic(
-  () => import("@/components/looks/win98/Taskbar").then((m) => m.Taskbar),
-  { ssr: false },
-);
+// Win98's taskbar (docs/looks.md), rendered by the server like the rest.
+import { Taskbar as Win98Taskbar } from "@/components/looks/win98/Taskbar";
 import { showsNavPath } from "@/lib/look/nav";
 
 interface DesktopShellProps {
@@ -85,7 +82,6 @@ interface DesktopShellProps {
 const NAV_ITEMS = [
   { label: "Library", path: "/library" },
   { label: "Live", path: "/live" },
-  { label: "Radio", path: "/radio" },
   { label: "Scanner", path: "/scanner" },
   { label: "Search", path: "/search" },
   { label: "Stats", path: "/stats" },
@@ -287,7 +283,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           "md:static md:justify-start md:gap-0 md:border-t-0 md:border-b md:border-bevel-dark/15 md:px-2 md:bg-midnight/80 md:backdrop-blur-xs md:pb-0",
         )}
       >
-        {NAV_ITEMS.filter(({ path }) => showsNavPath(path, look, isAdmin)).map(({ label, path }) => {
+        {NAV_ITEMS.filter(({ path }) => showsNavPath(path, isAdmin)).map(({ label, path }) => {
           const isActive = pathname === path;
           const showNowPlaying = path === "/library" && isPlaying && !isActive;
           // A live count on the tab is the whole discovery mechanism for the
@@ -304,7 +300,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               onClick={() => router.push(path)}
               aria-current={isActive ? "page" : undefined}
               // A hook for the preview looks' tab icons (src/styles/look-*.css).
-              data-nav={look !== "default" ? path.slice(1) : undefined}
+              data-nav={path.slice(1)}
               className={cn(
                 "w98-font cursor-pointer select-none transition-colors-fast relative",
                 "flex flex-col items-center justify-center min-h-[52px] flex-1 text-hd-13 gap-1",
@@ -345,7 +341,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             "md:hidden",
           )}
           aria-label="More options"
-          data-nav={look !== "default" ? "more" : undefined}
+          data-nav="more"
         >
           More
         </button>

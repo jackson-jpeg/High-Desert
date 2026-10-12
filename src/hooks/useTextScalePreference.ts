@@ -28,7 +28,7 @@ export function toTextScaleValue(scale: number): TextScaleValue {
  * Three places, and all three matter: the CSS variable is what every
  * `text-hd-*` step multiplies by; `hd:text-scale` tells `useTextScale()`
  * readers (the virtual list's row heights) to re-measure; and localStorage is
- * what the inline script in `app/layout.tsx` reads before first paint, so a
+ * what the inline script in `app/[look]/layout.tsx` reads before first paint, so a
  * reload does not flash the page at 1x.
  */
 export function applyTextScale(value: TextScaleValue): void {

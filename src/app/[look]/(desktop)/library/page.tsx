@@ -36,7 +36,6 @@ import { LibraryIntentReader } from "@/components/library/LibraryIntentReader";
 import { LibraryDial } from "@/components/library/LibraryDial";
 import { LibraryViewSwitch } from "@/components/library/LibraryViewSwitch";
 import { useLibraryView } from "@/hooks/library/useLibraryView";
-import { useLook } from "@/hooks/useLook";
 import { emit } from "@/lib/events";
 
 /**
@@ -56,9 +55,8 @@ export default function LibraryPage() {
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const isMobile = useIsMobile();
   const searchBarRef = useRef<HTMLInputElement>(null);
-  // List or Dial: the dial is a Library mode in the preview looks only
-  // (src/lib/look/nav.ts). The public look is always "list".
-  const libraryView = useLibraryView(useLook());
+  // List or Dial: the radio dial is a Library mode (src/lib/look/nav.ts).
+  const libraryView = useLibraryView();
   const dialMode = libraryView.view === "dial";
 
   const allEpisodes = useLibraryEpisodes();

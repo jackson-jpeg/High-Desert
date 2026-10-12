@@ -84,6 +84,19 @@ function resolveCatalogCount(): string {
  */
 const DIST_DIR = process.env.HD_DIST_DIR || ".next";
 
+/** The look cookie (src/lib/look/look.ts). */
+const LOOK_COOKIE_NAME = "hd_look";
+/**
+ * Pages only: not the API, the phone lines, the mirror, Next's own files,
+ * public/ assets, share cards (outside the look segment so their URLs carry no
+ * look) or anything with a file extension. Nor a path already in a look:
+ * Next applies these rewrites in a chain, and /win98/library would become
+ * /win98/win98/library. A visitor who types /night/library is sent to
+ * /library by src/proxy.ts, which sees the URL before any rewrite.
+ */
+const LOOK_PAGES =
+  "/:path((?!api/|live-api/|mirror/|_next/|seed/|fonts/|icons/|audio/|win98(?:/|$)|night(?:/|$)|.*opengraph-image|.*twitter-image|.*\\.[a-zA-Z0-9]+$).+)";
+
 const nextConfig: NextConfig = {
   distDir: DIST_DIR,
   // This project is its own workspace root. Without this Next walks up, finds
@@ -96,9 +109,31 @@ const nextConfig: NextConfig = {
   // /_next/image reachable — the endpoint behind GHSA-2xp9-vwfh-vxw4.
   images: { unoptimized: true },
   poweredByHeader: false,
+  // The root layout is per look (src/app/[look]/layout.tsx), so a URL no route
+  // matches at all is answered by src/app/global-not-found.tsx.
+  experimental: { globalNotFound: true },
   env: {
     NEXT_PUBLIC_BUILD_ID: BUILD_ID,
     NEXT_PUBLIC_CATALOG_COUNT: resolveCatalogCount(),
+  },
+  // Every page is rendered in the visitor's look (src/lib/look/look.ts):
+  // `/library` is served from src/app/[look]/(desktop)/library with `[look]`
+  // the `hd_look` cookie, or Win98 without one. A config rewrite, not one in
+  // src/proxy.ts: a proxy rewrite must be an absolute URL, and Next only keeps
+  // it internal when its origin matches the server's own (`-H 127.0.0.1`),
+  // which a request through nginx never names.
+  async rewrites() {
+    const night = [{ type: "cookie" as const, key: LOOK_COOKIE_NAME, value: "night" }];
+    return {
+      beforeFiles: [
+        { source: "/", has: night, destination: "/night" },
+        { source: "/", destination: "/win98" },
+        { source: LOOK_PAGES, has: night, destination: "/night/:path" },
+        { source: LOOK_PAGES, destination: "/win98/:path" },
+      ],
+      afterFiles: [],
+      fallback: [],
+    };
   },
   async headers() {
     return [

@@ -1,22 +1,28 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-import { isPreviewLook, type Look } from "@/lib/look/look";
+import { createContext, createElement, useContext, type ReactNode } from "react";
+import type { Look } from "@/lib/look/look";
 
 /**
- * The look this page is in (src/lib/look/look.ts). "default" on the server and
- * through hydration, so the server HTML is always the public look's; the
- * preview's own components swap in right after. CSS does not wait for this:
- * it keys on `<html data-look>`, which the boot script sets before paint.
+ * Every page has a LookProvider (src/app/[look]/layout.tsx), so this is only
+ * what a component mounted on its own sees, i.e. a unit test: the base
+ * components, which are Night's. Win98 swaps some of them, and a test of a
+ * Win98 swap says so with a provider. It is not the site's default
+ * (DEFAULT_LOOK), which the proxy decides.
  */
-export function currentLook(): Look {
-  if (typeof document === "undefined") return "default";
-  const v = document.documentElement.getAttribute("data-look");
-  return isPreviewLook(v) ? v : "default";
+const OUTSIDE_A_PAGE: Look = "night";
+
+/**
+ * The look this page was rendered in (src/lib/look/look.ts). The server knows
+ * it (the `[look]` segment), so it is the same on the server, through
+ * hydration and after: there is no swap after first paint.
+ */
+const LookContext = createContext<Look>(OUTSIDE_A_PAGE);
+
+export function LookProvider({ look, children }: { look: Look; children?: ReactNode }) {
+  return createElement(LookContext.Provider, { value: look }, children);
 }
 
-const subscribe = () => () => {};
-
 export function useLook(): Look {
-  return useSyncExternalStore(subscribe, currentLook, () => "default");
+  return useContext(LookContext);
 }

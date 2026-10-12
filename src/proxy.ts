@@ -1,40 +1,47 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { LOOK_COOKIE, LOOK_VIEW_COOKIE, verifyLook } from "@/lib/look/look";
-import { DIAL_HREF, radioRetired } from "@/lib/look/nav";
+import { isLook, LOOK_COOKIE } from "@/lib/look/look";
+import { DIAL_HREF } from "@/lib/look/nav";
 
 /**
- * Keeps the script-readable look cookie in step with the signed one
- * (src/lib/look/look.ts). A request with neither cookie, which is every
- * public visitor, passes through untouched.
+ * Page requests. The look itself is a rewrite in next.config.ts (see there for
+ * why it is not done here); this only:
+ *
+ *   - sends /radio to the Library's Dial mode, in both looks (src/lib/look/nav.ts);
+ *   - sends a path that names a look (/night/library) to the page's one URL
+ *     (/library), so a look is never a second address for a page;
+ *   - removes the owner's preview cookies from before the looks went public: a
+ *     signed, HttpOnly `hd_look` that script cannot overwrite, so the Display
+ *     setting could never change it, and its script-readable copy. Only the
+ *     server can remove the first.
  */
-export async function proxy(request: NextRequest) {
-  const signed = request.cookies.get(LOOK_COOKIE)?.value;
-  const view = request.cookies.get(LOOK_VIEW_COOKIE)?.value;
-  if (!signed && !view) return NextResponse.next();
-
-  const look = await verifyLook(signed, process.env.HD_LOOK_KEY);
-  // The preview looks have no Radio tab: /radio is the Library's Dial mode
-  // (src/lib/look/nav.ts). The public look never gets here with a look.
-  const res = look && radioRetired(look) && request.nextUrl.pathname === "/radio"
-    ? NextResponse.redirect(new URL(DIAL_HREF, request.url), 307)
-    : NextResponse.next();
-  if (look) {
-    if (view !== look) {
-      const exp = Number(signed!.split(".")[2]);
-      res.cookies.set(LOOK_VIEW_COOKIE, look, {
-        path: "/",
-        sameSite: "lax",
-        secure: request.nextUrl.protocol === "https:",
-        maxAge: Math.max(1, Math.floor((exp - Date.now()) / 1000)),
-      });
-    }
-  } else if (view) {
-    res.cookies.delete(LOOK_VIEW_COOKIE);
+export function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  if (pathname === "/radio") {
+    return NextResponse.redirect(new URL(DIAL_HREF, request.url), 308);
   }
+  // One URL per page: the look is the cookie's business, never the path's.
+  const named = LOOK_IN_PATH.exec(pathname);
+  if (named) {
+    const url = new URL(request.url);
+    url.pathname = named[1] || "/";
+    return NextResponse.redirect(url, 308);
+  }
+  const raw = request.cookies.get(LOOK_COOKIE)?.value;
+  const legacyView = request.cookies.has(LEGACY_VIEW_COOKIE);
+  if ((raw === undefined || isLook(raw)) && !legacyView) return NextResponse.next();
+  const res = NextResponse.next();
+  if (raw !== undefined && !isLook(raw)) res.cookies.delete(LOOK_COOKIE);
+  if (legacyView) res.cookies.delete(LEGACY_VIEW_COOKIE);
   return res;
 }
 
+const LEGACY_VIEW_COOKIE = "hd_look_view";
+const LOOK_IN_PATH = /^\/(?:win98|night)(\/.*)?$/;
+
 export const config = {
-  // Documents only: the cookie matters where the boot script reads it.
-  matcher: ["/((?!api/|live-api/|mirror/|_next/|seed/|fonts/|icons/|audio/|.*\\.[a-z0-9]+$).*)"],
+  // Pages only. Share cards (opengraph-image, twitter-image) are served from
+  // outside the look segment, so their URLs carry no look.
+  matcher: [
+    "/((?!api/|live-api/|mirror/|_next/|seed/|fonts/|icons/|audio/|.*opengraph-image|.*twitter-image|.*\\.[a-z0-9]+$).*)",
+  ],
 };

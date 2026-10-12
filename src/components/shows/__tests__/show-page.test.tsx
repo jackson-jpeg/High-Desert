@@ -36,7 +36,7 @@ function resolves(href: string): boolean {
     const intent = parseLibraryIntent(url.searchParams);
     return Object.keys(intent).length > 0;
   }
-  return ["/", "/library", "/live", "/radio", "/stats"].includes(p);
+  return ["/", "/library", "/live", "/stats"].includes(p);
 }
 
 describe("a show page's server HTML", () => {

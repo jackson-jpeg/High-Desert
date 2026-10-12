@@ -61,7 +61,7 @@ BUILD_CMD="${HD_BUILD_CMD:-npm run build}"
 HEAVY_SH="$(cd "$(dirname "$0")" && pwd)/heavy.sh"
 WAIT_SECS="${HD_WAIT_SECS:-60}"
 STAGE_PARENT="${HD_STAGE_DIR:-/root/.hd-deploy-stage}"
-PAGES=(/ /library /radio /stats)
+PAGES=(/ /library /live /stats)
 BASE="http://127.0.0.1:$PORT"
 
 LIVE=".next"

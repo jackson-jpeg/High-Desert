@@ -21,7 +21,7 @@ const library = vi.hoisted(() => ({ count: 0 }));
 vi.mock("@/db", () => ({ db: { episodes: { count: async () => library.count } } }));
 HTMLCanvasElement.prototype.getContext = (() => null) as never;
 
-const { default: WelcomePage } = await import("../page");
+const { default: WelcomePage } = await import("../[look]/page");
 
 let root: Root;
 let host: HTMLDivElement;

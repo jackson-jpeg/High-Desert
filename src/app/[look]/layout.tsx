@@ -1,16 +1,18 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
-import { LookSwitcher } from "@/components/looks/LookSwitcher";
+import { LookProvider } from "@/hooks/useLook";
+import { isLook, LOOKS, lookFrom } from "@/lib/look/look";
+import { notFound } from "next/navigation";
 import { UsageTracker } from "@/components/UsageTracker";
-import { BOOT_SCRIPT } from "./boot-script";
+import { BOOT_SCRIPT } from "../boot-script";
 import { PALETTE } from "@/lib/palette";
 import { BUILD_META } from "@/lib/utils/build-id";
 import { siteVerification } from "@/lib/seo/verification";
-import "./globals.css";
+import "../globals.css";
 
 const w95fa = localFont({
-  src: "../../public/fonts/W95FA.woff2",
+  src: "../../../public/fonts/W95FA.woff2",
   variable: "--font-w95",
   display: "swap",
 });
@@ -62,11 +64,16 @@ export const metadata: Metadata = {
     locale: "en_US",
     type: "website",
     url: "https://highdesert.space",
+    // Named, not inherited: the card (src/app/opengraph-image.tsx) sits
+    // outside the look segment so its URL carries no look, and Next adds a
+    // card by itself only to pages in its own segment.
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "High Desert: the Art Bell radio archive" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "High Desert · Art Bell Radio Archive",
     description: "Stream thousands of Art Bell episodes: Coast to Coast AM, Dreamland, and more from the Kingdom of Nye.",
+    images: ["/twitter-image"],
   },
 };
 
@@ -92,15 +99,33 @@ const jsonLd = {
   },
 };
 
-export default function RootLayout({
+/**
+ * The root layout, once per look (src/lib/look/look.ts): src/proxy.ts rewrites
+ * every page request into `/<look>/...`, and both looks are prerendered.
+ */
+/**
+ * Not `dynamicParams = false`: on the root segment that also refuses every
+ * page rendered on demand below it (a show, a guest). An unknown look is
+ * refused here instead, though only a request that skipped the rewrite (a
+ * file name, say) can bring one.
+ */
+
+export function generateStaticParams(): { look: string }[] {
+  return LOOKS.map((look) => ({ look }));
+}
+
+export default async function RootLayout({
   children,
+  params,
 }: Readonly<{
   children: React.ReactNode;
+  params: Promise<{ look: string }>;
 }>) {
+  const asked = (await params).look;
+  if (!isLook(asked)) notFound();
+  const look = lookFrom(asked);
   return (
-    // suppressHydrationWarning: the boot script may set data-look (a preview
-    // look, src/lib/look/look.ts) on this element before React hydrates.
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-look={look}>
       <head>
         {/* The build this document belongs to (src/lib/utils/build-id.ts). */}
         <meta name={BUILD_META} content={process.env.NEXT_PUBLIC_BUILD_ID ?? "dev"} />
@@ -177,10 +202,11 @@ export default function RootLayout({
           </div>
         </div>
         <script dangerouslySetInnerHTML={{ __html: BOOT_SCRIPT }} />
-        <ServiceWorkerRegistration />
-        <UsageTracker />
-        {children}
-        <LookSwitcher />
+        <LookProvider look={look}>
+          <ServiceWorkerRegistration />
+          <UsageTracker />
+          {children}
+        </LookProvider>
       </body>
     </html>
   );

@@ -292,7 +292,7 @@ describe("the layout's play-episode handler binds the declared surface", () => {
   it("binds right after it takes the start token", async () => {
     const { readFileSync } = await import("node:fs");
     const path = await import("node:path");
-    const src = readFileSync(path.resolve(__dirname, "../../app/(desktop)/layout.tsx"), "utf8");
+    const src = readFileSync(path.resolve(__dirname, "../../app/[look]/(desktop)/layout.tsx"), "utf8");
     expect(src).toMatch(/const start = beginStart\(\);\n(\s*\/\/[^\n]*\n)*\s*bindPlaySurface\(start\);/);
   });
 });

@@ -41,7 +41,7 @@ vi.mock("@/audio/cache", () => ({
 
 const { db } = await import("@/db");
 const { usePlayerStore } = await import("@/stores/player-store");
-const { default: LibraryPage } = await import("@/app/(desktop)/library/page");
+const { default: LibraryPage } = await import("@/app/[look]/(desktop)/library/page");
 
 /** Enough rows that the virtual list renders only a window of them. */
 const COUNT = 60;

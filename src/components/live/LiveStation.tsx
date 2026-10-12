@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
 import { Window } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
@@ -24,11 +23,8 @@ import { ShowTitle } from "@/components/library/ShowTitle";
 import { useLook } from "@/hooks/useLook";
 import { onPhoneLinesRequest, takePhoneLinesRequest } from "@/components/looks/win98/phone-lines-request";
 
-// The Win98 preview look's phone lines (docs/looks.md): fetched only in that look.
-const NotepadPhoneLines = dynamic(
-  () => import("@/components/looks/win98/NotepadPhoneLines").then((m) => m.NotepadPhoneLines),
-  { ssr: false },
-);
+// Win98's phone lines (docs/looks.md).
+import { NotepadPhoneLines } from "@/components/looks/win98/NotepadPhoneLines";
 
 /**
  * The Live screen: a late-night studio. The ON AIR sign, the wall clock, the

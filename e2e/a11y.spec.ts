@@ -202,7 +202,7 @@ const HEADINGS: { route: string; h1: string; admin?: boolean; seed?: boolean; lo
 for (const { route, h1, admin, seed, loaded } of HEADINGS) {
   test(`${route} has exactly one h1: "${h1}"`, async ({ page }, info) => {
     // A phone never sees the welcome page: its first visit goes to /live and a
-    // return visit to /library (src/app/page.tsx; e2e/live-qa.spec.ts holds the
+    // return visit to /library (src/app/[look]/page.tsx; e2e/live-qa.spec.ts holds the
     // redirect). Its heading is checked where a desktop reads it.
     test.skip(route === "/" && !!info.project.use.isMobile, "a phone is taken past the welcome page");
     if (admin) await asAdmin(page);

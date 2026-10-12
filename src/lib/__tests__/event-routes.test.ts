@@ -158,7 +158,8 @@ function routes(): Map<string, string[]> {
     if (path.basename(f) !== "page.tsx") continue;
     const dir = path.dirname(f);
     const segments = path.relative(APP, dir).split(path.sep).filter(Boolean);
-    const route = "/" + segments.filter((s) => !/^\(.*\)$/.test(s)).join("/");
+    // `[look]` is the look segment the proxy rewrites into (src/proxy.ts), not part of the URL.
+    const route = "/" + segments.filter((s) => !/^\(.*\)$/.test(s) && s !== "[look]").join("/");
     const roots = [f];
     for (let d = dir; d.startsWith(APP); d = path.dirname(d)) {
       for (const frame of ["layout.tsx", "template.tsx", "error.tsx"]) {
@@ -195,13 +196,13 @@ describe("hd:* events and the routes they fire on (HD-019, HD-013)", () => {
     // Guards against a scanner that silently found nothing — an empty scan
     // would pass the real assertion below vacuously.
     expect([...ROUTES.keys()].sort()).toEqual([
-      "/", "/guest/[slug]", "/library", "/live", "/look", "/radio", "/scanner", "/search", "/show/[slug]", "/stats",
+      "/", "/[...missing]", "/guest/[slug]", "/library", "/live", "/scanner", "/search", "/show/[slug]", "/stats",
     ]);
     expect(allEmits.length).toBeGreaterThan(20);
-    const layout = path.join(APP, "(desktop)/layout.tsx");
+    const layout = path.join(APP, "[look]/(desktop)/layout.tsx");
     expect(allListens.some((s) => s.key === "play-episode" && s.file === layout)).toBe(true);
     expect(reachable(ROUTES.get("/stats")!).has(path.join(SRC, "components/CommandPalette.tsx"))).toBe(true);
-    expect(reachable(ROUTES.get("/stats")!).has(path.join(APP, "(desktop)/library/page.tsx"))).toBe(false);
+    expect(reachable(ROUTES.get("/stats")!).has(path.join(APP, "[look]/(desktop)/library/page.tsx"))).toBe(false);
   });
 
   it("every bus call names its key with a string literal", () => {

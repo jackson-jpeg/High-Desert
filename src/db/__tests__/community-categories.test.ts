@@ -137,7 +137,7 @@ describe("refreshCatalogCategories() on a library seeded before the categories",
 describe("the layout runs the refresh", () => {
   // Mounting the layout needs the whole app; what matters is that the seed
   // chain calls it, after reconcile has added any missing rows.
-  const layout = fs.readFileSync(path.join(root, "src/app/(desktop)/layout.tsx"), "utf8");
+  const layout = fs.readFileSync(path.join(root, "src/app/[look]/(desktop)/layout.tsx"), "utf8");
   it("calls refreshCatalogCategories() after reconcileLibrary(), as it does refreshCatalogFlags()", () => {
     const reconcile = layout.indexOf("await reconcileLibrary()");
     const flags = layout.indexOf("await refreshCatalogFlags()");

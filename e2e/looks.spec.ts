@@ -1,35 +1,29 @@
 import { test, expect, type Page } from "./fixtures";
-import type { APIRequestContext } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { openLibrary, episodeList } from "./library";
 import { playFromFixtureMirror } from "./fixture-audio";
 
 /**
- * Every user-facing screen, in every look, on a phone and a desktop
+ * Every user-facing screen, in both looks, on a phone and a desktop
  * (docs/looks.md). Each screen is saved to test-results/looks/ (CI uploads
  * it as the `look-screenshots` artifact on every run, pass or fail), and held
  * to what a look must never do:
  *
- *   - the public look carries no `data-look` and no switcher, whatever else
- *     the run does: today's site, untouched;
- *   - a preview look is on the page it was asked for, and its switcher shows;
+ *   - the page is in the look it was asked for, from the server's first byte
+ *     (`<html data-look>` in the HTML itself, not set by script);
  *   - no uncaught page error;
  *   - nothing wider than a phone's screen;
- *   - no em dash in any text a preview look puts on screen (CLAUDE.md).
+ *   - no em dash in any text on screen (CLAUDE.md).
  *
- * A preview look is turned on the production way: the phone lines' admin
- * route (`/live-api/admin/look`, with the run's admin token as a bearer)
- * signs `hd_look`, and the app's proxy checks it (src/proxy.ts). So this
- * needs the e2e stack CI starts (`E2E_LIVE_ADMIN_TOKEN`, and the app started
- * with the matching `HD_LOOK_KEY`); without the token the preview looks skip,
- * and the public look still runs.
+ * A look is chosen the way a visitor's device remembers it: the `hd_look`
+ * cookie (src/lib/look/look.ts). Win98 is what no cookie gets.
  *
  * Screenshots are evidence for a person comparing looks, not pixel baselines:
  * fonts and the live schedule differ between machines and minutes, and a
  * baseline that fails on a clock would be read past.
  */
 
-const LOOKS = ["default", "clean", "win98"] as const;
+const LOOKS = ["win98", "night"] as const;
 type Look = (typeof LOOKS)[number];
 
 const SHOW = "/show/1992-12-12-area-51-john-lear-bob-lazar";
@@ -37,27 +31,10 @@ const GUEST = "/guest/linda-moulton-howe";
 const OUT = "test-results/looks";
 mkdirSync(OUT, { recursive: true });
 
-/** The `hd_look` value the admin route signs for `look`, or null without a token. */
-async function signedLook(request: APIRequestContext, baseURL: string, look: Look): Promise<string | null> {
-  const token = process.env.E2E_LIVE_ADMIN_TOKEN;
-  if (!token) return null;
-  const r = await request.post(`${baseURL}/live-api/admin/look`, {
-    headers: { authorization: `Bearer ${token}`, origin: new URL(baseURL).origin, "content-type": "application/json" },
-    data: { look },
-  });
-  expect(r.status(), "the admin route must sign a look").toBe(200);
-  const set = r.headersArray().filter((h) => h.name.toLowerCase() === "set-cookie").map((h) => h.value);
-  const m = set.map((c) => /^hd_look=([^;]+)/.exec(c)).find(Boolean);
-  expect(m, "the admin route must set hd_look").toBeTruthy();
-  return m![1];
-}
-
 async function enterLook(page: Page, baseURL: string, look: Look): Promise<void> {
-  if (look === "default") return;
-  const value = await signedLook(page.request, baseURL, look);
-  test.skip(!value, "E2E_LIVE_ADMIN_TOKEN is not set: preview looks need the e2e stack's admin token");
+  if (look === "win98") return; // the default: no cookie at all
   const host = new URL(baseURL).hostname;
-  await page.context().addCookies([{ name: "hd_look", value: value!, domain: host, path: "/", httpOnly: true, secure: false, sameSite: "Lax" }]);
+  await page.context().addCookies([{ name: "hd_look", value: look, domain: host, path: "/", sameSite: "Lax" }]);
 }
 
 async function settle(page: Page): Promise<void> {
@@ -80,16 +57,9 @@ async function checkScreen(page: Page, look: Look, name: string, project: string
     look: document.documentElement.getAttribute("data-look"),
     overflow: document.documentElement.scrollWidth - window.innerWidth,
     text: document.body.innerText,
-    switcher: !!document.querySelector('[data-testid="look-switcher"]'),
   }));
-  if (look === "default") {
-    expect(state.look, `${name}: the public look carries no data-look`).toBeNull();
-    expect(state.switcher, `${name}: the public look shows no switcher`).toBe(false);
-  } else {
-    expect(state.look, `${name}: the look must be on`).toBe(look);
-    expect(state.switcher, `${name}: the owner's switcher must show`).toBe(true);
-    expect(state.text.includes("—"), `${name}: an em dash on screen in ${look}`).toBe(false);
-  }
+  expect(state.look, `${name}: the look must be on`).toBe(look);
+  expect(state.text.includes("\u2014"), `${name}: an em dash on screen in ${look}`).toBe(false);
   expect(state.overflow, `${name}: wider than the screen`).toBeLessThanOrEqual(1);
   expect(errors, `${name}: page errors`).toEqual([]);
 }
@@ -103,7 +73,14 @@ for (const look of LOOKS) {
       await enterLook(page, baseURL!, look);
     });
 
-    test("welcome, stats, live, show, guest, look and not-found pages", async ({ page }, info) => {
+    test("the server renders the look: no flash of the other one", async ({ page }) => {
+      const res = await page.request.get("/library", {
+        headers: look === "win98" ? {} : { cookie: `hd_look=${look}` },
+      });
+      expect(await res.text()).toContain(`<html lang="en" data-look="${look}"`);
+    });
+
+    test("welcome, stats, live, show, guest and not-found pages", async ({ page }, info) => {
       const project = info.project.name;
       const screens: [string, string][] = [
         ["welcome", "/"],
@@ -111,7 +88,6 @@ for (const look of LOOKS) {
         ["live", "/live"],
         ["show", SHOW],
         ["guest", GUEST],
-        ["look", "/look"],
         ["not-found", "/no-such-page-here"],
       ];
       for (const [name, path] of screens) {
@@ -129,18 +105,12 @@ for (const look of LOOKS) {
       await episodeList(page).locator('[role="option"]').first().click();
       await checkScreen(page, look, "library-detail", project, errors);
 
-      if (look !== "default") {
-        await page.goto("/library?view=dial");
-        await expect(page.getByTestId("library-dial")).toBeVisible({ timeout: 45_000 });
-        await checkScreen(page, look, "library-dial", project, errors);
-        // /radio is the dial in a preview look.
-        await page.goto("/radio");
-        await expect(page).toHaveURL(/\/library\?view=dial|\/library$/);
-      } else {
-        await page.goto("/radio");
-        await expect(page).toHaveURL(/\/radio$/);
-        await checkScreen(page, look, "radio", project, errors);
-      }
+      await page.goto("/library?view=dial");
+      await expect(page.getByTestId("library-dial")).toBeVisible({ timeout: 45_000 });
+      await checkScreen(page, look, "library-dial", project, errors);
+      // /radio is the dial in both looks.
+      await page.goto("/radio");
+      await expect(page).toHaveURL(/\/library\?view=dial|\/library$/);
     });
 
     test("the player, small and expanded", async ({ page, isMobile }, info) => {

@@ -3,7 +3,7 @@
  * the #app-loading boot screen, and its dismissal.
  *
  * It is a string, not a function, because it runs before React — inlined as a
- * <script> in src/app/layout.tsx. It lives in its own module so the dismissal
+ * <script> in src/app/[look]/layout.tsx. It lives in its own module so the dismissal
  * can be tested by executing exactly this string (boot-script.test.ts).
  */
 export const BOOT_SCRIPT = `
@@ -13,14 +13,6 @@ export const BOOT_SCRIPT = `
     // below is installed, leaving the boot screen over the app for good.
     function readStore(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function writeStore(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-
-    // A preview look, before first paint (src/lib/look/look.ts). Only the
-    // proxy's hd_look_view counts, and only a known value; anything else is
-    // the public look, which is no attribute at all.
-    try {
-      var lm = /(?:^|;\\s*)hd_look_view=(clean|win98)(?:;|$)/.exec(document.cookie);
-      if (lm) document.documentElement.setAttribute('data-look', lm[1]);
-    } catch (e) {}
 
     // Text scale: sync read before first paint
     var scale = readStore('hd-text-scale');

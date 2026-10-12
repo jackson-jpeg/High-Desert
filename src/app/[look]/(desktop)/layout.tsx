@@ -469,9 +469,9 @@ export default function DesktopLayout({
       // shared with the library and radio handlers (HD-011).
       if (isKeyOwnedByTarget(e)) return;
 
-      // Radio dial page has its own keyboard handler, and so has the
-      // Library's Dial mode (preview looks), which /library cannot tell.
-      if (pathname === "/radio" || dialOwnsKeys()) return;
+      // The Library's Dial mode has its own keyboard handler, which /library
+      // cannot tell.
+      if (dialOwnsKeys()) return;
 
       // Easter egg: Ctrl+Shift+A → Area 51 signal drop
       if (e.code === "KeyA" && e.ctrlKey && e.shiftKey) {

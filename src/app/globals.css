@@ -4,14 +4,14 @@
 @import "../styles/animations.css";
 @import "../styles/radio.css";
 /* Preview looks (docs/looks.md): every rule scoped to html[data-look=…]. */
-@import "../styles/look-clean.css";
+@import "../styles/look-night.css";
 @import "../styles/look-win98.css";
 
 /* ============================================
    Tailwind v4 Theme
    ============================================ */
 
-/* W95FA is loaded by next/font/local in src/app/layout.tsx, which emits its own
+/* W95FA is loaded by next/font/local in src/app/[look]/layout.tsx, which emits its own
    @font-face against a hashed, preloaded URL and sets --font-w95 on <body>.
    A hand-rolled @font-face here fetched the same file from a second URL and lost
    the cascade anyway — don't add one back. */

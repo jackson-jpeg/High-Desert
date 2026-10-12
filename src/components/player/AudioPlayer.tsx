@@ -24,14 +24,10 @@ import { shownGuest } from "@/lib/library/guest";
 import { ShowKicker } from "@/components/library/ShowTitle";
 import { splitShowTitle } from "@/lib/live/format";
 import { retryWithPlaySurface } from "@/audio/play-surface";
-import dynamic from "next/dynamic";
 import { useLook } from "@/hooks/useLook";
 
-// The Win98 preview look's Winamp window (docs/looks.md): fetched only in that look.
-const WinampPlayer = dynamic(
-  () => import("@/components/looks/win98/WinampPlayer").then((m) => m.WinampPlayer),
-  { ssr: false },
-);
+// Win98's Winamp window (docs/looks.md).
+import { WinampPlayer } from "@/components/looks/win98/WinampPlayer";
 
 interface AudioPlayerProps {
   className?: string;

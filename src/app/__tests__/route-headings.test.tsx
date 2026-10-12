@@ -76,8 +76,12 @@ const catalog = (await import("../../../public/seed/library.json")).default as R
 // is the one state that already had an h1.
 await db.episodes.bulkAdd(catalog.slice(0, 5).map((r) => toEpisodeRow(r, Date.now())) as never[]);
 
-const DESKTOP = path.resolve(import.meta.dirname, "../(desktop)");
+const DESKTOP = path.resolve(import.meta.dirname, "../[look]/(desktop)");
 const ROUTES = readdirSync(DESKTOP).filter((d) => statSync(path.join(DESKTOP, d)).isDirectory());
+// Spelled as globs, not template imports: Vite turns `../[look]/${route}` into
+// a glob of its own, where `[look]` is a character class, not a folder.
+const LAYOUTS = import.meta.glob("../\\[look\\]/\\(desktop\\)/*/layout.tsx");
+const PAGES = import.meta.glob("../\\[look\\]/\\(desktop\\)/*/page.tsx");
 
 /**
  * Text that proves a page got past its loading frame, where a page has one.
@@ -85,7 +89,6 @@ const ROUTES = readdirSync(DESKTOP).filter((d) => statSync(path.join(DESKTOP, d)
  */
 const LOADED: Record<string, string> = {
   stats: "Your Listening",
-  radio: "Jump to year",
 };
 
 /** Admin-only pages render nothing for a visitor (and redirect). Their h1 is checked as an admin. */
@@ -122,13 +125,14 @@ function h1s(): string[] {
 
 describe("every route has exactly one h1", () => {
   it("finds the routes on disk (a glob that matched nothing would pass every case below)", () => {
-    expect(ROUTES).toEqual(expect.arrayContaining(["library", "radio", "scanner", "search", "stats"]));
+    expect(ROUTES).toEqual(expect.arrayContaining(["library", "live", "scanner", "search", "stats"]));
+    expect(Object.keys(PAGES)).toHaveLength(ROUTES.length);
   });
 
   // Importing /library compiles most of the app on a cold cache.
   it.each(ROUTES)("/%s", { timeout: 60_000 }, async (route) => {
-    const { default: Layout } = (await import(`../(desktop)/${route}/layout.tsx`)) as { default: LayoutComponent };
-    const { default: Page } = (await import(`../(desktop)/${route}/page.tsx`)) as { default: ComponentType };
+    const { default: Layout } = (await LAYOUTS[`../[look]/(desktop)/${route}/layout.tsx`]()) as { default: LayoutComponent };
+    const { default: Page } = (await PAGES[`../[look]/(desktop)/${route}/page.tsx`]()) as { default: ComponentType };
     pathname = `/${route}`;
     if (ADMIN_ONLY.has(route)) useAdminStore.setState({ isAdmin: true });
 
@@ -150,7 +154,7 @@ describe("every route has exactly one h1", () => {
   });
 
   it("/ (the welcome page)", async () => {
-    const { default: Page } = await import("../page");
+    const { default: Page } = await import("../[look]/page");
     pathname = "/";
     act(() => {
       root.render(createElement(Page));
@@ -160,7 +164,7 @@ describe("every route has exactly one h1", () => {
   });
 
   it("the 404 page", async () => {
-    const { default: NotFound } = await import("../not-found");
+    const { default: NotFound } = await import("../[look]/not-found");
     act(() => {
       root.render(createElement(NotFound));
     });
@@ -170,8 +174,8 @@ describe("every route has exactly one h1", () => {
   it("both error boundaries", async () => {
     const error = Object.assign(new Error("boom"), { digest: "d1" });
     for (const [mod, heading] of [
-      [await import("../error"), "We’re experiencing technical difficulties"],
-      [await import("../(desktop)/error"), "This page encountered an error"],
+      [await import("../[look]/error"), "We’re experiencing technical difficulties"],
+      [await import("../[look]/(desktop)/error"), "This page encountered an error"],
     ] as const) {
       act(() => {
         root.render(createElement(mod.default, { error, reset: () => {} }));

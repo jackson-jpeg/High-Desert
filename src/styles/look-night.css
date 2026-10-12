@@ -1,7 +1,6 @@
 /*
- * The "Clean" preview look (docs/looks.md): the current dark theme, refined.
- * Every rule here is scoped to html[data-look="clean"]; the public look
- * never matches one.
+ * The Night look (docs/looks.md): the dark theme, refined. Every rule here is
+ * scoped to html[data-look="night"]; Win98, the default, never matches one.
  *
  * What it keeps: the night sky and starfield, desert amber, the dark Win98
  * chrome and the W95FA type, glass on a phone. What it changes:
@@ -19,7 +18,7 @@
  * ramp (never below /85).
  */
 
-html[data-look="clean"] {
+html[data-look="night"] {
   /* Spacing scale */
   --cl-1: 4px;
   --cl-2: 8px;

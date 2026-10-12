@@ -80,7 +80,7 @@ const sitemapPaths = new Set();
     if (p) sitemapPaths.add(p);
     else find("/sitemap.xml", `a <loc> off this site: ${m[1]}`);
   }
-  for (const p of ["/", "/library", "/live", "/radio", "/stats"]) {
+  for (const p of ["/", "/library", "/live", "/stats"]) {
     if (!sitemapPaths.has(p)) find("/sitemap.xml", `missing ${p}`);
   }
   const missing = catalogSlugs.filter((s) => !sitemapPaths.has(`/show/${s}`));

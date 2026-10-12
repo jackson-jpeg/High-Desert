@@ -111,10 +111,10 @@ describe("evenSample", () => {
 describe("sitemap.xml and robots.txt", () => {
   it("lists the app's routes, every show page and every guest page", () => {
     const urls = new Set(sitemap().map((e) => e.url));
-    for (const p of ["", "/library", "/live", "/radio", "/stats"]) expect(urls.has(`${SITE_ORIGIN}${p}`), p).toBe(true);
+    for (const p of ["", "/library", "/live", "/stats"]) expect(urls.has(`${SITE_ORIGIN}${p}`), p).toBe(true);
     for (const s of catalog.shows) expect(urls.has(`${SITE_ORIGIN}/show/${s.slug}`), s.slug).toBe(true);
     for (const g of catalog.guests.keys()) expect(urls.has(`${SITE_ORIGIN}/guest/${g}`), g).toBe(true);
-    expect(urls.size).toBe(5 + catalog.shows.length + catalog.guests.size);
+    expect(urls.size).toBe(4 + catalog.shows.length + catalog.guests.size);
   });
 
   it("robots keeps crawlers out of the API, admin pages and /look, and names the sitemap", () => {
