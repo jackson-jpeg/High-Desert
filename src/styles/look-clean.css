@@ -2,4 +2,839 @@
  * The "Clean" preview look (docs/looks.md): the current dark theme, refined.
  * Every rule here is scoped to html[data-look="clean"]; the public look
  * never matches one.
+ *
+ * What it keeps: the night sky and starfield, desert amber, the dark Win98
+ * chrome and the W95FA type, glass on a phone. What it changes:
+ *
+ *   - one spacing scale (--cl-1..6: 4 8 12 16 24 32) and three radii;
+ *   - hairline borders instead of the doubled 2px bevels, one shadow;
+ *   - calm title bars: the navy-to-sky sweep becomes a quiet raised strip;
+ *   - one button, one input, one focus ring (amber, 2px, offset 2px);
+ *   - flat list rows with a hairline, an amber edge on the selected row;
+ *   - a phone's tab bar with icons, 56px targets and the safe area.
+ *
+ * Unlayered, like win98.css, so it wins over Tailwind's layered utilities;
+ * the html[data-look] prefix also outranks win98.css on specificity.
+ * Colours are palette tokens only (no-raw-hex.test.ts); text stays on the
+ * ramp (never below /85).
  */
+
+html[data-look="clean"] {
+  /* Spacing scale */
+  --cl-1: 4px;
+  --cl-2: 8px;
+  --cl-3: 12px;
+  --cl-4: 16px;
+  --cl-5: 24px;
+  --cl-6: 32px;
+  /* Radii */
+  --cl-r-s: 4px;
+  --cl-r: 6px;
+  --cl-r-l: 10px;
+  /* Lines and surfaces */
+  --cl-line: color-mix(in srgb, var(--hd-muted) 16%, transparent);
+  --cl-line-strong: color-mix(in srgb, var(--hd-muted) 28%, transparent);
+  --cl-surface: var(--hd-raised);
+  --cl-surface-2: var(--hd-card);
+  --cl-well: var(--hd-well);
+  --cl-hover: color-mix(in srgb, var(--hd-chrome) 7%, transparent);
+  --cl-press: color-mix(in srgb, var(--hd-chrome) 12%, transparent);
+  --cl-accent: var(--hd-amber);
+  --cl-accent-soft: color-mix(in srgb, var(--hd-amber) 14%, transparent);
+  --cl-accent-line: color-mix(in srgb, var(--hd-amber) 55%, transparent);
+  --cl-select: color-mix(in srgb, var(--hd-select) 55%, transparent);
+  --cl-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  --cl-shadow-s: 0 2px 8px rgba(0, 0, 0, 0.35);
+
+  /* The Win98 dark bevels, quieter: every component that still draws one
+     (a scrollbar, a slider) reads these. */
+  --w98-dark-bevel-light: color-mix(in srgb, var(--hd-edge) 70%, var(--hd-raised));
+  --w98-dark-bevel-highlight: color-mix(in srgb, var(--hd-edge-lit) 50%, var(--hd-raised));
+  --w98-highlight: var(--cl-select);
+
+  ::selection {
+    background: var(--hd-select);
+    color: var(--hd-chrome-lighter);
+  }
+
+  /* ==========================================================
+     Focus: one ring everywhere, phone and desktop alike.
+     ========================================================== */
+  :focus-visible {
+    outline: 2px solid var(--hd-amber);
+    outline-offset: 2px;
+    box-shadow: none;
+  }
+  [role="listbox"]:focus-visible,
+  [role="application"]:focus-visible,
+  main:focus-visible {
+    outline-offset: -2px;
+  }
+
+  /* ==========================================================
+     Bevels become hairlines.
+     ========================================================== */
+  .w98-raised-dark {
+    border: 1px solid var(--cl-line-strong);
+    border-radius: var(--cl-r-s);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  }
+  button.w98-raised-dark:active:not(:disabled) {
+    border-color: var(--cl-line-strong);
+    box-shadow: none;
+    background-color: var(--cl-press);
+  }
+  .w98-inset-dark {
+    border: 1px solid var(--cl-line);
+    border-radius: var(--cl-r-s);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+  }
+
+  /* ==========================================================
+     Buttons: one shape. The light Win98 button (dialogs' Cancel)
+     joins the dark one.
+     ========================================================== */
+  button.w98-raised-dark,
+  .w98-button {
+    border-radius: var(--cl-r-s);
+    transition: background-color 120ms, border-color 120ms, color 120ms;
+  }
+  button.w98-raised-dark:hover:not(:disabled),
+  .w98-button:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--hd-amber) 40%, var(--hd-edge));
+    color: var(--hd-chrome-light);
+  }
+  .w98-button {
+    background: var(--cl-surface);
+    color: var(--hd-chrome);
+    border: 1px solid var(--cl-line-strong);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+    min-width: 72px;
+    padding: 5px 14px;
+  }
+  .w98-button:active {
+    padding: 5px 14px;
+    border-color: var(--cl-line-strong);
+    box-shadow: none;
+    background: var(--cl-press);
+  }
+  .w98-button:focus-visible {
+    outline: 2px solid var(--hd-amber);
+    outline-offset: 2px;
+    box-shadow: none;
+  }
+  .w98-button:disabled {
+    color: var(--hd-chrome-dark);
+    text-shadow: none;
+  }
+  /* The Button component's own focus styling (dotted, inset blue). */
+  button.w98-font:focus-visible {
+    outline: 2px solid var(--hd-amber);
+    outline-offset: 2px;
+    box-shadow: none;
+  }
+
+  /* ==========================================================
+     Title bars and windows: a quiet strip, not a navy-to-sky sweep.
+     ========================================================== */
+  .w98-titlebar-gradient,
+  .w98-titlebar-inactive-gradient {
+    background: color-mix(in srgb, var(--hd-edge) 38%, var(--hd-raised));
+    border-bottom: 1px solid var(--cl-line);
+    padding: var(--cl-2) var(--cl-3);
+    min-height: 36px;
+  }
+  .w98-titlebar-gradient :is(h1, h2, h3, h4, h5, h6, span).w98-font,
+  .w98-titlebar-inactive-gradient :is(h1, h2, h3, h4, h5, h6, span).w98-font {
+    color: var(--hd-chrome);
+    text-shadow: none;
+    font-weight: normal;
+    font-size: var(--hd-text-12);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .w98-titlebar-gradient .w98-button,
+  .w98-titlebar-inactive-gradient .w98-button {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    color: var(--hd-muted);
+    border-radius: var(--cl-r-s);
+    font-weight: normal;
+  }
+  .w98-titlebar-gradient .w98-button:hover {
+    background: var(--cl-hover);
+    color: var(--hd-chrome-light);
+  }
+  @media (min-width: 768px) {
+    .w98-titlebar-gradient .w98-button,
+    .w98-titlebar-inactive-gradient .w98-button {
+      width: 24px;
+      height: 24px;
+      font-size: var(--hd-text-12);
+    }
+  }
+  /* A window: the panel that carries a title bar. */
+  .w98-raised-dark:has(> .w98-titlebar-gradient),
+  .w98-raised-dark:has(> .w98-titlebar-inactive-gradient) {
+    border-radius: var(--cl-r);
+    overflow: clip;
+    box-shadow: var(--cl-shadow-s);
+    background-color: color-mix(in srgb, var(--hd-raised) 92%, transparent);
+  }
+
+  /* ==========================================================
+     Menu bar and menus.
+     ========================================================== */
+  .w98-menubar-dark {
+    background: color-mix(in srgb, var(--hd-raised) 85%, transparent);
+    border-bottom: 1px solid var(--cl-line);
+    padding: 3px var(--cl-2);
+    gap: 2px;
+  }
+  .w98-menubar-item {
+    padding: 3px 10px;
+    border-radius: var(--cl-r-s);
+    color: var(--hd-chrome);
+  }
+  .w98-menubar-item:hover,
+  .w98-menubar-item[data-open="true"] {
+    background: var(--cl-hover);
+    color: var(--hd-chrome-light);
+  }
+  .w98-dropdown-dark {
+    border: 1px solid var(--cl-line-strong);
+    border-radius: var(--cl-r);
+    padding: var(--cl-1);
+    box-shadow: var(--cl-shadow);
+    background: var(--hd-raised);
+    min-width: 200px;
+  }
+  .w98-dropdown-dark .w98-dropdown-item,
+  .w98-dropdown-dark [role="menuitem"] {
+    padding: 6px 28px 6px 10px;
+    border-radius: var(--cl-r-s);
+  }
+  .w98-dropdown-item:hover,
+  .w98-dropdown-dark [role="menuitem"]:hover,
+  .w98-dropdown-dark [role="menuitem"]:focus-visible {
+    background: var(--cl-accent-soft);
+    color: var(--hd-chrome-lighter);
+    outline: none;
+  }
+  .w98-dropdown-separator-dark {
+    background: var(--cl-line);
+    border: 0;
+    margin: var(--cl-1) 6px;
+  }
+
+  /* ==========================================================
+     Status bar (desktop footer).
+     ========================================================== */
+  .w98-statusbar-dark {
+    border-top: 1px solid var(--cl-line);
+    padding: 3px var(--cl-2);
+    gap: var(--cl-2);
+    color: var(--hd-muted);
+    background: color-mix(in srgb, var(--hd-raised) 85%, transparent);
+  }
+  .w98-statusbar-panel-dark {
+    border: 0;
+    border-left: 1px solid var(--cl-line);
+    padding: 0 var(--cl-2);
+  }
+  .w98-statusbar-panel-dark:first-child {
+    border-left: 0;
+  }
+
+  /* ==========================================================
+     The shell's navigation: desktop tabs, phone tab bar.
+     ========================================================== */
+  @media (min-width: 768px) {
+    nav:has(+ #hd-main) {
+      background: transparent;
+      backdrop-filter: none;
+      border-bottom: 1px solid var(--cl-line);
+      padding: 0 var(--cl-3);
+      gap: var(--cl-1);
+    }
+    nav:has(+ #hd-main) > button {
+      padding: 10px var(--cl-3) 8px;
+      font-size: var(--hd-text-14);
+      color: var(--hd-muted);
+      border-bottom-width: 2px;
+    }
+    nav:has(+ #hd-main) > button:hover {
+      color: var(--hd-chrome-light);
+    }
+    nav:has(+ #hd-main) > button[aria-current="page"] {
+      color: var(--hd-chrome-lighter);
+      border-bottom-color: var(--hd-amber);
+    }
+  }
+  @media (max-width: 767px) {
+    nav:has(+ #hd-main) {
+      background: color-mix(in srgb, var(--hd-midnight) 90%, transparent);
+      backdrop-filter: blur(18px) saturate(1.2);
+      -webkit-backdrop-filter: blur(18px) saturate(1.2);
+      border-top: 1px solid var(--cl-line);
+      box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+    }
+    nav:has(+ #hd-main) > button {
+      min-height: 56px;
+      gap: 3px;
+      padding-top: 6px;
+      font-size: var(--hd-text-11);
+      letter-spacing: 0.02em;
+      color: var(--hd-muted);
+    }
+    nav:has(+ #hd-main) > button[aria-current="page"] {
+      color: var(--hd-amber);
+    }
+    /* The active dot gives way to the icon's colour. */
+    nav:has(+ #hd-main) > button > span.rounded-full.bg-desert-amber {
+      display: none;
+    }
+    nav:has(+ #hd-main) > button[data-nav]::before {
+      content: "";
+      width: 22px;
+      height: 22px;
+      background: currentColor;
+      -webkit-mask: var(--cl-icon) center / contain no-repeat;
+      mask: var(--cl-icon) center / contain no-repeat;
+    }
+  }
+  [data-nav="library"] {
+    --cl-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M4 5v14M8.5 5v14M13 5.5l4.5 13.5'/%3E%3Cpath d='M20 19H3'/%3E%3C/svg%3E");
+  }
+  [data-nav="live"] {
+    --cl-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='2.2' fill='black'/%3E%3Cpath d='M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2'/%3E%3C/svg%3E");
+  }
+  [data-nav="stats"] {
+    --cl-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M5 20V12M12 20V5M19 20v-9'/%3E%3C/svg%3E");
+  }
+  [data-nav="scanner"] {
+    --cl-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'%3E%3Cpath d='M3 7h7l2 2h9v10H3z'/%3E%3C/svg%3E");
+  }
+  [data-nav="search"] {
+    --cl-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6'/%3E%3Cpath d='M15 15l5 5'/%3E%3C/svg%3E");
+  }
+  [data-nav="more"] {
+    --cl-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Ccircle cx='5' cy='12' r='2'/%3E%3Ccircle cx='12' cy='12' r='2'/%3E%3Ccircle cx='19' cy='12' r='2'/%3E%3C/svg%3E");
+  }
+
+  /* ==========================================================
+     The owner's look switcher.
+     ========================================================== */
+  .hd-look-switcher {
+    border-radius: var(--cl-r);
+    box-shadow: var(--cl-shadow-s);
+    overflow: clip;
+  }
+  .hd-look-switcher-pill {
+    color: var(--hd-amber);
+    letter-spacing: 0.04em;
+  }
+  .hd-look-switcher-option[aria-pressed="true"] {
+    color: var(--hd-amber);
+    background: var(--cl-accent-soft);
+    border-radius: var(--cl-r-s);
+  }
+  @media (max-width: 767px) {
+    /* Off the search box: above the mini player and the tab bar. */
+    .hd-look-switcher {
+      top: auto;
+      right: var(--cl-2);
+      bottom: calc(132px + var(--safe-bottom));
+    }
+  }
+
+  /* ==========================================================
+     Inputs: one field. 34px on a desktop, 44px on a phone.
+     ========================================================== */
+  input.w98-inset-dark,
+  textarea.w98-inset-dark,
+  select.w98-inset-dark {
+    background: var(--cl-well);
+    border: 1px solid var(--cl-line-strong);
+    border-radius: var(--cl-r-s);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+    transition: border-color 120ms;
+  }
+  input.w98-inset-dark:hover,
+  textarea.w98-inset-dark:hover {
+    border-color: color-mix(in srgb, var(--hd-muted) 40%, transparent);
+  }
+  input.w98-inset-dark:focus,
+  textarea.w98-inset-dark:focus {
+    border-color: var(--cl-accent-line);
+    outline: none;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 3px var(--cl-accent-soft);
+  }
+  @media (min-width: 768px) {
+    input.w98-inset-dark {
+      min-height: 34px;
+      padding: 6px 10px;
+      font-size: var(--hd-text-13);
+    }
+  }
+  @media (max-width: 767px) {
+    input.w98-inset-dark {
+      padding: 10px 12px;
+      border-radius: var(--cl-r);
+    }
+  }
+
+  /* ==========================================================
+     Library chrome. These select on the library's own markup
+     (roles, labels, a few utility classes) rather than adding
+     hooks to shared components; where one stops matching, the
+     element falls back to the public look's styling.
+     ========================================================== */
+
+  /* The toolbar: the search field, its tools, the show tabs. */
+  #hd-main div:has(> div > button[aria-label="Toggle browse panel"]) {
+    gap: var(--cl-2);
+    padding: var(--cl-3) var(--cl-3) var(--cl-2);
+  }
+  /* The show tabs: a segmented control. */
+  #hd-main div:has(> div > button[aria-label="Toggle browse panel"]) > div:last-child:not(:first-child) {
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--cl-line);
+    border-radius: var(--cl-r);
+    background: color-mix(in srgb, var(--hd-well) 70%, transparent);
+  }
+  #hd-main div:has(> div > button[aria-label="Toggle browse panel"]) > div:last-child:not(:first-child) > button {
+    border: 0;
+    border-radius: var(--cl-r-s);
+    box-shadow: none;
+    background: transparent;
+    color: var(--hd-muted);
+    font-size: var(--hd-text-13);
+    padding: 6px var(--cl-3);
+  }
+  #hd-main div:has(> div > button[aria-label="Toggle browse panel"]) > div:last-child:not(:first-child) > button:hover {
+    color: var(--hd-chrome-light);
+    background: var(--cl-hover);
+  }
+  #hd-main div:has(> div > button[aria-label="Toggle browse panel"]) > div:last-child:not(:first-child) > button.w98-inset-dark {
+    background: var(--cl-accent-soft);
+    color: var(--hd-amber);
+  }
+  @media (min-width: 768px) {
+    #hd-main div:has(> div > button[aria-label="Toggle browse panel"]) > div:last-child:not(:first-child) > button {
+      font-size: var(--hd-text-12);
+      padding: 4px 10px;
+    }
+  }
+  /* Shuffle and the browse panel toggle: 32px icon buttons. */
+  #hd-main button[aria-label="Shuffle filtered episodes"],
+  #hd-main button[aria-label="Toggle browse panel"] {
+    width: 34px;
+    height: 34px;
+    border-radius: var(--cl-r-s);
+    border: 1px solid transparent;
+    font-size: var(--hd-text-14);
+  }
+  #hd-main button[aria-label="Shuffle filtered episodes"]:hover,
+  #hd-main button[aria-label="Toggle browse panel"]:hover {
+    background: var(--cl-hover);
+  }
+  #hd-main button[aria-label="Toggle browse panel"][aria-pressed="true"] {
+    border-color: var(--cl-accent-line);
+    background: var(--cl-accent-soft);
+    box-shadow: none;
+  }
+  /* The search hint row and the suggestions list. */
+  #search-suggestions {
+    border-radius: var(--cl-r);
+    box-shadow: var(--cl-shadow);
+    padding: var(--cl-1);
+    margin-top: var(--cl-1);
+  }
+  #search-suggestions [role="option"] {
+    border-radius: var(--cl-r-s);
+  }
+
+  /* List / Dial. */
+  .hd-library-modebar {
+    padding: 0 var(--cl-3) var(--cl-2);
+  }
+  .hd-view-switch {
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--cl-line);
+    border-radius: var(--cl-r);
+    background: color-mix(in srgb, var(--hd-well) 70%, transparent);
+  }
+  .hd-view-switch-option {
+    border-radius: var(--cl-r-s);
+    color: var(--hd-muted);
+    font-size: var(--hd-text-13);
+    padding: 6px var(--cl-4);
+    min-width: 72px;
+  }
+  .hd-view-switch-option:hover {
+    color: var(--hd-chrome-light);
+    background: var(--cl-hover);
+  }
+  .hd-view-switch-option[aria-pressed="true"] {
+    background: var(--cl-accent-soft);
+    color: var(--hd-amber);
+  }
+  @media (max-width: 767px) {
+    .hd-view-switch {
+      flex: 1;
+    }
+    .hd-view-switch-option {
+      flex: 1;
+      padding: 8px var(--cl-3);
+    }
+    /* The chips scroll edge to edge but start on the page's gutter. */
+    #hd-main div[class*="mask-image:linear-gradient"] {
+      margin-inline: 0;
+      padding-left: var(--cl-3);
+      scroll-padding-left: var(--cl-3);
+    }
+    #hd-main div:has(> div > button[aria-label="Toggle browse panel"]) > div:last-child:not(:first-child) {
+      margin-inline: 0;
+      justify-content: space-between;
+    }
+    #hd-main div:has(> div > button[aria-label="Toggle browse panel"]) > div:last-child:not(:first-child) > button {
+      flex: 1;
+    }
+  }
+  @media (min-width: 768px) {
+    .hd-view-switch-option {
+      font-size: var(--hd-text-12);
+      padding: 4px var(--cl-3);
+    }
+  }
+
+  /* Category and mood chips: pills with a hairline. */
+  #hd-main button[class*="hover:bg-title-bar-blue/10"][class*="whitespace-nowrap"][class*="text-hd-12"] {
+    border: 1px solid var(--cl-line);
+    border-radius: 999px;
+    padding: 5px var(--cl-3);
+    color: var(--hd-chrome);
+  }
+  #hd-main button[class*="hover:bg-title-bar-blue/10"][class*="whitespace-nowrap"][class*="text-hd-12"]:hover {
+    border-color: var(--cl-line-strong);
+    background: var(--cl-hover);
+  }
+  #hd-main button[class*="hover:bg-title-bar-blue/10"][class*="whitespace-nowrap"][class*="text-hd-12"][class*="text-desert-amber"],
+  #hd-main button[class*="hover:bg-title-bar-blue/10"][class*="whitespace-nowrap"][class*="text-hd-12"][aria-pressed="true"] {
+    border-color: var(--cl-accent-line);
+    background: var(--cl-accent-soft);
+    color: var(--hd-amber);
+  }
+  @media (min-width: 768px) {
+    #hd-main button[class*="hover:bg-title-bar-blue/10"][class*="whitespace-nowrap"][class*="text-hd-12"] {
+      padding: 3px 10px;
+    }
+  }
+
+  /* Explore: no longer clipped mid-card. */
+  #hd-main div[class*="md:max-h-[100px]"] {
+    max-height: none;
+    gap: var(--cl-3);
+  }
+  /* Two cards a column, whole, rather than one and a half. */
+  #hd-main div[class*="md:max-h-[100px]"] > div > button:nth-of-type(n + 3) {
+    display: none;
+  }
+  @media (min-width: 768px) {
+    #hd-main div[class*="md:w-[220px]"] {
+      width: 260px;
+    }
+  }
+  #hd-main div[class*="md:max-h-[100px]"] button.w98-raised-dark {
+    padding: 6px var(--cl-2);
+    border-color: var(--cl-line);
+    background: color-mix(in srgb, var(--hd-card) 80%, transparent);
+  }
+  #hd-main div[class*="md:max-h-[100px]"] button.w98-raised-dark:hover {
+    background: var(--cl-hover);
+  }
+
+  /* The list's header row, the sticky group line and inline headers. */
+  #hd-main [data-testid="rail-header"] {
+    background: color-mix(in srgb, var(--hd-midnight) 92%, transparent);
+    border-bottom: 1px solid var(--cl-line);
+    padding: 6px var(--cl-4);
+  }
+  #hd-main [data-testid="group-header"] {
+    border-bottom: 1px solid var(--cl-line);
+    padding-left: var(--cl-2);
+  }
+  /* The column header carries the rows' own inset (TimelineView), so it
+     takes the rows' padding and nothing else, or it drifts off its columns. */
+  #hd-main div[aria-hidden="true"][class*="uppercase"][class*="sticky"][class*="md:grid"] {
+    padding-left: var(--cl-3);
+    padding-right: var(--cl-2);
+    border-bottom: 1px solid var(--cl-line);
+    letter-spacing: 0.08em;
+  }
+
+  /* Rows. A desktop row is a table row: no bevel, a hairline, a tint on
+     hover, an amber edge on the open one. A phone row is a card. */
+  #hd-main [data-episode-listbox] [role="option"] {
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  @media (min-width: 768px) {
+    #hd-main [data-episode-listbox] [role="option"] {
+      border: 0;
+      border-bottom: 1px solid var(--cl-line);
+      border-radius: 0;
+      background: transparent;
+      padding-left: var(--cl-3);
+      padding-right: var(--cl-2);
+    }
+    #hd-main [data-episode-listbox] [role="option"]:hover {
+      background: var(--cl-hover);
+    }
+  }
+  @media (max-width: 767px) {
+    #hd-main [data-episode-listbox] [role="option"] {
+      height: calc(100% - 6px);
+      border: 1px solid var(--cl-line);
+      border-radius: var(--cl-r-l);
+      background: color-mix(in srgb, var(--hd-card) 88%, transparent);
+      padding: 10px var(--cl-3);
+    }
+  }
+  #hd-main [data-episode-listbox] [role="option"][aria-selected="true"] {
+    background: var(--cl-select);
+    box-shadow: inset 3px 0 0 var(--hd-amber);
+  }
+  #hd-main [data-episode-listbox] [role="option"][aria-label$="(now playing)"] {
+    box-shadow: inset 3px 0 0 var(--hd-green);
+    background: color-mix(in srgb, var(--hd-green) 7%, transparent);
+  }
+
+  /* The year rail (desktop) */
+  #hd-main [data-testid="year-rail"] {
+    border-left: 1px solid var(--cl-line);
+  }
+
+  /* ==========================================================
+     The detail panel (desktop sidebar, phone sheet).
+     ========================================================== */
+  @media (min-width: 768px) {
+    #hd-main div[class*="md:w-[280px]"] {
+      width: 320px;
+      border-left: 1px solid var(--cl-line);
+      background: color-mix(in srgb, var(--hd-raised) 70%, transparent);
+    }
+    #hd-main div[class*="md:w-[280px]"] > .w98-raised-dark {
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+  @media (max-width: 767px) {
+    #hd-main div[class*="md:w-[280px]"] > .w98-raised-dark {
+      border-radius: 16px 16px 0 0;
+      border-color: var(--cl-line-strong);
+      background: color-mix(in srgb, var(--hd-raised) 96%, transparent);
+    }
+  }
+  #hd-main div[class*="md:w-[280px]"] .glass-divider {
+    border-color: var(--cl-line);
+  }
+  #hd-main div[class*="md:w-[280px]"] div[class*="p-3"][class*="flex-col"][class*="gap-2.5"] {
+    padding: var(--cl-4);
+    gap: var(--cl-3);
+  }
+  /* Play is the panel's primary action. */
+  #hd-main div[class*="md:w-[280px]"] div.pt-1.flex.items-center.gap-2 > button.w98-raised-dark:first-child:not(:disabled) {
+    background: var(--cl-accent-soft);
+    border-color: var(--cl-accent-line);
+    color: var(--hd-amber);
+  }
+  #hd-main div[class*="md:w-[280px]"] div.pt-1.flex.items-center.gap-2 > button.w98-raised-dark:first-child:not(:disabled):hover {
+    background: color-mix(in srgb, var(--hd-amber) 22%, transparent);
+  }
+
+  /* ==========================================================
+     The Library's Dial mode (src/components/library/LibraryDial.tsx).
+     ========================================================== */
+  .hd-dial {
+    padding: var(--cl-3) var(--cl-3) var(--cl-4);
+    gap: var(--cl-3);
+    max-width: 1100px;
+  }
+  .hd-dial-readout > div {
+    border-radius: var(--cl-r);
+  }
+  .hd-dial-strip-well {
+    border-radius: var(--cl-r);
+    overflow: clip;
+    background: var(--hd-strip);
+  }
+  .hd-dial-zoom-button {
+    border-radius: var(--cl-r-s);
+    height: 24px;
+  }
+  .hd-dial-zoom-button:hover {
+    background: var(--cl-hover);
+  }
+  .hd-dial-station {
+    border-radius: var(--cl-r);
+    background: color-mix(in srgb, var(--hd-card) 85%, transparent);
+    padding: var(--cl-3);
+  }
+  .hd-dial-station-title {
+    font-size: var(--hd-text-16);
+  }
+  .hd-dial-onair {
+    padding: var(--cl-2) var(--cl-3);
+    border: 1px solid var(--cl-line);
+    border-radius: var(--cl-r);
+    align-self: flex-start;
+  }
+  .hd-dial-onair:empty {
+    display: none;
+  }
+  @media (max-width: 767px) {
+    .hd-dial {
+      padding: var(--cl-2) var(--cl-3) var(--cl-4);
+      gap: var(--cl-2);
+    }
+    /* The arc meter repeats the readout's LOCKED / SEARCHING. */
+    .hd-dial-signal {
+      display: none;
+    }
+    .hd-dial-onair {
+      align-self: stretch;
+    }
+  }
+  .hd-dial-empty-title {
+    color: var(--hd-chrome-light);
+  }
+
+  /* ==========================================================
+     Overlays: the command palette, context menus, toasts.
+     ========================================================== */
+  [role="dialog"][aria-label="Command palette"] {
+    border-radius: var(--cl-r-l);
+    border: 1px solid var(--cl-line-strong);
+    box-shadow: var(--cl-shadow);
+    max-width: 560px;
+  }
+  [role="dialog"][aria-label="Command palette"] > div:first-child {
+    padding: var(--cl-3);
+    border-color: var(--cl-line);
+  }
+  [role="dialog"][aria-label="Command palette"] [role="option"] {
+    margin: 0 var(--cl-2);
+    width: calc(100% - 2 * var(--cl-2));
+    border-radius: var(--cl-r-s);
+  }
+  [role="dialog"][aria-label="Command palette"] [role="option"][aria-selected="true"] {
+    background: var(--cl-select);
+    box-shadow: inset 2px 0 0 var(--hd-amber);
+  }
+  [role="dialog"][aria-label="Command palette"] [role="presentation"] {
+    padding-top: var(--cl-2);
+    letter-spacing: 0.1em;
+  }
+  .w98-dropdown-dark.fixed[role="menu"] {
+    border-radius: var(--cl-r);
+    padding: var(--cl-1);
+    box-shadow: var(--cl-shadow);
+    min-width: 200px;
+  }
+  .w98-dropdown-dark.fixed[role="menu"] [role="separator"] {
+    margin: var(--cl-1) var(--cl-2);
+    border-color: var(--cl-line);
+  }
+  div[aria-live="polite"][class*="pointer-events-none"] > .w98-raised-dark {
+    border-radius: var(--cl-r);
+    border: 1px solid var(--cl-line-strong);
+    box-shadow: var(--cl-shadow-s);
+    background: var(--hd-raised);
+  }
+  div[aria-live="polite"][class*="pointer-events-none"] > .w98-raised-dark > div > div:first-child {
+    width: 3px;
+  }
+
+  /* ==========================================================
+     Stats: the traffic tiles read as figures.
+     ========================================================== */
+  #hd-main .bg-inset-well.items-center.p-2.gap-0\.5 {
+    border-radius: var(--cl-r);
+    padding: var(--cl-3) var(--cl-2);
+    gap: var(--cl-1);
+    background: color-mix(in srgb, var(--hd-well) 80%, transparent);
+  }
+  #hd-main .bg-inset-well.items-center.p-2.gap-0\.5 > div:first-child {
+    font-size: var(--hd-text-28);
+    line-height: 1.1;
+  }
+
+  /* ==========================================================
+     Live: inner cards share the windows' radius.
+     ========================================================== */
+  #hd-main .w98-inset-dark:not(input):not(textarea):not(button) {
+    border-radius: var(--cl-r);
+  }
+  [data-testid="live-tune-in"] {
+    border-radius: var(--cl-r-l);
+  }
+
+  /* ==========================================================
+     The player.
+     ========================================================== */
+  [data-player="mini"],
+  [data-player="expanded"],
+  [data-player="ultra-mini"] {
+    border: 0;
+    border-top: 1px solid var(--cl-line-strong);
+    border-radius: 0;
+    background: color-mix(in srgb, var(--hd-raised) 96%, transparent);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+  }
+  [data-player="mobile-mini"] {
+    margin: 0 var(--cl-2) var(--cl-2);
+    border: 1px solid var(--cl-line-strong);
+    border-radius: var(--cl-r-l);
+    overflow: clip;
+    box-shadow: var(--cl-shadow-s);
+  }
+  [data-player="mobile-mini"] .w98-button-dark,
+  [data-player="mobile-mini"] .w98-raised-dark {
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 999px;
+  }
+  [data-player="mobile-expanded"] .w98-button-dark,
+  [data-player="mobile-expanded"] .w98-raised-dark {
+    border-radius: 999px;
+  }
+
+  /* ==========================================================
+     /look: a card, and choices that read as choices.
+     ========================================================== */
+  .hd-look-page > section {
+    padding: var(--cl-5);
+    gap: var(--cl-3);
+    border: 1px solid var(--cl-line-strong);
+    border-radius: var(--cl-r-l);
+    background: var(--hd-raised);
+    box-shadow: var(--cl-shadow);
+  }
+  .hd-look-page [role="group"] > button {
+    border-radius: var(--cl-r);
+  }
+  .hd-look-page [role="group"] > button[aria-pressed="true"] {
+    border-color: var(--cl-accent-line);
+    background: var(--cl-accent-soft);
+    color: var(--hd-amber);
+  }
+}

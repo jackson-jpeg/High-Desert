@@ -76,6 +76,8 @@ describe("the Radio tab per look", () => {
   it("control: the public look keeps its Radio tab, menu item and sheet entry", () => {
     mount("default", shell());
     expect(navTabs()).toEqual(["Library", "Live", "Radio", "Stats", "More"]);
+    // The tab-bar icon hooks are the preview looks' alone: no new attribute here.
+    expect(container.querySelector("nav [data-nav]")).toBeNull();
     click(byText('[role="menubar"] [role="menuitem"]', "View")!);
     const item = byText('[role="menu"] [role="menuitem"]', "Radio Dial");
     expect(item).toBeTruthy();
@@ -92,6 +94,12 @@ describe("the Radio tab per look", () => {
     it(`${look}: no Radio tab; the menu and the More sheet open the Library's Dial mode`, () => {
       mount(look, shell());
       expect(navTabs()).toEqual(["Library", "Live", "Stats", "More"]);
+      expect([...container.querySelectorAll<HTMLElement>("nav button[data-nav]")].map((e) => e.dataset.nav)).toEqual([
+        "library",
+        "live",
+        "stats",
+        "more",
+      ]);
 
       click(byText('[role="menubar"] [role="menuitem"]', "View")!);
       expect(byText('[role="menu"] [role="menuitem"]', "Radio Dial")).toBeUndefined();

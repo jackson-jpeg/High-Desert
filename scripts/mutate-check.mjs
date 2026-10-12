@@ -78,6 +78,14 @@ export const MUTATIONS = [
     why: "the shell's tabs follow the page's look, or a preview look still shows Radio",
   },
   {
+    id: "look-shell-nav-hooks-gated",
+    test: "src/components/looks/__tests__/radio-retired.test.tsx",
+    file: "src/components/desktop/DesktopShell.tsx",
+    find: 'data-nav={look !== "default" ? path.slice(1) : undefined}',
+    replace: "data-nav={path.slice(1)}",
+    why: "the tab-bar icon hooks belong to the preview looks; the public markup must not change",
+  },
+  {
     id: "look-menu-dial-intent",
     test: "src/components/looks/__tests__/radio-retired.test.tsx",
     file: "src/hooks/useShellMenus.ts",

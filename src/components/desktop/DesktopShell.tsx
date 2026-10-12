@@ -285,6 +285,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               key={path}
               onClick={() => router.push(path)}
               aria-current={isActive ? "page" : undefined}
+              // A hook for the preview looks' tab icons (src/styles/look-*.css).
+              data-nav={look !== "default" ? path.slice(1) : undefined}
               className={cn(
                 "w98-font cursor-pointer select-none transition-colors-fast relative",
                 "flex flex-col items-center justify-center min-h-[52px] flex-1 text-hd-13 gap-1",
@@ -325,6 +327,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             "md:hidden",
           )}
           aria-label="More options"
+          data-nav={look !== "default" ? "more" : undefined}
         >
           More
         </button>
