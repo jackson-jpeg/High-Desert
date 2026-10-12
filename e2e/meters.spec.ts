@@ -288,12 +288,22 @@ async function expectDefaultVizAlive(page: Page) {
       }
       return { lit, sig: String(sig) };
     });
-  await page.waitForTimeout(2_000);
-  const a = await frame();
-  await page.waitForTimeout(1_000);
-  const b = await frame();
-  expect(Math.max(a.lit, b.lit), "the visualizer is not a black box while the show plays").toBeGreaterThan(200);
-  expect(a.sig, "the visualizer moves while the show plays").not.toBe(b.sig);
+  // Polled, not sampled once: Milkdrop spawns its first ring every 40 drawn
+  // frames, and a slow renderer (headless WebKit at 3x draws ~12 a second)
+  // shows nothing for over 3 s even when it is fed. Main never gets there.
+  let a = await frame();
+  let best = a.lit;
+  let moved = false;
+  const deadline = Date.now() + 15_000;
+  while (Date.now() < deadline && !(best > 200 && moved)) {
+    await page.waitForTimeout(500);
+    const b = await frame();
+    best = Math.max(best, b.lit);
+    if (b.lit > 200 && b.sig !== a.sig) moved = true;
+    a = b;
+  }
+  expect(best, "the visualizer is not a black box while the show plays").toBeGreaterThan(200);
+  expect(moved, "the visualizer moves while the show plays").toBe(true);
 }
 
 /** Cycle the big visualizer to the VU meter, as a listener does: tap it. */
