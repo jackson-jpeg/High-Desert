@@ -134,6 +134,12 @@ jobs:
             sleep 1
           done
           npm run check:csp -- http://127.0.0.1:3000 || { echo "--- next start log ---"; cat next-start.log; echo "--- live ---"; cat live-start.log; exit 1; }
+      # Show and guest pages as a search engine first sees them: raw HTML, no
+      # JavaScript. Sitemap, robots, titles, Open Graph, schema.org JSON-LD,
+      # every internal link and share image (docs/show-pages.md). The server
+      # started above is still up.
+      - name: SEO check (show pages)
+        run: npm run check:seo -- http://127.0.0.1:3000 || { echo "--- next start log ---"; cat next-start.log; exit 1; }
       # The same running build, driven through real user flows: open /library,
       # let it seed, sort, scroll, and check what is on screen (e2e/). The
       # server started above is still up — background processes live until

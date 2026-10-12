@@ -88,4 +88,14 @@ describe("ci.yml", () => {
       expect(ci).toContain(step);
     }
   });
+
+  it("checks the show pages in the browser job, after the build and against its running server", () => {
+    const browser = ci.slice(ci.indexOf("  browser:"));
+    const build = browser.indexOf("npm run build");
+    const csp = browser.indexOf("npm run check:csp -- http://127.0.0.1:3000");
+    const seo = browser.indexOf("npm run check:seo -- http://127.0.0.1:3000");
+    expect(build).toBeGreaterThan(0);
+    expect(csp).toBeGreaterThan(build);
+    expect(seo).toBeGreaterThan(csp);
+  });
 });
