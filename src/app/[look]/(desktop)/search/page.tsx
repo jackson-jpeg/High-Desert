@@ -11,7 +11,11 @@ export default function SearchPage() {
   const isAdmin = useAdminStore((s) => s.isAdmin);
 
   useEffect(() => {
-    if (!isAdmin) router.replace("/library");
+    // A child's effects run before its layout's, so on a direct load this ran
+    // before the layout's hydrate() and sent every admin to /library. Read the
+    // saved flag first (hydrate is idempotent).
+    useAdminStore.getState().hydrate();
+    if (!useAdminStore.getState().isAdmin) router.replace("/library");
   }, [isAdmin, router]);
 
   if (!isAdmin) return null;

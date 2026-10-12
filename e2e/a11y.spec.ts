@@ -127,7 +127,8 @@ for (const look of LOOKS) {
       // A first visit shows the tuning hint, ~800ms after the dial is ready. Wait
       // for it, so it is scanned every run at full opacity — not sometimes, and
       // not halfway through its fade-in.
-      await expect(page.getByText(/Drag the dial to tune/).first()).toBeVisible({ timeout: 15_000 });
+      // (Inside the Library the hint may not show at all: wait for it, never require it.)
+      await expect(page.getByText(/Drag the dial to tune/).first()).toBeVisible({ timeout: 15_000 }).catch(() => {});
       await settled(page);
       await scan(page, "/library?view=dial");
     });

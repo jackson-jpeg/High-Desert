@@ -94,6 +94,14 @@ export const MUTATIONS = [
     why: "/radio is the Library's Dial mode, a permanent redirect",
   },
   {
+    id: "admin-direct-load-hydrates-first",
+    test: "src/app/__tests__/admin-direct-load.test.tsx",
+    file: "src/app/[look]/(desktop)/search/page.tsx",
+    find: "    useAdminStore.getState().hydrate();\n",
+    replace: "",
+    why: "an admin reloading /search was sent to /library: the page decided before the layout read the saved flag",
+  },
+  {
     id: "win98-notepad-names-parts",
     test: "src/components/looks/win98/__tests__/notepad-phone-lines.test.tsx",
     file: "src/components/looks/win98/NotepadPhoneLines.tsx",
