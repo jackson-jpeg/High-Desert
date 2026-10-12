@@ -1,7 +1,7 @@
 "use client";
 
-// The one place that may call usePathname (eslint.config.mjs bans it elsewhere).
-// eslint-disable-next-line no-restricted-imports
+// The one place that may call usePathname (eslint.config.mjs bans it elsewhere
+// and exempts this file).
 import { usePathname } from "next/navigation";
 
 const LOOK_PREFIX = /^\/(?:win98|night)(?=\/|$)/;
