@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { reportHeartbeat } from "@/services/stats/client";
+import { heartbeatUsage } from "@/services/stats/usage-client";
 import { refreshNow, type LivePresence } from "@/services/stats/now-feed";
 import { useCommunityNow } from "@/hooks/useCommunityNow";
 import { SESSION_ID } from "@/lib/utils/session-id";
@@ -61,7 +62,12 @@ export function usePresence(): LivePresence {
     const beat = () => reportHeartbeat(SESSION_ID, nowListeningTo(), tunedInLive());
 
     void beat().then(() => refreshNow());
-    const id = setInterval(beat, HEARTBEAT_MS);
+    // Only the minute beat carries the tab (time per tab, docs/usage-tracking.md):
+    // the extra beats below would otherwise count a minute each.
+    const id = setInterval(
+      () => reportHeartbeat(SESSION_ID, nowListeningTo(), tunedInLive(), heartbeatUsage()),
+      HEARTBEAT_MS,
+    );
 
     // Coming back to the tab should announce it immediately rather than
     // waiting out the rest of a throttled interval.

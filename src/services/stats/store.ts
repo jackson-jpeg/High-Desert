@@ -84,6 +84,9 @@ export {
 } from "./db/funnel";
 export type { FunnelStep, FunnelDevice, FunnelCounts, FunnelDay, Funnel } from "./db/funnel";
 
+export { recordView, recordRouteMinute, getUsage } from "./db/usage";
+export type { Usage } from "./db/usage";
+
 export type {
   PlaybackFailureInput,
   FailureRate,

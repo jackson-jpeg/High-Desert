@@ -53,6 +53,7 @@ import { LIVE_LOCKED_MESSAGE, liveLocked } from "@/stores/live-store";
 import { toast } from "@/stores/toast-store";
 import { describeMediaError, disarmWatchdog, isWatching, noteError } from "@/audio/playback-watchdog";
 import { emit } from "@/lib/events";
+import { bindPlaySurface, withPlaySurface } from "@/audio/play-surface";
 import { withGlobals } from "./player/globals";
 import {
   armListen,
@@ -142,8 +143,9 @@ export function useAudioPlayer() {
       if (isRemovedFromCatalog(episode)) return;
       const audio = getAudio();
       if (audio.src) return; // something is already loaded; don't stomp it
-      // A new source is a new start: its listen has not been counted.
-      beginStart();
+      // A new source is a new start: its listen has not been counted. Its
+      // first ▶ (togglePlay) is the remembered show's: surface `restore`.
+      bindPlaySurface(beginStart(), "restore");
       audio.preload = "none";
       // archive.org, or the mirror for a repaired show (src/audio/sources.ts).
       const source = resolveSources(episode)[0] ?? { kind: "archive" as const, url: episode.sourceUrl };
@@ -322,7 +324,7 @@ export function useAudioPlayer() {
     if (!audio.src) {
       const { currentEpisode: ep } = usePlayerStore.getState();
       if (ep) {
-        emit("play-episode", ep);
+        withPlaySurface("restore", () => emit("play-episode", ep));
       }
       return;
     }

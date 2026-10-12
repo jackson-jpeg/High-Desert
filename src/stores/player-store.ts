@@ -7,6 +7,7 @@ import { startPositionFor } from "@/audio/play-session";
 import { positionOf } from "@/stores/progress-store";
 import { emit } from "@/lib/events";
 import { episodeTitle } from "@/lib/library/display-title";
+import { withPlaySurface } from "@/audio/play-surface";
 
 export type RepeatMode = "off" | "one" | "all";
 
@@ -388,7 +389,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (idx !== -1) {
       set({ queueIndex: idx });
     }
-    emit("play-episode", episode);
+    // Next, previous and the end of a show: a queue advance, wherever the
+    // listener happens to be (src/audio/play-surface.ts).
+    withPlaySurface("queue", () => emit("play-episode", episode));
   },
 
   restoreQueue: (queue, queueIndex) => {

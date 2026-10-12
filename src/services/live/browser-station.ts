@@ -10,6 +10,7 @@ import { currentStartPlan } from "@/audio/outage-gate";
 import { fetchServerNow } from "@/lib/live/time-sync";
 import { knownSlots, type LiveSchedule, type ProgramSlot } from "@/lib/live/schedule";
 import { useLiveStore } from "@/stores/live-store";
+import { withPlaySurface } from "@/audio/play-surface";
 
 /**
  * The live station's real wiring, for the desktop layout: the schedule and
@@ -124,7 +125,7 @@ export function installBrowserLiveStation(): () => void {
   const offStation = installLiveStation({
     fetchSchedule,
     fetchServerNow,
-    startEpisode: (episode) => emit("play-episode", episode),
+    startEpisode: (episode) => withPlaySurface("live", () => emit("play-episode", episode)),
     resolveEpisode: (slot) => rows.get(slot.fileHash) ?? episodeFromSlot(slot),
     // Leaving clears the show from the player and from what a reload restores:
     // the layout re-primes `last-episode-id` on every load, so without this

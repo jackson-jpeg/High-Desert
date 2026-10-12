@@ -11,6 +11,7 @@ import { emit } from "@/lib/events";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { episodeTitle } from "@/lib/library/display-title";
+import { withPlaySurface } from "@/audio/play-surface";
 
 interface Result {
   id: string;
@@ -238,7 +239,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
               .get(hit.id)
               .then((ep) => {
                 if (ep) {
-                  emit("play-episode", ep);
+                  withPlaySurface("palette", () => emit("play-episode", ep));
                 }
               })
               .catch(() => {});

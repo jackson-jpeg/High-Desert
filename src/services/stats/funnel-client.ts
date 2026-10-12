@@ -20,6 +20,7 @@
  */
 
 import { safeGetItem, safeSetItem } from "@/lib/utils/safe-storage";
+import { notCounted } from "./not-counted";
 
 export type FunnelStep = "visit" | "live" | "tune" | "call";
 export type FunnelDevice = "phone" | "desktop";
@@ -70,6 +71,8 @@ function post(step: FunnelStep, cohort: string, device: FunnelDevice): void {
 
 function report(state: FunnelState, step: FunnelStep): void {
   if (state.cohort === null || state.done.includes(step)) return;
+  // A headless checker's browser (./not-counted.ts) is nobody's arrival.
+  if (notCounted()) return;
   const next = { ...state, done: [...state.done, step] };
   if (!write(next)) return;
   state.done = next.done;
