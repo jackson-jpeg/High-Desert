@@ -157,6 +157,8 @@ around: each blocked command was re-run unchanged but for the prefix.
   3769. I checked the orphan's cwd was `/root/hd-full` and killed that PID;
   later servers ran under `setsid` and were stopped by process group.
 - `pgrep -f` matched my own shell once (read-only, nothing killed).
+- I ran one `tsc --noEmit` and an `eslint` of one spec without `heavy` while a
+  build and a mutation shard held both slots (house rule slip).
 
 ## Not mine, noticed
 
