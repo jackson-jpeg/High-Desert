@@ -3,6 +3,9 @@
 @import "../styles/crt.css";
 @import "../styles/animations.css";
 @import "../styles/radio.css";
+/* Preview looks (docs/looks.md): every rule scoped to html[data-look=…]. */
+@import "../styles/look-clean.css";
+@import "../styles/look-win98.css";
 
 /* ============================================
    Tailwind v4 Theme

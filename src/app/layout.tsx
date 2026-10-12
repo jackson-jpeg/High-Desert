@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
+import { LookSwitcher } from "@/components/looks/LookSwitcher";
 import { BOOT_SCRIPT } from "./boot-script";
 import { PALETTE } from "@/lib/palette";
 import { BUILD_META } from "@/lib/utils/build-id";
@@ -93,7 +94,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: the boot script may set data-look (a preview
+    // look, src/lib/look/look.ts) on this element before React hydrates.
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/* The build this document belongs to (src/lib/utils/build-id.ts). */}
         <meta name={BUILD_META} content={process.env.NEXT_PUBLIC_BUILD_ID ?? "dev"} />
@@ -172,6 +175,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: BOOT_SCRIPT }} />
         <ServiceWorkerRegistration />
         {children}
+        <LookSwitcher />
       </body>
     </html>
   );

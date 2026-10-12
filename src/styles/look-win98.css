@@ -1,0 +1,5 @@
+/*
+ * The "Win98" preview look (docs/looks.md): the current layout in authentic
+ * gray Windows 98. Every rule here is scoped to html[data-look="win98"]; the
+ * public look never matches one.
+ */

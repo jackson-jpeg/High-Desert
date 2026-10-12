@@ -1,0 +1,5 @@
+/*
+ * The "Clean" preview look (docs/looks.md): the current dark theme, refined.
+ * Every rule here is scoped to html[data-look="clean"]; the public look
+ * never matches one.
+ */
