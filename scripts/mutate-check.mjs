@@ -6363,8 +6363,8 @@ export const MUTATIONS = [
     id: "win98-taskbar-hole-not-in-fields",
     test: "src/components/looks/win98/__tests__/taskbar.test.tsx",
     file: "src/components/looks/win98/Taskbar.tsx",
-    find: "      if (isKeyOwnedByTarget(e) || isTextEntry(e.target)) {",
-    replace: "      if (isKeyOwnedByTarget(e)) {",
+    find: "      if (isKeyOwnedByTarget(e)) {",
+    replace: "      if (false) {",
     why: "typing 'hole' into a text field opens Mel's Hole",
   },
   {

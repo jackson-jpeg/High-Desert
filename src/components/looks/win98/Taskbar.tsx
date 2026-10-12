@@ -76,7 +76,7 @@ export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings }:
         return;
       }
       if (e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1) return;
-      if (isKeyOwnedByTarget(e) || isTextEntry(e.target)) {
+      if (isKeyOwnedByTarget(e)) {
         typed.current = 0;
         return;
       }
@@ -200,11 +200,6 @@ export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings }:
       {overlay === "mels-hole" && <MelsHole onClose={() => setOverlay(null)} />}
     </div>
   );
-}
-
-function isTextEntry(t: EventTarget | null): boolean {
-  if (!(t instanceof HTMLElement)) return false;
-  return t.isContentEditable || t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT";
 }
 
 /** The tray: presence, the speaker, the clock. Owns the clock's timer, so a tick re-renders only this. */
