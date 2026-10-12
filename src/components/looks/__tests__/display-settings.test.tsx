@@ -122,6 +122,25 @@ describe("Win98: Display Properties", () => {
   });
 });
 
+describe("useLookChoice", () => {
+  it("apply() with the look on screen never reloads; with another, switches", async () => {
+    const { useLookChoice } = await import("../useLookChoice");
+    const seen: ReturnType<typeof useLookChoice>[] = [];
+    function Probe({ report }: { report: (c: ReturnType<typeof useLookChoice>) => void }) {
+      report(useLookChoice());
+      return null;
+    }
+    mount("win98", <Probe report={(c) => seen.push(c)} />);
+    const api = () => seen[seen.length - 1];
+    act(() => api().apply());
+    expect(chosen).not.toHaveBeenCalled();
+    act(() => api().setChoice("night"));
+    expect(api().changed).toBe(true);
+    act(() => api().apply());
+    expect(chosen).toHaveBeenCalledWith("night");
+  });
+});
+
 describe("the shell and the first-visit offer", () => {
   it("a first Win98 visit gets the offer from the real shell; Night never does", async () => {
     localStorage.removeItem("hd-look-offer");
