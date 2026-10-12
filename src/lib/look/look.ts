@@ -6,10 +6,10 @@
  *
  * The choice is per device: a plain cookie, `hd_look`, that anyone may set
  * (Start > Settings > Display in Win98, More > Display in Night, or the
- * first-visit offer). `src/proxy.ts` reads it on every page request and
- * rewrites into the `[look]` segment (`src/app/[look]/`), so the server renders
- * the chosen look and the page never flashes the other one. Both looks are
- * prerendered; nothing reads a cookie during rendering.
+ * first-visit offer). A `rewrites()` rule in `next.config.ts` reads it on every
+ * page request and rewrites into the `[look]` segment (`src/app/[look]/`), so
+ * the server renders the chosen look and the page never flashes the other one.
+ * Both looks are prerendered; nothing reads a cookie during rendering.
  */
 
 export const LOOKS = ["win98", "night"] as const;
