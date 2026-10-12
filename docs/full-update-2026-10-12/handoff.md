@@ -43,6 +43,21 @@ unaffected and is the first Actions run to see this code.
   `scripts/look-cookie.mjs`, `HD_LOOK_KEY`, the old public look and its
   screenshot set, the Radio tab (`/radio` redirects).
 
+## Found at integration: a hydration mismatch on every page
+
+The visualizer agent reported Night never finishing its boot. A production
+build of the integration branch showed React #418 on every page in both looks,
+and the boot screen stuck on `/live`; `next dev` showed nothing, which is why
+it got past the branches. Cause: pages render in the `[look]` segment through a
+rewrite, so `usePathname()` read `/win98/live` while a page was prerendered and
+`/live` in the browser. The empty player (hidden on `/live`) was in the server
+HTML of `/live`, and the tab bar marked no tab. Fix: `useAppPathname()`
+(`src/hooks/useAppPathname.ts`) takes the look off; ESLint bans `usePathname`
+everywhere else (proved in `eslint-rules.test.ts`); two mutations. Rebuilt and
+re-probed: no #418, boot screen clears, in both looks at 390 and 1280.
+
+The e2e and test databases got the new `schema.sql` (look columns).
+
 ## The resend loop (item 4)
 
 It was this session's own scheduled wakeup. While waiting on CI for PR #72 I
