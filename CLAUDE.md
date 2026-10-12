@@ -329,7 +329,7 @@ heard. Keys that merely announce something (`HD_NOTIFICATIONS`: `seed-settled`,
 
 **Library intents are URLs, not events** (`src/lib/library/intents.ts`):
 `/library?shuffle=all|coast|dreamland|special`, `?sort=<SortMode>`, `?q=<search>`,
-`?scroll=current`, `?show=<communityKey>` (select that show; a show page's "Open in High Desert"). Callers use `useOpenLibraryIntent()` — push from another route,
+`?scroll=current`, `?show=<communityKey>` (select that show; a show page's "Open in High Desert"), `?resume=<communityKey>` (start that show at its saved second through the library's play; the welcome page's Continue listening, which sits at the top of the Library too: `src/lib/library/continue-listening.ts`). Callers use `useOpenLibraryIntent()` — push from another route,
 replace on /library — never an event and never `setTimeout` waiting for the page to mount.
 `LibraryIntentReader` parses (invalid values ignored), clears the parameters with a
 replace, and `useLibraryIntents` applies them once the data they need exists.
@@ -884,12 +884,23 @@ same offset, computed from a synced clock.
   and the call box stay on screen") sets `--safe-top` itself, since Playwright
   cannot set `env()`. Report sits beside a call's time as a small word with a
   44 px `::after` target.
-- **A phone's first screen is one tap** (`docs/funnel.md`). On a phone, `/live`
-  opens with a "Listen live" card (`ListenLive`, `data-testid="live-tune-in"`)
-  above everything else: the show on the air, its guest and "N tuned in now".
-  The tap is `tuneIn()` itself, so audio starts inside the gesture, and it is
-  the only tune-in control on a phone. A phone's first visit to `/` is sent
-  straight to `/live`.
+- **A phone's first screen is one tap** (`docs/funnel.md`, `docs/live-qa.md`
+  "The phone's Live screen", 2026-10-12, both looks). `PhoneLive` opens on the
+  hero (`live-hero`): the show on the air, "with Guest · year", a one-line hook
+  (`showHook()`, `src/lib/live/hook.ts`: the notable "why", else the summary's
+  first sentence; **never invented**, nothing when the catalog has neither),
+  time left, up next, "N tuned in now", and **one big button** in one place:
+  **Listen live** (`live-tune-in`, `tuneIn()` inside the gesture), Leave while
+  tuned, Rejoin live / Tap to rejoin while held. It is the only tune-in
+  control on a phone (the Studio below has no buttons). Then the sticky Call
+  in, the latest three calls (`phone-lines-preview`) whose tap opens the sheet,
+  and the install card when it applies. Preview and sheet share **one**
+  `useLiveChat` stream. A phone's first visit to `/` is sent straight to `/live`.
+- **Phone Lines is a URL: `/live?lines=1`** (`src/lib/live/phone-lines.ts`).
+  On a phone it is the Night tab and the Win98 taskbar button in Radio's old
+  place (`md:hidden` / `tasksFor(isMobile)`), and Win98's Start menu and the
+  manifest shortcut use it too. The Live screen opens the sheet (phone) or
+  focuses the call box (desktop), then replaces the URL with `/live`.
 - **UI.** `/live` (`src/components/live/LiveStation.tsx`): ON AIR sign, station
   clock (PT), now playing with time left, up next, the day's log
   (`ProgramGuide`, past/now/future), the live count, and the phone lines —

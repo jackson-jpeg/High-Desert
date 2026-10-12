@@ -7,6 +7,8 @@
  * dial lives inside the Library (`/library?view=dial`).
  */
 
+import { PHONE_LINES_HREF } from "@/lib/live/phone-lines";
+
 export type StartAction =
   | { kind: "route"; href: string }
   | { kind: "about" }
@@ -45,8 +47,8 @@ export interface StartItem {
   separatorBefore?: boolean;
 }
 
-/** Where "Phone Lines" goes: the Live screen, with the lines open on a phone. */
-export const PHONE_LINES_HREF = "/live#phone-lines";
+/** Where "Phone Lines" goes: the Live screen with the lines open (src/lib/live/phone-lines.ts). */
+export { PHONE_LINES_HREF };
 /** The Library's dial browse mode (an intent another branch builds). */
 export const DIAL_HREF = "/library?view=dial";
 

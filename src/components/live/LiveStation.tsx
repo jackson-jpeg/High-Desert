@@ -1,18 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useLiveQuery } from "dexie-react-hooks";
 import { Window } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
 import { formatCountdown, formatStationTime, splitShowTitle } from "@/lib/live/format";
 import { upcoming, knownSlots, type LiveSchedule, type ProgramSlot } from "@/lib/live/schedule";
+import { airYear, showHook } from "@/lib/live/hook";
+import { wantsPhoneLines } from "@/lib/live/phone-lines";
 import { useLiveStore } from "@/stores/live-store";
 import { usePlayerStore } from "@/stores/player-store";
 import { leaveStation, tuneIn } from "@/audio/live-controller";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { onAirAt, useLiveSchedule, useStationClock } from "@/hooks/useLiveStation";
 import { useCommunityNow } from "@/hooks/useCommunityNow";
+import { useLiveChat } from "@/hooks/useLiveChat";
 import { presenceAttrs } from "@/services/stats/now-feed";
+import { db } from "@/db";
 import { OnAirLamp } from "./OnAirLamp";
 import { KIND_LABEL, ProgramGuide } from "./ProgramGuide";
 import { LiveChat } from "./LiveChat";
@@ -20,45 +26,59 @@ import { LiveChatSheet } from "./LiveChatSheet";
 import { noteFunnelStep } from "@/services/stats/funnel-client";
 import { shownGuest } from "@/lib/library/guest";
 import { ShowTitle } from "@/components/library/ShowTitle";
+import { InstallPrompt } from "@/components/install/InstallPrompt";
 import { useLook } from "@/hooks/useLook";
-import { onPhoneLinesRequest, takePhoneLinesRequest } from "@/components/looks/win98/phone-lines-request";
+import type { Look } from "@/lib/look/look";
 
 // Win98's phone lines (docs/looks.md).
 import { NotepadPhoneLines } from "@/components/looks/win98/NotepadPhoneLines";
+import { callLine } from "@/components/looks/win98/notepad-log";
+
+type Chat = ReturnType<typeof useLiveChat>;
+
+/** How many of the latest calls a phone's Live screen shows before the sheet. */
+export const PREVIEW_CALLS = 3;
 
 /**
  * The Live screen: a late-night studio. The ON AIR sign, the wall clock, the
  * show on the air and how long it has left, what is next, the day's log, how
- * many people are tuned in — and the phone lines, beside the console on
- * desktop and behind a button (a sheet) on a phone.
+ * many people are tuned in, and the phone lines.
+ *
+ * On a desktop, the console and the phone lines side by side. On a phone
+ * (docs/live-qa.md, "The phone's Live screen"), top down:
+ *
+ *   1. the show on the air (LiveHero): what it is, its guest and year, one
+ *      line on why it is worth hearing, the time left, and one big button:
+ *      Listen live, then (tuned in) Leave the station, or (held) Rejoin;
+ *   2. the phone lines: a sticky "Phone lines are open" bar and the latest
+ *      calls, one tap from the call box in its keyboard-safe sheet;
+ *   3. the studio: clock, live count, up next and the day's log.
  *
  * Every number that moves is computed from the published schedule and the
- * synced clock (`useStationClock`), never from the player's element — the
+ * synced clock (`useStationClock`), never from the player's element: the
  * screen shows the station whether or not this browser is tuned in to it.
  */
 export function LiveStation() {
   const schedule = useLiveSchedule();
   const isMobile = useIsMobile();
   const [linesOpen, setLinesOpen] = useState(false);
-  const tuned = useLiveStore((s) => s.tuned);
   // The funnel's second step: the Live screen was on screen (docs/funnel.md).
   useEffect(() => noteFunnelStep("live"), []);
   const look = useLook();
-  // The Win98 Start menu's "Phone Lines": open the sheet on a phone, or put
-  // the cursor in the call box on a desktop.
-  useEffect(() => {
-    if (look !== "win98") return;
-    const take = () => {
-      if (!takePhoneLinesRequest()) return;
-      if (isMobile) setLinesOpen(true);
-      else document.querySelector<HTMLInputElement>('[data-variant="notepad"] input[aria-label="Your call"]')?.focus();
-    };
-    take();
-    return onPhoneLinesRequest(take);
-  }, [look, isMobile]);
+
+  // "Phone Lines" anywhere (the phone's tab bar or taskbar, Win98's Start
+  // menu, the app shortcut) is /live?lines=1: the sheet on a phone, the
+  // cursor in the call box on a desktop (src/lib/live/phone-lines.ts).
+  const openLines = useCallback(() => {
+    if (isMobile) setLinesOpen(true);
+    else document.querySelector<HTMLInputElement>('[data-testid="phone-lines"] input[aria-label="Your call"]')?.focus();
+  }, [isMobile]);
 
   return (
     <div className="h-full min-h-0 p-2 md:p-3 overflow-auto md:overflow-hidden">
+      <Suspense fallback={null}>
+        <LinesIntentReader onLines={openLines} />
+      </Suspense>
       <div
         className={cn(
           "grid gap-3 min-h-full md:h-full",
@@ -68,56 +88,115 @@ export function LiveStation() {
           "grid-cols-[minmax(0,1fr)] md:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]",
         )}
       >
-        <Window title="High Desert Live · Studio" variant="dark" headingLevel={2} className="flex flex-col min-h-0">
-          {schedule ? <Console schedule={schedule} listenAbove={isMobile} /> : <OffAir />}
-        </Window>
-
-        {isMobile && schedule && !tuned && <ListenLive schedule={schedule} />}
-
         {isMobile ? (
-          <button
-            type="button"
-            onClick={() => setLinesOpen(true)}
-            data-testid="live-call-in"
-            className={cn(
-              // First on a phone: below the studio it sat under the tab bar,
-              // where nobody would find the phone lines. Sticky, so no scroll
-              // of the column can carry it off the top (2026-10-01: tuning in
-              // removes the Listen live card above it, and WebKit has no
-              // scroll anchoring to hold the column's place).
-              "order-first sticky top-0 z-10 w98-raised-dark bg-raised-surface min-h-touch px-4 flex items-center justify-between gap-3 cursor-pointer",
-              "w98-font text-hd-body text-desktop-gray",
-            )}
-          >
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-static-green animate-on-air" aria-hidden="true" />
-              Phone lines are open
-            </span>
-            <span className="text-hd-caption text-desert-amber uppercase tracking-[0.18em]">Call in</span>
-          </button>
-        ) : look === "win98" ? (
-          <div id="phone-lines" className="flex flex-col min-h-0">
-            <NotepadPhoneLines />
-          </div>
+          <PhoneLive schedule={schedule} look={look} linesOpen={linesOpen} setLinesOpen={setLinesOpen} />
         ) : (
-          <Window title="Phone Lines" variant="dark" headingLevel={2} className="flex flex-col min-h-0">
-            {/* h-full, not flex-1: the Window's body is a scrolling block,
-                not a flex column. As flex-1 the chat grew to its content, the
-                whole window scrolled instead of the list, and on a 900 px
-                desktop the call-in box started below the fold with the list
-                parked on the oldest call. */}
-            <div className="h-full min-h-0 flex flex-col" data-testid="phone-lines-body">
-              <LiveChat />
-            </div>
-          </Window>
+          <>
+            <Window title="High Desert Live · Studio" variant="dark" headingLevel={2} className="flex flex-col min-h-0">
+              {schedule ? <Console schedule={schedule} /> : <OffAir />}
+            </Window>
+            {look === "win98" ? (
+              <div id="phone-lines" className="flex flex-col min-h-0">
+                <NotepadPhoneLines />
+              </div>
+            ) : (
+              <Window title="Phone Lines" variant="dark" headingLevel={2} className="flex flex-col min-h-0">
+                {/* h-full, not flex-1: the Window's body is a scrolling block,
+                    not a flex column. As flex-1 the chat grew to its content, the
+                    whole window scrolled instead of the list, and on a 900 px
+                    desktop the call-in box started below the fold with the list
+                    parked on the oldest call. */}
+                <div className="h-full min-h-0 flex flex-col" data-testid="phone-lines-body">
+                  <LiveChat />
+                </div>
+              </Window>
+            )}
+          </>
         )}
       </div>
-      {isMobile && (
-        <LiveChatSheet open={linesOpen} onClose={() => setLinesOpen(false)}>
-          {look === "win98" ? <NotepadPhoneLines onClose={() => setLinesOpen(false)} /> : <LiveChat />}
-        </LiveChatSheet>
-      )}
     </div>
+  );
+}
+
+/**
+ * `?lines=1`: open the phone lines, then take the parameter out of the
+ * address bar (a replace, like a library intent), so a reload does not
+ * reopen them and pressing Phone Lines again on /live opens them again.
+ */
+function LinesIntentReader({ onLines }: { onLines: () => void }) {
+  const params = useSearchParams();
+  const router = useRouter();
+  const latest = useRef(onLines);
+  useEffect(() => {
+    latest.current = onLines;
+  }, [onLines]);
+  const wants = wantsPhoneLines(params);
+  useEffect(() => {
+    if (!wants) return;
+    latest.current();
+    router.replace("/live", { scroll: false });
+  }, [wants, router]);
+  return null;
+}
+
+/**
+ * The phone's Live screen. One stream to the phone lines for the page: the
+ * preview of the latest calls and the sheet's chat share it, so opening the
+ * sheet is instant and the room is joined once.
+ */
+function PhoneLive({
+  schedule,
+  look,
+  linesOpen,
+  setLinesOpen,
+}: {
+  schedule: LiveSchedule | null;
+  look: Look;
+  linesOpen: boolean;
+  setLinesOpen: (open: boolean) => void;
+}) {
+  const chat = useLiveChat();
+  const open = () => setLinesOpen(true);
+  const close = () => setLinesOpen(false);
+  return (
+    <>
+      {schedule ? <LiveHero schedule={schedule} look={look} /> : (
+        <Window title="High Desert Live" variant="dark" headingLevel={2} className="order-first">
+          <OffAir />
+        </Window>
+      )}
+
+      <button
+        type="button"
+        onClick={open}
+        data-testid="live-call-in"
+        className={cn(
+          // Sticky, so no scroll of the column can carry it off the top
+          // (2026-10-01: tuning in changes the card above it, and WebKit has
+          // no scroll anchoring to hold the column's place).
+          "sticky top-0 z-10 w98-raised-dark bg-raised-surface min-h-touch px-4 flex items-center justify-between gap-3 cursor-pointer",
+          "w98-font text-hd-body text-desktop-gray",
+        )}
+      >
+        <span className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-static-green animate-on-air" aria-hidden="true" />
+          Phone lines are open
+        </span>
+        <span className="text-hd-caption text-desert-amber uppercase tracking-[0.18em]">Call in</span>
+      </button>
+
+      <LinesPreview chat={chat} look={look} onOpen={open} />
+
+      <InstallPrompt />
+
+      <Window title="High Desert Live · Studio" variant="dark" headingLevel={2} className="flex flex-col min-h-0">
+        {schedule ? <Console schedule={schedule} phone /> : <OffAir />}
+      </Window>
+
+      <LiveChatSheet open={linesOpen} onClose={close}>
+        {look === "win98" ? <NotepadPhoneLines chat={chat} onClose={close} /> : <LiveChat chat={chat} />}
+      </LiveChatSheet>
+    </>
   );
 }
 
@@ -130,87 +209,138 @@ function OffAir() {
   );
 }
 
+/** The catalog row for a show on the air: where its summary (the hook) lives. Null until the library has it. */
+function useCatalogRow(fileHash: string | null) {
+  return useLiveQuery(async () => {
+    if (!fileHash) return null;
+    try {
+      return (await db.episodes.where("fileHash").equals(fileHash).first()) ?? null;
+    } catch {
+      return null;
+    }
+  }, [fileHash]);
+}
+
 /**
- * A phone's first screen (docs/funnel.md): one tap to listen, and what that
- * tap gets you — the show on the air, its guest, and how many are tuned in
- * now. 3 in 4 people online on launch night never pressed play, and 75% were
- * on phones, where Tune in sat below the studio's clock and sign. The tap is
- * `tuneIn()` itself, so the show starts inside the gesture (Safari's rule).
- * Gone once tuned in: the studio below is then the way to pause or leave.
+ * A phone's first screen (docs/funnel.md, docs/live-qa.md): the show on the
+ * air and one big button. Not tuned in, the button is Listen live, and the
+ * tap is `tuneIn()` itself, so the show starts inside the gesture (Safari's
+ * rule). Tuned in, the same place holds Leave the station; held (paused, or
+ * the phone refused the change of show), Rejoin live or Tap to rejoin.
  */
-function ListenLive({ schedule }: { schedule: LiveSchedule }) {
-  const now = useStationClock(5000);
-  const presence = useCommunityNow();
+function LiveHero({ schedule, look }: { schedule: LiveSchedule; look: Look }) {
+  const now = useStationClock(1000);
   const on = onAirAt(schedule, now);
   const slot = on && "slot" in on ? on.slot : null;
-  const { episode } = slot ? splitShowTitle(slot.title) : { episode: null };
+  const tuned = useLiveStore((s) => s.tuned);
+  const row = useCatalogRow(slot?.fileHash ?? null);
+  const hook = slot ? showHook({ fileHash: slot.fileHash, aiSummary: row?.aiSummary }) : null;
+  return (
+    <section
+      data-testid="live-hero"
+      aria-label="On the air"
+      className={cn(
+        "order-first w98-raised-dark bg-raised-surface flex flex-col gap-3 px-4 py-4",
+        look === "night" && "rounded-xl",
+      )}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <OnAirLamp lit={!!slot} tuned={tuned} size="sm" />
+        <HeroCount />
+      </div>
+      {slot ? <NowPlaying slot={slot} now={now} hook={hook} phone /> : <StationBreak until={on?.endsAt ?? now} now={now} />}
+      <StationControls phone look={look} slot={slot} />
+    </section>
+  );
+}
+
+/** "12 tuned in now", from the one presence feed. */
+function HeroCount() {
+  const presence = useCommunityNow();
+  return (
+    <span
+      className="flex items-center gap-1.5 text-hd-caption text-static-green tabular-nums"
+      data-testid="listen-count"
+      {...presenceAttrs("live", presence)}
+    >
+      <span className="w-2 h-2 rounded-full bg-static-green animate-on-air" aria-hidden="true" />
+      {presence.live} tuned in now
+    </span>
+  );
+}
+
+/**
+ * The latest calls, on the first screen of a phone: the room is visible
+ * without opening anything, and the whole card is the way into the call box
+ * (the sheet, sized to what the iOS keyboard leaves). Not the chat itself:
+ * no Report, no names to change; those are in the sheet.
+ */
+function LinesPreview({ chat, look, onOpen }: { chat: Chat; look: Look; onOpen: () => void }) {
+  const calls = chat.messages.slice(-PREVIEW_CALLS);
   return (
     <button
       type="button"
-      onClick={() => tuneIn()}
-      data-testid="live-tune-in"
-      aria-label={slot ? `Listen live: ${episode}` : "Listen live"}
+      onClick={onOpen}
+      data-testid="phone-lines-preview"
+      aria-label="Open the phone lines: every call, and the call box"
       className={cn(
-        "order-first w98-raised-dark bg-raised-surface cursor-pointer text-left",
-        "flex items-center gap-4 px-4 py-4 min-h-touch",
+        "-mt-3 w98-raised-dark bg-raised-surface flex flex-col gap-2 px-3 pt-2 pb-3 text-left cursor-pointer",
+        look === "night" && "rounded-b-xl",
       )}
     >
-      <span
-        className="shrink-0 flex items-center justify-center w-14 h-14 rounded-full bg-desert-amber text-midnight text-hd-h3"
-        aria-hidden="true"
-      >
-        ▶
-      </span>
-      <span className="flex flex-col min-w-0 gap-0.5">
-        <span className="w98-font text-hd-h3 text-desert-amber leading-tight">Listen live</span>
-        {slot ? (
-          <>
-            <span className="text-hd-body text-desktop-gray leading-snug line-clamp-2" data-testid="listen-title">
-              {episode}
-            </span>
-            {shownGuest(slot) && (
-              <span className="text-hd-caption text-bevel-dark truncate" data-testid="listen-guest">
-                with {shownGuest(slot)}
-              </span>
-            )}
-          </>
+      <ol className={cn("flex flex-col gap-1.5 w-full", look === "win98" && "w98-inset-dark bg-inset-well p-1")} aria-hidden="true">
+        {calls.length === 0 ? (
+          <li className="text-hd-caption text-bevel-dark">The lines are open. Be the first caller tonight.</li>
+        ) : look === "win98" ? (
+          calls.map((m) => (
+            <li key={m.id} data-testid="preview-call" className="w98-font text-hd-12 text-desktop-gray line-clamp-2 break-words">
+              {callLine(m)}
+            </li>
+          ))
         ) : (
-          <span className="text-hd-body text-desktop-gray">Station break. The next show is moments away.</span>
+          calls.map((m) => (
+            <li key={m.id} data-testid="preview-call" className="flex flex-col min-w-0">
+              <span className="flex items-baseline gap-2 min-w-0 text-hd-caption">
+                <span className="shrink-0 text-hd-micro uppercase tracking-wider text-phosphor-amber">{m.line}</span>
+                <span className="truncate font-bold text-signal-blue">{m.name}</span>
+              </span>
+              <span className="text-hd-body text-desktop-gray line-clamp-2 break-words">{m.body}</span>
+            </li>
+          ))
         )}
-        <span
-          className="flex items-center gap-1.5 text-hd-caption text-static-green tabular-nums"
-          data-testid="listen-count"
-          {...presenceAttrs("live", presence)}
-        >
-          <span className="w-2 h-2 rounded-full bg-static-green animate-on-air" aria-hidden="true" />
-          {presence.live} tuned in now
-        </span>
+      </ol>
+      <span
+        className={cn(
+          "w-full min-h-touch flex items-center px-3 text-hd-title text-bevel-dark",
+          look === "win98" ? "w98-inset-dark bg-inset-well w98-font" : "rounded-xl bg-inset-well/85",
+        )}
+        data-testid="live-call-box-open"
+      >
+        Call in…
       </span>
     </button>
   );
 }
 
-/** The console. Re-renders once a second — it is the clock. */
-function Console({ schedule, listenAbove = false }: { schedule: LiveSchedule; listenAbove?: boolean }) {
+/** The console. Re-renders once a second: it is the clock. On a phone the show and its buttons are in the hero above. */
+function Console({ schedule, phone = false }: { schedule: LiveSchedule; phone?: boolean }) {
   const now = useStationClock(1000);
   const tuned = useLiveStore((s) => s.tuned);
-  const phase = useLiveStore((s) => s.phase);
-  const held = useLiveStore((s) => s.tuned && s.paused);
-  const rejoin = useLiveStore((s) => s.tuned && s.paused && s.rejoin);
-  const playing = usePlayerStore((s) => s.playing);
   const on = onAirAt(schedule, now);
   const slot = on && "slot" in on ? on.slot : null;
   const next = upcoming(knownSlots(schedule), now)[0] ?? null;
+  const row = useCatalogRow(phone ? null : slot?.fileHash ?? null);
+  const hook = slot && !phone ? showHook({ fileHash: slot.fileHash, aiSummary: row?.aiSummary }) : null;
 
   return (
     <div className="flex flex-col min-h-0 flex-1 md:h-full">
       {/* Top of the console: the sign, the wall clock, who is listening. */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 bg-inset-well border-b border-bevel-dark/20">
-        <OnAirLamp lit={!!slot} tuned={tuned} size="lg" />
+        <OnAirLamp lit={!!slot} tuned={tuned} size={phone ? "md" : "lg"} />
         <div className="flex flex-col items-end">
           <span
             data-testid="live-clock"
-            className="w98-font text-hd-h2 text-phosphor-amber tabular-nums leading-none"
+            className={cn("w98-font text-phosphor-amber tabular-nums leading-none", phone ? "text-hd-h3" : "text-hd-h2")}
           >
             {formatStationTime(now)}
           </span>
@@ -226,56 +356,8 @@ function Console({ schedule, listenAbove = false }: { schedule: LiveSchedule; li
       )}
 
       <div className="px-3 py-3 flex flex-col gap-3">
-        {slot ? <NowPlaying slot={slot} now={now} /> : <StationBreak until={on?.endsAt ?? now} now={now} />}
-
-        <div className="flex flex-wrap items-center gap-3">
-          {tuned ? (
-            <>
-              {held && (
-                // Tuning in again is exactly "rejoin": the play path starts the
-                // show that is on at the station's second, and the hold clears.
-                <button
-                  type="button"
-                  onClick={() => tuneIn()}
-                  data-testid="live-rejoin"
-                  className="w98-raised-dark bg-raised-surface text-desert-amber w98-font text-hd-title px-5 min-h-touch md:min-h-0 md:py-1.5 cursor-pointer"
-                >
-                  {rejoin ? "Tap to rejoin" : "Rejoin live"}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => leaveStation()}
-                className="w98-raised-dark bg-raised-surface text-desktop-gray w98-font text-hd-body px-4 min-h-touch md:min-h-0 md:py-1.5 cursor-pointer"
-              >
-                Leave the station
-              </button>
-            </>
-          ) : listenAbove ? null : (
-            // On a phone the one way in is "Listen live", above the studio.
-            <button
-              type="button"
-              onClick={() => tuneIn()}
-              data-testid="live-tune-in"
-              className="w98-raised-dark bg-raised-surface text-desert-amber w98-font text-hd-title px-5 min-h-touch md:min-h-0 md:py-1.5 cursor-pointer"
-            >
-              Tune in
-            </button>
-          )}
-          <VuMeter live={tuned && !held && (playing || phase === "station-id")} />
-          <span className="text-hd-caption text-bevel-dark" data-testid="live-status">
-            {tuned
-              ? rejoin
-                ? "Your phone stopped the station at the change of show. Tap to rejoin, or press play on the lock screen."
-                : held
-                ? "Paused. The station carries on; rejoin to hear where it is now."
-                : phase === "station-id"
-                ? "Station identification…"
-                : "You're listening live, with everyone else."
-              : "Everyone tuned in hears the same second."}
-          </span>
-        </div>
-
+        {!phone && (slot ? <NowPlaying slot={slot} now={now} hook={hook} /> : <StationBreak until={on?.endsAt ?? now} now={now} />)}
+        {!phone && <StationControls />}
         {next && <UpNext slot={next} />}
       </div>
 
@@ -296,25 +378,128 @@ function Console({ schedule, listenAbove = false }: { schedule: LiveSchedule; li
   );
 }
 
-function NowPlaying({ slot, now }: { slot: ProgramSlot; now: number }) {
+/**
+ * Tune in, rejoin, leave, and what the station is doing for you: the desktop
+ * console's row, and on a phone the hero's one big button (Listen live, or
+ * Rejoin) with Leave beneath it.
+ */
+function StationControls({ phone = false, look = "night", slot = null }: { phone?: boolean; look?: Look; slot?: ProgramSlot | null }) {
+  const tuned = useLiveStore((s) => s.tuned);
+  const phase = useLiveStore((s) => s.phase);
+  const held = useLiveStore((s) => s.tuned && s.paused);
+  const rejoin = useLiveStore((s) => s.tuned && s.paused && s.rejoin);
+  const playing = usePlayerStore((s) => s.playing);
+  // The big button: amber and round in Night, a large raised Win98 button in Win98.
+  const big = cn(
+    "w-full min-h-[56px] px-5 flex items-center justify-center gap-3 cursor-pointer w98-font text-hd-h3",
+    look === "win98"
+      ? "w98-raised-dark bg-raised-surface text-desktop-gray"
+      : "rounded-full bg-desert-amber text-midnight font-bold shadow-[0_6px_20px_color-mix(in_srgb,var(--hd-amber)_35%,transparent)] active:scale-[0.98]",
+  );
+  const small = phone
+    ? "w-full min-h-touch px-4 w98-raised-dark bg-raised-surface text-desktop-gray w98-font text-hd-body cursor-pointer"
+    : "w98-raised-dark bg-raised-surface text-desktop-gray w98-font text-hd-body px-4 min-h-touch md:min-h-0 md:py-1.5 cursor-pointer";
+  const { episode } = slot ? splitShowTitle(slot.title) : { episode: null };
+
+  return (
+    <div className={cn("flex flex-wrap items-center gap-3", phone && "flex-col items-stretch gap-2")}>
+      {tuned ? (
+        <>
+          {held && (
+            // Tuning in again is exactly "rejoin": the play path starts the
+            // show that is on at the station's second, and the hold clears.
+            <button
+              type="button"
+              onClick={() => tuneIn()}
+              data-testid="live-rejoin"
+              className={phone ? big : "w98-raised-dark bg-raised-surface text-desert-amber w98-font text-hd-title px-5 min-h-touch md:min-h-0 md:py-1.5 cursor-pointer"}
+            >
+              {rejoin ? "Tap to rejoin" : "Rejoin live"}
+            </button>
+          )}
+          {phone && !held && <ListeningNow live={playing || phase === "station-id"} />}
+          <button type="button" onClick={() => leaveStation()} className={small}>
+            Leave the station
+          </button>
+        </>
+      ) : (
+        // On a phone, the hero's one way in; on a desktop, the console's.
+        <button
+          type="button"
+          onClick={() => tuneIn()}
+          data-testid="live-tune-in"
+          aria-label={phone ? (episode ? `Listen live: ${episode}` : "Listen live") : undefined}
+          className={phone ? big : "w98-raised-dark bg-raised-surface text-desert-amber w98-font text-hd-title px-5 min-h-touch md:min-h-0 md:py-1.5 cursor-pointer"}
+        >
+          {phone ? (
+            <>
+              <span aria-hidden="true" className={look === "win98" ? "text-desert-amber" : undefined}>
+                {"▶"}
+              </span>
+              Listen live
+            </>
+          ) : (
+            "Tune in"
+          )}
+        </button>
+      )}
+      <div className={cn("flex items-center gap-3", phone && "justify-center text-center")}>
+        {!phone && <VuMeter live={tuned && !held && (playing || phase === "station-id")} />}
+        <span className="text-hd-caption text-bevel-dark" data-testid="live-status">
+          {tuned
+            ? rejoin
+              ? "Your phone stopped the station at the change of show. Tap to rejoin, or press play on the lock screen."
+              : held
+              ? "Paused. The station carries on; rejoin to hear where it is now."
+              : phase === "station-id"
+              ? "Station identification…"
+              : "You're listening live, with everyone else."
+            : "Everyone tuned in hears the same second."}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** Tuned in on a phone: where the Listen button was, the station in your ears. */
+function ListeningNow({ live }: { live: boolean }) {
+  return (
+    <div className="min-h-[56px] flex items-center justify-center gap-3 w98-inset-dark bg-inset-well" data-testid="live-listening">
+      <VuMeter live={live} />
+      <span className="w98-font text-hd-title text-static-green">On the air with you</span>
+    </div>
+  );
+}
+
+function NowPlaying({ slot, now, hook = null, phone = false }: { slot: ProgramSlot; now: number; hook?: string | null; phone?: boolean }) {
   const elapsed = Math.max(0, (now - slot.start) / 1000);
   const length = (slot.end - slot.start) / 1000;
   const left = Math.max(0, (slot.end - now) / 1000);
   const pct = length > 0 ? Math.min(100, (elapsed / length) * 100) : 0;
   const { show, episode } = splitShowTitle(slot.title);
+  const guest = shownGuest(slot);
+  // On a phone: the guest and the year, short. On a desktop, the full date.
+  const meta = phone
+    ? [guest ? `with ${guest}` : null, airYear(slot.airDate)].filter(Boolean).join(" · ")
+    : [guest, slot.airDate ? `Originally aired ${formatAirDate(slot.airDate)}` : null].filter(Boolean).join(" · ");
   return (
     <div className="flex flex-col gap-1.5" data-testid="live-now">
       <span className="text-hd-micro uppercase tracking-[0.2em] text-static-green" data-testid="live-now-show">
         Now playing · {show ?? KIND_LABEL[slot.kind]}
       </span>
-      <h2 data-testid="live-now-title" className="text-hd-h3 md:text-hd-h2 text-desktop-gray leading-tight">
+      <h2 data-testid="live-now-title" className={cn("text-desktop-gray leading-tight", phone ? "text-hd-h2" : "text-hd-h3 md:text-hd-h2")}>
         {episode}
       </h2>
-      <span className="text-hd-body text-bevel-dark">
-        {[shownGuest(slot), slot.airDate ? `Originally aired ${formatAirDate(slot.airDate)}` : null]
-          .filter(Boolean)
-          .join(" · ")}
-      </span>
+      {meta && (
+        <span className={cn(phone ? "text-hd-title" : "text-hd-body", "text-bevel-dark")} data-testid="live-now-meta">
+          {meta}
+        </span>
+      )}
+      {hook && (
+        <p className="text-hd-body text-desktop-gray line-clamp-2" data-testid="live-hook">
+          {hook}
+        </p>
+      )}
       <div className="flex items-center gap-3 mt-1">
         <span className="text-hd-caption tabular-nums text-bevel-dark w98-font">{formatCountdown(elapsed)}</span>
         <div

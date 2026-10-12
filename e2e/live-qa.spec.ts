@@ -44,9 +44,22 @@ function streamFromFixture() {
   });
 }
 
+/**
+ * The caller tests below are about LiveChat, the Night look's phone lines
+ * (`change-name`, `live-message`, `line-label`). Win98, the default look since
+ * 418d264, draws them as Notepad with its own ids and menus
+ * (notepad-phone-lines.test.tsx, e2e/looks.spec.ts), so these choose Night the
+ * way a visitor's device does: the `hd_look` cookie.
+ */
+async function inNight(context: BrowserContext) {
+  const host = new URL(process.env.E2E_BASE_URL!).hostname;
+  await context.addCookies([{ name: "hd_look", value: "night", domain: host, path: "/", sameSite: "Lax" }]);
+}
+
 async function openLines(page: Page, mobile: boolean) {
   await page.goto("/live");
-  if (mobile) await page.getByRole("button", { name: /phone lines/i }).first().click();
+  // On a phone the lines are a sheet behind the sticky Call in button.
+  if (mobile) await page.getByTestId("live-call-in").click();
   await expect(page.getByTestId("you-name")).not.toBeEmpty({ timeout: 30_000 });
 }
 
@@ -142,6 +155,7 @@ test("change name: refused and rate-limited names say why inline; a new name is 
     extraHTTPHeaders: { "x-forwarded-for": anotherClientAddress(info.workerIndex) },
   });
   try {
+    await Promise.all([inNight(page.context()), inNight(other)]);
     const listener = await other.newPage();
     await Promise.all([openLines(page, mobile), openLines(listener, mobile)]);
     const before = (await page.getByTestId("you-name").textContent())!;
@@ -189,6 +203,7 @@ test("change name: refused and rate-limited names say why inline; a new name is 
 // ---------------------------------------------------------------------------
 
 test("pressing Change name does not move or resize it (a press that reflows can lose its click)", async ({ page }, info) => {
+  await inNight(page.context());
   await openLines(page, !!info.project.use.isMobile);
   const button = page.getByRole("button", { name: "Change name" });
   // Layout, not paint: offset* ignore transforms, so the phone's deliberate
@@ -206,6 +221,7 @@ test("pressing Change name does not move or resize it (a press that reflows can 
 test("a caller keeps one line across a refresh, and the label reads the same in the header and on every message", async ({ page }, info) => {
   test.setTimeout(90_000);
   const mobile = !!info.project.use.isMobile;
+  await inNight(page.context());
   await openLines(page, mobile);
   const header = youLine(page);
   const line = (await header.textContent())!.trim();
@@ -336,7 +352,8 @@ test.describe("tuned in", () => {
     await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     expect(await seen()).toEqual({ boot: false, toast: false, settled: true });
     await expect(listen).toContainText("Listen live");
-    await expect(page.getByTestId("listen-title").or(listen.getByText("Station break"))).toBeVisible();
+    const hero = page.getByTestId("live-hero");
+    await expect(hero.getByTestId("live-now-title").or(hero.getByText("Station break"))).toBeVisible();
     await expect(page.getByTestId("listen-count")).toHaveText(/^\d+ tuned in now$/);
     await listen.tap();
     await expect.poll(async () => (await element(page))?.paused === false && ((await element(page))?.currentTime ?? 0) > 0, { timeout: 60_000 }).toBe(true);
@@ -404,7 +421,7 @@ test.describe("tuned in", () => {
           return r.top >= inset && r.bottom <= vh;
         }, INSET);
       await expect.poll(fits, { message: `the call box in the sheet at ${height}`, timeout: 5_000 }).toBe(true);
-      await page.getByRole("button", { name: "Close phone lines" }).tap();
+      await page.getByRole("button", { name: "Close phone lines" }).first().tap();
       await leaveButton(page).tap();
     }
   });
@@ -487,23 +504,58 @@ test("a first visit can find the station from the welcome page; a phone is taken
   await expect(page.getByTestId("live-tune-in")).toBeVisible({ timeout: 30_000 });
 });
 
-test("nothing in the studio is wider than the screen", async ({ page }) => {
+test("nothing in the studio is wider than the screen", async ({ page }, info) => {
   await page.goto("/live");
   await expect(page.getByTestId("live-now")).toBeVisible({ timeout: 30_000 });
   const over = await page.evaluate(() => {
     const vw = document.documentElement.clientWidth;
     return [...document.querySelectorAll<HTMLElement>("main *, [role=main] *, body *")]
-      .filter((el) => el.closest('[data-testid="live-now"], [data-testid="live-listeners"], [data-testid="live-clock"], [data-testid="live-up-next"]'))
+      .filter((el) => el.closest('[data-testid="live-hero"], [data-testid="phone-lines-preview"], [data-testid="live-now"], [data-testid="live-listeners"], [data-testid="live-clock"], [data-testid="live-up-next"]'))
       .map((el) => el.getBoundingClientRect().right - vw)
       .filter((d) => d > 1).length;
   });
   // The count, the clock, the show and what is next are all on screen.
   expect(over).toBe(0);
-  await expect(page.getByTestId("live-listeners").first()).toBeInViewport();
+  // The count on the first screen: the hero's on a phone, the console's on a desktop.
+  await expect(page.getByTestId(info.project.use.isMobile ? "listen-count" : "live-listeners").first()).toBeInViewport();
+});
+
+test("a phone's Live screen: the show, why to hear it, one Listen, and the latest calls, without scrolling", async ({ page }, info) => {
+  test.skip(!info.project.use.isMobile, "the phone's screen");
+  await page.goto("/live");
+  const listen = page.getByTestId("live-tune-in");
+  await expect(listen).toBeInViewport({ ratio: 1, timeout: 30_000 });
+  // One way in: the studio below has no Tune in of its own.
+  await expect(listen).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /^(Tune in|Listen live)/ })).toHaveCount(1);
+  // The phone lines are visible without hunting: the latest calls, on the first screen.
+  const preview = page.getByTestId("phone-lines-preview");
+  await expect(preview).toBeInViewport({ timeout: 30_000 });
+  // ...and the call box is one tap away.
+  await preview.click();
+  await expect(page.getByPlaceholder(/^Call in/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("you-name")).not.toBeEmpty({ timeout: 30_000 });
+});
+
+test("the Phone Lines tab, in Radio's old place, opens the lines from anywhere", async ({ page }, info) => {
+  test.skip(!info.project.use.isMobile, "a phone's tab");
+  await page.goto("/library");
+  // Night's tab bar tab, or Win98's taskbar button (the default look): one URL either way.
+  const tab = page.locator('nav button[data-nav="phone-lines"], [data-testid="w98-task-phone-lines"]').first();
+  await expect(tab).toBeVisible({ timeout: 30_000 });
+  await tab.click();
+  await expect(page).toHaveURL(/\/live$/, { timeout: 15_000 });
+  await expect(page.getByPlaceholder(/^Call in/)).toBeVisible({ timeout: 30_000 });
+  // Closed, it stays closed: the URL no longer asks for it.
+  await page.getByRole("button", { name: "Close phone lines" }).first().click();
+  await page.reload();
+  await expect(page.getByTestId("live-tune-in")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByPlaceholder(/^Call in/)).toHaveCount(0);
 });
 
 test("desktop: the call-in box is on screen and the newest call is in view", async ({ page }, info) => {
   test.skip(!!info.project.use.isMobile, "the phone opens the lines in a sheet");
+  await inNight(page.context());
   await page.goto("/live");
   const box = page.getByPlaceholder(/^Call in/);
   await expect(box).toBeInViewport({ timeout: 30_000 });

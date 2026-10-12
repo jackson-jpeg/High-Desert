@@ -84,13 +84,21 @@ describe("no Radio tab in either look", () => {
   for (const look of ["night"] as const) {
     it(`${look}: no Radio tab; the menu and the More sheet open the Library's Dial mode`, () => {
       mount(look, shell());
-      expect(navTabs()).toEqual(["Library", "Live", "Stats", "More"]);
+      // Radio's place went to the Phone Lines (a phone's tab; md:hidden on a desktop).
+      expect(navTabs()).toEqual(["Library", "Live", "Phone Lines", "Stats", "More"]);
       expect([...container.querySelectorAll<HTMLElement>("nav button[data-nav]")].map((e) => e.dataset.nav)).toEqual([
         "library",
         "live",
+        "phone-lines",
         "stats",
         "more",
       ]);
+      // A phone's tab only: a desktop keeps its layout, the lines beside the console.
+      const lines = container.querySelector<HTMLButtonElement>('nav button[data-nav="phone-lines"]')!;
+      expect(lines.className).toMatch(/(^|\s)md:hidden(\s|$)/);
+      expect(container.querySelector<HTMLButtonElement>('nav button[data-nav="live"]')!.className).not.toMatch(/md:hidden/);
+      click(lines);
+      expect(push).toHaveBeenCalledWith("/live?lines=1");
 
       click(byText('[role="menubar"] [role="menuitem"]', "View")!);
       expect(byText('[role="menu"] [role="menuitem"]', "Radio Dial")).toBeUndefined();

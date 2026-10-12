@@ -169,3 +169,52 @@ The "before" is 20 phones over 78 minutes, so the interval is wide; the later
 cohort days in "after" are still filling in, which can only raise their shares.
 This section is frozen: the job writes it once and never recomputes it.
 <!-- funnel-verdict:end -->
+
+## The phone's Live screen, redesigned (2026-10-12)
+
+The "Listen live" card above the Studio became the phone's whole first
+screen, in both looks (`docs/live-qa.md`, "The phone's Live screen"): the show
+on the air with its guest, year and one line on why it is worth hearing, one
+big **Listen live** button (`live-tune-in`, still `tuneIn()` inside the tap),
+the live count, and the latest calls with the call box one tap away. The
+funnel's steps are unchanged: `live` is the screen on screen, `tune` the
+station's first sound, `call` a 201 from the phone lines. Compare phone
+cohorts from 2026-10-13 on with the "After" row above; the steps mean the same
+thing, so the shares are comparable.
+
+The **Phone Lines** tab (Night) and taskbar button (Win98) in Radio's old
+place on a phone go to `/live?lines=1`. Arriving that way still counts the
+`live` step (the screen is on screen); the funnel does not distinguish it.
+
+## Install to home screen (2026-10-12)
+
+A returning listener is offered the app on their home screen
+(`src/services/install/install-prompt.ts`, `InstallPrompt`):
+
+- **When:** from the second visit. A visit is a new browser session or a new
+  local day, whichever comes first, counted in localStorage `hd-visits`
+  (`{n, day}`) with sessionStorage `hd-visit-counted` marking the session.
+  Where storage is blocked nothing is counted, so nothing is offered.
+- **What:** an **Install** button where the browser fires
+  `beforeinstallprompt` (Chromium, Android). The event is captured once for
+  the page and shared with the File menu's Install item, and its own
+  mini-infobar is held back (`preventDefault`). On iPhone and iPad **Safari**
+  (not Chrome, Firefox or an in-app browser such as Reddit's, whose Share
+  button is elsewhere or cannot add to the home screen) it shows the steps:
+  "Tap Share [icon] at the bottom of Safari, then Add to Home Screen."
+  Anywhere else, nothing.
+- **Never** in the installed app (`display-mode: standalone`, or
+  `navigator.standalone` on iOS), or after `appinstalled` or an accepted
+  prompt.
+- **Dismissal policy:** "Not now" keeps it away for **90 days**; a second
+  "Not now" is **for good** (localStorage `hd-install-prompt`,
+  `{dismissals, until}`).
+- **Where:** an inline card in the page's flow, never fixed over anything: on
+  a phone's Live screen under the phone lines preview (below Listen live and
+  the call box), and in the Library under Continue listening.
+
+It is not a funnel step and posts nothing. `public/manifest.json` was checked
+for it (`src/lib/__tests__/manifest.test.ts`): `display: standalone`, a
+`start_url`, 192 and 512 px icons marked `purpose: any` plus the maskable
+one, and shortcuts to Live and the Phone Lines (the Radio Dial shortcut
+pointed at a redirect and is gone).

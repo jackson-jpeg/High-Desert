@@ -1,93 +1,141 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { recentlyPlayedEpisodes } from "@/services/episodes/progress";
 import type { Episode } from "@/db/schema";
-import { usePlayerStore } from "@/stores/player-store";
 import { cn } from "@/lib/utils/cn";
+import { formatTime } from "@/lib/utils/format";
 import { episodeTitle } from "@/lib/library/display-title";
 import { shownGuest } from "@/lib/library/guest";
+import { airYear } from "@/lib/live/hook";
+import { continueItems, remainingLabel, type ContinueItem } from "@/lib/library/continue-listening";
 import { ShowTitle } from "@/components/library/ShowTitle";
 
-interface ContinueListeningProps {
-  onPlay: (episode: Episode) => void;
+/**
+ * Continue listening, front and centre: at the top of the Library (both
+ * looks, phone and desktop) and on the welcome page. The show this browser
+ * last stopped part way through, as one big tap that resumes it at the saved
+ * second, and up to two more beside it. Hidden when there is nothing to
+ * continue (src/lib/library/continue-listening.ts decides what counts).
+ *
+ * The tap is `onResume(episode)`: the Library emits `play-episode`, the
+ * ordinary start path, which reads the saved position itself
+ * (`startPositionFor(positionOf(…))`); the welcome page, which has no player,
+ * goes to the Library with a `?resume=` intent. Nothing here touches the
+ * audio element.
+ *
+ * `exclude`: the show already in the player (the Library passes it), left
+ * out because the player is how to go on with that one. A prop, not a store
+ * read: the welcome page has no player, and must not import one
+ * (src/lib/__tests__/event-routes.test.ts).
+ */
+export function ContinueListening({
+  onResume,
+  exclude = null,
+  className,
+}: {
+  onResume: (episode: Episode) => void;
+  exclude?: string | null;
   className?: string;
-}
-
-export function ContinueListening({ onPlay, className }: ContinueListeningProps) {
-  const [dismissed, setDismissed] = useState(false);
-  const playing = usePlayerStore((s) => s.playing);
-
-  // Auto-hide when something starts playing
-  useEffect(() => {
-    if (playing) setDismissed(true); // eslint-disable-line react-hooks/set-state-in-effect -- latch: once playing, stay dismissed
-  }, [playing]);
-
-  // Get in-progress episodes: >10% and <90% progress, sorted by lastPlayedAt
-  // desc. Read from the `progress` table (HD-016), joined to the episode rows.
-  const inProgress = useLiveQuery(async () => {
-    const played = await recentlyPlayedEpisodes();
-    return played
-      .filter(({ episode: ep, progress }) => {
-        if (!ep.duration || !progress.playbackPosition) return false;
-        const pct = progress.playbackPosition / ep.duration;
-        return pct > 0.1 && pct < 0.9;
-      })
-      .slice(0, 5); // fetch up to 5, display limited by CSS
+}) {
+  const [hidden, setHidden] = useState(false);
+  // From the `progress` table (HD-016). A database that cannot be read is
+  // nothing to continue, never an error on the page.
+  const played = useLiveQuery(async () => {
+    try {
+      return await recentlyPlayedEpisodes(12);
+    } catch {
+      return [];
+    }
   }, []);
-
-  if (dismissed || !inProgress || inProgress.length === 0) return null;
+  const items = played ? continueItems(played, { exclude }) : [];
+  if (hidden || items.length === 0) return null;
+  const [first, ...more] = items;
 
   return (
-    <div className={cn("w98-raised-dark bg-raised-surface animate-slide-up", className)}>
-      <div className="px-3 py-2">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-hd-12 md:text-hd-10 text-bevel-dark/85 uppercase tracking-wider">
-            Continue Listening
-          </span>
-          <button
-            onClick={() => setDismissed(true)}
-            className="text-hd-12 md:text-hd-10 text-bevel-dark hover:text-desktop-gray active:text-desktop-gray cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="flex gap-2 overflow-x-auto scroll-fade-x">
-          {inProgress.slice(0, 3).map(({ episode: ep, progress }, i) => {
-            const pct = ep.duration && progress.playbackPosition
-              ? Math.round((progress.playbackPosition / ep.duration) * 100)
-              : 0;
-            return (
-              <button
-                key={ep.id}
-                onClick={() => onPlay(ep)}
-                className={cn(
-                  "flex-shrink-0 w-[200px] md:w-[180px] p-2 w98-raised-dark bg-card-surface hover:bg-title-bar-blue/15 active:bg-title-bar-blue/25 active:scale-[0.98] cursor-pointer transition-all duration-150 text-left",
-                  i >= 2 && "hidden md:block",
-                )}
-              >
-                <ShowTitle title={episodeTitle(ep)} className="text-hd-12 md:text-hd-11 text-desktop-gray font-bold" />
-                {shownGuest(ep) && (
-                  <div className="text-hd-10 text-static-green/85 truncate mt-0.5">
-                    {shownGuest(ep)}
-                  </div>
-                )}
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="flex-1 h-[3px] w98-inset-dark bg-inset-well overflow-hidden">
-                    <div
-                      className="h-full bg-phosphor-amber/60"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <span className="text-hd-10 text-bevel-dark tabular-nums">{pct}%</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+    <section
+      aria-labelledby="continue-heading"
+      data-testid="continue-listening"
+      className={cn("hd-continue w98-raised-dark bg-raised-surface flex flex-col gap-2 px-3 py-2 animate-slide-up", className)}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <h2 id="continue-heading" className="w98-font text-hd-caption uppercase tracking-[0.18em] text-desert-amber">
+          Continue listening
+        </h2>
+        <button
+          type="button"
+          onClick={() => setHidden(true)}
+          aria-label="Hide Continue listening"
+          className="min-h-touch min-w-touch md:min-h-0 md:min-w-0 md:px-1 flex items-center justify-center text-hd-body text-bevel-dark hover:text-desktop-gray cursor-pointer"
+        >
+          {"✕"}
+        </button>
       </div>
-    </div>
+
+      <Featured item={first} onResume={onResume} />
+
+      {more.length > 0 && (
+        <ul className="flex gap-2 overflow-x-auto scroll-fade-x" aria-label="More to continue">
+          {more.map((item) => (
+            <li key={item.episode.fileHash} className="flex-shrink-0 w-[220px] md:w-[240px]">
+              <button
+                type="button"
+                onClick={() => onResume(item.episode)}
+                data-testid="continue-more"
+                aria-label={`Resume ${episodeTitle(item.episode)} at ${formatTime(item.position)}`}
+                className="w-full min-h-touch px-2 py-1.5 w98-raised-dark bg-card-surface text-left cursor-pointer flex flex-col gap-1"
+              >
+                <ShowTitle title={episodeTitle(item.episode)} className="text-hd-caption text-desktop-gray" />
+                <Progress item={item} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function Featured({ item, onResume }: { item: ContinueItem; onResume: (episode: Episode) => void }) {
+  const ep = item.episode;
+  const title = episodeTitle(ep);
+  const meta = [shownGuest(ep), airYear(ep.airDate)].filter(Boolean).join(" · ");
+  return (
+    <button
+      type="button"
+      onClick={() => onResume(ep)}
+      data-testid="continue-resume"
+      aria-label={`Resume ${title} at ${formatTime(item.position)}`}
+      className="w-full flex items-center gap-3 text-left cursor-pointer min-h-[64px] group"
+    >
+      <span
+        aria-hidden="true"
+        className="hd-continue-play shrink-0 flex items-center justify-center w-12 h-12 rounded-full bg-desert-amber text-midnight text-hd-title group-active:scale-95"
+      >
+        {"▶"}
+      </span>
+      <span className="flex flex-col min-w-0 flex-1 gap-0.5">
+        <ShowTitle title={title} className="text-hd-body text-desktop-gray font-bold" />
+        {meta && <span className="text-hd-caption text-bevel-dark truncate">{meta}</span>}
+        <span className="text-hd-caption text-desert-amber" data-testid="continue-at">
+          Resume at {formatTime(item.position)}
+        </span>
+        <Progress item={item} />
+      </span>
+    </button>
+  );
+}
+
+function Progress({ item }: { item: ContinueItem }) {
+  const left = remainingLabel(item.remaining);
+  if (item.percent === null) return null;
+  return (
+    <span className="flex items-center gap-2">
+      <span className="flex-1 h-[4px] w98-inset-dark bg-inset-well overflow-hidden" aria-hidden="true">
+        <span className="block h-full bg-phosphor-amber" style={{ width: `${item.percent}%` }} />
+      </span>
+      {left && <span className="text-hd-micro text-bevel-dark tabular-nums whitespace-nowrap">{left}</span>}
+    </span>
   );
 }

@@ -6,6 +6,10 @@ import { cn } from "@/lib/utils/cn";
 import { safeGetItem, safeSetItem } from "@/lib/utils/safe-storage";
 import { Button } from "@/components/win98";
 import { funnelDecided, startFunnel } from "@/services/stats/funnel-client";
+import { ContinueListening } from "@/components/library/ContinueListening";
+import { libraryIntentHref } from "@/lib/library/intents";
+import { communityKey } from "@/lib/utils/community-key";
+import type { Episode } from "@/db/schema";
 
 export default function WelcomePage() {
   const router = useRouter();
@@ -103,6 +107,16 @@ export default function WelcomePage() {
     };
   }, []);
 
+  // Continue listening: this page has no player, so the show is started by
+  // the Library, from a `?resume=` intent, on the ordinary play path.
+  // No fade: the tap's activation should still be fresh when the Library
+  // starts the show, or a browser may refuse to play it unprompted.
+  const handleResume = (ep: Episode) => {
+    const key = communityKey(ep);
+    safeSetItem("local", "hd-visited", "1");
+    router.push(key ? libraryIntentHref({ resume: key }) : "/library");
+  };
+
   const handleEnter = (to: "/library" | "/live" = "/library") => {
     safeSetItem("local", "hd-visited", "1");
     setFadeOut(true);
@@ -169,6 +183,11 @@ export default function WelcomePage() {
             {episodeCount.toLocaleString()} EPISODES IN ARCHIVE
           </div>
         )}
+
+        {/* Something left part way: the first thing offered. Returning
+            visitors are sent to the Library above, where the same card is
+            at the top; this is for one who lands here with a show in progress. */}
+        {!isReturning && <ContinueListening onResume={handleResume} className="w-full max-w-sm text-left" />}
 
         {/* Enter button */}
         <Button
