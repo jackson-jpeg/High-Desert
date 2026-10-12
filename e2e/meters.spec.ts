@@ -40,9 +40,23 @@ import type { Page, Route } from "@playwright/test";
 import { expect, test, busEventName } from "./fixtures";
 import { openLibrary } from "./library";
 import { communityKey } from "../src/lib/utils/community-key";
-import { lookValue } from "../services/live/lib/look.mjs";
+import { id3Length, parseHeader } from "../src/audio/level-tap/mpeg";
 
-const FIXTURE = readFileSync(path.join(process.cwd(), "e2e", "assets", "meter-tone.mp3"));
+/**
+ * The committed tone is 45 s; a slow run outlasts it, and a show that ends
+ * that early is judged empty (duration-sanity.ts). So what is served is its
+ * ID3 tag and then its audio frames twenty times over (15 minutes): the same
+ * constant-bitrate frames, minus the Info frame, whose length would no longer
+ * be true.
+ */
+const FIXTURE = (() => {
+  const file = readFileSync(path.join(process.cwd(), "e2e", "assets", "meter-tone.mp3"));
+  const tag = id3Length(file);
+  const info = parseHeader(file, tag);
+  if (!info) throw new Error("meter-tone.mp3: no frame after the tag");
+  const audio = file.subarray(tag + info.length);
+  return Buffer.concat([file.subarray(0, tag), ...Array.from({ length: 20 }, () => audio)]);
+})();
 
 const IPHONE_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1";
@@ -229,7 +243,13 @@ async function bigViz(page: Page) {
 }
 
 /** Open the now playing screen: the phone's full-screen player, or the desktop's expanded one. */
-async function openNowPlaying(page: Page, look: "default" | "win98") {
+type Look = "win98" | "night";
+
+async function expectLook(page: Page, look: Look) {
+  expect(await page.evaluate(() => document.documentElement.getAttribute("data-look")), "the look under test").toBe(look);
+}
+
+async function openNowPlaying(page: Page, look: Look) {
   // Win98: the phone's compact Winamp expands to full screen; the desktop
   // window shows its big visualizer once the title bar's expand is pressed.
   const candidates =
@@ -365,7 +385,7 @@ async function pauseAndResume(page: Page) {
 
 type Device = "iphone" | "other";
 
-async function wholeRun(page: Page, wiring: Wiring, device: Device, look: "default" | "win98", first: SeedRow, second: SeedRow, expectSrc: [RegExp, RegExp]) {
+async function wholeRun(page: Page, wiring: Wiring, device: Device, look: Look, first: SeedRow, second: SeedRow, expectSrc: [RegExp, RegExp]) {
   await startShow(page, first);
   expect((await element(page))!.src).toMatch(expectSrc[0]);
   await openNowPlaying(page, look);
@@ -419,37 +439,28 @@ for (const device of ["iphone", "other"] as const) {
       });
     }
 
-    test("archive.org: playing, pause and resume, show change, lock screen", async ({ page }) => {
-      const wiring = await wire(page, { archiveUp: true });
-      await openLibrary(page);
-      await wholeRun(page, wiring, device, "default", SHOW_ARCHIVE, SHOW_ARCHIVE_2, [ARCHIVE_SRC, ARCHIVE_SRC]);
-    });
-
-    test("the mirror (outage mode) and a repaired show (mirror only)", async ({ page }) => {
+    // Win98 (what no cookie gets): the Winamp window draws the same
+    // <Oscilloscope> (WinampPlayer.tsx). Night: the hd_look cookie.
+    test("Win98: the mirror (outage mode), then a repaired show (mirror only)", async ({ page }) => {
       const wiring = await wire(page, { archiveUp: false, manifest: [SHOW_MIRROR.fileHash, SHOW_REPAIRED.fileHash] });
       await openLibrary(page, { expected: 2 });
-      await wholeRun(page, wiring, device, "default", SHOW_MIRROR, SHOW_REPAIRED, [MIRROR_SRC, MIRROR_SRC]);
+      await expectLook(page, "win98");
+      await wholeRun(page, wiring, device, "win98", SHOW_MIRROR, SHOW_REPAIRED, [MIRROR_SRC, MIRROR_SRC]);
     });
 
-    test("a repaired show, then archive.org", async ({ page }) => {
+    test("Win98: a repaired show, then archive.org", async ({ page }) => {
       const wiring = await wire(page, { archiveUp: true });
       await openLibrary(page);
-      await wholeRun(page, wiring, device, "default", SHOW_REPAIRED, SHOW_ARCHIVE, [MIRROR_SRC, ARCHIVE_SRC]);
+      await expectLook(page, "win98");
+      await wholeRun(page, wiring, device, "win98", SHOW_REPAIRED, SHOW_ARCHIVE, [MIRROR_SRC, ARCHIVE_SRC]);
     });
 
-    // The Winamp window draws the same visualizer (WinampPlayer.tsx renders
-    // <Oscilloscope>). The look is signed with the run's admin token, the
-    // key the app was started with (HD_LOOK_KEY, see e2e/looks.spec.ts).
-    test("Win98 look: the Winamp visualizer, archive.org then the mirror", async ({ page, baseURL }) => {
-      const token = process.env.E2E_LIVE_ADMIN_TOKEN;
-      test.skip(!token, "E2E_LIVE_ADMIN_TOKEN is not set: the Win98 look needs the e2e stack's admin token");
-      await page.context().addCookies([
-        { name: "hd_look", value: lookValue(token!, "win98"), domain: new URL(baseURL!).hostname, path: "/", httpOnly: true, secure: false, sameSite: "Lax" },
-      ]);
+    test("Night: archive.org, then another archive.org show", async ({ page, baseURL }) => {
+      await page.context().addCookies([{ name: "hd_look", value: "night", domain: new URL(baseURL!).hostname, path: "/", sameSite: "Lax" }]);
       const wiring = await wire(page, { archiveUp: true });
       await openLibrary(page);
-      expect(await page.evaluate(() => document.documentElement.getAttribute("data-look"))).toBe("win98");
-      await wholeRun(page, wiring, device, "win98", SHOW_ARCHIVE, SHOW_REPAIRED, [ARCHIVE_SRC, MIRROR_SRC]);
+      await expectLook(page, "night");
+      await wholeRun(page, wiring, device, "night", SHOW_ARCHIVE, SHOW_ARCHIVE_2, [ARCHIVE_SRC, ARCHIVE_SRC]);
     });
   });
 }
@@ -492,7 +503,7 @@ test.describe("iPhone, real archive.org", () => {
     await openLibrary(page);
     await startShow(page, SHOW_ARCHIVE);
     expect((await element(page))!.src).toMatch(ARCHIVE_SRC);
-    await openNowPlaying(page, "default");
+    await openNowPlaying(page, "win98");
     await chooseVu(page);
     // archive.org is slow to redirect and some storage nodes fail a share of
     // requests, so give it a minute: listen in 3 s windows until the needle

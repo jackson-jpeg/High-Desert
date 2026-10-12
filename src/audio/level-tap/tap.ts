@@ -35,6 +35,8 @@ export const LEAD_SECONDS = 4;
 export const PROBE_BYTES = 16 * 1024;
 /** The largest MPEG audio frame (layer 2/3 at 384 kbps, 32 kHz, padded) is 1,729 bytes; with room. */
 const MAX_FRAME = 2_900;
+/** How far before the wanted time a chunk's bytes start. */
+const LEAD_IN_SECONDS = 0.25;
 /** HAVE_FUTURE_DATA: the element is not starving, so a side fetch cannot slow it. */
 const HAVE_FUTURE_DATA = 3;
 
@@ -373,6 +375,9 @@ export class LevelTap {
       if (!h) throw new Error("no frame sync");
       const xing = parseXing(first, i, h);
       const audioStart = tag + i + (xing ? h.length : 0);
+      // LAME writes its Info/Xing frame at whatever bitrate holds the tag; the
+      // audio's own rate is the next frame's.
+      const audioHeader = (xing && parseHeader(first, i + h.length)) || h;
       const known = total !== undefined ? total - audioStart : undefined;
       // A tag's byte count is believed only where nothing better exists or it
       // agrees: seven catalog files carry an Info tag for a shorter recording.
@@ -381,7 +386,7 @@ export class LevelTap {
       const map: StreamMap = {
         audioStart,
         audioBytes,
-        bitrate: h.bitrate,
+        bitrate: audioHeader.bitrate,
         toc: xing?.vbr && agrees ? xing.toc : undefined,
       };
       if (this.src === src) {
@@ -405,7 +410,10 @@ export class LevelTap {
     const player = this.deps.player();
     const duration = player?.duration ?? NaN;
     try {
-      const start = timeToByte(info.map, from, duration);
+      // A little before the time wanted: the first whole frame in the range
+      // lies up to a frame after its first byte, and the chunk has to cover
+      // `from` itself, or the playhead would sit just before it and ask again.
+      const start = timeToByte(info.map, Math.max(0, from - LEAD_IN_SECONDS), duration);
       if (info.total !== undefined && start >= info.total) return;
       let end = start + Math.ceil(bytesPerSecond(info.map, duration) * CHUNK_SECONDS) + 2 * MAX_FRAME;
       if (info.total !== undefined) end = Math.min(end, info.total - 1);
