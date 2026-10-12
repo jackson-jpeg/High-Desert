@@ -94,6 +94,14 @@ export const MUTATIONS = [
     why: "/radio is the Library's Dial mode, a permanent redirect",
   },
   {
+    id: "win98-notepad-names-parts",
+    test: "src/components/looks/win98/__tests__/notepad-phone-lines.test.tsx",
+    file: "src/components/looks/win98/NotepadPhoneLines.tsx",
+    find: '            <span data-testid="message-body">{m.body}</span>',
+    replace: "            <span>{m.body}</span>",
+    why: "the chat spec finds a call by its message-body in both looks; Notepad's would vanish from it",
+  },
+  {
     id: "boot-dismissed-by-fallback-pages",
     test: "src/app/__tests__/fallback-pages-boot.test.tsx",
     file: "src/hooks/useDismissBootScreen.ts",
