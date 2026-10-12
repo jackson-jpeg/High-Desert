@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Episode } from "@/db/schema";
 import type { SortMode } from "@/lib/library/filter-episodes";
-import type { LibraryIntent, ShuffleScope } from "@/lib/library/intents";
+import type { LibraryIntent, LibraryView, ShuffleScope } from "@/lib/library/intents";
 import { scrollListToRow } from "@/lib/library/list-scroll";
 import { communityKey } from "@/lib/utils/community-key";
 import { toast } from "@/stores/toast-store";
@@ -33,6 +33,7 @@ export function useLibraryIntents({
   setSelectedEpisode,
   setFocusedIndex,
   onShuffle,
+  setView,
 }: {
   allEpisodes: Episode[] | undefined;
   visibleEpisodes: Episode[];
@@ -43,6 +44,8 @@ export function useLibraryIntents({
   setSelectedEpisode: (ep: Episode | null) => void;
   setFocusedIndex: (idx: number) => void;
   onShuffle: (scope: ShuffleScope) => void;
+  /** List or Dial. The page decides whether a look has the dial at all. */
+  setView?: (view: LibraryView) => void;
 }) {
   const scrollToCurrent = useCallback(() => {
     if (!currentEpisodeId || !visibleEpisodes.length) return;
@@ -69,9 +72,10 @@ export function useLibraryIntents({
       if (intent.shuffle) pending.current.shuffle = intent.shuffle;
       if (intent.scroll) pending.current.scroll = true;
       if (intent.show) pending.current.show = intent.show;
+      if (intent.view) setView?.(intent.view);
       setReceived((n) => n + 1);
     },
-    [setSortMode, setSearch, setSelectedEpisode],
+    [setSortMode, setSearch, setSelectedEpisode, setView],
   );
 
   useEffect(() => {

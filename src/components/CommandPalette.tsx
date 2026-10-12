@@ -12,6 +12,9 @@ import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { episodeTitle } from "@/lib/library/display-title";
 import { withPlaySurface } from "@/audio/play-surface";
+import { useLook } from "@/hooks/useLook";
+import { radioRetired, DIAL_HREF } from "@/lib/look/nav";
+import type { Look } from "@/lib/look/look";
 
 interface Result {
   id: string;
@@ -38,6 +41,18 @@ const ROUTE_PATHS: Record<string, string> = {
   "nav-scanner": "/scanner",
   "nav-search": "/search",
 };
+
+/**
+ * The routes for a look. The preview looks have no Radio tab: "Go to" the
+ * dial is the Library's Dial mode there (src/lib/look/nav.ts).
+ */
+function routesFor(look: Look): { routes: Result[]; paths: Record<string, string> } {
+  if (!radioRetired(look)) return { routes: ROUTES, paths: ROUTE_PATHS };
+  return {
+    routes: ROUTES.map((r) => (r.id === "nav-radio" ? { ...r, label: "Library Dial" } : r)),
+    paths: { ...ROUTE_PATHS, "nav-radio": DIAL_HREF },
+  };
+}
 
 function fuzzyMatch(text: string, query: string): boolean {
   return scoreMatch(text, query) > 0;
@@ -97,6 +112,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   // Library actions navigate to a URL intent: the palette is open on every
   // route, and the library is mounted on one (HD-013).
   const openLibrary = useOpenLibraryIntent();
+  const look = useLook();
+  const { routes, paths: routePaths } = useMemo(() => routesFor(look), [look]);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   /**
@@ -208,7 +225,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
     if (!query.trim()) {
       // Show default actions + routes
-      setResults([...ROUTES.slice(0, 3), ...actions.slice(0, 3)]);
+      setResults([...routes.slice(0, 3), ...actions.slice(0, 3)]);
       setActiveIndex(0);
       return;
     }
@@ -248,9 +265,9 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       }
 
       // Filter routes
-      for (const r of ROUTES) {
+      for (const r of routes) {
         if (fuzzyMatch(r.label, q)) {
-          matched.push({ ...r, action: () => router.push(ROUTE_PATHS[r.id]) });
+          matched.push({ ...r, action: () => router.push(routePaths[r.id]) });
         }
       }
 
@@ -270,17 +287,17 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     };
     // indexReady is a dependency so a query typed while the index is still
     // loading re-runs once it lands, instead of showing no episodes.
-  }, [query, open, router, actions, indexReady]);
+  }, [query, open, router, actions, indexReady, routes, routePaths]);
 
   // Wire route actions with router
   const executeResult = useCallback((result: Result) => {
-    if (result.group === "Go to" && ROUTE_PATHS[result.id]) {
-      router.push(ROUTE_PATHS[result.id]);
+    if (result.group === "Go to" && routePaths[result.id]) {
+      router.push(routePaths[result.id]);
     } else {
       result.action();
     }
     close();
-  }, [router, close]);
+  }, [router, close, routePaths]);
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {

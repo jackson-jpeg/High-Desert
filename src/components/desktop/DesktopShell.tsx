@@ -73,6 +73,7 @@ const Win98Taskbar = dynamic(
   () => import("@/components/looks/win98/Taskbar").then((m) => m.Taskbar),
   { ssr: false },
 );
+import { showsNavPath } from "@/lib/look/nav";
 
 interface DesktopShellProps {
   children: ReactNode;
@@ -94,6 +95,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const router = useRouter();
   const pathname = usePathname();
   const isAdmin = useAdminStore((s) => s.isAdmin);
+  // The preview looks retire the Radio tab (src/lib/look/nav.ts).
+  const look = useLook();
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
@@ -111,7 +114,6 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   // Announces this tab and reports who else is here. The shell is mounted on
   // every route, so this is the one place the heartbeat needs to live.
   const presence = usePresence();
-  const look = useLook();
 
   // Easter eggs — local React state (no store needed)
   const [activeEgg, setActiveEgg] = useState<EasterEgg>(null);
@@ -285,7 +287,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           "md:static md:justify-start md:gap-0 md:border-t-0 md:border-b md:border-bevel-dark/15 md:px-2 md:bg-midnight/80 md:backdrop-blur-xs md:pb-0",
         )}
       >
-        {NAV_ITEMS.filter(({ path }) => isAdmin || (path !== "/scanner" && path !== "/search")).map(({ label, path }) => {
+        {NAV_ITEMS.filter(({ path }) => showsNavPath(path, look, isAdmin)).map(({ label, path }) => {
           const isActive = pathname === path;
           const showNowPlaying = path === "/library" && isPlaying && !isActive;
           // A live count on the tab is the whole discovery mechanism for the
@@ -301,6 +303,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               key={path}
               onClick={() => router.push(path)}
               aria-current={isActive ? "page" : undefined}
+              // A hook for the preview looks' tab icons (src/styles/look-*.css).
+              data-nav={look !== "default" ? path.slice(1) : undefined}
               className={cn(
                 "w98-font cursor-pointer select-none transition-colors-fast relative",
                 "flex flex-col items-center justify-center min-h-[52px] flex-1 text-hd-13 gap-1",
@@ -341,6 +345,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             "md:hidden",
           )}
           aria-label="More options"
+          data-nav={look !== "default" ? "more" : undefined}
         >
           More
         </button>

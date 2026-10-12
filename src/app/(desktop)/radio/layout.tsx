@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { RouteHeading } from "@/components/desktop/RouteHeading";
+import { RetiredRadioRedirect } from "@/components/looks/RetiredRadioRedirect";
 
 /*
  * /radio had no layout, so it inherited the root title and the root canonical
@@ -17,6 +18,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <RouteHeading>Radio Dial</RouteHeading>
+      <RetiredRadioRedirect />
       {children}
     </>
   );

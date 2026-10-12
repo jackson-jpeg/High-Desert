@@ -59,6 +59,8 @@ describeDb("scripts/live-setup.sh --link", () => {
     for (const [name, body] of [
       ["id", 'echo 0'],
       ["scp", "exit 1"],
+      // The KEY folder is made over ssh first (a secret travels alone, CLAUDE.md).
+      ["ssh", "exit 1"],
     ]) {
       await writeFile(path.join(dir, "bin", name), `#!/bin/sh\n${body}\n`);
       await chmod(path.join(dir, "bin", name), 0o755);
