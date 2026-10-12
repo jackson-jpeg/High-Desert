@@ -19,6 +19,7 @@ import { LiveChat } from "./LiveChat";
 import { LiveChatSheet } from "./LiveChatSheet";
 import { noteFunnelStep } from "@/services/stats/funnel-client";
 import { shownGuest } from "@/lib/library/guest";
+import { ShowTitle } from "@/components/library/ShowTitle";
 
 /**
  * The Live screen: a late-night studio. The ON AIR sign, the wall clock, the
@@ -335,7 +336,7 @@ function UpNext({ slot }: { slot: ProgramSlot }) {
       <span className="text-hd-micro uppercase tracking-[0.2em] text-bevel-dark">
         Up next · {formatStationTime(slot.start)} PT
       </span>
-      <span className="text-hd-body text-desktop-gray truncate">{slot.title}</span>
+      <ShowTitle title={slot.title} className="text-hd-body text-desktop-gray" />
       {(shownGuest(slot) || slot.airDate) && (
         <span className="text-hd-micro text-bevel-dark truncate">
           {[shownGuest(slot), slot.airDate ? formatAirDate(slot.airDate) : null].filter(Boolean).join(" · ")}

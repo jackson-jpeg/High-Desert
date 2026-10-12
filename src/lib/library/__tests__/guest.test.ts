@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { guestRepeatsTitle, MOVED_TO_TOPIC, shownGuest, topicFromGuest } from "@/lib/library/guest";
+import { guestRepeatsTitle, MOVED_TO_TOPIC, shownGuest, shownTopic, topicFromGuest } from "@/lib/library/guest";
 
 /**
  * Guest fields that only repeated the title were cleared from the seed on
@@ -90,3 +90,45 @@ describe("guest fields that describe the programme, moved to the topic (2026-10-
     expect(guest).not.toBe("Linda Moulton Howe");
   });
 });
+
+describe("a topic that repeats the title (shownTopic, 2026-10-11)", () => {
+  it("the listener's example: Open Lines: Inhuman Encounter Line is hidden", () => {
+    const row = catalog.find((r) => r.title === "Midnight in the Desert - Open Lines: Inhuman Encounter Line");
+    expect(row?.topic).toBe("Open Lines: Inhuman Encounter Line");
+    expect(shownTopic(row)).toBeUndefined();
+  });
+
+  it("a topic that adds information stays", () => {
+    const row = catalog.find((r) => r.title === "Coast to Coast AM - Ghost to Ghost 1993" && r.topic);
+    expect(row?.topic).toBe("Ghost Stories Open Lines");
+    expect(shownTopic(row)).toBe("Ghost Stories Open Lines");
+    expect(shownTopic({ title: "Dreamland - Alien Abductions", topic: "Hypnotic regression" })).toBe("Hypnotic regression");
+  });
+
+  it("either way inside the other is a repeat; no topic is nothing", () => {
+    expect(shownTopic({ title: "Coast to Coast AM - Kevin Randle on UFO Crash at Roswell", topic: "Roswell UFO Crash" })).toBeUndefined();
+    expect(shownTopic({ title: "Coast to Coast AM - Area 51", topic: "Area 51 and UFOs" })).toBeUndefined();
+    expect(shownTopic({ title: "Coast to Coast AM - Area 51", topic: "  " })).toBeUndefined();
+    expect(shownTopic({ title: null, topic: "Area 51" })).toBe("Area 51");
+  });
+
+  it("on the real catalog: no guestless card repeats its title, and most topics still show", () => {
+    const guestless = catalog.filter((r) => r.topic && !r.guestName);
+    const shown = guestless.filter((r) => shownTopic(r));
+    const hidden = guestless.filter((r) => !shownTopic(r));
+    // Counted 2026-10-11: 75 repeats. A floor, not a literal, so the catalog may grow.
+    expect(hidden.length).toBeGreaterThanOrEqual(70);
+    for (const r of shown) expect(guestRepeatsTitleLike(r.title, r.topic!)).toBe(false);
+    // Topics on rows with a person as guest are untouched by the card (it shows the guest).
+    expect(catalog.filter((r) => r.topic).filter((r) => shownTopic(r)).length).toBeGreaterThan(hidden.length);
+  });
+});
+
+/** An independent statement of "repeats": every word of one is in the other. */
+function guestRepeatsTitleLike(title: string, topic: string): boolean {
+  const norm = (s: string) => s.toLowerCase().match(/[a-z0-9]+/g)?.map((w) => w.replace(/s$/, "")) ?? [];
+  const subject = norm(title.split(" - ").slice(1).join(" - ") || title);
+  const t = norm(topic);
+  if (!subject.length || !t.length) return false;
+  return subject.every((w) => t.includes(w)) || t.every((w) => subject.includes(w));
+}

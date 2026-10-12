@@ -31,5 +31,5 @@ export function archiveDownFixture(pinned: readonly string[]): void {
 
 /** Neither verdict yet — the store as a fresh page load has it. */
 export function resetOutage(): void {
-  useOutageStore.setState({ archiveUp: null, manifest: null, unavailable: null });
+  useOutageStore.setState({ archiveUp: null, manifest: null, unavailable: null, failedOver: null });
 }

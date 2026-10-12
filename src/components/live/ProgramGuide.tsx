@@ -7,6 +7,7 @@ import { formatLength, formatStationTime } from "@/lib/live/format";
 import type { ProgramSlot } from "@/lib/live/schedule";
 import { OnAirLamp } from "./OnAirLamp";
 import { shownGuest } from "@/lib/library/guest";
+import { ShowTitle } from "@/components/library/ShowTitle";
 
 export type GuideState = "past" | "now" | "future";
 
@@ -81,15 +82,14 @@ export function ProgramGuide({ slots, now }: { slots: readonly ProgramSlot[]; no
               {formatStationTime(slot.start)}
             </span>
             <span className="flex flex-col min-w-0">
-              <span
+              <ShowTitle
+                title={slot.title}
                 className={cn(
-                  "text-hd-body truncate",
+                  "text-hd-body",
                   state === "past" ? "text-bevel-dark/85" : "text-desktop-gray",
                   state === "now" && "text-desert-amber",
                 )}
-              >
-                {slot.title}
-              </span>
+              />
               <span className={cn("text-hd-micro truncate", state === "past" ? "text-bevel-dark/85" : "text-bevel-dark")}>
                 {[shownGuest(slot), slot.airDate ? formatAirDate(slot.airDate) : null, KIND_LABEL[slot.kind]]
                   .filter(Boolean)

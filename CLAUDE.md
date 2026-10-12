@@ -689,6 +689,14 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
     stores the response's `ETag` and sends it back **verbatim** as `If-None-Match`
     (`src/services/mirror/manifest.ts`); sending `"version"` never matches.
   - **Local files are never marked or refused** — they never needed archive.org.
+  - **Slow is not down** (2026-10-12). When the watchdog moves this tab's show
+    to the mirror with no outage verdict (archive.org answers its probe while
+    `/download` stalls), a quiet notice says **"archive.org is slow right now.
+    Playing from the High Desert mirror."** (`SLOW_COVER_TEXT`,
+    `OfflineIndicator`), from `useOutageStore.failedOver` and `selectSlowCover`:
+    only while that same show plays from the mirror, never with the outage
+    banner, nothing dimmed or refused. A listener in Perth took the silent
+    failover for the show ending.
   - Tests start from `archiveUpFixture` / `archiveDownFixture`
     (`src/test-support/outage.ts`); `e2e/chaos-mirror.spec.ts` runs it on production.
 - **Status:** `highdesert-status` has `memory` (MemAvailable / MemTotal; WARN <15%,

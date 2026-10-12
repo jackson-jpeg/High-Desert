@@ -13,6 +13,12 @@ import type { Episode } from "@/db/schema";
  *               is then sent to the mirror to find out, rather than refused.
  *   unavailable the show a start was just refused for — it is not on the mirror
  *               and archive.org is down. `OutageDialog` renders it.
+ *   failedOver  the fileHash this tab's watchdog moved from archive.org to the
+ *               mirror, with no outage verdict. archive.org answers its health
+ *               probe while `/download` stalls (2026-10-11), so the station goes
+ *               quiet for a moment and then plays on from the mirror; without a
+ *               word on screen a listener in Perth took that for the show ending.
+ *               `OfflineIndicator` shows the quiet notice from it.
  *
  * The banner, the row marks, the "Playable now" filter and the fast fail all
  * read this one store, so they cannot disagree about whether there is an
@@ -30,16 +36,19 @@ interface OutageState {
   archiveUp: boolean | null;
   manifest: MirrorManifest | null;
   unavailable: Episode | null;
+  failedOver: string | null;
   setArchiveUp: (up: boolean) => void;
   setManifest: (manifest: MirrorManifest) => void;
   showUnavailable: (episode: Episode) => void;
   dismissUnavailable: () => void;
+  noteFailover: (fileHash: string | null) => void;
 }
 
 export const useOutageStore = create<OutageState>((set, get) => ({
   archiveUp: null,
   manifest: null,
   unavailable: null,
+  failedOver: null,
 
   setArchiveUp: (up) => {
     if (get().archiveUp === up) return;
@@ -52,10 +61,26 @@ export const useOutageStore = create<OutageState>((set, get) => ({
   },
   showUnavailable: (episode) => set({ unavailable: episode }),
   dismissUnavailable: () => set({ unavailable: null }),
+  noteFailover: (fileHash) => set({ failedOver: fileHash }),
 }));
 
 /** Outage mode is on: the probe has said archive.org is down. Unknown is not down. */
 export const selectOutage = (s: Pick<OutageState, "archiveUp">): boolean => s.archiveUp === false;
+
+/**
+ * The quiet notice: this tab's show moved to the mirror because archive.org
+ * stalled, and there is no outage verdict (outage mode has its own banner).
+ * Only while that same show is still playing from the mirror: the next show,
+ * or a start back on archive.org, clears it without anyone touching the store.
+ */
+export function selectSlowCover(
+  s: Pick<OutageState, "archiveUp" | "failedOver">,
+  player: { source: string | null; fileHash: string | undefined },
+): boolean {
+  if (selectOutage(s)) return false;
+  if (player.source !== "mirror" || !player.fileHash) return false;
+  return s.failedOver === player.fileHash;
+}
 
 /**
  * How a row stands during an outage:

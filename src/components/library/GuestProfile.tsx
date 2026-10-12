@@ -13,6 +13,7 @@ import { shuffle } from "@/lib/utils/shuffle";
 import { formatDuration } from "@/lib/utils/format";
 import { emit } from "@/lib/events";
 import { episodeTitle } from "@/lib/library/display-title";
+import { ShowTitle } from "@/components/library/ShowTitle";
 
 interface GuestProfileProps {
   guestName: string;
@@ -163,9 +164,7 @@ export function GuestProfile({ guestName, onPlay, onClose, className }: GuestPro
                       </span>
                     )}
                   </div>
-                  <div className="text-hd-13 md:text-hd-10 text-desktop-gray truncate mt-0.5">
-                    {episodeTitle(ep)}
-                  </div>
+                  <ShowTitle title={episodeTitle(ep)} wrapperClassName="mt-0.5" className="text-hd-13 md:text-hd-10 text-desktop-gray" />
                   {hasProgress && (
                     <div className="h-[2px] mt-1 bg-inset-well w98-inset-dark overflow-hidden">
                       <div

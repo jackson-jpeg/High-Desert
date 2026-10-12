@@ -154,6 +154,17 @@ export function importable(scanRows, repaired) {
   return [...scanRows.values()].filter((r) => !r.error && r.reason !== "unreadable" && !repaired.has(r.fileHash));
 }
 
+/**
+ * The files that count as walked. A bad verdict on a repaired show judged the
+ * original, from before the repair, so it does not count: the walk re-judges
+ * the repaired copy and overwrites it. Without this a show stayed swapped off
+ * the station forever after its repair (2005-06-12 was recorded bad at 21:09
+ * on 2026-10-11 and repaired that evening).
+ */
+export function walkedSet(rows, repaired) {
+  return new Set(rows.filter((r) => r.ok || !repaired.has(r.file_hash)).map((r) => r.file_hash));
+}
+
 async function upsert(pool, rows) {
   for (const r of rows) {
     await pool.query(
@@ -188,7 +199,7 @@ async function main() {
     const plays = new Map(
       (await pool.query("SELECT episode_id, plays FROM episode_plays")).rows.map((r) => [r.episode_id, Number(r.plays)]),
     );
-    const checked = new Set((await pool.query("SELECT file_hash FROM audio_checks")).rows.map((r) => r.file_hash));
+    const checked = walkedSet((await pool.query("SELECT file_hash, ok FROM audio_checks")).rows, repaired);
     const frozen = (await pool.query("SELECT program FROM live_days WHERE day = $1::date", [day])).rows[0]?.program ?? null;
     const todo = candidatesFor(day, { catalog, plays, checked, frozen, favorites });
 

@@ -200,10 +200,12 @@ shows the fallback below can serve. The full account is in
     history beyond them;
   - every run has a restore test: decrypt, compare the sha256, and check that
     `pg_restore --list` finds the permanent tables.
-- **The private key is `/root/.high-desert-backup-age.key` on the VPS, and a
-  copy is in this handoff's Mac folder. Put it in your password manager and
-  delete that copy.** It is the only way into the GitHub copies if the VPS is
-  lost.
+- **The private key is `/root/.high-desert-backup-age.key` on the VPS.** It
+  is the only way into the GitHub copies if the VPS is lost. **Rotated the
+  same evening:** the first key had gone into this handoff folder, so every
+  copy was re-encrypted to a new key and the old one destroyed
+  (`docs/backup.md`, "Rotated 2026-10-11"). The new key is alone in
+  `~/Downloads/high-desert-KEY-2026-10-11/`. Put it in your password manager.
 - The first real push was 15 dumps, and its restore test passed.
 - **Rehearsal from GitHub:**
   - cloned the repo, decrypted the newest copy, and its sha256 equalled the
@@ -344,8 +346,8 @@ lockfile.
   `min_free`. Raising the disk or lowering the floors is your call.
 - **The Android mirror timeouts** are not nginx's (section 2). The next
   look belongs in the client's failover path on Android.
-- **The age private key** is in this folder. Move it into your password
-  manager and delete the copy.
+- **The backup key** is in `~/Downloads/high-desert-KEY-2026-10-11/`, on
+  its own. Move it into your password manager and delete that folder.
 - **Dependabot ran on `main` after the merge** ("Dependabot Updates" for
   next, pg, eslint-config-next, vitest and @types/node). I left whatever
   it opened alone: merging or closing needs your okay.

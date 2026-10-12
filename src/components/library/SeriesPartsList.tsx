@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
 import { sortSeriesParts } from "@/lib/library/episode-detail";
 import { episodeTitle } from "@/lib/library/display-title";
+import { ShowTitle } from "@/components/library/ShowTitle";
 
 /** Every part of the episode's series, in part order; hidden for a one-part series. */
 export function SeriesPartsList({ seriesName, currentEpisodeId, onPlay }: { seriesName: string; currentEpisodeId?: number; onPlay: (ep: Episode) => void }) {
@@ -43,7 +44,7 @@ export function SeriesPartsList({ seriesName, currentEpisodeId, onPlay }: { seri
                   Pt.{ep.aiSeriesPart}
                 </span>
               )}
-              <span className="truncate flex-1">{episodeTitle(ep)}</span>
+              <ShowTitle title={episodeTitle(ep)} wrapperClassName="flex-1" />
               {ep.airDate && (
                 <span className="text-hd-caption md:text-hd-caption text-bevel-dark/85 flex-shrink-0 tabular-nums">
                   {formatAirDate(ep.airDate)}

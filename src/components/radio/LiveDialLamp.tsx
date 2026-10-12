@@ -6,6 +6,7 @@ import { tuneIn } from "@/audio/live-controller";
 import { useLiveStore } from "@/stores/live-store";
 import { useRadioDialStore } from "@/stores/radio-dial-store";
 import type { ProgramSlot } from "@/lib/live/schedule";
+import { ShowTitle } from "@/components/library/ShowTitle";
 
 const MS_PER_DAY = 86_400_000;
 
@@ -67,7 +68,7 @@ export function LiveDialLamp({
         <span className="text-hd-micro uppercase tracking-[0.18em] text-bevel-dark">
           {tuned ? "Tuned in live" : "Live now · tap to tune in"}
         </span>
-        <span className="text-hd-caption text-desktop-gray truncate">{slot.title}</span>
+        <ShowTitle title={slot.title} className="text-hd-caption text-desktop-gray" />
       </span>
     </button>
   );

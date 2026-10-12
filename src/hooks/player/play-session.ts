@@ -8,6 +8,7 @@
 
 import { usePlayerStore } from "@/stores/player-store";
 import { liveLocked } from "@/stores/live-store";
+import { useOutageStore } from "@/stores/outage-store";
 import { resumeContext, seekEngine } from "@/audio/engine";
 import {
   currentStart,
@@ -228,6 +229,8 @@ export function installFailoverHandler(
     const ep = store.currentEpisode;
     const id = currentStart();
     store.setSource(next.kind);
+    // For the quiet "archive.org is slow" notice: this show is now on the mirror.
+    if (next.kind === "mirror") useOutageStore.getState().noteFailover(ep?.fileHash ?? null);
     audio.removeAttribute("src");
     audio.load();
     audio.preload = "metadata";

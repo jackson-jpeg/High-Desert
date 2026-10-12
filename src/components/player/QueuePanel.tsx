@@ -10,6 +10,7 @@ import { formatAirDate } from "@/lib/utils/format";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { emit } from "@/lib/events";
 import { episodeTitle } from "@/lib/library/display-title";
+import { ShowTitle } from "@/components/library/ShowTitle";
 
 // memo: rendered inside AudioPlayer, which re-renders on every player state
 // change; this has nothing to redraw unless its own props or selectors do (HD-017).
@@ -241,14 +242,10 @@ export const QueuePanel = memo(function QueuePanel() {
                 </span>
               )}
               <div className="flex-1 min-w-0">
-                <div className={cn(
-                  "text-hd-13 md:text-hd-11 truncate",
-                  isCurrent ? "text-desktop-gray font-bold" : "text-desktop-gray/85",
-                )}
+                <ShowTitle
                   title={episodeTitle(ep)}
-                >
-                  {episodeTitle(ep)}
-                </div>
+                  className={cn("text-hd-13 md:text-hd-11", isCurrent ? "text-desktop-gray font-bold" : "text-desktop-gray/85")}
+                />
                 {(ep.guestName || ep.airDate) && (
                   <div className="text-hd-12 md:text-hd-10 text-bevel-dark/85 truncate" title={[ep.guestName, formatAirDate(ep.airDate)].filter(Boolean).join(" \u00B7 ")}>
                     {[ep.guestName, formatAirDate(ep.airDate)].filter(Boolean).join(" \u00B7 ")}

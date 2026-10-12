@@ -68,6 +68,7 @@ const { useAudioPlayer } = await import("@/hooks/useAudioPlayer");
 const { usePlayerStore } = await import("@/stores/player-store");
 const { useProgressStore, positionOf } = await import("@/stores/progress-store");
 const { disarmWatchdog } = await import("@/audio/playback-watchdog");
+const { useOutageStore, selectSlowCover } = await import("@/stores/outage-store");
 
 type Api = ReturnType<typeof useAudioPlayer>;
 let instances: Mounted<Api>[] = [];
@@ -117,6 +118,7 @@ async function settle() {
 beforeEach(() => {
   vi.clearAllMocks();
   archiveDown = false;
+  useOutageStore.setState({ failedOver: null });
   plays = [];
   let call = 0;
   element = makeMediaElement(() => {
@@ -174,6 +176,26 @@ describe("archive.org fails → the mirror", () => {
     });
   });
 
+  it("a failover with no outage verdict raises the quiet notice for that show, and only that show", async () => {
+    useOutageStore.setState({ archiveUp: true, failedOver: null });
+    plays = ["hang", "resolve"];
+    act(() => void api().playEpisode(episode()));
+    expect(useOutageStore.getState().failedOver).toBeNull();
+    act(() => mediaError(4));
+    await settle();
+    const hash = usePlayerStore.getState().currentEpisode!.fileHash;
+    expect(useOutageStore.getState().failedOver).toBe(hash);
+    const player = () => ({
+      source: usePlayerStore.getState().source,
+      fileHash: usePlayerStore.getState().currentEpisode?.fileHash,
+    });
+    expect(selectSlowCover(useOutageStore.getState(), player())).toBe(true);
+    // Control: the same state with an outage verdict is the outage banner's, not this.
+    expect(selectSlowCover({ archiveUp: false, failedOver: hash }, player())).toBe(false);
+    // Control: back on archive.org, the notice is gone without anyone clearing it.
+    expect(selectSlowCover(useOutageStore.getState(), { ...player(), source: "archive" })).toBe(false);
+  });
+
   it("play-rejected does not fail over — the browser refused sound, not the host", async () => {
     plays = ["reject-not-allowed", "hang"];
     act(() => void api().playEpisode(episode()));
@@ -181,6 +203,7 @@ describe("archive.org fails → the mirror", () => {
     expect(element.src).not.toContain("/mirror/");
     expect(element.src.startsWith(ARCHIVE)).toBe(true); // the ordinary retry, same host
     expect(usePlayerStore.getState().source).toBe("archive");
+    expect(useOutageStore.getState().failedOver).toBeNull();
   });
 
   it("mid-show, an archive network error resumes on the mirror where the listener was, without a second listen", async () => {

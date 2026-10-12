@@ -21,6 +21,8 @@ import { emit, useHdEvent } from "@/lib/events";
 import { MirrorBadge } from "./MirrorBadge";
 import { episodeTitle } from "@/lib/library/display-title";
 import { shownGuest } from "@/lib/library/guest";
+import { ShowKicker } from "@/components/library/ShowTitle";
+import { splitShowTitle } from "@/lib/live/format";
 
 interface AudioPlayerProps {
   className?: string;
@@ -146,7 +148,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
             {"\u25BC"}
           </button>
           <span className="flex items-center gap-2">
-            <span className="text-hd-12 text-bevel-dark/85 font-sans tracking-wide uppercase">Now Playing</span>
+            <span className="text-hd-12 text-bevel-dark/85 tracking-wide uppercase">Now Playing</span>
             <MirrorBadge />
           </span>
           <button
@@ -178,8 +180,9 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
 
             {/* Now Playing metadata */}
             <div className="text-center px-4">
-              <div className="text-hd-18 text-desktop-gray font-bold leading-snug line-clamp-2 font-sans" title={episodeTitle(currentEpisode)}>
-                {episodeTitle(currentEpisode)}
+              <ShowKicker title={episodeTitle(currentEpisode)} className="mb-1" />
+              <div data-show-episode="" className="text-hd-18 text-desktop-gray font-bold leading-snug line-clamp-2" title={episodeTitle(currentEpisode)}>
+                {splitShowTitle(episodeTitle(currentEpisode)).episode}
               </div>
               {shownGuest(currentEpisode) && (
                 <div className="text-hd-14 text-static-green/85 truncate mt-2">

@@ -183,6 +183,45 @@ is archive.org's storage-node 500 (docs/firefox-notsupportederror.md), not
 the file. A hit with no decode row was played rarely, or not past its stray
 frame.
 
+**The full scan, finished 2026-10-12 00:20 UTC.** Every one of the 1,413
+catalog files walked frame by frame (`/root/hd-scan`, a frozen copy of
+`scripts/scan-catalog-audio.mjs`, under heavy, niced, idle IO), with one retry
+pass over the ~130 rows archive.org would not serve on 2026-10-11: **1,407
+clean, 6 midstream changes, all 6 in the table above.** Nothing new to repair.
+The verdicts are in `audio_checks` (1,408 rows, 0 bad), so the pre-air walk
+never re-walks a clean file.
+
+A bad verdict recorded before a repair used to stand forever (a walked file
+is never walked again), and the station swaps a slot whose file failed: the
+2005-06-12 row, recorded bad at 21:09 and repaired that evening, would have
+kept the show off the air for good. `walkedSet()` in
+`scripts/verify-live-day.mjs` now does not count a bad verdict on a repaired
+show, so the walk re-judges the copy; the Swanson row was re-walked from its
+copy on 2026-10-12 (ok).
+
+**Does a copy sound worse than its original?** (2026-10-12, after the "OMG why
+is the audio so bad" call on the phone lines.) No copy is below its
+original's bitrate, and per-band RMS (below 1 kHz, 1 to 3, 3 to 5.5, 5.5 to
+10, above 10 kHz, 60 s windows, both decoded from the start of the file)
+matches:
+
+| Copy | Where | Difference, copy minus original |
+|---|---|---|
+| 1994-10-28, 1996-09-09, 2001-09-11, 2001-12-04 | two points each | within 0.5 dB in every band, about 0.4 dB quieter overall |
+| 2001-11-26 | 20:00 (the stereo part) | +2.4 dB in every band, within 0.3 dB of each other: the stereo-to-mono downmix's gain, the same tone |
+| 2001-11-26 | 1:30:00 (the mono part) | within 0.5 dB in every band |
+| 2005-06-12 | 1:30:00 | within 0.6 dB in every band |
+
+So nothing was re-encoded again. (A first attempt compared byte-range
+fragments of the originals; ffmpeg takes a fragment's layout from its first
+frame header and mis-decoded the stereo part, which made the Egyptian Cave
+copy look 7 dB duller. Decoded from the start it is not.) The call itself
+was at 19:26 UTC, during 1992-12-12 Area 51 (John Lear and Bob Lazar), which
+was never repaired: a 24 kbps, 22.05 kHz mono rip of a 1992 AM broadcast with
+almost nothing above 5.5 kHz (−42 to −47 dB), no clipping, served whole from
+the mirror's pins. The complaint window is typical of that file. The
+recording is what it is.
+
 ### 2001-11-26 — Coast to Coast AM: Egyptian Cave in Illinois (Glenn Kimball)
 
 **Pulled on 2026-10-11 and restored the same day as a repair** (the pull was

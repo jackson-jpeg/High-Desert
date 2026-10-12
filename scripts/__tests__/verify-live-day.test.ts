@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { candidatesFor, check, communityKey as scriptKey, importable, monthDays, nextPacificDay, sourceFor } from "../verify-live-day.mjs";
+import { candidatesFor, check, communityKey as scriptKey, importable, monthDays, nextPacificDay, sourceFor, walkedSet } from "../verify-live-day.mjs";
 import { communityKey } from "@/lib/utils/community-key";
 import { onThisDateKeys, rankByPlays, type CatalogRow } from "@/lib/live/schedule";
 
@@ -61,6 +61,19 @@ describe("what can air on a day", () => {
     // 2026-10-12T05:00Z is 22:00 on the 11th in Los Angeles.
     expect(nextPacificDay(Date.parse("2026-10-12T05:00:00Z"))).toBe("2026-10-12");
     expect(nextPacificDay(Date.parse("2026-10-12T08:00:00Z"))).toBe("2026-10-13");
+  });
+});
+
+describe("what counts as walked", () => {
+  it("a bad verdict on a repaired show is walked again; every other verdict stands", () => {
+    const rows = [
+      { file_hash: "fixed", ok: false },
+      { file_hash: "fixed-ok", ok: true },
+      { file_hash: "broken", ok: false },
+      { file_hash: "fine", ok: true },
+    ];
+    const walked = walkedSet(rows, new Set(["fixed", "fixed-ok"]));
+    expect([...walked].sort()).toEqual(["broken", "fine", "fixed-ok"]);
   });
 });
 

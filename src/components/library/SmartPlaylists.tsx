@@ -11,6 +11,7 @@ import { toast } from "@/stores/toast-store";
 import { cn } from "@/lib/utils/cn";
 import { shuffle } from "@/lib/utils/shuffle";
 import { episodeTitle } from "@/lib/library/display-title";
+import { ShowTitle } from "@/components/library/ShowTitle";
 
 interface SmartPlaylistsProps {
   onPlay: (episode: Episode) => void;
@@ -164,9 +165,7 @@ export function SmartPlaylists({ onPlay, className }: SmartPlaylistsProps) {
                     className="flex items-center gap-2 text-left px-2 py-2 md:py-1 min-h-[36px] md:min-h-0 cursor-pointer hover:bg-title-bar-blue/10 active:bg-title-bar-blue/15 transition-colors-fast"
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="text-hd-11 md:text-hd-9 text-desktop-gray/85 truncate">
-                        {episodeTitle(ep)}
-                      </div>
+                      <ShowTitle title={episodeTitle(ep)} className="text-hd-11 md:text-hd-9 text-desktop-gray/85" />
                     </div>
                     {ep.airDate && (
                       <span className="text-hd-9 md:text-hd-7 text-bevel-dark/85 tabular-nums flex-shrink-0">

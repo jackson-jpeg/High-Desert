@@ -102,9 +102,28 @@ The Mac copy is often asleep, and it was the only copy off this box. Leg 4 of
   (GitHub) copy"), like the Mac leg: the VPS dump stands.
 
 **The private key** is `/root/.high-desert-backup-age.key` (chmod 600) on the
-VPS, and a copy went to the Mac with the 2026-10-11 handoff. It is not on
-GitHub. If the VPS is lost, that key is the only way into these copies: keep
-it in a password manager.
+VPS, and one copy went to the Mac on its own, in
+`~/Downloads/high-desert-KEY-2026-10-11/`. It is not on GitHub. If the VPS is
+lost, that key is the only way into these copies: keep it in a password
+manager.
+
+**Rotated 2026-10-11.** The first key had been copied into a handoff folder
+next to docs and screenshots. It was replaced the same evening:
+
+- a new keypair, with `deploy/backup-age-recipient.txt` set to
+  `age17tdz…rw5w2`;
+- the local `.age` copies deleted, and the offsite leg re-run, so all 15
+  kept dumps were re-encrypted to the new key and force-pushed as one
+  orphan commit;
+- the newest copy, cloned from GitHub, decrypted with the new key: sha256
+  equal, 5,868 `play_events` restored into a scratch database (dropped
+  afterwards);
+- the old key refused by that copy, then shredded on the VPS and deleted
+  from the Mac.
+
+The orphan push leaves no commit referencing the old ciphertexts. GitHub
+may keep unreferenced objects for a while, but the key that opens them is
+gone.
 
 Restore from GitHub:
 
