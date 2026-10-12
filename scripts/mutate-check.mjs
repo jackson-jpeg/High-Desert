@@ -6809,6 +6809,14 @@ export const MUTATIONS = [
     replace: "        onClick: () => {},",
     why: "Report on a Notepad line's right-click menu reports nothing",
   },
+  {
+    id: "win98-taskbar-route-mark",
+    test: "src/components/looks/win98/__tests__/taskbar.test.tsx",
+    file: "src/components/looks/win98/Taskbar.tsx",
+    find: "    root.dataset.w98Route = pathname ?? \"\";",
+    replace: "",
+    why: "the Live and Stats screens lose the teal desktop between their windows",
+  },
 ];
 
 /**

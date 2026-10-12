@@ -55,6 +55,16 @@ export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings }:
     if (restoreFocus) startRef.current?.focus();
   }, []);
 
+  // The route, on <html>, for the look's CSS: screens made of windows (Live,
+  // Stats) show the teal desktop between them.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.w98Route = pathname ?? "";
+    return () => {
+      delete root.dataset.w98Route;
+    };
+  }, [pathname]);
+
   // A click anywhere else closes the menu, as on the real desktop.
   useEffect(() => {
     if (!startOpen) return;

@@ -170,6 +170,15 @@ describe("Mel's Hole", () => {
   });
 });
 
+describe("the route mark", () => {
+  it("names the route on <html> for the look's CSS, and clears it on unmount", () => {
+    expect(document.documentElement.dataset.w98Route).toBe("/library");
+    act(() => root.unmount());
+    expect(document.documentElement.dataset.w98Route).toBeUndefined();
+    root = createRoot(container);
+  });
+});
+
 describe("the tray", () => {
   it("shows the shared presence figure, tagged as a presence surface", () => {
     const tray = q("w98-tray-online")!;
