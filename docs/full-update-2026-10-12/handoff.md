@@ -86,6 +86,24 @@ files.
   nothing in in-app browsers or the installed app. "Not now" twice ends it.
 
 
+## Checks run here (no Actions)
+
+On the final tree, through `heavy`, against a local build on the e2e database
+with the phone-lines service behind `scripts/live-e2e-stack.mjs`, the way CI
+composes it:
+
+- `vitest run`: 277 files, 2,622 tests, all passed (database tests included).
+- `eslint .` and `tsc --noEmit`: clean.
+- Mutations: all 963 at `35a5117` went red (two worktrees, a shard each); the
+  4 added after it and the 18 whose files changed since went red too. 967
+  anchors, each found exactly once.
+- Playwright, both projects: 192 passed, 0 failed, 40 skipped (the gated
+  ones: real archive.org, production-only, the iPhone cases outside WebKit).
+  The looks suite saves every screen in both looks to `test-results/looks/`.
+- `check:csp`: 7 routes, no violations, no console errors, no em dashes.
+- `check:seo`: 1,413 shows, 175 guests, 70 topics, 14 nights in the sitemap;
+  45 pages, 782 links and 90 share images checked, no findings.
+
 ## How the look is chosen (foundation)
 
 - The root layout is `src/app/[look]/layout.tsx`; both looks are prerendered
