@@ -87,10 +87,13 @@ the VPS. Signing out is on the phone lines' admin menu.
 Delete this file once you have used it.
 EOF
   chmod 600 "$file"
-  if scp -q -o ConnectTimeout=10 -o BatchMode=yes "$file" macbook:Downloads/ 2>/dev/null; then
-    log "sign-in link copied to the Mac: ~/Downloads/$(basename "$file") (one use, 24 h)"
+  # A secret travels alone (CLAUDE.md): its own folder, 700, the file 600.
+  local keydir="high-desert-KEY-$(date -u +%Y-%m-%d)"
+  if ssh -o ConnectTimeout=10 -o BatchMode=yes macbook "mkdir -p Downloads/$keydir && chmod 700 Downloads/$keydir" 2>/dev/null &&
+    scp -q -p -o ConnectTimeout=10 -o BatchMode=yes "$file" "macbook:Downloads/$keydir/" 2>/dev/null; then
+    log "sign-in link copied to the Mac: ~/Downloads/$keydir/$(basename "$file") (one use, 24 h)"
   else
-    log "the Mac is unreachable: sign-in link staged at $file (one use, 24 h). Copy it with: scp $file macbook:Downloads/"
+    log "the Mac is unreachable: sign-in link staged at $file (one use, 24 h). Copy it into its own folder: ~/Downloads/high-desert-KEY-<date>/"
   fi
 }
 
