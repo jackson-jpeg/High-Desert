@@ -97,3 +97,8 @@ work; the harness's own task notifications cover it.
   DB needs `schema.sql` applied once.
 - No direct mutation for the layout's `noteFunnelRevisit()` call or for
   TimelineView passing `look` (behaviour behind both is mutation-covered).
+- `feat/phone`: a phone now connects to the chat stream on opening /live (the
+  preview and the sheet share one stream), not on opening the sheet.
+- Not checked on a real iPhone: the welcome page's Continue goes through
+  `/library?resume=`, and Safari may drop the tap's permission on the way; if it
+  does, the error dialog's Try Again restarts the show.
