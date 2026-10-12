@@ -4,9 +4,11 @@ import type { Episode } from "@/db/schema";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { RecentlyPlayed } from "@/components/library/RecentlyPlayed";
 import { OnThisDay } from "@/components/library/OnThisDay";
+import { cn } from "@/lib/utils/cn";
 
 /**
- * The collapsible Explore band above the list. Continue Listening used to
+ * The collapsible Explore band: above the list on a desktop, under it on a
+ * phone (where the first screen is for the shows). Collapsed by default. Continue Listening used to
  * live in here, collapsed by default; it is now its own card at the top of
  * the Library (ContinueListening), where a returning listener lands.
  */
@@ -15,17 +17,21 @@ export function ExploreBand({
   onToggle,
   recentlyPlayed,
   onPlay,
+  below = false,
 }: {
   expanded: boolean;
   onToggle: () => void;
   recentlyPlayed: Episode[] | undefined;
   onPlay: (episode: Episode) => void;
+  /** Under the list (a phone): a slim bar with a rule above it. */
+  below?: boolean;
 }) {
   return (
-    <div className="px-3 flex-shrink-0">
+    <div className={cn("px-3 flex-shrink-0", below && "border-t border-bevel-dark/15")} data-testid="explore-band" data-below={below || undefined}>
       <button
         onClick={onToggle}
-        className="text-hd-13 md:text-hd-10 text-bevel-dark uppercase tracking-wider px-2 py-2 md:px-1 md:py-0.5 cursor-pointer hover:text-desktop-gray active:text-desktop-gray transition-colors-fast"
+        aria-expanded={expanded}
+        className="text-hd-13 md:text-hd-10 text-bevel-dark uppercase tracking-wider px-2 py-2 md:px-1 md:py-0.5 min-h-touch md:min-h-0 cursor-pointer hover:text-desktop-gray active:text-desktop-gray transition-colors-fast"
       >
         {expanded ? "▾" : "▸"} Explore
       </button>

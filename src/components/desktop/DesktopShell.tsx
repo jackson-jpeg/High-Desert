@@ -60,6 +60,8 @@ const EasterEggOverlays = dynamic(
   { ssr: false },
 );
 import { useKonamiCode } from "@/hooks/useKonamiCode";
+import { useTypedWord } from "@/hooks/useTypedWord";
+import { HOLE_WORD } from "@/components/looks/win98/start-menu";
 import { usePaletteShortcut } from "@/hooks/usePaletteShortcut";
 import { useRouter } from "next/navigation";
 import { useAppPathname } from "@/hooks/useAppPathname";
@@ -141,6 +143,9 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [ghostToGhostMode, setGhostToGhostMode] = useState(false);
   const dismissEgg = useCallback(() => setActiveEgg(null), []);
   useKonamiCode(useCallback(() => setActiveEgg("konamiCode"), []));
+  // Mel's Hole in Night: typed on a keyboard, never a gesture (it used to open
+  // on scrolling the Library). Win98's Taskbar opens its own program.
+  useTypedWord(HOLE_WORD, () => setActiveEgg("melsHole"), look === "night");
 
   // Easter egg: triple-click title → Kingdom of Nye intro
   const titleClickRef = useRef<{ count: number; timer: ReturnType<typeof setTimeout> | undefined }>({ count: 0, timer: undefined });

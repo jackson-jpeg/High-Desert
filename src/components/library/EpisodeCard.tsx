@@ -125,27 +125,54 @@ export const EpisodeCard = memo(function EpisodeCard({
     }
   });
 
-  // Swipe actions (mobile)
+  // Swipe actions (mobile). A swipe is decided once per touch, on its first
+  // 10px: clearly sideways (twice as far across as down) is a swipe, anything
+  // else is a scroll and stays one for the rest of the touch. Before, a
+  // vertical scroll whose finger drifted sideways later on could become a
+  // swipe and queue or favourite the row under it. A cancelled touch, or a
+  // scroll while it is down, never acts (e2e/scroll-gestures.spec.ts).
   const cardRef = useRef<HTMLDivElement>(null);
-  const swipeState = useRef({ startX: 0, startY: 0, lastX: 0, swiping: false, blocked: false });
+  const swipeState = useRef({ startX: 0, startY: 0, lastX: 0, axis: null as null | "x" | "y", blocked: false, unwatch: null as null | (() => void) });
+
+  const resetSwipe = useCallback(() => {
+    const s = swipeState.current;
+    s.unwatch?.();
+    s.unwatch = null;
+    s.axis = null;
+    if (cardRef.current) {
+      cardRef.current.style.transform = "";
+      cardRef.current.style.transition = "transform 0.2s ease-out";
+    }
+  }, []);
 
   const onTouchStartSwipe = useCallback((e: React.TouchEvent) => {
+    resetSwipe();
     const t = e.touches[0];
+    if (!t) return;
     // Dead zone: ignore swipes starting within 30px of left edge to avoid conflicting with iOS back-swipe
     const inDeadZone = t.clientX < 30;
-    swipeState.current = { startX: t.clientX, startY: t.clientY, lastX: t.clientX, swiping: false, blocked: inDeadZone };
-  }, []);
+    const s = swipeState.current;
+    Object.assign(s, { startX: t.clientX, startY: t.clientY, lastX: t.clientX, axis: null, blocked: inDeadZone || e.touches.length > 1 });
+    const onScroll = () => {
+      if (s.axis !== "x") s.blocked = true;
+    };
+    window.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    s.unwatch = () => window.removeEventListener("scroll", onScroll, { capture: true });
+  }, [resetSwipe]);
 
   const onTouchMoveSwipe = useCallback((e: React.TouchEvent) => {
     const t = e.touches[0];
     const s = swipeState.current;
-    if (s.blocked) return;
+    if (s.blocked || !t) return;
     const dx = t.clientX - s.startX;
     const dy = t.clientY - s.startY;
-    if (!s.swiping && Math.abs(dy) > Math.abs(dx)) return;
-    if (Math.abs(dx) > 15) s.swiping = true;
+    if (s.axis === null) {
+      if (Math.hypot(dx, dy) < 10) return;
+      s.axis = Math.abs(dx) > 2 * Math.abs(dy) ? "x" : "y";
+    }
+    if (s.axis !== "x") return;
     s.lastX = t.clientX;
-    if (s.swiping && cardRef.current) {
+    if (cardRef.current) {
       const clamped = Math.max(-100, Math.min(100, dx));
       cardRef.current.style.transform = `translateX(${clamped}px)`;
       cardRef.current.style.transition = "none";
@@ -155,19 +182,16 @@ export const EpisodeCard = memo(function EpisodeCard({
   const onTouchEndSwipe = useCallback(() => {
     const s = swipeState.current;
     const dx = s.lastX - s.startX;
-    if (cardRef.current) {
-      cardRef.current.style.transform = "";
-      cardRef.current.style.transition = "transform 0.2s ease-out";
-    }
-    if (s.swiping) {
+    const acts = s.axis === "x" && !s.blocked;
+    resetSwipe();
+    if (acts) {
       if (dx > 60 && onQueue) {
         onQueue(episode);
       } else if (dx < -60 && onToggleFavorite) {
         onToggleFavorite(episode);
       }
     }
-    s.swiping = false;
-  }, [episode, onQueue, onToggleFavorite]);
+  }, [episode, onQueue, onToggleFavorite, resetSwipe]);
 
   const title = episodeTitle(episode);
   // Pulled from the catalog but still in this visitor's library
@@ -280,6 +304,7 @@ export const EpisodeCard = memo(function EpisodeCard({
       onTouchStart={(e) => { longPress.onTouchStart(e); onTouchStartSwipe(e); }}
       onTouchMove={(e) => { longPress.onTouchMove(e); onTouchMoveSwipe(e); }}
       onTouchEnd={(e) => { longPress.onTouchEnd(e); onTouchEndSwipe(); }}
+      onTouchCancel={() => { longPress.onTouchCancel(); resetSwipe(); }}
       style={style}
       id={optionId}
       role="option"

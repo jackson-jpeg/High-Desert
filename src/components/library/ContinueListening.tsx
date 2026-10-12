@@ -34,10 +34,14 @@ export function ContinueListening({
   onResume,
   exclude = null,
   className,
+  dense = false,
 }: {
   onResume: (episode: Episode) => void;
   exclude?: string | null;
   className?: string;
+  /** One row, the latest show only: the Library on a phone, where the first
+   *  shows of the list must still fit the first screen. */
+  dense?: boolean;
 }) {
   const [hidden, setHidden] = useState(false);
   // From the `progress` table (HD-016). A database that cannot be read is
@@ -52,6 +56,52 @@ export function ContinueListening({
   const items = played ? continueItems(played, { exclude }) : [];
   if (hidden || items.length === 0) return null;
   const [first, ...more] = items;
+
+  if (dense) {
+    const ep = first.episode;
+    const title = episodeTitle(ep);
+    const left = remainingLabel(first.remaining);
+    return (
+      <section
+        aria-labelledby="continue-heading"
+        data-testid="continue-listening"
+        data-dense=""
+        className={cn("hd-continue w98-raised-dark bg-raised-surface flex items-center gap-2 pl-2 pr-0.5 py-1", className)}
+      >
+        <button
+          type="button"
+          onClick={() => onResume(ep)}
+          data-testid="continue-resume"
+          aria-label={`Resume ${title} at ${formatTime(first.position)}`}
+          className="flex-1 min-w-0 flex items-center gap-2 text-left cursor-pointer min-h-touch group"
+        >
+          <span
+            aria-hidden="true"
+            className="hd-continue-play shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-desert-amber text-midnight text-hd-body group-active:scale-95"
+          >
+            {"▶"}
+          </span>
+          <span className="flex flex-col min-w-0 flex-1">
+            <h2 id="continue-heading" className="w98-font text-hd-micro uppercase tracking-[0.14em] text-desert-amber">
+              Continue listening
+            </h2>
+            <ShowTitle title={title} className="text-hd-caption text-desktop-gray font-bold truncate" />
+            <span className="text-hd-micro text-bevel-dark truncate" data-testid="continue-at">
+              Resume at {formatTime(first.position)}{left ? ` · ${left}` : ""}
+            </span>
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setHidden(true)}
+          aria-label="Hide Continue listening"
+          className="min-h-touch min-w-touch flex items-center justify-center text-hd-body text-bevel-dark hover:text-desktop-gray cursor-pointer flex-shrink-0"
+        >
+          {"✕"}
+        </button>
+      </section>
+    );
+  }
 
   return (
     <section

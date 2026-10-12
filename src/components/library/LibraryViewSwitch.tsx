@@ -26,7 +26,7 @@ export function LibraryViewSwitch({
           type="button"
           aria-pressed={view === o.view}
           data-testid={`library-view-${o.view}`}
-          className="hd-view-switch-option min-h-touch md:min-h-0 px-3 py-1 text-hd-caption cursor-pointer"
+          className="hd-view-switch-option min-h-touch md:min-h-0 px-2.5 py-1 text-hd-caption cursor-pointer"
           onClick={() => onChange(o.view)}
         >
           {o.label}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { Suspense, useState, useMemo, useCallback, useRef } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useRouter } from "next/navigation";
 import { db } from "@/db";
@@ -39,7 +39,6 @@ import { LibraryIntentReader } from "@/components/library/LibraryIntentReader";
 import { LibraryDial } from "@/components/library/LibraryDial";
 import { LibraryViewSwitch } from "@/components/library/LibraryViewSwitch";
 import { useLibraryView } from "@/hooks/library/useLibraryView";
-import { emit } from "@/lib/events";
 
 /**
  * The library. A composition: the list pipeline is `selectLibraryEpisodes`
@@ -165,26 +164,11 @@ export default function LibraryPage() {
   const panels = useLibraryPanels({ isMobile, allEpisodes });
 
 
-  // Easter egg: Mel's Hole — scroll aggressively past the bottom
-  const bottomScrollRef = useRef(0);
-  useEffect(() => {
-    const container = document.querySelector('[class*="overflow-auto"][class*="overscroll-contain"]');
-    if (!container) return;
-    const handler = () => {
-      const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 2;
-      if (atBottom) {
-        bottomScrollRef.current++;
-        if (bottomScrollRef.current >= 12) {
-          bottomScrollRef.current = 0;
-          emit("easter-egg", "melsHole");
-        }
-      } else {
-        bottomScrollRef.current = 0;
-      }
-    };
-    container.addEventListener("scroll", handler, { passive: true });
-    return () => container.removeEventListener("scroll", handler);
-  }, [visibleEpisodes]);
+  // No easter egg listens to scrolling here (2026-10-12). Mel's Hole used to
+  // open on the twelfth scroll event "at the bottom" of the first scrollable
+  // container, which on a phone was the page itself: iOS's momentum and bounce
+  // fire dozens of those in one ordinary scroll, so it kept opening over the
+  // Library. Eggs open from deliberate acts only (e2e/scroll-gestures.spec.ts).
 
   const handleAction = useCallback((action: "scan" | "search") => {
     router.push(action === "scan" ? "/scanner" : "/search");
@@ -207,10 +191,22 @@ export default function LibraryPage() {
   }, [setShowFilter, setGuestFilter, setSeriesFilter]);
 
   return (
-    <div className="flex flex-col h-full overflow-auto overscroll-contain">
+    <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden overscroll-contain">
       <Suspense fallback={null}>
         <LibraryIntentReader onIntent={applyIntent} />
       </Suspense>
+      {/* Continue listening, front and centre: where a returning listener
+          lands (a returning visit to / comes here), above the search and filters.
+          Hidden when there is nothing to continue, and in the dial. On a
+          phone the first rows must still fit the first screen
+          (e2e/library-phone.spec.ts). */}
+      {!dialMode && (
+        <WidgetErrorBoundary name="Continue Listening">
+          <ContinueListening onResume={handlePlay} exclude={currentFileHash} dense={isMobile} className="mx-3 mt-2 flex-shrink-0" />
+        </WidgetErrorBoundary>
+      )}
+      {!dialMode && <InstallPrompt className="mx-3 mt-1 flex-shrink-0" />}
+
       <LibraryToolbar
         searchBarRef={searchBarRef}
         search={search}
@@ -222,23 +218,14 @@ export default function LibraryPage() {
         toggleFacets={panels.toggleFacets}
         showFilter={showFilter}
         onShowTab={onShowTab}
+        trailing={
+          libraryView.available ? (
+            <div className="hd-library-modebar flex items-center flex-shrink-0 ml-auto" data-testid="library-modebar">
+              <LibraryViewSwitch view={libraryView.view} onChange={libraryView.setView} />
+            </div>
+          ) : null
+        }
       />
-
-      {/* Continue listening, front and centre: where a returning listener
-          lands (a returning visit to / comes here). Hidden when there is
-          nothing to continue, and in the dial. */}
-      {!dialMode && (
-        <WidgetErrorBoundary name="Continue Listening">
-          <ContinueListening onResume={handlePlay} exclude={currentFileHash} className="mx-3 mt-2 mb-1 flex-shrink-0" />
-        </WidgetErrorBoundary>
-      )}
-      {!dialMode && <InstallPrompt className="mx-3 mb-1 flex-shrink-0" />}
-
-      {libraryView.available && (
-        <div className="hd-library-modebar flex items-center gap-2 px-3 py-1 flex-shrink-0" data-testid="library-modebar">
-          <LibraryViewSwitch view={libraryView.view} onChange={libraryView.setView} />
-        </div>
-      )}
 
       <ActiveFilterBar
         filters={filters}
@@ -253,27 +240,10 @@ export default function LibraryPage() {
 
       <MoodFilterBar filters={filters} moodFilters={facets.moodFilters} />
 
-      {/* Swipe gesture tip — shown once on mobile */}
-      {panels.swipeTip && !dialMode && (
-        <div className="mx-3 mb-1 px-3 py-2 bg-desert-amber/10 border border-desert-amber/20 rounded flex items-center justify-between gap-2 flex-shrink-0 md:hidden animate-fade-in">
-          {/* Full strength: at /85 on its own tint both lines missed AA in
-              Win98 (4.34 and 3.98:1, e2e/a11y.spec.ts). */}
-          <span className="text-hd-12 text-desert-amber">
-            Swipe a show: {"←"} favorite {"·"} queue {"→"}
-          </span>
-          <button
-            onClick={panels.dismissSwipeTip}
-            className="text-hd-12 text-bevel-dark active:text-desktop-gray cursor-pointer min-w-[28px] min-h-[28px] flex items-center justify-center"
-          >
-            OK
-          </button>
-        </div>
-      )}
-
       {!dialMode && <SortPresets filters={filters} />}
 
       {/* Discovery section — collapsed by default, compact when expanded */}
-      {!deferredSearch.trim() && !hasActiveFilters && !dialMode && (
+      {!isMobile && !deferredSearch.trim() && !hasActiveFilters && !dialMode && (
         <ExploreBand
           expanded={panels.discoveryOpen}
           onToggle={panels.toggleDiscovery}
@@ -392,6 +362,36 @@ export default function LibraryPage() {
           />
         )}
       </div>
+
+      {/* Swipe gesture tip: shown once on a phone, under the list, so the
+          first screen keeps its shows (e2e/library-phone.spec.ts). */}
+      {panels.swipeTip && !dialMode && (
+        <div data-testid="swipe-tip" className="mx-3 my-1 pl-3 bg-desert-amber/10 border border-desert-amber/20 rounded flex items-center justify-between gap-2 flex-shrink-0 md:hidden animate-fade-in">
+          {/* Full strength: at /85 on its own tint both lines missed AA in
+              Win98 (4.34 and 3.98:1, e2e/a11y.spec.ts). */}
+          <span className="text-hd-12 text-desert-amber">
+            Swipe a show: {"←"} favorite {"·"} queue {"→"}
+          </span>
+          <button
+            onClick={panels.dismissSwipeTip}
+            className="text-hd-12 text-bevel-dark active:text-desktop-gray cursor-pointer min-w-[28px] min-h-[28px] flex items-center justify-center"
+          >
+            OK
+          </button>
+        </div>
+      )}
+
+      {/* On a phone, Explore (recently played, On this date) sits under the
+          list, collapsed: the first screen is for the shows themselves. */}
+      {isMobile && !deferredSearch.trim() && !hasActiveFilters && !dialMode && (
+        <ExploreBand
+          expanded={panels.discoveryOpen}
+          onToggle={panels.toggleDiscovery}
+          recentlyPlayed={recentlyPlayed}
+          onPlay={handlePlay}
+          below
+        />
+      )}
 
       {/* Floating "Now Playing" button — mobile only */}
       {isMobile && currentEpisodeId && !selectedEpisode && !dialMode && (

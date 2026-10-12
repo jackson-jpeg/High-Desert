@@ -348,7 +348,7 @@ export function TuningStrip({ index, onAirDay = null, className }: TuningStripPr
     <canvas
       ref={canvasRef}
       className={className}
-      style={{ width: "100%", height: "100%", cursor: "grab", touchAction: "none" }}
+      style={{ width: "100%", height: "100%", cursor: "grab", touchAction: "pan-y" }}
       role="slider"
       aria-label="Radio tuning dial"
       aria-valuemin={0}

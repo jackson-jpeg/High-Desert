@@ -92,7 +92,7 @@ export function MoodFilterBar({ filters, moodFilters }: { filters: LibraryFilter
   if (!((!deferredSearch.trim() || deferredSearch === "has:notable") && moodFilters.length > 0)) return null;
   return (
     <div className="relative flex-shrink-0">
-      <div className="flex items-center gap-1.5 md:gap-1 px-3 pb-1 overflow-x-auto -mx-3 px-3 md:mx-0 [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent)] hover:[mask-image:none] focus-within:[mask-image:none]">
+      <div className="hd-chip-scroll flex items-center gap-1.5 md:gap-1 px-3 pb-1 overflow-x-auto -mx-3 px-3 md:mx-0 [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent)] hover:[mask-image:none] focus-within:[mask-image:none]">
       {moodFilters.map((mood) => {
         const isActive =
           (mood.kind === "category" && categoryFilter === mood.category) ||

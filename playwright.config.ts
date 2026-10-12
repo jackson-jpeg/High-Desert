@@ -56,5 +56,17 @@ export default defineConfig({
         viewport: { width: 390, height: 844 },
       },
     },
+    // Mobile Safari's engine at the same 390x844, for the phone specs that
+    // are about touch and layout. Opt-in (E2E_WEBKIT=1): CI installs
+    // Chromium only; on the VPS WebKit is installed.
+    ...(process.env.E2E_WEBKIT
+      ? [
+          {
+            name: "iphone",
+            testMatch: /(scroll-gestures|library-phone)\.spec\.ts$/,
+            use: { ...devices["iPhone 13"], viewport: { width: 390, height: 844 } },
+          },
+        ]
+      : []),
   ],
 });
