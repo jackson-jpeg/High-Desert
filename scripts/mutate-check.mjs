@@ -94,6 +94,22 @@ export const MUTATIONS = [
     why: "/radio is the Library's Dial mode, a permanent redirect",
   },
   {
+    id: "look-app-pathname-strips-look",
+    test: "src/hooks/__tests__/use-app-pathname.test.ts",
+    file: "src/hooks/useAppPathname.ts",
+    find: '  return pathname.replace(LOOK_PREFIX, "") || "/";',
+    replace: '  return pathname || "/";',
+    why: "the server prerenders /live as /win98/live; a branch on the raw path is a hydration mismatch (#418)",
+  },
+  {
+    id: "look-app-pathname-whole-segment",
+    test: "src/hooks/__tests__/use-app-pathname.test.ts",
+    file: "src/hooks/useAppPathname.ts",
+    find: "const LOOK_PREFIX = /^\\/(?:win98|night)(?=\\/|$)/;",
+    replace: "const LOOK_PREFIX = /^\\/(?:win98|night)/;",
+    why: "only a whole segment is a look: /nightly is not /ly",
+  },
+  {
     id: "look-nav-no-radio",
     test: "src/lib/look/__tests__/nav.test.ts",
     file: "src/lib/look/nav.ts",

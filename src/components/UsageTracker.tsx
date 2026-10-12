@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { usePathname } from "next/navigation";
+import { useAppPathname } from "@/hooks/useAppPathname";
 import { reportView, takeArrival, viewPayload } from "@/services/stats/usage-client";
 
 /**
@@ -20,7 +20,7 @@ export const VIEW_SETTLE_MS = 1000;
  * first path this browser session loaded (not the tab the bounce settled on).
  */
 export function UsageTracker() {
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const landing = useRef<string | null>(null);
 
   useEffect(() => {

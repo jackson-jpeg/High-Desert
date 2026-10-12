@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useAppPathname } from "@/hooks/useAppPathname";
 import { cn } from "@/lib/utils/cn";
 import { useLook } from "@/hooks/useLook";
 import { useIsMobile } from "@/hooks/useMediaQuery";
@@ -40,7 +40,7 @@ export function offerHeldBack(isMobile: boolean, pathname: string | null, tuned:
  */
 export function NightOffer({ bottomPx }: { bottomPx: number }) {
   const look = useLook();
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const isMobile = useIsMobile();
   const tuned = useLiveStore((s) => s.tuned);
   const [eligible, setEligible] = useState(false);

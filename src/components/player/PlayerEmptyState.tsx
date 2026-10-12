@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { useAppPathname } from "@/hooks/useAppPathname";
 import { cn } from "@/lib/utils/cn";
 import { useLook } from "@/hooks/useLook";
 import { useOnAirSlot } from "@/hooks/useLiveStation";
@@ -22,7 +22,7 @@ import type { ProgramSlot } from "@/lib/live/schedule";
  * Win98 draws it as an idle Winamp strip, Night as its mini bar.
  */
 export function PlayerEmptyState() {
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const look = useLook();
   const slot = useOnAirSlot();
   const haveProgram = useLiveStore((s) => s.schedule !== null);

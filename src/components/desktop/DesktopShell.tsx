@@ -61,7 +61,8 @@ const EasterEggOverlays = dynamic(
 );
 import { useKonamiCode } from "@/hooks/useKonamiCode";
 import { usePaletteShortcut } from "@/hooks/usePaletteShortcut";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useAppPathname } from "@/hooks/useAppPathname";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
@@ -101,7 +102,7 @@ const NAV_ITEMS = [
 
 export function DesktopShell({ children, player, episodeCount = 0, className }: DesktopShellProps) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const isAdmin = useAdminStore((s) => s.isAdmin);
   // The preview looks retire the Radio tab (src/lib/look/nav.ts).
   const look = useLook();

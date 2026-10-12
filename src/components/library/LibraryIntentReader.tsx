@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useEffectEvent, useRef } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useAppPathname } from "@/hooks/useAppPathname";
 import {
   parseLibraryIntent,
   hasIntent,
@@ -25,7 +26,7 @@ import {
  */
 export function LibraryIntentReader({ onIntent }: { onIntent: (intent: LibraryIntent) => void }) {
   const params = useSearchParams();
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const deliver = useEffectEvent(onIntent);
   // The query string last acted on. Development's double effect would
   // otherwise shuffle twice; and it resets to "" once the parameters are

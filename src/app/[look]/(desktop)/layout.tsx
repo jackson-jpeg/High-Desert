@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { useAppPathname } from "@/hooks/useAppPathname";
 import { useLiveQuery } from "dexie-react-hooks";
 import { DesktopShell } from "@/components/desktop/DesktopShell";
 import { AudioPlayer } from "@/components/player/AudioPlayer";
@@ -44,7 +44,7 @@ export default function DesktopLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const { playEpisode, primeEpisode, togglePlay, seek, playNext, playPrevious } = useAudioPlayer();
   // NOT subscribed: reading position here would re-render the entire desktop
   // shell 4x/second during playback. The keyboard handler reads it on demand.

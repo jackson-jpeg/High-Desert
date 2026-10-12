@@ -83,6 +83,23 @@ const eslintConfig = defineConfig([
     },
   },
   {
+    // Pages render inside the `[look]` segment through a rewrite, so
+    // usePathname() reads "/win98/live" on the server and "/live" in the
+    // browser: a branch on it is a hydration mismatch (#418). useAppPathname
+    // takes the look off (src/hooks/useAppPathname.ts).
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/**/__tests__/**", "src/hooks/useAppPathname.ts"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        paths: [{
+          name: "next/navigation",
+          importNames: ["usePathname"],
+          message: "Use useAppPathname from @/hooks/useAppPathname: usePathname includes the look segment on the server.",
+        }],
+      }],
+    },
+  },
+  {
     // Specs take `test` from e2e/fixtures.ts, which answers every stats write
     // in the page and blocks the service worker. Imported straight from
     // Playwright, a spec that starts a show writes a play to whatever server
@@ -110,6 +127,7 @@ const eslintConfig = defineConfig([
     ".next.prev/**",
     ".next.failed/**",
     ".next-staging/**",
+    ".next-dev/**",
     "node_modules.*/**",
     // Playwright's run output (npm run test:e2e).
     "test-results/**",

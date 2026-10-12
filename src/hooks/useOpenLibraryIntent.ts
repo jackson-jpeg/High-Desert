@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useAppPathname } from "@/hooks/useAppPathname";
 import { libraryIntentHref, type LibraryIntent } from "@/lib/library/intents";
 
 /**
@@ -18,7 +19,7 @@ import { libraryIntentHref, type LibraryIntent } from "@/lib/library/intents";
  */
 export function useOpenLibraryIntent(): (intent: LibraryIntent) => void {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   return useCallback(
     (intent: LibraryIntent) => {
       const href = libraryIntentHref(intent);

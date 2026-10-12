@@ -2,7 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useAppPathname } from "@/hooks/useAppPathname";
 import { cn } from "@/lib/utils/cn";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { usePlayerStore } from "@/stores/player-store";
@@ -45,7 +46,7 @@ export interface TaskbarProps {
  */
 export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings, onDisplay }: TaskbarProps) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const isMobile = useIsMobile();
   const [startOpen, setStartOpen] = useState(false);
   const [overlay, setOverlay] = useState<Overlay>(null);
