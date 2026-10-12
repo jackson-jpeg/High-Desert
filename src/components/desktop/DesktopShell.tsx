@@ -66,6 +66,13 @@ import { useShellMenus } from "@/hooks/useShellMenus";
 import { useTextScalePreference } from "@/hooks/useTextScalePreference";
 import { useUserDataTransfer } from "@/hooks/useUserDataTransfer";
 import { useHdEvent } from "@/lib/events";
+import { useLook } from "@/hooks/useLook";
+
+// The Win98 preview look's taskbar (docs/looks.md): fetched only in that look.
+const Win98Taskbar = dynamic(
+  () => import("@/components/looks/win98/Taskbar").then((m) => m.Taskbar),
+  { ssr: false },
+);
 
 interface DesktopShellProps {
   children: ReactNode;
@@ -104,6 +111,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   // Announces this tab and reports who else is here. The shell is mounted on
   // every route, so this is the one place the heartbeat needs to live.
   const presence = usePresence();
+  const look = useLook();
 
   // Easter eggs — local React state (no store needed)
   const [activeEgg, setActiveEgg] = useState<EasterEgg>(null);
@@ -170,7 +178,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     if (navRef.current) ro.observe(navRef.current);
     if (playerRef.current) ro.observe(playerRef.current);
     return () => ro.disconnect();
-  }, []);
+    // `look`: the Win98 look swaps the nav for its taskbar after hydration.
+  }, [look]);
 
   // Easter egg triggers from search bar + keyboard shortcuts
   useHdEvent("easter-egg", (egg) => {
@@ -254,6 +263,17 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
       </header>
 
       {/* Navigation tabs — desktop: top horizontal, mobile: bottom tab bar */}
+      {look === "win98" ? (
+        <nav ref={navRef} aria-label="Taskbar" className="hd-w98-taskbar-slot">
+          <Win98Taskbar
+            isAdmin={isAdmin}
+            presence={presence}
+            onAbout={handleAbout}
+            onShortcuts={handleShortcuts}
+            onSettings={() => setMobileMenuOpen(true)}
+          />
+        </nav>
+      ) : (
       <nav
         ref={navRef}
         className={cn(
@@ -325,6 +345,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           More
         </button>
       </nav>
+      )}
 
       {/* Main content area — padded on mobile to clear fixed player + tab bar */}
       {/* `relative` without a z-index on purpose. `z-10` here made <main> a
