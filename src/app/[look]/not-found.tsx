@@ -2,8 +2,12 @@
 
 import Link from "next/link";
 import { Starfield } from "@/components/desktop/Starfield";
+import { useDismissBootScreen } from "@/hooks/useDismissBootScreen";
 
 export default function NotFound() {
+  // A notFound() on a dynamic route is drawn in the browser, where the boot
+  // script does not run: without this the 404 sits under the boot screen.
+  useDismissBootScreen();
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen bg-midnight text-center px-8">
       <Starfield />

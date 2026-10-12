@@ -1,5 +1,7 @@
 "use client";
 
+import { useDismissBootScreen } from "@/hooks/useDismissBootScreen";
+
 /**
  * Route-segment error boundary.
  *
@@ -18,6 +20,8 @@ export default function SegmentError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Drawn in the browser, where the boot script does not run.
+  useDismissBootScreen();
   return (
     <div className="relative min-h-screen bg-midnight flex items-center justify-center p-8">
       <div className="relative z-10 w98-raised-dark bg-raised-surface glass-heavy max-w-[400px] w-full animate-fade-in">

@@ -94,6 +94,22 @@ export const MUTATIONS = [
     why: "/radio is the Library's Dial mode, a permanent redirect",
   },
   {
+    id: "boot-dismissed-by-fallback-pages",
+    test: "src/app/__tests__/fallback-pages-boot.test.tsx",
+    file: "src/hooks/useDismissBootScreen.ts",
+    find: '    if (el) el.style.display = "none";',
+    replace: "    void el;",
+    why: "a 404 drawn in the browser sat under the boot screen for good: a blank page",
+  },
+  {
+    id: "boot-dismissed-by-not-found",
+    test: "src/app/__tests__/fallback-pages-boot.test.tsx",
+    file: "src/app/[look]/not-found.tsx",
+    find: "  useDismissBootScreen();\n  return (",
+    replace: "  return (",
+    why: "the 404 is the page notFound() draws in the browser",
+  },
+  {
     id: "look-app-pathname-strips-look",
     test: "src/hooks/__tests__/use-app-pathname.test.ts",
     file: "src/hooks/useAppPathname.ts",
