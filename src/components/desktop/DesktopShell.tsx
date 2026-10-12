@@ -66,6 +66,8 @@ import { useShellMenus } from "@/hooks/useShellMenus";
 import { useTextScalePreference } from "@/hooks/useTextScalePreference";
 import { useUserDataTransfer } from "@/hooks/useUserDataTransfer";
 import { useHdEvent } from "@/lib/events";
+import { useLook } from "@/hooks/useLook";
+import { showsNavPath } from "@/lib/look/nav";
 
 interface DesktopShellProps {
   children: ReactNode;
@@ -87,6 +89,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const router = useRouter();
   const pathname = usePathname();
   const isAdmin = useAdminStore((s) => s.isAdmin);
+  // The preview looks retire the Radio tab (src/lib/look/nav.ts).
+  const look = useLook();
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
@@ -265,7 +269,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           "md:static md:justify-start md:gap-0 md:border-t-0 md:border-b md:border-bevel-dark/15 md:px-2 md:bg-midnight/80 md:backdrop-blur-xs md:pb-0",
         )}
       >
-        {NAV_ITEMS.filter(({ path }) => isAdmin || (path !== "/scanner" && path !== "/search")).map(({ label, path }) => {
+        {NAV_ITEMS.filter(({ path }) => showsNavPath(path, look, isAdmin)).map(({ label, path }) => {
           const isActive = pathname === path;
           const showNowPlaying = path === "/library" && isPlaying && !isActive;
           // A live count on the tab is the whole discovery mechanism for the

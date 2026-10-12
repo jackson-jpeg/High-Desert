@@ -21,6 +21,8 @@ import { SORT_MODES, type SortMode } from "@/lib/library/filter-episodes";
  *   /library?sort=played        any SortMode (SORT_MODES)
  *   /library?q=ghost%20to%20ghost
  *   /library?scroll=current
+ *   /library?view=dial          list | dial (the dial is a preview-look mode,
+ *                               src/lib/look/nav.ts; the public look ignores it)
  *
  * Parsing is strict and silent: an unknown value is ignored, not guessed at —
  * a hand-edited or stale URL must not shuffle something the listener did not
@@ -30,16 +32,21 @@ import { SORT_MODES, type SortMode } from "@/lib/library/filter-episodes";
 export const SHUFFLE_SCOPES = ["all", "coast", "dreamland", "special"] as const;
 export type ShuffleScope = (typeof SHUFFLE_SCOPES)[number];
 
+/** How the library browses: the list, or the radio dial (preview looks only). */
+export const LIBRARY_VIEWS = ["list", "dial"] as const;
+export type LibraryView = (typeof LIBRARY_VIEWS)[number];
+
 export interface LibraryIntent {
   sort?: SortMode;
   shuffle?: ShuffleScope;
   /** Search box text. Trimmed; empty is no intent. */
   q?: string;
   scroll?: "current";
+  view?: LibraryView;
 }
 
 /** The query parameters this module owns. Anything else in the URL is left alone. */
-export const INTENT_PARAMS = ["sort", "shuffle", "q", "scroll"] as const;
+export const INTENT_PARAMS = ["sort", "shuffle", "q", "scroll", "view"] as const;
 
 /** Long enough for any real search; bounds what a pasted URL can put in the box. */
 export const MAX_QUERY_LENGTH = 200;
@@ -64,11 +71,15 @@ export function parseLibraryIntent(params: ParamReader): LibraryIntent {
 
   if (params.get("scroll") === "current") intent.scroll = "current";
 
+  const view = params.get("view");
+  if (view !== null && (LIBRARY_VIEWS as readonly string[]).includes(view)) intent.view = view as LibraryView;
+
   return intent;
 }
 
 export function hasIntent(intent: LibraryIntent): boolean {
-  return intent.sort !== undefined || intent.shuffle !== undefined || intent.q !== undefined || intent.scroll !== undefined;
+  return intent.sort !== undefined || intent.shuffle !== undefined || intent.q !== undefined || intent.scroll !== undefined
+    || intent.view !== undefined;
 }
 
 /** Any intent parameter present at all, valid or not — it still needs clearing. */
@@ -83,6 +94,7 @@ export function libraryIntentHref(intent: LibraryIntent): string {
   if (intent.shuffle) params.set("shuffle", intent.shuffle);
   if (intent.q?.trim()) params.set("q", intent.q.trim());
   if (intent.scroll) params.set("scroll", intent.scroll);
+  if (intent.view) params.set("view", intent.view);
   const qs = params.toString();
   return qs ? `/library?${qs}` : "/library";
 }
