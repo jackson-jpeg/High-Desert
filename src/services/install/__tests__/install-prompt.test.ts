@@ -76,6 +76,22 @@ describe("visits", () => {
     expect(noteVisit()).toBe(0);
   });
 
+  it("a session that cannot be marked counts nothing, even where the count itself could be kept", () => {
+    // Session storage blocked, local storage fine (a private-mode quirk): every
+    // page load would look like a new session and count, and a first visit's
+    // second page would already be offered the install.
+    const write = Storage.prototype.setItem;
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, k: string, v: string) {
+      if (this === sessionStorage) throw new DOMException("blocked", "SecurityError");
+      return write.call(this, k, v);
+    });
+    const now = new Date(2026, 9, 12, 21, 0);
+    expect(noteVisit(now)).toBe(0);
+    expect(noteVisit(now)).toBe(0);
+    expect(noteVisit(now)).toBe(0);
+    expect(localStorage.getItem(VISITS_KEY)).toBeNull();
+  });
+
   it("a corrupt record starts again rather than throwing", () => {
     localStorage.setItem(VISITS_KEY, "{not json");
     expect(noteVisit(new Date(2026, 9, 12))).toBe(1);

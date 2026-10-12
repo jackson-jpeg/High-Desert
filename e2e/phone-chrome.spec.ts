@@ -113,3 +113,32 @@ test("one bar at the bottom of a phone: the tab bar, not the desktop status bar 
   );
   expect(bars).toEqual([]);
 });
+
+for (const look of ["win98", "night"] as const) {
+  test(`${look}: the Phone Lines in Radio's old place, between Live and Stats, each a full target, none clipped`, async ({ page, baseURL }) => {
+    // Win98 is what no cookie gets (src/lib/look/look.ts).
+    if (look !== "win98") {
+      await page.context().addCookies([{ name: "hd_look", value: look, domain: new URL(baseURL!).hostname, path: "/", sameSite: "Lax" }]);
+    }
+    await page.goto("/library");
+    const places =
+      look === "win98"
+        ? page.locator('[role="group"][aria-label="Places"] button')
+        : page.locator("nav button[data-nav]");
+    await expect(places.first()).toBeVisible({ timeout: 30_000 });
+    const labels = await places.evaluateAll((els) => els.map((el) => (el as HTMLElement).innerText.replace(/\s+/g, " ").trim()));
+    expect(labels.slice(0, 4)).toEqual(["Library", "Live", "Phone Lines", "Stats"]);
+    const boxes = await places.evaluateAll((els) =>
+      els.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { label: (el as HTMLElement).innerText.trim(), w: r.width, h: r.height, right: r.right, clipped: el.scrollWidth > el.clientWidth + 1 };
+      }),
+    );
+    const vw = await page.evaluate(() => document.documentElement.clientWidth);
+    for (const b of boxes) {
+      expect(b.h, `${b.label} height`).toBeGreaterThanOrEqual(44);
+      expect(b.right, `${b.label} on screen`).toBeLessThanOrEqual(vw + 1);
+      expect(b.clipped, `${b.label} clipped`).toBe(false);
+    }
+  });
+}
