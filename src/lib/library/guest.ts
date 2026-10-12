@@ -27,14 +27,19 @@ function words(s: string): string[] {
     .map((w) => w.replace(/s$/, ""));
 }
 
+/** True when `field`'s words and the title's subject (after " - ") are one inside the other. */
+function repeatsSubject(title: string, field: string): boolean {
+  const i = title.indexOf(" - ");
+  const subject = words(i >= 0 ? title.slice(i + 3) : title);
+  const f = words(field);
+  if (!subject.length || !f.length) return false;
+  return subject.every((w) => f.includes(w)) || f.every((w) => subject.includes(w));
+}
+
 /** True when `guest` only repeats the title's subject. */
 export function guestRepeatsTitle(title: string | null | undefined, guest: string | null | undefined): boolean {
   if (!guest || !title || !NOT_A_PERSON.test(guest)) return false;
-  const i = title.indexOf(" - ");
-  const subject = words(i >= 0 ? title.slice(i + 3) : title);
-  const g = words(guest);
-  if (!subject.length || !g.length) return false;
-  return subject.every((w) => g.includes(w)) || g.every((w) => subject.includes(w));
+  return repeatsSubject(title, guest);
 }
 
 const BELL = "archive:ultimate-ultimate-art-bell-collection:";
@@ -72,4 +77,19 @@ export function shownGuest(
   if (!g) return undefined;
   if (ep?.fileHash && MOVED_TO_TOPIC[ep.fileHash] === g) return undefined;
   return guestRepeatsTitle(ep?.title, g) ? undefined : g;
+}
+
+/**
+ * The topic to show for a row, or undefined when it only repeats the title
+ * (2026-10-11). A card with no guest falls back to the topic, and 75 of them
+ * read their own title twice: "Open Lines: Inhuman Encounter Line" under
+ * "Midnight in the Desert - Open Lines: Inhuman Encounter Line". Same test as
+ * a guest, without `NOT_A_PERSON`: a topic is never a person.
+ */
+export function shownTopic(
+  ep: { title?: string | null; topic?: string | null } | null | undefined,
+): string | undefined {
+  const t = ep?.topic?.trim();
+  if (!t) return undefined;
+  return ep?.title && repeatsSubject(ep.title, t) ? undefined : t;
 }

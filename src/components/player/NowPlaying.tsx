@@ -6,6 +6,7 @@ import { getShowLabel, formatAirDate } from "@/lib/utils/format";
 import { CassetteTape } from "./CassetteTape";
 import { episodeTitle } from "@/lib/library/display-title";
 import { shownGuest } from "@/lib/library/guest";
+import { splitShowTitle } from "@/lib/live/format";
 
 interface NowPlayingProps {
   expanded?: boolean;
@@ -24,14 +25,18 @@ export function NowPlaying({ expanded = false, className }: NowPlayingProps) {
   }
 
   const displayTitle = episodeTitle(episode);
-  const showLabel = getShowLabel(episode.showType) ?? "";
+  // The episode gets the first line and the show's name leads the second, in
+  // place of the show type (ShowTitle.tsx): a phone's mini player cut every
+  // title inside "Coast to Coast AM - ".
+  const { show, episode: episodePart } = splitShowTitle(displayTitle);
+  const showLabel = show ?? getShowLabel(episode.showType) ?? "";
 
   return (
     <div className={cn("flex items-start gap-2 min-w-0", className)} aria-live="polite">
       <CassetteTape className="hidden md:block flex-shrink-0 mt-0.5" />
       <div className="flex flex-col gap-0.5 min-w-0">
-      <div className="text-hd-15 md:text-hd-12 text-desktop-gray font-bold truncate" title={displayTitle}>
-        {displayTitle}
+      <div data-show-episode="" className="text-hd-15 md:text-hd-12 text-desktop-gray font-bold truncate" title={displayTitle}>
+        {episodePart}
       </div>
       {shownGuest(episode) && (
         <div className="hidden md:block text-hd-11 text-static-green/85 truncate" title={shownGuest(episode)}>

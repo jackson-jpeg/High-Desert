@@ -38,7 +38,8 @@ vi.mock("dexie-react-hooks", () => ({
   },
 }));
 
-const { OfflineIndicator, OUTAGE_BANNER_TEXT } = await import("@/components/OfflineIndicator");
+const { OfflineIndicator, OUTAGE_BANNER_TEXT, SLOW_COVER_TEXT } = await import("@/components/OfflineIndicator");
+const { usePlayerStore } = await import("@/stores/player-store");
 const { EpisodeCard } = await import("@/components/library/EpisodeCard");
 const { OutageDialog } = await import("@/components/player/OutageDialog");
 const { PlayableNowBar } = await import("@/components/library/LibraryFilterBars");
@@ -105,6 +106,52 @@ describe("up (archiveUpFixture)", () => {
     expect(row(PINNED).dataset.availability).toBe("normal");
     expect(row(UNPINNED).dataset.availability).toBe("normal");
     expect(row(UNPINNED).className).not.toContain("grayscale");
+  });
+});
+
+describe("archive.org slow, the mirror covering (no outage)", () => {
+  const notice = () => container.querySelector("[data-testid=slow-cover-notice]");
+  afterEach(() => usePlayerStore.setState({ currentEpisode: null, source: null }));
+
+  it("says so quietly while the failed-over show plays from the mirror, with no outage marks", () => {
+    archiveUpFixture([PINNED.fileHash]);
+    useOutageStore.setState({ failedOver: UNPINNED.fileHash });
+    usePlayerStore.setState({ currentEpisode: UNPINNED, source: "mirror" });
+    render(createElement("div", null, createElement(OfflineIndicator), card(UNPINNED)));
+    expect(notice()?.textContent).toContain("archive.org is slow right now. Playing from the High Desert mirror.");
+    expect(SLOW_COVER_TEXT).not.toContain("\u2014");
+    expect(container.querySelector("[data-testid=outage-banner]")).toBeNull();
+    expect(row(UNPINNED).dataset.availability).toBe("normal");
+  });
+
+  it("control: a different show playing, or the same one back on archive.org, shows nothing", () => {
+    archiveUpFixture();
+    useOutageStore.setState({ failedOver: UNPINNED.fileHash });
+    usePlayerStore.setState({ currentEpisode: PINNED, source: "mirror" });
+    render(createElement(OfflineIndicator));
+    expect(notice()).toBeNull();
+    act(() => usePlayerStore.setState({ currentEpisode: UNPINNED, source: "archive" }));
+    expect(notice()).toBeNull();
+    act(() => usePlayerStore.setState({ source: "mirror" }));
+    expect(notice()).not.toBeNull();
+  });
+
+  it("an outage verdict gives way to the outage banner", () => {
+    archiveDownFixture([UNPINNED.fileHash]);
+    useOutageStore.setState({ failedOver: UNPINNED.fileHash });
+    usePlayerStore.setState({ currentEpisode: UNPINNED, source: "mirror" });
+    render(createElement(OfflineIndicator));
+    expect(notice()).toBeNull();
+    expect(container.querySelector("[data-testid=outage-banner]")).not.toBeNull();
+  });
+
+  it("dismissed, it stays down for that show", () => {
+    archiveUpFixture();
+    useOutageStore.setState({ failedOver: UNPINNED.fileHash });
+    usePlayerStore.setState({ currentEpisode: UNPINNED, source: "mirror" });
+    render(createElement(OfflineIndicator));
+    act(() => (notice()!.querySelector("button") as HTMLButtonElement).click());
+    expect(notice()).toBeNull();
   });
 });
 

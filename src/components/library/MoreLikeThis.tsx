@@ -6,6 +6,7 @@ import { db } from "@/db";
 import type { Episode } from "@/db/schema";
 import { cn } from "@/lib/utils/cn";
 import { episodeTitle } from "@/lib/library/display-title";
+import { ShowTitle } from "@/components/library/ShowTitle";
 
 interface MoreLikeThisProps {
   episode: Episode;
@@ -131,9 +132,7 @@ export function MoreLikeThis({ episode, onPlay, className }: MoreLikeThisProps) 
           className="flex items-center gap-2 text-left px-2 py-2.5 md:px-1.5 md:py-1 min-h-touch md:min-h-0 cursor-pointer hover:bg-title-bar-blue/10 active:bg-title-bar-blue/15 transition-colors-fast"
         >
           <div className="flex-1 min-w-0">
-            <div className="text-hd-13 md:text-hd-9 text-desktop-gray/85 truncate">
-              {episodeTitle(ep)}
-            </div>
+            <ShowTitle title={episodeTitle(ep)} className="text-hd-13 md:text-hd-9 text-desktop-gray/85" />
             {ep.guestName && (
               <div className="text-hd-11 md:text-hd-7 text-static-green/85 truncate">
                 {ep.guestName}

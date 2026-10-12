@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Window, Button } from "@/components/win98";
 import { keyTitle } from "@/lib/library/display-title";
+import { ShowTitle } from "@/components/library/ShowTitle";
 
 /**
  * Which shows are failing to start, worst first. Admin-only panel on /stats.
@@ -145,9 +146,7 @@ export function PlaybackFailures() {
                 className="px-2 py-1.5 w98-raised-dark bg-card-surface flex flex-col gap-1"
               >
                 <div className="flex items-baseline gap-2">
-                  <span className="text-hd-caption text-desktop-gray truncate flex-1 min-w-0">
-                    {keyTitle(null, e.episodeId, e.title)}
-                  </span>
+                  <ShowTitle title={keyTitle(null, e.episodeId, e.title)} wrapperClassName="flex-1" className="text-hd-caption text-desktop-gray" />
                   <span className="text-hd-caption text-red-400/85 tabular-nums flex-shrink-0">
                     {e.failures}
                   </span>

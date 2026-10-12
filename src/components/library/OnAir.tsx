@@ -12,6 +12,7 @@ import type { OnAirEntry, RecentPlay } from "@/services/stats/client";
 import { emit } from "@/lib/events";
 import { keyTitle } from "@/lib/library/display-title";
 import { shownGuest } from "@/lib/library/guest";
+import { ShowTitle } from "@/components/library/ShowTitle";
 
 /** Animated level meter, matching the status bar's signal bars. */
 function LevelMeter({ live }: { live: boolean }) {
@@ -69,7 +70,7 @@ function AirRow({
     <>
       <LevelMeter live={live} />
       <span className="flex flex-col min-w-0 flex-1 text-left">
-        <span className="text-hd-body text-desktop-gray truncate">{title}</span>
+        <ShowTitle title={title} className="text-hd-body text-desktop-gray" />
         {sub && (
           <span className="text-hd-micro text-bevel-dark/85 truncate">{sub}</span>
         )}

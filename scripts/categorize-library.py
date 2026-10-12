@@ -2,12 +2,17 @@
 """
 Batch AI Categorization for High Desert Library
 =================================================
-Reads library.json, sends batches to Gemini for categorization,
-writes results back. Resumes from where it left off.
+Reads library.json, sends batches to Claude for categorization,
+writes results back. Resumes from where it left off: only rows with no
+aiCategory are sent.
 
 Usage:
   python3 scripts/categorize-library.py
   python3 scripts/categorize-library.py --dry-run   # Preview batches only
+
+The model is Claude Sonnet 5.5 (2026-10-11; it was Gemini 2.0 Flash for the
+first 1,312 rows). ANTHROPIC_API_KEY comes from the environment or
+.env.local; HD_CATEGORIZE_MODEL overrides the model id.
 """
 
 import json
@@ -18,7 +23,8 @@ import re
 from pathlib import Path
 
 LIBRARY_PATH = Path(__file__).parent.parent / "public" / "seed" / "library.json"
-GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
+API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+MODEL = os.environ.get("HD_CATEGORIZE_MODEL", "claude-sonnet-5-5")
 BATCH_SIZE = 40  # Episodes per API call
 RATE_DELAY = 2   # Seconds between batches
 
@@ -64,41 +70,42 @@ def load_library():
 
 
 def save_library(data):
-    with open(LIBRARY_PATH, "w") as f:
-        json.dump(data, f, separators=(",", ":"))
+    # The seed's own format (2-space JSON, raw UTF-8, trailing newline), so a
+    # run changes only the rows it categorized.
+    with open(LIBRARY_PATH, "w", encoding="utf-8") as f:
+        f.write(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
 
 
-def call_gemini(prompt: str) -> str:
-    """Call Gemini API with a prompt, return text response."""
+def call_claude(prompt: str) -> str:
+    """Call the Anthropic Messages API, return the text of the reply."""
     import urllib.request
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_KEY}"
-
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-        "generationConfig": {
-            "temperature": 0.1,
-            "responseMimeType": "application/json",
-        },
+        "model": MODEL,
+        "max_tokens": 4096,
+        "temperature": 0.1,
+        "system": SYSTEM_PROMPT,
+        "messages": [{"role": "user", "content": prompt}],
     }
-
     req = urllib.request.Request(
-        url,
+        "https://api.anthropic.com/v1/messages",
         data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "content-type": "application/json",
+            "x-api-key": API_KEY,
+            "anthropic-version": "2023-06-01",
+        },
         method="POST",
     )
-
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with urllib.request.urlopen(req, timeout=120) as resp:
         result = json.loads(resp.read())
-
-    text = result["candidates"][0]["content"]["parts"][0]["text"]
-    return text
+    text = "".join(b.get("text", "") for b in result.get("content", []) if b.get("type") == "text")
+    # A fenced reply is still the array.
+    return re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
 
 
 def categorize_batch(episodes: list[dict], start_idx: int) -> dict[int, str]:
-    """Send a batch to Gemini and return {index: category}."""
+    """Send a batch to Claude and return {index: category}."""
     lines = []
     for i, ep in enumerate(episodes):
         lines.append(
@@ -111,7 +118,7 @@ def categorize_batch(episodes: list[dict], start_idx: int) -> dict[int, str]:
     prompt = "Categorize these episodes:\n" + "\n".join(lines)
 
     try:
-        response = call_gemini(prompt)
+        response = call_claude(prompt)
         # Parse JSON response
         results = json.loads(response)
         mapping = {}
@@ -129,18 +136,19 @@ def categorize_batch(episodes: list[dict], start_idx: int) -> dict[int, str]:
 def main():
     dry_run = "--dry-run" in sys.argv
 
-    global GEMINI_KEY
-    if not GEMINI_KEY and not dry_run:
+    global API_KEY
+    if not API_KEY and not dry_run:
         env_path = Path(__file__).parent.parent / ".env.local"
         if env_path.exists():
             for line in env_path.read_text().splitlines():
-                if line.startswith("GEMINI_API_KEY="):
-                    GEMINI_KEY = line.split("=", 1)[1].strip()
+                if line.startswith("ANTHROPIC_API_KEY="):
+                    API_KEY = line.split("=", 1)[1].strip().strip('"')
                     break
 
-    if not GEMINI_KEY and not dry_run:
-        print("ERROR: Set GEMINI_API_KEY env var or add to .env.local")
+    if not API_KEY and not dry_run:
+        print("ERROR: Set ANTHROPIC_API_KEY env var or add to .env.local")
         sys.exit(1)
+    print(f"Model: {MODEL}")
 
     data = load_library()
     eps = data if isinstance(data, list) else data

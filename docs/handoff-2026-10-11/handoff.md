@@ -140,8 +140,11 @@ its anniversary). Every other "Format error" row (87 episodes) is
 `code=4 MEDIA_ELEMENT_ERROR`, meaning the source failed to load. That is
 archive.org's storage-node 500 (section 2 and section 6), not the file.
 
-**Results at the time of writing:** see "Scan: final numbers" at the end,
-filled in when the run finished.
+**Final numbers (2026-10-12 00:20 UTC):** all 1,413 walked, after one retry
+pass over the ~130 rows archive.org would not serve: **1,407 clean, 6
+midstream changes, all six in the table above.** Nothing new to repair.
+`audio_checks` holds 1,408 rows, 0 bad (the 6 repaired shows are judged by
+their copies when they are due).
 
 ## The archive.org outage of 2026-10-11 (found by the scan)
 
@@ -200,10 +203,12 @@ shows the fallback below can serve. The full account is in
     history beyond them;
   - every run has a restore test: decrypt, compare the sha256, and check that
     `pg_restore --list` finds the permanent tables.
-- **The private key is `/root/.high-desert-backup-age.key` on the VPS, and a
-  copy is in this handoff's Mac folder. Put it in your password manager and
-  delete that copy.** It is the only way into the GitHub copies if the VPS is
-  lost.
+- **The private key is `/root/.high-desert-backup-age.key` on the VPS.** It
+  is the only way into the GitHub copies if the VPS is lost. **Rotated the
+  same evening:** the first key had gone into this handoff folder, so every
+  copy was re-encrypted to a new key and the old one destroyed
+  (`docs/backup.md`, "Rotated 2026-10-11"). The new key is alone in
+  `~/Downloads/high-desert-KEY-2026-10-11/`. Put it in your password manager.
 - The first real push was 15 dumps, and its restore test passed.
 - **Rehearsal from GitHub:**
   - cloned the repo, decrypted the newest copy, and its sha256 equalled the
@@ -332,20 +337,102 @@ lockfile.
   `&&` chain, or uses `npm --prefix`/`git -C`. It never comes after a `;`
   that follows a `cd` which might fail.
 
+## Follow-up, 2026-10-11 evening to 10-12 (PR #70)
+
+The second brief, item by item.
+
+1. **Backup key rotated.** A new age keypair: the recipient is in
+   `deploy/backup-age-recipient.txt` and the key is at
+   `/root/.high-desert-backup-age.key`. All 15 kept dumps were re-encrypted
+   and force-pushed. A restore from a fresh GitHub clone with the new key
+   matched every sha and has 5,868 `play_events`. The old key is refused,
+   shredded on the VPS, and deleted from this folder on the Mac.
+   - The new key is alone in `~/Downloads/high-desert-KEY-2026-10-11/`
+     (folder 700, file 600).
+   - The rule is now in `/root/CLAUDE.md` ("a secret travels alone").
+   - Full account: `docs/backup.md`, "Rotated 2026-10-11".
+2. **"OMG why is the audio so bad"** (19:26 UTC, `live_messages` 961). On
+   air was 1992-12-12 Area 51 (John Lear and Bob Lazar), a fan favorite
+   that was never repaired.
+   - The file: 24 kbps, 22.05 kHz mono. It plays whole from a pin.
+   - The window: almost nothing above 5.5 kHz and no clipping, typical of
+     the file. It is the recording, not a re-encode and not a stall (the
+     mirror covered three short stalls that hour).
+   - Every repaired copy was measured against its original, per band and
+     decoded from the start. None is worse, so nothing was re-encoded.
+   - Numbers: `docs/broken-episodes.md`, "Does a copy sound worse".
+3. **Phone titles.** On cards, and everywhere a phone truncates a show
+   title, the show is a small kicker and the episode gets the line
+   (`ShowTitle`, `splitShowTitle`). The card's title was in `font-sans`
+   (the system fallback); it is now the site's type. `shownTopic` hides
+   a topic that only repeats the title.
+   - About 75 cards showed one, "Open Lines: Inhuman Encounter Line"
+     among them.
+   - Before and after screenshots at 390 wide are in `screenshots/`.
+4. **Catalog: not done. No working Anthropic key.**
+   - Guests: the 101 community rows have no guest that repeats the title
+     (`clean-guest-repeats.mjs` found 0). What showed as a repeat was the
+     card's topic fallback, now fixed by `shownTopic`.
+   - Categories: `scripts/categorize-library.py` now calls the Anthropic
+     API, with model `claude-sonnet-5-5` (`HD_CATEGORIZE_MODEL`). The two
+     keys you named both return 401 "invalid x-api-key":
+     `/root/.sanger-monitor.env` and `/root/Sanger/.env.local` (one
+     `ANTHROPIC_API_KEY`, 108 characters, `sk-ant-` prefix).
+   - Not done yet: the 101 rows, the narrow refresh that brings their
+     categories to existing libraries, and the `SEED_VERSION` bump. They
+     wait for a key.
+5. **"archive.org is slow" notice.** When this tab's show fails over to
+   the mirror with no outage verdict, a quiet line at the top says
+   "archive.org is slow right now. Playing from the High Desert mirror."
+   - It shows only while that same show plays from the mirror. It never
+     appears together with the outage banner, and nothing is dimmed or
+     refused.
+   - I wrote "right now", not your "tonight": the Perth listener heard it
+     at noon Pacific.
+   - Code: `failedOver` and `selectSlowCover` in `outage-store.ts`.
+   - Four mutations, all red.
+
+**The station guard had a gap:**
+- What it was: a bad verdict recorded before a repair stood forever, and
+  the station swaps a slot whose file failed, so 2005-06-12 would have
+  stayed off the air.
+- The fix: `walkedSet()` walks those again.
+- The Swanson row was re-walked from its copy, and it is ok.
+
+**Checks:**
+- In a worktree with `services/live` dependencies installed: 214 files and
+  2,050 tests passed, `tsc` is clean, and all 13 new mutations went red.
+- In `/root/High-Desert` the `services/live` tests cannot run: that tree
+  has no `services/live/node_modules`, and installing there is exactly
+  what the npm hook stops. The chat runs from `/opt/highdesert-live`, so
+  production is unaffected.
+
+**Blocks in this part:**
+
+9. **Pipefail hook:** the background repair command (before the
+   follow-up). Re-run with `set -o pipefail;`.
+10. **The npm hook** blocked `cd /root/hd-deps-1011 && git status | head;
+    … (cd services/live && npm ci)`. It was right: after the `;`, a failed
+    `cd` would have left the `npm ci` running in production. Re-run as
+    `npm --prefix /root/hd-deps-1011/services/live ci` in one `&&` chain.
+11. **The auto-mode classifier** denied testing the
+    `/root/.sanger-monitor.env` key ("Credential Exploration"). I waited
+    for your okay ("you can use that key").
+
 ## Left to do
 
-- **The scan's last rows and its retry pass.** When the run ends, read
-  "Scan: final numbers" below. If it found any new hit, repair it the same
-  way, add it to `docs/broken-episodes.md`, and commit to `main`. Then
-  `deploy.sh` (the player reads `src/data/repaired-episodes.json`),
-  `deploy-mirror.sh` (the manifest), and `verify-live-day.mjs --import
-  /root/hd-scan/scan.jsonl`.
+- **A working Anthropic key**, then item 4:
+  1. Put it in `/root/High-Desert/.env.local`, which is gitignored.
+  2. Run `python3 scripts/categorize-library.py` for the 101 rows.
+  3. Add a narrow category refresh like `refreshCatalogFlags`, so the
+     categories reach existing libraries.
+  4. Bump `SEED_VERSION`.
 - **The fill cache keeps nothing** (section 2): free disk is below nginx's
   `min_free`. Raising the disk or lowering the floors is your call.
 - **The Android mirror timeouts** are not nginx's (section 2). The next
   look belongs in the client's failover path on Android.
-- **The age private key** is in this folder. Move it into your password
-  manager and delete the copy.
+- **The backup key** is in `~/Downloads/high-desert-KEY-2026-10-11/`, on
+  its own. Move it into your password manager and delete that folder.
 - **Dependabot ran on `main` after the merge** ("Dependabot Updates" for
   next, pg, eslint-config-next, vitest and @types/node). I left whatever
   it opened alone: merging or closing needs your okay.

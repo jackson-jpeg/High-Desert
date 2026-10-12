@@ -1,10 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useOutageStore, selectOutage } from "@/stores/outage-store";
+import { useOutageStore, selectOutage, selectSlowCover } from "@/stores/outage-store";
+import { usePlayerStore } from "@/stores/player-store";
 
 /** The outage banner's words. The chaos test and the unit tests read them from here. */
 export const OUTAGE_BANNER_TEXT = "archive.org is down. Playing from the High Desert mirror.";
+/**
+ * The quiet notice: archive.org stalled on this show and the mirror took over,
+ * with no outage. Not outage mode: nothing is dimmed or refused.
+ */
+export const SLOW_COVER_TEXT = "archive.org is slow right now. Playing from the High Desert mirror.";
 
 export function OfflineIndicator() {
   const [online, setOnline] = useState(true);
@@ -17,6 +23,14 @@ export function OfflineIndicator() {
   // Dismissed for this outage only: a new outage shows it again.
   const [dismissed, setDismissed] = useState(false);
   const archiveDown = outage && !dismissed;
+  const source = usePlayerStore((s) => s.source);
+  const fileHash = usePlayerStore((s) => s.currentEpisode?.fileHash);
+  const failedOver = useOutageStore((s) => s.failedOver);
+  const archiveUp = useOutageStore((s) => s.archiveUp);
+  // Dismissed for this show only: the next failover shows it again.
+  const [slowDismissedFor, setSlowDismissedFor] = useState<string | null>(null);
+  const slowCover =
+    selectSlowCover({ archiveUp, failedOver }, { source, fileHash }) && slowDismissedFor !== failedOver;
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe: true on SSR, actual value on client
@@ -46,7 +60,7 @@ export function OfflineIndicator() {
   }, [outage]);
 
   // Nothing to show
-  if (online && !showReconnect && !archiveDown) return null;
+  if (online && !showReconnect && !archiveDown && !slowCover) return null;
 
   // Offline takes priority
   if (!online) {
@@ -87,6 +101,28 @@ export function OfflineIndicator() {
         <button
           onClick={() => setDismissed(true)}
           className="text-desert-amber/85 hover:text-desert-amber cursor-pointer text-hd-12 md:text-hd-10 ml-1"
+          aria-label="Dismiss"
+        >
+          {"\u2715"}
+        </button>
+      </div>
+    );
+  }
+
+  // archive.org is slow and the mirror is covering this show. Quieter than the
+  // outage banner: same place, dimmer type, and it says the show plays on.
+  if (slowCover) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        data-testid="slow-cover-notice"
+        className="fixed top-0 inset-x-0 z-50 text-center py-1 px-4 text-hd-11 md:text-hd-10 bg-raised-surface/95 text-bevel-dark flex items-center justify-center gap-2"
+      >
+        <span>{SLOW_COVER_TEXT}</span>
+        <button
+          onClick={() => setSlowDismissedFor(failedOver)}
+          className="text-bevel-dark hover:text-desktop-gray cursor-pointer text-hd-12 md:text-hd-10 ml-1"
           aria-label="Dismiss"
         >
           {"\u2715"}

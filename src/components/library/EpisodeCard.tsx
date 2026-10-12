@@ -18,7 +18,9 @@ import { useOutageStore, availabilityOf } from "@/stores/outage-store";
 import { useProgress } from "@/stores/progress-store";
 import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
 import { episodeTitle } from "@/lib/library/display-title";
-import { shownGuest } from "@/lib/library/guest";
+import { shownGuest, shownTopic } from "@/lib/library/guest";
+import { splitShowTitle } from "@/lib/live/format";
+import { ShowKicker, ShowEpisode } from "./ShowTitle";
 
 interface EpisodeCardProps {
   episode: Episode;
@@ -357,7 +359,7 @@ export const EpisodeCard = memo(function EpisodeCard({
             </span>
           ) : (
             <span className="text-hd-11 text-static-green/85 truncate block">
-              {episode.topic || ""}
+              {shownTopic(episode) || ""}
             </span>
           )}
         </div>
@@ -419,8 +421,15 @@ export const EpisodeCard = memo(function EpisodeCard({
           Mobile: stacked, unchanged in shape.
           --------------------------------------------------------------- */}
       <div className="md:hidden">
+        {/*
+          The show's name is the kicker and the episode gets the line: every
+          title is "Show - Episode", and at 390 px the show's name ate the room
+          (ShowTitle.tsx). The kicker takes the show-type label's place in the
+          top row, so the card keeps its 116 px (ITEM_HEIGHT_MOBILE); a line of
+          its own would push the guest row out of the card.
+        */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {isMultiSelected && (
               <span className="w-[14px] h-[14px] flex items-center justify-center w98-inset-dark bg-inset-well text-hd-10 text-static-green flex-shrink-0">
                 {"✓"}
@@ -431,18 +440,23 @@ export const EpisodeCard = memo(function EpisodeCard({
             </span>
             {indicators}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {favButton}
-            {showLabel && (
-              <span className="text-hd-10 text-bevel-dark/85 flex-shrink-0">{showLabel}</span>
+          <div className="flex items-center justify-end gap-2 min-w-0">
+            {splitShowTitle(title).show ? (
+              <ShowKicker title={title} className="min-w-0" />
+            ) : (
+              showLabel && (
+                <span className="text-hd-micro uppercase tracking-wider text-bevel-dark truncate min-w-0">{showLabel}</span>
+              )
             )}
+            {favButton}
           </div>
         </div>
 
         <div className="flex items-center gap-2 min-w-0 mt-0.5">
-          <div className={cn("text-hd-15 font-bold truncate font-sans leading-tight", unavailable ? "text-bevel-dark" : "text-desktop-gray")}>
-            {title}
-          </div>
+          <ShowEpisode
+            title={title}
+            className={cn("text-hd-15 font-bold leading-tight", unavailable ? "text-bevel-dark" : "text-desktop-gray")}
+          />
           {removedBadge}
         </div>
         {episode.aiCategory && (
@@ -462,7 +476,7 @@ export const EpisodeCard = memo(function EpisodeCard({
             </span>
           ) : (
             <span className="text-hd-13 text-static-green/85 truncate min-w-0">
-              {episode.topic || " "}
+              {shownTopic(episode) || " "}
             </span>
           )}
           <div className="flex items-center gap-2 flex-shrink-0">

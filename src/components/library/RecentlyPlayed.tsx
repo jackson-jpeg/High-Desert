@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils/cn";
 import { useProgressIndex } from "@/stores/progress-store";
 import { episodeTitle } from "@/lib/library/display-title";
 import { shownGuest } from "@/lib/library/guest";
+import { ShowTitle } from "@/components/library/ShowTitle";
 
 interface RecentlyPlayedProps {
   episodes: Episode[];
@@ -59,12 +60,11 @@ export function RecentlyPlayed({ episodes, onPlay, compact, className }: Recentl
               )}>
                 {ep.airDate ?? "Unknown"}
               </span>
-              <span className={cn(
-                "text-desktop-gray font-bold truncate w-full text-left",
-                compact ? "text-hd-9" : "text-hd-12 md:text-hd-10",
-              )}>
-                {episodeTitle(ep)}
-              </span>
+              <ShowTitle
+                title={episodeTitle(ep)}
+                wrapperClassName="w-full text-left"
+                className={cn("text-desktop-gray font-bold", compact ? "text-hd-9" : "text-hd-12 md:text-hd-10")}
+              />
               {shownGuest(ep) && (
                 <span className={cn(
                   "text-static-green/85 truncate w-full text-left",

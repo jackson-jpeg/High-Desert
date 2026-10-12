@@ -8,6 +8,7 @@ import { usePlayerStore } from "@/stores/player-store";
 import { cn } from "@/lib/utils/cn";
 import { episodeTitle } from "@/lib/library/display-title";
 import { shownGuest } from "@/lib/library/guest";
+import { ShowTitle } from "@/components/library/ShowTitle";
 
 interface ContinueListeningProps {
   onPlay: (episode: Episode) => void;
@@ -67,9 +68,7 @@ export function ContinueListening({ onPlay, className }: ContinueListeningProps)
                   i >= 2 && "hidden md:block",
                 )}
               >
-                <div className="text-hd-12 md:text-hd-11 text-desktop-gray font-bold truncate">
-                  {episodeTitle(ep)}
-                </div>
+                <ShowTitle title={episodeTitle(ep)} className="text-hd-12 md:text-hd-11 text-desktop-gray font-bold" />
                 {shownGuest(ep) && (
                   <div className="text-hd-10 text-static-green/85 truncate mt-0.5">
                     {shownGuest(ep)}
