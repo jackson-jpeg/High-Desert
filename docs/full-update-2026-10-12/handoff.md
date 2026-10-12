@@ -134,6 +134,22 @@ caught the timeout. Fix: `useDismissBootScreen()` in `not-found.tsx` and
 `error.tsx`; a unit test with a control; two mutations; and every look screen
 now asserts `#app-loading` is hidden (red on the old build, as it should be).
 
+**Third find: the default look had never been through the accessibility
+gate.** `e2e/a11y.spec.ts` ran only in the old public look; the first full e2e
+run on the branch failed 21 of 202, and four were real AA misses in Win98:
+white on the lit ON AIR red (3.83:1, now ink at 5.5:1), the dial's signal
+readout faded to 1.01:1 on gray (now full-strength green), and the Library's
+swipe tip at /85 on its own tint (4.34 and 3.98:1, now full strength, and it
+says "Swipe a show" since Win98's phone rows are not cards). The a11y spec now
+scans every page in both looks. The rest were specs written for the retired
+look: `/radio` is the dial, the admin pages have no nav tabs in Win98 (reached
+by URL), Win98's phone menu is Start, Export is Start > Settings > More
+Settings. The Notepad now renders a call in the parts LiveChat names
+(`line-label`, `caller-name`, `message-body`; text unchanged), so
+`live-chat.spec` runs in Win98. `live-callers.spec` and the caller tests in
+`live-qa.spec` choose Night: their rename is LiveChat's button, and the
+Notepad's rename (Edit > Change Name...) is held by its unit test only.
+
 ## The resend loop (item 4)
 
 It was this session's own scheduled wakeup. While waiting on CI for PR #72 I
