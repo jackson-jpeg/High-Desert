@@ -44,6 +44,7 @@ export function useLibraryKeyboard({
   onPlay,
   onRequestBulkDelete,
   onRequestDelete,
+  disabled = false,
 }: {
   visibleEpisodes: Episode[];
   /** The list's active row (`useLibrarySelection`), or -1. */
@@ -57,8 +58,11 @@ export function useLibraryKeyboard({
   onRequestBulkDelete: () => void;
   /** Opens the delete confirmation for these ids. Must not delete. */
   onRequestDelete: (ids: number[]) => void;
+  /** The list is not on screen (the Library's Dial mode owns the keys). */
+  disabled?: boolean;
 }) {
   useEffect(() => {
+    if (disabled) return;
     const moveTo = (next: number) => {
       const ep = visibleEpisodes[next];
       if (!ep) return;
@@ -111,5 +115,5 @@ export function useLibraryKeyboard({
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [visibleEpisodes, activeIndex, selectedEpisode, selectedIds, onPlay, onRequestBulkDelete, onRequestDelete, setFocusedIndex, setSelectedEpisode, setSelectedIds]);
+  }, [visibleEpisodes, activeIndex, selectedEpisode, selectedIds, onPlay, onRequestBulkDelete, onRequestDelete, setFocusedIndex, setSelectedEpisode, setSelectedIds, disabled]);
 }

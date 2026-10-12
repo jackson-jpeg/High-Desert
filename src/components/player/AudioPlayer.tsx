@@ -140,6 +140,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
         role="dialog"
         aria-modal="true"
         aria-label="Now playing"
+        data-player="mobile-expanded"
         tabIndex={-1}
         onKeyDown={mobileTrapKeyDown}
         className="outline-none fixed inset-0 z-50 bg-midnight/90 backdrop-blur-md flex flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)]">
@@ -270,7 +271,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   // ─── Mobile mini player ───
   if (isMobile && mini) {
     return (
-      <div className={cn("glass-medium glass-promote relative", playing && "glass-glow-amber", className)}>
+      <div data-player="mobile-mini" className={cn("glass-medium glass-promote relative", playing && "glass-glow-amber", className)}>
         {/* Full-width progress bar at top — thin amber gradient */}
         {duration > 0 && (
           <div className="absolute top-0 left-0 right-0 h-[3px]">
@@ -327,6 +328,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
     }
     return (
       <div
+        data-player="ultra-mini"
         className={cn("w98-raised-dark bg-raised-surface h-[28px] flex items-center gap-2 px-2 relative", className)}
         onDoubleClick={() => setUltraMini(false)}
       >
@@ -365,7 +367,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   // ─── Desktop mini player ───
   if (mini) {
     return (
-      <div className={cn("w98-raised-dark bg-raised-surface relative", className)}>
+      <div data-player="mini" className={cn("w98-raised-dark bg-raised-surface relative", className)}>
         {/* Mini progress bar at top */}
         {duration > 0 && (
           <div className="absolute top-0 left-0 right-0 h-[2px]">
@@ -427,6 +429,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   // ─── Desktop expanded player ───
   return (
     <div
+      data-player="expanded"
       className={cn(
         "w98-raised-dark bg-raised-surface flex flex-col max-h-[60vh] overflow-auto",
         className,

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { LOOK_COOKIE, LOOK_VIEW_COOKIE, verifyLook } from "@/lib/look/look";
+import { DIAL_HREF, radioRetired } from "@/lib/look/nav";
 
 /**
  * Keeps the script-readable look cookie in step with the signed one
@@ -12,7 +13,11 @@ export async function proxy(request: NextRequest) {
   if (!signed && !view) return NextResponse.next();
 
   const look = await verifyLook(signed, process.env.HD_LOOK_KEY);
-  const res = NextResponse.next();
+  // The preview looks have no Radio tab: /radio is the Library's Dial mode
+  // (src/lib/look/nav.ts). The public look never gets here with a look.
+  const res = look && radioRetired(look) && request.nextUrl.pathname === "/radio"
+    ? NextResponse.redirect(new URL(DIAL_HREF, request.url), 307)
+    : NextResponse.next();
   if (look) {
     if (view !== look) {
       const exp = Number(signed!.split(".")[2]);

@@ -8,7 +8,7 @@ import { useRadioDial } from "@/hooks/useRadioDial";
 import { useRadioStatic } from "@/hooks/useRadioStatic";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { getPreference, setPreference } from "@/db";
-import { isKeyOwnedByTarget } from "@/lib/utils/key-ownership";
+import { useRadioDialKeys } from "@/hooks/useRadioDialKeys";
 import { TuningStrip } from "./TuningStrip";
 import { FrequencyDisplay } from "./FrequencyDisplay";
 import { SignalMeter } from "./SignalMeter";
@@ -18,7 +18,6 @@ import { YearTabs } from "./YearTabs";
 import { LiveDialLamp, airDateDayIndex } from "./LiveDialLamp";
 import { useOnAirSlot } from "@/hooks/useLiveStation";
 import type { Episode } from "@/db/schema";
-import { emit } from "@/lib/events";
 
 interface RadioDialProps {
   episodes: Episode[] | undefined;
@@ -82,81 +81,9 @@ export function RadioDial({ episodes }: RadioDialProps) {
     setPreference("radio-hint-dismissed", "1");
   }, []);
 
-  // Keyboard handler
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      // Don't intercept keys a focused control owns. This used to skip only
-      // inputs, so Enter and Space on a focused Seek/Play button or year tab
-      // locked the dial / started the locked show instead of pressing the
-      // button (HD-011).
-      if (isKeyOwnedByTarget(e)) return;
-
-      switch (e.code) {
-        case "ArrowLeft":
-          e.preventDefault();
-          ensureInitialized();
-          if (e.ctrlKey || e.metaKey) tune(-365);
-          else if (e.shiftKey) tune(-30);
-          else tune(-1);
-          break;
-
-        case "ArrowRight":
-          e.preventDefault();
-          ensureInitialized();
-          if (e.ctrlKey || e.metaKey) tune(365);
-          else if (e.shiftKey) tune(30);
-          else tune(1);
-          break;
-
-        case "ArrowUp":
-          if (sameDateStations.length > 1) {
-            e.preventDefault();
-            cycleSubStation(-1);
-          }
-          break;
-
-        case "ArrowDown":
-          if (sameDateStations.length > 1) {
-            e.preventDefault();
-            cycleSubStation(1);
-          }
-          break;
-
-        case "Enter":
-          e.preventDefault();
-          lockToNearest();
-          break;
-
-        case "Space":
-          e.preventDefault();
-          if (lockedEpisode) {
-            emit("play-episode", lockedEpisode);
-          }
-          break;
-
-        case "KeyS":
-          if (!e.ctrlKey && !e.metaKey) {
-            e.preventDefault();
-            const { scanning: sc } = useRadioDialStore.getState();
-            if (sc) stopScan();
-            else useRadioDialStore.getState().startScan("forward");
-          }
-          break;
-
-        case "Escape":
-          e.preventDefault();
-          if (scanning) {
-            stopScan();
-          } else {
-            router.push("/library");
-          }
-          break;
-      }
-    };
-
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [
+  // Keyboard handler, shared with the Library's Dial mode (useRadioDialKeys).
+  const exitToLibrary = useCallback(() => router.push("/library"), [router]);
+  useRadioDialKeys({
     tune,
     lockToNearest,
     lockedEpisode,
@@ -164,9 +91,9 @@ export function RadioDial({ episodes }: RadioDialProps) {
     stopScan,
     sameDateStations,
     cycleSubStation,
-    router,
     ensureInitialized,
-  ]);
+    onEscape: exitToLibrary,
+  });
 
   // The tuned year: the selected tab, and the centre of the mobile fade.
   const currentYear = currentDate ? currentDate.getFullYear() : null;
