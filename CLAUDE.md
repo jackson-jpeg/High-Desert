@@ -1123,6 +1123,33 @@ mount (reading it during render caused a hydration mismatch). Force viewer mode 
 set the localStorage key. Never put anything behind it that must actually be protected — all
 admin features are local-only and touch nothing server-side.
 
+## Preview looks: Clean and Win98 (2026-10-12, read before touching `src/lib/look/`, `src/proxy.ts`, `src/styles/look-*.css` or `src/components/looks/`)
+
+Two candidate redesigns run on production **for the owner only**; every other
+visitor gets the public look, which must not change while they exist. Full
+account: `docs/looks.md`; the owner's guide: `docs/redesign-2026-10-12/look-guide.md`.
+
+- **Only the admin can turn one on.** `POST /live-api/admin/look` (admin cookie
+  or bearer) signs `hd_look` under a key derived from `LIVE_ADMIN_TOKEN`; the app
+  holds only the derived key, **`HD_LOOK_KEY`** in `/root/.high-desert.env`
+  (`LIVE_ADMIN_TOKEN=… node services/live/lib/look.mjs --key`). `src/proxy.ts`
+  verifies it on page requests and keeps the script-readable `hd_look_view` in
+  step (deleting a forged one); the boot script sets `<html data-look>` before
+  paint. Pages stay static. No key, no previews. The owner switches at `/look`
+  or with the pill on every page.
+- **Public look untouched**: look CSS only under `html[data-look="…"]`, component
+  swaps only behind `useLook()` (which is `"default"` through hydration), preview
+  components lazily imported. `e2e/looks.spec.ts` fails if the public look ever
+  carries `data-look` or the switcher, and screenshots every screen in every look,
+  phone and desktop (CI artifact `look-screenshots`, every run).
+- **Radio is a Library mode in the previews** (the audit: 2% of plays,
+  `docs/redesign-2026-10-12/usage-report.md`): no Radio tab, `/library?view=dial`,
+  `/radio` redirects there. Navigation per look is `src/lib/look/nav.ts`.
+- Win98 colours are `--hd-w98-*` (in PALETTE like every colour). Win98 swaps:
+  `Taskbar`/Start menu for the tabs, `WinampPlayer` for the player,
+  `NotepadPhoneLines` for the chat (`useCallBox` is shared with `LiveChat`), and
+  the hidden Mel's Hole (type `hole`, or Start, Run…, `melshole`).
+
 ## Design System
 
 - **Desktop:** Windows 98 dark theme — raised/inset bevels, title bars, menu bars, context menus, status bar

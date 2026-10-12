@@ -62,7 +62,15 @@ async function enterLook(page: Page, baseURL: string, look: Look): Promise<void>
 
 async function settle(page: Page): Promise<void> {
   await expect(page.locator("#app-loading")).toBeHidden({ timeout: 15_000 }).catch(() => {});
-  await page.waitForTimeout(600); // let the look's components swap in after hydration
+  // The page transition fades a route in: wait for its content, then let the
+  // look's components swap in after hydration.
+  await page
+    .waitForFunction(() => {
+      const main = document.querySelector("#hd-main") as HTMLElement | null;
+      return !main || main.innerText.trim().length > 40;
+    }, undefined, { timeout: 15_000 })
+    .catch(() => {});
+  await page.waitForTimeout(1_000);
 }
 
 async function checkScreen(page: Page, look: Look, name: string, project: string, errors: string[]): Promise<void> {
@@ -135,11 +143,18 @@ for (const look of LOOKS) {
       }
     });
 
-    test("the player, small and expanded", async ({ page }, info) => {
+    test("the player, small and expanded", async ({ page, isMobile }, info) => {
       const project = info.project.name;
       await playFromFixtureMirror(page);
-      await openLibrary(page);
-      await episodeList(page).locator('[role="option"]').first().dblclick();
+      if (isMobile) {
+        // A phone starts audio the way most phones do: Listen live (docs/funnel.md).
+        await page.goto("/live");
+        await settle(page);
+        await page.getByTestId("live-tune-in").click();
+      } else {
+        await openLibrary(page);
+        await episodeList(page).locator('[role="option"]').first().dblclick();
+      }
       const player = look === "win98" ? page.getByTestId("w98-amp").first() : page.locator("[data-player]").first();
       await expect(player).toBeVisible({ timeout: 20_000 });
       await checkScreen(page, look, "player", project, errors);
