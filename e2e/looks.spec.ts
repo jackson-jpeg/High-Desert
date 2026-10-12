@@ -54,6 +54,9 @@ async function settle(page: Page): Promise<void> {
 async function checkScreen(page: Page, look: Look, name: string, project: string, errors: string[]): Promise<void> {
   await settle(page);
   await page.screenshot({ path: `${OUT}/${project}-${look}-${name}.png` });
+  // The boot screen must be gone: a 404 drawn in the browser once sat under it
+  // for good, a blank screenshot that passed every check below.
+  await expect(page.locator("#app-loading"), `${name}: still under the boot screen`).toBeHidden();
   const state = await page.evaluate(() => ({
     look: document.documentElement.getAttribute("data-look"),
     overflow: document.documentElement.scrollWidth - window.innerWidth,
