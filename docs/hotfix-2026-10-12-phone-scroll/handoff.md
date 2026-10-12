@@ -117,8 +117,18 @@ Screenshots (Mac folder `screens/`):
   Every one of the nine passed on re-run (28 passed). Two further re-runs
   fixed timing in the new spec: a 600 s budget for WebKit, and dropping `/`,
   which a phone never stays on.
-- After the deploy: `highdesert-status` and `check:seo`/`check:csp` against
-  production (results below).
+- Merged as PR #74 (`5aa619f`), deployed with `scripts/deploy.sh`: built,
+  swapped, and the client check passed on `/`, `/library`, `/live` and
+  `/stats`.
+- `highdesert-status` after the deploy: deploy, service, release (1.7% of
+  starts lost) and presence all OK. There were 3 WARNs, none from this change:
+  - hypervisor steal at 45% over 30 min;
+  - the 7-day failure share at 21.4%;
+  - mirror pins below target (the warm job stopped at its disk floor).
+- **Production, after the deploy:** the scroll and first-screen specs ran
+  against https://highdesert.space in WebKit (`iphone`) and Chromium
+  (`mobile`), both looks: **16 passed**. The same scroll test that showed the
+  egg before the fix now passes on production.
 
 ## Incidents
 
@@ -128,8 +138,9 @@ Screenshots (Mac folder `screens/`):
   worktrees, which I did not touch. I removed my own test results, re-ran
   with traces off, and removed my worktree after the deploy. **The disk is
   the thing to look at next.**
-- **Hook blocks: 3**, all the pipefail hook, on commands with a pipe and no
-  `set -o pipefail`. Each was re-run with the prefix.
+- **Hook blocks: 4**, all the pipefail hook, on commands with a pipe and no
+  `set -o pipefail` (the fourth an `ls | head` after the deploy). Each was
+  re-run with the prefix. Nothing was routed around.
 
 ## Left
 
