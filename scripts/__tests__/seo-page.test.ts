@@ -139,7 +139,8 @@ describe("pageFindings: a shared moment", () => {
     ["the plain card", (h) => h.replaceAll(`/moment/${MOMENT}/opengraph-image`, "/opengraph-image"), /not the moment's card/],
     ["a canonical with the query", (h) => h.replace(`<link rel="canonical" href="${SITE_ORIGIN}${PATH}">`, `<link rel="canonical" href="${SITE_ORIGIN}${MOMENT_PATH}">`), /canonical .* is not this page/],
     ["a Play button JavaScript-off visitors see", (h) => h.replace(".hd-show-play{display:none!important}", ""), /hides the Play button/],
-    ["no intro to the site", (h) => h.replace(/class="hd-show-intro[^"]*"/, 'class="x"'), /intro/],
+    ["an intro that never names the site", (h) => h.replace("High Desert plays Art Bell", "This site plays Art Bell"), /no one-line intro/],
+    ["an intro with no way into Live", (h) => h.replace('href="/live">Listen to the station now', 'href="/stats">Listen to the station now'), /no way into Live/],
   ];
   for (const [what, breakIt, finding] of broken) {
     it(`finds ${what}`, () => {
