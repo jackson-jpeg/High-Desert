@@ -94,6 +94,14 @@ export const MUTATIONS = [
     why: "/radio is the Library's Dial mode, a permanent redirect",
   },
   {
+    id: "presence-check-taskbar-online-only",
+    test: "scripts/__tests__/presence-check.test.ts",
+    file: "scripts/presence-check.mjs",
+    find: 'const ONLINE_ONLY = new Set(["badge", "taskbar"]);',
+    replace: 'const ONLINE_ONLY = new Set(["badge"]);',
+    why: "Win98's taskbar tray shows online alone; the live check called every Win98 page a disagreement",
+  },
+  {
     id: "admin-direct-load-hydrates-first",
     test: "src/app/__tests__/admin-direct-load.test.tsx",
     file: "src/app/[look]/(desktop)/search/page.tsx",

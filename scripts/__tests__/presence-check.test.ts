@@ -12,7 +12,7 @@ const s = (surface: string, online: number, listening: number, poll = "4", shown
   online,
   listening,
   poll,
-  shown: shown ?? (surface === "badge" ? [online] : [online, listening]),
+  shown: shown ?? (surface === "badge" || surface === "taskbar" ? [online] : [online, listening]),
 });
 
 describe("judgeSurfaces", () => {
@@ -35,6 +35,12 @@ describe("judgeSurfaces", () => {
 
   it("surfaces from different polls are re-read, not judged", () => {
     expect(judgeSurfaces([s("status-bar", 8, 3, "4"), s("on-air", 9, 3, "5")]).verdict).toBe("mid-update");
+  });
+
+  it("Win98's taskbar tray shows online alone, as the badge does", () => {
+    expect(judgeSurfaces([s("taskbar", 17, 7), s("status-bar", 17, 7)]).verdict).toBe("agree");
+    // ...and a tray whose number is not the online count still disagrees.
+    expect(judgeSurfaces([s("taskbar", 17, 7, "4", [7]), s("status-bar", 17, 7)]).verdict).toBe("disagree");
   });
 
   it("no surfaces is empty, not agreement", () => {

@@ -38,6 +38,9 @@ const REREADS = 6;
  * @param {{surface: string, online: number, listening: number, poll: string, shown: number[]}[]} surfaces
  * @returns {{verdict: "agree" | "disagree" | "mid-update" | "empty", detail: string}}
  */
+/** Surfaces that display the online count alone (Taskbar.tsx's tray, the Stats badge). */
+const ONLINE_ONLY = new Set(["badge", "taskbar"]);
+
 export function judgeSurfaces(surfaces) {
   if (surfaces.length === 0) return { verdict: "empty", detail: "no presence surfaces rendered" };
   const polls = new Set(surfaces.map((s) => s.poll));
@@ -49,8 +52,9 @@ export function judgeSurfaces(surfaces) {
     if (s.online !== first.online || s.listening !== first.listening) {
       problems.push(`${s.surface} says ${s.online}/${s.listening}, ${first.surface} says ${first.online}/${first.listening}`);
     }
-    // What a listener reads: the badge shows online only; the rest show both.
-    const expected = s.surface === "badge" ? [s.online] : [s.online, s.listening];
+    // What a listener reads: the badge and Win98's taskbar tray show online
+    // only; the rest show both.
+    const expected = ONLINE_ONLY.has(s.surface) ? [s.online] : [s.online, s.listening];
     const shown = s.shown.slice(0, expected.length);
     if (shown.length !== expected.length || shown.some((n, i) => n !== expected[i])) {
       problems.push(`${s.surface} displays ${JSON.stringify(s.shown)} but is tagged ${s.online}/${s.listening}`);
