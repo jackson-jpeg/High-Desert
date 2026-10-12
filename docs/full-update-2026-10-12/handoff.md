@@ -150,6 +150,12 @@ Settings. The Notepad now renders a call in the parts LiveChat names
 `live-qa.spec` choose Night: their rename is LiveChat's button, and the
 Notepad's rename (Edit > Change Name...) is held by its unit test only.
 
+**Fourth find: a reload of `/search` or `/scanner` sent an admin to
+`/library`** (production too). The page's effect ran before the layout's
+`hydrate()`, so it saw `isAdmin: false`. Win98 has no admin tabs, which made a
+reload the only way back. Both pages now read the saved flag first; unit test
+with a control, one mutation.
+
 ## The resend loop (item 4)
 
 It was this session's own scheduled wakeup. While waiting on CI for PR #72 I
