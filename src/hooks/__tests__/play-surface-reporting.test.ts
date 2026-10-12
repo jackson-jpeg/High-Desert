@@ -236,7 +236,15 @@ describe("a play's surface", () => {
     at("/radio");
     act(() => emit("play-episode", makeEpisode()));
     await flush();
-    expect(surfaces()).toEqual(["queue", "radio"]);
+    // A start that never passes through a binding (playEpisode taking its own
+    // token) must not inherit the last one's either.
+    at("/stats");
+    act(() => withPlaySurface("palette", () => emit("play-episode", makeEpisode())));
+    await flush();
+    await act(async () => {
+      await api.playEpisode(makeEpisode());
+    });
+    expect(surfaces()).toEqual(["queue", "radio", "palette", "stats"]);
   });
 
   it("is restore for the remembered show's first ▶ (the togglePlay path)", async () => {
