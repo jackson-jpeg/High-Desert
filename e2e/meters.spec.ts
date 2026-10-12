@@ -40,6 +40,7 @@ import type { Page, Route } from "@playwright/test";
 import { expect, test, busEventName } from "./fixtures";
 import { openLibrary } from "./library";
 import { communityKey } from "../src/lib/utils/community-key";
+import { lookValue } from "../services/live/lib/look.mjs";
 
 const FIXTURE = readFileSync(path.join(process.cwd(), "e2e", "assets", "meter-tone.mp3"));
 
@@ -229,9 +230,47 @@ async function bigViz(page: Page) {
 
 /** Open the now playing screen: the phone's full-screen player, or the desktop's expanded one. */
 async function openNowPlaying(page: Page, look: "default" | "win98") {
-  const expand =
-    look === "win98" ? page.getByTestId("w98-amp-expand").first() : page.getByRole("button", { name: "Expand player" }).first();
-  if (await expand.isVisible().catch(() => false)) await expand.click();
+  // Win98: the phone's compact Winamp expands to full screen; the desktop
+  // window shows its big visualizer once the title bar's expand is pressed.
+  const candidates =
+    look === "win98"
+      ? [page.getByTestId("w98-amp-expand").first(), page.getByRole("button", { name: "Expand player" }).first()]
+      : [page.getByRole("button", { name: "Expand player" }).first()];
+  for (const expand of candidates) {
+    if (await expand.isVisible().catch(() => false)) {
+      await expand.click();
+      return;
+    }
+  }
+}
+
+/**
+ * The visualizer a phone opens with (Milkdrop on iOS) is animated by the
+ * show, not a black box: lit pixels on its canvas, and a different picture
+ * a second later. On main it painted one idle frame (black) and parked.
+ */
+async function expectDefaultVizAlive(page: Page) {
+  const frame = () =>
+    page.evaluate(() => {
+      const c = [...document.querySelectorAll('[role="button"][aria-label^="Audio visualization"] canvas')]
+        .map((el) => el as HTMLCanvasElement)
+        .sort((a, b) => b.width * b.height - a.width * a.height)[0];
+      if (!c) return { lit: 0, sig: "" };
+      const d = c.getContext("2d")!.getImageData(0, 0, c.width, c.height).data;
+      let lit = 0;
+      let sig = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i] + d[i + 1] + d[i + 2] > 60) lit++;
+        sig = (sig * 31 + d[i + 1]) | 0;
+      }
+      return { lit, sig: String(sig) };
+    });
+  await page.waitForTimeout(2_000);
+  const a = await frame();
+  await page.waitForTimeout(1_000);
+  const b = await frame();
+  expect(Math.max(a.lit, b.lit), "the visualizer is not a black box while the show plays").toBeGreaterThan(200);
+  expect(a.sig, "the visualizer moves while the show plays").not.toBe(b.sig);
 }
 
 /** Cycle the big visualizer to the VU meter, as a listener does: tap it. */
@@ -330,6 +369,7 @@ async function wholeRun(page: Page, wiring: Wiring, device: Device, look: "defau
   await startShow(page, first);
   expect((await element(page))!.src).toMatch(expectSrc[0]);
   await openNowPlaying(page, look);
+  await expectDefaultVizAlive(page);
   await chooseVu(page);
   await expectMetersMove(page, "playing");
 
@@ -362,6 +402,10 @@ async function wholeRun(page: Page, wiring: Wiring, device: Device, look: "defau
   }
 }
 
+// Each test seeds the library and then listens through four windows of
+// several seconds each; the config's 90 s is for specs that only look.
+test.describe.configure({ timeout: 180_000 });
+
 const ARCHIVE_SRC = /^https:\/\/archive\.org\/download\//;
 const MIRROR_SRC = /\/mirror\/archive/;
 
@@ -392,5 +436,80 @@ for (const device of ["iphone", "other"] as const) {
       await openLibrary(page);
       await wholeRun(page, wiring, device, "default", SHOW_REPAIRED, SHOW_ARCHIVE, [MIRROR_SRC, ARCHIVE_SRC]);
     });
+
+    // The Winamp window draws the same visualizer (WinampPlayer.tsx renders
+    // <Oscilloscope>). The look is signed with the run's admin token, the
+    // key the app was started with (HD_LOOK_KEY, see e2e/looks.spec.ts).
+    test("Win98 look: the Winamp visualizer, archive.org then the mirror", async ({ page, baseURL }) => {
+      const token = process.env.E2E_LIVE_ADMIN_TOKEN;
+      test.skip(!token, "E2E_LIVE_ADMIN_TOKEN is not set: the Win98 look needs the e2e stack's admin token");
+      await page.context().addCookies([
+        { name: "hd_look", value: lookValue(token!, "win98"), domain: new URL(baseURL!).hostname, path: "/", httpOnly: true, secure: false, sameSite: "Lax" },
+      ]);
+      const wiring = await wire(page, { archiveUp: true });
+      await openLibrary(page);
+      expect(await page.evaluate(() => document.documentElement.getAttribute("data-look"))).toBe("win98");
+      await wholeRun(page, wiring, device, "win98", SHOW_ARCHIVE, SHOW_REPAIRED, [ARCHIVE_SRC, MIRROR_SRC]);
+    });
   });
 }
+
+/**
+ * The real archive.org, redirect and all: `/download/` answers 302 to a
+ * storage node, and the tap's Range requests must follow it with CORS on
+ * both hops, as the element does. Real speech, so the bar is lower than the
+ * tone's. On request only (it depends on archive.org being up):
+ *
+ *   E2E_REAL_ARCHIVE=1 E2E_BASE_URL=... npx playwright test e2e/meters.spec.ts --project=desktop -g "real archive"
+ */
+test.describe("iPhone, real archive.org", () => {
+  test.use({ userAgent: IPHONE_UA, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
+  test.skip(!process.env.E2E_REAL_ARCHIVE, "on request: E2E_REAL_ARCHIVE=1");
+
+  test("real archive.org: the meters follow the broadcast", async ({ page }) => {
+    const tapResponses: { url: string; status: number }[] = [];
+    if (process.env.METERS_DEBUG) {
+      page.on("console", (m) => console.log("console:", m.type(), m.text()));
+      page.on("request", (r) => /archive\.org/.test(r.url()) && console.log("req:", r.method(), r.resourceType(), r.url().slice(0, 70), r.headers()["range"] ?? ""));
+      page.on("requestfailed", (r) => console.log("failed:", r.url().slice(0, 70), r.failure()?.errorText));
+      page.on("response", (r) => /archive\.org/.test(r.url()) && console.log("res:", r.status(), r.request().resourceType(), r.url().slice(0, 70)));
+    }
+    page.on("response", (r) => {
+      if (r.request().resourceType() === "fetch" && /archive\.org/.test(r.url())) tapResponses.push({ url: r.url(), status: r.status() });
+    });
+    await page.route("**/api/archive/health", (route) =>
+      route.fulfill({ json: { up: true, status: 200, checkedAt: new Date().toISOString() } }),
+    );
+    await page.addInitScript(() => {
+      const w = window as unknown as { __hdMeters: { el: HTMLMediaElement | null; mediaSources: number } };
+      w.__hdMeters = { el: null, mediaSources: 0 };
+      const play = HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play = function (this: HTMLMediaElement) {
+        if (/archive\.org|\/mirror\//.test(this.src)) w.__hdMeters.el = this;
+        return play.call(this);
+      };
+    });
+    await openLibrary(page);
+    await startShow(page, SHOW_ARCHIVE);
+    expect((await element(page))!.src).toMatch(ARCHIVE_SRC);
+    await openNowPlaying(page, "default");
+    await chooseVu(page);
+    // archive.org is slow to redirect and some storage nodes fail a share of
+    // requests, so give it a minute: listen in 3 s windows until the needle
+    // follows the voice.
+    let line = "";
+    await expect
+      .poll(
+        async () => {
+          const s = await sampleNeedle(page, 3_000);
+          line = s.map((v) => v.toFixed(2)).join(" ");
+          return Math.max(...s) > 0.15 && Math.max(...s) - Math.min(...s) > 0.08;
+        },
+        { timeout: 60_000, intervals: [0], message: `the needle never followed the broadcast (${line})` },
+      )
+      .toBe(true);
+    // Every byte the meters read came through archive.org's redirect, as 206s from a storage node.
+    expect(tapResponses.some((r) => r.status === 302), "the tap followed archive.org's redirect").toBe(true);
+    expect(tapResponses.some((r) => r.status === 206 && /\.(us|ca)\.archive\.org\//.test(r.url)), "a storage node answered the tap's Range").toBe(true);
+  });
+});
