@@ -4,6 +4,8 @@ import type { SourceKind } from "@/audio/sources";
 import { pageBuild } from "@/lib/utils/build-id";
 import { FAILURE_TAB_ID } from "@/lib/utils/session-id";
 import { useLiveStore } from "@/stores/live-store";
+import type { PlaySurface } from "@/lib/usage/vocab";
+import type { HeartbeatUsage } from "./usage-client";
 
 const RETRY_OPTS = { retries: 1, timeout: 5000 } as const;
 
@@ -21,12 +23,26 @@ function buildTag(): { build?: string } {
   return build ? { build } : {};
 }
 
-/** `source`: which host the listen is coming from (src/audio/sources.ts). */
-export function reportPlay(episodeId: string, sessionId: string, source?: SourceKind | null): void {
+/**
+ * `source`: which host the listen is coming from (src/audio/sources.ts).
+ * `surface`: where it was started (src/audio/play-surface.ts).
+ */
+export function reportPlay(
+  episodeId: string,
+  sessionId: string,
+  source?: SourceKind | null,
+  surface?: PlaySurface | null,
+): void {
   fetch("/api/stats/play", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ episodeId, sessionId, ...(source ? { source } : {}), ...buildTag() }),
+    body: JSON.stringify({
+      episodeId,
+      sessionId,
+      ...(source ? { source } : {}),
+      ...(surface ? { surface } : {}),
+      ...buildTag(),
+    }),
   }).catch(() => {});
 }
 
@@ -211,6 +227,12 @@ export function reportHeartbeat(
   episodeId?: string | null,
   /** Tuned in to the live station. Sent only when true; its absence clears the mark. */
   live = false,
+  /**
+   * Time per tab (docs/usage-tracking.md): the tab, the device and whether the
+   * page is on screen. Sent only on the minute beat, never on the extra beats
+   * (visibility, live changes), so each visible minute is counted once.
+   */
+  usage?: HeartbeatUsage | null,
 ): Promise<void> {
   return fetch("/api/stats/heartbeat", {
     method: "POST",
@@ -219,6 +241,7 @@ export function reportHeartbeat(
       sessionId,
       ...(episodeId ? { episodeId } : {}),
       ...(live ? { live: true } : {}),
+      ...(usage ? { route: usage.route, device: usage.device, visible: usage.visible } : {}),
     }),
   }).then(
     () => {},

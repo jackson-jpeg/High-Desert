@@ -35,6 +35,24 @@ export const PALETTE = {
   titlebarGlow: "#3A6EA5",
   titlebarSky: "#A6CAF0",
   strip: "#0F1520",
+  // The "Win98" preview look (src/styles/look-win98.css).
+  w98Face: "#C0C0C0",
+  w98Teal: "#008080",
+  w98TitleEnd: "#1084D0",
+  w98InkMuted: "#3A3A3A",
+  w98Maroon: "#800000",
+  w98Brown: "#6B3A00",
+  w98GreenText: "#005000",
+  w98Error: "#A00000",
+  w98Tooltip: "#FFFFE1",
+  w98AmpFrame: "#2B2B3B",
+  w98AmpEdge: "#5A5A74",
+  w98AmpShadow: "#15151F",
+  w98AmpText: "#C8C8D8",
+  w98AmpLcd: "#00E000",
+  w98AmpLcdDim: "#0A3A0A",
+  w98AmpGold: "#D8C080",
+  w98Earth: "#4A2F18",
 } as const;
 
 export type PaletteKey = keyof typeof PALETTE;

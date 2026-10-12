@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { toast } from "@/stores/toast-store";
 import { emit } from "@/lib/events";
 import { episodeTitle } from "@/lib/library/display-title";
+import { retryWithPlaySurface } from "@/audio/play-surface";
 
 /**
  * Shown when a show will not start.
@@ -47,7 +48,7 @@ export function PlaybackErrorDialog() {
     const ep = usePlayerStore.getState().currentEpisode;
     dismiss();
     if (ep) {
-      emit("play-episode", ep);
+      retryWithPlaySurface(() => emit("play-episode", ep));
     }
   }, [dismiss]);
 

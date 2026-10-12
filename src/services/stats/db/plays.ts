@@ -5,6 +5,7 @@
  */
 
 import { pool } from "./pool";
+import type { PlaySurface } from "@/lib/usage/vocab";
 import { ADMIT_SESSION, SESSIONS_PER_CLIENT, clientRef, withClientLock } from "./presence";
 
 // ---------------------------------------------------------------------------
@@ -53,6 +54,8 @@ export async function recordPlay(
   source: PlaySource | null = null,
   /** The build that sent it (src/lib/utils/build-id.ts); null when unknown. */
   build: string | null = null,
+  /** Where it was started (src/audio/play-surface.ts); null when unknown. */
+  surface: PlaySurface | null = null,
 ): Promise<void> {
   // The play itself is always counted (it is already rate-limited per client
   // and allowlisted per episode); only its *presence* is subject to the
@@ -73,7 +76,7 @@ export async function recordPlay(
     ), ev AS (
       -- The permanent log. Same event as recent_plays, but never pruned and
       -- carrying the session ref until it expires; see scripts/schema.sql.
-      INSERT INTO play_events (episode_id, session_ref, source, build) VALUES ($1, $3, $6, $7)
+      INSERT INTO play_events (episode_id, session_ref, source, build, surface) VALUES ($1, $3, $6, $7, $8)
     )
     INSERT INTO active_sessions (session_id, seen_at, listening_at, episode_id, client_ref)
     SELECT $3, now(), now(), $1, $4
@@ -81,7 +84,7 @@ export async function recordPlay(
     ON CONFLICT (session_id)
     DO UPDATE SET seen_at = now(), listening_at = now(), episode_id = $1, client_ref = $4
     `,
-    [episodeId, weekKey(), sessionId, ref, SESSIONS_PER_CLIENT, source, build],
+    [episodeId, weekKey(), sessionId, ref, SESSIONS_PER_CLIENT, source, build, surface],
   ));
 }
 

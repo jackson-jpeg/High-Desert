@@ -33,6 +33,10 @@ import { useLibraryPanels } from "@/hooks/library/useLibraryPanels";
 import { useLibraryIntents } from "@/hooks/library/useLibraryIntents";
 import { useLibrarySearchShortcuts } from "@/hooks/library/useLibrarySearchShortcuts";
 import { LibraryIntentReader } from "@/components/library/LibraryIntentReader";
+import { LibraryDial } from "@/components/library/LibraryDial";
+import { LibraryViewSwitch } from "@/components/library/LibraryViewSwitch";
+import { useLibraryView } from "@/hooks/library/useLibraryView";
+import { useLook } from "@/hooks/useLook";
 import { emit } from "@/lib/events";
 
 /**
@@ -52,6 +56,10 @@ export default function LibraryPage() {
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const isMobile = useIsMobile();
   const searchBarRef = useRef<HTMLInputElement>(null);
+  // List or Dial: the dial is a Library mode in the preview looks only
+  // (src/lib/look/nav.ts). The public look is always "list".
+  const libraryView = useLibraryView(useLook());
+  const dialMode = libraryView.view === "dial";
 
   const allEpisodes = useLibraryEpisodes();
 
@@ -118,6 +126,7 @@ export default function LibraryPage() {
     onPlay: handlePlay,
     onRequestBulkDelete: requestBulkDelete,
     onRequestDelete: requestDelete,
+    disabled: dialMode,
   });
 
   useLibraryBusListeners({
@@ -140,6 +149,7 @@ export default function LibraryPage() {
     setSelectedEpisode,
     setFocusedIndex,
     onShuffle: actions.handleShuffle,
+    setView: libraryView.setView,
   });
 
   useLibrarySearchShortcuts({
@@ -211,6 +221,12 @@ export default function LibraryPage() {
         onShowTab={onShowTab}
       />
 
+      {libraryView.available && (
+        <div className="hd-library-modebar flex items-center gap-2 px-3 py-1 flex-shrink-0" data-testid="library-modebar">
+          <LibraryViewSwitch view={libraryView.view} onChange={libraryView.setView} />
+        </div>
+      )}
+
       <ActiveFilterBar
         filters={filters}
         allEpisodes={allEpisodes}
@@ -225,7 +241,7 @@ export default function LibraryPage() {
       <MoodFilterBar filters={filters} moodFilters={facets.moodFilters} />
 
       {/* Swipe gesture tip — shown once on mobile */}
-      {panels.swipeTip && (
+      {panels.swipeTip && !dialMode && (
         <div className="mx-3 mb-1 px-3 py-2 bg-desert-amber/10 border border-desert-amber/20 rounded flex items-center justify-between gap-2 flex-shrink-0 md:hidden animate-fade-in">
           <span className="text-hd-12 text-desert-amber/85">
             Swipe cards: {"←"} favorite {"·"} queue {"→"}
@@ -239,10 +255,10 @@ export default function LibraryPage() {
         </div>
       )}
 
-      <SortPresets filters={filters} />
+      {!dialMode && <SortPresets filters={filters} />}
 
       {/* Discovery section — collapsed by default, compact when expanded */}
-      {!deferredSearch.trim() && !hasActiveFilters && (
+      {!deferredSearch.trim() && !hasActiveFilters && !dialMode && (
         <ExploreBand
           expanded={panels.discoveryOpen}
           onToggle={panels.toggleDiscovery}
@@ -271,8 +287,23 @@ export default function LibraryPage() {
 
         {(allEpisodes === undefined || (allEpisodes.length === 0 && !seedSettled)) && <LibraryListSkeleton />}
 
+        {/* The Library's Dial mode (preview looks): the radio dial over the
+            shows the filters leave, in place of the list. */}
+        {dialMode && allEpisodes !== undefined && (allEpisodes.length > 0 || seedSettled) && (
+          <div className="flex-1 overflow-hidden min-w-0">
+            <LibraryDial
+              episodes={visibleEpisodes}
+              selectedEpisode={selectedEpisode}
+              autoOpen={!isMobile}
+              onOpen={setSelectedEpisode}
+              onEscape={() => (selectedEpisode ? selection.handleCloseDetail() : libraryView.setView("list"))}
+              onClearFilters={hasActiveFilters || search.trim() ? () => { filters.clearAllFilters(); setSearch(""); } : undefined}
+            />
+          </div>
+        )}
+
         {/* Episode list */}
-        {allEpisodes !== undefined && (allEpisodes.length > 0 || seedSettled) && (
+        {!dialMode && allEpisodes !== undefined && (allEpisodes.length > 0 || seedSettled) && (
         <div className="flex-1 overflow-hidden min-w-0">
           {listState === "empty-library" ? (
             <EmptyLibrary />
@@ -348,7 +379,7 @@ export default function LibraryPage() {
       </div>
 
       {/* Floating "Now Playing" button — mobile only */}
-      {isMobile && currentEpisodeId && !selectedEpisode && (
+      {isMobile && currentEpisodeId && !selectedEpisode && !dialMode && (
         <button
           onClick={scrollToCurrent}
           className="fixed bottom-[120px] right-3 z-25 w-[40px] h-[40px] rounded-full bg-midnight/90 border border-desert-amber/30 flex items-center justify-center shadow-lg active:scale-95 transition-transform"

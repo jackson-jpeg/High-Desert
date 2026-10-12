@@ -10,6 +10,8 @@ import { exportLibrarySeed } from "@/db/catalog-export";
 import { TEXT_SCALE_OPTIONS, type TextScaleValue } from "@/hooks/useTextScalePreference";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import type { SortMode } from "@/lib/library/filter-episodes";
+import { useLook } from "@/hooks/useLook";
+import { radioRetired } from "@/lib/look/nav";
 
 /**
  * What the menus open or toggle. The state behind these stays in the shell,
@@ -77,6 +79,8 @@ export function useShellMenus(actions: ShellMenuActions): Menu[] {
   const router = useRouter();
   const openLibrary = useOpenLibraryIntent();
   const isAdmin = useAdminStore((s) => s.isAdmin);
+  // The preview looks have no Radio tab: the dial is a Library mode there.
+  const look = useLook();
   const logout = useCallback(() => {
     useAdminStore.getState().logout();
     toast.info("Admin mode disabled");
@@ -127,7 +131,9 @@ export function useShellMenus(actions: ShellMenuActions): Menu[] {
         { label: "Shuffle Dreamland", onClick: () => openLibrary({ shuffle: "dreamland" }) },
         { separator: true, label: "" },
         { label: "Live Station", onClick: () => router.push("/live") },
-        { label: "Radio Dial", onClick: () => router.push("/radio") },
+        radioRetired(look)
+          ? { label: "Library Dial", onClick: () => openLibrary({ view: "dial" }) }
+          : { label: "Radio Dial", onClick: () => router.push("/radio") },
         { label: "Statistics", onClick: () => router.push("/stats") },
       ],
     },

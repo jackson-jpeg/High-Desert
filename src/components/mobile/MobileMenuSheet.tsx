@@ -8,6 +8,8 @@ import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { presenceAttrs, type LivePresence } from "@/services/stats/now-feed";
 import { sortLabel } from "@/lib/library/sort-keys";
+import { useLook } from "@/hooks/useLook";
+import { radioRetired } from "@/lib/look/nav";
 
 interface MobileMenuSheetProps {
   open: boolean;
@@ -31,6 +33,8 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
   const router = useRouter();
   // Shuffle and sort are URL intents: this sheet opens on every route (HD-013).
   const openLibrary = useOpenLibraryIntent();
+  // The preview looks have no Radio tab: the dial is a Library mode there.
+  const dialInLibrary = radioRetired(useLook());
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
 
@@ -177,13 +181,14 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
           </div>
           <button
             onClick={() => {
-              router.push("/radio");
+              if (dialInLibrary) openLibrary({ view: "dial" });
+              else router.push("/radio");
               hide();
             }}
             className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
           >
             <span className="w-[24px] text-center text-hd-14 text-bevel-dark/85">{"\u{1F4FB}"}</span>
-            <span>Radio Dial</span>
+            <span>{dialInLibrary ? "Library Dial" : "Radio Dial"}</span>
           </button>
           <button
             onClick={() => {

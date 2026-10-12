@@ -93,6 +93,8 @@ CI's 35 minutes run one after another):
 | `/scanner` | Local file scanner + archive.org catalog scraper (admin) |
 | `/search` | Archive.org search and import (admin) |
 | `/stats` | Listening statistics |
+| `/show/<slug>` | One show, server-rendered for search engines (no app shell, works without JavaScript). See "Show pages and search" |
+| `/guest/<slug>` | Every show with one guest (guests with 2+ shows). Same frame as show pages |
 | `/live` | High Desert Live — the 24/7 station: now playing, time left, up next, the day's log, the live count, the phone lines (chat). See "Live station" |
 
 All primary pages share `(desktop)/layout.tsx` — the master client component that initializes the audio player, handles global keyboard shortcuts, seeds the library on first visit, and persists playback state.
@@ -105,7 +107,7 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/archive/scrape` | GET | Proxy for catalog scrape (rate-limited 30/min) |
 | `/api/archive/metadata` | GET | Proxy for item metadata (cached 1hr) |
 | `/api/archive/health` | GET | archive.org reachability probe. Returns **`{up, status, checkedAt}`**. One upstream HEAD is shared by every caller for 60 s (up) / 10 s (down), and concurrent callers share the one in flight — every tab polls it (`useOutageMonitor`) |
-| `/api/stats/play` | POST | Record a play. Body `{episodeId, sessionId, source?, build?}`. Returns `{ok}`. `episodeId` must be in the community-key allowlist. `source` is where the audio came from — `archive`/`mirror`/`cache`/`local` (`PLAY_SOURCES`); anything else is **400**, absent is stored NULL (*unknown*, never assumed to be archive.org). `build` is the sending page's build (see "Long-lived tabs"); anything that is not a build id is stored NULL, never refused |
+| `/api/stats/play` | POST | Record a play. Body `{episodeId, sessionId, source?, build?, surface?}`. Returns `{ok}`. `episodeId` must be in the community-key allowlist. `source` is where the audio came from — `archive`/`mirror`/`cache`/`local` (`PLAY_SOURCES`); anything else is **400**, absent is stored NULL (*unknown*, never assumed to be archive.org). `build` is the sending page's build (see "Long-lived tabs"); anything that is not a build id is stored NULL, never refused. `surface` is where it was started (`play_events.surface`, `src/audio/play-surface.ts`): `library`/`radio`/`live`/`stats`/`show`/`palette`/`queue`/`restore`/`other`; anything else is stored NULL, never refused (`docs/usage-tracking.md`) |
 | `/api/stats/stop` | POST | End playback. Body `{sessionId, keepPresence?}`. `keepPresence: true` clears only the listening mark (the tab is still open); omitting it deletes the session, which is what the unload beacon does. Returns `{ok}` |
 | `/api/stats/rate` | POST | Submit a rating 1–5 or null. Body `{episodeId, rating}`. Returns `{ok}`. One ballot per client (IPv4 address / IPv6 /64), stored as an HMAC; **503 when `RATING_VOTER_SECRET` is unset** |
 | `/api/stats/episodes` | GET | Play counts for up to **100** ids. Returns **`{counts: {id: n}}`** |
@@ -113,7 +115,7 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/community` | GET | Community plays and ratings for the **whole catalog**: **`{episodes: {id: {plays, avg, count}}}`**, only episodes with a play or rating. What "Most played" / "Top rated" sort by and what the list's metric column shows (`src/lib/library/sort-keys.ts`), read through `useCommunityCatalog`. Proxy-cached 60s |
 | `/api/stats/leaderboard` | GET | Top episodes. **`?period=alltime\|week` is required.** Returns **`{entries: [{episodeId, plays}]}`**. `alltime` is `episode_plays` — the same numbers as `/api/stats/community` and the library's "Most played" |
 | `/api/stats/active` | GET | **Legacy alias**, read by no surface in the current build. Returns **`{count, online, listening}`** from the same `getPresence()` as `/now` — `count` is a synonym for `listening` |
-| `/api/stats/heartbeat` | POST | Mark a session present. Body `{sessionId, episodeId?, live?}`. `live: true` (only a literal true) sets `active_sessions.live_at` — sent while tuned in to the live station and playing, or in its station ID; any beat without it clears the mark at once. Returns `{ok}`. Every open tab posts on a 60s interval. `episodeId` is sent **only while that tab is actually playing** and renews `listening_at` — it is what keeps a show on air for its whole runtime instead of for five minutes after someone pressed play. Omitting it leaves the listening mark alone rather than clearing it, so a pause does not yank the show off the air; the mark decays on its own. Same allowlist gate as `/api/stats/play`, but a bad id drops the mark instead of failing the beat — presence is the primary job. A client past `SESSIONS_PER_CLIENT` new sessions gets the same `{ok}` and is not counted |
+| `/api/stats/heartbeat` | POST | Mark a session present. Body `{sessionId, episodeId?, live?, route?, device?, visible?}`. `live: true` (only a literal true) sets `active_sessions.live_at` — sent while tuned in to the live station and playing, or in its station ID; any beat without it clears the mark at once. Returns `{ok}`. Every open tab posts on a 60s interval. `episodeId` is sent **only while that tab is actually playing** and renews `listening_at` — it is what keeps a show on air for its whole runtime instead of for five minutes after someone pressed play. Omitting it leaves the listening mark alone rather than clearing it, so a pause does not yank the show off the air; the mark decays on its own. Same allowlist gate as `/api/stats/play`, but a bad id drops the mark instead of failing the beat — presence is the primary job. A client past `SESSIONS_PER_CLIENT` new sessions gets the same `{ok}` and is not counted. `route`/`device`/`visible` are time per tab, sent on the minute beat only (never the extra beats): `visible: true` with a known tab and device adds a minute to `route_daily` (at most `SESSIONS_PER_CLIENT` a minute per client); bad values are ignored and a failed minute never fails the beat (`docs/usage-tracking.md`) |
 | `/api/stats/now` | GET | **The one presence endpoint.** Presence **plus what is playing**. Returns **`{online, listening, live, onAir: [{episodeId, listeners, title}], recent: [{episodeId, at, title}]}`**; `title` is the catalog's (null for an id it lacks), for a browser whose library has no row for the show. `online` is distinct *clients* (not sessions) with a heartbeat inside 5 min; `listening` is the subset with a playing session; `live` the subset tuned in to the live station (`live_at` inside the window); `listeners` is distinct clients per episode. `no-store` — a stale on-air list is worse than none. Aggregate only: no query joins `session_id` to `episode_id`, and `recent_plays` stores no session at all |
 | `/api/stats/traffic` | GET | Traffic history. `?range=24h\|7d\|30d`. Returns **`{range, points: [{t, online, listening, onlineMax, listeningMax, plays}], peakOnline, peakListening, playsInRange, totalPlays, peakAt, hourly: [{hour, online, listening, plays, samples}]}`**. A point's `online`/`listening` are the bucket's **mean**, `onlineMax`/`listeningMax` its highest sample — the chart's main lines. **`peakOnline`, `peakListening` and `peakAt` come from the raw 2-minute samples**, never from the buckets: a max of averages shrinks as the bucket widens, and 30 days once read a lower peak than 24 hours (`docs/stats-audit.md`, finding 12). `traffic_daily` keeps `peak_online`/`peak_listening`/`peak_at` past the 90-day sample prune; `highdesert-status`'s `peaks` line FAILs unless peak(30d) ≥ peak(7d) ≥ peak(24h). `hourly` is always a 24-entry, zero-filled, **UTC**-hour profile over the last 30 days and does *not* vary with `range`; the client rotates it into local time. `samples: 0` means *never observed*, which is not the same as "observed, nobody here" — the UI hides the profile until 8 hours have been sampled, or a day-old deployment draws 23 empty columns and looks like a dead site. **`playsBySource: {archive, mirror, …, unknown}`** counts `play_events` in the range by `source` — what `highdesert-status` reads for "mirror plays in 24h" |
 | `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Also prunes `weekly_plays` past 3 weeks. Returns `{ok, online, listening, live, totalPlays, rolledUp, anonymized, prunedWeeks}` (`live` is reported, not sampled — `listener_samples` has no column for it) |
@@ -131,6 +133,8 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/live-api/admin/*` | POST | **Not Next.js.** `hide`, `mute`, `ban`, `slow`, `clear-name`, `verify` (the deploy's round trip), `signin` `{nonce}`, `signout`; GET `signin-page`. Cookie or `Authorization: Bearer $LIVE_ADMIN_TOKEN`, else **401** `{error: "admin-only"}`. `/live-api/health` is loopback only (nginx 404s it) |
 | `/api/stats/failures` | GET | Which episodes are failing, worst first. `?days=7\|30\|90`. Returns **`{days, summary, entries: [{episodeId, title, failures, recovered, skippedRetries, plays, rate, kinds, uaClasses, details, lastAt}]}`**. Ids resolved to titles from the seed catalog. `details` is the browser's own diagnostics (up to 3 distinct, newest first), **filtered to diagnostic shapes** — the raw text is attacker-controlled (`publicDetails`, HD-038). `skippedRetries` counts retries not attempted for want of a user gesture, excluding `empty-media`, which is never retried by design — it is the instrument for the activation gate. `summary` is site-wide and is deliberately **not** a sum of `entries`, which is capped at 50 episodes. **Excludes advisory kinds** (`ADVISORY_KINDS` in `src/services/stats/db/failures.ts`) — this ranks episodes by how badly they are failing, and a row that never stopped playback would inflate that. Unauthenticated — it is aggregate-only, and the admin gate is presentation, not protection. `?since=<ISO>` adds **`window: {from, to, failures, recovered, plays, byBuild: [{build, failures, recovered, plays}]}`**, the fixed 7 days from that instant (cut at now) — how `highdesert-status` holds a release to `docs/reliability-baseline.md`, leading with `failures − recovered` (starts the listener lost) |
 | `/api/stats/funnel` | POST/GET | **The arrival funnel** (`docs/funnel.md`). POST `{step, cohort, device}`: a browser reached `visit`/`live`/`tune`/`call` for the first time, and first arrived on `cohort` (UTC `YYYY-MM-DD`, within 30 days) as a `phone` (narrower than 768 px) or `desktop`, fixed at arrival; adds one to `funnel_daily`. Returns `{ok}`; 10/min. GET `?days=7\|30\|90` → **`{days, cohorts: [{day, device, visit, live, tune, call}], totals, byDevice: {phone, desktop}}`**, `no-store`. A browser that arrived with an empty library is counted; one that already had a library is excluded for good (`src/services/stats/funnel-client.ts`, which keeps "once" in localStorage `hd-funnel`). No session, no address, no id. `highdesert-status`'s `funnel` line reads it. Anything that browses production headless must keep out of it: `csp-check` marks its browser excluded, `presence-check` and the e2e fixture answer the POST in the page |
+| `/api/stats/view` | POST | **A tab entered** (`docs/usage-tracking.md`). Body `{route, device, arrival?: {source, landing}}`: adds one view to `route_daily` for today (UTC). `route`/`landing` are `welcome`/`library`/`radio`/`stats`/`live`/`show`/`other` (`routeOf()`, `src/lib/usage/vocab.ts`), `device` `phone` (narrower than 768 px) or `desktop`; an unknown route or device is **400**. `arrival` rides on a browser session's first view (sessionStorage `hd-arrival`): a coarse class decided in the browser, `reddit`/`google`/`other-search`/`ai`/`social`/`internal`/`direct`/`other` (`src/lib/usage/arrival.ts`), counted in `arrival_daily`; a malformed one is dropped and the view still counted. Returns `{ok}`; 60/min. Sent by `UsageTracker` (root layout) once a tab has been on screen 1 s. **Never** a referrer, host, URL, session, address or user agent. Kept out like the funnel: `localStorage["hd-not-counted"]` (set by `csp-check`) stops it, and the minutes and funnel steps too; `presence-check` and the e2e fixture answer the POST in the page |
+| `/api/stats/usage` | GET | **Usage, aggregate only.** `?days=7\|30\|90` (else 7) → **`{days, routes: [{route, device, views, minutes}], arrivals: [{source, landing, device, n}], playsBySurface: {library, radio, live, stats, show, palette, queue, restore, other, unknown}}`**. UTC days, today included; `routes` most viewed first, `arrivals` largest first; `playsBySurface` counts `play_events` in the same window (`unknown`: no surface). `no-store`, 30/min |
 | `/api/stats/export` | GET | **The permanent record, for sang3r.com.** Requires `x-service-token` (`STATS_EXPORT_SECRET`). `?mode=summary\|events\|daily\|episodes`. The only route that returns the event log rather than aggregates, and the only one not reachable from a browser. Episode ids are resolved to titles from the seed catalog. Page `events` with `after=<last id>` — **not** with `since`, which cannot disambiguate two plays sharing a timestamp |
 
 > Response shapes are inconsistent by history, not design. `src/services/stats/client.ts`
@@ -325,12 +329,53 @@ heard. Keys that merely announce something (`HD_NOTIFICATIONS`: `seed-settled`,
 
 **Library intents are URLs, not events** (`src/lib/library/intents.ts`):
 `/library?shuffle=all|coast|dreamland|special`, `?sort=<SortMode>`, `?q=<search>`,
-`?scroll=current`. Callers use `useOpenLibraryIntent()` — push from another route,
+`?scroll=current`, `?show=<communityKey>` (select that show; a show page's "Open in High Desert"). Callers use `useOpenLibraryIntent()` — push from another route,
 replace on /library — never an event and never `setTimeout` waiting for the page to mount.
 `LibraryIntentReader` parses (invalid values ignored), clears the parameters with a
 replace, and `useLibraryIntents` applies them once the data they need exists.
 `/`, Ctrl/Cmd+F and Q are registered by the library itself
 (`useLibrarySearchShortcuts`), so the browser's find works on every other route.
+
+## Show pages and search (read before touching `src/lib/shows/`, `src/app/show/`, `src/app/guest/` or `data/show-slugs.json`)
+
+Every catalog show has `/show/<slug>`, and every guest with 2+ shows `/guest/<slug>`,
+so a search for a guest or topic can land on the show (2026-10-12). Full account and the
+Search Console steps: `docs/show-pages.md`.
+
+- **Slugs are permanent.** `data/show-slugs.json` (`fileHash` → slug, e.g.
+  `1992-12-12-area-51-john-lear-bob-lazar`) is committed and **add-only**: never edit or
+  regenerate an existing entry, even when a title is corrected; a pulled show keeps its
+  entry and its slug is never reused. **After adding shows to the catalog, run
+  `node scripts/gen-show-slugs.mjs`** and commit the map; `show-slugs.test.ts` fails on a
+  show without a slug and on any committed slug that changed.
+- **A light server page, not the app.** `ShowShell` + `ShowView` (`src/components/shows/`):
+  no `(desktop)` layout, no client code. Everything is in the server HTML: a native
+  `<audio controls preload="none">` (archive.org, then the mirror), facts, AI summary,
+  related lists (same guest, same day in other years, same category; bounded, every link
+  a real page). The root layout's boot screen is hidden by a `<style precedence>` hoisted
+  into `<head>` (`NO_BOOT_CSS`); without it the page sat under `#app-loading` for 6 s, and
+  forever without JavaScript. Class hooks are `hd-show-*` for the preview looks.
+- **Head and structured data** (`src/lib/shows/metadata.ts`, `jsonld.ts`): title
+  "Subject with Guests · Programme, Date", description from programme, date and summary
+  (≤160), canonical, Open Graph, Twitter card; a `next/og` card per page
+  (`opengraph-image.tsx`); `PodcastEpisode` (partOfSeries, datePublished, ISO duration,
+  AudioObject with the archive.org URL, Art Bell as `creator`, guests as `actor` only when
+  `guestPeople()` is sure they are people) and `BreadcrumbList`.
+  `scripts/lib/jsonld-check.mjs` holds them to the schema.org vocabulary.
+- **Pages render on first request and are cached until the next deploy**
+  (`generateStaticParams` returns `[]`; about 175 KB of disk per crawled page). **Share
+  cards are drawn per request** with a week-long `Cache-Control` (`CARD_CACHE_CONTROL`),
+  never stored. The build renders neither.
+- `src/app/sitemap.ts` lists every show and guest page; `public/robots.txt` disallows
+  `/api/`, `/scanner`, `/search`, `/look`.
+- **`npm run check:seo -- <url>`** (`scripts/seo-check.mjs`) crawls robots, the sitemap and
+  a fixed sample of pages as raw HTML (no JavaScript) and fails on missing tags, invalid
+  JSON-LD, content absent from the server HTML, any internal link or share image not 200.
+  CI's browser job runs it after the CSP check. Run it against production after a deploy.
+- **`GOOGLE_SITE_VERIFICATION`** (in `/root/.high-desert.env`) adds Search Console's meta
+  tag. It is read at **build** time (the root layout is static); `deploy.sh` passes that one
+  variable through to the build. Absent or malformed: no tag. A DNS TXT record (Domain
+  property) needs no code at all and is the recommended route.
 
 ## Conventions
 
@@ -1078,6 +1123,33 @@ mount (reading it during render caused a hydration mismatch). Force viewer mode 
 set the localStorage key. Never put anything behind it that must actually be protected — all
 admin features are local-only and touch nothing server-side.
 
+## Preview looks: Clean and Win98 (2026-10-12, read before touching `src/lib/look/`, `src/proxy.ts`, `src/styles/look-*.css` or `src/components/looks/`)
+
+Two candidate redesigns run on production **for the owner only**; every other
+visitor gets the public look, which must not change while they exist. Full
+account: `docs/looks.md`; the owner's guide: `docs/redesign-2026-10-12/look-guide.md`.
+
+- **Only the admin can turn one on.** `POST /live-api/admin/look` (admin cookie
+  or bearer) signs `hd_look` under a key derived from `LIVE_ADMIN_TOKEN`; the app
+  holds only the derived key, **`HD_LOOK_KEY`** in `/root/.high-desert.env`
+  (`LIVE_ADMIN_TOKEN=… node services/live/lib/look.mjs --key`). `src/proxy.ts`
+  verifies it on page requests and keeps the script-readable `hd_look_view` in
+  step (deleting a forged one); the boot script sets `<html data-look>` before
+  paint. Pages stay static. No key, no previews. The owner switches at `/look`
+  or with the pill on every page.
+- **Public look untouched**: look CSS only under `html[data-look="…"]`, component
+  swaps only behind `useLook()` (which is `"default"` through hydration), preview
+  components lazily imported. `e2e/looks.spec.ts` fails if the public look ever
+  carries `data-look` or the switcher, and screenshots every screen in every look,
+  phone and desktop (CI artifact `look-screenshots`, every run).
+- **Radio is a Library mode in the previews** (the audit: 2% of plays,
+  `docs/redesign-2026-10-12/usage-report.md`): no Radio tab, `/library?view=dial`,
+  `/radio` redirects there. Navigation per look is `src/lib/look/nav.ts`.
+- Win98 colours are `--hd-w98-*` (in PALETTE like every colour). Win98 swaps:
+  `Taskbar`/Start menu for the tabs, `WinampPlayer` for the player,
+  `NotepadPhoneLines` for the chat (`useCallBox` is shared with `LiveChat`), and
+  the hidden Mel's Hole (type `hole`, or Start, Run…, `melshole`).
+
 ## Design System
 
 - **Desktop:** Windows 98 dark theme — raised/inset bevels, title bars, menu bars, context menus, status bar
@@ -1372,6 +1444,9 @@ breaks a test or a route:
 4. Add its `fileHash` to `REMOVED_FROM_CATALOG` (`src/lib/library/removed-episodes.ts`).
    `removed-episodes.test.ts` holds that list equal to the doc's JSON records and fails if
    one is back in the catalog.
+
+Leave its entry in `data/show-slugs.json`: the show page goes away on its own (404), and the
+slug must never be minted again for another show (`docs/show-pages.md`).
 
 Existing visitors keep the row: `reconcileLibrary()` is `bulkAdd`-only and never deletes. That is
 deliberate, and it is why the runtime guard below matters — a removal only stops an episode

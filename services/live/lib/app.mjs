@@ -57,6 +57,7 @@ import { createModerator, REASON_TEXT } from "./moderation/index.mjs";
 import { dedupKey } from "./moderation/normalize.mjs";
 import { lineFor, LINES, numberedCallerName, randomCallerName } from "./names.mjs";
 import { clearedCookie, isAdminRequest, parseCookies, sessionCookie, sha256hex } from "./admin.mjs";
+import { lookCookie, PREVIEW_LOOKS } from "./look.mjs";
 import { addressRef, callerCookie, callerRef, mintCallerId, verifyCallerCookie } from "./caller.mjs";
 import { SIGNIN_PAGE, SIGNIN_PAGE_HEADERS } from "./signin-page.mjs";
 import { createCpuSampler } from "./cpu.mjs";
@@ -760,6 +761,14 @@ export function createLiveApp({
     if (m === "GET" && p === "/live-api/admin/signin-page") {
       res.writeHead(200, SIGNIN_PAGE_HEADERS);
       return res.end(SIGNIN_PAGE);
+    }
+    if (m === "POST" && p === "/live-api/admin/look") {
+      // The owner's preview look (look.mjs). Admin only; "default" clears it.
+      checkPost(req);
+      requireAdmin(req);
+      const body = await readJson(req);
+      const look = PREVIEW_LOOKS.includes(body.look) ? body.look : "default";
+      return sendJson(res, 200, { ok: true, look }, { "set-cookie": lookCookie(adminToken, look, now()) });
     }
     const adminMatch = /^\/live-api\/admin\/(hide|mute|ban|slow|clear-name|verify)$/.exec(p);
     if (m === "POST" && adminMatch) return admin(req, res, adminMatch[1]);

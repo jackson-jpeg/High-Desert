@@ -3,6 +3,9 @@
 @import "../styles/crt.css";
 @import "../styles/animations.css";
 @import "../styles/radio.css";
+/* Preview looks (docs/looks.md): every rule scoped to html[data-look=…]. */
+@import "../styles/look-clean.css";
+@import "../styles/look-win98.css";
 
 /* ============================================
    Tailwind v4 Theme
@@ -176,6 +179,30 @@
   /* Easter eggs */
   --hd-egg-blue: #7EB8FF;
   --hd-egg-halloween: #FF8C00;
+
+  /* The "Win98" preview look (src/styles/look-win98.css, docs/looks.md).
+     Only that look reads these; it reuses the classic chrome above for the
+     button face, bevels, white fields and navy. Text contrast on the button
+     face (#C0C0C0): ink-muted 6.2:1, maroon 6.0:1, brown 5.2:1, green-text
+     5.4:1, error 4.6:1; on white all clear 7:1. Text on the teal desktop is
+     white (4.8:1), never black. */
+  --hd-w98-face: #C0C0C0;          /* the button face: --hd-chrome's value, kept here because the look re-points --hd-chrome at ink */
+  --hd-w98-teal: #008080;          /* the desktop */
+  --hd-w98-title-end: #1084D0;     /* active title bar, navy to this blue */
+  --hd-w98-ink-muted: #3A3A3A;     /* secondary text on the button face */
+  --hd-w98-maroon: #800000;        /* the accent, where today's look has amber */
+  --hd-w98-brown: #6B3A00;         /* phosphor-amber's role, legible on gray */
+  --hd-w98-green-text: #005000;    /* static-green's role, legible on gray */
+  --hd-w98-error: #A00000;         /* error text */
+  --hd-w98-tooltip: #FFFFE1;       /* tooltip and balloon yellow */
+  --hd-w98-amp-frame: #2B2B3B;     /* Winamp main window */
+  --hd-w98-amp-edge: #5A5A74;      /* its raised edge */
+  --hd-w98-amp-shadow: #15151F;    /* its shadow edge */
+  --hd-w98-amp-text: #C8C8D8;      /* labels on the frame: 8.3:1 */
+  --hd-w98-amp-lcd: #00E000;       /* LCD digits and marquee on black */
+  --hd-w98-amp-lcd-dim: #0A3A0A;   /* unlit LCD segments (decorative) */
+  --hd-w98-amp-gold: #D8C080;      /* title bar stripes */
+  --hd-w98-earth: #4A2F18;         /* Mel's Hole: the walls of the hole */
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);

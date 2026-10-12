@@ -1,9 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
+import { LookSwitcher } from "@/components/looks/LookSwitcher";
+import { UsageTracker } from "@/components/UsageTracker";
 import { BOOT_SCRIPT } from "./boot-script";
 import { PALETTE } from "@/lib/palette";
 import { BUILD_META } from "@/lib/utils/build-id";
+import { siteVerification } from "@/lib/seo/verification";
 import "./globals.css";
 
 const w95fa = localFont({
@@ -32,6 +35,8 @@ export const metadata: Metadata = {
     "UFO", "late night radio", "Kingdom of Nye", "talk radio", "streaming",
   ],
   manifest: "/manifest.json",
+  // Search Console's meta tag, only when GOOGLE_SITE_VERIFICATION is set at build.
+  verification: siteVerification(),
   // Root canonical only. Child layouts override it per route — Next inherits
   // this value otherwise, which had every page pointing at "/".
   alternates: {
@@ -93,7 +98,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: the boot script may set data-look (a preview
+    // look, src/lib/look/look.ts) on this element before React hydrates.
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/* The build this document belongs to (src/lib/utils/build-id.ts). */}
         <meta name={BUILD_META} content={process.env.NEXT_PUBLIC_BUILD_ID ?? "dev"} />
@@ -171,7 +178,9 @@ export default function RootLayout({
         </div>
         <script dangerouslySetInnerHTML={{ __html: BOOT_SCRIPT }} />
         <ServiceWorkerRegistration />
+        <UsageTracker />
         {children}
+        <LookSwitcher />
       </body>
     </html>
   );

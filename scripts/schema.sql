@@ -154,6 +154,13 @@ ALTER TABLE play_events ADD COLUMN IF NOT EXISTS source text;
 -- wrote it, so a tab left open on old code is counted apart from the release.
 ALTER TABLE play_events ADD COLUMN IF NOT EXISTS build text
   CHECK (build IS NULL OR build ~ '^[0-9a-f]{7,40}(-[0-9a-f]{7})?$');
+-- Where the play was started (src/audio/play-surface.ts, docs/usage-tracking.md):
+-- the tab it was started on, or `live` (the station), `queue` (a queue advance
+-- or a pick from the queue), `restore` (the remembered show's first play),
+-- `palette` (the command palette). NULL for rows before 2026-10-12 and for a
+-- value the server does not know: unknown, never a refused play.
+ALTER TABLE play_events ADD COLUMN IF NOT EXISTS surface text
+  CHECK (surface IS NULL OR surface IN ('library', 'radio', 'live', 'stats', 'show', 'palette', 'queue', 'restore', 'other'));
 CREATE INDEX IF NOT EXISTS play_events_played_at_idx
   ON play_events (played_at DESC);
 CREATE INDEX IF NOT EXISTS play_events_episode_idx
@@ -320,4 +327,36 @@ CREATE TABLE IF NOT EXISTS funnel_daily (
   step   text   NOT NULL CHECK (step IN ('visit', 'live', 'tune', 'call')),
   n      bigint NOT NULL DEFAULT 0,
   PRIMARY KEY (day, device, step)
+);
+
+-- ---------------------------------------------------------------------------
+-- Usage: tab views, time per tab, arrivals (src/services/stats/db/usage.ts,
+-- docs/usage-tracking.md)
+-- ---------------------------------------------------------------------------
+
+-- Per UTC day, tab and device: `views` is one per tab entered (client-side
+-- navigation included, POST /api/stats/view), `minutes` one per minute
+-- heartbeat from a tab that was on screen. `device` is phone (narrower than
+-- 768 px, the app's breakpoint) or desktop at the time. Counters only: no
+-- session, no address, no browser id.
+CREATE TABLE IF NOT EXISTS route_daily (
+  day     date   NOT NULL,
+  route   text   NOT NULL CHECK (route IN ('welcome', 'library', 'radio', 'stats', 'live', 'show', 'other')),
+  device  text   NOT NULL CHECK (device IN ('phone', 'desktop')),
+  views   bigint NOT NULL DEFAULT 0,
+  minutes bigint NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, route, device)
+);
+
+-- Per UTC day: browser sessions by where they came from, the tab they landed
+-- on and the device. `source` is a coarse class decided in the browser
+-- (src/lib/usage/arrival.ts); the referrer, its host and the URL are never
+-- sent. One per browser session (sessionStorage).
+CREATE TABLE IF NOT EXISTS arrival_daily (
+  day     date   NOT NULL,
+  source  text   NOT NULL CHECK (source IN ('reddit', 'google', 'other-search', 'ai', 'social', 'internal', 'direct', 'other')),
+  landing text   NOT NULL CHECK (landing IN ('welcome', 'library', 'radio', 'stats', 'live', 'show', 'other')),
+  device  text   NOT NULL CHECK (device IN ('phone', 'desktop')),
+  n       bigint NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, source, landing, device)
 );

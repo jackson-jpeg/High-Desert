@@ -116,7 +116,7 @@ export interface LivePresence {
   poll: number;
 }
 
-export type PresenceSurface = "badge" | "status-bar" | "mobile-sheet" | "on-air" | "signal-traffic" | "live";
+export type PresenceSurface = "badge" | "status-bar" | "mobile-sheet" | "on-air" | "signal-traffic" | "live" | "taskbar";
 
 /**
  * The attributes every presence surface renders on the element that shows the

@@ -31,7 +31,9 @@ import { DBErrorBoundary } from "@/components/DBErrorBoundary";
 import { MilestoneDialog } from "@/components/desktop/MilestoneDialog";
 import { playStartupSound } from "@/audio/startup-sound";
 import { createScanPreview } from "@/audio/scan-preview";
+import { dialOwnsKeys } from "@/hooks/useRadioDialKeys";
 import { beginStart, isCurrentStart } from "@/audio/play-session";
+import { bindPlaySurface } from "@/audio/play-surface";
 import { toast } from "@/stores/toast-store";
 import { emit, onHdEvent, SW_OFFLINE_FALLBACK } from "@/lib/events";
 import { isKeyOwnedByTarget } from "@/lib/utils/key-ownership";
@@ -144,6 +146,8 @@ export default function DesktopLayout({
       // the meantime; each continuation checks it is still the newest start
       // before going on, and playEpisode checks again (HD-003).
       const start = beginStart();
+      // Whatever surface the emitter declared (src/audio/play-surface.ts).
+      bindPlaySurface(start);
 
       // Archive episodes stream directly — no file picker needed
       if (episode.sourceUrl) {
@@ -465,8 +469,9 @@ export default function DesktopLayout({
       // shared with the library and radio handlers (HD-011).
       if (isKeyOwnedByTarget(e)) return;
 
-      // Radio dial page has its own keyboard handler
-      if (pathname === "/radio") return;
+      // Radio dial page has its own keyboard handler, and so has the
+      // Library's Dial mode (preview looks), which /library cannot tell.
+      if (pathname === "/radio" || dialOwnsKeys()) return;
 
       // Easter egg: Ctrl+Shift+A → Area 51 signal drop
       if (e.code === "KeyA" && e.ctrlKey && e.shiftKey) {
