@@ -427,7 +427,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/art-bell-2001-to-2010/1994-07-04%20-%20Dreamland%20with%20Art%20Bell%20-%20The%20Reptilian%20Connection%20-%20John%20Rhodes.mp3",
     "archiveIdentifier": "art-bell-2001-to-2010",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   },
   {
     "fileHash": "archive:ultimate-ultimate-art-bell-collection:1994-07-17 - Dreamland with Art Bell - Robert Monroe - OBE's.mp3",
@@ -5633,7 +5634,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/art-bell-1990-2000/1997-02-19-Art-Bell-SIT-Jim-Forbes-Strange-Universe.mp3",
     "archiveIdentifier": "art-bell-1990-2000",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Paranormal & Ghosts"
   },
   {
     "fileHash": "archive:ultimate-ultimate-art-bell-collection:1997-02-21 - Coast to Coast AM with Art Bell - Steven Greer - Contact and Disclosure. Mel Waters (first appearance - Mel's Hole).mp3",
@@ -10797,7 +10799,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/1993-06-20-coast-to-coast-am-with-art-bell-al-bielek-philadelphia-experiment_202510/1998-03-05%20-%20Coast%20to%20Coast%20AM%20with%20Art%20Bell%20-%20Bruce%20Rux%20-%20Hollywood%20and%20UFOs.mp3",
     "archiveIdentifier": "1993-06-20-coast-to-coast-am-with-art-bell-al-bielek-philadelphia-experiment_202510",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   },
   {
     "fileHash": "archive:ultimate-ultimate-art-bell-collection:1998-03-09 - Coast to Coast AM with Art Bell -  Steve Gibbs - Time Machine Inventor. Chris Ruddy - Death of James McDougal.mp3",
@@ -35670,7 +35673,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-07-20%20-%20Art%20Bell%20MITD%20-%20Graham%20Hancock.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Ancient Mysteries"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-07-21 - Art Bell MITD - Charles Faddis Biological Warfare.mp3",
@@ -35688,7 +35692,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-07-21%20-%20Art%20Bell%20MITD%20-%20Charles%20Faddis%20Biological%20Warfare.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Conspiracy & Government"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-07-22 - Art Bell MITD - Linda Moulton Howe.mp3",
@@ -35705,7 +35710,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-07-22%20-%20Art%20Bell%20MITD%20-%20Linda%20Moulton%20Howe.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-07-23 - Art Bell MITD - Nassim Haramein.mp3",
@@ -35722,7 +35728,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-07-23%20-%20Art%20Bell%20MITD%20-%20Nassim%20Haramein.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Science & Physics"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-07-24 - Art Bell MITD - Open Lines.mp3",
@@ -35739,7 +35746,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-07-24%20-%20Art%20Bell%20MITD%20-%20Open%20Lines.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-07-27 - Art Bell MITD - Grant Cameron.mp3",
@@ -35756,7 +35764,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-07-27%20-%20Art%20Bell%20MITD%20-%20Grant%20Cameron.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-07-28 - Art Bell MITD - Richard Dolan.mp3",
@@ -35773,7 +35782,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-07-28%20-%20Art%20Bell%20MITD%20-%20Richard%20Dolan.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-07-29 - Art Bell MITD - Preston Dennett UFOs Paranormal.mp3",
@@ -35791,7 +35801,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-07-29%20-%20Art%20Bell%20MITD%20-%20Preston%20Dennett%20UFOs%20Paranormal.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-07-30 - Art Bell MITD - John Dvorak Life Beyond Earth.mp3",
@@ -35809,7 +35820,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-07-30%20-%20Art%20Bell%20MITD%20-%20John%20Dvorak%20Life%20Beyond%20Earth.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Space & Astronomy"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-07-31 - Art Bell MITD - Open Lines Paranormal Stories.mp3",
@@ -35826,7 +35838,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-07-31%20-%20Art%20Bell%20MITD%20-%20Open%20Lines%20Paranormal%20Stories.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-01 - Art Bell MITD - Blanche Barton Church Of Satan.mp3",
@@ -35844,7 +35857,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-01%20-%20Art%20Bell%20MITD%20-%20Blanche%20Barton%20Church%20Of%20Satan.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Religion & Spirituality"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-03 - Art Bell MITD - Open Lines Shadow People Stories.mp3",
@@ -35861,7 +35875,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-03%20-%20Art%20Bell%20MITD%20-%20Open%20Lines%20Shadow%20People%20Stories.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-04 - Art Bell MITD - Jay Weidner Stanton Friedman.mp3",
@@ -35878,7 +35893,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-04%20-%20Art%20Bell%20MITD%20-%20Jay%20Weidner%20Stanton%20Friedman.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-05 - Art Bell MITD - Jon The Morgile Josh Grindlay Flat Earth Debate.mp3",
@@ -35896,7 +35912,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-05%20-%20Art%20Bell%20MITD%20-%20Jon%20The%20Morgile%20Josh%20Grindlay%20Flat%20Earth%20Debate.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Science & Physics"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-06 - Art Bell MITD - Michael Rugg Bigfoot Discovery Museum.mp3",
@@ -35914,7 +35931,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-06%20-%20Art%20Bell%20MITD%20-%20Michael%20Rugg%20Bigfoot%20Discovery%20Museum.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Cryptozoology"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-07 - Art Bell MITD - Travis Walton Alien Abductions.mp3",
@@ -35932,7 +35950,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-07%20-%20Art%20Bell%20MITD%20-%20Travis%20Walton%20Alien%20Abductions.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-10 - Art Bell MITD - Joe Mcmoneagle Remote Viewing.mp3",
@@ -35950,7 +35969,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-10%20-%20Art%20Bell%20MITD%20-%20Joe%20Mcmoneagle%20Remote%20Viewing.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Psychology & Consciousness"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-11 - Art Bell MITD - Seth Shostak SETI.mp3",
@@ -35968,7 +35988,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-11%20-%20Art%20Bell%20MITD%20-%20Seth%20Shostak%20SETI.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Space & Astronomy"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-12 - Art Bell MITD - Open Lines September Doom.mp3",
@@ -35985,7 +36006,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-12%20-%20Art%20Bell%20MITD%20-%20Open%20Lines%20September%20Doom.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-14 - Art Bell MITD - Andrew Basiago Time Travel & Teleportation.mp3",
@@ -36003,7 +36025,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-14%20-%20Art%20Bell%20MITD%20-%20Andrew%20Basiago%20Time%20Travel%20%26%20Teleportation.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Conspiracy & Government"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-17 - Art Bell MITD - Joe Rogan & David Sereda ET Contact.mp3",
@@ -36021,7 +36044,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-17%20-%20Art%20Bell%20MITD%20-%20Joe%20Rogan%20%26%20David%20Sereda%20ET%20Contact.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-18 - Art Bell MITD - Father Jack Ashcraft Exorcism.mp3",
@@ -36039,7 +36063,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-18%20-%20Art%20Bell%20MITD%20-%20Father%20Jack%20Ashcraft%20Exorcism.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Religion & Spirituality"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-19 - Art Bell MITD - Jim Sanders & Bill Birnes TWA Flight 800.mp3",
@@ -36057,7 +36082,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-19%20-%20Art%20Bell%20MITD%20-%20Jim%20Sanders%20%26%20Bill%20Birnes%20TWA%20Flight%20800.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Conspiracy & Government"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-20 - Art Bell MITD - Barbara Mcbeath Brendan Cook EVPs.mp3",
@@ -36075,7 +36101,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-20%20-%20Art%20Bell%20MITD%20-%20Barbara%20Mcbeath%20Brendan%20Cook%20EVPs.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Paranormal & Ghosts"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-21 - Art Bell MITD - Open Lines Pact With the Devil.mp3",
@@ -36092,7 +36119,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-21%20-%20Art%20Bell%20MITD%20-%20Open%20Lines%20Pact%20With%20the%20Devil.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-24 - Art Bell MITD - Dean Radin Global Consciousness.mp3",
@@ -36110,7 +36138,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-24%20-%20Art%20Bell%20MITD%20-%20Dean%20Radin%20Global%20Consciousness.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Psychology & Consciousness"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-25 - Art Bell MITD - Peter Robbins Rendlesham Forest.mp3",
@@ -36128,7 +36157,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-25%20-%20Art%20Bell%20MITD%20-%20Peter%20Robbins%20Rendlesham%20Forest.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-26 - Art Bell MITD - Marcus Hutter Artificial Intelligence.mp3",
@@ -36146,7 +36176,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-26%20-%20Art%20Bell%20MITD%20-%20Marcus%20Hutter%20Artificial%20Intelligence.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Technology & Invention"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-27 - Art Bell MITD - Dr Ron Klatz Anti Aging.mp3",
@@ -36164,7 +36195,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-27%20-%20Art%20Bell%20MITD%20-%20Dr%20Ron%20Klatz%20Anti%20Aging.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Health & Medicine"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-28 - Art Bell MITD - Open Lines Truth Or Trash.mp3",
@@ -36181,7 +36213,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-28%20-%20Art%20Bell%20MITD%20-%20Open%20Lines%20Truth%20Or%20Trash.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-08-31 - Art Bell MITD - David Darling Asteroids & The Cosmos.mp3",
@@ -36199,7 +36232,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-08-31%20-%20Art%20Bell%20MITD%20-%20David%20Darling%20Asteroids%20%26%20The%20Cosmos.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Space & Astronomy"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-01 - Art Bell MITD - Patrick Burns EVPs.mp3",
@@ -36217,7 +36251,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-01%20-%20Art%20Bell%20MITD%20-%20Patrick%20Burns%20EVPs.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Paranormal & Ghosts"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-02 - Art Bell MITD - Open Lines Married To An Alien Line.mp3",
@@ -36234,7 +36269,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-02%20-%20Art%20Bell%20MITD%20-%20Open%20Lines%20Married%20To%20An%20Alien%20Line.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-02 - Art Bell MITD - Peter Davenport UFO Center.mp3",
@@ -36252,7 +36288,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-02%20-%20Art%20Bell%20MITD%20-%20Peter%20Davenport%20UFO%20Center.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-03 - Art Bell MITD - Linda Godfrey Weird Creatures.mp3",
@@ -36270,7 +36307,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-03%20-%20Art%20Bell%20MITD%20-%20Linda%20Godfrey%20Weird%20Creatures.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Cryptozoology"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-04 - Art Bell MITD - Mad Man Markum Time Traveler.mp3",
@@ -36288,7 +36326,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-04%20-%20Art%20Bell%20MITD%20-%20Mad%20Man%20Markum%20Time%20Traveler.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Technology & Invention"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-07 - Art Bell MITD - Dave Paulides Missing 411.mp3",
@@ -36306,7 +36345,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-07%20-%20Art%20Bell%20MITD%20-%20Dave%20Paulides%20Missing%20411.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Crime & Mystery"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-08 - Art Bell MITD - Debbie Anderson Witchcraft.mp3",
@@ -36324,7 +36364,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-08%20-%20Art%20Bell%20MITD%20-%20Debbie%20Anderson%20Witchcraft.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Religion & Spirituality"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-09 - Art Bell MITD - Elaine Bigfoot in Back Yard.mp3",
@@ -36342,7 +36383,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-09%20-%20Art%20Bell%20MITD%20-%20Elaine%20Bigfoot%20in%20Back%20Yard.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Cryptozoology"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-10 - Art Bell MITD - David Pares Space Warp Technology.mp3",
@@ -36360,7 +36402,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-10%20-%20Art%20Bell%20MITD%20-%20David%20Pares%20Space%20Warp%20Technology.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Technology & Invention"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-11 - Art Bell MITD - Open Lines Atheist Debate & Planet X.mp3",
@@ -36377,7 +36420,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-11%20-%20Art%20Bell%20MITD%20-%20Open%20Lines%20Atheist%20Debate%20%26%20Planet%20X.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-14 - Art Bell MITD - Charles Maxwell Crop Circles.mp3",
@@ -36395,7 +36439,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-14%20-%20Art%20Bell%20MITD%20-%20Charles%20Maxwell%20Crop%20Circles.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-15 - Art Bell MITD - Loyd Auerbach.mp3",
@@ -36412,7 +36457,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-15%20-%20Art%20Bell%20MITD%20-%20Loyd%20Auerbach.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Paranormal & Ghosts"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-16 - Art Bell MITD - David Weatherly Shadow People.mp3",
@@ -36430,7 +36476,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-16%20-%20Art%20Bell%20MITD%20-%20David%20Weatherly%20Shadow%20People.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Paranormal & Ghosts"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-17 - Art Bell MITD - John Burroughs Rendlesham Forest UFO.mp3",
@@ -36448,7 +36495,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-17%20-%20Art%20Bell%20MITD%20-%20John%20Burroughs%20Rendlesham%20Forest%20UFO.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-21 - Art Bell MITD - Dr Jeffrey Long NDEs.mp3",
@@ -36466,7 +36514,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-21%20-%20Art%20Bell%20MITD%20-%20Dr%20Jeffrey%20Long%20NDEs.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Paranormal & Ghosts"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-22 - Art Bell MITD - Dr Kevin Trenberth Climate Change.mp3",
@@ -36484,7 +36533,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-22%20-%20Art%20Bell%20MITD%20-%20Dr%20Kevin%20Trenberth%20Climate%20Change.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Earth Changes & Environment"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-24 - Art Bell MITD - David Jacobs UFOs Alien Abductions.mp3",
@@ -36502,7 +36552,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-24%20-%20Art%20Bell%20MITD%20-%20David%20Jacobs%20UFOs%20Alien%20Abductions.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-25 - Art Bell MITD - Open Lines Anything Goes & I'm Losing My Mind Line.mp3",
@@ -36519,7 +36570,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-25%20-%20Art%20Bell%20MITD%20-%20Open%20Lines%20Anything%20Goes%20%26%20I'm%20Losing%20My%20Mind%20Line.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-28 - Art Bell MITD - Nick Redfern Unsolved Mysteries.mp3",
@@ -36537,7 +36589,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-28%20-%20Art%20Bell%20MITD%20-%20Nick%20Redfern%20Unsolved%20Mysteries.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Crime & Mystery"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-29 - Art Bell MITD - Steven Starr Nuclear War.mp3",
@@ -36555,7 +36608,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-29%20-%20Art%20Bell%20MITD%20-%20Steven%20Starr%20Nuclear%20War.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Earth Changes & Environment"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-09-30 - Art Bell MITD - Albert Taylor OBEs.mp3",
@@ -36573,7 +36627,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-09-30%20-%20Art%20Bell%20MITD%20-%20Albert%20Taylor%20OBEs.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Psychology & Consciousness"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-01 - Art Bell MITD - Father Michael Maginot.mp3",
@@ -36590,7 +36645,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-01%20-%20Art%20Bell%20MITD%20-%20Father%20Michael%20Maginot.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Religion & Spirituality"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-02 - Art Bell MITD - I Married An Alien.mp3",
@@ -36607,7 +36663,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-02%20-%20Art%20Bell%20MITD%20-%20I%20Married%20An%20Alien.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-05 - Art Bell MITD - Tess Gerritsen Gravity.mp3",
@@ -36625,7 +36682,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-05%20-%20Art%20Bell%20MITD%20-%20Tess%20Gerritsen%20Gravity.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Other"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-06 - Art Bell MITD - Professor Ronald Mallett Time Travel.mp3",
@@ -36643,7 +36701,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-06%20-%20Art%20Bell%20MITD%20-%20Professor%20Ronald%20Mallett%20Time%20Travel.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Science & Physics"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-07 - Art Bell MITD - Ron Morehead & Scott Nelson Sounds of Sasquatch.mp3",
@@ -36661,7 +36720,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-07%20-%20Art%20Bell%20MITD%20-%20Ron%20Morehead%20%26%20Scott%20Nelson%20Sounds%20of%20Sasquatch.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Cryptozoology"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-08 - Art Bell MITD - Kevin Mitnick Hacking.mp3",
@@ -36679,7 +36739,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-08%20-%20Art%20Bell%20MITD%20-%20Kevin%20Mitnick%20Hacking.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Technology & Invention"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-09 - Art Bell MITD - Open Lines Scott Free Line.mp3",
@@ -36696,7 +36757,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-09%20-%20Art%20Bell%20MITD%20-%20Open%20Lines%20Scott%20Free%20Line.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-10 - Art Bell MITD - Ron Morehead & Scott Nelson Bigfoot Sounds.mp3",
@@ -36714,7 +36776,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-10%20-%20Art%20Bell%20MITD%20-%20Ron%20Morehead%20%26%20Scott%20Nelson%20Bigfoot%20Sounds.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Cryptozoology"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-12 - Art Bell MITD - Dr Dennis Mckenna Psychedelic Research.mp3",
@@ -36732,7 +36795,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-12%20-%20Art%20Bell%20MITD%20-%20Dr%20Dennis%20Mckenna%20Psychedelic%20Research.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Psychology & Consciousness"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-13 - Art Bell MITD - Dr Barry Taff.mp3",
@@ -36749,7 +36813,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-13%20-%20Art%20Bell%20MITD%20-%20Dr%20Barry%20Taff.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Paranormal & Ghosts"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-14 - Art Bell MITD - Steven Greer Disclosure.mp3",
@@ -36767,7 +36832,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-14%20-%20Art%20Bell%20MITD%20-%20Steven%20Greer%20Disclosure.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-15 - Art Bell MITD - Cynthia Larson Reality Shifting.mp3",
@@ -36785,7 +36851,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-15%20-%20Art%20Bell%20MITD%20-%20Cynthia%20Larson%20Reality%20Shifting.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Psychology & Consciousness"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-16 - Art Bell MITD - Open Lines Super Power Line.mp3",
@@ -36802,7 +36869,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-16%20-%20Art%20Bell%20MITD%20-%20Open%20Lines%20Super%20Power%20Line.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-20 - Art Bell MITD - David Jacobs Hubrids Part II.mp3",
@@ -36820,7 +36888,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-20%20-%20Art%20Bell%20MITD%20-%20David%20Jacobs%20Hubrids%20Part%20II.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-21 - Art Bell MITD - Dr William Forstchen Space Elevator EMPs.mp3",
@@ -36838,7 +36907,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-21%20-%20Art%20Bell%20MITD%20-%20Dr%20William%20Forstchen%20Space%20Elevator%20EMPs.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Technology & Invention"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-22 - Art Bell MITD - Douglas Mulhall Nanotechnology.mp3",
@@ -36856,7 +36926,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-22%20-%20Art%20Bell%20MITD%20-%20Douglas%20Mulhall%20Nanotechnology.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Technology & Invention"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-23 - Art Bell MITD - Open Lines Future 30 Year Prediction Line.mp3",
@@ -36873,7 +36944,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-23%20-%20Art%20Bell%20MITD%20-%20Open%20Lines%20Future%2030%20Year%20Prediction%20Line.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-26 - Art Bell MITD - Dr Michael Lynch The Ghost Phenomenon.mp3",
@@ -36891,7 +36963,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-26%20-%20Art%20Bell%20MITD%20-%20Dr%20Michael%20Lynch%20The%20Ghost%20Phenomenon.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Paranormal & Ghosts"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-27 - Art Bell MITD - Tish Owen.mp3",
@@ -36908,7 +36981,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-27%20-%20Art%20Bell%20MITD%20-%20Tish%20Owen.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Other"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-28 - Art Bell MITD - Joel Martin Bill Birnes The Amityville Horror Hoax.mp3",
@@ -36926,7 +37000,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-28%20-%20Art%20Bell%20MITD%20-%20Joel%20Martin%20Bill%20Birnes%20The%20Amityville%20Horror%20Hoax.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Paranormal & Ghosts"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-29 - Art Bell MITD - Neil deGrasse Tyson.mp3",
@@ -36943,7 +37018,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-29%20-%20Art%20Bell%20MITD%20-%20Neil%20deGrasse%20Tyson.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Space & Astronomy"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-10-30 - Art Bell MITD - Halloween Special Dead Air.mp3",
@@ -36960,7 +37036,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-10-30%20-%20Art%20Bell%20MITD%20-%20Halloween%20Special%20Dead%20Air.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Paranormal & Ghosts"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-11-02 - Art Bell MITD - Cody Lundin Survival.mp3",
@@ -36978,7 +37055,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-11-02%20-%20Art%20Bell%20MITD%20-%20Cody%20Lundin%20Survival.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Other"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-11-03 - Art Bell MITD - Linda Moulton Howe Mega Structure Cerius and More.mp3",
@@ -36996,7 +37074,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-11-03%20-%20Art%20Bell%20MITD%20-%20Linda%20Moulton%20Howe%20Mega%20Structure%20Cerius%20and%20More.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Space & Astronomy"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-11-04 - Art Bell MITD - Deborah Moffitt A True Haunting.mp3",
@@ -37014,7 +37093,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-11-04%20-%20Art%20Bell%20MITD%20-%20Deborah%20Moffitt%20A%20True%20Haunting.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Paranormal & Ghosts"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-11-05 - Art Bell MITD - Gregory Paxson Past Life Regressions.mp3",
@@ -37032,7 +37112,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-11-05%20-%20Art%20Bell%20MITD%20-%20Gregory%20Paxson%20Past%20Life%20Regressions.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Psychology & Consciousness"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-11-06 - Art Bell MITD - Open Lines Past Lives Line.mp3",
@@ -37049,7 +37130,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-11-06%20-%20Art%20Bell%20MITD%20-%20Open%20Lines%20Past%20Lives%20Line.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-11-09 - Art Bell MITD - Ralph Sarchie.mp3",
@@ -37066,7 +37148,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-11-09%20-%20Art%20Bell%20MITD%20-%20Ralph%20Sarchie.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Paranormal & Ghosts"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-11-10 - Art Bell MITD - Jim Elvidge Digital Simulated Reality.mp3",
@@ -37084,7 +37167,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-11-10%20-%20Art%20Bell%20MITD%20-%20Jim%20Elvidge%20Digital%20Simulated%20Reality.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Science & Physics"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-11-11 - Art Bell MITD - Warren Faidley Storm Chasing.mp3",
@@ -37102,7 +37186,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-11-11%20-%20Art%20Bell%20MITD%20-%20Warren%20Faidley%20Storm%20Chasing.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Earth Changes & Environment"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-11-12 - Art Bell MITD - Dr Gillian Holloway Lucid Dreaming.mp3",
@@ -37120,7 +37205,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-11-12%20-%20Art%20Bell%20MITD%20-%20Dr%20Gillian%20Holloway%20Lucid%20Dreaming.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Psychology & Consciousness"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-11-13 - Art Bell MITD - Open Lines Paris Attacks.mp3",
@@ -37137,7 +37223,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-11-13%20-%20Art%20Bell%20MITD%20-%20Open%20Lines%20Paris%20Attacks.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-11-16 - Art Bell MITD - Jill Heinerth Underwater Cave Exploration.mp3",
@@ -37155,7 +37242,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-11-16%20-%20Art%20Bell%20MITD%20-%20Jill%20Heinerth%20Underwater%20Cave%20Exploration.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Other"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-11-17 - Art Bell MITD - Kevin Randle 100 Years of UFO Coverups.mp3",
@@ -37173,7 +37261,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-11-17%20-%20Art%20Bell%20MITD%20-%20Kevin%20Randle%20100%20Years%20of%20UFO%20Coverups.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-11-18 - Art Bell MITD - Jeffrey Scott Holland Feral Humans.mp3",
@@ -37191,7 +37280,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-11-18%20-%20Art%20Bell%20MITD%20-%20Jeffrey%20Scott%20Holland%20Feral%20Humans.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Cryptozoology"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-11-20 - Art Bell MITD - Open Prepper's Line.mp3",
@@ -37208,7 +37298,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-11-20%20-%20Art%20Bell%20MITD%20-%20Open%20Prepper's%20Line.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-11-23 - Art Bell MITD - Michio Kaku.mp3",
@@ -37225,7 +37316,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-11-23%20-%20Art%20Bell%20MITD%20-%20Michio%20Kaku.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Science & Physics"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-11-25 - Art Bell MITD - R. Scott Lemriel The Seres Agenda.mp3",
@@ -37243,7 +37335,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-11-25%20-%20Art%20Bell%20MITD%20-%20R.%20Scott%20Lemriel%20The%20Seres%20Agenda.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-11-27 - Art Bell MITD - Open Lines Anything Goes.mp3",
@@ -37260,7 +37353,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-11-27%20-%20Art%20Bell%20MITD%20-%20Open%20Lines%20Anything%20Goes.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-11-30 - Art Bell MITD - Ken Gerhard Flying Humanoids.mp3",
@@ -37278,7 +37372,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-11-30%20-%20Art%20Bell%20MITD%20-%20Ken%20Gerhard%20Flying%20Humanoids.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Cryptozoology"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-12-01 - Art Bell MITD - Todd Robbins Master of the Macabre.mp3",
@@ -37296,7 +37391,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-12-01%20-%20Art%20Bell%20MITD%20-%20Todd%20Robbins%20Master%20of%20the%20Macabre.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Other"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-12-02 - Art Bell MITD - Open Lines San Bernardino Shooting.mp3",
@@ -37313,7 +37409,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-12-02%20-%20Art%20Bell%20MITD%20-%20Open%20Lines%20San%20Bernardino%20Shooting.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-12-03 - Art Bell MITD - Sally Vander Veer Legal Marijuana.mp3",
@@ -37331,7 +37428,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-12-03%20-%20Art%20Bell%20MITD%20-%20Sally%20Vander%20Veer%20Legal%20Marijuana.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Health & Medicine"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-12-04 - Art Bell MITD - Open Lines Inhuman Encounter Line.mp3",
@@ -37348,7 +37446,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-12-04%20-%20Art%20Bell%20MITD%20-%20Open%20Lines%20Inhuman%20Encounter%20Line.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Open Lines"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-12-07 - Art Bell MITD - Neil Sanders Modern Mind Control.mp3",
@@ -37366,7 +37465,8 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-12-07%20-%20Art%20Bell%20MITD%20-%20Neil%20Sanders%20Modern%20Mind%20Control.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "Psychology & Consciousness"
   },
   {
     "fileHash": "archive:Art-Bell_Midnight_In_the_Desert:2015-12-08 - Art Bell MITD - Dr David Jacobs Alien Experimentation on Humans.mp3",
@@ -37384,6 +37484,7 @@
     "source": "archive",
     "sourceUrl": "https://archive.org/download/Art-Bell_Midnight_In_the_Desert/2015-12-08%20-%20Art%20Bell%20MITD%20-%20Dr%20David%20Jacobs%20Alien%20Experimentation%20on%20Humans.mp3",
     "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
-    "aiStatus": "pending"
+    "aiStatus": "pending",
+    "aiCategory": "UFOs & Aliens"
   }
 ]

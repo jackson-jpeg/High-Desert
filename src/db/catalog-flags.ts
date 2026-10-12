@@ -1,6 +1,7 @@
 import { db, getPreference, setPreference } from "./index";
 import { withSeedLock } from "./seed-lock";
 import notable from "../../data/notable.json";
+import communityCategories from "../../data/community-categories.json";
 
 /**
  * Bring existing visitors' catalog rows up to date with the curated notable
@@ -55,6 +56,51 @@ async function _refreshCatalogFlags(): Promise<number> {
     return changed;
   } catch (err) {
     console.warn("[catalog-flags] notable refresh failed:", err);
+    return 0;
+  }
+}
+
+/**
+ * The categories given to the 101 community shows on 2026-10-12
+ * (`data/community-categories.json`, logged in `docs/community-sources.md`).
+ * Those rows reached existing libraries through reconcile with no
+ * `aiCategory`, and reconcile never touches a row it did not add, so they sat
+ * outside every category filter.
+ *
+ * The same discipline as the notable refresh: it only **sets** `aiCategory`,
+ * only on a listed row whose `aiCategory` is still empty (an admin may have
+ * set one by hand), never another field, never adds or deletes a row; once
+ * per `CATEGORIES_VERSION`, under the seed lock, in one rw transaction.
+ */
+export const CATEGORIES_VERSION = "2026-10-12-a";
+
+const CATEGORIES_PREF = "catalog-categories";
+
+export const COMMUNITY_CATEGORIES: ReadonlyMap<string, string> = new Map(
+  (communityCategories as { fileHash: string; category: string }[]).map((e) => [e.fileHash, e.category]),
+);
+
+/** Returns how many rows gained a category. */
+export function refreshCatalogCategories(): Promise<number> {
+  return withSeedLock(_refreshCatalogCategories);
+}
+
+async function _refreshCatalogCategories(): Promise<number> {
+  try {
+    if ((await getPreference(CATEGORIES_PREF)) === CATEGORIES_VERSION) return 0;
+    let changed = 0;
+    await db.transaction("rw", db.episodes, db.userPrefs, async () => {
+      const rows = await db.episodes.where("fileHash").anyOf([...COMMUNITY_CATEGORIES.keys()]).toArray();
+      for (const row of rows) {
+        if (row.aiCategory) continue;
+        await db.episodes.update(row.id!, { aiCategory: COMMUNITY_CATEGORIES.get(row.fileHash)! });
+        changed++;
+      }
+      await setPreference(CATEGORIES_PREF, CATEGORIES_VERSION);
+    });
+    return changed;
+  } catch (err) {
+    console.warn("[catalog-flags] category refresh failed:", err);
     return 0;
   }
 }

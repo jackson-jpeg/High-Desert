@@ -6215,6 +6215,38 @@ export const MUTATIONS = [
     replace: `if (!player.fileHash) return false;`,
     why: "the same show back on archive.org would still claim the mirror is playing it",
   },
+  {
+    id: "categories-refresh-sets",
+    test: "src/db/__tests__/community-categories.test.ts",
+    file: "src/db/catalog-flags.ts",
+    find: "await db.episodes.update(row.id!, { aiCategory: COMMUNITY_CATEGORIES.get(row.fileHash)! });",
+    replace: "void row;",
+    why: "the 101 community shows stay outside every category filter in every library seeded before 2026-10-12",
+  },
+  {
+    id: "categories-refresh-keeps-hand-set",
+    test: "src/db/__tests__/community-categories.test.ts",
+    file: "src/db/catalog-flags.ts",
+    find: "        if (row.aiCategory) continue;\n",
+    replace: "",
+    why: "an unattended write would overwrite a category someone set by hand",
+  },
+  {
+    id: "categories-refresh-once",
+    test: "src/db/__tests__/community-categories.test.ts",
+    file: "src/db/catalog-flags.ts",
+    find: "if ((await getPreference(CATEGORIES_PREF)) === CATEGORIES_VERSION) return 0;",
+    replace: "",
+    why: "an unattended write to db.episodes on every page load, not once",
+  },
+  {
+    id: "categories-refresh-wired",
+    test: "src/db/__tests__/community-categories.test.ts",
+    file: "src/app/(desktop)/layout.tsx",
+    find: "          await refreshCatalogCategories();\n",
+    replace: "",
+    why: "the refresh exists and nothing calls it",
+  },
 ];
 
 /**
