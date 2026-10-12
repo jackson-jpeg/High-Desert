@@ -115,8 +115,8 @@ export const MUTATIONS = [
     id: "guest-repeat",
     test: "src/lib/library/__tests__/guest.test.ts",
     file: "src/lib/library/guest.ts",
-    find: "return subject.every((w) => g.includes(w)) || g.every((w) => subject.includes(w));",
-    replace: "return false;",
+    find: "  return repeatsSubject(title, guest);",
+    replace: "  return false;",
     why: "a guest field that only repeats the title is hidden in an old library",
   },
   {
