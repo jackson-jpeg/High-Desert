@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ShowView } from "@/components/shows/ShowView";
 import { showCatalog } from "@/lib/shows/load";
 import { showMetadata } from "@/lib/shows/metadata";
+import { topicCatalog } from "@/lib/topics/load";
 
 /**
  * /show/<slug>: one broadcast, server-rendered (docs/show-pages.md).
@@ -31,5 +32,5 @@ export default async function ShowPage({ params }: Props) {
   const catalog = showCatalog();
   const show = catalog.bySlug.get(slug);
   if (!show) notFound();
-  return <ShowView show={show} catalog={catalog} />;
+  return <ShowView show={show} catalog={catalog} topics={topicCatalog().byShow.get(slug) ?? []} />;
 }

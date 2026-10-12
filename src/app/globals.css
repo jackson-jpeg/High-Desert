@@ -6,6 +6,8 @@
 /* Preview looks (docs/looks.md): every rule scoped to html[data-look=…]. */
 @import "../styles/look-night.css";
 @import "../styles/look-win98.css";
+/* Show, guest, topic and Tonight pages: the newer hooks, both looks (docs/show-pages.md). */
+@import "../styles/show-pages.css";
 
 /* ============================================
    Tailwind v4 Theme

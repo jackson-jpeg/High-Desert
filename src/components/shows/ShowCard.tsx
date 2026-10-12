@@ -1,5 +1,6 @@
 import type { PALETTE } from "@/lib/palette";
 import { clip, headlineGuest, longDate, seriesOf, showSubject, type CatalogRow } from "@/lib/shows/describe";
+import { momentLabel } from "@/lib/shows/share";
 
 /**
  * The share card drawn by next/og for a show or a guest (docs/show-pages.md).
@@ -20,6 +21,8 @@ export interface CardText {
   title: string;
   subtitle?: string;
   footer?: string;
+  /** A large amber line above the title: a moment's "Starts at 1:23:45", Tonight's date. */
+  stamp?: string;
 }
 
 /** What a show's card says. Clipped so the longest title in the catalog fits two lines. */
@@ -31,6 +34,11 @@ export function showCard(row: CatalogRow): CardText {
     subtitle: guest ? clip(`with ${guest}`, 80) : undefined,
     footer: row.aiCategory,
   };
+}
+
+/** A shared moment's card: the show's, with the time it starts. */
+export function momentCard(row: CatalogRow, seconds: number): CardText {
+  return { ...showCard(row), stamp: `Starts at ${momentLabel(seconds)}` };
 }
 
 export function ShowCard({ card, palette }: { card: CardText; palette: typeof PALETTE }) {
@@ -56,6 +64,22 @@ export function ShowCard({ card, palette }: { card: CardText; palette: typeof PA
         <div style={{ fontSize: 28, letterSpacing: 3, color: palette.blue, display: "flex", marginBottom: 18 }}>
           {card.kicker}
         </div>
+        {card.stamp ? (
+          <div
+            style={{
+              display: "flex",
+              alignSelf: "flex-start",
+              fontSize: 44,
+              fontWeight: 700,
+              color: palette.midnight,
+              backgroundColor: palette.amber,
+              padding: "8px 22px",
+              marginBottom: 22,
+            }}
+          >
+            {card.stamp}
+          </div>
+        ) : null}
         <div style={{ fontSize: 68, fontWeight: 700, lineHeight: 1.1, color: palette.chromeLighter, display: "flex" }}>
           {card.title}
         </div>

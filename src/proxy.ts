@@ -19,6 +19,15 @@ export function proxy(request: NextRequest) {
   if (pathname === "/radio") {
     return NextResponse.redirect(new URL(DIAL_HREF, request.url), 308);
   }
+  // A moment has one address, /show/<slug>?t=<seconds>: the page it is
+  // rewritten to (next.config.ts) is not a second one.
+  const moment = MOMENT_PATH.exec(pathname);
+  if (moment) {
+    const url = new URL(request.url);
+    url.pathname = `/show/${moment[1]}`;
+    url.search = `?t=${moment[2]}`;
+    return NextResponse.redirect(url, 308);
+  }
   // One URL per page: the look is the cookie's business, never the path's.
   const named = LOOK_IN_PATH.exec(pathname);
   if (named) {
@@ -37,6 +46,7 @@ export function proxy(request: NextRequest) {
 
 const LEGACY_VIEW_COOKIE = "hd_look_view";
 const LOOK_IN_PATH = /^\/(?:win98|night)(\/.*)?$/;
+const MOMENT_PATH = /^\/(?:(?:win98|night)\/)?show\/([^/]+)\/moment\/(\d{1,5})\/?$/;
 
 export const config = {
   // Pages only. Share cards (opengraph-image, twitter-image) are served from

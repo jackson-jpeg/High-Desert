@@ -196,7 +196,8 @@ describe("hd:* events and the routes they fire on (HD-019, HD-013)", () => {
     // Guards against a scanner that silently found nothing — an empty scan
     // would pass the real assertion below vacuously.
     expect([...ROUTES.keys()].sort()).toEqual([
-      "/", "/[...missing]", "/guest/[slug]", "/library", "/live", "/scanner", "/search", "/show/[slug]", "/stats",
+      "/", "/[...missing]", "/guest/[slug]", "/library", "/live", "/scanner", "/search", "/show/[slug]",
+      "/show/[slug]/moment/[t]", "/stats", "/tonight/[day]", "/topic/[slug]", "/topics",
     ]);
     expect(allEmits.length).toBeGreaterThan(20);
     const layout = path.join(APP, "[look]/(desktop)/layout.tsx");

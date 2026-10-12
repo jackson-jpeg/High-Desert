@@ -19,6 +19,7 @@ import { formatTime, formatAirDate } from "@/lib/utils/format";
 import { PositionTime, SeekRange, ProgressFill, BufferedFill } from "./PositionReadouts";
 import { emit, useHdEvent } from "@/lib/events";
 import { MirrorBadge } from "./MirrorBadge";
+import { ShareMomentButton } from "@/components/share/ShareMomentButton";
 import { episodeTitle } from "@/lib/library/display-title";
 import { shownGuest } from "@/lib/library/guest";
 import { ShowKicker } from "@/components/library/ShowTitle";
@@ -251,6 +252,10 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
               </Button>
             </div>
 
+            <div className="flex justify-center">
+              <ShareMomentButton className="text-hd-13 text-bevel-dark active:text-desktop-gray min-h-touch px-3 cursor-pointer" />
+            </div>
+
             {/* Volume + extras */}
             <PlaybackControls
               onTogglePlay={togglePlay}
@@ -393,6 +398,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
             onNext={playNext}
             className="flex-shrink-0 w-[340px]"
           />
+          <ShareMomentButton className="text-hd-11 text-bevel-dark hover:text-desktop-gray cursor-pointer ml-1 px-1.5 py-0.5 whitespace-nowrap" label="Share moment" />
           <button
             onClick={() => setShowQueue(!showQueue)}
             className={cn(
@@ -438,6 +444,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
         <div className="flex items-start justify-between">
           <NowPlaying expanded />
           <div className="flex items-center gap-2">
+            <ShareMomentButton className="text-hd-11 text-bevel-dark hover:text-desktop-gray cursor-pointer px-1.5 py-0.5 whitespace-nowrap" />
             <button
               onClick={() => setShowQueue(!showQueue)}
               className={cn(

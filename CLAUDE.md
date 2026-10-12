@@ -95,6 +95,9 @@ CI's 35 minutes run one after another):
 | `/stats` | Listening statistics |
 | `/show/<slug>` | One show, server-rendered for search engines (no app shell, works without JavaScript). See "Show pages and search" |
 | `/guest/<slug>` | Every show with one guest (guests with 2+ shows). Same frame as show pages |
+| `/show/<slug>?t=<s>` | A shared moment: the show page playing from that second, its own card, rendered per request (rewritten to `/show/<slug>/moment/<t>`, which itself 308s back) |
+| `/topic/<slug>`, `/topics` | Every show on a topic (categories, curated subjects, big tags; `data/topic-slugs.json`), and the index |
+| `/tonight`, `/tonight/<yyyy-mm-dd>` | One station day: its frozen program and the date's broadcasts. `/tonight` is a 307 to today (Pacific) |
 | `/live` | High Desert Live — the 24/7 station: now playing, time left, up next, the day's log, the live count, the phone lines (chat). See "Live station" |
 
 All primary pages share `(desktop)/layout.tsx` — the master client component that initializes the audio player, handles global keyboard shortcuts, seeds the library on first visit, and persists playback state.
@@ -121,6 +124,7 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/sample` | POST | Writes one traffic sample, then rolls up the day and expires old session refs. Requires `x-sample-token`; called only by `highdesert-sample.timer`. Also prunes `weekly_plays` past 3 weeks. Returns `{ok, online, listening, live, totalPlays, rolledUp, anonymized, prunedWeeks}` (`live` is reported, not sampled — `listener_samples` has no column for it) |
 | `/api/playback-event` | POST | A show failed to start. Body `{episodeId, kind, retried, recovered, elapsedMs, uaClass, detail?}`. `kind` is one of `timeout`/`stall`/`play-rejected`/`handover-rejected`/`network-error`/`decode-error`/`empty-media`/`empty-media-suspected` (`handover-rejected`: the live station's change of show refused, counted like any failed start); `uaClass` is a coarse bucket from `src/lib/utils/platform.ts`, **never a raw user-agent**. `detail` is short (≤200 char) free text: the reported duration on an advisory row, or `MediaError.code` plus its message on a `decode-error`/`network-error`/`empty-media`. That message is a browser pipeline diagnostic (`DEMUXER_ERROR_COULD_NOT_OPEN: …`) and is the **only** way an empty file is distinguishable from an unreachable one on Chromium, which errors on the missing frames rather than reporting a short duration. A `detail` containing `HD-VERIFY` (any case, checked after truncation) is **rejected with 400** — this table is the instrument that decides whether the 5s duration floor is safe to promote, and verification rows have polluted it twice; intercept the POST in the page instead. No session id, no IP. `episodeId` must be in the community-key allowlist. Optional `source` as on `/api/stats/play`, but an unknown value is stored NULL rather than refused — losing a failure row costs more than losing its source. A failover row carries the source that *failed* (`archive`) and `recovered: true` once the mirror plays. Optional `build`, as on `/api/stats/play` |
 | `/api/live/schedule` | GET | **The live station's program.** Returns **`{day, tz: "America/Los_Angeles", serverNow, stationIdSec: 8, now, upNext: [Slot, Slot], rest: [Slot], guide: [Slot], outage}`**. `now` is `{slot, startedAt, offsetSec, endsAt}` (a show: start and offset into it) or `{stationId: true, endsAt}` (the gap between shows). `Slot` is `{fileHash, episodeId, title, airDate, guestName, showType, duration, sourceUrl, kind: "on-this-date"\|"fan-favorite"\|"outage-swap", start, end, replaces?}`, times epoch ms. `upNext` reaches into tomorrow during the day's last show; `rest` is the rest of *today* after it; `guide` is all of today, past included. `outage: true` when archive.org is down and the swap was applied. `no-store`, 30/min, **503** without a database |
+| `/api/shows/link` | GET | `?key=<communityKey>` → **`{slug, path}`**, a catalog show's page (cached a day). **404** `{error: "not-a-show"}` (cached an hour), **400** for a malformed key. What the Share buttons ask (`src/hooks/useShowSlug.ts`); the slug map stays on the server |
 | `/api/build` | GET | **`{build}`**: the build this server runs (`NEXT_PUBLIC_BUILD_ID`, the short SHA). `no-store`, 30/min. What an open tab compares its own `<meta name="hd-build">` with (`src/services/build/stale-tab.ts`) |
 | `/api/live/time` | GET | The server clock for the client's time sync: **`{now}`** (epoch ms). `no-store`, 60/min. The client takes 5 samples and keeps the one with the smallest round trip |
 | `/mirror/{fileHash}` | GET | **Not Next.js — nginx alone** (`services/mirror/lib/nginx.mjs`). The episode's MP3: a pinned one off disk, anything else in the catalog filled from archive.org through nginx's slice cache. Byte ranges: `206` + `Content-Range`, `416` for an unsatisfiable range. **404** for anything not in the catalog; **502** when a fill cannot reach archive.org. GET/HEAD only. See "archive.org outage mirror" |
@@ -329,7 +333,7 @@ heard. Keys that merely announce something (`HD_NOTIFICATIONS`: `seed-settled`,
 
 **Library intents are URLs, not events** (`src/lib/library/intents.ts`):
 `/library?shuffle=all|coast|dreamland|special`, `?sort=<SortMode>`, `?q=<search>`,
-`?scroll=current`, `?show=<communityKey>` (select that show; a show page's "Open in High Desert"), `?resume=<communityKey>` (start that show at its saved second through the library's play; the welcome page's Continue listening, which sits at the top of the Library too: `src/lib/library/continue-listening.ts`). Callers use `useOpenLibraryIntent()` — push from another route,
+`?scroll=current`, `?show=<communityKey>` (select that show; a show page's "Open in High Desert"), with `&t=<seconds>` (a shared moment: play it from there), `?resume=<communityKey>` (start that show at its saved second through the library's play; the welcome page's Continue listening, which sits at the top of the Library too: `src/lib/library/continue-listening.ts`). Callers use `useOpenLibraryIntent()` — push from another route,
 replace on /library — never an event and never `setTimeout` waiting for the page to mount.
 `LibraryIntentReader` parses (invalid values ignored), clears the parameters with a
 replace, and `useLibraryIntents` applies them once the data they need exists.
@@ -366,12 +370,36 @@ Search Console steps: `docs/show-pages.md`.
   (`generateStaticParams` returns `[]`; about 175 KB of disk per crawled page). **Share
   cards are drawn per request** with a week-long `Cache-Control` (`CARD_CACHE_CONTROL`),
   never stored. The build renders neither.
-- `src/app/sitemap.ts` lists every show and guest page; `public/robots.txt` disallows
+- `src/app/sitemap.ts` lists every show, guest and topic page, `/topics` and the last 14 Tonight days (never a moment); `public/robots.txt` disallows
   `/api/`, `/scanner`, `/search`, `/look`.
 - **`npm run check:seo -- <url>`** (`scripts/seo-check.mjs`) crawls robots, the sitemap and
   a fixed sample of pages as raw HTML (no JavaScript) and fails on missing tags, invalid
   JSON-LD, content absent from the server HTML, any internal link or share image not 200.
   CI's browser job runs it after the CSP check. Run it against production after a deploy.
+- **Sharing** (`docs/show-pages.md`, "Sharing"): Share sends `/show/<slug>` (the old
+  `/library?ep=` link until the slug arrives, and old ones keep working); **Share this
+  moment** in both looks' players sends `/show/<slug>?t=<seconds>`. The moment page is
+  `force-dynamic` (no ISR file per second), canonical the plain page, its own card
+  ("Starts at 1:23:45"); the plain page stays static whatever the query. Sources carry
+  `#t=` (plays there without JavaScript); "Open in High Desert" carries `t`
+  (`/library?show=<key>&t=`), and `startMoment()` plays only while
+  `navigator.userActivation.isActive`, else says "Press play to start at …"; the next
+  start of that show begins there through `takeRequestedStart()`
+  (`src/audio/requested-start.ts`), read synchronously in `playEpisode()` between
+  `liveStartFor()` and `startPositionFor()`.
+- **First screens:** every show/guest/topic/Tonight page says what High Desert is in one
+  line with **Listen to the station now** and **Browse the Library**; show pages lead
+  with a one-tap Play (`ShowPlayButton`, hidden by a `<noscript>` rule) and list their
+  topics.
+- **Topic pages** (`src/lib/topics/`): every category but Other, 29 curated subjects
+  (Mel's Hole, Area 51, …, phrase-matched), and tags on at least 10 shows that are not
+  generic, a category, a person or covered by a subject; at least 3 shows each. A tag
+  crossing the threshold fails `topics.test.ts` until it is named or called generic.
+  **`data/topic-slugs.json` is add-only like the show slugs: after a catalog change run
+  `node scripts/gen-topic-slugs.mjs` and commit.**
+- **Tonight** (`src/lib/tonight/`, `src/services/live/tonight.ts`): read-only over
+  `live_days` except freezing *today* (the station's own rule); a future day only once
+  frozen; without a database it lists the date's broadcasts. Sitemap: the last 14 days.
 - **`GOOGLE_SITE_VERIFICATION`** (in `/root/.high-desert.env`) adds Search Console's meta
   tag. It is read at **build** time (the root layout is static); `deploy.sh` passes that one
   variable through to the build. Absent or malformed: no tag. A DNS TXT record (Domain

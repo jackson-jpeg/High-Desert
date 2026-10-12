@@ -97,6 +97,9 @@ const LOOK_COOKIE_NAME = "hd_look";
 const LOOK_PAGES =
   "/:path((?!api/|live-api/|mirror/|_next/|seed/|fonts/|icons/|audio/|win98(?:/|$)|night(?:/|$)|.*opengraph-image|.*twitter-image|.*\\.[a-zA-Z0-9]+$).+)";
 
+/** A moment's `t`: 1 to 5 digits (src/lib/shows/share.ts, MOMENT_DIGITS), captured for the destination. */
+const MOMENT_T = "(?<t>\\d{1,5})";
+
 const nextConfig: NextConfig = {
   distDir: DIST_DIR,
   // This project is its own workspace root. Without this Next walks up, finds
@@ -124,8 +127,15 @@ const nextConfig: NextConfig = {
   // which a request through nginx never names.
   async rewrites() {
     const night = [{ type: "cookie" as const, key: LOOK_COOKIE_NAME, value: "night" }];
+    // A shared moment, /show/<slug>?t=<seconds> (docs/show-pages.md, "Sharing"):
+    // its own page, rendered per request with the moment's card in its head,
+    // so the plain show page stays static whatever query it is asked with.
+    // Whole seconds only; any other `t` is the plain page.
+    const moment = { type: "query" as const, key: "t", value: MOMENT_T };
     return {
       beforeFiles: [
+        { source: "/show/:slug", has: [...night, moment], destination: "/night/show/:slug/moment/:t" },
+        { source: "/show/:slug", has: [moment], destination: "/win98/show/:slug/moment/:t" },
         { source: "/", has: night, destination: "/night" },
         { source: "/", destination: "/win98" },
         { source: LOOK_PAGES, has: night, destination: "/night/:path" },

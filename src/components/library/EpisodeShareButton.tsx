@@ -5,11 +5,23 @@ import type { Episode } from "@/db/schema";
 import { toast } from "@/stores/toast-store";
 import { shareText as buildShareText, shareUrl } from "@/lib/library/episode-detail";
 import { episodeTitle } from "@/lib/library/display-title";
+import { useShowSlug } from "@/hooks/useShowSlug";
+import { showShareUrl } from "@/lib/shows/share";
 
 const linkClass = "text-hd-body md:text-hd-caption text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray cursor-pointer transition-colors-fast min-h-touch md:min-h-0 flex items-center";
 const menuItemClass = "w-full text-left px-3 py-3 md:px-2 md:py-1.5 text-hd-title md:text-hd-caption text-desktop-gray/85 hover:bg-title-bar-blue/20 active:bg-title-bar-blue/20 cursor-pointer transition-colors-fast";
 
-/** Copy a link that resolves in anyone's browser, or hand it to the Web Share sheet. */
+/**
+ * Copy a link that resolves in anyone's browser, or hand it to the Web Share
+ * sheet. A catalog show shares its own page, `/show/<slug>`, whose card names
+ * the show (docs/show-pages.md, "Sharing"). Anything else, or a show whose
+ * slug has not arrived yet, shares the library link (`?ep=<key>`), which
+ * still opens it: links already out in the world keep working.
+ */
+export function shareHref(origin: string, episode: Episode, slug: string | null | undefined): string {
+  return slug ? showShareUrl(origin, slug) : shareUrl(origin, episode);
+}
+
 export function EpisodeShareButton({ episode }: { episode: Episode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -23,7 +35,8 @@ export function EpisodeShareButton({ episode }: { episode: Episode }) {
     return () => document.removeEventListener("mousedown", handler);
   }, [menuOpen]);
 
-  const url = typeof window !== "undefined" ? shareUrl(window.location.origin, episode) : "";
+  const slug = useShowSlug(episode);
+  const url = typeof window !== "undefined" ? shareHref(window.location.origin, episode, slug) : "";
   const shareText = buildShareText(episode);
 
   const copyLink = () => {
