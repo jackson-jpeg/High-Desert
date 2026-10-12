@@ -4,6 +4,7 @@ import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { recordPlay, isPlaySource } from "@/services/stats/store";
 import { isKnownEpisodeId } from "@/services/stats/allowlist";
 import { readJsonObject } from "@/lib/utils/json-body";
+import { isPlaySurface } from "@/lib/usage/vocab";
 
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
 
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
   if (parsed.error) return parsed.error;
   const body = parsed.body;
 
-  const { episodeId, sessionId, source, build } = body;
+  const { episodeId, sessionId, source, build, surface } = body;
 
   if (
     typeof episodeId !== "string" ||
@@ -65,7 +66,16 @@ export async function POST(request: NextRequest) {
   try {
     // The build that sent it. Anything that is not a build id is stored as
     // unknown rather than refused: a play is worth more than its tag.
-    await recordPlay(episodeId, sessionId, ip, source ?? null, isBuildId(build) ? build : null);
+    // Where it was started: optional, and anything unknown is stored as
+    // unknown (NULL), never refused, for the same reason.
+    await recordPlay(
+      episodeId,
+      sessionId,
+      ip,
+      source ?? null,
+      isBuildId(build) ? build : null,
+      isPlaySurface(surface) ? surface : null,
+    );
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[stats/play] store error:", err);

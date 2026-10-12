@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
-import { recordHeartbeat } from "@/services/stats/store";
+import { SESSIONS_PER_CLIENT, recordHeartbeat, recordRouteMinute } from "@/services/stats/store";
+import { isUsageDevice, isUsageRoute } from "@/lib/usage/vocab";
 import { isKnownEpisodeId } from "@/services/stats/allowlist";
 import { readJsonObject } from "@/lib/utils/json-body";
 
@@ -11,9 +12,13 @@ const SESSION_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
  * what makes the "online" figure mean "people on the site" rather than "people
  * who happened to press play in the last five minutes".
  *
- * Body: `{ sessionId, episodeId?, live? }`. `live: true` means this tab is tuned
- * in to the live station (sent only while tuned and playing, or in the station
- * ID between shows); any other beat clears the live mark — see recordHeartbeat.
+ * Body: `{ sessionId, episodeId?, live?, route?, device?, visible? }`.
+ * `route`/`device`/`visible` are time per tab (docs/usage-tracking.md), sent
+ * on the minute beat only: `visible: true` with a known route and device adds
+ * a minute to `route_daily`. Invalid values are ignored, never refused.
+ *
+ * `live: true` means this tab is tuned in to the live station (sent only
+ * while tuned and playing, or in the station ID between shows); any other beat clears the live mark — see recordHeartbeat.
  * It is what `live` in /api/stats/now counts.
  * `episodeId` is present only while that tab
  * is actually playing, and renews the listening mark — it is what keeps a show
@@ -54,7 +59,7 @@ export async function POST(request: NextRequest) {
   if (parsed.error) return parsed.error;
   const body = parsed.body;
 
-  const { sessionId, episodeId, live } = body;
+  const { sessionId, episodeId, live, route, device, visible } = body;
 
   if (typeof sessionId !== "string" || !SESSION_ID_RE.test(sessionId)) {
     return NextResponse.json(
@@ -74,9 +79,29 @@ export async function POST(request: NextRequest) {
 
   try {
     await recordHeartbeat(sessionId, listeningTo, ip, live === true);
-    return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[stats/heartbeat] store error:", err);
     return NextResponse.json({ error: "Stats unavailable" }, { status: 503 });
   }
+
+  // Time per tab (docs/usage-tracking.md): a minute on `route`, only from a
+  // tab on screen. Optional, and never a reason to fail the beat: a bad or
+  // missing value is simply not counted, and so is a store error.
+  if (visible === true && isUsageRoute(route) && isUsageDevice(device) && minuteAllowed(ip)) {
+    try {
+      await recordRouteMinute(route, device);
+    } catch (err) {
+      console.error("[stats/heartbeat] usage minute not stored:", err);
+    }
+  }
+  return NextResponse.json({ ok: true });
+}
+
+/**
+ * One client counts at most SESSIONS_PER_CLIENT visible minutes a minute: as
+ * many tabs as the presence cap admits, each beating once. The beat itself is
+ * not refused past it (its own limit is above), only its minute not counted.
+ */
+function minuteAllowed(ip: string): boolean {
+  return rateLimit(`stats-heartbeat-minute:${ip}`, { maxRequests: SESSIONS_PER_CLIENT, windowMs: 60_000 }).allowed;
 }

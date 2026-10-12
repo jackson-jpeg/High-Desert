@@ -37,6 +37,7 @@ const ROUTES = {
   stop: () => import("../stats/stop/route"),
   rate: () => import("../stats/rate/route"),
   "playback-event": () => import("../playback-event/route"),
+  view: () => import("../stats/view/route"),
 } as const;
 
 let ip = 0;
