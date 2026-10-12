@@ -3,5 +3,6 @@ Allow: /
 Disallow: /api/
 Disallow: /scanner
 Disallow: /search
+Disallow: /look
 
 Sitemap: https://highdesert.space/sitemap.xml

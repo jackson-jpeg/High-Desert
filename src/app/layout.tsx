@@ -6,6 +6,7 @@ import { UsageTracker } from "@/components/UsageTracker";
 import { BOOT_SCRIPT } from "./boot-script";
 import { PALETTE } from "@/lib/palette";
 import { BUILD_META } from "@/lib/utils/build-id";
+import { siteVerification } from "@/lib/seo/verification";
 import "./globals.css";
 
 const w95fa = localFont({
@@ -34,6 +35,8 @@ export const metadata: Metadata = {
     "UFO", "late night radio", "Kingdom of Nye", "talk radio", "streaming",
   ],
   manifest: "/manifest.json",
+  // Search Console's meta tag, only when GOOGLE_SITE_VERIFICATION is set at build.
+  verification: siteVerification(),
   // Root canonical only. Child layouts override it per route — Next inherits
   // this value otherwise, which had every page pointing at "/".
   alternates: {

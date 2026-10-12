@@ -10,6 +10,7 @@ import { archiveDetailsUrl } from "@/lib/library/episode-detail";
 import { EpisodeShareButton } from "@/components/library/EpisodeShareButton";
 import { mirrorUrl } from "@/audio/sources";
 import { episodeTitle } from "@/lib/library/display-title";
+import { communityKey } from "@/lib/utils/community-key";
 
 const manageClass = "text-hd-body md:text-hd-caption cursor-pointer transition-colors-fast min-h-touch md:min-h-0 flex items-center";
 
@@ -95,6 +96,7 @@ export function EpisodeManageBar({
         </a>
       )}
       <EpisodeShareButton episode={episode} />
+      <ShowPageLink episode={episode} />
       {mirrorUrl(episode) && <MagnetLink episode={episode} />}
       <button
         onClick={async () => {
@@ -132,6 +134,29 @@ export function EpisodeManageBar({
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * The show's own page, /show/<slug> (docs/show-pages.md): what a search engine
+ * indexes and what a shared link previews. The library knows the community
+ * key, not the slug, so it goes through /show/key/<key>, which redirects. A
+ * new tab, so the player here keeps playing.
+ */
+export function ShowPageLink({ episode }: { episode: Episode }) {
+  const key = episode.fileHash?.startsWith("archive:") ? communityKey(episode) : null;
+  if (!key) return null;
+  return (
+    <a
+      href={`/show/key/${encodeURIComponent(key)}`}
+      target="_blank"
+      rel="noopener"
+      className={cn(manageClass, "text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray")}
+      title="This show's own page, to link to or share"
+      data-testid="show-page-link"
+    >
+      Show page ↗
+    </a>
   );
 }
 

@@ -168,6 +168,54 @@ describe("useLibraryIntents", () => {
     expect(m.props.setFocusedIndex).toHaveBeenCalledTimes(1);
   });
 
+  describe("a show (?show=<communityKey>, from a show page)", () => {
+    const show = (id: number) =>
+      ({
+        id,
+        title: `Coast to Coast AM - Show ${id}`,
+        fileName: `1999-01-0${id} - Show ${id}.mp3`,
+        fileHash: `archive:coll:1999-01-0${id} - Show ${id}.mp3`,
+        archiveIdentifier: "coll",
+        showType: "coast",
+      }) as Episode;
+    const KEY_2 = "coll--1999-01-02_-_Show_2";
+
+    it("waits for the library, then selects the show and brings its row into view, once", () => {
+      const list = [show(1), show(2), show(3)];
+      const m = mountIntents();
+      m.apply({ show: KEY_2 });
+      expect(m.props.setSelectedEpisode).not.toHaveBeenCalled();
+      m.update({ allEpisodes: list, visibleEpisodes: list });
+      expect(m.props.setSelectedEpisode).toHaveBeenCalledWith(list[1]);
+      expect(m.props.setFocusedIndex).toHaveBeenCalledWith(1);
+      m.update({ visibleEpisodes: [...list], seedSettled: true });
+      expect(m.props.setSelectedEpisode).toHaveBeenCalledTimes(1);
+    });
+
+    it("selects it even when a filter hides its row", () => {
+      const list = [show(1), show(2)];
+      const m = mountIntents();
+      m.apply({ show: KEY_2 });
+      m.update({ allEpisodes: list, visibleEpisodes: [list[0]] });
+      expect(m.props.setSelectedEpisode).toHaveBeenCalledWith(list[1]);
+      expect(m.props.setFocusedIndex).not.toHaveBeenCalled();
+    });
+
+    it("keeps waiting while seeding may still bring it, then says it is not here", async () => {
+      const { toast } = await import("@/stores/toast-store");
+      const error = vi.spyOn(toast, "error").mockImplementation(() => {});
+      const m = mountIntents({ allEpisodes: [show(1)], visibleEpisodes: [show(1)] });
+      m.apply({ show: KEY_2 });
+      expect(error).not.toHaveBeenCalled();
+      m.update({ seedSettled: true });
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(m.props.setSelectedEpisode).not.toHaveBeenCalled();
+      m.update({ allEpisodes: [show(1)] });
+      expect(error).toHaveBeenCalledTimes(1);
+      error.mockRestore();
+    });
+  });
+
   it("scrollToCurrent is callable directly (the floating now-playing button)", () => {
     const list = [ep(1), ep(2)];
     const m = mountIntents({ allEpisodes: list, visibleEpisodes: list, currentEpisodeId: 2 });

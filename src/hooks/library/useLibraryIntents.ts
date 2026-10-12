@@ -5,6 +5,8 @@ import type { Episode } from "@/db/schema";
 import type { SortMode } from "@/lib/library/filter-episodes";
 import type { LibraryIntent, ShuffleScope } from "@/lib/library/intents";
 import { scrollListToRow } from "@/lib/library/list-scroll";
+import { communityKey } from "@/lib/utils/community-key";
+import { toast } from "@/stores/toast-store";
 
 /**
  * Applies library intents (HD-013) — what LibraryIntentReader hands over from
@@ -17,7 +19,9 @@ import { scrollListToRow } from "@/lib/library/list-scroll";
  * running — so they wait here until it does, rather than behind a
  * `setTimeout` guess. Each fires once: shuffle when the catalog has loaded (or
  * seeding has settled on an empty one, which answers "No episodes to
- * shuffle"), scroll the first time the list has rows.
+ * shuffle"), scroll the first time the list has rows, and a show (`?show=`,
+ * from a show page's "Open in High Desert") once the library holds it, or once
+ * seeding has settled without it, which says so.
  */
 export function useLibraryIntents({
   allEpisodes,
@@ -51,7 +55,7 @@ export function useLibraryIntents({
     scrollListToRow(idx);
   }, [currentEpisodeId, visibleEpisodes, setSelectedEpisode, setFocusedIndex]);
 
-  const pending = useRef<{ shuffle?: ShuffleScope; scroll?: boolean }>({});
+  const pending = useRef<{ shuffle?: ShuffleScope; scroll?: boolean; show?: string }>({});
   const [received, setReceived] = useState(0);
 
   const applyIntent = useCallback(
@@ -64,6 +68,7 @@ export function useLibraryIntents({
       }
       if (intent.shuffle) pending.current.shuffle = intent.shuffle;
       if (intent.scroll) pending.current.scroll = true;
+      if (intent.show) pending.current.show = intent.show;
       setReceived((n) => n + 1);
     },
     [setSortMode, setSearch, setSelectedEpisode],
@@ -80,7 +85,23 @@ export function useLibraryIntents({
       p.scroll = undefined;
       scrollToCurrent();
     }
-  }, [received, allEpisodes, seedSettled, visibleEpisodes, onShuffle, scrollToCurrent]);
+    if (p.show && allEpisodes) {
+      const key = p.show;
+      const ep = allEpisodes.find((e) => communityKey(e) === key);
+      if (ep) {
+        p.show = undefined;
+        setSelectedEpisode(ep);
+        const idx = visibleEpisodes.findIndex((e) => e.id === ep.id);
+        if (idx !== -1) {
+          setFocusedIndex(idx);
+          scrollListToRow(idx);
+        }
+      } else if (seedSettled) {
+        p.show = undefined;
+        toast.error("That show is not in this library.");
+      }
+    }
+  }, [received, allEpisodes, seedSettled, visibleEpisodes, onShuffle, scrollToCurrent, setSelectedEpisode, setFocusedIndex]);
 
   return { applyIntent, scrollToCurrent };
 }

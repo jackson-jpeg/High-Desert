@@ -27,6 +27,7 @@
     "test:watch": "vitest",
     "test:mutations": "bash scripts/heavy.sh node scripts/mutate-check.mjs",
     "check:csp": "node scripts/csp-check.mjs",
+    "check:seo": "node --no-warnings scripts/seo-check.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {

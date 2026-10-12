@@ -93,6 +93,8 @@ CI's 35 minutes run one after another):
 | `/scanner` | Local file scanner + archive.org catalog scraper (admin) |
 | `/search` | Archive.org search and import (admin) |
 | `/stats` | Listening statistics |
+| `/show/<slug>` | One show, server-rendered for search engines (no app shell, works without JavaScript). See "Show pages and search" |
+| `/guest/<slug>` | Every show with one guest (guests with 2+ shows). Same frame as show pages |
 | `/live` | High Desert Live — the 24/7 station: now playing, time left, up next, the day's log, the live count, the phone lines (chat). See "Live station" |
 
 All primary pages share `(desktop)/layout.tsx` — the master client component that initializes the audio player, handles global keyboard shortcuts, seeds the library on first visit, and persists playback state.
@@ -327,12 +329,53 @@ heard. Keys that merely announce something (`HD_NOTIFICATIONS`: `seed-settled`,
 
 **Library intents are URLs, not events** (`src/lib/library/intents.ts`):
 `/library?shuffle=all|coast|dreamland|special`, `?sort=<SortMode>`, `?q=<search>`,
-`?scroll=current`. Callers use `useOpenLibraryIntent()` — push from another route,
+`?scroll=current`, `?show=<communityKey>` (select that show; a show page's "Open in High Desert"). Callers use `useOpenLibraryIntent()` — push from another route,
 replace on /library — never an event and never `setTimeout` waiting for the page to mount.
 `LibraryIntentReader` parses (invalid values ignored), clears the parameters with a
 replace, and `useLibraryIntents` applies them once the data they need exists.
 `/`, Ctrl/Cmd+F and Q are registered by the library itself
 (`useLibrarySearchShortcuts`), so the browser's find works on every other route.
+
+## Show pages and search (read before touching `src/lib/shows/`, `src/app/show/`, `src/app/guest/` or `data/show-slugs.json`)
+
+Every catalog show has `/show/<slug>`, and every guest with 2+ shows `/guest/<slug>`,
+so a search for a guest or topic can land on the show (2026-10-12). Full account and the
+Search Console steps: `docs/show-pages.md`.
+
+- **Slugs are permanent.** `data/show-slugs.json` (`fileHash` → slug, e.g.
+  `1992-12-12-area-51-john-lear-bob-lazar`) is committed and **add-only**: never edit or
+  regenerate an existing entry, even when a title is corrected; a pulled show keeps its
+  entry and its slug is never reused. **After adding shows to the catalog, run
+  `node scripts/gen-show-slugs.mjs`** and commit the map; `show-slugs.test.ts` fails on a
+  show without a slug and on any committed slug that changed.
+- **A light server page, not the app.** `ShowShell` + `ShowView` (`src/components/shows/`):
+  no `(desktop)` layout, no client code. Everything is in the server HTML: a native
+  `<audio controls preload="none">` (archive.org, then the mirror), facts, AI summary,
+  related lists (same guest, same day in other years, same category; bounded, every link
+  a real page). The root layout's boot screen is hidden by a `<style precedence>` hoisted
+  into `<head>` (`NO_BOOT_CSS`); without it the page sat under `#app-loading` for 6 s, and
+  forever without JavaScript. Class hooks are `hd-show-*` for the preview looks.
+- **Head and structured data** (`src/lib/shows/metadata.ts`, `jsonld.ts`): title
+  "Subject with Guests · Programme, Date", description from programme, date and summary
+  (≤160), canonical, Open Graph, Twitter card; a `next/og` card per page
+  (`opengraph-image.tsx`); `PodcastEpisode` (partOfSeries, datePublished, ISO duration,
+  AudioObject with the archive.org URL, Art Bell as `creator`, guests as `actor` only when
+  `guestPeople()` is sure they are people) and `BreadcrumbList`.
+  `scripts/lib/jsonld-check.mjs` holds them to the schema.org vocabulary.
+- **Pages render on first request and are cached until the next deploy**
+  (`generateStaticParams` returns `[]`; about 175 KB of disk per crawled page). **Share
+  cards are drawn per request** with a week-long `Cache-Control` (`CARD_CACHE_CONTROL`),
+  never stored. The build renders neither.
+- `src/app/sitemap.ts` lists every show and guest page; `public/robots.txt` disallows
+  `/api/`, `/scanner`, `/search`, `/look`.
+- **`npm run check:seo -- <url>`** (`scripts/seo-check.mjs`) crawls robots, the sitemap and
+  a fixed sample of pages as raw HTML (no JavaScript) and fails on missing tags, invalid
+  JSON-LD, content absent from the server HTML, any internal link or share image not 200.
+  CI's browser job runs it after the CSP check. Run it against production after a deploy.
+- **`GOOGLE_SITE_VERIFICATION`** (in `/root/.high-desert.env`) adds Search Console's meta
+  tag. It is read at **build** time (the root layout is static); `deploy.sh` passes that one
+  variable through to the build. Absent or malformed: no tag. A DNS TXT record (Domain
+  property) needs no code at all and is the recommended route.
 
 ## Conventions
 
@@ -1374,6 +1417,9 @@ breaks a test or a route:
 4. Add its `fileHash` to `REMOVED_FROM_CATALOG` (`src/lib/library/removed-episodes.ts`).
    `removed-episodes.test.ts` holds that list equal to the doc's JSON records and fails if
    one is back in the catalog.
+
+Leave its entry in `data/show-slugs.json`: the show page goes away on its own (404), and the
+slug must never be minted again for another show (`docs/show-pages.md`).
 
 Existing visitors keep the row: `reconcileLibrary()` is `bulkAdd`-only and never deletes. That is
 deliberate, and it is why the runtime guard below matters — a removal only stops an episode

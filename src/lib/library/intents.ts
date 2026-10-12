@@ -21,6 +21,8 @@ import { SORT_MODES, type SortMode } from "@/lib/library/filter-episodes";
  *   /library?sort=played        any SortMode (SORT_MODES)
  *   /library?q=ghost%20to%20ghost
  *   /library?scroll=current
+ *   /library?show=<communityKey>   open that show's detail (a show page's
+ *                                  "Open in High Desert", docs/show-pages.md)
  *
  * Parsing is strict and silent: an unknown value is ignored, not guessed at —
  * a hand-edited or stale URL must not shuffle something the listener did not
@@ -36,10 +38,19 @@ export interface LibraryIntent {
   /** Search box text. Trimmed; empty is no intent. */
   q?: string;
   scroll?: "current";
+  /** A show's community key (src/lib/utils/community-key.ts): select it and bring it into view. */
+  show?: string;
 }
 
 /** The query parameters this module owns. Anything else in the URL is left alone. */
-export const INTENT_PARAMS = ["sort", "shuffle", "q", "scroll"] as const;
+export const INTENT_PARAMS = ["sort", "shuffle", "q", "scroll", "show"] as const;
+
+/**
+ * A community key as `communityKey()` builds one: the collection, `--`, the
+ * file name with everything but letters, digits, `_` and `-` replaced, at most
+ * 120 characters. Anything else is not a show this catalog could hold.
+ */
+export const SHOW_KEY_PATTERN = /^[A-Za-z0-9._-]{1,100}--[A-Za-z0-9_-]{1,120}$/;
 
 /** Long enough for any real search; bounds what a pasted URL can put in the box. */
 export const MAX_QUERY_LENGTH = 200;
@@ -64,11 +75,20 @@ export function parseLibraryIntent(params: ParamReader): LibraryIntent {
 
   if (params.get("scroll") === "current") intent.scroll = "current";
 
+  const show = params.get("show");
+  if (show !== null && SHOW_KEY_PATTERN.test(show)) intent.show = show;
+
   return intent;
 }
 
 export function hasIntent(intent: LibraryIntent): boolean {
-  return intent.sort !== undefined || intent.shuffle !== undefined || intent.q !== undefined || intent.scroll !== undefined;
+  return (
+    intent.sort !== undefined ||
+    intent.shuffle !== undefined ||
+    intent.q !== undefined ||
+    intent.scroll !== undefined ||
+    intent.show !== undefined
+  );
 }
 
 /** Any intent parameter present at all, valid or not — it still needs clearing. */
@@ -83,6 +103,7 @@ export function libraryIntentHref(intent: LibraryIntent): string {
   if (intent.shuffle) params.set("shuffle", intent.shuffle);
   if (intent.q?.trim()) params.set("q", intent.q.trim());
   if (intent.scroll) params.set("scroll", intent.scroll);
+  if (intent.show) params.set("show", intent.show);
   const qs = params.toString();
   return qs ? `/library?${qs}` : "/library";
 }

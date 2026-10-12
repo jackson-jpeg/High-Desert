@@ -15,10 +15,16 @@
  * Exits non-zero on any finding, or if any route does not return 200.
  */
 
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { chromium } from "playwright";
 
 const BASE = (process.argv[2] ?? process.env.CSP_CHECK_URL ?? "http://127.0.0.1:3000").replace(/\/$/, "");
-const ROUTES = ["/", "/library", "/live", "/radio", "/stats", "/scanner", "/search"];
+// One show page (docs/show-pages.md): the catalog's first show, by its committed slug.
+const FIRST_SHOW = Object.values(
+  JSON.parse(readFileSync(path.resolve(import.meta.dirname, "../data/show-slugs.json"), "utf8")),
+)[0];
+const ROUTES = ["/", "/library", "/live", "/radio", "/stats", "/scanner", "/search", `/show/${FIRST_SHOW}`];
 /** How long to let each page run after `load` — long enough for seeding, the first heartbeat and deferred effects. */
 const SETTLE_MS = Number(process.env.CSP_CHECK_SETTLE_MS ?? 4000);
 
