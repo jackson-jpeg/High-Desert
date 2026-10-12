@@ -23,6 +23,7 @@ import { episodeTitle } from "@/lib/library/display-title";
 import { shownGuest } from "@/lib/library/guest";
 import { ShowKicker } from "@/components/library/ShowTitle";
 import { splitShowTitle } from "@/lib/live/format";
+import { retryWithPlaySurface } from "@/audio/play-surface";
 
 interface AudioPlayerProps {
   className?: string;
@@ -88,7 +89,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   const handleRetry = () => {
     clearError(null);
     if (currentEpisode) {
-      emit("play-episode", currentEpisode);
+      retryWithPlaySurface(() => emit("play-episode", currentEpisode));
     }
   };
 

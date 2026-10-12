@@ -25,6 +25,7 @@ import { SESSION_ID } from "@/lib/utils/session-id";
 import { communityKey } from "@/lib/utils/community-key";
 import { fallbacksFor } from "@/audio/sources";
 import { claimLiveListen } from "@/audio/live-session";
+import { playSurfaceFor } from "@/audio/play-surface";
 import {
   armWatchdog,
   setFailureHandler,
@@ -163,11 +164,15 @@ export function countListen(episode: Episode, start: number): void {
   // A live airing counts once per client, however many times it is tuned in
   // to: re-tuning to the same show an hour in is still the one listen. The
   // next show is a new airing and counts once too (src/audio/live-session.ts).
-  if (claimLiveListen(episode) === false) return;
+  const airing = claimLiveListen(episode);
+  if (airing === false) return;
   const key = communityKey(episode);
   if (!shouldCountPlay(key ?? `local:${episode.fileHash}`)) return;
 
-  if (key) reportPlay(key, PLAYER_SESSION_ID, usePlayerStore.getState().source);
+  // Where it was started (src/audio/play-surface.ts): the station's airing is
+  // `live` whoever started it; otherwise what was bound to this start, or the tab.
+  const surface = playSurfaceFor(start, airing === true);
+  if (key) reportPlay(key, PLAYER_SESSION_ID, usePlayerStore.getState().source, surface);
   if (episode.id) {
     const now = Date.now();
     // The play count is the episode's (once per listen); when it was last

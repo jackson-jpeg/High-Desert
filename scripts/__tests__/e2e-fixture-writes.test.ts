@@ -13,6 +13,7 @@ describe("e2e fixture: writes answered in the page", () => {
     "/api/stats/rate",
     "/api/stats/heartbeat",
     "/api/stats/funnel",
+    "/api/stats/view",
     "/api/playback-event",
     "/live-api/tuned",
   ])("%s", (path) => {
@@ -20,7 +21,7 @@ describe("e2e fixture: writes answered in the page", () => {
   });
 
   it("reads and the calls themselves still reach the server", () => {
-    for (const path of ["/api/stats/now", "/api/live/schedule", "/live-api/messages", "/live-api/stream", "/api/stats/playing"]) {
+    for (const path of ["/api/stats/now", "/api/live/schedule", "/live-api/messages", "/live-api/stream", "/api/stats/playing", "/api/stats/usage"]) {
       expect(SERVER_WRITES.test(`https://highdesert.space${path}`)).toBe(false);
     }
   });

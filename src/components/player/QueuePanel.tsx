@@ -11,6 +11,7 @@ import { useIsMobile } from "@/hooks/useMediaQuery";
 import { emit } from "@/lib/events";
 import { episodeTitle } from "@/lib/library/display-title";
 import { ShowTitle } from "@/components/library/ShowTitle";
+import { withPlaySurface } from "@/audio/play-surface";
 
 // memo: rendered inside AudioPlayer, which re-renders on every player state
 // change; this has nothing to redraw unless its own props or selectors do (HD-017).
@@ -46,7 +47,7 @@ export const QueuePanel = memo(function QueuePanel() {
   const handlePlay = (index: number) => {
     const episode = usePlayerStore.getState().playFromQueue(index);
     if (episode) {
-      emit("play-episode", episode);
+      withPlaySurface("queue", () => emit("play-episode", episode));
     }
   };
 

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { LookSwitcher } from "@/components/looks/LookSwitcher";
+import { UsageTracker } from "@/components/UsageTracker";
 import { BOOT_SCRIPT } from "./boot-script";
 import { PALETTE } from "@/lib/palette";
 import { BUILD_META } from "@/lib/utils/build-id";
@@ -174,6 +175,7 @@ export default function RootLayout({
         </div>
         <script dangerouslySetInnerHTML={{ __html: BOOT_SCRIPT }} />
         <ServiceWorkerRegistration />
+        <UsageTracker />
         {children}
         <LookSwitcher />
       </body>

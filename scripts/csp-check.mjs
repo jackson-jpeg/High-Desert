@@ -31,11 +31,14 @@ try {
     const page = await context.newPage();
     const here = (kind, text) => findings.push({ route, kind, text: String(text).slice(0, 400) });
 
-    // A checker is not an arrival: mark the browser as one the funnel never
-    // counts (src/services/stats/funnel-client.ts), before any page script
-    // runs, or every run adds a first visit per route to production's funnel.
+    // A checker is not an arrival or a visitor: mark the browser as one the
+    // funnel never counts (src/services/stats/funnel-client.ts) and as not
+    // counted at all (src/services/stats/not-counted.ts: no views, arrivals or
+    // minutes), before any page script runs, or every run adds a first visit
+    // and a view per route to production's numbers.
     await page.addInitScript(() => {
       localStorage.setItem("hd-funnel", JSON.stringify({ cohort: null, done: [] }));
+      localStorage.setItem("hd-not-counted", "1");
     });
 
     // Chromium reports CSP blocks both as a console error and as a DOM event;

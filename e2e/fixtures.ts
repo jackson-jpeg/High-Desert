@@ -41,7 +41,7 @@ export const busEventName = hdEventName;
  * lines' tune-in notice, which would tell the real room on production that a
  * listener tuned in when it was a test.
  */
-export const SERVER_WRITES = /(\/api\/(stats\/(play|stop|rate|heartbeat|funnel)|playback-event)|\/live-api\/tuned)(\?|$)/;
+export const SERVER_WRITES = /(\/api\/(stats\/(play|stop|rate|heartbeat|funnel|view)|playback-event)|\/live-api\/tuned)(\?|$)/;
 
 /**
  * A private-range address unique to this test within the run. 10/8 has room for

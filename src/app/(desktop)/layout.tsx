@@ -32,6 +32,7 @@ import { MilestoneDialog } from "@/components/desktop/MilestoneDialog";
 import { playStartupSound } from "@/audio/startup-sound";
 import { createScanPreview } from "@/audio/scan-preview";
 import { beginStart, isCurrentStart } from "@/audio/play-session";
+import { bindPlaySurface } from "@/audio/play-surface";
 import { toast } from "@/stores/toast-store";
 import { emit, onHdEvent, SW_OFFLINE_FALLBACK } from "@/lib/events";
 import { isKeyOwnedByTarget } from "@/lib/utils/key-ownership";
@@ -144,6 +145,8 @@ export default function DesktopLayout({
       // the meantime; each continuation checks it is still the newest start
       // before going on, and playEpisode checks again (HD-003).
       const start = beginStart();
+      // Whatever surface the emitter declared (src/audio/play-surface.ts).
+      bindPlaySurface(start);
 
       // Archive episodes stream directly — no file picker needed
       if (episode.sourceUrl) {
