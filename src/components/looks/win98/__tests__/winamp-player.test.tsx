@@ -54,7 +54,8 @@ const next = { ...episode, id: 2, fileHash: "archive:coll:w2.mp3" } as Episode;
 
 let root: Root;
 let container: HTMLDivElement;
-let controls: { togglePlay: ReturnType<typeof vi.fn>; seek: ReturnType<typeof vi.fn>; stopPlayback: ReturnType<typeof vi.fn>; playNext: ReturnType<typeof vi.fn>; playPrevious: ReturnType<typeof vi.fn> };
+type Fn<A extends unknown[] = []> = ReturnType<typeof vi.fn<(...args: A) => void>>;
+let controls: { togglePlay: Fn; seek: Fn<[number]>; stopPlayback: Fn; playNext: Fn; playPrevious: Fn };
 
 const byId = (id: string) => container.querySelector<HTMLElement>(`[data-testid="${id}"]`)!;
 const click = (id: string) => act(() => byId(id).click());
@@ -62,7 +63,13 @@ const click = (id: string) => act(() => byId(id).click());
 beforeEach(() => {
   windowRenders.mockClear();
   openLibrary.mockClear();
-  controls = { togglePlay: vi.fn(), seek: vi.fn(), stopPlayback: vi.fn(), playNext: vi.fn(), playPrevious: vi.fn() };
+  controls = {
+    togglePlay: vi.fn<() => void>(),
+    seek: vi.fn<(s: number) => void>(),
+    stopPlayback: vi.fn<() => void>(),
+    playNext: vi.fn<() => void>(),
+    playPrevious: vi.fn<() => void>(),
+  };
   useLiveStore.setState({ tuned: false, paused: false });
   usePlayerStore.setState({
     currentEpisode: episode,
