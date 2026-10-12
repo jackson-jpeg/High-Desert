@@ -134,6 +134,12 @@ describe("slugify and guestSlug", () => {
     expect(slugify("Erich von Däniken & Art's Friends")).toBe("erich-von-daniken-arts-friends");
   });
 
+  it("drops a joining word a cut leaves at the end", () => {
+    expect(slugify("alpha beta on gamma", 13)).toBe("alpha-beta");
+    expect(slugify("tales of the desert", 12)).toBe("tales");
+    expect(slugify("on the air")).toBe("on-the-air");
+  });
+
   it("gives one guest one slug whatever the honorific", () => {
     expect(guestSlug("Dr. Roger Leir")).toBe("roger-leir");
     expect(guestSlug("Roger Leir")).toBe("roger-leir");
