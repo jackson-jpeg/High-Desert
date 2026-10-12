@@ -44,6 +44,18 @@ function streamFromFixture() {
   });
 }
 
+/**
+ * The caller tests below are about LiveChat, the Night look's phone lines
+ * (`change-name`, `live-message`, `line-label`). Win98, the default look since
+ * 418d264, draws them as Notepad with its own ids and menus
+ * (notepad-phone-lines.test.tsx, e2e/looks.spec.ts), so these choose Night the
+ * way a visitor's device does: the `hd_look` cookie.
+ */
+async function inNight(context: BrowserContext) {
+  const host = new URL(process.env.E2E_BASE_URL!).hostname;
+  await context.addCookies([{ name: "hd_look", value: "night", domain: host, path: "/", sameSite: "Lax" }]);
+}
+
 async function openLines(page: Page, mobile: boolean) {
   await page.goto("/live");
   // On a phone the lines are a sheet behind the sticky Call in button.
@@ -143,6 +155,7 @@ test("change name: refused and rate-limited names say why inline; a new name is 
     extraHTTPHeaders: { "x-forwarded-for": anotherClientAddress(info.workerIndex) },
   });
   try {
+    await Promise.all([inNight(page.context()), inNight(other)]);
     const listener = await other.newPage();
     await Promise.all([openLines(page, mobile), openLines(listener, mobile)]);
     const before = (await page.getByTestId("you-name").textContent())!;
@@ -190,6 +203,7 @@ test("change name: refused and rate-limited names say why inline; a new name is 
 // ---------------------------------------------------------------------------
 
 test("pressing Change name does not move or resize it (a press that reflows can lose its click)", async ({ page }, info) => {
+  await inNight(page.context());
   await openLines(page, !!info.project.use.isMobile);
   const button = page.getByRole("button", { name: "Change name" });
   // Layout, not paint: offset* ignore transforms, so the phone's deliberate
@@ -207,6 +221,7 @@ test("pressing Change name does not move or resize it (a press that reflows can 
 test("a caller keeps one line across a refresh, and the label reads the same in the header and on every message", async ({ page }, info) => {
   test.setTimeout(90_000);
   const mobile = !!info.project.use.isMobile;
+  await inNight(page.context());
   await openLines(page, mobile);
   const header = youLine(page);
   const line = (await header.textContent())!.trim();
@@ -540,6 +555,7 @@ test("the Phone Lines tab, in Radio's old place, opens the lines from anywhere",
 
 test("desktop: the call-in box is on screen and the newest call is in view", async ({ page }, info) => {
   test.skip(!!info.project.use.isMobile, "the phone opens the lines in a sheet");
+  await inNight(page.context());
   await page.goto("/live");
   const box = page.getByPlaceholder(/^Call in/);
   await expect(box).toBeInViewport({ timeout: 30_000 });

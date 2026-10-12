@@ -126,8 +126,12 @@ for (const look of ["win98", "night"] as const) {
         ? page.locator('[role="group"][aria-label="Places"] button')
         : page.locator("nav button[data-nav]");
     await expect(places.first()).toBeVisible({ timeout: 30_000 });
-    const labels = await places.evaluateAll((els) => els.map((el) => (el as HTMLElement).innerText.replace(/\s+/g, " ").trim()));
-    expect(labels.slice(0, 4)).toEqual(["Library", "Live", "Phone Lines", "Stats"]);
+    // Polled: the layout answers desktop through hydration and a phone flips
+    // right after (HD-037), so the server's HTML has the desktop's three. A
+    // presence badge ("Stats 3") is not part of the label.
+    const labels = () =>
+      places.evaluateAll((els) => els.map((el) => (el as HTMLElement).innerText.replace(/\s+/g, " ").trim().replace(/ \d+$/, "")));
+    await expect.poll(async () => (await labels()).slice(0, 4), { timeout: 15_000 }).toEqual(["Library", "Live", "Phone Lines", "Stats"]);
     const boxes = await places.evaluateAll((els) =>
       els.map((el) => {
         const r = el.getBoundingClientRect();
