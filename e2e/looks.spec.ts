@@ -28,6 +28,7 @@ type Look = (typeof LOOKS)[number];
 
 const SHOW = "/show/1992-12-12-area-51-john-lear-bob-lazar";
 const GUEST = "/guest/linda-moulton-howe";
+const TOPIC = "/topic/mels-hole";
 const OUT = "test-results/looks";
 mkdirSync(OUT, { recursive: true });
 
@@ -87,14 +88,49 @@ for (const look of LOOKS) {
         ["stats", "/stats"],
         ["live", "/live"],
         ["show", SHOW],
+        ["show-moment", `${SHOW}?t=5025`],
         ["guest", GUEST],
+        ["topics", "/topics"],
+        ["topic", TOPIC],
+        ["tonight", "/tonight"],
         ["not-found", "/no-such-page-here"],
       ];
       for (const [name, path] of screens) {
         await page.goto(path);
-        if (name === "show") await expect(page.locator("h1")).toBeVisible();
+        if (name !== "not-found" && name !== "welcome" && name !== "stats" && name !== "live") {
+          await expect(page.locator("h1").first()).toBeVisible();
+        }
         await checkScreen(page, look, name, project, errors);
       }
+    });
+
+    test("nothing playing: the player offers the station", async ({ page }, info) => {
+      await openLibrary(page);
+      await expect(page.getByTestId("player-empty").first()).toBeVisible({ timeout: 20_000 });
+      await checkScreen(page, look, "player-empty", info.project.name, errors);
+    });
+
+    test("the Display setting", async ({ page, isMobile }, info) => {
+      await openLibrary(page);
+      await settle(page);
+      if (look === "win98") {
+        // Start > Settings > Display...
+        await page.getByTestId("w98-start").click();
+        await page.getByTestId("w98-start-settings").click();
+        await page.getByTestId("w98-start-display").click();
+        await expect(page.getByTestId("w98-display")).toBeVisible();
+      } else if (isMobile) {
+        // More > Display
+        await page.getByRole("button", { name: "More options" }).click();
+        await page.getByTestId("more-display").click();
+        await expect(page.getByTestId("night-display")).toBeVisible();
+      } else {
+        // View > Display...
+        await page.getByRole("menuitem", { name: "View" }).click();
+        await page.getByRole("menuitem", { name: "Display..." }).click();
+        await expect(page.getByTestId("night-display")).toBeVisible();
+      }
+      await checkScreen(page, look, "display", info.project.name, errors);
     });
 
     test("library, its detail panel, and the dial", async ({ page }, info) => {
@@ -150,6 +186,21 @@ for (const look of LOOKS) {
     });
 
     if (look === "win98") {
+      test("win98: the first-visit Night offer", async ({ page }, info) => {
+        // The fixture marks the offer as made in every context; this one is a
+        // first visit with no record.
+        await page.addInitScript(() => {
+          try {
+            if (localStorage.getItem("hd-look-offer") === "e2e") localStorage.removeItem("hd-look-offer");
+          } catch {
+            /* storage blocked: nothing to undo */
+          }
+        });
+        await openLibrary(page);
+        await expect(page.getByTestId("night-offer")).toBeVisible({ timeout: 20_000 });
+        await checkScreen(page, look, "night-offer", info.project.name, errors);
+      });
+
       test("win98: the Start menu, Run and the hole", async ({ page }, info) => {
         const project = info.project.name;
         await openLibrary(page);
