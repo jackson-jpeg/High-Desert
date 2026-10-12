@@ -45,6 +45,8 @@
 #   HD_HEAVY      the box-wide turn semaphore   (default: heavy; see scripts/heavy.sh)
 #   HD_WAIT_SECS  how long to wait for the port (default: 60)
 #   HD_STAGE_DIR  parent of the dependency staging copy (default: /root/.hd-deploy-stage)
+#   HD_ENV_FILE   the service's env file, read for GOOGLE_SITE_VERIFICATION only
+#                 (default: /root/.high-desert.env)
 #
 set -euo pipefail
 
@@ -201,6 +203,15 @@ if [[ "$(cat "$LOCK_STAMP" 2>/dev/null || true)" != "$LOCK_SHA" ]]; then
 fi
 
 rm -rf "$STAGING" node_modules.staging
+
+# Search Console's meta tag is baked in when the root layout is built
+# (src/lib/seo/verification.ts), and the build does not load the service's env
+# file. Pass that one variable through; nothing else is read from the file.
+ENV_FILE="${HD_ENV_FILE:-/root/.high-desert.env}"
+if [[ -z "${GOOGLE_SITE_VERIFICATION:-}" && -r "$ENV_FILE" ]]; then
+  GOOGLE_SITE_VERIFICATION="$(sed -n 's/^GOOGLE_SITE_VERIFICATION=//p' "$ENV_FILE" | tail -n 1)"
+  export GOOGLE_SITE_VERIFICATION
+fi
 
 if (( DEPS_CHANGED )); then
   # The staging copy keeps the project's basename and depth, so the relative
