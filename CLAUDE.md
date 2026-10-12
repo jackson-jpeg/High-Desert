@@ -107,7 +107,7 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/archive/scrape` | GET | Proxy for catalog scrape (rate-limited 30/min) |
 | `/api/archive/metadata` | GET | Proxy for item metadata (cached 1hr) |
 | `/api/archive/health` | GET | archive.org reachability probe. Returns **`{up, status, checkedAt}`**. One upstream HEAD is shared by every caller for 60 s (up) / 10 s (down), and concurrent callers share the one in flight — every tab polls it (`useOutageMonitor`) |
-| `/api/stats/play` | POST | Record a play. Body `{episodeId, sessionId, source?, build?, surface?}`. Returns `{ok}`. `episodeId` must be in the community-key allowlist. `source` is where the audio came from — `archive`/`mirror`/`cache`/`local` (`PLAY_SOURCES`); anything else is **400**, absent is stored NULL (*unknown*, never assumed to be archive.org). `build` is the sending page's build (see "Long-lived tabs"); anything that is not a build id is stored NULL, never refused. `surface` is where it was started (`play_events.surface`, `src/audio/play-surface.ts`): `library`/`radio`/`live`/`stats`/`show`/`palette`/`queue`/`restore`/`other`; anything else is stored NULL, never refused (`docs/usage-tracking.md`) |
+| `/api/stats/play` | POST | Record a play. Body `{episodeId, sessionId, source?, build?, surface?, look?}`. Returns `{ok}`. `episodeId` must be in the community-key allowlist. `source` is where the audio came from — `archive`/`mirror`/`cache`/`local` (`PLAY_SOURCES`); anything else is **400**, absent is stored NULL (*unknown*, never assumed to be archive.org). `build` is the sending page's build (see "Long-lived tabs"); anything that is not a build id is stored NULL, never refused. `surface` is where it was started (`play_events.surface`, `src/audio/play-surface.ts`): `library`/`radio`/`live`/`stats`/`show`/`palette`/`queue`/`restore`/`other`; anything else is stored NULL, never refused (`docs/usage-tracking.md`). `look` is the sending page's look, `win98`/`night` (`play_events.look`, `docs/looks.md`); anything else is stored NULL, never refused |
 | `/api/stats/stop` | POST | End playback. Body `{sessionId, keepPresence?}`. `keepPresence: true` clears only the listening mark (the tab is still open); omitting it deletes the session, which is what the unload beacon does. Returns `{ok}` |
 | `/api/stats/rate` | POST | Submit a rating 1–5 or null. Body `{episodeId, rating}`. Returns `{ok}`. One ballot per client (IPv4 address / IPv6 /64), stored as an HMAC; **503 when `RATING_VOTER_SECRET` is unset** |
 | `/api/stats/episodes` | GET | Play counts for up to **100** ids. Returns **`{counts: {id: n}}`** |
@@ -132,9 +132,9 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/live-api/place`, `/live-api/tuned` | POST/POST | **Not Next.js.** "Calling from": `{place}` → `{place, nextChangeInS}`; filtered like a name (400 `place-*` reasons), a change at most every 10 min (429), `""`/null clears it at once and never waits. Suggested in the browser from its time zone only, never from an address. Tuned: `{}` → `{announced}`; the caller tuned in to the station (sent by `tuneIn()`), announced to the room as a `tunein` line with their place |
 | `/live-api/admin/*` | POST | **Not Next.js.** `hide`, `mute`, `ban`, `slow`, `clear-name`, `verify` (the deploy's round trip), `signin` `{nonce}`, `signout`; GET `signin-page`. Cookie or `Authorization: Bearer $LIVE_ADMIN_TOKEN`, else **401** `{error: "admin-only"}`. `/live-api/health` is loopback only (nginx 404s it) |
 | `/api/stats/failures` | GET | Which episodes are failing, worst first. `?days=7\|30\|90`. Returns **`{days, summary, entries: [{episodeId, title, failures, recovered, skippedRetries, plays, rate, kinds, uaClasses, details, lastAt}]}`**. Ids resolved to titles from the seed catalog. `details` is the browser's own diagnostics (up to 3 distinct, newest first), **filtered to diagnostic shapes** — the raw text is attacker-controlled (`publicDetails`, HD-038). `skippedRetries` counts retries not attempted for want of a user gesture, excluding `empty-media`, which is never retried by design — it is the instrument for the activation gate. `summary` is site-wide and is deliberately **not** a sum of `entries`, which is capped at 50 episodes. **Excludes advisory kinds** (`ADVISORY_KINDS` in `src/services/stats/db/failures.ts`) — this ranks episodes by how badly they are failing, and a row that never stopped playback would inflate that. Unauthenticated — it is aggregate-only, and the admin gate is presentation, not protection. `?since=<ISO>` adds **`window: {from, to, failures, recovered, plays, byBuild: [{build, failures, recovered, plays}]}`**, the fixed 7 days from that instant (cut at now) — how `highdesert-status` holds a release to `docs/reliability-baseline.md`, leading with `failures − recovered` (starts the listener lost) |
-| `/api/stats/funnel` | POST/GET | **The arrival funnel** (`docs/funnel.md`). POST `{step, cohort, device}`: a browser reached `visit`/`live`/`tune`/`call` for the first time, and first arrived on `cohort` (UTC `YYYY-MM-DD`, within 30 days) as a `phone` (narrower than 768 px) or `desktop`, fixed at arrival; adds one to `funnel_daily`. Returns `{ok}`; 10/min. GET `?days=7\|30\|90` → **`{days, cohorts: [{day, device, visit, live, tune, call}], totals, byDevice: {phone, desktop}}`**, `no-store`. A browser that arrived with an empty library is counted; one that already had a library is excluded for good (`src/services/stats/funnel-client.ts`, which keeps "once" in localStorage `hd-funnel`). No session, no address, no id. `highdesert-status`'s `funnel` line reads it. Anything that browses production headless must keep out of it: `csp-check` marks its browser excluded, `presence-check` and the e2e fixture answer the POST in the page |
-| `/api/stats/view` | POST | **A tab entered** (`docs/usage-tracking.md`). Body `{route, device, arrival?: {source, landing}}`: adds one view to `route_daily` for today (UTC). `route`/`landing` are `welcome`/`library`/`radio`/`stats`/`live`/`show`/`other` (`routeOf()`, `src/lib/usage/vocab.ts`), `device` `phone` (narrower than 768 px) or `desktop`; an unknown route or device is **400**. `arrival` rides on a browser session's first view (sessionStorage `hd-arrival`): a coarse class decided in the browser, `reddit`/`google`/`other-search`/`ai`/`social`/`internal`/`direct`/`other` (`src/lib/usage/arrival.ts`), counted in `arrival_daily`; a malformed one is dropped and the view still counted. Returns `{ok}`; 60/min. Sent by `UsageTracker` (root layout) once a tab has been on screen 1 s. **Never** a referrer, host, URL, session, address or user agent. Kept out like the funnel: `localStorage["hd-not-counted"]` (set by `csp-check`) stops it, and the minutes and funnel steps too; `presence-check` and the e2e fixture answer the POST in the page |
-| `/api/stats/usage` | GET | **Usage, aggregate only.** `?days=7\|30\|90` (else 7) → **`{days, routes: [{route, device, views, minutes}], arrivals: [{source, landing, device, n}], playsBySurface: {library, radio, live, stats, show, palette, queue, restore, other, unknown}}`**. UTC days, today included; `routes` most viewed first, `arrivals` largest first; `playsBySurface` counts `play_events` in the same window (`unknown`: no surface). `no-store`, 30/min |
+| `/api/stats/funnel` | POST/GET | **The arrival funnel** (`docs/funnel.md`). POST `{step, cohort, device, look?, again?}`: a browser reached `visit`/`live`/`tune`/`call`/`return` for the first time (`return`: back on a later UTC day), and first arrived on `cohort` (UTC `YYYY-MM-DD`, within 30 days) as a `phone` (narrower than 768 px) or `desktop`, fixed at arrival; `look` is the look it took the step in (`win98`/`night`, else stored NULL), `again: true` when it already counted the step in its other look (each look's funnel is whole; totals count `again` rows never); adds one to `funnel_daily`. Returns `{ok}`; 10/min. GET `?days=7\|30\|90` → **`{days, cohorts: [{day, device, visit, live, tune, call, return}], totals, byDevice: {phone, desktop}, byLook: {win98: {phone, desktop}, night: {phone, desktop}}}`**, `no-store`. A browser that arrived with an empty library is counted; one that already had a library is excluded for good (`src/services/stats/funnel-client.ts`, which keeps "once" in localStorage `hd-funnel`). No session, no address, no id. `highdesert-status`'s `funnel` line reads it. Anything that browses production headless must keep out of it: `csp-check` marks its browser excluded, `presence-check` and the e2e fixture answer the POST in the page |
+| `/api/stats/view` | POST | **A tab entered** (`docs/usage-tracking.md`). Body `{route, device, arrival?: {source, landing, look?}}`: adds one view to `route_daily` for today (UTC). `route`/`landing` are `welcome`/`library`/`radio`/`stats`/`live`/`show`/`other` (`routeOf()`, `src/lib/usage/vocab.ts`), `device` `phone` (narrower than 768 px) or `desktop`; an unknown route or device is **400**. `arrival` rides on a browser session's first view (sessionStorage `hd-arrival`): a coarse class decided in the browser, `reddit`/`google`/`other-search`/`ai`/`social`/`internal`/`direct`/`other` (`src/lib/usage/arrival.ts`), counted in `arrival_daily` with the look it landed in (`win98`/`night`, else NULL); a malformed one is dropped and the view still counted. Returns `{ok}`; 60/min. Sent by `UsageTracker` (root layout) once a tab has been on screen 1 s. **Never** a referrer, host, URL, session, address or user agent. Kept out like the funnel: `localStorage["hd-not-counted"]` (set by `csp-check`) stops it, and the minutes and funnel steps too; `presence-check` and the e2e fixture answer the POST in the page |
+| `/api/stats/usage` | GET | **Usage, aggregate only.** `?days=7\|30\|90` (else 7) → **`{days, routes: [{route, device, views, minutes}], arrivals: [{source, landing, device, look, n}], playsBySurface: {library, radio, live, stats, show, palette, queue, restore, other, unknown}, playsByLook: {win98, night, unknown}}`**. UTC days, today included; `routes` most viewed first, `arrivals` largest first; `playsBySurface` counts `play_events` in the same window (`unknown`: no surface). `no-store`, 30/min |
 | `/api/stats/export` | GET | **The permanent record, for sang3r.com.** Requires `x-service-token` (`STATS_EXPORT_SECRET`). `?mode=summary\|events\|daily\|episodes`. The only route that returns the event log rather than aggregates, and the only one not reachable from a browser. Episode ids are resolved to titles from the seed catalog. Page `events` with `after=<last id>` — **not** with `since`, which cannot disambiguate two plays sharing a timestamp |
 
 > Response shapes are inconsistent by history, not design. `src/services/stats/client.ts`
@@ -354,7 +354,7 @@ Search Console steps: `docs/show-pages.md`.
   related lists (same guest, same day in other years, same category; bounded, every link
   a real page). The root layout's boot screen is hidden by a `<style precedence>` hoisted
   into `<head>` (`NO_BOOT_CSS`); without it the page sat under `#app-loading` for 6 s, and
-  forever without JavaScript. Class hooks are `hd-show-*` for the preview looks.
+  forever without JavaScript. Class hooks are `hd-show-*` for the looks.
 - **Head and structured data** (`src/lib/shows/metadata.ts`, `jsonld.ts`): title
   "Subject with Guests · Programme, Date", description from programme, date and summary
   (≤160), canonical, Open Graph, Twitter card; a `next/og` card per page
@@ -1123,32 +1123,29 @@ mount (reading it during render caused a hydration mismatch). Force viewer mode 
 set the localStorage key. Never put anything behind it that must actually be protected — all
 admin features are local-only and touch nothing server-side.
 
-## Preview looks: Clean and Win98 (2026-10-12, read before touching `src/lib/look/`, `src/proxy.ts`, `src/styles/look-*.css` or `src/components/looks/`)
+## Looks: Win98 and Night (2026-10-12, read before touching `src/lib/look/`, `src/proxy.ts`, `src/styles/look-*.css` or `src/components/looks/`)
 
-Two candidate redesigns run on production **for the owner only**; every other
-visitor gets the public look, which must not change while they exist. Full
-account: `docs/looks.md`; the owner's guide: `docs/redesign-2026-10-12/look-guide.md`.
+Two public looks, chosen per device: **Win98** (the default, and what crawlers
+see) and **Night** (the dark theme). Full account: `docs/looks.md`.
 
-- **Only the admin can turn one on.** `POST /live-api/admin/look` (admin cookie
-  or bearer) signs `hd_look` under a key derived from `LIVE_ADMIN_TOKEN`; the app
-  holds only the derived key, **`HD_LOOK_KEY`** in `/root/.high-desert.env`
-  (`LIVE_ADMIN_TOKEN=… node services/live/lib/look.mjs --key`). `src/proxy.ts`
-  verifies it on page requests and keeps the script-readable `hd_look_view` in
-  step (deleting a forged one); the boot script sets `<html data-look>` before
-  paint. Pages stay static. No key, no previews. The owner switches at `/look`
-  or with the pill on every page.
-- **Public look untouched**: look CSS only under `html[data-look="…"]`, component
-  swaps only behind `useLook()` (which is `"default"` through hydration), preview
-  components lazily imported. `e2e/looks.spec.ts` fails if the public look ever
-  carries `data-look` or the switcher, and screenshots every screen in every look,
-  phone and desktop (CI artifact `look-screenshots`, every run).
-- **Radio is a Library mode in the previews** (the audit: 2% of plays,
-  `docs/redesign-2026-10-12/usage-report.md`): no Radio tab, `/library?view=dial`,
-  `/radio` redirects there. Navigation per look is `src/lib/look/nav.ts`.
-- Win98 colours are `--hd-w98-*` (in PALETTE like every colour). Win98 swaps:
-  `Taskbar`/Start menu for the tabs, `WinampPlayer` for the player,
-  `NotepadPhoneLines` for the chat (`useCallBox` is shared with `LiveChat`), and
-  the hidden Mel's Hole (type `hole`, or Start, Run…, `melshole`).
+- **The choice is a plain cookie**, `hd_look=win98|night` (`lookCookie()`).
+  `next.config.ts` rewrites each page into `src/app/[look]/` by it, so the
+  server renders the chosen look; `<html data-look>` and `useLook()` say which.
+- **Switching** is `chooseLook()` (`src/lib/look/choice.ts`): cookie, then
+  reload. Win98: Start > Settings > Display (Display Properties). Night: More >
+  Display on a phone. Both: View > Display... on a desktop.
+- **A first visit in Win98 is offered Night once** (`NightOffer`): written as
+  offered before it shows, after the boot screen, never over a phone's Listen
+  tap on /live, never on show pages or a crawler's first paint.
+- **Arrivals, funnel steps and plays record the look** (`arrival_daily.look`,
+  `funnel_daily.look`/`again` and the `return` step, `play_events.look`), so an
+  audit can compare looks on tune-ins and returns (`docs/funnel.md`, "By look").
+- Look CSS only under `html[data-look="…"]`; colours are `--hd-*`/`--hd-w98-*`.
+  Win98 swaps: `Taskbar`/Start menu for the tabs, `WinampPlayer` for the player,
+  `NotepadPhoneLines` for the chat, dense Details rows for the phone library,
+  and the hidden Mel's Hole (type `hole`, or Start, Run…, `melshole`). Both
+  looks: an empty player shows the station with one tap to tune in.
+- **Radio is a Library mode** (`/library?view=dial`, `/radio` redirects there).
 
 ## Design System
 

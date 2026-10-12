@@ -34,6 +34,8 @@ export interface TaskbarProps {
   onShortcuts: () => void;
   /** The phone's More sheet (text size, sound, export). */
   onSettings: () => void;
+  /** Start > Settings > Display: the look (DisplayProperties, owned by the shell). */
+  onDisplay: () => void;
 }
 
 /**
@@ -41,7 +43,7 @@ export interface TaskbarProps {
  * here, the speaker, the clock). It stands in for the nav tabs on every
  * screen: at the bottom of the desktop, and as the phone's bottom bar.
  */
-export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings }: TaskbarProps) {
+export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings, onDisplay }: TaskbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const isMobile = useIsMobile();
@@ -115,6 +117,11 @@ export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings }:
           return onShortcuts();
         case "settings":
           return onSettings();
+        case "display":
+          return onDisplay();
+        case "submenu":
+          // The Start menu opens its own submenus; nothing to do here.
+          return;
         case "help":
           return setOverlay("help");
         case "run":
@@ -123,7 +130,7 @@ export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings }:
           return setOverlay("shutdown");
       }
     },
-    [router, pathname, onAbout, onShortcuts, onSettings],
+    [router, pathname, onAbout, onShortcuts, onSettings, onDisplay],
   );
 
   const pick = useCallback(

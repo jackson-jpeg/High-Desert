@@ -5,7 +5,9 @@ import {
   notFoundMessage,
   PHONE_LINES_HREF,
   runCommand,
+  settingsItems,
   startMenuItems,
+  submenuOf,
   startMenuKey,
   typeKey,
 } from "../start-menu";
@@ -20,6 +22,7 @@ describe("startMenuItems", () => {
       "Phone Lines",
       "Dial",
       "Stats",
+      "Settings",
       "About High Desert",
       "Shortcuts",
       "Help",
@@ -54,9 +57,21 @@ describe("startMenuItems", () => {
     expect(admin).toContain("Search archive.org");
   });
 
-  it("adds Settings on a phone only, where there is no menu bar", () => {
-    expect(labels({ isAdmin: false, isMobile: false })).not.toContain("Settings");
-    expect(labels({ isAdmin: false, isMobile: true })).toContain("Settings");
+  it("Settings opens a submenu: Display everywhere, and the More sheet on a phone (it has no menu bar)", () => {
+    for (const isMobile of [false, true]) {
+      const settings = startMenuItems({ isAdmin: false, isMobile }).find((i) => i.id === "settings")!;
+      const sub = submenuOf(settings)!;
+      expect(sub).toEqual(settingsItems({ isMobile }));
+      expect(sub[0]).toMatchObject({ id: "display", label: "Display...", action: { kind: "display" } });
+      expect(sub.map((i) => i.action.kind)).toEqual(isMobile ? ["display", "settings"] : ["display"]);
+    }
+    expect(submenuOf(startMenuItems({ isAdmin: false, isMobile: false })[0])).toBeNull();
+  });
+
+  it("a submenu's accelerators are unique letters of its labels", () => {
+    const sub = settingsItems({ isMobile: true });
+    expect(new Set(sub.map((i) => i.accel.toLowerCase())).size).toBe(sub.length);
+    for (const i of sub) expect(i.label.toLowerCase()).toContain(i.accel.toLowerCase());
   });
 
   it("gives every item a unique accelerator that is a letter of its label", () => {
@@ -120,6 +135,8 @@ describe("runCommand", () => {
     expect(runCommand("radio.exe")).toEqual({ kind: "action", action: { kind: "route", href: DIAL_HREF } });
     expect(runCommand("taskmgr")).toEqual({ kind: "action", action: { kind: "route", href: "/stats" } });
     expect(runCommand("winver")).toEqual({ kind: "action", action: { kind: "about" } });
+    expect(runCommand("desk.cpl")).toEqual({ kind: "action", action: { kind: "display" } });
+    expect(runCommand("Display")).toEqual({ kind: "action", action: { kind: "display" } });
   });
 
   it("refuses the unknown, by the name as typed", () => {

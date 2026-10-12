@@ -48,7 +48,18 @@ describe("POST /api/stats/funnel", () => {
     const res = await post({ step: "tune", cohort: today(), device: "phone" });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
-    expect(store.recordFunnelStep).toHaveBeenCalledWith(today(), "tune", "phone");
+    expect(store.recordFunnelStep).toHaveBeenCalledWith(today(), "tune", "phone", null, false);
+  });
+
+  it("carries the look and whether it is a second look's count; an unknown look is stored unknown, never refused", async () => {
+    expect((await post({ step: "tune", cohort: today(), device: "phone", look: "night" })).status).toBe(200);
+    expect((await post({ step: "return", cohort: today(), device: "desktop", look: "win98", again: true })).status).toBe(200);
+    expect((await post({ step: "visit", cohort: today(), device: "phone", look: "clean", again: "yes" })).status).toBe(200);
+    expect(store.recordFunnelStep.mock.calls).toEqual([
+      [today(), "tune", "phone", "night", false],
+      [today(), "return", "desktop", "win98", true],
+      [today(), "visit", "phone", null, false],
+    ]);
   });
 
   it("an unknown step, or a cohort that is not a recent day, is a 400 and writes nothing", async () => {

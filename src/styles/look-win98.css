@@ -489,6 +489,112 @@ html[data-look="win98"] .hd-w98-list-item:focus-visible {
   outline: none;
 }
 
+/* Start > Settings: the cascading submenu, and its item while open. */
+html[data-look="win98"] .hd-w98-start-submenu {
+  max-width: calc(100vw - 8px);
+}
+
+html[data-look="win98"] .hd-w98-menu-item-open {
+  background: var(--hd-navy);
+  color: var(--hd-chrome-lighter);
+}
+
+/* ============================================
+   Display Properties (Start > Settings > Display)
+   ============================================ */
+
+/* One property-sheet tab, raised and joined to the sheet below it. */
+html[data-look="win98"] .hd-w98-proptab {
+  position: relative;
+  top: 1px;
+  background: var(--hd-w98-face);
+  border: 1px solid;
+  border-color: var(--hd-chrome-lighter) var(--hd-ink) transparent var(--hd-chrome-lighter);
+  box-shadow: inset -1px 0 0 var(--hd-chrome-dark);
+}
+
+html[data-look="win98"] .hd-w98-propsheet {
+  border: 1px solid;
+  border-color: var(--hd-chrome-lighter) var(--hd-ink) var(--hd-ink) var(--hd-chrome-lighter);
+  box-shadow: inset -1px -1px 0 var(--hd-chrome-dark);
+}
+
+/* The monitor the scheme is previewed on, as in the real dialog. */
+html[data-look="win98"] .hd-w98-monitor {
+  padding: 10px 10px 22px;
+  background: var(--hd-w98-face);
+  border: 1px solid;
+  border-color: var(--hd-chrome-lighter) var(--hd-ink) var(--hd-ink) var(--hd-chrome-lighter);
+  box-shadow:
+    inset -1px -1px 0 var(--hd-chrome-dark),
+    0 10px 0 -4px var(--hd-chrome-dark);
+}
+
+html[data-look="win98"] .hd-w98-monitor-screen {
+  border: 1px solid;
+  border-color: var(--hd-chrome-dark) var(--hd-chrome-lighter) var(--hd-chrome-lighter) var(--hd-chrome-dark);
+}
+
+/* ============================================
+   The player with nothing loaded: an idle Winamp strip
+   (src/components/player/PlayerEmptyState.tsx)
+   ============================================ */
+
+html[data-look="win98"] .hd-w98-idle {
+  background: var(--hd-w98-amp-frame);
+  color: var(--hd-w98-amp-text);
+  border-top: 1px solid var(--hd-w98-amp-edge);
+  border-bottom: 1px solid var(--hd-w98-amp-shadow);
+}
+
+/* The LCD: green on black, as the playing window's is. */
+html[data-look="win98"] .hd-w98-idle-lcd {
+  background: var(--hd-ink);
+  color: var(--hd-w98-amp-lcd);
+  border: 1px solid;
+  border-color: var(--hd-w98-amp-shadow) var(--hd-w98-amp-edge) var(--hd-w98-amp-edge) var(--hd-w98-amp-shadow);
+}
+
+html[data-look="win98"] .hd-w98-idle-lcd > span:first-child {
+  color: var(--hd-w98-amp-gold);
+}
+
+html[data-look="win98"] .hd-w98-idle-tune {
+  color: var(--hd-ink);
+}
+
+/* ============================================
+   The first-visit "Prefer dark?" offer: a tray balloon
+   ============================================ */
+
+html[data-look="win98"] .hd-w98-offer {
+  background: var(--hd-w98-tooltip);
+  color: var(--hd-ink);
+  border: 1px solid var(--hd-ink);
+  box-shadow: 2px 2px 0 var(--hd-chrome-dark);
+}
+
+html[data-look="win98"] .hd-w98-offer-button,
+html[data-look="win98"] .hd-w98-offer-close {
+  background: var(--hd-w98-face);
+  color: var(--hd-ink);
+  border: 1px solid;
+  border-color: var(--hd-chrome-lighter) var(--hd-ink) var(--hd-ink) var(--hd-chrome-lighter);
+  box-shadow: inset -1px -1px 0 var(--hd-chrome-dark);
+}
+
+html[data-look="win98"] .hd-w98-offer-button:active,
+html[data-look="win98"] .hd-w98-offer-close:active {
+  border-color: var(--hd-ink) var(--hd-chrome-lighter) var(--hd-chrome-lighter) var(--hd-ink);
+  box-shadow: inset 1px 1px 0 var(--hd-chrome-dark);
+}
+
+html[data-look="win98"] .hd-w98-offer-button:focus-visible,
+html[data-look="win98"] .hd-w98-offer-close:focus-visible {
+  outline: 1px dotted var(--hd-ink);
+  outline-offset: -4px;
+}
+
 /* ============================================
    Shut Down
    ============================================ */
@@ -1393,6 +1499,34 @@ html[data-look="win98"] [data-episode-listbox] [data-testid="group-header"] {
 }
 
 /* ============================================
+   The library on a phone: the same white ListView, one Details row per show
+   (EpisodeCard's dense rows, ITEM_HEIGHT_W98_PHONE): flat, a hairline
+   between rows, navy when selected (the rule above), never a card.
+   ============================================ */
+
+@media (max-width: 767px) {
+  html[data-look="win98"] div:has(> [data-episode-listbox]) {
+    background: var(--hd-chrome-lighter);
+  }
+
+  html[data-look="win98"] [data-episode-listbox] [role="option"].hd-w98-row {
+    border: 0;
+    border-bottom: 1px solid var(--hd-chrome-light);
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  html[data-look="win98"] [data-episode-listbox] [role="option"].hd-w98-row:not([aria-selected="true"]) {
+    background: var(--hd-chrome-lighter);
+  }
+
+  html[data-look="win98"] [data-episode-listbox] [role="option"].hd-w98-row:not([aria-selected="true"]):active {
+    background: var(--hd-chrome-light);
+  }
+}
+
+/* ============================================
    The welcome screen: a dialog on the teal desktop
    ============================================ */
 
@@ -1533,6 +1667,31 @@ html[data-look="win98"] .hd-dial-zoom-button:active {
 
 html[data-look="win98"] .hd-dial-empty-title {
   font-weight: bold;
+}
+
+/* The signal meter (the dial's, on a desktop): a Win98 progress bar, navy
+   blocks in a sunken white field, with the label in ink. Its green LEDs on
+   the gray face measured 1.4:1 and read as nothing at all. The colours are
+   the meter's own custom properties (SignalMeter.tsx); signal-meter.test.ts
+   holds navy on white and ink on the face to WCAG's ratios. */
+html[data-look="win98"] .hd-signal {
+  --signal-on: var(--hd-navy);
+  --signal-off: transparent;
+  --signal-glow: none;
+  --signal-on-opacity: 1;
+  --signal-full-animation: none;
+}
+
+html[data-look="win98"] .hd-signal-label {
+  color: var(--hd-ink);
+}
+
+html[data-look="win98"] .hd-signal-bar {
+  background: var(--hd-chrome-lighter);
+  padding: 2px;
+  border: 1px solid;
+  border-color: var(--hd-chrome-dark) var(--hd-chrome-lighter) var(--hd-chrome-lighter) var(--hd-chrome-dark);
+  box-shadow: inset 1px 1px 0 var(--hd-ink);
 }
 
 /* ============================================

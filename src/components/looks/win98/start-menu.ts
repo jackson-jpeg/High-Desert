@@ -3,8 +3,8 @@
  * draws it). Kept pure so the list, the keyboard and the Run box are tested
  * without a DOM.
  *
- * Radio is never listed: a usage audit found the Radio tab quiet, so in the
- * preview looks the dial lives inside the Library (`/library?view=dial`).
+ * Radio is never listed: a usage audit found the Radio tab quiet, so the
+ * dial lives inside the Library (`/library?view=dial`).
  */
 
 export type StartAction =
@@ -13,6 +13,8 @@ export type StartAction =
   | { kind: "shortcuts" }
   | { kind: "help" }
   | { kind: "settings" }
+  | { kind: "display" }
+  | { kind: "submenu"; items: StartItem[] }
   | { kind: "run" }
   | { kind: "shutdown" };
 
@@ -25,6 +27,7 @@ export type StartIcon =
   | "scanner"
   | "search"
   | "settings"
+  | "display"
   | "about"
   | "shortcuts"
   | "help"
@@ -61,19 +64,42 @@ export function startMenuItems({ isAdmin, isMobile }: { isAdmin: boolean; isMobi
       { id: "search", label: "Search archive.org", accel: "E", icon: "search", action: { kind: "route", href: "/search" } },
     );
   }
-  // The phone has no menu bar, so its settings (text size, sound, export)
-  // stay in the More sheet, opened from here.
-  if (isMobile) {
-    items.push({ id: "settings", label: "Settings", accel: "T", icon: "settings", action: { kind: "settings" }, separatorBefore: true });
-  }
+  items.push({
+    id: "settings",
+    label: "Settings",
+    accel: "T",
+    icon: "settings",
+    action: { kind: "submenu", items: settingsItems({ isMobile }) },
+    separatorBefore: true,
+  });
   items.push(
-    { id: "about", label: "About High Desert", accel: "A", icon: "about", action: { kind: "about" }, separatorBefore: !isMobile },
+    { id: "about", label: "About High Desert", accel: "A", icon: "about", action: { kind: "about" } },
     { id: "shortcuts", label: "Shortcuts", accel: "O", icon: "shortcuts", action: { kind: "shortcuts" } },
     { id: "help", label: "Help", accel: "H", icon: "help", action: { kind: "help" } },
     { id: "run", label: "Run...", accel: "R", icon: "run", action: { kind: "run" } },
     { id: "shutdown", label: "Shut Down...", accel: "U", icon: "shutdown", action: { kind: "shutdown" }, separatorBefore: true },
   );
   return items;
+}
+
+/**
+ * Start > Settings: Display (the look: Win98 or Night, docs/looks.md), and on
+ * a phone, which has no menu bar, the rest of its settings (text size, sound,
+ * export) in the More sheet.
+ */
+export function settingsItems({ isMobile }: { isMobile: boolean }): StartItem[] {
+  const items: StartItem[] = [
+    { id: "display", label: "Display...", accel: "D", icon: "display", action: { kind: "display" } },
+  ];
+  if (isMobile) {
+    items.push({ id: "more-settings", label: "More Settings...", accel: "M", icon: "settings", action: { kind: "settings" } });
+  }
+  return items;
+}
+
+/** The items a submenu item opens, or null for an item that acts. */
+export function submenuOf(item: StartItem): StartItem[] | null {
+  return item.action.kind === "submenu" ? item.action.items : null;
 }
 
 /**
@@ -144,6 +170,9 @@ export function runCommand(input: string): RunResult {
     case "help":
     case "winhelp":
       return { kind: "action", action: { kind: "help" } };
+    case "display":
+    case "desk.cpl":
+      return { kind: "action", action: { kind: "display" } };
   }
   return { kind: "not-found", name: input.trim() };
 }

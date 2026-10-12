@@ -11,8 +11,9 @@ first party, aggregate only.
 | Table | Row | Written by |
 |---|---|---|
 | `route_daily (day, route, device, views, minutes)` | `views`: one per tab entered, client-side navigation included, once it has stayed on screen 1 s. `minutes`: one per minute heartbeat from a tab that was on screen | `POST /api/stats/view`; the 60 s heartbeat |
-| `arrival_daily (day, source, landing, device, n)` | One per browser session: where it came from (a coarse class) and the tab it landed on | the session's first `POST /api/stats/view` |
+| `arrival_daily (day, source, landing, device, look, n)` | One per browser session: where it came from (a coarse class), the tab it landed on, and the look it landed in | the session's first `POST /api/stats/view` |
 | `play_events.surface` | Where each play was started | `POST /api/stats/play` |
+| `play_events.look` | The look of the page that sent the play | `POST /api/stats/play` |
 
 - **Tabs** (`route`, `landing`): `welcome` (`/`), `library`, `radio`, `stats`,
   `live`, `show` (`/show/<slug>`), `other` (the admin tabs, `/look`, anything
@@ -34,6 +35,13 @@ first party, aggregate only.
   remembered show's first play), `palette` (the command palette), `other`
   (the welcome page, the admin tabs). NULL is unknown: older rows, older
   clients, and any value the server does not know (stored NULL, never a 400).
+
+- **Look** (2026-10-12, `docs/looks.md`): `win98` or `night`, the look the
+  page was rendered in (`<html data-look>`, `pageLook()`). Sent on the
+  arrival (`arrival.look`) and on every play (`look`). NULL is unknown: older
+  rows, older clients, and any value the server does not know (stored NULL,
+  never a 400). The funnel carries it too (`docs/funnel.md`, "By look"),
+  which is where returns are compared.
 
 ## What is never stored or sent
 
@@ -91,15 +99,18 @@ with the heartbeat and play.
 {
   "days": 7,
   "routes": [{ "route": "live", "device": "phone", "views": 412, "minutes": 3810 }],
-  "arrivals": [{ "source": "reddit", "landing": "live", "device": "phone", "n": 96 }],
+  "arrivals": [{ "source": "reddit", "landing": "live", "device": "phone", "look": "win98", "n": 96 }],
   "playsBySurface": { "library": 0, "radio": 0, "live": 0, "stats": 0, "show": 0,
-                      "palette": 0, "queue": 0, "restore": 0, "other": 0, "unknown": 0 }
+                      "palette": 0, "queue": 0, "restore": 0, "other": 0, "unknown": 0 },
+  "playsByLook": { "win98": 0, "night": 0, "unknown": 0 }
 }
 ```
 
 Days are UTC days, today included. `routes` is most viewed first, `arrivals`
 largest first. `playsBySurface` counts `play_events` in the same window;
 `unknown` is plays with no surface (before this shipped, or an old tab).
+`arrivals` has one row per look (`look: null` before 2026-10-12), and
+`playsByLook` counts the window's plays by the look that sent them.
 
 ```bash
 curl -s 'https://highdesert.space/api/stats/usage?days=7' | jq
@@ -108,6 +119,6 @@ curl -s 'https://highdesert.space/api/stats/usage?days=7' | jq
 Code: `src/lib/usage/` (vocabulary, classifier), `src/services/stats/usage-client.ts`,
 `src/components/UsageTracker.tsx`, `src/audio/play-surface.ts` (browser);
 `src/services/stats/db/usage.ts`, `src/app/api/stats/view/route.ts`,
-`src/app/api/stats/usage/route.ts` (server); `route_daily`, `arrival_daily`
-and `play_events.surface` in `scripts/schema.sql`. Mutations: the `usage-*`
+`src/app/api/stats/usage/route.ts` (server); `route_daily`, `arrival_daily`,
+`play_events.surface` and `play_events.look` in `scripts/schema.sql`. Mutations: the `usage-*`
 and `play-surface-*` ids in `scripts/mutate-check.mjs`.

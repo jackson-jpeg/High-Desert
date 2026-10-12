@@ -11,7 +11,7 @@ import { useOutageMonitor } from "@/hooks/useOutageMonitor";
 import { installBrowserLiveStation } from "@/services/live/browser-station";
 import { installStaleTab } from "@/services/build/stale-tab";
 import { resumeStationAfterReload } from "@/audio/live-controller";
-import { funnelDecided, startFunnel } from "@/services/stats/funnel-client";
+import { funnelDecided, noteFunnelRevisit, startFunnel } from "@/services/stats/funnel-client";
 import { admitRequestedStart } from "@/audio/outage-gate";
 import { UnavailableEpisodeDialog } from "@/components/player/UnavailableEpisodeDialog";
 import { isRemovedFromCatalog } from "@/lib/library/removed-episodes";
@@ -97,7 +97,8 @@ export default function DesktopLayout({
   // is a first visit. Read now, not after the idle-deferred seed, so a visit
   // that leaves within a second or two is still counted.
   useEffect(() => {
-    if (funnelDecided()) return;
+    // A browser with a verdict: its visit in this look, and its return on a later day.
+    if (funnelDecided()) return noteFunnelRevisit();
     db.episodes.count().then((n) => startFunnel(n === 0)).catch(() => {});
   }, []);
 

@@ -36,7 +36,18 @@ describe("POST /api/stats/view", () => {
 
   it("passes a well-formed arrival through", async () => {
     await view({ route: "live", device: "desktop", arrival: { source: "ai", landing: "live" } });
-    expect(store.recordView).toHaveBeenCalledWith("live", "desktop", { source: "ai", landing: "live" });
+    expect(store.recordView).toHaveBeenCalledWith("live", "desktop", { source: "ai", landing: "live", look: null });
+  });
+
+  it("carries the arrival's look; an unknown look is stored unknown and the arrival still counts", async () => {
+    await view({ route: "live", device: "phone", arrival: { source: "reddit", landing: "live", look: "night" } });
+    await view({ route: "live", device: "phone", arrival: { source: "reddit", landing: "live", look: "win98" } });
+    await view({ route: "live", device: "phone", arrival: { source: "reddit", landing: "live", look: "clean" } });
+    expect(store.recordView.mock.calls.map((c) => (c as unknown[])[2])).toEqual([
+      { source: "reddit", landing: "live", look: "night" },
+      { source: "reddit", landing: "live", look: "win98" },
+      { source: "reddit", landing: "live", look: null },
+    ]);
   });
 
   it("drops an arrival that is not well formed and still counts the view", async () => {

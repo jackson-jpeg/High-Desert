@@ -21,6 +21,7 @@ import { episodeTitle } from "@/lib/library/display-title";
 import { shownGuest, shownTopic } from "@/lib/library/guest";
 import { splitShowTitle } from "@/lib/live/format";
 import { ShowKicker, ShowEpisode } from "./ShowTitle";
+import { useLook } from "@/hooks/useLook";
 
 interface EpisodeCardProps {
   episode: Episode;
@@ -81,6 +82,9 @@ export const EpisodeCard = memo(function EpisodeCard({
   style,
 }: EpisodeCardProps) {
   const showLabel = getShowLabel(episode.showType);
+  // Win98 on a phone: a dense Details-style list row, not a card
+  // (ITEM_HEIGHT_W98_PHONE; the hd-w98-row rules in look-win98.css).
+  const dense = useLook() === "win98";
   // Outage mode (src/stores/outage-store.ts): a primitive, so a row re-renders
   // only when its own standing changes — not on every store update.
   const availability = useOutageStore((s) => availabilityOf(s, episode.fileHash));
@@ -255,7 +259,8 @@ export const EpisodeCard = memo(function EpisodeCard({
       }}
       className={cn(
         "flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors-fast",
-        "text-hd-12 md:text-hd-10 min-w-[28px] min-h-[28px] md:min-w-0 md:min-h-0",
+        "text-hd-12 md:text-hd-10 md:min-w-0 md:min-h-0",
+        dense ? "min-w-touch min-h-touch" : "min-w-[28px] min-h-[28px]",
         episode.favoritedAt
           ? "text-desert-amber"
           : "text-bevel-dark/85 md:opacity-0 md:group-hover:opacity-100",
@@ -291,7 +296,7 @@ export const EpisodeCard = memo(function EpisodeCard({
       data-availability={availability}
       className={cn(
         "w-full h-full text-left w98-raised-dark bg-card-surface relative group glass-light",
-        "p-2.5 md:px-2 md:py-0 md:flex md:items-center",
+        dense ? "hd-w98-row px-2 py-0 flex items-center md:flex" : "p-2.5 md:px-2 md:py-0 md:flex md:items-center",
         "transition-all duration-150 cursor-pointer overflow-hidden",
         "hover:bg-title-bar-blue/15 hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]",
         "active:bg-title-bar-blue/20 active:shadow-none",
@@ -418,9 +423,60 @@ export const EpisodeCard = memo(function EpisodeCard({
       </div>
 
       {/* ---------------------------------------------------------------
+          Win98 on a phone: a Details row. Title on the first line, date,
+          guest and length on the second; navy when selected (look-win98.css).
+          Every action stays: tap, double tap, long press, the swipes, the
+          star and the guest.
+          --------------------------------------------------------------- */}
+      {dense && (
+        <div className="md:hidden flex items-center gap-1 w-full min-w-0" data-row-layout="w98-details">
+          <div className="flex-1 min-w-0 flex flex-col justify-center">
+            <div className="flex items-center gap-1.5 min-w-0">
+              {isMultiSelected && (
+                <span className="w-[14px] h-[14px] flex items-center justify-center w98-inset-dark bg-inset-well text-hd-10 text-static-green flex-shrink-0">
+                  {"✓"}
+                </span>
+              )}
+              {indicators}
+              <span className={cn("text-hd-body font-bold truncate min-w-0", unavailable ? "text-bevel-dark" : "text-desktop-gray")}>
+                {title}
+              </span>
+              {removedBadge}
+            </div>
+            <div className="flex items-center gap-2 min-w-0 text-hd-caption">
+              <span className="text-desert-amber tabular-nums font-mono flex-shrink-0">
+                {formatAirDate(episode.airDate) || "Unknown date"}
+              </span>
+              {shownGuest(episode) ? (
+                <span
+                  data-row-action="guest"
+                  onClick={showGuest}
+                  className="text-static-green truncate min-w-0 cursor-pointer"
+                >
+                  {shownGuest(episode)}
+                </span>
+              ) : (
+                <span className="text-static-green truncate min-w-0">{shownTopic(episode) || ""}</span>
+              )}
+              <span className="flex-1" />
+              {metric?.text && (
+                <span className="text-bevel-dark tabular-nums flex-shrink-0" title={metric.title} data-metric="">
+                  {metric.text}
+                </span>
+              )}
+              {episode.duration != null && (
+                <span className="text-bevel-dark tabular-nums font-mono flex-shrink-0">{formatDuration(episode.duration)}</span>
+              )}
+            </div>
+          </div>
+          {favButton}
+        </div>
+      )}
+
+      {/* ---------------------------------------------------------------
           Mobile: stacked, unchanged in shape.
           --------------------------------------------------------------- */}
-      <div className="md:hidden">
+      <div className={cn("md:hidden", dense && "hidden")}>
         {/*
           The show's name is the kicker and the episode gets the line: every
           title is "Show - Episode", and at 390 px the show's name ate the room
@@ -511,11 +567,11 @@ export const EpisodeCard = memo(function EpisodeCard({
       {hasProgress && (
         <>
           <div
-            className="hidden md:block absolute bottom-0 left-0 h-[2px] bg-static-green/40"
+            className={cn("md:block absolute bottom-0 left-0 h-[2px] bg-static-green/40", dense ? "block" : "hidden")}
             style={{ width: `${progressPct}%` }}
             aria-hidden="true"
           />
-          <div className="md:hidden absolute bottom-1 right-2">
+          <div className={cn("md:hidden absolute bottom-1 right-2", dense && "hidden")}>
             <MiniWaveform progress={progressPct} completed={isCompleted} />
           </div>
         </>

@@ -25,6 +25,7 @@ import { ShowKicker } from "@/components/library/ShowTitle";
 import { splitShowTitle } from "@/lib/live/format";
 import { retryWithPlaySurface } from "@/audio/play-surface";
 import { useLook } from "@/hooks/useLook";
+import { PlayerEmptyState } from "./PlayerEmptyState";
 
 // Win98's Winamp window (docs/looks.md).
 import { WinampPlayer } from "@/components/looks/win98/WinampPlayer";
@@ -89,7 +90,8 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
   useHdEvent("toggle-ultra-mini", () => setUltraMini((prev) => !prev));
   const look = useLook();
 
-  if (!currentEpisode) return null;
+  // Nothing loaded: what is on the station, and one tap to tune in.
+  if (!currentEpisode) return <PlayerEmptyState />;
 
   // Win98 look: the same controls, drawn as Winamp.
   if (look === "win98") {

@@ -45,6 +45,16 @@ const CommandPalette = dynamic(
   () => import("@/components/CommandPalette").then((m) => m.CommandPalette),
   { ssr: false },
 );
+// The Display setting, one per look (docs/looks.md). Opened from Start >
+// Settings > Display, View > Display... or More > Display.
+const DisplayProperties = dynamic(
+  () => import("@/components/looks/win98/DisplayProperties").then((m) => m.DisplayProperties),
+  { ssr: false },
+);
+const NightDisplay = dynamic(
+  () => import("@/components/looks/NightDisplay").then((m) => m.NightDisplay),
+  { ssr: false },
+);
 const EasterEggOverlays = dynamic(
   () => import("./EasterEggOverlays").then((m) => m.EasterEggOverlays),
   { ssr: false },
@@ -71,6 +81,8 @@ import { useLook } from "@/hooks/useLook";
 // Win98's taskbar (docs/looks.md), rendered by the server like the rest.
 import { Taskbar as Win98Taskbar } from "@/components/looks/win98/Taskbar";
 import { showsNavPath } from "@/lib/look/nav";
+import { NightOffer } from "@/components/looks/win98/NightOffer";
+import { LOOK_LABELS } from "@/lib/look/look";
 
 interface DesktopShellProps {
   children: ReactNode;
@@ -102,6 +114,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [displayOpen, setDisplayOpen] = useState(false);
+  const handleDisplay = useCallback(() => setDisplayOpen(true), []);
   // No timer-driven state in the shell. The clock and the caller rotation live in <StatusBar>.
 
   // Ctrl/Cmd+K lives here rather than inside CommandPalette, so the palette's
@@ -220,6 +234,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
     onInstall: installPrompt ? handleInstall : undefined,
     onExportData: userData.exportData,
     onImportData: userData.importData,
+    onDisplay: handleDisplay,
   });
 
   return (
@@ -269,6 +284,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
             onAbout={handleAbout}
             onShortcuts={handleShortcuts}
             onSettings={() => setMobileMenuOpen(true)}
+            onDisplay={handleDisplay}
           />
         </nav>
       ) : (
@@ -417,6 +433,16 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         />
       )}
 
+      {displayOpen &&
+        (look === "win98" ? (
+          <DisplayProperties onClose={() => setDisplayOpen(false)} />
+        ) : (
+          <NightDisplay onClose={() => setDisplayOpen(false)} />
+        ))}
+
+      {/* Win98 is the default: a first visit is offered Night, once. */}
+      {look === "win98" && <NightOffer bottomPx={bottomPadding} />}
+
       {/* Command palette (Ctrl+K / Cmd+K) */}
       {paletteOpen && <CommandPalette open onClose={() => setPaletteOpen(false)} />}
 
@@ -442,6 +468,8 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
         onCycleTextScale={cycleTextScale}
         onExportData={userData.exportData}
         onImportData={userData.importData}
+        onDisplay={handleDisplay}
+        lookLabel={LOOK_LABELS[look]}
       />
     </div>
   );
