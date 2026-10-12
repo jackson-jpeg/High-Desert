@@ -1210,6 +1210,22 @@ see) and **Night** (the dark theme). Full account: `docs/looks.md`.
   and the hidden Mel's Hole (type `hole`, or Start, Run…, `melshole`). Both
   looks: an empty player shows the station with one tap to tune in.
 - **Radio is a Library mode** (`/library?view=dial`, `/radio` redirects there).
+- **No gesture is ever a command** (2026-10-12, `e2e/scroll-gestures.spec.ts`).
+  Easter eggs open from deliberate acts only: Start, Run…, `melshole`; "hole"
+  typed on a keyboard (Win98's Taskbar, Night's `useTypedWord`); a search word;
+  a key chord. Mel's Hole used to open on the twelfth scroll event at the bottom
+  of the Library, which one iPhone scroll (momentum and bounce) supplies.
+  `eggs-deliberate.test.ts` lists every place an egg opens. A row's long press
+  is cancelled by any scroll and by `touchcancel`; a row swipe, and the dial
+  strip, lock to an axis once per touch. The spec scrolls every main screen
+  on a phone in both looks and fails if anything opens; with `E2E_WEBKIT=1` it
+  also runs in WebKit (the `iphone` project), whose iOS bounce is modelled in
+  `e2e/touch.ts`.
+- **The Library on a phone** (`e2e/library-phone.spec.ts`): Continue listening
+  as one row (`dense`), then search and filters (List / Dial beside the show
+  tabs), then the list, whose first shows are on the first screen (3 Win98
+  rows, 2 Night cards, with everything showing). The swipe tip and Explore
+  (On this date) sit under the list; the install offer is one slim line.
 
 ## Design System
 

@@ -24,8 +24,9 @@ import { swipe } from "./touch";
 const LOOKS = ["win98", "night"] as const;
 type Look = (typeof LOOKS)[number];
 
+// Not `/`: a phone never stays there (a first visit is sent to /live, a
+// returning one to /library, src/app/[look]/page.tsx), and both are here.
 const SCREENS: [name: string, path: string][] = [
-  ["welcome", "/"],
   ["library", "/library"],
   ["live", "/live"],
   ["stats", "/stats"],
@@ -133,7 +134,7 @@ for (const look of LOOKS) {
     });
 
     test("every other main screen, top to bottom and back, opens nothing", async ({ page }) => {
-      test.setTimeout(240_000);
+      test.setTimeout(600_000);
       // Seed the library once so each screen draws what a listener's does.
       await openLibrary(page);
       for (const [name, path] of SCREENS.filter(([n]) => n !== "library")) {

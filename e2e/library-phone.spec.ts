@@ -20,8 +20,12 @@ type Look = (typeof LOOKS)[number];
 const OUT = "test-results/library-phone";
 mkdirSync(OUT, { recursive: true });
 
-/** Rows that must be whole, on screen and uncovered on arrival. */
-const FIRST_ROWS = 3;
+/**
+ * Rows that must be whole, on screen and uncovered on arrival: Win98's dense
+ * Details rows are about 52 px, Night's cards about 118 px (two whole, and
+ * the top of a third, on a 390x844 phone with everything showing).
+ */
+const FIRST_ROWS: Record<Look, number> = { win98: 3, night: 2 };
 
 async function enterLook(page: Page, baseURL: string, look: Look): Promise<void> {
   const host = new URL(baseURL).hostname;
@@ -107,7 +111,7 @@ for (const look of LOOKS) {
       await page.waitForTimeout(1_000);
       await page.screenshot({ path: `${OUT}/${info.project.name}-${look}-first-visit.png` });
       const rows = await uncoveredRows(page);
-      expect(rows.whole, `whole rows on the first screen (first at ${rows.firstTop}px)`).toBeGreaterThanOrEqual(FIRST_ROWS);
+      expect(rows.whole, `whole rows on the first screen (first at ${rows.firstTop}px)`).toBeGreaterThanOrEqual(FIRST_ROWS[look]);
       const o = await order(page);
       expect(o.search, "the search box").not.toBeNull();
       expect(o.list!, "the list under the search").toBeGreaterThan(o.search!);
@@ -131,7 +135,7 @@ for (const look of LOOKS) {
         expect(h, "the install offer is one slim line").toBeLessThanOrEqual(36);
       }
       const rows = await uncoveredRows(page);
-      expect(rows.whole, `whole rows on the first screen (first at ${rows.firstTop}px)`).toBeGreaterThanOrEqual(FIRST_ROWS);
+      expect(rows.whole, `whole rows on the first screen (first at ${rows.firstTop}px)`).toBeGreaterThanOrEqual(FIRST_ROWS[look]);
     });
   });
 }

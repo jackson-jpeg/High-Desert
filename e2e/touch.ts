@@ -6,11 +6,15 @@
  *   touchstart/touchmove/touchend reach the page, the compositor scrolls
  *   natively, and a fling keeps going after the finger lifts.
  * - **WebKit** (the `iphone` project, Mobile Safari's engine): Playwright has
- *   no touch drag for WebKit, so a swipe is real `TouchEvent`s dispatched along
- *   the finger's path, each move followed by the scroll it would cause on the
+ *   no touch drag for WebKit, so a swipe is touch events dispatched along the
+ *   finger's path, each move followed by the scroll it would cause on the
  *   element under the finger (real scroll events), then a few frames of
- *   momentum. iOS also bounces past each end and keeps firing scroll events
- *   there; a swipe at an end here dispatches its touches and moves nothing.
+ *   momentum. **The bounce is modelled**: at an end, iOS rubber-bands and
+ *   keeps firing `scroll` there, and the push carries on to the scrollable
+ *   boxes around the list (scroll chaining). WebKit on Linux does neither,
+ *   so each push that cannot move the scroller dispatches a `scroll` event on
+ *   it and on each ancestor that scrolls, as an iPhone would. That stream of
+ *   scroll events at the bottom is what opened Mel's Hole (2026-10-12).
  *
  * Neither is an iPhone. They are the closest a Linux box gets, and the spec
  * says so where it matters.
@@ -72,6 +76,19 @@ export async function swipe(page: Page, dy: number, at?: { x: number; y: number 
         return document.scrollingElement ?? document.documentElement;
       };
       const scroller = scrollable(start);
+      // Everything an iPhone's bounce at an end reaches: the scroller and the
+      // boxes around it that scroll (overflow auto/scroll), as if chained.
+      const chain: Element[] = [];
+      for (let e: Element | null = scroller; e; e = e.parentElement) {
+        if (e === scroller || /(auto|scroll)/.test(getComputedStyle(e).overflowY)) chain.push(e);
+      }
+      const push = (by: number) => {
+        const before = scroller.scrollTop;
+        scroller.scrollBy(0, by);
+        if (by !== 0 && Math.abs(scroller.scrollTop - before) < 0.5) {
+          for (const e of chain) e.dispatchEvent(new Event("scroll"));
+        }
+      };
       // WebKit on Linux has no Touch constructor; a TouchEvent-typed Event
       // carrying the same touch lists is what the page's handlers read.
       const touchAt = (cy: number) => ({ identifier: 1, target: start, clientX: x, clientY: cy, pageX: x, pageY: cy, screenX: x, screenY: cy, radiusX: 11, radiusY: 11, force: 0.5 });
@@ -91,7 +108,7 @@ export async function swipe(page: Page, dy: number, at?: { x: number; y: number 
       fire("touchstart", y);
       for (let i = 1; i <= steps; i++) {
         fire("touchmove", y + (travel * i) / steps);
-        scroller.scrollBy(0, dy / steps / 2);
+        push(dy / steps / 2);
         await frame();
       }
       fire("touchend", y + travel);
@@ -99,7 +116,7 @@ export async function swipe(page: Page, dy: number, at?: { x: number; y: number 
       let left = dy / 2;
       for (let i = 0; i < 8; i++) {
         const step = left / 2;
-        scroller.scrollBy(0, step);
+        push(step);
         left -= step;
         await frame();
       }
