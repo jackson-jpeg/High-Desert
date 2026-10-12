@@ -25,7 +25,7 @@ import { db, getPreference, setPreference } from "@/db";
 import type { Episode } from "@/db/schema";
 import { getCachedAudio, cacheAudioBlob } from "@/audio/cache";
 import { seedLibraryIfEmpty, reconcileLibrary } from "@/db/seed";
-import { refreshCatalogFlags } from "@/db/catalog-flags";
+import { refreshCatalogFlags, refreshCatalogCategories } from "@/db/catalog-flags";
 import { healDoubledLibrary } from "@/db/heal";
 import { DBErrorBoundary } from "@/components/DBErrorBoundary";
 import { MilestoneDialog } from "@/components/desktop/MilestoneDialog";
@@ -326,6 +326,10 @@ export default function DesktopLayout({
           // Catalog flags added after this library was seeded (the curated
           // notable list). Sets one flag on listed rows, never anything else.
           await refreshCatalogFlags();
+          if (cancelled) return;
+          // Categories given to rows after this library was seeded (the 101
+          // community shows). Sets aiCategory where it is empty, nothing else.
+          await refreshCatalogCategories();
         })
         .catch((err) => { console.warn("[layout] Seed/reconcile failed:", err); })
         .finally(() => {
