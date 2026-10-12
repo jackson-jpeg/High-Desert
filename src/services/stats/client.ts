@@ -6,6 +6,7 @@ import { FAILURE_TAB_ID } from "@/lib/utils/session-id";
 import { useLiveStore } from "@/stores/live-store";
 import type { PlaySurface } from "@/lib/usage/vocab";
 import type { HeartbeatUsage } from "./usage-client";
+import { pageLook } from "@/lib/look/choice";
 
 const RETRY_OPTS = { retries: 1, timeout: 5000 } as const;
 
@@ -21,6 +22,12 @@ const RETRY_OPTS = { retries: 1, timeout: 5000 } as const;
 function buildTag(): { build?: string } {
   const build = pageBuild();
   return build ? { build } : {};
+}
+
+/** `{ look }` for a play: the look this page was rendered in (docs/looks.md). Omitted when it cannot say. */
+function lookTag(): { look?: string } {
+  const look = pageLook();
+  return look ? { look } : {};
 }
 
 /**
@@ -42,6 +49,7 @@ export function reportPlay(
       ...(source ? { source } : {}),
       ...(surface ? { surface } : {}),
       ...buildTag(),
+      ...lookTag(),
     }),
   }).catch(() => {});
 }

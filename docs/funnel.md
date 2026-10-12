@@ -19,6 +19,7 @@ its funnel.
 | `live` | The Live screen was on screen (`LiveStation` mounted) |
 | `tune` | It tuned in to the station (`tuneIn()`, from any surface) |
 | `call` | A call it made on the phone lines went through (201) |
+| `return` | It came back on a later UTC day than its cohort day (2026-10-12): the first load of the app on such a day |
 
 - **Each step is reported once per browser, ever**, against its cohort day.
   "Once" is kept in the browser (`localStorage["hd-funnel"]`), written
@@ -31,12 +32,48 @@ its funnel.
 - A step that happens before the arrival verdict (the Live screen mounts
   before the library count answers on a direct load of `/live`) waits for it,
   and is reported or dropped with it.
-- **No ids.** The server keeps `funnel_daily (day, device, step, n)` and nothing else:
+- **No ids.** The server keeps `funnel_daily (day, device, step, look, again, n)` and nothing else:
   no session, no address, no browser id. Like every public counter here it can
   be inflated by someone who wants to; the POST is rate limited per client
   (10 a minute).
 - Headless checkers keep out: `csp-check` marks its browser excluded,
   `presence-check` and the e2e fixture answer the POST in the page.
+
+## By look (2026-10-12)
+
+Win98 is the default look and Night the alternative (`docs/looks.md`). To
+compare them on tune-ins and returns, every step carries the look the browser
+was in when it took it (`look`, from `<html data-look>`; NULL on older rows).
+
+- **A step counts once per look.** A browser that switched looks and takes a
+  step again in the new look counts it there too, marked `again`. So each
+  look's funnel is whole (of the browsers that visited in Night, how many
+  tuned in while in Night, how many came back), and the totals, which read
+  only `again = false` rows, still count each browser once.
+- **A visit in a new look.** On every load of the app a counted browser
+  reports `visit` in a look it has not visited in yet (`noteFunnelRevisit`),
+  so a browser that took the first-visit Night offer is a Night visit too.
+- **`return`** is reported once, the first load on a later UTC day than the
+  cohort day, and once more in the other look if the browser switched. It is
+  the only "came back" signal here: a counter per cohort, no id. A cohort
+  stops taking steps after 30 days (`FUNNEL_COHORT_MAX_AGE_DAYS`), so later
+  returns are not counted.
+- **Read within a look, never across.** `GET /api/stats/funnel` gives
+  `byLook: {win98: {phone, desktop}, night: {phone, desktop}}`, each a
+  `{visit, live, tune, call, return}`. Compare `tune / visit` and
+  `return / visit` per look and device. Night's browsers chose it, so the
+  comparison is of people who picked a look, not a randomised trial.
+
+```bash
+curl -s 'https://highdesert.space/api/stats/funnel?days=30' | jq '.byLook'
+```
+
+**Schema order.** `scripts/schema.sql` moves `funnel_daily`'s and
+`arrival_daily`'s key to a unique index that includes the look (the old
+primary keys are dropped). The old code's `ON CONFLICT` names the old key and
+the new code's the new one, so apply the schema right after the deploy's
+restart: between the two, funnel and arrival writes answer 503 and are lost
+(a few seconds of counters, nothing else).
 
 Code: `src/services/stats/funnel-client.ts` (browser),
 `src/services/stats/db/funnel.ts` and `src/app/api/stats/funnel/route.ts`
@@ -47,7 +84,7 @@ Code: `src/services/stats/funnel-client.ts` (browser),
 - `highdesert-status` has a `funnel` line: the last 7 days' cohorts, each step
   as a share of their first visits, then the same shares for phones alone.
 - `GET /api/stats/funnel?days=7|30|90` gives every cohort day per device, the
-  totals and `byDevice`.
+  totals, `byDevice` and `byLook`.
 
 A cohort's later steps keep arriving for as long as its browsers come back,
 so the most recent days are always still filling in. Compare windows of

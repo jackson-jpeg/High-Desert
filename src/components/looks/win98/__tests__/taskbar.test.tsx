@@ -27,6 +27,7 @@ const { Taskbar } = await import("../Taskbar");
 let root: Root;
 let container: HTMLDivElement;
 const onAbout = vi.fn();
+const onDisplay = vi.fn();
 
 const q = (id: string) => document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
 const key = (k: string, init: KeyboardEventInit = {}, target: EventTarget = window) =>
@@ -40,6 +41,7 @@ const type = (word: string, target: EventTarget = window) => {
 beforeEach(() => {
   push.mockClear();
   onAbout.mockClear();
+  onDisplay.mockClear();
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -51,6 +53,7 @@ beforeEach(() => {
         onAbout,
         onShortcuts: vi.fn(),
         onSettings: vi.fn(),
+        onDisplay,
       }),
     ),
   );
@@ -107,6 +110,65 @@ describe("the Start menu", () => {
     act(() => q("w98-start")!.click());
     act(() => q("w98-start-about")!.click());
     expect(onAbout).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Start > Settings > Display", () => {
+  const settle = () => act(async () => new Promise((r) => setTimeout(r, 30)));
+
+  it("Settings opens its submenu, and Display hands over to the shell's Display Properties", () => {
+    act(() => q("w98-start")!.click());
+    const settings = q("w98-start-settings")!;
+    expect(settings.getAttribute("aria-haspopup")).toBe("menu");
+    expect(q("w98-start-submenu")).toBeNull();
+    act(() => settings.click());
+    expect(settings.getAttribute("aria-expanded")).toBe("true");
+    expect(q("w98-start-submenu")!.getAttribute("role")).toBe("menu");
+    expect(settings.getAttribute("aria-controls")).toBe(q("w98-start-submenu")!.id);
+    act(() => q("w98-start-display")!.click());
+    expect(onDisplay).toHaveBeenCalledTimes(1);
+    expect(q("w98-start-menu")).toBeNull();
+  });
+
+  it("by keyboard: T opens Settings, Left closes it back onto Settings, Right reopens, D picks Display", async () => {
+    act(() => q("w98-start")!.click());
+    await settle();
+    key("t", {}, document.activeElement!);
+    await settle();
+    expect(document.activeElement).toBe(q("w98-start-display"));
+    key("ArrowLeft", {}, document.activeElement!);
+    expect(q("w98-start-submenu")).toBeNull();
+    expect(document.activeElement).toBe(q("w98-start-settings"));
+    expect(q("w98-start-menu")).not.toBeNull();
+    key("ArrowRight", {}, document.activeElement!);
+    await settle();
+    expect(document.activeElement).toBe(q("w98-start-display"));
+    key("d", {}, document.activeElement!);
+    expect(onDisplay).toHaveBeenCalledTimes(1);
+    expect(q("w98-start-menu")).toBeNull();
+  });
+
+  it("Escape in the submenu closes only the submenu", async () => {
+    act(() => q("w98-start")!.click());
+    act(() => q("w98-start-settings")!.click());
+    await settle();
+    key("Escape", {}, document.activeElement!);
+    expect(q("w98-start-submenu")).toBeNull();
+    expect(q("w98-start-menu")).not.toBeNull();
+    expect(onDisplay).not.toHaveBeenCalled();
+  });
+
+  it("Run... desk.cpl opens it too", () => {
+    act(() => q("w98-start")!.click());
+    act(() => q("w98-start-run")!.click());
+    const input = q("w98-run-input") as HTMLInputElement;
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+      setter.call(input, "desk.cpl");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    act(() => q("w98-run-ok")!.click());
+    expect(onDisplay).toHaveBeenCalledTimes(1);
   });
 });
 

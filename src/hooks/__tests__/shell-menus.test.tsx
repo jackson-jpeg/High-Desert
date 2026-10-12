@@ -39,6 +39,7 @@ const actions = {
   onSetTextScale: vi.fn(),
   onExportData: vi.fn(),
   onImportData: vi.fn(),
+  onDisplay: vi.fn(),
 };
 
 let menus: Menu[];
@@ -145,6 +146,12 @@ describe("useShellMenus", () => {
     item("File", "Import My Data...")!.onClick!();
     expect(actions.onExportData).toHaveBeenCalledTimes(1);
     expect(actions.onImportData).toHaveBeenCalledTimes(1);
+  });
+
+  it("View > Display... opens the shell's Display setting, for every visitor", () => {
+    mount(false);
+    item("View", "Display...")!.onClick!();
+    expect(actions.onDisplay).toHaveBeenCalledTimes(1);
   });
 
   it("admins get the catalog seed export, and no longer the personal-data 'Export Library...' (HD-025)", () => {

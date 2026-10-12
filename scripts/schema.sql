@@ -161,6 +161,11 @@ ALTER TABLE play_events ADD COLUMN IF NOT EXISTS build text
 -- value the server does not know: unknown, never a refused play.
 ALTER TABLE play_events ADD COLUMN IF NOT EXISTS surface text
   CHECK (surface IS NULL OR surface IN ('library', 'radio', 'live', 'stats', 'show', 'palette', 'queue', 'restore', 'other'));
+-- The look the page that sent the play was rendered in, `win98` or `night`
+-- (src/lib/look/look.ts, docs/looks.md). NULL for rows before 2026-10-12 and
+-- for a value the server does not know: unknown, never a refused play.
+ALTER TABLE play_events ADD COLUMN IF NOT EXISTS look text
+  CHECK (look IS NULL OR look IN ('win98', 'night'));
 CREATE INDEX IF NOT EXISTS play_events_played_at_idx
   ON play_events (played_at DESC);
 CREATE INDEX IF NOT EXISTS play_events_episode_idx
@@ -324,10 +329,30 @@ CREATE INDEX IF NOT EXISTS live_overrides_day ON live_overrides (day);
 CREATE TABLE IF NOT EXISTS funnel_daily (
   day    date   NOT NULL,
   device text   NOT NULL CHECK (device IN ('phone', 'desktop')),
-  step   text   NOT NULL CHECK (step IN ('visit', 'live', 'tune', 'call')),
+  step   text   NOT NULL CHECK (step IN ('visit', 'live', 'tune', 'call', 'return')),
   n      bigint NOT NULL DEFAULT 0,
   PRIMARY KEY (day, device, step)
 );
+-- `return` (2026-10-12): the browser came back on a later UTC day than its
+-- cohort day (within the 30 days a cohort is open). The CHECK is replaced so
+-- a table made before then takes the new step too.
+ALTER TABLE funnel_daily DROP CONSTRAINT IF EXISTS funnel_daily_step_check;
+ALTER TABLE funnel_daily ADD CONSTRAINT funnel_daily_step_check
+  CHECK (step IN ('visit', 'live', 'tune', 'call', 'return'));
+-- The look the browser was in when it took the step, `win98` or `night`
+-- (docs/looks.md); NULL for rows before 2026-10-12. A browser counts each step
+-- once in each look it takes it in: `again` marks the count in a second look
+-- (it switched), so the per-look funnels are whole while the totals, which
+-- read only `again = false`, still count each browser once.
+ALTER TABLE funnel_daily ADD COLUMN IF NOT EXISTS look text
+  CHECK (look IS NULL OR look IN ('win98', 'night'));
+ALTER TABLE funnel_daily ADD COLUMN IF NOT EXISTS again boolean NOT NULL DEFAULT false;
+-- The key grows by look and again. A NULL look is one row, not many
+-- (NULLS NOT DISTINCT, Postgres 15+), so the old rows keep their identity;
+-- the index exists before the old key is dropped, so uniqueness never lapses.
+CREATE UNIQUE INDEX IF NOT EXISTS funnel_daily_key
+  ON funnel_daily (day, device, step, look, again) NULLS NOT DISTINCT;
+ALTER TABLE funnel_daily DROP CONSTRAINT IF EXISTS funnel_daily_pkey;
 
 -- ---------------------------------------------------------------------------
 -- Usage: tab views, time per tab, arrivals (src/services/stats/db/usage.ts,
@@ -360,3 +385,12 @@ CREATE TABLE IF NOT EXISTS arrival_daily (
   n       bigint NOT NULL DEFAULT 0,
   PRIMARY KEY (day, source, landing, device)
 );
+-- The look the session landed in, `win98` or `night` (docs/looks.md); NULL for
+-- rows before 2026-10-12 and for a value the server does not know. Part of the
+-- key, the same way as funnel_daily's (NULLS NOT DISTINCT; the index before
+-- the old key goes).
+ALTER TABLE arrival_daily ADD COLUMN IF NOT EXISTS look text
+  CHECK (look IS NULL OR look IN ('win98', 'night'));
+CREATE UNIQUE INDEX IF NOT EXISTS arrival_daily_key
+  ON arrival_daily (day, source, landing, device, look) NULLS NOT DISTINCT;
+ALTER TABLE arrival_daily DROP CONSTRAINT IF EXISTS arrival_daily_pkey;

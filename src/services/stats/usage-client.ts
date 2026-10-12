@@ -13,6 +13,8 @@ import { classifyArrival } from "@/lib/usage/arrival";
 import { routeOf, type ArrivalSource, type UsageDevice, type UsageRoute } from "@/lib/usage/vocab";
 import { currentDevice } from "./funnel-client";
 import { notCounted } from "./not-counted";
+import { pageLook } from "@/lib/look/choice";
+import type { Look } from "@/lib/look/look";
 
 /** sessionStorage: this browser session's arrival has been reported. */
 export const ARRIVAL_KEY = "hd-arrival";
@@ -20,6 +22,8 @@ export const ARRIVAL_KEY = "hd-arrival";
 export interface Arrival {
   source: ArrivalSource;
   landing: UsageRoute;
+  /** The look the session landed in (docs/looks.md); absent when the page cannot say. */
+  look?: Look;
 }
 
 export interface ViewPayload {
@@ -41,7 +45,8 @@ export function takeArrival(
 ): Arrival | null {
   if (safeGetItem("session", ARRIVAL_KEY)) return null;
   if (!safeSetItem("session", ARRIVAL_KEY, "1")) return null;
-  return { source: classifyArrival(referrer, search, ownHost), landing: routeOf(landingPath) };
+  const look = pageLook();
+  return { source: classifyArrival(referrer, search, ownHost), landing: routeOf(landingPath), ...(look ? { look } : {}) };
 }
 
 export function viewPayload(pathname: string, arrival: Arrival | null, device: UsageDevice = currentDevice()): ViewPayload {

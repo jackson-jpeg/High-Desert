@@ -31,6 +31,8 @@ export interface ShellMenuActions {
   onExportData: () => void;
   /** Pick a file, preview what it adds, and merge it in on confirm. */
   onImportData: () => void;
+  /** The Display setting: Win98 or Night (docs/looks.md). */
+  onDisplay: () => void;
 }
 
 async function deduplicateLibrary() {
@@ -90,7 +92,7 @@ export function useShellMenus(actions: ShellMenuActions): Menu[] {
   const {
     onAbout, onShortcuts, onClearLibrary, onClearCache,
     startupSoundOn, onToggleStartupSound, textScale, onSetTextScale, onInstall,
-    onExportData, onImportData,
+    onExportData, onImportData, onDisplay,
   } = actions;
 
   return [
@@ -130,6 +132,8 @@ export function useShellMenus(actions: ShellMenuActions): Menu[] {
         { label: "Live Station", onClick: () => router.push("/live") },
         { label: DIAL_LABEL, onClick: () => openLibrary({ view: "dial" }) },
         { label: "Statistics", onClick: () => router.push("/stats") },
+        { separator: true, label: "" },
+        { label: "Display...", onClick: onDisplay },
       ],
     },
     ...(isAdmin
