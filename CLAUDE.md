@@ -441,6 +441,31 @@ Use `min-h-touch` / `min-w-touch` (44px, `--spacing-touch`) for tap targets rath
 a literal. Note the common pairing `min-h-touch md:min-h-0` — the floor is a mobile
 concern, so measure it at a mobile viewport or you will read `0px` and think it broke.
 
+## Meters and visualizers: `src/audio/levels.ts` (2026-10-12)
+
+Every visualizer (the Oscilloscope in both looks, the Winamp window included)
+reads its levels from **`getLevelSource()`** and mounts with
+**`retainLevels()`**, never from the engine. Desktop and Android get the
+engine's AnalyserNode as before. **iOS gets the level tap**
+(`src/audio/level-tap/`): the player's element is never routed through Web
+Audio there (it stops the show on the lock screen), so the tap Range-reads the
+bytes around the playhead from the URL the element plays (`/mirror/...` or
+archive.org, which sends CORS on every hop; it keeps the storage node that
+answered), aligns to a frame past the ID3 tag (`mpeg.ts`), decodes the chunk in
+an **OfflineAudioContext** (no device, no audio session, nothing on the lock
+screen) and answers the AnalyserNode calls at the element's `currentTime`.
+It fetches **only** with a visualizer mounted, the page visible, the show
+playing with `readyState >= 3`, and not during the live station's bridge;
+`halt()` on `visibilitychange` hidden and on `pause`. Never give it a second
+media element and never let it touch MediaSession. Before this, iOS had no
+analyser at all: Milkdrop painted one black frame and parked, the VU needles
+sat at zero. Tests: `e2e/meters.spec.ts` (reads the VU needle off the canvas,
+iPhone UA and not, both looks, archive.org, mirror, repaired, pause, show
+change, lock screen; `E2E_REAL_ARCHIVE=1` for the real redirect chain),
+`src/audio/level-tap/__tests__/`, `src/audio/__tests__/levels.test.ts`,
+`src/hooks/__tests__/oscilloscope-levels.test.tsx`; mutations `level-tap-*`,
+`mpeg-*`, `spectrum-*`, `levels-*`, `oscilloscope-*`.
+
 ## Playback — read before touching the play path
 
 **`loadEpisode()` does not touch the `<audio>` element.** It is a Zustand setter.

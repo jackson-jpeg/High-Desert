@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { getAnalyserNode } from "@/audio/engine";
+import { getLevelSource, retainLevels } from "@/audio/levels";
 import { drawStatic } from "@/audio/visualizations/static";
 import { getVisualization, nextVisualization, ensureVisualization, getVizName } from "@/audio/visualizations";
 import { getPreference, setPreference } from "@/db";
@@ -90,6 +90,9 @@ export function useOscilloscope() {
 
     const canvas = canvasRef.current;
     if (!canvas) return unsub;
+    // On iOS the meters read the level tap, which fetches only while a
+    // visualizer is mounted (src/audio/levels.ts).
+    const releaseLevels = retainLevels();
 
     // Backing store matches device pixels; the CSS box stays in logical ones.
     // Without this the canvas was rendered at 1x and upscaled by the browser on
@@ -136,7 +139,7 @@ export function useOscilloscope() {
       }
       lastFrameTime = time;
 
-      const analyser = getAnalyserNode();
+      const analyser = getLevelSource();
       const playing = usePlayerStore.getState().playing;
       const animating = tuningRef.current || (!!analyser && playing);
 
@@ -209,6 +212,7 @@ export function useOscilloscope() {
 
     return () => {
       stop();
+      releaseLevels();
       wakeRef.current = () => {};
       ro.disconnect();
       roRepaint.disconnect();

@@ -1,12 +1,14 @@
 // Canvas cannot resolve var(): concrete values from the checked palette copy.
 import { PALETTE } from "@/lib/palette";
+import type { LevelSource } from "@/audio/levels";
 
 export interface Visualization {
   id: string;
   name: string;
   draw: (
     ctx: CanvasRenderingContext2D,
-    analyser: AnalyserNode,
+    /** The engine's analyser, or the iOS level tap: the same calls (src/audio/levels.ts). */
+    analyser: LevelSource,
     w: number,
     h: number,
   ) => void;
