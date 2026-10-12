@@ -1997,3 +1997,9 @@ html[data-look="win98"] .hd-view-switch-option[aria-pressed="true"] {
   background-position: 0 0, 1px 1px;
   font-weight: bold;
 }
+
+/* The ON AIR lamp: white on the lit red is 3.83:1. Ink on it is 5.5:1, the
+   ratio OnAirLamp.tsx promises (Night's inset-well is already dark ink). */
+html[data-look="win98"] [data-on-air="lit"] > span {
+  color: var(--hd-ink);
+}

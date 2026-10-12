@@ -256,12 +256,14 @@ export default function LibraryPage() {
       {/* Swipe gesture tip — shown once on mobile */}
       {panels.swipeTip && !dialMode && (
         <div className="mx-3 mb-1 px-3 py-2 bg-desert-amber/10 border border-desert-amber/20 rounded flex items-center justify-between gap-2 flex-shrink-0 md:hidden animate-fade-in">
-          <span className="text-hd-12 text-desert-amber/85">
-            Swipe cards: {"←"} favorite {"·"} queue {"→"}
+          {/* Full strength: at /85 on its own tint both lines missed AA in
+              Win98 (4.34 and 3.98:1, e2e/a11y.spec.ts). */}
+          <span className="text-hd-12 text-desert-amber">
+            Swipe a show: {"←"} favorite {"·"} queue {"→"}
           </span>
           <button
             onClick={panels.dismissSwipeTip}
-            className="text-hd-12 text-bevel-dark/85 active:text-desktop-gray cursor-pointer min-w-[28px] min-h-[28px] flex items-center justify-center"
+            className="text-hd-12 text-bevel-dark active:text-desktop-gray cursor-pointer min-w-[28px] min-h-[28px] flex items-center justify-center"
           >
             OK
           </button>

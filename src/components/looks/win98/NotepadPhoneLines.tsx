@@ -14,7 +14,7 @@ import { useContextMenuStore, type ContextMenuItem } from "@/stores/context-menu
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import { Dialog } from "@/components/win98/Dialog";
 import { Button } from "@/components/win98/Button";
-import { archiveLine, callLine, tuneinLine } from "./notepad-log";
+import { archiveLine, callerLabel, logTime, tuneinLine } from "./notepad-log";
 import { Win98MenuBar, type Win98Menu } from "./Win98MenuBar";
 import { Win98Icon } from "./Win98Icon";
 
@@ -362,7 +362,11 @@ function NotepadLog({
             }}
             className="hd-w98-notepad-line hd-w98-notepad-call"
           >
-            {callLine(m)}
+            {/* callLine(m) as text, in parts the chat specs can find, the same
+                parts LiveChat names (line-label, caller-name, message-body). */}
+            {logTime(m.at)} <span data-testid="line-label">{m.line}</span>,{" "}
+            <span data-testid="caller-name">{callerLabel(m)}</span>:{" "}
+            <span data-testid="message-body">{m.body}</span>
             {chat.reported.includes(m.id) && <span data-testid="reported"> [reported]</span>}
           </li>
         );

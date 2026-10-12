@@ -74,10 +74,11 @@ export function SignalMeter({ signalStrength, className }: SignalMeterProps) {
           <span className="text-hd-8 text-bevel-dark/85 uppercase tracking-[0.12em] font-mono">
             Signal Strength
           </span>
+          {/* Full-strength green, not a faded one: at low signal the fade
+              measured 1.01:1 on Win98's gray (axe, e2e/a11y.spec.ts). */}
           <span
-            className="text-hd-10 font-mono tabular-nums"
+            className="text-hd-10 font-mono tabular-nums text-static-green"
             style={{
-              color: `rgba(74,222,128,${0.4 + signalStrength * 0.5})`,
               textShadow: signalStrength > 0.5 ? `0 0 6px rgba(74,222,128,${signalStrength * 0.3})` : "none",
             }}
           >

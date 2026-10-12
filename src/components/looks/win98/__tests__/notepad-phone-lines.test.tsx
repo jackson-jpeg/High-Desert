@@ -83,6 +83,15 @@ describe("Phone Lines - Notepad", () => {
     expect(all("archive-line")[0].textContent).toBe("[10:45 PM] >>> From the archive: Art signs on.");
   });
 
+  it("names a call's parts the way LiveChat does, so one spec reads both looks", () => {
+    mount();
+    const first = all("live-message")[0];
+    const part = (id: string) => first.querySelector(`[data-testid="${id}"]`)?.textContent;
+    expect(part("line-label")).toBe("Line 3");
+    expect(part("caller-name")).toBe("Skeptic from Reno");
+    expect(part("message-body")).toBe("message");
+  });
+
   it("offers Report on someone else's call by right-click, and sends it", () => {
     mount();
     act(() => {
