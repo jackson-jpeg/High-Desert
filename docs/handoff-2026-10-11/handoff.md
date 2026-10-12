@@ -339,6 +339,17 @@ lockfile.
 
 ## Follow-up, 2026-10-11 evening to 10-12 (PR #70)
 
+**Shipped:**
+- PR #70 merged as `5472a77`, with CI and Mutations green.
+- The first Mutations run on the PR caught a stale anchor: `guest-repeat`
+  still pointed at the line the `repeatsSubject` refactor moved. It is
+  re-pointed and red again.
+- `deploy.sh` ran: /, /library, /radio and /stats all 200 with every chunk.
+- The mirror and the chat did not change, so they were not redeployed.
+- `highdesert-status` exits 0. Its two WARNs are the same as before:
+  failures from the archive.org outage, and warm pins held at the disk
+  floor.
+
 The second brief, item by item.
 
 1. **Backup key rotated.** A new age keypair: the recipient is in
