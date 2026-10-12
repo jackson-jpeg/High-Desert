@@ -1984,6 +1984,13 @@ html[data-look="win98"] .hd-view-switch-option {
   min-width: 56px;
 }
 
+@media (max-width: 767px) {
+  /* Beside the show tabs on a phone: a touch target, no wider. */
+  html[data-look="win98"] .hd-view-switch-option {
+    min-width: 44px;
+  }
+}
+
 html[data-look="win98"] .hd-view-switch-option[aria-pressed="true"] {
   border-color: var(--hd-ink) var(--hd-chrome-lighter) var(--hd-chrome-lighter) var(--hd-ink);
   box-shadow:

@@ -98,6 +98,12 @@ export function useTuningGesture({
     if (!canvas) return;
 
     let touchId: number | null = null;
+    // A drag tunes only once it is clearly sideways (its first 8px); a
+    // vertical one is the page scrolling past the strip and never tunes
+    // (the strip is `touch-action: pan-y`; e2e/scroll-gestures.spec.ts).
+    let startX = 0;
+    let startY = 0;
+    let axis: null | "x" | "y" = null;
     let pinchStartDist = 0;
     let pinchStartZoom = 2;
 
@@ -115,6 +121,9 @@ export function useTuningGesture({
       if (e.touches.length !== 1) return;
       const touch = e.touches[0];
       touchId = touch.identifier;
+      startX = touch.clientX;
+      startY = touch.clientY;
+      axis = null;
       lastX.current = touch.clientX;
       velocity.current = 0;
       dragging.current = true;
@@ -141,7 +150,18 @@ export function useTuningGesture({
         (t) => t.identifier === touchId,
       );
       if (!touch) return;
-      e.preventDefault();
+      if (axis === null) {
+        const mx = touch.clientX - startX;
+        const my = touch.clientY - startY;
+        if (Math.hypot(mx, my) < 8) return;
+        axis = Math.abs(mx) > Math.abs(my) ? "x" : "y";
+        if (axis === "y") {
+          dragging.current = false;
+          touchId = null;
+          return;
+        }
+      }
+      if (e.cancelable) e.preventDefault();
 
       const dx = touch.clientX - lastX.current;
       lastX.current = touch.clientX;
@@ -153,8 +173,11 @@ export function useTuningGesture({
     };
 
     const onTouchEnd = () => {
+      const tuned = axis === "x";
       dragging.current = false;
       touchId = null;
+      axis = null;
+      if (!tuned) return;
 
       // Apply momentum
       let v = velocity.current;
@@ -175,14 +198,22 @@ export function useTuningGesture({
       momentumId.current = requestAnimationFrame(step);
     };
 
+    const onTouchCancel = () => {
+      dragging.current = false;
+      touchId = null;
+      axis = null;
+    };
+
     canvas.addEventListener("touchstart", onTouchStart, { passive: true });
     canvas.addEventListener("touchmove", onTouchMove, { passive: false });
     canvas.addEventListener("touchend", onTouchEnd);
+    canvas.addEventListener("touchcancel", onTouchCancel);
 
     return () => {
       canvas.removeEventListener("touchstart", onTouchStart);
       canvas.removeEventListener("touchmove", onTouchMove);
       canvas.removeEventListener("touchend", onTouchEnd);
+      canvas.removeEventListener("touchcancel", onTouchCancel);
       if (momentumId.current) cancelAnimationFrame(momentumId.current);
     };
   }, [canvasRef, tune, setPosition, setZoom, totalDays, clamp]);

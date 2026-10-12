@@ -348,3 +348,27 @@ input:not([type="range"]) {
   scrollbar-color: #2A2F43 #0A0E1A;
   scrollbar-width: thin;
 }
+
+/* Rows that scroll sideways on a phone (the show tabs, the chips): a swipe
+   moves them, and a scrollbar under them only costs the list its height. */
+@media (max-width: 767px) {
+  html[data-look] .hd-chip-scroll {
+    scrollbar-width: none;
+  }
+  html[data-look] .hd-chip-scroll::-webkit-scrollbar {
+    display: none;
+    height: 0;
+  }
+}
+
+/* A control drawn small that still answers a 44 px touch: the slim install
+   banner's buttons. The element must be position: relative. */
+.hd-hit::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  transform: translate(-50%, -50%);
+}

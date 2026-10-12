@@ -111,4 +111,23 @@ describe("Continue listening", () => {
     act(() => host.querySelector<HTMLButtonElement>('[aria-label="Hide Continue listening"]')!.click());
     expect(q("continue-listening")).toBeNull();
   });
+
+  it("dense (the Library on a phone): one row, the latest show only, still resumes it", async () => {
+    const now = Date.now();
+    await seed([
+      { ep: row(1), at: 1200, lastPlayedAt: now },
+      { ep: row(2), at: 600, lastPlayedAt: now - 1000 },
+    ]);
+    const onResume = vi.fn();
+    act(() => root.render(<ContinueListening onResume={onResume} dense />));
+    await flush();
+    const section = q("continue-listening")!;
+    expect(section).not.toBeNull();
+    expect(section.hasAttribute("data-dense")).toBe(true);
+    expect(q("continue-more")).toBeNull();
+    expect(section.textContent).toContain("Continue listening");
+    expect(q("continue-at")!.textContent).toContain("Resume at 20:00");
+    act(() => q("continue-resume")!.click());
+    expect(onResume).toHaveBeenCalledWith(expect.objectContaining({ fileHash: row(1).fileHash }));
+  });
 });

@@ -74,7 +74,7 @@ describe("InstallPrompt", () => {
     secondVisit();
     await mount();
     expect(q("install-prompt")!.dataset.mode).toBe("ios");
-    expect(q("install-ios-steps")!.textContent).toBe("Tap Share at the bottom of Safari, then Add to Home Screen.");
+    expect(q("install-ios-steps")!.textContent).toBe("Install: tap Share , then Add to Home Screen.");
     expect(q("install-share-icon")).not.toBeNull();
     expect(q("install-button")).toBeNull();
     expect(host.textContent).not.toMatch(/—/);

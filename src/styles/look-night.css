@@ -401,14 +401,14 @@ html[data-look="night"] {
     padding: var(--cl-3) var(--cl-3) var(--cl-2);
   }
   /* The show tabs: a segmented control. */
-  #hd-main div:has(> div > button[aria-label="Toggle browse panel"]) > div:last-child:not(:first-child) {
+  #hd-main .hd-show-tabs {
     gap: 2px;
     padding: 2px;
     border: 1px solid var(--cl-line);
     border-radius: var(--cl-r);
     background: color-mix(in srgb, var(--hd-well) 70%, transparent);
   }
-  #hd-main div:has(> div > button[aria-label="Toggle browse panel"]) > div:last-child:not(:first-child) > button {
+  #hd-main .hd-show-tabs > button {
     border: 0;
     border-radius: var(--cl-r-s);
     box-shadow: none;
@@ -417,16 +417,16 @@ html[data-look="night"] {
     font-size: var(--hd-text-13);
     padding: 6px var(--cl-3);
   }
-  #hd-main div:has(> div > button[aria-label="Toggle browse panel"]) > div:last-child:not(:first-child) > button:hover {
+  #hd-main .hd-show-tabs > button:hover {
     color: var(--hd-chrome-light);
     background: var(--cl-hover);
   }
-  #hd-main div:has(> div > button[aria-label="Toggle browse panel"]) > div:last-child:not(:first-child) > button.w98-inset-dark {
+  #hd-main .hd-show-tabs > button.w98-inset-dark {
     background: var(--cl-accent-soft);
     color: var(--hd-amber);
   }
   @media (min-width: 768px) {
-    #hd-main div:has(> div > button[aria-label="Toggle browse panel"]) > div:last-child:not(:first-child) > button {
+    #hd-main .hd-show-tabs > button {
       font-size: var(--hd-text-12);
       padding: 4px 10px;
     }
@@ -487,12 +487,13 @@ html[data-look="night"] {
     color: var(--hd-amber);
   }
   @media (max-width: 767px) {
-    .hd-view-switch {
-      flex: 1;
+    /* In the show tabs' row on a phone, after the tabs. */
+    .hd-library-modebar {
+      padding: 0;
     }
     .hd-view-switch-option {
-      flex: 1;
-      padding: 8px var(--cl-3);
+      min-width: 0;
+      padding: 6px var(--cl-3);
     }
     /* The chips scroll edge to edge but start on the page's gutter. */
     #hd-main div[class*="mask-image:linear-gradient"] {
@@ -500,11 +501,11 @@ html[data-look="night"] {
       padding-left: var(--cl-3);
       scroll-padding-left: var(--cl-3);
     }
-    #hd-main div:has(> div > button[aria-label="Toggle browse panel"]) > div:last-child:not(:first-child) {
+    #hd-main .hd-show-tabs {
       margin-inline: 0;
       justify-content: space-between;
     }
-    #hd-main div:has(> div > button[aria-label="Toggle browse panel"]) > div:last-child:not(:first-child) > button {
+    #hd-main .hd-show-tabs > button {
       flex: 1;
     }
   }
@@ -566,6 +567,11 @@ html[data-look="night"] {
     background: color-mix(in srgb, var(--hd-midnight) 92%, transparent);
     border-bottom: 1px solid var(--cl-line);
     padding: 6px var(--cl-4);
+  }
+  @media (max-width: 767px) {
+    #hd-main [data-testid="rail-header"] {
+      padding: 2px var(--cl-4);
+    }
   }
   #hd-main [data-testid="group-header"] {
     border-bottom: 1px solid var(--cl-line);

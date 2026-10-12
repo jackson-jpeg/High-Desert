@@ -92,8 +92,9 @@ export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings, o
     return () => document.removeEventListener("pointerdown", onDown);
   }, [startOpen]);
 
-  // Ctrl+Esc opens the Start menu; typing "hole" with nothing focused opens
-  // Mel's Hole (start-menu.ts, HOLE_WORD).
+  // Ctrl+Esc opens the Start menu; typing "hole" on a keyboard with nothing
+  // focused opens Mel's Hole (start-menu.ts, HOLE_WORD). With Start, Run...,
+  // `melshole` that is the only way in: no gesture opens it.
   const typed = useRef(0);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -102,6 +103,10 @@ export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings, o
         setStartOpen((o) => !o);
         return;
       }
+      // Keys typed one at a time: never a held key repeating, never an
+      // IME's composition (a phone's keyboard only types into a field, and
+      // a field owns its keys below).
+      if (e.repeat || e.isComposing) return;
       if (e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1) return;
       if (isKeyOwnedByTarget(e)) {
         typed.current = 0;
