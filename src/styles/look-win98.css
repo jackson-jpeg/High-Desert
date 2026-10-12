@@ -1455,17 +1455,57 @@ html[data-look="win98"] .hd-dial {
   color: var(--hd-ink);
 }
 
-html[data-look="win98"] .hd-dial-readout,
 html[data-look="win98"] .hd-dial-station {
   background: var(--hd-chrome-lighter);
   color: var(--hd-ink);
 }
 
+/* The readout is a black LCD, like the Winamp window's: the tokens are
+   re-scoped for what is inside it, so its own utilities read green and gold
+   on black. */
 html[data-look="win98"] .hd-dial-readout {
+  --hd-chrome: var(--hd-w98-amp-text);
+  --hd-muted: var(--hd-w98-amp-text);
+  --hd-amber: var(--hd-w98-amp-gold);
+  --hd-amber-phosphor: var(--hd-w98-amp-gold);
+  --hd-green: var(--hd-w98-amp-lcd);
+  --hd-green-bright: var(--hd-w98-amp-lcd);
+  --hd-well: var(--hd-ink);
+  --hd-raised: var(--hd-ink);
+  --hd-card: var(--hd-ink);
+  --hd-midnight: var(--hd-ink);
+  background: var(--hd-ink);
+  color: var(--hd-w98-amp-text);
   border: 1px solid;
   border-color: var(--hd-chrome-dark) var(--hd-chrome-lighter) var(--hd-chrome-lighter) var(--hd-chrome-dark);
   box-shadow: inset 1px 1px 0 var(--hd-ink), inset -1px -1px 0 var(--hd-chrome-light);
-  padding: 2px 6px;
+}
+
+html[data-look="win98"] .hd-dial-readout > * {
+  background: var(--hd-ink) !important;
+  box-shadow: none !important;
+  border-radius: 0;
+  border-color: transparent;
+}
+
+html[data-look="win98"] .hd-dial-readout canvas {
+  opacity: 0.25;
+}
+
+/* The phone's Lock / Play / Scan: Win98 push buttons, not tinted glass. */
+html[data-look="win98"] .hd-dial-buttons button {
+  background: var(--hd-w98-face);
+  color: var(--hd-ink);
+  border: 1px solid;
+  border-color: var(--hd-chrome-lighter) var(--hd-ink) var(--hd-ink) var(--hd-chrome-lighter);
+  box-shadow:
+    inset 1px 1px 0 var(--hd-chrome-light),
+    inset -1px -1px 0 var(--hd-chrome-dark) !important;
+}
+
+html[data-look="win98"] .hd-dial-buttons button:active:not(:disabled) {
+  border-color: var(--hd-ink) var(--hd-chrome-lighter) var(--hd-chrome-lighter) var(--hd-ink);
+  box-shadow: inset 1px 1px 0 var(--hd-chrome-dark) !important;
 }
 
 html[data-look="win98"] .hd-dial-strip-well {
@@ -1764,4 +1804,37 @@ html[data-look="win98"] .hd-show-footer {
 
 html[data-look="win98"] .hd-show-footer > div {
   color: var(--hd-ink);
+}
+
+/* ============================================
+   The library's List / Dial switch: two push buttons, the chosen one down
+   ============================================ */
+
+html[data-look="win98"] .hd-view-switch {
+  gap: 2px;
+}
+
+html[data-look="win98"] .hd-view-switch-option {
+  background: var(--hd-w98-face);
+  color: var(--hd-ink);
+  border: 1px solid;
+  border-color: var(--hd-chrome-lighter) var(--hd-ink) var(--hd-ink) var(--hd-chrome-lighter);
+  box-shadow:
+    inset 1px 1px 0 var(--hd-chrome-light),
+    inset -1px -1px 0 var(--hd-chrome-dark);
+  min-width: 56px;
+}
+
+html[data-look="win98"] .hd-view-switch-option[aria-pressed="true"] {
+  border-color: var(--hd-ink) var(--hd-chrome-lighter) var(--hd-chrome-lighter) var(--hd-ink);
+  box-shadow:
+    inset 1px 1px 0 var(--hd-chrome-dark),
+    inset -1px -1px 0 var(--hd-chrome-light);
+  background-color: var(--hd-chrome-light);
+  background-image:
+    linear-gradient(45deg, var(--hd-chrome-lighter) 25%, transparent 25%, transparent 75%, var(--hd-chrome-lighter) 75%),
+    linear-gradient(45deg, var(--hd-chrome-lighter) 25%, transparent 25%, transparent 75%, var(--hd-chrome-lighter) 75%);
+  background-size: 2px 2px;
+  background-position: 0 0, 1px 1px;
+  font-weight: bold;
 }
