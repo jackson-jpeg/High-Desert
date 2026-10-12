@@ -174,6 +174,46 @@ Notepad's rename (Edit > Change Name...) is held by its unit test only.
 reload the only way back. Both pages now read the saved flag first; unit test
 with a control, one mutation.
 
+## Deploy (2026-10-12, 19:53 to 19:56 UTC)
+
+PR #73, merged as `fc5fbbb` with `[skip ci]`: no Actions run on the PR or
+on `main`.
+
+1. `deploy-live.sh`: pre-schema dump, schema, verified (health, SSE hello
+   through nginx, POST round trip). The admin look route is gone from the
+   service.
+2. `pg_dump` of `funnel_daily`, `arrival_daily`, `play_events`:
+   `/root/backups/highdesert/pre-looks-20261012T195403Z.dump`.
+3. `deploy.sh`, first attempt: **the staging build failed its type check**.
+   `tsconfig.json` includes `.next/types/**`, the *live* build's route types,
+   which still named the old `src/app/(desktop)/...` paths. The live site was
+   untouched. I moved the live `.next/types` aside (declarations only, never
+   read by the running server; kept in this session's scratchpad) and the
+   second attempt deployed `fc5fbbb` cleanly. After this deploy the live types
+   match the tree, so it does not recur; any later deploy that moves routes
+   will hit the same thing until `.next/types` stops being in `include`.
+4. **My mistake:** I applied `scripts/schema.sql` in the same command as the
+   first `deploy.sh`, without stopping on its failure. So the old code ran on
+   the new funnel/arrival keys from 19:55:10 until the restart at 19:56:17
+   (67 s). Funnel and arrival writes in that window would have failed; the
+   service log shows no errors in it.
+5. `highdesert-status` after the deploy: one new FAIL, `presence`, "taskbar
+   displays [17] but is tagged 17/7". The tray is right (online alone, like
+   the badge); the live check's judge only knew the badge. Fixed in
+   `scripts/presence-check.mjs`, with a test and a mutation, in the
+   post-merge commit that carries this handoff, and redeployed.
+6. Against production: `check:seo` (1,413 shows, 175 guests, 70 topics, 14
+   nights; no findings), `check:csp` (no violations, no console errors, no
+   em dashes), and `e2e/looks.spec.ts` (32 passed). The "after" screenshots
+   of Live on a phone come from that run.
+
+**Second mistake: a 150 MB file nearly went to GitHub.** My debugging
+`next dev` (`HD_DIST_DIR=.next-dev`) wrote a turbopack cache that a later
+`git add -A` committed; GitHub refused the push (GH001, 100 MB limit). Nothing
+reached GitHub. I dropped `.next-dev` from the unpushed branch history with
+`git filter-branch` over `origin/main..HEAD` only (the final tree was
+byte-identical before and after) and added `/.next-dev/` to `.gitignore`.
+
 ## The resend loop (item 4)
 
 It was this session's own scheduled wakeup. While waiting on CI for PR #72 I
@@ -216,6 +256,18 @@ around: each blocked command was re-run unchanged but for the prefix.
   days old. Another project; left alone.
 
 ## Still left
+
+- **On a real iPhone** (nothing here could): the meters move on an archive.org
+  show, a mirror show (outage mode) and a repaired show, in both looks; they
+  keep moving after pause/resume, a show change, and locking ~10 s; the
+  lock-screen controls still drive the show; no Range requests while locked
+  or paused (Web Inspector).
+- `HD_LOOK_KEY` is still in `/root/.high-desert.env`. Nothing reads it now;
+  harmless, removable.
+- `tsconfig.json` still includes `.next/types/**` (see Deploy, step 3).
+- The 7-day failure line reads WARN (21.0% of starts failed, 225 / 1,069);
+  this release's own line is OK (1.7% lost). Not from this PR.
+- `warm` WARN (289 of 328 pins, VPS disk at its floor) predates this PR.
 
 - `feat/looks` used a private test schema `hd_looks` in `highdesert_test`;
   drop it after integration (`DROP SCHEMA hd_looks CASCADE`). The shared test
