@@ -115,3 +115,22 @@ describe("withoutIntentParams", () => {
     expect(withoutIntentParams("viewer=&shuffle=coast")).toBe("?viewer=");
   });
 });
+
+describe("the resume intent (the welcome page's Continue listening)", () => {
+  const key = "ultimate-ultimate-art-bell-collection--1992-12-12_-_Coast_to_Coast_AM_with_Art_Bell_-_Area_51";
+
+  it("reads a community key, round trip, and is an intent to clear", () => {
+    expect(parse(`resume=${key}`)).toEqual({ resume: key });
+    expect(libraryIntentHref({ resume: key })).toBe(`/library?resume=${key}`);
+    expect(parse(libraryIntentHref({ resume: key }).split("?")[1])).toEqual({ resume: key });
+    expect(hasIntent({ resume: key })).toBe(true);
+    expect(hasIntentParams(new URLSearchParams(`resume=${key}`))).toBe(true);
+    expect(withoutIntentParams(`?resume=${key}&viewer`)).toBe("?viewer=");
+  });
+
+  it("ignores anything a community key cannot be: nothing plays from a hand-edited URL", () => {
+    expect(parse("resume=")).toEqual({});
+    expect(parse("resume=no-separator")).toEqual({});
+    expect(parse("resume=a--b%20c")).toEqual({});
+  });
+});

@@ -59,6 +59,7 @@ export const VOCABULARY = {
   ListItem: [...THING, "position", "item", "nextItem", "previousItem"],
   CollectionPage: WEB_PAGE,
   WebApplication: [...CREATIVE_WORK, "applicationCategory", "operatingSystem", "offers"],
+  WebSite: [...CREATIVE_WORK, "issn"],
   Offer: [...THING, "price", "priceCurrency", "availability"],
 };
 
@@ -98,6 +99,7 @@ const REQUIRED = {
   ItemList: { itemListElement: (v) => Array.isArray(v) && v.length > 0 },
   ListItem: { position: (v) => Number.isInteger(v) && v >= 1 },
   CollectionPage: { name: text, url: absoluteUrl },
+  WebSite: { name: text, url: absoluteUrl },
 };
 
 /** Properties whose value, wherever it appears, must be well formed. */

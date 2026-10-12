@@ -3,16 +3,19 @@ import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { recordView } from "@/services/stats/store";
 import { readJsonObject } from "@/lib/utils/json-body";
 import { isArrivalSource, isUsageDevice, isUsageRoute } from "@/lib/usage/vocab";
+import { isLook } from "@/lib/look/look";
 
 /**
  * A tab entered (docs/usage-tracking.md).
  *
- * POST `{route, device, arrival?: {source, landing}}`: adds one view to
+ * POST `{route, device, arrival?: {source, landing, look?}}`: adds one view to
  * `route_daily` for today (UTC), `route` one of welcome, library, radio, stats,
  * live, show, other, and `device` phone or desktop. `arrival` rides with a
  * browser session's first view: its coarse source (src/lib/usage/arrival.ts)
- * and the tab it landed on, counted in `arrival_daily`. An arrival that is not
- * well formed is dropped and the view still counted. Returns `{ok}`.
+ * and the tab it landed on, counted in `arrival_daily`, with the look it landed
+ * in (`win98`, `night`; anything else is stored unknown, never refused). An
+ * arrival that is not well formed is dropped and the view still counted.
+ * Returns `{ok}`.
  *
  * Nothing else is stored: no session, no address, no referrer, no id. Like
  * every other counter here it can be inflated by someone who wants to; it is
@@ -38,10 +41,10 @@ export async function POST(request: NextRequest) {
   if (!isUsageDevice(device)) {
     return NextResponse.json({ error: "device must be phone or desktop" }, { status: 400 });
   }
-  const a = arrival as { source?: unknown; landing?: unknown } | null | undefined;
+  const a = arrival as { source?: unknown; landing?: unknown; look?: unknown } | null | undefined;
   const validArrival =
     a && typeof a === "object" && isArrivalSource(a.source) && isUsageRoute(a.landing)
-      ? { source: a.source, landing: a.landing }
+      ? { source: a.source, landing: a.landing, look: isLook(a.look) ? a.look : null }
       : null;
 
   try {

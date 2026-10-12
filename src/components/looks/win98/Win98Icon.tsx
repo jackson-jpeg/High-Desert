@@ -90,6 +90,16 @@ function shapes(name: IconName) {
           <path d="M6 4v2M10 7v2M7 10v2" stroke={INK} strokeWidth="2" />
         </>
       );
+    case "display":
+      // A monitor showing the desktop, with a scheme swatch in the corner.
+      return (
+        <>
+          <rect x="1" y="2" width="14" height="10" fill={NAVY} stroke={INK} />
+          <path d="M3 4h7v6H3z" fill={TEAL} />
+          <path d="M10 4h3v6h-3z" fill={FACE} />
+          <path d="M5 14h6" stroke={INK} strokeWidth="2" />
+        </>
+      );
     case "about":
       return (
         <>

@@ -17,12 +17,23 @@
  * Steps can arrive before the verdict (the Live screen mounts before the
  * library count resolves on a direct load of /live). They wait in memory and
  * are reported, or dropped, when the verdict lands.
+ *
+ * The look (2026-10-12, docs/looks.md). Every step carries the look the page
+ * was rendered in, and a step is counted once *per look*: a browser that
+ * switched from Win98 to Night and tunes in again in Night counts that tune
+ * toward Night's funnel too, marked `again` so the totals still count it once.
+ * On every load of the app a counted browser also reports `visit` in a look it
+ * has not visited in yet, and `return` the first time it is back on a later
+ * UTC day than its cohort (`noteFunnelRevisit`): what an audit needs to compare
+ * Win98 and Night on tune-ins and returns.
  */
 
 import { safeGetItem, safeSetItem } from "@/lib/utils/safe-storage";
+import { pageLook } from "@/lib/look/choice";
+import type { Look } from "@/lib/look/look";
 import { notCounted } from "./not-counted";
 
-export type FunnelStep = "visit" | "live" | "tune" | "call";
+export type FunnelStep = "visit" | "live" | "tune" | "call" | "return";
 export type FunnelDevice = "phone" | "desktop";
 
 export const FUNNEL_STORAGE_KEY = "hd-funnel";
@@ -33,6 +44,8 @@ interface FunnelState {
   /** What it arrived as. Kept with it: a phone rotated to landscape is still the phone that arrived. */
   device?: FunnelDevice;
   done: FunnelStep[];
+  /** The looks each step has been counted in. A step in `done` with no entry here was counted before looks were recorded. */
+  looks?: Partial<Record<FunnelStep, Look[]>>;
 }
 
 /** The app's own breakpoint (useIsMobile): narrower than 768 px is a phone. */
@@ -60,23 +73,33 @@ function write(s: FunnelState): boolean {
   return safeSetItem("local", FUNNEL_STORAGE_KEY, JSON.stringify(s));
 }
 
-function post(step: FunnelStep, cohort: string, device: FunnelDevice): void {
+function post(step: FunnelStep, cohort: string, device: FunnelDevice, look: Look | null, again: boolean): void {
   void fetch("/api/stats/funnel", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ step, cohort, device }),
+    body: JSON.stringify({ step, cohort, device, ...(look ? { look } : {}), ...(again ? { again: true } : {}) }),
     keepalive: true,
   }).catch(() => {});
 }
 
 function report(state: FunnelState, step: FunnelStep): void {
-  if (state.cohort === null || state.done.includes(step)) return;
+  if (state.cohort === null) return;
   // A headless checker's browser (./not-counted.ts) is nobody's arrival.
   if (notCounted()) return;
-  const next = { ...state, done: [...state.done, step] };
+  const look = pageLook();
+  const first = !state.done.includes(step);
+  const counted = state.looks?.[step] ?? [];
+  // Once per browser, and once more in each other look it takes the step in.
+  if (!first && (look === null || counted.includes(look))) return;
+  const next: FunnelState = {
+    ...state,
+    done: first ? [...state.done, step] : state.done,
+    looks: look ? { ...state.looks, [step]: [...counted, look] } : state.looks,
+  };
   if (!write(next)) return;
   state.done = next.done;
-  post(step, state.cohort, state.device ?? "desktop");
+  state.looks = next.looks;
+  post(step, state.cohort, state.device ?? "desktop", look, !first);
 }
 
 /**
@@ -102,8 +125,20 @@ export function funnelDecided(): boolean {
   return read() !== null;
 }
 
+/**
+ * The app loaded in a browser that already has a verdict: report `visit` in a
+ * look it has not visited in yet, and `return` the first time it is back on a
+ * later UTC day than its cohort. Nothing for an excluded browser.
+ */
+export function noteFunnelRevisit(nowMs = Date.now()): void {
+  const state = read();
+  if (!state || state.cohort === null) return;
+  report(state, "visit");
+  if (new Date(nowMs).toISOString().slice(0, 10) > state.cohort) report(state, "return");
+}
+
 /** A later step happened. Reported once, ever, and only for a counted browser. */
-export function noteFunnelStep(step: Exclude<FunnelStep, "visit">): void {
+export function noteFunnelStep(step: Exclude<FunnelStep, "visit" | "return">): void {
   const state = read();
   if (!state) {
     pending.add(step);

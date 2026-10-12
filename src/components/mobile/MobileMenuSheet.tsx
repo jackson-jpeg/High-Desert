@@ -8,8 +8,7 @@ import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { presenceAttrs, type LivePresence } from "@/services/stats/now-feed";
 import { sortLabel } from "@/lib/library/sort-keys";
-import { useLook } from "@/hooks/useLook";
-import { radioRetired } from "@/lib/look/nav";
+import { DIAL_LABEL } from "@/lib/look/nav";
 
 interface MobileMenuSheetProps {
   open: boolean;
@@ -25,16 +24,17 @@ interface MobileMenuSheetProps {
   /** The desktop File menu's Export / Import My Data (HD-010). */
   onExportData?: () => void;
   onImportData?: () => void;
+  /** The Display setting (docs/looks.md); `lookLabel` is the look on screen. */
+  onDisplay?: () => void;
+  lookLabel?: string;
 }
 
 const TEXT_SCALE_LABELS: Record<string, string> = { "1": "Normal", "1.15": "Large", "1.3": "Extra Large" };
 
-export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundOn, onToggleStartupSound, textScale, onCycleTextScale, presence, onExportData, onImportData }: MobileMenuSheetProps) {
+export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundOn, onToggleStartupSound, textScale, onCycleTextScale, presence, onExportData, onImportData, onDisplay, lookLabel }: MobileMenuSheetProps) {
   const router = useRouter();
   // Shuffle and sort are URL intents: this sheet opens on every route (HD-013).
   const openLibrary = useOpenLibraryIntent();
-  // The preview looks have no Radio tab: the dial is a Library mode there.
-  const dialInLibrary = radioRetired(useLook());
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
 
@@ -181,14 +181,13 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
           </div>
           <button
             onClick={() => {
-              if (dialInLibrary) openLibrary({ view: "dial" });
-              else router.push("/radio");
+              openLibrary({ view: "dial" });
               hide();
             }}
             className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
           >
             <span className="w-[24px] text-center text-hd-14 text-bevel-dark/85">{"\u{1F4FB}"}</span>
-            <span>{dialInLibrary ? "Library Dial" : "Radio Dial"}</span>
+            <span>{DIAL_LABEL}</span>
           </button>
           <button
             onClick={() => {
@@ -269,6 +268,24 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
           <div className="px-3 pb-1">
             <span className="text-hd-11 text-bevel-dark/85 uppercase tracking-wider font-sans">Settings</span>
           </div>
+          {onDisplay && (
+            <button
+              onClick={() => {
+                // The chooser is the shell's; the sheet gets out of its way.
+                onDisplay();
+                hide();
+              }}
+              data-testid="more-display"
+              className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center justify-between rounded-lg"
+            >
+              <div className="flex items-center gap-3">
+                <span className="w-[24px] text-center text-hd-14 text-bevel-dark/85" aria-hidden="true">{"\u25D0"}</span>
+                <span>Display</span>
+              </div>
+              {lookLabel && <span className="text-hd-13 text-desert-amber">{lookLabel}</span>}
+            </button>
+          )}
+
           {onToggleStartupSound && (
             <button
               onClick={() => {

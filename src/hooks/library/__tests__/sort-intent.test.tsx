@@ -40,7 +40,7 @@ vi.mock("@/audio/cache", () => ({
 
 const { db, getPreference, setPreference } = await import("@/db");
 const { SORT_PREF_KEY } = await import("@/hooks/library/useLibraryFilters");
-const { default: LibraryPage } = await import("@/app/(desktop)/library/page");
+const { default: LibraryPage } = await import("@/app/[look]/(desktop)/library/page");
 
 // Air dates run in this order, so: oldest first = as listed, newest first =
 // reversed, by name = Hoagland, Men, Whitley.

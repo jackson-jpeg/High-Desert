@@ -74,10 +74,11 @@ export function SignalMeter({ signalStrength, className }: SignalMeterProps) {
           <span className="text-hd-8 text-bevel-dark/85 uppercase tracking-[0.12em] font-mono">
             Signal Strength
           </span>
+          {/* Full-strength green, not a faded one: at low signal the fade
+              measured 1.01:1 on Win98's gray (axe, e2e/a11y.spec.ts). */}
           <span
-            className="text-hd-10 font-mono tabular-nums"
+            className="text-hd-10 font-mono tabular-nums text-static-green"
             style={{
-              color: `rgba(74,222,128,${0.4 + signalStrength * 0.5})`,
               textShadow: signalStrength > 0.5 ? `0 0 6px rgba(74,222,128,${signalStrength * 0.3})` : "none",
             }}
           >
@@ -126,32 +127,39 @@ export function SignalMeter({ signalStrength, className }: SignalMeterProps) {
     );
   }
 
-  // Desktop: compact LED bar (unchanged)
+  // Desktop: compact LED bar. Its colours are custom properties with the
+  // night defaults inline, so a look can restyle it from CSS: Win98 draws it
+  // as a sunken progress bar with navy blocks (src/styles/look-win98.css,
+  // "The signal meter"), legible on the gray face where the green LEDs were
+  // 1.4:1.
   const isFull = filled === 10;
   return (
     <div
-      className={cn("flex flex-col gap-1", className)}
+      className={cn("hd-signal flex flex-col gap-1", className)}
       role="meter"
       aria-label="Signal strength"
       aria-valuemin={0}
       aria-valuemax={10}
       aria-valuenow={filled}
     >
-      <div className="text-hd-7 text-bevel-dark/85 uppercase tracking-wider">
+      <div className="hd-signal-label text-hd-7 text-bevel-dark/85 uppercase tracking-wider">
         Signal
       </div>
-      <div className="flex items-center gap-[2px]">
+      <div className="hd-signal-bar flex items-center gap-[2px]">
         {Array.from({ length: 10 }, (_, i) => {
           const isActive = i < filled;
           return (
             <div
               key={i}
-              className="h-[10px] flex-1 min-w-[6px]"
+              data-on={isActive ? "" : undefined}
+              className="hd-signal-seg h-[10px] flex-1 min-w-[6px]"
               style={{
-                backgroundColor: isActive ? "var(--hd-green-bright)" : "rgba(51, 255, 51, 0.08)",
-                boxShadow: isActive ? "0 0 4px rgba(51, 255, 51, 0.3)" : "none",
-                opacity: isActive && isFull ? undefined : isActive ? 0.9 : 1,
-                animation: isActive && isFull ? "signal-pulse 2s ease-in-out infinite" : "none",
+                backgroundColor: isActive
+                  ? "var(--signal-on, var(--hd-green-bright))"
+                  : "var(--signal-off, rgba(51, 255, 51, 0.08))",
+                boxShadow: isActive ? "var(--signal-glow, 0 0 4px rgba(51, 255, 51, 0.3))" : "none",
+                opacity: isActive && isFull ? undefined : isActive ? "var(--signal-on-opacity, 0.9)" : 1,
+                animation: isActive && isFull ? "var(--signal-full-animation, signal-pulse 2s ease-in-out infinite)" : "none",
                 animationDelay: `${i * 80}ms`,
               }}
             />

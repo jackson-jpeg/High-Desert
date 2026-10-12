@@ -201,6 +201,42 @@ describe("useLibraryIntents", () => {
       expect(m.props.setFocusedIndex).not.toHaveBeenCalled();
     });
 
+    it("a moment: once the show is here, its next start is asked to begin at t, and it plays", async () => {
+      const { peekRequestedStart, resetRequestedStartForTests } = await import("@/audio/requested-start");
+      const { onHdEvent } = await import("@/lib/events");
+      resetRequestedStartForTests();
+      const played: Episode[] = [];
+      const off = onHdEvent("play-episode", (e) => played.push(e as Episode));
+      const list = [show(1), show(2)];
+      const m = mountIntents();
+      m.apply({ show: KEY_2, t: 5025 });
+      expect(played).toEqual([]);
+      m.update({ allEpisodes: list, visibleEpisodes: list });
+      expect(m.props.setSelectedEpisode).toHaveBeenCalledWith(list[1]);
+      expect(peekRequestedStart()).toEqual({ fileHash: list[1].fileHash, at: 5025 });
+      expect(played).toEqual([list[1]]);
+      // A plain show intent afterwards starts nothing.
+      m.apply({ show: KEY_2 });
+      m.update({ visibleEpisodes: [...list] });
+      expect(played).toHaveLength(1);
+      off();
+      resetRequestedStartForTests();
+    });
+
+    it("a first visit: the seed settles before its rows arrive, and the show is still found", async () => {
+      const { toast } = await import("@/stores/toast-store");
+      const error = vi.spyOn(toast, "error").mockImplementation(() => {});
+      const m = mountIntents({ allEpisodes: [], visibleEpisodes: [] });
+      m.apply({ show: KEY_2 });
+      m.update({ seedSettled: true });
+      expect(error).not.toHaveBeenCalled();
+      const list = [show(1), show(2)];
+      m.update({ allEpisodes: list, visibleEpisodes: list });
+      expect(m.props.setSelectedEpisode).toHaveBeenCalledWith(list[1]);
+      expect(error).not.toHaveBeenCalled();
+      error.mockRestore();
+    });
+
     it("keeps waiting while seeding may still bring it, then says it is not here", async () => {
       const { toast } = await import("@/stores/toast-store");
       const error = vi.spyOn(toast, "error").mockImplementation(() => {});
@@ -212,6 +248,48 @@ describe("useLibraryIntents", () => {
       expect(m.props.setSelectedEpisode).not.toHaveBeenCalled();
       m.update({ allEpisodes: [show(1)] });
       expect(error).toHaveBeenCalledTimes(1);
+      error.mockRestore();
+    });
+  });
+
+  describe("resume (?resume=<communityKey>, the welcome page's Continue listening)", () => {
+    const show = (id: number) =>
+      ({
+        id,
+        title: `Coast to Coast AM - Show ${id}`,
+        fileName: `1999-01-0${id} - Show ${id}.mp3`,
+        fileHash: `archive:coll:1999-01-0${id} - Show ${id}.mp3`,
+        archiveIdentifier: "coll",
+        showType: "coast",
+      }) as Episode;
+    const KEY_2 = "coll--1999-01-02_-_Show_2";
+
+    it("waits for the library, then plays that show through the library's play, once", () => {
+      const onPlay = vi.fn();
+      const list = [show(1), show(2), show(3)];
+      const m = mountIntents({ onPlay });
+      m.apply({ resume: KEY_2 });
+      expect(onPlay).not.toHaveBeenCalled();
+      m.update({ allEpisodes: list, visibleEpisodes: list });
+      expect(onPlay).toHaveBeenCalledTimes(1);
+      expect(onPlay).toHaveBeenCalledWith(list[1]);
+      // Not selected and not a shuffle: only started.
+      expect(m.props.setSelectedEpisode).not.toHaveBeenCalled();
+      m.update({ visibleEpisodes: [...list], seedSettled: true });
+      expect(onPlay).toHaveBeenCalledTimes(1);
+    });
+
+    it("says so when the show is not in this library once seeding has settled", async () => {
+      const { toast } = await import("@/stores/toast-store");
+      const error = vi.spyOn(toast, "error").mockImplementation(() => {});
+      const onPlay = vi.fn();
+      const m = mountIntents({ onPlay, allEpisodes: [show(1)], visibleEpisodes: [show(1)] });
+      m.apply({ resume: KEY_2 });
+      // Seeding may still bring it: no verdict yet, and the intent is kept.
+      expect(error).not.toHaveBeenCalled();
+      m.update({ seedSettled: true });
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(onPlay).not.toHaveBeenCalled();
       error.mockRestore();
     });
   });

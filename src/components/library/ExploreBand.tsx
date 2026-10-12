@@ -2,14 +2,13 @@
 
 import type { Episode } from "@/db/schema";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
-import { ContinueListening } from "@/components/library/ContinueListening";
 import { RecentlyPlayed } from "@/components/library/RecentlyPlayed";
 import { OnThisDay } from "@/components/library/OnThisDay";
 
 /**
- * The collapsible Explore band above the list. Continue Listening lives in
- * here — it is discovery content, and as its own always-on band it was one
- * more strip of chrome between the search box and the first episode.
+ * The collapsible Explore band above the list. Continue Listening used to
+ * live in here, collapsed by default; it is now its own card at the top of
+ * the Library (ContinueListening), where a returning listener lands.
  */
 export function ExploreBand({
   expanded,
@@ -33,9 +32,6 @@ export function ExploreBand({
 
       {expanded && (
         <div className="flex flex-col gap-1 mt-1 mb-1">
-          <WidgetErrorBoundary name="Continue Listening">
-            <ContinueListening onPlay={onPlay} />
-          </WidgetErrorBoundary>
           <div className="flex flex-col md:flex-row gap-2 overflow-hidden max-h-[200px] md:max-h-[100px]">
             {recentlyPlayed && recentlyPlayed.length > 0 && (
               <WidgetErrorBoundary name="Recently Played">

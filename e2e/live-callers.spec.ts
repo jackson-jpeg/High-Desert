@@ -32,6 +32,12 @@ async function household(browser: Browser, info: TestInfo): Promise<{ a: Page; b
       serviceWorkers: "block",
       extraHTTPHeaders: { "x-forwarded-for": address },
     });
+    // Night's phone lines (LiveChat): the rename button below is its own.
+    // Win98 draws them as Notepad, whose rename is an Edit menu item
+    // (notepad-phone-lines.test.tsx); the server behaviour checked here is
+    // the same for both looks.
+    const host = new URL(info.project.use.baseURL!).hostname;
+    await ctx.addCookies([{ name: "hd_look", value: "night", domain: host, path: "/", sameSite: "Lax" }]);
     const page = await ctx.newPage();
     await answerServerWrites(page, []);
     contexts.push(ctx);

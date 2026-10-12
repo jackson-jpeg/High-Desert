@@ -207,6 +207,66 @@ first run's CORS and `/mirror` 404 came from the walk script sending
 `X-Forwarded-For` to archive.org. There is no local mirror, so the mirror
 could not have served it.
 
+## The phone's Live screen (2026-10-12)
+
+Live on a phone is the most valuable screen, so it was redesigned in both
+looks around three things: one unmistakable Listen button, what is on and why
+it is worth hearing, and the phone lines visible without hunting.
+
+From the top of `PhoneLive` (`src/components/live/LiveStation.tsx`):
+
+1. **The hero** (`live-hero`): the ON AIR lamp and "N tuned in now"
+   (`listen-count`, the one presence feed); the show's title
+   (`live-now-title`), "with Guest · 1992" (`live-now-meta`), and **the hook**
+   (`live-hook`): one line on why it is worth hearing, from
+   `showHook()` (`src/lib/live/hook.ts`). The hook is the catalog's own words,
+   never invented: a notable show's sourced "why" (`data/notable.json`)
+   first, else the first sentence of `aiSummary`, cut at a word under 120
+   characters. A show with neither gets no hook. Then the time left and up
+   next, and **one big button** in the same place in every state:
+   - not tuned: **▶ Listen live** (`live-tune-in`, `tuneIn()` inside the tap);
+   - tuned and playing: "On the air with you" (`live-listening`) and
+     **Leave the station**;
+   - held (paused): **Rejoin live** (`live-rejoin`) and Leave;
+   - refused at the change of show: **Tap to rejoin**, and the lock screen is
+     named as a way back.
+   Between shows it is a station break with a countdown.
+2. **Call in** (`live-call-in`), sticky at the top of the column, as before.
+3. **The latest calls** (`phone-lines-preview`): the last three calls
+   (`preview-call`), and a "Call in…" box (`live-call-box-open`). The whole
+   card opens the phone lines sheet, sized to what the iOS keyboard leaves
+   (`LiveChatSheet`). The preview and the sheet share **one** stream
+   (`useLiveChat` is called once by `PhoneLive`), so the room is joined once
+   and the sheet is full the moment it opens. The stream now connects when a
+   phone opens /live, not when the sheet opens: one SSE connection per phone
+   on the Live screen.
+4. **Install to home screen**, when it applies (`docs/funnel.md`), in the
+   flow below the calls: it never covers the Listen button or the call box.
+5. **The Studio**: the clock, up next and the day's log. On a phone it has no
+   buttons and no "Now playing" of its own: the hero has them, so there is
+   one Listen, one Leave.
+
+Win98 draws the same pieces in its chrome: a raised grey Listen button, the
+preview as Notepad lines, and the sheet holds `NotepadPhoneLines`.
+
+**Phone Lines in Radio's place.** On a phone the Night tab bar has a Phone
+Lines tab (`data-nav="phone-lines"`, `md:hidden`) and the Win98 taskbar a
+Phone Lines button (`w98-task-phone-lines`), between Live and Stats. Both,
+and Win98's Start menu and the installed app's shortcut, go to one URL,
+`/live?lines=1` (`src/lib/live/phone-lines.ts`). The Live screen opens the
+sheet (a phone) or puts the cursor in the call box (a desktop) and replaces
+the URL with `/live`. `phone-lines-request.ts`, the in-memory request it
+replaces, is gone. A desktop keeps its layout: the lines beside the console.
+
+**Tests:** `live-station.test.tsx` (each look: the hero, tuned/held, the
+hook from Dexie and none without one, the preview and the shared stream,
+`?lines=1`), `hook.test.ts` (every catalog hook is a prefix of its source),
+`phone-lines.test.ts`, `taskbar-phone.test.tsx`, `radio-retired.test.tsx`;
+e2e `live-qa.spec.ts`. **Mutations:** `listen-live-*`, `live-hero-*`,
+`live-preview-*`, `live-sheet-shares-stream`, `live-lines-intent-*`,
+`phone-lines-only-one`, `hook-*`, `win98-phone-lines-task`,
+`night-phone-lines-*`.
+
 ## Why the earlier e2e missed all of this
 
 - **They asserted on the machinery, not on what a listener sees.**

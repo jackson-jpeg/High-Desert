@@ -83,6 +83,17 @@ export const test = base.extend<{ serverWrites: string[] }>({
     async ({ page }, use) => {
       const seen: string[] = [];
       await answerServerWrites(page, seen);
+      // The first-visit "Prefer dark?" balloon (docs/looks.md) would show in
+      // every fresh context in Win98, over the bottom of the screen and in
+      // every screenshot. Its unit tests are night-offer.test.tsx and
+      // display-settings.test.tsx; here it is marked as already offered.
+      await page.addInitScript(() => {
+        try {
+          if (localStorage.getItem("hd-look-offer") === null) localStorage.setItem("hd-look-offer", "e2e");
+        } catch {
+          /* storage blocked: the offer cannot show either */
+        }
+      });
       await use(seen);
     },
     { auto: true },

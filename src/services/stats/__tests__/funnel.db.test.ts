@@ -46,15 +46,53 @@ describeDb("funnel_daily (Postgres)", () => {
     const f = await store.getFunnel(7);
     expect(f.days).toBe(7);
     expect(f.cohorts).toEqual([
-      { day: yesterday, device: "desktop", visit: 1, live: 0, tune: 0, call: 1 },
-      { day: today, device: "phone", visit: 3, live: 2, tune: 1, call: 0 },
-      { day: today, device: "desktop", visit: 1, live: 0, tune: 0, call: 0 },
+      { day: yesterday, device: "desktop", visit: 1, live: 0, tune: 0, call: 1, return: 0 },
+      { day: today, device: "phone", visit: 3, live: 2, tune: 1, call: 0, return: 0 },
+      { day: today, device: "desktop", visit: 1, live: 0, tune: 0, call: 0, return: 0 },
     ]);
-    expect(f.totals).toEqual({ visit: 5, live: 2, tune: 1, call: 1 });
+    expect(f.totals).toEqual({ visit: 5, live: 2, tune: 1, call: 1, return: 0 });
     expect(f.byDevice).toEqual({
-      phone: { visit: 3, live: 2, tune: 1, call: 0 },
-      desktop: { visit: 2, live: 0, tune: 0, call: 1 },
+      phone: { visit: 3, live: 2, tune: 1, call: 0, return: 0 },
+      desktop: { visit: 2, live: 0, tune: 0, call: 1, return: 0 },
     });
+  });
+
+  it("by look: each look's own funnel, while the totals count each browser once", async () => {
+    const day = daysAgo(2);
+    const zero = { visit: 0, live: 0, tune: 0, call: 0, return: 0 };
+    // Three phones arrive in Win98; two tune in, one comes back another day.
+    for (let i = 0; i < 3; i++) await store.recordFunnelStep(day, "visit", "phone", "win98");
+    await store.recordFunnelStep(day, "tune", "phone", "win98");
+    await store.recordFunnelStep(day, "tune", "phone", "win98");
+    await store.recordFunnelStep(day, "return", "phone", "win98");
+    // One of them switches to Night: its visit and tune count there again.
+    await store.recordFunnelStep(day, "visit", "phone", "night", true);
+    await store.recordFunnelStep(day, "tune", "phone", "night", true);
+    await store.recordFunnelStep(day, "return", "phone", "night", true);
+    // An older row, from before looks: in the totals, in no look.
+    await store.recordFunnelStep(day, "visit", "phone", null);
+
+    const f = await store.getFunnel(7);
+    expect(f.cohorts).toEqual([{ day, device: "phone", ...zero, visit: 4, tune: 2, return: 1 }]);
+    expect(f.totals).toEqual({ ...zero, visit: 4, tune: 2, return: 1 });
+    expect(f.byLook).toEqual({
+      win98: { phone: { ...zero, visit: 3, tune: 2, return: 1 }, desktop: zero },
+      night: { phone: { ...zero, visit: 1, tune: 1, return: 1 }, desktop: zero },
+    });
+  });
+
+  it("the key holds the look: a NULL look is one row, not one per write", async () => {
+    await store.recordFunnelStep(daysAgo(0), "visit", "desktop", null);
+    await store.recordFunnelStep(daysAgo(0), "visit", "desktop", null);
+    await store.recordFunnelStep(daysAgo(0), "visit", "desktop", "night");
+    const { rows } = await store.getPool().query("SELECT look, n FROM funnel_daily ORDER BY look NULLS FIRST");
+    expect(rows).toEqual([
+      { look: null, n: "2" },
+      { look: "night", n: "1" },
+    ]);
+    await expect(
+      store.getPool().query("INSERT INTO funnel_daily (day, device, step, look, n) VALUES (current_date, 'phone', 'visit', 'clean', 1)"),
+    ).rejects.toThrow(/check constraint/);
   });
 
   it("the window is the last N days, today included", async () => {

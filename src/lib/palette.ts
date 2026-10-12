@@ -42,7 +42,7 @@ export const PALETTE = {
   w98InkMuted: "#3A3A3A",
   w98Maroon: "#800000",
   w98Brown: "#6B3A00",
-  w98GreenText: "#005000",
+  w98GreenText: "#004000",
   w98Error: "#A00000",
   w98Tooltip: "#FFFFE1",
   w98AmpFrame: "#2B2B3B",

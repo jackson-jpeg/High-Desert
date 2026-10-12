@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { onHdEvent } from "@/lib/events";
+import type { Look } from "@/lib/look/look";
 
 /**
  * The user's text-size multiplier (`--hd-text-scale`), as a number.
@@ -40,6 +41,11 @@ export function useTextScale(): number {
  */
 export const ITEM_HEIGHT_MOBILE = 116; // mobile stacks date/title/category/guest
 export const ITEM_HEIGHT_DESKTOP = 34; // desktop is a single aligned table row
+/**
+ * Win98 on a phone: a dense Details-style row, two lines (title; date, guest,
+ * length), not a card (docs/looks.md). Still past the 44 px touch floor.
+ */
+export const ITEM_HEIGHT_W98_PHONE = 52;
 
 /** Inline group header height (list-layout.ts): a caption line, not a card. */
 export const HEADER_HEIGHT_MOBILE = 32;
@@ -49,9 +55,10 @@ export function headerHeightFor(isMobile: boolean, scale: number): number {
   return Math.round((isMobile ? HEADER_HEIGHT_MOBILE : HEADER_HEIGHT_DESKTOP) * scale);
 }
 
-/** Row height for the current breakpoint and text scale. */
-export function itemHeightFor(isMobile: boolean, scale: number): number {
-  return Math.round((isMobile ? ITEM_HEIGHT_MOBILE : ITEM_HEIGHT_DESKTOP) * scale);
+/** Row height for the current breakpoint, text scale and look (Win98's phone rows are dense). */
+export function itemHeightFor(isMobile: boolean, scale: number, look?: Look): number {
+  const base = !isMobile ? ITEM_HEIGHT_DESKTOP : look === "win98" ? ITEM_HEIGHT_W98_PHONE : ITEM_HEIGHT_MOBILE;
+  return Math.round(base * scale);
 }
 
 /**
@@ -64,8 +71,10 @@ export function currentItemHeight(): number {
     .getPropertyValue("--hd-text-scale")
     .trim();
   const scale = Number.parseFloat(raw);
+  const look = document.documentElement.dataset.look;
   return itemHeightFor(
     window.innerWidth < 768,
     Number.isFinite(scale) && scale > 0 ? scale : 1,
+    look === "win98" || look === "night" ? look : undefined,
   );
 }

@@ -184,30 +184,15 @@ describe("LibraryDial", () => {
 describe("useLibraryView: List or Dial", () => {
   let view: ReturnType<typeof useLibraryView>;
   const capture = (v: ReturnType<typeof useLibraryView>) => { view = v; };
-  function Probe({ look, onView = capture }: { look: "default" | "clean" | "win98"; onView?: typeof capture }) {
-    onView(useLibraryView(look));
+  function Probe({ onView = capture }: { onView?: typeof capture }) {
+    onView(useLibraryView());
     return null;
   }
-  const setLook = (look: string | null) => {
-    if (look) document.documentElement.setAttribute("data-look", look);
-    else document.documentElement.removeAttribute("data-look");
-  };
 
   beforeEach(() => window.sessionStorage.clear());
-  afterEach(() => setLook(null));
 
-  it("control: the public look is always the list, and keeps nothing", () => {
-    setLook(null);
-    act(() => root.render(createElement(Probe, { look: "default" })));
-    expect(view.available).toBe(false);
-    act(() => view.setView("dial"));
-    expect(view.view).toBe("list");
-    expect(window.sessionStorage.getItem(LIBRARY_VIEW_KEY)).toBeNull();
-  });
-
-  it("a preview look switches to the dial and remembers it for the tab", () => {
-    setLook("clean");
-    act(() => root.render(createElement(Probe, { look: "clean" })));
+  it("switches to the dial and remembers it for the tab", () => {
+    act(() => root.render(createElement(Probe)));
     expect(view.available).toBe(true);
     expect(view.view).toBe("list");
     act(() => view.setView("dial"));
@@ -215,16 +200,7 @@ describe("useLibraryView: List or Dial", () => {
     expect(window.sessionStorage.getItem(LIBRARY_VIEW_KEY)).toBe("dial");
     act(() => root.unmount());
     root = createRoot(container);
-    act(() => root.render(createElement(Probe, { look: "win98" })));
-    expect(view.view).toBe("dial");
-  });
-
-  it("the page's look decides, even while the hook still answers the public look (hydration)", () => {
-    setLook("clean");
-    act(() => root.render(createElement(Probe, { look: "default" })));
-    act(() => view.setView("dial"));
-    expect(view.view).toBe("list");
-    act(() => root.render(createElement(Probe, { look: "clean" })));
+    act(() => root.render(createElement(Probe)));
     expect(view.view).toBe("dial");
   });
 });

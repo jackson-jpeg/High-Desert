@@ -48,7 +48,7 @@ vi.mock("@/audio/cache", () => ({
 
 const { db } = await import("@/db");
 const { useAdminStore } = await import("@/stores/admin-store");
-const { default: LibraryPage } = await import("@/app/(desktop)/library/page");
+const { default: LibraryPage } = await import("@/app/[look]/(desktop)/library/page");
 
 let root: Root;
 let container: HTMLDivElement;

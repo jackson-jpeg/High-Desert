@@ -8,7 +8,7 @@ import { createRoot, type Root } from "react-dom/client";
  *
  * The preference is written in three places — the CSS variable every
  * `text-hd-*` step multiplies by, the localStorage mirror the pre-paint script
- * in app/layout.tsx reads, and Dexie, the durable copy — and read back through
+ * in app/[look]/layout.tsx reads, and Dexie, the durable copy — and read back through
  * useTextScale(). Runs against the real Dexie on fake-indexeddb, so "persisted"
  * means a fresh read of the database finds it.
  */

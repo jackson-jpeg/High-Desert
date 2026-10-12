@@ -2,20 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { getFunnel, isAcceptableCohort, isFunnelDevice, isFunnelStep, recordFunnelStep } from "@/services/stats/store";
 import { readJsonObject } from "@/lib/utils/json-body";
+import { isLook } from "@/lib/look/look";
 
 /**
  * The arrival funnel (docs/funnel.md).
  *
- * POST `{step, cohort, device}`: one browser reached `step` (`visit`, `live`,
- * `tune`, `call`) for the first time; it first arrived on `cohort` (a UTC
- * date) as a `phone` or a `desktop`. Adds one to that counter. Returns `{ok}`. Nothing else is stored: no
+ * POST `{step, cohort, device, look?, again?}`: one browser reached `step`
+ * (`visit`, `live`, `tune`, `call`, `return`) for the first time; it first
+ * arrived on `cohort` (a UTC date) as a `phone` or a `desktop`. `look` is the
+ * look it was in (`win98`, `night`; anything else is stored unknown, never
+ * refused); `again: true` when it already counted this step in its other
+ * look. Adds one to that counter. Returns `{ok}`. Nothing else is stored: no
  * session, no address, no id. The browser keeps "already reported" itself
  * (src/services/stats/funnel-client.ts). Like every other counter here it can
  * be inflated by someone who wants to; it is rate limited per client.
  *
  * GET `?days=7|30|90`: `{days, cohorts: [{day, device, visit, live, tune,
- * call}], totals: {visit, live, tune, call}, byDevice: {phone, desktop}}`,
- * cohorts oldest first. What
+ * call, return}], totals, byDevice: {phone, desktop}, byLook: {win98: {phone,
+ * desktop}, night: {phone, desktop}}}`, cohorts oldest first. What
  * `highdesert-status`'s `funnel` line reads.
  */
 function limited(key: string, maxRequests: number): NextResponse | null {
@@ -28,16 +32,16 @@ function limited(key: string, maxRequests: number): NextResponse | null {
 }
 
 export async function POST(request: NextRequest) {
-  // A browser posts each step once, ever: four in its lifetime. Ten a minute
+  // A browser posts each step once per look: a handful in its lifetime. Ten a minute
   // leaves room for a household behind one address and nothing much more.
   const blocked = limited(`stats-funnel:${getClientKey(request)}`, 10);
   if (blocked) return blocked;
 
   const parsed = await readJsonObject(request);
   if (parsed.error) return parsed.error;
-  const { step, cohort, device } = parsed.body;
+  const { step, cohort, device, look, again } = parsed.body;
   if (!isFunnelStep(step)) {
-    return NextResponse.json({ error: "step must be visit, live, tune or call" }, { status: 400 });
+    return NextResponse.json({ error: "step must be visit, live, tune, call or return" }, { status: 400 });
   }
   if (!isFunnelDevice(device)) {
     return NextResponse.json({ error: "device must be phone or desktop" }, { status: 400 });
@@ -47,7 +51,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await recordFunnelStep(cohort, step, device);
+    await recordFunnelStep(cohort, step, device, isLook(look) ? look : null, again === true);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[stats/funnel] store error:", err);

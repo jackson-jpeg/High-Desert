@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { useAppPathname } from "@/hooks/useAppPathname";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 
@@ -9,7 +9,7 @@ interface PageTransitionProps {
 }
 
 export function PageTransition({ children }: PageTransitionProps) {
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const [visible, setVisible] = useState(true);
   const prevPath = useRef(pathname);
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");

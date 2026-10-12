@@ -111,6 +111,33 @@ describe("e2e specs take test from e2e/fixtures.ts", () => {
   }, 30_000);
 });
 
+describe("usePathname only through useAppPathname (the look segment)", () => {
+  async function restrictedImports(code: string, file: string): Promise<string[]> {
+    const [result] = await eslint.lintText(code, { filePath: path.join(ROOT, file) });
+    return result.messages.filter((m) => m.ruleId === "no-restricted-imports").map((m) => m.message);
+  }
+
+  it("flags usePathname in shipping code: it reads /win98/live on the server", async () => {
+    const found = await restrictedImports(
+      'import { usePathname } from "next/navigation";\nexport const p = usePathname;\n',
+      "src/components/probe.tsx",
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatch(/useAppPathname/);
+  }, 30_000);
+
+  it("allows the hook itself and the rest of next/navigation", async () => {
+    expect(await restrictedImports(
+      'import { useRouter } from "next/navigation";\nexport const r = useRouter;\n',
+      "src/components/probe.tsx",
+    )).toEqual([]);
+    expect(await restrictedImports(
+      'import { usePathname } from "next/navigation";\nexport const p = usePathname;\n',
+      "src/hooks/useAppPathname.ts",
+    )).toEqual([]);
+  }, 30_000);
+});
+
 describe("text opacity floor (HD-023)", () => {
   async function floorHits(code: string, file = "src/lint-probe.tsx"): Promise<string[]> {
     const [result] = await eslint.lintText(code, { filePath: path.join(ROOT, file) });

@@ -25,10 +25,15 @@ export function sitePath(href, base) {
 const meta = (doc, attr, name) => doc.querySelector(`meta[${attr}="${name}"]`)?.getAttribute("content")?.trim() ?? "";
 
 /**
- * Findings for a show or guest page's server HTML: empty means it passes.
+ * Findings for a show, guest, topic, Tonight or moment page's server HTML:
+ * empty means it passes.
+ *
+ * A moment (`/show/<slug>?t=<s>`) is a show page whose canonical is the plain
+ * show page, whose og:url is the moment's own URL, whose share card is the
+ * moment's (`/show/<slug>/moment/<s>/...`), and whose player starts there.
  *
  * @param {Document} doc the HTML as the server sent it, parsed without running scripts
- * @param {{path: string, kind: "show" | "guest", base: string}} page
+ * @param {{path: string, kind: "show" | "guest" | "topic" | "tonight" | "moment", base: string}} page
  * @returns {{findings: string[], links: string[], images: string[]}}
  *   links: every internal link on the page, as site paths, to be fetched;
  *   images: og:image and twitter:image, as site paths
@@ -43,9 +48,12 @@ export function pageFindings(doc, { path, kind, base }) {
   need(title.length > 0, "no <title>");
   need(meta(doc, "name", "description").length > 0, "no meta description");
 
+  // A moment's canonical is its show's page: the moment is not a second page.
+  const pagePath = path.split("?")[0];
+  const moment = kind === "moment" ? Number(new URL(path, "https://x").searchParams.get("t")) : null;
   const canonical = doc.querySelector('link[rel="canonical"]')?.getAttribute("href") ?? "";
   need(canonical.length > 0, "no canonical");
-  if (canonical) need(sitePath(canonical, base) === path, `canonical ${canonical} is not this page`);
+  if (canonical) need(sitePath(canonical, base) === pagePath, `canonical ${canonical} is not this page`);
 
   for (const p of ["og:title", "og:description", "og:image", "og:url"]) {
     need(meta(doc, "property", p).length > 0, `no ${p}`);
@@ -68,22 +76,49 @@ export function pageFindings(doc, { path, kind, base }) {
     for (const err of validateJsonLd(data)) findings.push(`JSON-LD: ${err}`);
   }
   need(types.includes("BreadcrumbList"), "no BreadcrumbList JSON-LD");
-  if (kind === "show") need(types.includes("PodcastEpisode"), "no PodcastEpisode JSON-LD");
-  if (kind === "guest") need(types.includes("CollectionPage"), "no CollectionPage JSON-LD");
+  if (kind === "show" || kind === "moment") need(types.includes("PodcastEpisode"), "no PodcastEpisode JSON-LD");
+  if (kind === "guest" || kind === "topic" || kind === "tonight") need(types.includes("CollectionPage"), "no CollectionPage JSON-LD");
 
   // The page is in the HTML, not drawn by JavaScript afterwards.
   const h1 = doc.querySelectorAll("h1");
   need(h1.length === 1 && (h1[0].textContent ?? "").trim().length > 0, "not exactly one non-empty <h1> in the server HTML");
   need(!!doc.querySelector(".hd-show-page"), "no .hd-show-page in the server HTML");
-  if (kind === "show") {
-    const slug = path.replace(/^\/show\//, "");
+  // A visitor from a search learns what the site is, and the ways in, on every page.
+  const intro = doc.querySelector(".hd-show-intro");
+  need(!!intro && /High Desert/.test(intro.textContent ?? ""), "no one-line intro to High Desert");
+  need(!!intro?.querySelector('a[href="/live"]') && !!intro?.querySelector('a[href="/library"]'), "the intro has no way into Live and the Library");
+  if (kind === "show" || kind === "moment") {
+    const slug = pagePath.replace(/^\/show\//, "");
     need(!!doc.querySelector(`article[data-show-slug="${slug}"]`), "the show's article is not in the server HTML");
     const audio = doc.querySelector("audio[controls]");
     need(!!audio && audio.getAttribute("preload") === "none", "no <audio controls preload=none>");
     need(!!audio?.querySelector("source[src]"), "the audio has no source");
     need(!!doc.querySelector('a.hd-show-open[href^="/library?show="]'), "no Open in High Desert link");
+    need(!!doc.querySelector(".hd-show-play"), "no one-tap Play button");
+    // It needs JavaScript; without it a <noscript> rule hides it and the native controls remain.
+    const noscript = [...doc.querySelectorAll("noscript")].map((n) => n.textContent ?? "").join("\n");
+    need(/\.hd-show-play\{display:none/.test(noscript), "nothing hides the Play button without JavaScript");
+  }
+  if (kind === "moment") {
+    const sources = [...doc.querySelectorAll("audio source[src]")].map((e) => e.getAttribute("src") ?? "");
+    need(sources.length > 0 && sources.every((src) => src.endsWith(`#t=${moment}`)), `the player does not start at ${moment}s (#t=)`);
+    need(doc.querySelector(".hd-show-moment")?.getAttribute("data-moment") === String(moment), "the page does not say where the moment starts");
+    need(!!doc.querySelector(`a.hd-show-open[href*="t=${moment}"]`), "Open in High Desert does not carry the moment");
+    const ogImage = meta(doc, "property", "og:image");
+    need(ogImage.includes(`${pagePath}/moment/${moment}/opengraph-image`), "og:image is not the moment's card");
   }
   if (kind === "guest") need(doc.querySelectorAll(".hd-show-list a[href^='/show/']").length >= 2, "a guest page lists fewer than 2 shows");
+  if (kind === "topic") {
+    const slug = pagePath.replace(/^\/topic\//, "");
+    need(!!doc.querySelector(`article[data-topic-slug="${slug}"]`), "the topic's article is not in the server HTML");
+    need(doc.querySelectorAll(".hd-show-list a[href^='/show/']").length >= 3, "a topic page lists fewer than 3 shows");
+  }
+  if (kind === "tonight") {
+    const day = pagePath.replace(/^\/tonight\//, "");
+    need(!!doc.querySelector(`article[data-tonight-day="${day}"]`), "the day's article is not in the server HTML");
+    need(!!doc.querySelector('a.hd-tonight-tune[href="/live"]'), "no Tune in link to /live");
+    need(!!doc.querySelector(".hd-tonight-program") && !!doc.querySelector(".hd-tonight-dated"), "no program or on-this-date section");
+  }
   // The boot screen must not cover the page, with or without JavaScript.
   const styles = [...doc.querySelectorAll("style")].map((s) => s.textContent ?? "").join("\n");
   need(/#app-loading\s*\{\s*display:\s*none\s*!important/.test(styles), "nothing hides the #app-loading boot screen");

@@ -10,6 +10,7 @@ import { useVirtualList } from "@/hooks/useVirtualList";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils/cn";
 import { useTextScale, itemHeightFor, headerHeightFor } from "@/hooks/useTextScale";
+import { useLook } from "@/hooks/useLook";
 import { deriveRailGroups, activeGroupIndex, type RailGroup } from "@/lib/library/rail-groups";
 import { NO_PROGRESS, type ProgressIndex } from "@/stores/progress-store";
 import { buildListLayout } from "@/lib/library/list-layout";
@@ -88,7 +89,9 @@ export function TimelineView({
 }: TimelineViewProps) {
   const isMobile = useIsMobile();
   const textScale = useTextScale();
-  const ITEM_HEIGHT = itemHeightFor(isMobile, textScale);
+  // Win98's phone rows are dense list rows, not cards (EpisodeCard).
+  const look = useLook();
+  const ITEM_HEIGHT = itemHeightFor(isMobile, textScale, look);
   const HEADER_HEIGHT = headerHeightFor(isMobile, textScale);
 
   // The rail, the sticky header and the inline group headers are projections

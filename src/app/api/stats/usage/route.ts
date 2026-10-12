@@ -6,9 +6,11 @@ import { getUsage } from "@/services/stats/store";
  * Usage, aggregate only (docs/usage-tracking.md).
  *
  * GET `?days=7|30|90` (anything else is 7): `{days, routes: [{route, device,
- * views, minutes}], arrivals: [{source, landing, device, n}], playsBySurface:
- * {library, radio, live, stats, show, palette, queue, restore, other,
- * unknown}}`. Days are UTC days, today included. `no-store`.
+ * views, minutes}], arrivals: [{source, landing, device, look, n}],
+ * playsBySurface: {library, radio, live, stats, show, palette, queue, restore,
+ * other, unknown}, playsByLook: {win98, night, unknown}}`. `look` is the look a
+ * session landed in (null before 2026-10-12). Days are UTC days, today
+ * included. `no-store`.
  */
 export async function GET(request: NextRequest) {
   const rl = rateLimit(`stats-usage-read:${getClientKey(request)}`, { maxRequests: 30, windowMs: 60_000 });

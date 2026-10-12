@@ -1,0 +1,87 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAdminStore } from "@/stores/admin-store";
+import { useFileScanner } from "@/hooks/useFileScanner";
+import { useScannerStore } from "@/stores/scanner-store";
+import { FolderPicker } from "@/components/scanner/FolderPicker";
+import { ScanProgress } from "@/components/scanner/ScanProgress";
+import { ScanResults } from "@/components/scanner/ScanResults";
+import { CatalogScraper } from "@/components/scraper/CatalogScraper";
+import { CollectionImport } from "@/components/scraper/CollectionImport";
+import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
+
+export default function ScannerPage() {
+  const router = useRouter();
+  const isAdmin = useAdminStore((s) => s.isAdmin);
+  const { startScan, startScanFallback, cancelScan, supportsNativePicker } =
+    useFileScanner();
+  const status = useScannerStore((s) => s.status);
+
+  useEffect(() => {
+    // A child's effects run before its layout's, so on a direct load this ran
+    // before the layout's hydrate() and sent every admin to /library. Read the
+    // saved flag first (hydrate is idempotent).
+    useAdminStore.getState().hydrate();
+    if (!useAdminStore.getState().isAdmin) router.replace("/library");
+  }, [isAdmin, router]);
+
+  if (!isAdmin) return null;
+
+  const isScanning = status === "scanning";
+  const hasResults =
+    status === "completed" || status === "cancelled" || status === "error";
+
+  return (
+    <div className="h-full overflow-auto overscroll-contain p-4 flex flex-col gap-5 max-w-2xl mx-auto">
+      {/* Section header — the page's h1. An h1 inside a flex row lays out
+          exactly as the span it replaced did, and preflight resets its size
+          and weight, so nothing visible changed. */}
+      <div className="flex items-center gap-2 px-1">
+        <h1 className="text-hd-10 text-desert-amber font-bold uppercase tracking-wider">Import Sources</h1>
+        <div className="flex-1 h-[1px] bg-gradient-to-r from-desert-amber/30 to-transparent" />
+      </div>
+
+      {/* Featured collection import — one-click for the Ultimate Art Bell Collection */}
+      <WidgetErrorBoundary name="CollectionImport">
+        <CollectionImport />
+      </WidgetErrorBoundary>
+
+      {/* Divider */}
+      <div className="flex items-center gap-3 px-1">
+        <div className="flex-1 h-[1px] bg-bevel-dark/20" />
+        <span className="text-hd-9 text-bevel-dark/85 uppercase tracking-widest">or search the full catalog</span>
+        <div className="flex-1 h-[1px] bg-bevel-dark/20" />
+      </div>
+
+      {/* Archive.org catalog search/import */}
+      <WidgetErrorBoundary name="CatalogScraper">
+        <CatalogScraper />
+      </WidgetErrorBoundary>
+
+      {/* Divider */}
+      <div className="flex items-center gap-3 px-1">
+        <div className="flex-1 h-[1px] bg-bevel-dark/20" />
+        <span className="text-hd-9 text-bevel-dark/85 uppercase tracking-widest">or import local files</span>
+        <div className="flex-1 h-[1px] bg-bevel-dark/20" />
+      </div>
+
+      {/* Folder picker (disabled while scanning) */}
+      <WidgetErrorBoundary name="FolderPicker">
+        <FolderPicker
+          onPickNative={startScan}
+          onPickFallback={startScanFallback}
+          supportsNativePicker={supportsNativePicker}
+          disabled={isScanning}
+        />
+      </WidgetErrorBoundary>
+
+      {/* Progress display */}
+      {(isScanning || hasResults) && <ScanProgress onCancel={cancelScan} />}
+
+      {/* Results table */}
+      {hasResults && <ScanResults />}
+    </div>
+  );
+}

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   FUNNEL_STORAGE_KEY,
   funnelDecided,
+  noteFunnelRevisit,
   noteFunnelStep,
   resetFunnelForTests,
   startFunnel,
@@ -14,7 +15,7 @@ import {
  */
 
 const DAY = Date.UTC(2026, 8, 27, 15);
-let posted: { step: string; cohort: string; device: string }[];
+let posted: { step: string; cohort: string; device: string; look?: string; again?: boolean }[];
 
 beforeEach(() => {
   localStorage.clear();
@@ -31,7 +32,15 @@ beforeEach(() => {
   );
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  delete document.documentElement.dataset.look;
+});
+
+/** The page's look, as the root layout writes it (`<html data-look>`). */
+const inLook = (look: "win98" | "night") => {
+  document.documentElement.dataset.look = look;
+};
 
 describe("funnel, browser side", () => {
   it("an empty library on arrival is a first visit, in today's UTC cohort", () => {
@@ -140,5 +149,79 @@ describe("funnel, browser side", () => {
     startFunnel(true, DAY);
     noteFunnelStep("live");
     expect(posted).toEqual([]);
+  });
+});
+
+describe("funnel by look, and returns", () => {
+  it("every step carries the look the page was rendered in", () => {
+    inLook("win98");
+    startFunnel(true, DAY);
+    noteFunnelStep("tune");
+    expect(posted).toEqual([
+      { step: "visit", cohort: "2026-09-27", device: "desktop", look: "win98" },
+      { step: "tune", cohort: "2026-09-27", device: "desktop", look: "win98" },
+    ]);
+  });
+
+  it("a browser that switches counts each step once more in the new look, marked again", () => {
+    inLook("win98");
+    startFunnel(true, DAY);
+    noteFunnelStep("tune");
+    // Switched to Night: a reload into the other look.
+    resetFunnelForTests();
+    inLook("night");
+    noteFunnelRevisit(DAY);
+    noteFunnelStep("tune");
+    noteFunnelStep("tune");
+    noteFunnelRevisit(DAY);
+    expect(posted.slice(2)).toEqual([
+      { step: "visit", cohort: "2026-09-27", device: "desktop", look: "night", again: true },
+      { step: "tune", cohort: "2026-09-27", device: "desktop", look: "night", again: true },
+    ]);
+    // Back in Win98: nothing new, both looks have counted both steps.
+    inLook("win98");
+    noteFunnelRevisit(DAY);
+    noteFunnelStep("tune");
+    expect(posted).toHaveLength(4);
+  });
+
+  it("a first step taken in the second look is a first, not again", () => {
+    inLook("win98");
+    startFunnel(true, DAY);
+    inLook("night");
+    noteFunnelStep("call");
+    expect(posted[1]).toEqual({ step: "call", cohort: "2026-09-27", device: "desktop", look: "night" });
+  });
+
+  it("return: once, the first load on a later UTC day than the cohort, never on the arrival day", () => {
+    inLook("win98");
+    startFunnel(true, DAY);
+    noteFunnelRevisit(DAY + 3_600_000); // same day, an hour later
+    expect(posted.map((p) => p.step)).toEqual(["visit"]);
+    noteFunnelRevisit(DAY + 86_400_000);
+    noteFunnelRevisit(DAY + 2 * 86_400_000);
+    expect(posted).toEqual([
+      { step: "visit", cohort: "2026-09-27", device: "desktop", look: "win98" },
+      { step: "return", cohort: "2026-09-27", device: "desktop", look: "win98" },
+    ]);
+  });
+
+  it("an excluded browser, or one with no verdict, reports no return", () => {
+    noteFunnelRevisit(DAY + 86_400_000);
+    startFunnel(false, DAY);
+    noteFunnelRevisit(DAY + 86_400_000);
+    expect(posted).toEqual([]);
+  });
+
+  it("a browser counted before looks were recorded counts its old steps again only in a known look", () => {
+    localStorage.setItem(
+      FUNNEL_STORAGE_KEY,
+      JSON.stringify({ cohort: "2026-09-27", device: "phone", done: ["visit", "tune"] }),
+    );
+    noteFunnelRevisit(DAY); // no look on the page: nothing
+    expect(posted).toEqual([]);
+    inLook("night");
+    noteFunnelStep("tune");
+    expect(posted).toEqual([{ step: "tune", cohort: "2026-09-27", device: "phone", look: "night", again: true }]);
   });
 });

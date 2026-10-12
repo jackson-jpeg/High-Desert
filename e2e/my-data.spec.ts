@@ -133,7 +133,15 @@ async function favouriteAndRate(page: Page, index: number, stars: number, isMobi
 /** Choose a data action from the File menu (desktop) or the More sheet (phone). */
 async function chooseDataAction(page: Page, isMobile: boolean, action: "Export" | "Import"): Promise<void> {
   if (isMobile) {
-    await page.getByRole("button", { name: "More options" }).click();
+    // Win98 (no cookie, the default): Start > Settings > More Settings...
+    // opens the same Menu sheet that Night's More button does.
+    if (await page.getByTestId("w98-start").isVisible().catch(() => false)) {
+      await page.getByTestId("w98-start").click();
+      await page.getByTestId("w98-start-settings").click();
+      await page.getByTestId("w98-start-more-settings").click();
+    } else {
+      await page.getByRole("button", { name: "More options" }).click();
+    }
     await page.getByRole("dialog", { name: "Menu" }).getByRole("button", { name: `${action} My Data` }).click();
   } else {
     await page.getByRole("menuitem", { name: "File" }).click();

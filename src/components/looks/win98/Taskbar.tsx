@@ -2,7 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useAppPathname } from "@/hooks/useAppPathname";
 import { cn } from "@/lib/utils/cn";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { usePlayerStore } from "@/stores/player-store";
@@ -11,9 +12,9 @@ import { formatClock, STATUS_TICK_MS } from "@/components/desktop/StatusBar";
 import { isKeyOwnedByTarget } from "@/lib/utils/key-ownership";
 import { StartMenu } from "./StartMenu";
 import { HelpDialog, RunDialog, SafeToTurnOff, ShutDownDialog } from "./Win98Dialogs";
-import { PHONE_LINES_HREF, startMenuItems, typeKey, type StartAction, type StartItem } from "./start-menu";
+import { startMenuItems, typeKey, type StartAction, type StartItem } from "./start-menu";
 import { Win98Icon } from "./Win98Icon";
-import { requestPhoneLines } from "./phone-lines-request";
+import { PHONE_LINES_HREF } from "@/lib/live/phone-lines";
 
 // Reachable only by the Run box or by typing on the desktop: fetched when opened.
 const MelsHole = dynamic(() => import("./MelsHole").then((m) => m.MelsHole), { ssr: false });
@@ -25,6 +26,20 @@ export const TASKS = [
   { label: "Stats", path: "/stats", icon: "stats" },
 ] as const;
 
+/**
+ * On a phone, Radio's old place goes to the Phone Lines (docs/live-qa.md):
+ * between Live and Stats, opening the Live screen with the lines open. A
+ * desktop has the lines beside the console already, so it keeps three.
+ */
+export const PHONE_LINES_TASK = { label: "Phone Lines", path: PHONE_LINES_HREF, icon: "phone", testId: "phone-lines" } as const;
+
+type Task = { label: string; path: string; icon: (typeof TASKS)[number]["icon"] | "phone"; testId?: string };
+
+/** The task buttons for this screen: the three places, and on a phone the Phone Lines. */
+export function tasksFor(isMobile: boolean): readonly Task[] {
+  return isMobile ? [TASKS[0], TASKS[1], PHONE_LINES_TASK, TASKS[2]] : TASKS;
+}
+
 type Overlay = "run" | "shutdown" | "help" | "mels-hole" | "off" | null;
 
 export interface TaskbarProps {
@@ -34,6 +49,8 @@ export interface TaskbarProps {
   onShortcuts: () => void;
   /** The phone's More sheet (text size, sound, export). */
   onSettings: () => void;
+  /** Start > Settings > Display: the look (DisplayProperties, owned by the shell). */
+  onDisplay: () => void;
 }
 
 /**
@@ -41,9 +58,9 @@ export interface TaskbarProps {
  * here, the speaker, the clock). It stands in for the nav tabs on every
  * screen: at the bottom of the desktop, and as the phone's bottom bar.
  */
-export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings }: TaskbarProps) {
+export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings, onDisplay }: TaskbarProps) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const isMobile = useIsMobile();
   const [startOpen, setStartOpen] = useState(false);
   const [overlay, setOverlay] = useState<Overlay>(null);
@@ -102,12 +119,8 @@ export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings }:
     (action: StartAction) => {
       switch (action.kind) {
         case "route":
-          if (action.href === PHONE_LINES_HREF) {
-            requestPhoneLines();
-            if (pathname !== "/live") router.push("/live");
-          } else {
-            router.push(action.href);
-          }
+          // Phone Lines too: /live?lines=1 opens them (src/lib/live/phone-lines.ts).
+          router.push(action.href);
           return;
         case "about":
           return onAbout();
@@ -115,6 +128,11 @@ export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings }:
           return onShortcuts();
         case "settings":
           return onSettings();
+        case "display":
+          return onDisplay();
+        case "submenu":
+          // The Start menu opens its own submenus; nothing to do here.
+          return;
         case "help":
           return setOverlay("help");
         case "run":
@@ -123,7 +141,7 @@ export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings }:
           return setOverlay("shutdown");
       }
     },
-    [router, pathname, onAbout, onShortcuts, onSettings],
+    [router, onAbout, onShortcuts, onSettings, onDisplay],
   );
 
   const pick = useCallback(
@@ -167,24 +185,27 @@ export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings }:
       <span className="hd-w98-taskbar-divider" aria-hidden="true" />
 
       <div className="flex items-center gap-[3px] flex-1 min-w-0" role="group" aria-label="Places">
-        {TASKS.map((t) => {
+        {tasksFor(isMobile).map((t) => {
           const active = pathname === t.path;
+          const lines = t.path === PHONE_LINES_HREF;
           return (
             <button
               key={t.path}
               type="button"
               aria-current={active ? "page" : undefined}
               aria-pressed={active}
-              data-testid={`w98-task-${t.label.toLowerCase()}`}
+              data-testid={`w98-task-${t.testId ?? t.label.toLowerCase()}`}
               onClick={() => router.push(t.path)}
               className={cn(
-                "hd-w98-task w98-raised-dark bg-raised-surface flex items-center gap-1 cursor-pointer min-w-0 truncate",
+                "hd-w98-task w98-raised-dark bg-raised-surface flex items-center gap-1 cursor-pointer min-w-0",
+                // Two short lines rather than "Phone L…" in a quarter of a phone.
+                lines ? "whitespace-normal leading-tight text-center" : "truncate",
                 isMobile ? "min-h-touch flex-1 justify-center px-1 text-hd-12" : "h-[24px] w-[150px] px-[6px] text-hd-12",
                 active && "hd-w98-task-active",
               )}
             >
               <Win98Icon name={t.icon} size={16} className="flex-shrink-0" />
-              <span className="truncate">{t.label}</span>
+              <span className={lines ? "min-w-0" : "truncate"}>{t.label}</span>
             </button>
           );
         })}

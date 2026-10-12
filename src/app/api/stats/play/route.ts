@@ -5,6 +5,7 @@ import { recordPlay, isPlaySource } from "@/services/stats/store";
 import { isKnownEpisodeId } from "@/services/stats/allowlist";
 import { readJsonObject } from "@/lib/utils/json-body";
 import { isPlaySurface } from "@/lib/usage/vocab";
+import { isLook } from "@/lib/look/look";
 
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
 
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
   if (parsed.error) return parsed.error;
   const body = parsed.body;
 
-  const { episodeId, sessionId, source, build, surface } = body;
+  const { episodeId, sessionId, source, build, surface, look } = body;
 
   if (
     typeof episodeId !== "string" ||
@@ -67,7 +68,8 @@ export async function POST(request: NextRequest) {
     // The build that sent it. Anything that is not a build id is stored as
     // unknown rather than refused: a play is worth more than its tag.
     // Where it was started: optional, and anything unknown is stored as
-    // unknown (NULL), never refused, for the same reason.
+    // unknown (NULL), never refused, for the same reason. So is the look
+    // the page was rendered in.
     await recordPlay(
       episodeId,
       sessionId,
@@ -75,6 +77,7 @@ export async function POST(request: NextRequest) {
       source ?? null,
       isBuildId(build) ? build : null,
       isPlaySurface(surface) ? surface : null,
+      isLook(look) ? look : null,
     );
     return NextResponse.json({ ok: true });
   } catch (err) {

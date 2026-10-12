@@ -20,13 +20,27 @@ import { communityKey } from "@/lib/utils/community-key";
 import { resolveSources } from "@/audio/sources";
 import { archiveDetailsUrl } from "@/lib/library/episode-detail";
 import type { Episode } from "@/db/schema";
+import { SHOW_TOPICS_MAX, topicPath, type Topic } from "@/lib/topics/catalog";
+import { momentLabel } from "@/lib/shows/share";
+import { ShowPlayButton } from "@/components/shows/ShowPlayButton";
 
 /**
- * One show's page (docs/show-pages.md). A server component with no client
- * code: the heading, the facts, a native audio player and the related lists
- * are all in the HTML, so the page works with JavaScript off and is what a
- * crawler indexes.
+ * One show's page (docs/show-pages.md). A server component: the heading, the
+ * facts, a native audio player, the topics and the related lists are all in
+ * the HTML, so the page works with JavaScript off and is what a crawler
+ * indexes. The one client piece is the big Play button (ShowPlayButton),
+ * which drives the native player and is hidden without JavaScript.
+ *
+ * `moment` (seconds, from `?t=`; src/app/[look]/show/[slug]/moment/[t]) is a
+ * shared moment: the player starts there (a `#t=` media fragment on each
+ * source), the page says so, and "Open in High Desert" carries it.
  */
+
+/** The native player's id, for the Play button. */
+export const SHOW_AUDIO_ID = "hd-show-audio";
+
+/** Without JavaScript the big Play button cannot work: hide it, the native controls remain. */
+export const NO_SCRIPT_PLAY_CSS = ".hd-show-play{display:none!important}";
 
 const link = "text-signal-blue hover:text-desktop-gray transition-colors-fast";
 
@@ -90,7 +104,18 @@ function Related({ title, shows, id }: { title: string; shows: Show[]; id: strin
   );
 }
 
-export function ShowView({ show, catalog }: { show: Show; catalog: ShowCatalog }) {
+export function ShowView({
+  show,
+  catalog,
+  topics = [],
+  moment = null,
+}: {
+  show: Show;
+  catalog: ShowCatalog;
+  /** Every topic that lists this show, most specific first (src/lib/topics/catalog.ts). */
+  topics?: Topic[];
+  moment?: number | null;
+}) {
   const { row, slug } = show;
   const series = seriesOf(row);
   const date = longDate(row.airDate);
@@ -105,6 +130,9 @@ export function ShowView({ show, catalog }: { show: Show; catalog: ShowCatalog }
   const people = guestPeople(row);
   const firstGuest = people[0] ?? guest;
   const crumbs = showCrumbs(show);
+  const fragment = moment != null ? `#t=${moment}` : "";
+  const categoryTopic = row.aiCategory ? topics.find((t) => t.id === `category:${row.aiCategory}`) : undefined;
+  const shownTopics = topics.slice(0, SHOW_TOPICS_MAX);
 
   return (
     <>
@@ -147,60 +175,32 @@ export function ShowView({ show, catalog }: { show: Show; catalog: ShowCatalog }
           ) : null}
         </h1>
 
-        <dl className="hd-show-meta grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 mt-4 text-hd-body">
-          <dt className="text-bevel-dark">Aired</dt>
-          <dd>{date || "Unknown"}</dd>
-          <dt className="text-bevel-dark">Program</dt>
-          <dd>{series.name}</dd>
-          {guest ? (
-            <>
-              <dt className="text-bevel-dark">{people.length > 1 ? "Guests" : "Guest"}</dt>
-              <dd>
-                <GuestNames show={show} catalog={catalog} />
-              </dd>
-            </>
-          ) : null}
-          {topic ? (
-            <>
-              <dt className="text-bevel-dark">Topic</dt>
-              <dd>{topic}</dd>
-            </>
-          ) : null}
-          {row.aiCategory ? (
-            <>
-              <dt className="text-bevel-dark">Category</dt>
-              <dd>{row.aiCategory}</dd>
-            </>
-          ) : null}
-          {row.aiSeries ? (
-            <>
-              <dt className="text-bevel-dark">Series</dt>
-              <dd>
-                {row.aiSeries}
-                {row.aiSeriesPart ? `, part ${row.aiSeriesPart}` : ""}
-              </dd>
-            </>
-          ) : null}
-          {length ? (
-            <>
-              <dt className="text-bevel-dark">Length</dt>
-              <dd>{length}</dd>
-            </>
-          ) : null}
-        </dl>
+
+        {moment != null ? (
+          <p className="hd-show-moment text-hd-body text-desktop-gray mt-5" data-moment={moment}>
+            A moment from this show, shared from <strong className="text-desert-amber">{momentLabel(moment)}</strong>. Press play
+            and it starts there.{" "}
+            <Link href={showPath(slug)} className={link}>
+              Play it from the beginning
+            </Link>
+          </p>
+        ) : null}
 
         <div className="hd-show-player w98-inset-dark bg-inset-well p-3 mt-5 flex flex-col gap-3">
+          <ShowPlayButton audioId={SHOW_AUDIO_ID} startAt={moment} />
+          <noscript dangerouslySetInnerHTML={{ __html: `<style>${NO_SCRIPT_PLAY_CSS}</style>` }} />
           {/* Native controls: plays with JavaScript off. preload="none" so a
-              visit fetches nothing from archive.org until someone presses play. */}
-          <audio controls preload="none" className="hd-show-audio w-full" aria-label={`Play ${subject}`}>
+              visit fetches nothing from archive.org until someone presses play.
+              A moment's sources carry #t=, so the browser starts there. */}
+          <audio id={SHOW_AUDIO_ID} controls preload="none" className="hd-show-audio w-full" aria-label={`Play ${subject}`}>
             {sources.map((s) => (
-              <source key={s.url} src={s.url} type="audio/mpeg" />
+              <source key={s.url} src={`${s.url}${fragment}`} type="audio/mpeg" />
             ))}
           </audio>
           <div className="flex flex-wrap items-center gap-3">
             {key ? (
               <Link
-                href={libraryIntentHref({ show: key })}
+                href={libraryIntentHref({ show: key, t: moment ?? undefined })}
                 className="hd-show-open w98-raised-dark bg-raised-surface w98-font text-hd-body text-desktop-gray hover:text-desert-amber px-4 min-h-touch inline-flex items-center"
               >
                 Open in High Desert
@@ -227,6 +227,56 @@ export function ShowView({ show, catalog }: { show: Show; catalog: ShowCatalog }
           </section>
         ) : null}
 
+        <dl className="hd-show-meta grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 mt-4 text-hd-body">
+          <dt className="text-bevel-dark">Aired</dt>
+          <dd>{date || "Unknown"}</dd>
+          <dt className="text-bevel-dark">Program</dt>
+          <dd>{series.name}</dd>
+          {guest ? (
+            <>
+              <dt className="text-bevel-dark">{people.length > 1 ? "Guests" : "Guest"}</dt>
+              <dd>
+                <GuestNames show={show} catalog={catalog} />
+              </dd>
+            </>
+          ) : null}
+          {topic ? (
+            <>
+              <dt className="text-bevel-dark">Topic</dt>
+              <dd>{topic}</dd>
+            </>
+          ) : null}
+          {row.aiCategory ? (
+            <>
+              <dt className="text-bevel-dark">Category</dt>
+              <dd>
+                {categoryTopic ? (
+                  <Link href={topicPath(categoryTopic.slug)} className={`hd-show-category-link ${link}`}>
+                    {row.aiCategory}
+                  </Link>
+                ) : (
+                  row.aiCategory
+                )}
+              </dd>
+            </>
+          ) : null}
+          {row.aiSeries ? (
+            <>
+              <dt className="text-bevel-dark">Series</dt>
+              <dd>
+                {row.aiSeries}
+                {row.aiSeriesPart ? `, part ${row.aiSeriesPart}` : ""}
+              </dd>
+            </>
+          ) : null}
+          {length ? (
+            <>
+              <dt className="text-bevel-dark">Length</dt>
+              <dd>{length}</dd>
+            </>
+          ) : null}
+        </dl>
+
         {row.aiTags?.length ? (
           <ul className="hd-show-tags flex flex-wrap gap-2 mt-4" aria-label="Tags">
             {row.aiTags.map((t) => (
@@ -240,6 +290,26 @@ export function ShowView({ show, catalog }: { show: Show; catalog: ShowCatalog }
               </li>
             ))}
           </ul>
+        ) : null}
+
+        {shownTopics.length ? (
+          <section className="hd-show-topics mt-5" aria-labelledby="hd-show-topics-title">
+            <h2 id="hd-show-topics-title" className="w98-font text-hd-title text-desert-amber mb-1">
+              Topics
+            </h2>
+            <ul className="flex flex-wrap gap-2">
+              {shownTopics.map((t) => (
+                <li key={t.slug}>
+                  <Link
+                    href={topicPath(t.slug)}
+                    className="hd-show-topic inline-flex items-center min-h-touch md:min-h-0 px-2 py-0.5 text-hd-body text-signal-blue border border-bevel-dark/40 hover:text-desktop-gray"
+                  >
+                    {t.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
         ) : null}
       </article>
 

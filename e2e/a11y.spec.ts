@@ -1,5 +1,5 @@
 /**
- * axe-core on every page, at both sizes (HD-021/022/023).
+ * axe-core on every page, at both sizes, in both looks (HD-021/022/023).
  *
  * Fails on any **moderate**, **serious** or **critical** violation. Minor
  * findings are printed, not failed. The gate used to stop at serious, which
@@ -83,142 +83,154 @@ async function scan(page: Page, route: string) {
   expect(blocking, `axe ${route}: moderate/serious/critical violations\n${describe(blocking)}`).toEqual([]);
 }
 
-test("/library has no moderate, serious or critical axe violations", async ({ page }) => {
-  await openLibrary(page);
-  await settled(page);
-  await scan(page, "/library");
-});
+/** Win98 is what a visitor with no choice gets; Night is the one they can pick. */
+const LOOKS = ["win98", "night"] as const;
 
-test("/library with its modal open (palette on desktop, menu sheet on a phone) has no moderate, serious or critical axe violations", async ({ page, isMobile }) => {
-  await openLibrary(page);
-  await settled(page);
-  if (isMobile) {
-    await page.getByRole("button", { name: "More options" }).click();
-    await expect(page.getByRole("dialog", { name: "Menu" })).toBeVisible();
-  } else {
-    await page.keyboard.press("Control+k");
-    await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
-  }
-  await settled(page);
-  await scan(page, isMobile ? "/library + menu sheet" : "/library + command palette");
-});
+for (const look of LOOKS) {
+  test.describe(`look: ${look}`, () => {
+    test.beforeEach(async ({ page, baseURL }) => {
+      if (look === "win98") return; // the default: no cookie at all
+      const host = new URL(baseURL!).hostname;
+      await page.context().addCookies([{ name: "hd_look", value: look, domain: host, path: "/", sameSite: "Lax" }]);
+    });
 
-test("/radio has no moderate, serious or critical axe violations", async ({ page }) => {
-  // Seeds the catalog in this profile first: the dial has no stations to show
-  // until the library exists, and an empty dial is not the page people use.
-  await openLibrary(page);
-  await page.goto("/radio");
-  await expect(page.getByRole("tablist", { name: "Jump to year" })).toBeVisible({ timeout: 45_000 });
-  // A first visit shows the tuning hint, ~800ms after the dial is ready. Wait
-  // for it, so it is scanned every run at full opacity — not sometimes, and
-  // not halfway through its fade-in.
-  await expect(page.getByText(/Drag the dial to tune/).first()).toBeVisible({ timeout: 15_000 });
-  await settled(page);
-  await scan(page, "/radio");
-});
+    test("/library has no moderate, serious or critical axe violations", async ({ page }) => {
+      await openLibrary(page);
+      await settled(page);
+      await scan(page, "/library");
+    });
 
-test("/stats has no moderate, serious or critical axe violations", async ({ page }) => {
-  await openLibrary(page);
-  await page.goto("/stats");
-  await settled(page);
-  // The page is built from the catalog in IndexedDB; wait until a figure from
-  // it has rendered rather than scanning the empty frame.
-  await expect(page.getByText(/episodes/i).first()).toBeVisible({ timeout: 30_000 });
-  await settled(page);
-  await scan(page, "/stats");
-});
-
-// The welcome page is only ever seen on a desktop's first visit (a returning
-// visitor is sent straight to /library, a phone to /live), which is what every
-// test's fresh profile is.
-test("/ (the welcome page) has no moderate, serious or critical axe violations", async ({ page }, info) => {
-  test.skip(!!info.project.use.isMobile, "a phone is taken past the welcome page");
-  await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1, name: "HIGH DESERT" })).toBeVisible({ timeout: 30_000 });
-  await settled(page);
-  await scan(page, "/");
-});
-
-// The station: a phone's first screen, the Listen live card included.
-test("/live has no moderate, serious or critical axe violations", async ({ page }, info) => {
-  await page.goto("/live");
-  if (info.project.use.isMobile) await expect(page.getByTestId("live-tune-in")).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByTestId("live-listeners").first()).toBeVisible({ timeout: 30_000 });
-  await settled(page);
-  await scan(page, "/live");
-});
-
-// The admin pages. Reached the way an admin reaches them — the nav tab from
-// /library — since the password gate is UI only and their content is the same
-// for anyone who flips it.
-for (const [route, tab, heading] of [
-  ["/scanner", "Scanner", "Import Sources"],
-  ["/search", "Search", "Search Archive.org"],
-] as const) {
-  test(`${route} (admin) has no moderate, serious or critical axe violations`, async ({ page }) => {
-    await asAdmin(page);
-    await openLibrary(page);
-    await page.getByRole("navigation").getByRole("button", { name: tab, exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`${route}$`));
-    await expect(page.getByRole("heading", { level: 1, name: heading })).toBeAttached({ timeout: 30_000 });
-    // /search asks archive.org on mount and its cards fade in when the answer
-    // lands, on the network's timer: settle only after it has answered, or
-    // axe measures the cards mid-fade (CI, 2026-09-28: an Add button at 1.29:1).
-    if (route === "/search") {
-      await expect(page.locator('[data-search-results][aria-busy="false"]')).toBeAttached({ timeout: 45_000 });
-    }
-    await settled(page);
-    await scan(page, route);
-  });
-}
-
-/**
- * Exactly one h1 on every route, and the right one. Checked with the page
- * settled *and* its content rendered: /stats's loading window and its
- * populated page are different trees, and it was only the populated one that
- * had no h1. src/app/__tests__/route-headings.test.tsx holds the same line
- * under vitest, where it can be mutation-checked.
- */
-const HEADINGS: { route: string; h1: string; admin?: boolean; seed?: boolean; loaded?: (page: Page) => Promise<void> }[] = [
-  { route: "/", h1: "HIGH DESERT" },
-  { route: "/library", h1: "Library", seed: true },
-  {
-    route: "/radio",
-    h1: "Radio Dial",
-    seed: true,
-    loaded: (page) => expect(page.getByRole("tablist", { name: "Jump to year" })).toBeVisible({ timeout: 45_000 }),
-  },
-  {
-    route: "/stats",
-    h1: "Station Dashboard",
-    seed: true,
-    loaded: (page) => expect(page.getByRole("heading", { name: "Your Listening" })).toBeVisible({ timeout: 30_000 }),
-  },
-  { route: "/scanner", h1: "Import Sources", admin: true, seed: true },
-  { route: "/search", h1: "Search Archive.org", admin: true, seed: true },
-  { route: "/no-such-frequency", h1: "Signal Lost" },
-];
-
-for (const { route, h1, admin, seed, loaded } of HEADINGS) {
-  test(`${route} has exactly one h1: "${h1}"`, async ({ page }, info) => {
-    // A phone never sees the welcome page: its first visit goes to /live and a
-    // return visit to /library (src/app/page.tsx; e2e/live-qa.spec.ts holds the
-    // redirect). Its heading is checked where a desktop reads it.
-    test.skip(route === "/" && !!info.project.use.isMobile, "a phone is taken past the welcome page");
-    if (admin) await asAdmin(page);
-    if (seed) await openLibrary(page);
-    if (route !== "/library") {
-      if (admin) {
-        const tab = route === "/scanner" ? "Scanner" : "Search";
-        await page.getByRole("navigation").getByRole("button", { name: tab, exact: true }).click();
-        await expect(page).toHaveURL(new RegExp(`${route}$`));
+    test("/library with its modal open (palette on desktop, the phone's menu) has no moderate, serious or critical axe violations", async ({ page, isMobile }) => {
+      await openLibrary(page);
+      await settled(page);
+      if (isMobile && look === "win98") {
+        // Win98's phone has no More sheet: its menu is Start.
+        await page.getByTestId("w98-start").click();
+        await expect(page.getByTestId("w98-start-menu")).toBeVisible();
+      } else if (isMobile) {
+        await page.getByRole("button", { name: "More options" }).click();
+        await expect(page.getByRole("dialog", { name: "Menu" })).toBeVisible();
       } else {
-        await page.goto(route);
+        await page.keyboard.press("Control+k");
+        await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
       }
+      await settled(page);
+      await scan(page, isMobile ? "/library + menu sheet" : "/library + command palette");
+    });
+
+    test("the dial (/library?view=dial) has no moderate, serious or critical axe violations", async ({ page }) => {
+      // Seeds the catalog in this profile first: the dial has no stations to show
+      // until the library exists, and an empty dial is not the page people use.
+      await openLibrary(page);
+      await page.goto("/library?view=dial");
+      await expect(page.getByRole("tablist", { name: "Jump to year" })).toBeVisible({ timeout: 45_000 });
+      // A first visit shows the tuning hint, ~800ms after the dial is ready. Wait
+      // for it, so it is scanned every run at full opacity — not sometimes, and
+      // not halfway through its fade-in.
+      // (Inside the Library the hint may not show at all: wait for it, never require it.)
+      await expect(page.getByText(/Drag the dial to tune/).first()).toBeVisible({ timeout: 15_000 }).catch(() => {});
+      await settled(page);
+      await scan(page, "/library?view=dial");
+    });
+
+    test("/stats has no moderate, serious or critical axe violations", async ({ page }) => {
+      await openLibrary(page);
+      await page.goto("/stats");
+      await settled(page);
+      // The page is built from the catalog in IndexedDB; wait until a figure from
+      // it has rendered rather than scanning the empty frame.
+      await expect(page.getByText(/episodes/i).first()).toBeVisible({ timeout: 30_000 });
+      await settled(page);
+      await scan(page, "/stats");
+    });
+
+    // The welcome page is only ever seen on a desktop's first visit (a returning
+    // visitor is sent straight to /library, a phone to /live), which is what every
+    // test's fresh profile is.
+    test("/ (the welcome page) has no moderate, serious or critical axe violations", async ({ page }, info) => {
+      test.skip(!!info.project.use.isMobile, "a phone is taken past the welcome page");
+      await page.goto("/");
+      await expect(page.getByRole("heading", { level: 1, name: "HIGH DESERT" })).toBeVisible({ timeout: 30_000 });
+      await settled(page);
+      await scan(page, "/");
+    });
+
+    // The station: a phone's first screen, the Listen live card included.
+    test("/live has no moderate, serious or critical axe violations", async ({ page }, info) => {
+      await page.goto("/live");
+      if (info.project.use.isMobile) await expect(page.getByTestId("live-tune-in")).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByTestId("live-listeners").first()).toBeVisible({ timeout: 30_000 });
+      await settled(page);
+      await scan(page, "/live");
+    });
+
+    // The admin pages. Reached by URL after the library has seeded: Win98 has no
+    // nav tabs for them, and the password gate is UI only, so their content is
+    // the same for anyone who flips it.
+    for (const [route, heading] of [
+      ["/scanner", "Import Sources"],
+      ["/search", "Search Archive.org"],
+    ] as const) {
+      test(`${route} (admin) has no moderate, serious or critical axe violations`, async ({ page }) => {
+        await asAdmin(page);
+        await openLibrary(page);
+        await page.goto(route);
+        await expect(page).toHaveURL(new RegExp(`${route}$`));
+        await expect(page.getByRole("heading", { level: 1, name: heading })).toBeAttached({ timeout: 30_000 });
+        // /search asks archive.org on mount and its cards fade in when the answer
+        // lands, on the network's timer: settle only after it has answered, or
+        // axe measures the cards mid-fade (CI, 2026-09-28: an Add button at 1.29:1).
+        if (route === "/search") {
+          await expect(page.locator('[data-search-results][aria-busy="false"]')).toBeAttached({ timeout: 45_000 });
+        }
+        await settled(page);
+        await scan(page, route);
+      });
     }
-    await expect(page.locator("#app-loading")).toBeHidden({ timeout: 15_000 });
-    await loaded?.(page);
-    // toHaveText with an array is a count assertion too: one element, this text.
-    await expect(page.locator("h1")).toHaveText([h1]);
+
+    /**
+     * Exactly one h1 on every route, and the right one. Checked with the page
+     * settled *and* its content rendered: /stats's loading window and its
+     * populated page are different trees, and it was only the populated one that
+     * had no h1. src/app/__tests__/route-headings.test.tsx holds the same line
+     * under vitest, where it can be mutation-checked.
+     */
+    const HEADINGS: { route: string; h1: string; admin?: boolean; seed?: boolean; loaded?: (page: Page) => Promise<void> }[] = [
+      { route: "/", h1: "HIGH DESERT" },
+      { route: "/library", h1: "Library", seed: true },
+      {
+        route: "/library?view=dial",
+        h1: "Library",
+        seed: true,
+        loaded: (page) => expect(page.getByRole("tablist", { name: "Jump to year" })).toBeVisible({ timeout: 45_000 }),
+      },
+      {
+        route: "/stats",
+        h1: "Station Dashboard",
+        seed: true,
+        loaded: (page) => expect(page.getByRole("heading", { name: "Your Listening" })).toBeVisible({ timeout: 30_000 }),
+      },
+      { route: "/scanner", h1: "Import Sources", admin: true, seed: true },
+      { route: "/search", h1: "Search Archive.org", admin: true, seed: true },
+      { route: "/no-such-frequency", h1: "Signal Lost" },
+    ];
+
+    for (const { route, h1, admin, seed, loaded } of HEADINGS) {
+      test(`${route} has exactly one h1: "${h1}"`, async ({ page }, info) => {
+        // A phone never sees the welcome page: its first visit goes to /live and a
+        // return visit to /library (src/app/[look]/page.tsx; e2e/live-qa.spec.ts holds the
+        // redirect). Its heading is checked where a desktop reads it.
+        test.skip(route === "/" && !!info.project.use.isMobile, "a phone is taken past the welcome page");
+        if (admin) await asAdmin(page);
+        if (seed) await openLibrary(page);
+        if (route !== "/library") {
+          await page.goto(route);
+        }
+        await expect(page.locator("#app-loading")).toBeHidden({ timeout: 15_000 });
+        await loaded?.(page);
+        // toHaveText with an array is a count assertion too: one element, this text.
+        await expect(page.locator("h1")).toHaveText([h1]);
+      });
+    }
   });
 }

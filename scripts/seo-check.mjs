@@ -7,14 +7,21 @@
  *   node scripts/seo-check.mjs https://highdesert.space
  *
  * Reads robots.txt and sitemap.xml, requires the sitemap to list every show in
- * the catalog (data/show-slugs.json against public/seed/library.json), then
- * checks a fixed sample of show pages and guest pages: SEO_CHECK_SAMPLE spread
- * evenly through the slugs, plus edge cases (no guest, several guests,
- * Dreamland, a special, Midnight in the Desert, no summary). Each must answer
- * 200 and pass scripts/lib/seo-page.mjs: title, description, canonical, Open
- * Graph, Twitter card, valid schema.org JSON-LD, the page in the server HTML,
- * nothing hiding it. Every internal link on a checked page must answer 200,
- * and its share images must be 200 image/png, cacheable for a day or more.
+ * the catalog (data/show-slugs.json against public/seed/library.json), every
+ * topic (src/lib/topics/rules.ts, data/topic-slugs.json) and today's Tonight
+ * page, then checks a fixed sample: SEO_CHECK_SAMPLE show pages spread evenly
+ * through the slugs, plus edge cases (no guest, several guests, Dreamland, a
+ * special, Midnight in the Desert, no summary); guest pages; topic pages (and
+ * /topics); Tonight pages (today and the oldest in the sitemap); and shared
+ * moments (`/show/<slug>?t=<s>`). Each must answer 200 and pass
+ * scripts/lib/seo-page.mjs: title, description, canonical, Open Graph,
+ * Twitter card, valid schema.org JSON-LD, the page in the server HTML, the
+ * one-line intro and the ways into Live and the Library, nothing hiding it.
+ * Every internal link on a checked page must answer 200, and its share images
+ * must be 200 image/png, cacheable for a day or more. Also: /tonight sends
+ * to today's page, a moment's own path sends to its `?t=` URL, a `t` that is
+ * not whole seconds is the plain show page, and a moment is never cached by a
+ * shared cache while the plain show page is.
  *
  * Exits non-zero on any finding.
  */
@@ -24,11 +31,13 @@ import path from "node:path";
 import { JSDOM } from "jsdom";
 import { pageFindings, evenSample, sitePath } from "./lib/seo-page.mjs";
 import { shownGuest } from "../src/lib/library/guest.ts";
+import { deriveTopics } from "../src/lib/topics/rules.ts";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const BASE = (process.argv[2] ?? process.env.SEO_CHECK_URL ?? "http://127.0.0.1:3000").replace(/\/$/, "");
 const SAMPLE = Number(process.env.SEO_CHECK_SAMPLE ?? 25);
 const GUEST_SAMPLE = Number(process.env.SEO_CHECK_GUEST_SAMPLE ?? 4);
+const TOPIC_SAMPLE = Number(process.env.SEO_CHECK_TOPIC_SAMPLE ?? 6);
 // A browser's, not a crawler's: Next sends crawlers blocking metadata, and a
 // page that only works for them is a page that breaks for link previews.
 const UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36 hd-seo-check";
@@ -55,6 +64,9 @@ async function pool(items, limit, fn) {
 const rows = JSON.parse(readFileSync(path.join(ROOT, "public/seed/library.json"), "utf8"));
 const slugMap = JSON.parse(readFileSync(path.join(ROOT, "data/show-slugs.json"), "utf8"));
 const catalogSlugs = rows.map((r) => slugMap[r.fileHash]).filter(Boolean);
+const topicSlugMap = JSON.parse(readFileSync(path.join(ROOT, "data/topic-slugs.json"), "utf8"));
+const topicSlugs = deriveTopics(rows.filter((r) => slugMap[r.fileHash])).map((t) => topicSlugMap[t.id]);
+if (topicSlugs.some((s) => !s)) find("data/topic-slugs.json", "a topic has no slug: run node scripts/gen-topic-slugs.mjs");
 if (catalogSlugs.length !== rows.length) find("data/show-slugs.json", `${rows.length - catalogSlugs.length} catalog show(s) have no slug`);
 
 // --- robots.txt --------------------------------------------------------------
@@ -80,14 +92,33 @@ const sitemapPaths = new Set();
     if (p) sitemapPaths.add(p);
     else find("/sitemap.xml", `a <loc> off this site: ${m[1]}`);
   }
-  for (const p of ["/", "/library", "/live", "/radio", "/stats"]) {
+  for (const p of ["/", "/library", "/live", "/stats"]) {
     if (!sitemapPaths.has(p)) find("/sitemap.xml", `missing ${p}`);
   }
   const missing = catalogSlugs.filter((s) => !sitemapPaths.has(`/show/${s}`));
   if (missing.length) find("/sitemap.xml", `${missing.length} show page(s) missing, e.g. /show/${missing[0]}`);
+  const missingTopics = topicSlugs.filter((s) => s && !sitemapPaths.has(`/topic/${s}`));
+  if (missingTopics.length) find("/sitemap.xml", `${missingTopics.length} topic page(s) missing, e.g. /topic/${missingTopics[0]}`);
+  if (!sitemapPaths.has("/topics")) find("/sitemap.xml", "missing /topics");
 }
 const sitemapShows = [...sitemapPaths].filter((p) => p.startsWith("/show/")).map((p) => p.slice(6));
 const sitemapGuests = [...sitemapPaths].filter((p) => p.startsWith("/guest/"));
+const sitemapTopics = [...sitemapPaths].filter((p) => p.startsWith("/topic/"));
+const sitemapNights = [...sitemapPaths].filter((p) => /^\/tonight\/\d{4}-\d{2}-\d{2}$/.test(p)).sort();
+
+// --- /tonight is today's page ---------------------------------------------------
+let tonightToday = null;
+{
+  const res = await get("/tonight", { redirect: "manual" });
+  const to = sitePath(res.headers.get("location") ?? "", BASE);
+  if (res.status !== 307 || !to || !/^\/tonight\/\d{4}-\d{2}-\d{2}$/.test(to)) {
+    find("/tonight", `expected 307 to /tonight/<today>, got ${res.status} ${to}`);
+  } else {
+    tonightToday = to;
+    if (!sitemapPaths.has(to)) find("/sitemap.xml", `today's Tonight page ${to} is not listed`);
+    if (/max-age=[1-9]|s-maxage/.test(res.headers.get("cache-control") ?? "")) find("/tonight", "the redirect to today is cacheable");
+  }
+}
 
 // --- the sample --------------------------------------------------------------
 const bySlug = new Map(rows.filter((r) => slugMap[r.fileHash]).map((r) => [slugMap[r.fileHash], r]));
@@ -106,9 +137,21 @@ const showSample = [...new Set([...evenSample(sitemapShows, SAMPLE), ...Object.v
 const guestSample = evenSample(sitemapGuests, GUEST_SAMPLE);
 if (!guestSample.length) find("sample", "the sitemap lists no guest pages");
 
+const topicSample = [...new Set([...evenSample(sitemapTopics, TOPIC_SAMPLE), "/topic/mels-hole"])];
+if (!sitemapTopics.length) find("sample", "the sitemap lists no topic pages");
+const nightSample = [...new Set([tonightToday, sitemapNights[0]].filter(Boolean))];
+
+// Moments: one inside a sampled show, and the edge of one that is past the end.
+const momentShow = showSample.find((s) => (bySlug.get(s)?.duration ?? 0) > 600);
+const momentPaths = momentShow ? [`/show/${momentShow}?t=${Math.floor(bySlug.get(momentShow).duration / 2)}`] : [];
+if (!momentShow) find("sample", "no sampled show is long enough for a moment");
+
 const pages = [
   ...showSample.map((slug) => ({ path: `/show/${slug}`, kind: "show" })),
   ...guestSample.map((p) => ({ path: p, kind: "guest" })),
+  ...topicSample.map((p) => ({ path: p, kind: "topic" })),
+  ...nightSample.map((p) => ({ path: p, kind: "tonight" })),
+  ...momentPaths.map((p) => ({ path: p, kind: "moment" })),
 ];
 const links = new Map(); // site path → first page that links to it
 const images = new Map();
@@ -173,6 +216,35 @@ await pool([...images.keys()], 3, async (p) => {
   }
   const bogus = await get("/show/1900-01-01-not-a-show");
   if (bogus.status !== 404) find("/show/1900-01-01-not-a-show", `expected 404, got ${bogus.status}`);
+  for (const p of ["/topic/not-a-topic", "/tonight/1999-01-01", "/tonight/2026-02-30"]) {
+    const res = await get(p);
+    if (res.status !== 404) find(p, `expected 404, got ${res.status}`);
+  }
+}
+
+// --- moments: one address each, never in a shared cache; any other t is the show ----
+if (momentShow) {
+  const t = Math.floor(bySlug.get(momentShow).duration / 2);
+  const direct = await get(`/show/${momentShow}/moment/${t}`, { redirect: "manual" });
+  const to = sitePath(direct.headers.get("location") ?? "", BASE);
+  if (direct.status !== 308 || to !== `/show/${momentShow}?t=${t}`) find(`/show/${momentShow}/moment/${t}`, `expected 308 to ?t=${t}, got ${direct.status} ${to}`);
+
+  const m = await get(`/show/${momentShow}?t=${t}`);
+  const mc = m.headers.get("cache-control") ?? "";
+  if (!/no-store|private/.test(mc)) find(`/show/${momentShow}?t=${t}`, `a moment is cacheable by a shared cache: "${mc}"`);
+  await m.arrayBuffer();
+
+  const plain = await get(`/show/${momentShow}`);
+  const pc = plain.headers.get("cache-control") ?? "";
+  if (!/s-maxage=\d+/.test(pc)) find(`/show/${momentShow}`, `the plain show page is not static: "${pc}"`);
+  await plain.arrayBuffer();
+
+  for (const q of ["?t=1h", `?t=${10 ** 6}`, `?t=${Math.ceil(bySlug.get(momentShow).duration) + 5}`]) {
+    const res = await get(`/show/${momentShow}${q}`);
+    const html = res.ok ? await res.text() : "";
+    const doc = new JSDOM(html).window.document;
+    if (res.status !== 200 || doc.querySelector(".hd-show-moment")) find(`/show/${momentShow}${q}`, `expected the plain show page, got ${res.status}${doc.querySelector(".hd-show-moment") ? " with a moment" : ""}`);
+  }
 }
 
 if (findings.length) {
@@ -181,6 +253,6 @@ if (findings.length) {
   process.exit(1);
 }
 console.log(
-  `\n[seo-check] ${BASE}: sitemap lists ${sitemapShows.length} shows and ${sitemapGuests.length} guests; ` +
+  `\n[seo-check] ${BASE}: sitemap lists ${sitemapShows.length} shows, ${sitemapGuests.length} guests, ${sitemapTopics.length} topics and ${sitemapNights.length} nights; ` +
     `${pages.length} pages, ${links.size} internal links and ${images.size} share images checked, no findings.`,
 );

@@ -62,9 +62,9 @@ describeDb("usage counters (Postgres)", () => {
       { route: "radio", device: "desktop", views: 0, minutes: 1 },
     ]);
     expect(u.arrivals).toEqual([
-      { source: "reddit", landing: "live", device: "phone", n: 2 },
-      { source: "ai", landing: "welcome", device: "desktop", n: 1 },
-      { source: "reddit", landing: "live", device: "desktop", n: 1 },
+      { source: "reddit", landing: "live", device: "phone", look: null, n: 2 },
+      { source: "ai", landing: "welcome", device: "desktop", look: null, n: 1 },
+      { source: "reddit", landing: "live", device: "desktop", look: null, n: 1 },
     ]);
   });
 
@@ -81,8 +81,8 @@ describeDb("usage counters (Postgres)", () => {
     );
     expect((await store.getUsage(7)).routes).toEqual([{ route: "stats", device: "desktop", views: 5, minutes: 50 }]);
     expect((await store.getUsage(30)).routes).toEqual([{ route: "stats", device: "desktop", views: 14, minutes: 140 }]);
-    expect((await store.getUsage(30)).arrivals).toEqual([{ source: "google", landing: "library", device: "desktop", n: 4 }]);
-    expect((await store.getUsage(90)).arrivals).toEqual([{ source: "google", landing: "library", device: "desktop", n: 12 }]);
+    expect((await store.getUsage(30)).arrivals).toEqual([{ source: "google", landing: "library", device: "desktop", look: null, n: 4 }]);
+    expect((await store.getUsage(90)).arrivals).toEqual([{ source: "google", landing: "library", device: "desktop", look: null, n: 12 }]);
   });
 
   it("a play's surface is stored, counted by surface, and an absent one is unknown", async () => {
@@ -118,6 +118,38 @@ describeDb("usage counters (Postgres)", () => {
     ]);
   });
 
+  it("an arrival's look is part of its row: the same arrival in two looks is two rows", async () => {
+    await store.recordView("live", "phone", { source: "reddit", landing: "live", look: "win98" });
+    await store.recordView("live", "phone", { source: "reddit", landing: "live", look: "win98" });
+    await store.recordView("live", "phone", { source: "reddit", landing: "live", look: "night" });
+    await store.recordView("live", "phone", { source: "reddit", landing: "live", look: null });
+    await store.recordView("live", "phone", { source: "reddit", landing: "live" });
+    expect((await store.getUsage(7)).arrivals).toEqual([
+      { source: "reddit", landing: "live", device: "phone", look: null, n: 2 },
+      { source: "reddit", landing: "live", device: "phone", look: "win98", n: 2 },
+      { source: "reddit", landing: "live", device: "phone", look: "night", n: 1 },
+    ]);
+  });
+
+  it("a play's look is stored and counted by look, and an absent one is unknown", async () => {
+    const before = (await store.getUsage(7)).playsByLook;
+    const ep = "ultimate-ultimate-art-bell-collection--1997-06-18_-_Coast";
+    await store.recordPlay(ep, "usage-db-l1", "203.0.113.81", "archive", null, "live", "night");
+    await store.recordPlay(ep, "usage-db-l2", "203.0.113.82", "archive", null, "library", "win98");
+    await store.recordPlay(ep, "usage-db-l3", "203.0.113.83", "archive", null, "library", "win98");
+    await store.recordPlay(ep, "usage-db-l4", "203.0.113.84", "archive", null, null, null);
+    const after = (await store.getUsage(7)).playsByLook;
+    expect({
+      win98: after.win98 - before.win98,
+      night: after.night - before.night,
+      unknown: after.unknown - before.unknown,
+    }).toEqual({ win98: 2, night: 1, unknown: 1 });
+    const { rows } = await store.getPool().query(
+      "SELECT session_ref, look FROM play_events WHERE session_ref LIKE 'usage-db-l%' ORDER BY session_ref",
+    );
+    expect(rows.map((r) => r.look)).toEqual(["night", "win98", "win98", null]);
+  });
+
   it("the tables refuse anything outside the vocabulary", async () => {
     const q = (sql: string) => store.getPool().query(sql);
     await expect(q("INSERT INTO route_daily (day, route, device) VALUES (current_date, '/library', 'phone')")).rejects.toThrow(/check constraint/);
@@ -125,6 +157,10 @@ describeDb("usage counters (Postgres)", () => {
     await expect(q("INSERT INTO arrival_daily (day, source, landing, device) VALUES (current_date, 'reddit.com', 'live', 'phone')")).rejects.toThrow(/check constraint/);
     await expect(
       q("INSERT INTO play_events (episode_id, surface) VALUES ('usage-db-x', 'https://evil.example')"),
+    ).rejects.toThrow(/check constraint/);
+    await expect(q("INSERT INTO play_events (episode_id, look) VALUES ('usage-db-x', 'clean')")).rejects.toThrow(/check constraint/);
+    await expect(
+      q("INSERT INTO arrival_daily (day, source, landing, device, look) VALUES (current_date, 'reddit', 'live', 'phone', 'default')"),
     ).rejects.toThrow(/check constraint/);
   });
 });

@@ -1,0 +1,223 @@
+"use client";
+
+import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils/cn";
+import { safeGetItem, safeSetItem } from "@/lib/utils/safe-storage";
+import { Button } from "@/components/win98";
+import { funnelDecided, startFunnel } from "@/services/stats/funnel-client";
+import { ContinueListening } from "@/components/library/ContinueListening";
+import { libraryIntentHref } from "@/lib/library/intents";
+import { communityKey } from "@/lib/utils/community-key";
+import type { Episode } from "@/db/schema";
+
+export default function WelcomePage() {
+  const router = useRouter();
+  const [isReturning, setIsReturning] = useState(false);
+  const [fadeOut, setFadeOut] = useState(false);
+  const [episodeCount, setEpisodeCount] = useState<number | null>(() => {
+    const n = Number(process.env.NEXT_PUBLIC_CATALOG_COUNT);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  });
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Returning visitors go straight through. This used to fade for 400ms and
+  // navigate at 900ms — a mandatory wait on every hit of the root URL, spent
+  // hydrating a splash (starfield rAF loop included) purely to leave it.
+  useEffect(() => {
+    if (safeGetItem("local", "hd-visited")) {
+      setIsReturning(true);
+      router.replace("/library");
+      return;
+    }
+    // A phone's first visit goes straight to the station, whose first screen
+    // is one "Listen live" tap (docs/funnel.md). On launch night 75% of the
+    // people online were on phones and 3 in 4 never pressed play; a splash
+    // that asks them to choose between the archive and the station is one
+    // screen too many. The same breakpoint as useIsMobile.
+    if (typeof window.matchMedia === "function" && !window.matchMedia("(min-width: 768px)").matches) {
+      safeSetItem("local", "hd-visited", "1");
+      setIsReturning(true);
+      router.replace("/live");
+    }
+  }, [router]);
+
+  // Episode count. Seeded from the build-time catalog size so the line shows
+  // on a first visit too — it previously required a populated IndexedDB, so the
+  // one piece of value proof was missing for exactly the people it was written
+  // for. The live count takes over once the DB has been seeded.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { db } = await import("@/db");
+        const count = await db.episodes.count();
+        // The funnel's arrival (docs/funnel.md): someone who reads this page
+        // and leaves is a first visit too, not only someone who goes in.
+        if (!funnelDecided()) startFunnel(count === 0);
+        if (!cancelled && count > 0) setEpisodeCount(count);
+      } catch {
+        // DB not ready — the build-time count stands.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Starfield
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    const stars = Array.from({ length: 120 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.2 + 0.2,
+      alpha: Math.random() * 0.3 + 0.05,
+      speed: Math.random() * 0.002 + 0.0005,
+      phase: Math.random() * Math.PI * 2,
+    }));
+
+    let animId: number;
+    const render = (t: number) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const s of stars) {
+        const a = s.alpha + Math.sin(t * s.speed + s.phase) * s.alpha * 0.6;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(170, 195, 235, ${Math.max(0.02, a)})`;
+        ctx.fill();
+      }
+      animId = requestAnimationFrame(render);
+    };
+    animId = requestAnimationFrame(render);
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener("resize", resize);
+    };
+  }, []);
+
+  // Continue listening: this page has no player, so the show is started by
+  // the Library, from a `?resume=` intent, on the ordinary play path.
+  // No fade: the tap's activation should still be fresh when the Library
+  // starts the show, or a browser may refuse to play it unprompted.
+  const handleResume = (ep: Episode) => {
+    const key = communityKey(ep);
+    safeSetItem("local", "hd-visited", "1");
+    router.push(key ? libraryIntentHref({ resume: key }) : "/library");
+  };
+
+  const handleEnter = (to: "/library" | "/live" = "/library") => {
+    safeSetItem("local", "hd-visited", "1");
+    setFadeOut(true);
+    setTimeout(() => router.push(to), 500);
+  };
+
+  return (
+    <div
+      className={cn(
+        "min-h-screen bg-midnight flex flex-col items-center justify-center relative overflow-hidden transition-opacity duration-500",
+        fadeOut && "opacity-0",
+      )}
+      data-hydrated=""
+    >
+      {/* Gradient fallback visible while canvas JS loads */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{ background: "radial-gradient(ellipse at 50% 40%, var(--hd-splash-core) 0%, var(--hd-splash-mid) 50%, var(--hd-ink) 100%)" }}
+        aria-hidden="true"
+      />
+      <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none" aria-hidden="true" />
+
+      {/* Scanline overlay */}
+      <div
+        className="fixed inset-0 pointer-events-none z-10"
+        style={{
+          background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px)",
+        }}
+        aria-hidden="true"
+      />
+
+      {/* <main>, not a div: this page renders outside the (desktop) shell, so
+          it had no landmark at all — axe's landmark-one-main and region
+          rules, moderate, and failed once the a11y gate reached moderate. */}
+      <main className="relative z-20 flex flex-col items-center gap-8 px-6 text-center max-w-lg">
+        {/* Title */}
+        <div>
+          <h1 className="text-hd-36 md:text-hd-48 font-bold tracking-[6px] leading-none font-[family-name:var(--font-w95)] text-desert-amber [text-shadow:0_0_20px_rgba(212,168,67,0.4),0_0_40px_rgba(212,168,67,0.15)]">
+            HIGH DESERT
+          </h1>
+          <div className="text-hd-13 md:text-hd-15 mt-3 tracking-[3px] font-[family-name:var(--font-w95)] text-bevel-dark">
+            ART BELL RADIO ARCHIVE
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="w-48 h-[1px] bg-gradient-to-r from-transparent via-desert-amber/30 to-transparent" />
+
+        {/* Description */}
+        <p className="text-hd-11 md:text-hd-12 leading-relaxed max-w-sm font-[family-name:var(--font-w95)] text-bevel-dark">
+          Stream thousands of episodes from the golden age of late-night talk radio.
+          Coast to Coast AM, Dreamland, and rare specials, all from Art Bell&apos;s
+          legendary studio in Pahrump, Nevada.
+        </p>
+
+        {/* Quote */}
+        <div className="text-hd-10 md:text-hd-11 italic max-w-xs font-[family-name:var(--font-w95)] text-static-green/85 [text-shadow:0_0_6px_rgba(74,222,128,0.2)]">
+          &ldquo;I have seen things that I cannot explain...&rdquo;
+        </div>
+
+        {/* Stats */}
+        {episodeCount && (
+          <div className="text-hd-10 tracking-wider font-[family-name:var(--font-w95)] text-bevel-dark animate-fade-in">
+            {episodeCount.toLocaleString()} EPISODES IN ARCHIVE
+          </div>
+        )}
+
+        {/* Something left part way: the first thing offered. Returning
+            visitors are sent to the Library above, where the same card is
+            at the top; this is for one who lands here with a show in progress. */}
+        {!isReturning && <ContinueListening onResume={handleResume} className="w-full max-w-sm text-left" />}
+
+        {/* Enter button */}
+        <Button
+          variant="dark"
+          onClick={() => handleEnter()}
+          disabled={isReturning}
+          className="px-10 py-3 tracking-[2px] text-hd-12"
+        >
+          {isReturning ? "REDIRECTING..." : "ENTER THE ARCHIVE"}
+        </Button>
+
+        {/* The live station. Returning visitors skip this page, but a first
+            visit is exactly when nobody knows there is a station at all. */}
+        {!isReturning && (
+          <button
+            type="button"
+            onClick={() => handleEnter("/live")}
+            data-testid="welcome-live"
+            className="flex items-center gap-2 min-h-touch px-3 cursor-pointer text-hd-10 tracking-[2px] font-[family-name:var(--font-w95)] text-desert-amber hover:text-phosphor-amber"
+          >
+            <span className="w-2 h-2 rounded-full bg-static-green animate-on-air" aria-hidden="true" />
+            Or tune in live. The station is on the air.
+          </button>
+        )}
+
+        {/* Footer */}
+        <div className="text-hd-8 mt-4 font-[family-name:var(--font-w95)] text-bevel-dark/85">
+          Art Bell &middot; 1945–2018 &middot; From the Kingdom of Nye
+        </div>
+      </main>
+    </div>
+  );
+}

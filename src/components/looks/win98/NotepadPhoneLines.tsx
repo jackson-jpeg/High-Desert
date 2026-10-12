@@ -14,7 +14,7 @@ import { useContextMenuStore, type ContextMenuItem } from "@/stores/context-menu
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import { Dialog } from "@/components/win98/Dialog";
 import { Button } from "@/components/win98/Button";
-import { archiveLine, callLine, tuneinLine } from "./notepad-log";
+import { archiveLine, callerLabel, logTime, tuneinLine } from "./notepad-log";
 import { Win98MenuBar, type Win98Menu } from "./Win98MenuBar";
 import { Win98Icon } from "./Win98Icon";
 
@@ -36,9 +36,17 @@ const MAX_PLACE = 32;
  * which also holds Change Name and Calling From. Format holds Word Wrap and
  * the tune-in toggle.
  */
-export function NotepadPhoneLines({ onClose }: { onClose?: () => void }) {
+export function NotepadPhoneLines({ onClose, chat }: { onClose?: () => void; chat?: Chat }) {
+  return chat ? <Notepad chat={chat} onClose={onClose} /> : <OwnNotepad onClose={onClose} />;
+}
+
+/** No stream handed in (the desktop): open one. The phone's Live screen hands in its own (LiveChat's `chat`). */
+function OwnNotepad({ onClose }: { onClose?: () => void }) {
+  return <Notepad chat={useLiveChat()} onClose={onClose} />;
+}
+
+function Notepad({ onClose, chat }: { onClose?: () => void; chat: Chat }) {
   const isMobile = useIsMobile();
-  const chat = useLiveChat();
   const now = useCommunityNow() as Presence;
   const live = typeof now.live === "number" ? now.live : undefined;
   const [hideTuneins, toggleTuneins] = useHideTuneins();
@@ -354,7 +362,11 @@ function NotepadLog({
             }}
             className="hd-w98-notepad-line hd-w98-notepad-call"
           >
-            {callLine(m)}
+            {/* callLine(m) as text, in parts the chat specs can find, the same
+                parts LiveChat names (line-label, caller-name, message-body). */}
+            {logTime(m.at)} <span data-testid="line-label">{m.line}</span>,{" "}
+            <span data-testid="caller-name">{callerLabel(m)}</span>:{" "}
+            <span data-testid="message-body">{m.body}</span>
             {chat.reported.includes(m.id) && <span data-testid="reported"> [reported]</span>}
           </li>
         );

@@ -225,6 +225,10 @@ export interface EngineState {
   ended: boolean;
   readyState: number;
   hasError: boolean;
+  /** The URL the element was given (currentSrc): a redirect it followed does not change it. */
+  src: string;
+  /** Seconds; NaN before metadata. */
+  duration: number;
 }
 
 export function engineState(): EngineState | null {
@@ -236,10 +240,12 @@ export function engineState(): EngineState | null {
     ended: a.ended,
     readyState: a.readyState,
     hasError: a.error != null,
+    src: a.currentSrc || a.src,
+    duration: a.duration,
   };
 }
 
-type EngineEvent = "waiting" | "playing" | "seeked";
+type EngineEvent = "waiting" | "playing" | "seeked" | "pause";
 const engineListeners = new Map<EngineEvent, Set<() => void>>();
 
 /**
@@ -275,7 +281,8 @@ export function resumeContext(): Promise<void> {
  */
 function tryInitAnalyser(): void {
   if (analyserNode || !mediaElement || elementConnected || analyserInitFailed) return;
-  // Never route through AudioContext on iOS — it kills background playback
+  // Never route through AudioContext on iOS — it kills background playback.
+  // The visualizers read the level tap there instead (src/audio/levels.ts).
   if (isIOSDevice()) return;
 
   try {
