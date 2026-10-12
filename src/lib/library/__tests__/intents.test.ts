@@ -62,6 +62,26 @@ describe("parseLibraryIntent", () => {
   });
 });
 
+describe("the show intent (a show page's Open in High Desert)", () => {
+  const key = "ultimate-ultimate-art-bell-collection--1992-12-12_-_Coast_to_Coast_AM_with_Art_Bell_-_Area_51";
+
+  it("reads a community key", () => {
+    expect(parse(`show=${key}`)).toEqual({ show: key });
+    expect(libraryIntentHref({ show: key })).toBe(`/library?show=${key}`);
+    expect(parse(libraryIntentHref({ show: key }).split("?")[1])).toEqual({ show: key });
+  });
+
+  it("ignores anything a community key cannot be", () => {
+    expect(parse("show=")).toEqual({});
+    expect(parse("show=no-separator")).toEqual({});
+    expect(parse("show=a--b%20c")).toEqual({});
+    expect(parse("show=%3Cscript%3E--x")).toEqual({});
+    expect(parse(`show=coll--${"a".repeat(121)}`)).toEqual({});
+    expect(hasIntentParams(new URLSearchParams("show=bogus"))).toBe(true);
+    expect(withoutIntentParams(`show=${key}&viewer=`)).toBe("?viewer=");
+  });
+});
+
 describe("hasIntent / hasIntentParams", () => {
   it("tells an intent from none, and an invalid parameter from an absent one", () => {
     expect(hasIntent(parse("shuffle=coast"))).toBe(true);
