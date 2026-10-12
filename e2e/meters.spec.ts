@@ -21,6 +21,9 @@
  *     reached in outage mode;
  *   - a repaired show, which plays from the mirror only.
  *
+ * In both looks: Win98 (what no cookie gets; the Winamp window draws the
+ * same <Oscilloscope>) and Night (`hd_look=night`).
+ *
  * The needles must swing with the tone during playback, again after pause
  * and resume, after a show change, and after a lock-screen return (the page
  * hidden, then visible). On an iPhone the element must never be handed to

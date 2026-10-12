@@ -73,7 +73,8 @@ interface Harness {
 function harness(src: string): Harness {
   const calls: Call[] = [];
   const env = { visible: true, bridging: false, now: 1_000_000 };
-  const server = { ignoreRange: false, redirect: false, hang: (_c: Call) => false, fail: (_c: Call) => false };
+  const never = (): boolean => false;
+  const server: Harness["server"] = { ignoreRange: false, redirect: false, hang: never, fail: never };
   const player: TapPlayer = { src, t: 0, duration: DURATION, paused: false, readyState: 4 };
   const tap = new LevelTap({
     player: () => player,
