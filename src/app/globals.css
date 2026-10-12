@@ -194,7 +194,7 @@
   --hd-w98-ink-muted: #3A3A3A;     /* secondary text on the button face */
   --hd-w98-maroon: #800000;        /* the accent, where today's look has amber */
   --hd-w98-brown: #6B3A00;         /* phosphor-amber's role, legible on gray */
-  --hd-w98-green-text: #005000;    /* static-green's role, legible on gray */
+  --hd-w98-green-text: #004000;    /* static-green's role: 5.0:1 on gray even at /85 (#005000 was 4.15) */
   --hd-w98-error: #A00000;         /* error text */
   --hd-w98-tooltip: #FFFFE1;       /* tooltip and balloon yellow */
   --hd-w98-amp-frame: #2B2B3B;     /* Winamp main window */
