@@ -93,6 +93,12 @@ describe("no Radio tab in either look", () => {
         "stats",
         "more",
       ]);
+      // A phone's tab only: a desktop keeps its layout, the lines beside the console.
+      const lines = container.querySelector<HTMLButtonElement>('nav button[data-nav="phone-lines"]')!;
+      expect(lines.className).toMatch(/(^|\s)md:hidden(\s|$)/);
+      expect(container.querySelector<HTMLButtonElement>('nav button[data-nav="live"]')!.className).not.toMatch(/md:hidden/);
+      click(lines);
+      expect(push).toHaveBeenCalledWith("/live?lines=1");
 
       click(byText('[role="menubar"] [role="menuitem"]', "View")!);
       expect(byText('[role="menu"] [role="menuitem"]', "Radio Dial")).toBeUndefined();

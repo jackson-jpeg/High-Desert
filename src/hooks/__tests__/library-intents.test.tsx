@@ -249,6 +249,8 @@ describe("useLibraryIntents", () => {
       const onPlay = vi.fn();
       const m = mountIntents({ onPlay, allEpisodes: [show(1)], visibleEpisodes: [show(1)] });
       m.apply({ resume: KEY_2 });
+      // Seeding may still bring it: no verdict yet, and the intent is kept.
+      expect(error).not.toHaveBeenCalled();
       m.update({ seedSettled: true });
       expect(error).toHaveBeenCalledTimes(1);
       expect(onPlay).not.toHaveBeenCalled();
