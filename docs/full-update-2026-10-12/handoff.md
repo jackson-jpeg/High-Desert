@@ -124,6 +124,16 @@ re-probed: no #418, boot screen clears, in both looks at 390 and 1280.
 
 The e2e and test databases got the new `schema.sql` (look columns).
 
+**Second find: every 404 drawn in the browser was a blank screen** (production
+too, today, on e.g. `/show/no-such-slug`). `notFound()` on a dynamic route
+arrives as an error shell; React draws the layout in the browser, and an inline
+`<script>` React inserts never runs, so the boot script that dismisses
+`#app-loading` never ran and "Signal Lost" sat under the overlay for good. The
+screenshot suite passed a blank 404 because it waited for the overlay and
+caught the timeout. Fix: `useDismissBootScreen()` in `not-found.tsx` and
+`error.tsx`; a unit test with a control; two mutations; and every look screen
+now asserts `#app-loading` is hidden (red on the old build, as it should be).
+
 ## The resend loop (item 4)
 
 It was this session's own scheduled wakeup. While waiting on CI for PR #72 I
