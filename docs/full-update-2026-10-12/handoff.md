@@ -11,6 +11,13 @@ shared foundation commit (`418d264`):
 | `feat/growth` | Share URLs, share a moment, show/guest pages first-class, topic pages, Tonight |
 | `feat/phone` | Live on a phone, Phone Lines tab slot, Continue Listening, install prompt |
 
+**No GitHub Actions for this PR** (Jackson's call, 2026-10-12). Lint,
+typecheck, the full suite, every mutation and the screenshot suite ran here on
+the VPS through `heavy`. The PR's head commit and its merge commit carry
+`[skip ci]`, so neither `ci.yml` nor `mutations.yml` ran on the PR or on
+`main` for this merge. The nightly mutation run (09:30 UTC, scheduled) is
+unaffected and is the first Actions run to see this code.
+
 <!-- SECTIONS BELOW ARE FILLED IN AT INTEGRATION -->
 
 ## How the look is chosen (foundation)
@@ -70,3 +77,8 @@ work; the harness's own task notifications cover it.
 
 ## Still left
 
+- `feat/looks` used a private test schema `hd_looks` in `highdesert_test`;
+  drop it after integration (`DROP SCHEMA hd_looks CASCADE`). The shared test
+  DB needs `schema.sql` applied once.
+- No direct mutation for the layout's `noteFunnelRevisit()` call or for
+  TimelineView passing `look` (behaviour behind both is mutation-covered).
