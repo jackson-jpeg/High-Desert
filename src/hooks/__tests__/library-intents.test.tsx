@@ -216,6 +216,46 @@ describe("useLibraryIntents", () => {
     });
   });
 
+  describe("resume (?resume=<communityKey>, the welcome page's Continue listening)", () => {
+    const show = (id: number) =>
+      ({
+        id,
+        title: `Coast to Coast AM - Show ${id}`,
+        fileName: `1999-01-0${id} - Show ${id}.mp3`,
+        fileHash: `archive:coll:1999-01-0${id} - Show ${id}.mp3`,
+        archiveIdentifier: "coll",
+        showType: "coast",
+      }) as Episode;
+    const KEY_2 = "coll--1999-01-02_-_Show_2";
+
+    it("waits for the library, then plays that show through the library's play, once", () => {
+      const onPlay = vi.fn();
+      const list = [show(1), show(2), show(3)];
+      const m = mountIntents({ onPlay });
+      m.apply({ resume: KEY_2 });
+      expect(onPlay).not.toHaveBeenCalled();
+      m.update({ allEpisodes: list, visibleEpisodes: list });
+      expect(onPlay).toHaveBeenCalledTimes(1);
+      expect(onPlay).toHaveBeenCalledWith(list[1]);
+      // Not selected and not a shuffle: only started.
+      expect(m.props.setSelectedEpisode).not.toHaveBeenCalled();
+      m.update({ visibleEpisodes: [...list], seedSettled: true });
+      expect(onPlay).toHaveBeenCalledTimes(1);
+    });
+
+    it("says so when the show is not in this library once seeding has settled", async () => {
+      const { toast } = await import("@/stores/toast-store");
+      const error = vi.spyOn(toast, "error").mockImplementation(() => {});
+      const onPlay = vi.fn();
+      const m = mountIntents({ onPlay, allEpisodes: [show(1)], visibleEpisodes: [show(1)] });
+      m.apply({ resume: KEY_2 });
+      m.update({ seedSettled: true });
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(onPlay).not.toHaveBeenCalled();
+      error.mockRestore();
+    });
+  });
+
   it("scrollToCurrent is callable directly (the floating now-playing button)", () => {
     const list = [ep(1), ep(2)];
     const m = mountIntents({ allEpisodes: list, visibleEpisodes: list, currentEpisodeId: 2 });

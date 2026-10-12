@@ -36,9 +36,17 @@ const MAX_PLACE = 32;
  * which also holds Change Name and Calling From. Format holds Word Wrap and
  * the tune-in toggle.
  */
-export function NotepadPhoneLines({ onClose }: { onClose?: () => void }) {
+export function NotepadPhoneLines({ onClose, chat }: { onClose?: () => void; chat?: Chat }) {
+  return chat ? <Notepad chat={chat} onClose={onClose} /> : <OwnNotepad onClose={onClose} />;
+}
+
+/** No stream handed in (the desktop): open one. The phone's Live screen hands in its own (LiveChat's `chat`). */
+function OwnNotepad({ onClose }: { onClose?: () => void }) {
+  return <Notepad chat={useLiveChat()} onClose={onClose} />;
+}
+
+function Notepad({ onClose, chat }: { onClose?: () => void; chat: Chat }) {
   const isMobile = useIsMobile();
-  const chat = useLiveChat();
   const now = useCommunityNow() as Presence;
   const live = typeof now.live === "number" ? now.live : undefined;
   const [hideTuneins, toggleTuneins] = useHideTuneins();

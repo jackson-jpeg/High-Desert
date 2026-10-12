@@ -25,6 +25,9 @@ import { SORT_MODES, type SortMode } from "@/lib/library/filter-episodes";
  *                                  "Open in High Desert", docs/show-pages.md)
  *   /library?view=dial          list | dial (the dial is a preview-look mode,
  *                               src/lib/look/nav.ts; the public look ignores it)
+ *   /library?resume=<communityKey> start that show where it was left (the
+ *                                  welcome page's Continue listening, which
+ *                                  has no player of its own)
  *
  * Parsing is strict and silent: an unknown value is ignored, not guessed at —
  * a hand-edited or stale URL must not shuffle something the listener did not
@@ -47,10 +50,12 @@ export interface LibraryIntent {
   /** A show's community key (src/lib/utils/community-key.ts): select it and bring it into view. */
   show?: string;
   view?: LibraryView;
+  /** A show's community key: play it from its saved position (the ordinary start path). */
+  resume?: string;
 }
 
 /** The query parameters this module owns. Anything else in the URL is left alone. */
-export const INTENT_PARAMS = ["sort", "shuffle", "q", "scroll", "show", "view"] as const;
+export const INTENT_PARAMS = ["sort", "shuffle", "q", "scroll", "show", "view", "resume"] as const;
 
 /**
  * A community key as `communityKey()` builds one: the collection, `--`, the
@@ -86,6 +91,8 @@ export function parseLibraryIntent(params: ParamReader): LibraryIntent {
   if (show !== null && SHOW_KEY_PATTERN.test(show)) intent.show = show;
   const view = params.get("view");
   if (view !== null && (LIBRARY_VIEWS as readonly string[]).includes(view)) intent.view = view as LibraryView;
+  const resume = params.get("resume");
+  if (resume !== null && SHOW_KEY_PATTERN.test(resume)) intent.resume = resume;
 
   return intent;
 }
@@ -97,7 +104,8 @@ export function hasIntent(intent: LibraryIntent): boolean {
     intent.q !== undefined ||
     intent.scroll !== undefined ||
     intent.show !== undefined ||
-    intent.view !== undefined
+    intent.view !== undefined ||
+    intent.resume !== undefined
   );
 }
 
@@ -115,6 +123,7 @@ export function libraryIntentHref(intent: LibraryIntent): string {
   if (intent.scroll) params.set("scroll", intent.scroll);
   if (intent.show) params.set("show", intent.show);
   if (intent.view) params.set("view", intent.view);
+  if (intent.resume) params.set("resume", intent.resume);
   const qs = params.toString();
   return qs ? `/library?${qs}` : "/library";
 }

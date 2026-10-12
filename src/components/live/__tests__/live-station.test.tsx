@@ -1,5 +1,6 @@
+import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { SilentEventSource } from "@/test-support/event-source";
+import { EmittingEventSource, SilentEventSource } from "@/test-support/event-source";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { LiveSchedule, ProgramSlot } from "@/lib/live/schedule";
@@ -23,11 +24,12 @@ import type { LiveSchedule, ProgramSlot } from "@/lib/live/schedule";
 
 const mobile = vi.hoisted(() => ({ value: false }));
 const controller = vi.hoisted(() => ({ tuneIn: vi.fn(), leaveStation: vi.fn() }));
+const nav = vi.hoisted(() => ({ search: "", replace: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: nav.replace }),
   usePathname: () => "/live",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(nav.search),
 }));
 vi.mock("@/hooks/useMediaQuery", () => ({
   useIsMobile: () => mobile.value,
@@ -42,6 +44,8 @@ vi.mock("@/audio/live-controller", async (importOriginal) => ({
 const { LiveStation } = await import("@/components/live/LiveStation");
 const { useLiveStore } = await import("@/stores/live-store");
 const { resetNowFeedForTests } = await import("@/services/stats/now-feed");
+const { db } = await import("@/db");
+const { LookProvider } = await import("@/hooks/useLook");
 
 const NOW = { online: 8, listening: 3, live: 5, onAir: [], recent: [] };
 
@@ -106,13 +110,16 @@ function q(testId: string): HTMLElement {
   return el;
 }
 
-async function mount() {
-  act(() => root.render(<LiveStation />));
+async function mount(look: "night" | "win98" = "night") {
+  act(() => root.render(<LookProvider look={look}><LiveStation /></LookProvider>));
   await flush();
 }
 
 beforeEach(() => {
   mobile.value = false;
+  nav.search = "";
+  nav.replace.mockClear();
+  EmittingEventSource.instances = [];
   controller.tuneIn.mockClear();
   controller.leaveStation.mockClear();
   resetNowFeedForTests();
@@ -291,6 +298,7 @@ describe("Live screen", () => {
     try {
       stationAt(B.start + H + 500);
       await mount();
+      // The chat itself is in the sheet; the screen shows a preview of it.
       expect(host.querySelector('[data-testid="phone-lines"]')).toBeNull();
       const call = [...host.querySelectorAll("button")].find((b) => b.textContent?.includes("Phone lines are open"));
       act(() => call!.click());
@@ -312,38 +320,148 @@ describe("Live screen", () => {
     }
   });
 
-  it("a phone's first screen is one Listen live tap: the show, its guest and how many are tuned in, and it tunes in", async () => {
-    mobile.value = true;
+  for (const look of ["night", "win98"] as const) {
+    describe(`a phone's Live screen (${look})`, () => {
+      beforeEach(() => {
+        mobile.value = true;
+      });
+
+      it("opens on the show on the air: one Listen live button, the show, its guest and year, the count", async () => {
+        stationAt(B.start + H + 500);
+        await mount(look);
+        const hero = q("live-hero");
+        // First in the column, above the phone lines and the studio.
+        const firsts = [...hero.parentElement!.children].filter((c) => /(^|\s)order-first(\s|$)/.test(c.className));
+        expect(firsts).toEqual([hero]);
+        // One way in, not two: the studio's own Tune in gives way to it.
+        const listen = host.querySelectorAll<HTMLElement>('[data-testid="live-tune-in"]');
+        expect(listen).toHaveLength(1);
+        expect(hero.contains(listen[0])).toBe(true);
+        expect(listen[0].textContent).toContain("Listen live");
+        expect(listen[0].getAttribute("aria-label")).toBe("Listen live: Show 2");
+        // The show is the hero's, not repeated in the studio below it.
+        expect(host.querySelectorAll('[data-testid="live-now-title"]')).toHaveLength(1);
+        expect(hero.contains(q("live-now-title"))).toBe(true);
+        expect(q("live-now-title").textContent).toBe("Show 2");
+        expect(q("live-now-meta").textContent).toBe("with Guest 2 · 1992");
+        expect(q("live-time-left").textContent).toBe("−1:59:59");
+        const count = q("listen-count");
+        expect(count.textContent).toBe("5 tuned in now");
+        expect(count.getAttribute("data-presence")).toBe("live");
+        expect(hero.textContent).not.toMatch(/\u2014/);
+
+        act(() => listen[0].click());
+        expect(controller.tuneIn).toHaveBeenCalledTimes(1);
+      });
+
+      it("tuned in, the button's place says so and holds Leave the station; held, it is Rejoin", async () => {
+        stationAt(B.start + H + 500);
+        await mount(look);
+        act(() => useLiveStore.setState({ tuned: true, phase: "show" }));
+        const hero = q("live-hero");
+        expect(host.querySelector('[data-testid="live-tune-in"]')).toBeNull();
+        expect(hero.contains(q("live-listening"))).toBe(true);
+        const leave = [...hero.querySelectorAll("button")].filter((b) => b.textContent === "Leave the station");
+        expect(leave).toHaveLength(1);
+        // The only Leave on the screen: the studio below has no controls of its own.
+        expect([...host.querySelectorAll("button")].filter((b) => b.textContent === "Leave the station")).toHaveLength(1);
+        act(() => leave[0].click());
+        expect(controller.leaveStation).toHaveBeenCalledTimes(1);
+
+        act(() => useLiveStore.setState({ paused: true, rejoin: true, current: B }));
+        expect(hero.contains(q("live-rejoin"))).toBe(true);
+        expect(q("live-rejoin").textContent).toBe("Tap to rejoin");
+        expect(host.querySelector('[data-testid="live-listening"]')).toBeNull();
+        act(() => q("live-rejoin").click());
+        expect(controller.tuneIn).toHaveBeenCalledTimes(1);
+      });
+
+      it("the hook is the catalog's own words: the show's summary, first sentence", async () => {
+        await db.episodes.clear();
+        await db.episodes.add({
+          fileHash: B.fileHash,
+          fileName: "show-2.mp3",
+          title: "Show 2",
+          aiSummary: "Guest 2 explains the lights over Phoenix. Then open lines.",
+        } as never);
+        try {
+          stationAt(B.start + H + 500);
+          await mount(look);
+          await vi.waitFor(() => expect(q("live-hook").textContent).toBe("Guest 2 explains the lights over Phoenix."));
+          expect(q("live-hero").contains(q("live-hook"))).toBe(true);
+        } finally {
+          await db.episodes.clear();
+        }
+      });
+
+      it("no summary, no hook: nothing is made up", async () => {
+        await db.episodes.clear();
+        stationAt(B.start + H + 500);
+        await mount(look);
+        expect(host.querySelector('[data-testid="live-hook"]')).toBeNull();
+      });
+
+      it("the latest calls are on the first screen, and the sheet shares their stream", async () => {
+        vi.stubGlobal("EventSource", EmittingEventSource);
+        stationAt(B.start + H + 500);
+        await mount(look);
+        expect(q("phone-lines-preview").textContent).toContain("Be the first caller tonight");
+        const calls = [1, 2, 3, 4, 5].map((id) => ({
+          id,
+          at: "2026-09-25T09:00:00.000Z",
+          name: `Caller ${id}`,
+          line: "Line 3",
+          body: `call number ${id}`,
+          place: null,
+        }));
+        act(() =>
+          EmittingEventSource.last()!.emit("hello", {
+            you: { name: "Night Owl", line: "Line 3", admin: false },
+            slowMode: { on: false, until: null, intervalMs: 3000, forced: false },
+            recent: calls,
+            resumed: false,
+            hidden: [],
+          }),
+        );
+        const preview = [...host.querySelectorAll('[data-testid="preview-call"]')].map((el) => el.textContent);
+        expect(preview).toHaveLength(3);
+        expect(preview.join(" ")).toContain("call number 5");
+        expect(preview.join(" ")).not.toContain("call number 2");
+        const streams = EmittingEventSource.instances.length;
+        expect(streams).toBe(1);
+
+        act(() => q("phone-lines-preview").click());
+        const sheet = q("live-chat-sheet");
+        // The whole room is in the sheet, from the same stream: no second connection.
+        expect(sheet.querySelectorAll('[data-testid="live-message"]')).toHaveLength(5);
+        expect(EmittingEventSource.instances.length).toBe(streams);
+      });
+
+      it("/live?lines=1 (the Phone Lines tab) opens the sheet, then leaves the address bar", async () => {
+        nav.search = "lines=1";
+        stationAt(B.start + H + 500);
+        await mount(look);
+        expect(host.querySelector('[data-testid="live-chat-sheet"]')).not.toBeNull();
+        expect(nav.replace).toHaveBeenCalledWith("/live", { scroll: false });
+      });
+    });
+  }
+
+  it("desktop: /live?lines=1 puts the cursor in the call box", async () => {
+    nav.search = "lines=1";
     stationAt(B.start + H + 500);
     await mount();
-    const listen = host.querySelectorAll<HTMLElement>('[data-testid="live-tune-in"]');
-    // One way in, not two: the studio's own Tune in gives way to it.
-    expect(listen).toHaveLength(1);
-    const hero = listen[0];
-    // First in the page, above the phone lines' button and the studio.
-    const grid = hero.parentElement!;
-    const firsts = [...grid.children].filter((c) => /(^|\s)order-first(\s|$)/.test(c.className));
-    expect(firsts[0]).toBe(hero);
-    expect(q("listen-title").textContent).toBe("Show 2");
-    expect(q("listen-guest").textContent).toBe("with Guest 2");
-    const count = q("listen-count");
-    expect(count.textContent).toBe("5 tuned in now");
-    expect(count.getAttribute("data-presence")).toBe("live");
-    expect(hero.textContent).not.toMatch(/\u2014/);
-
-    act(() => hero.click());
-    expect(controller.tuneIn).toHaveBeenCalledTimes(1);
-    // Tuned in, it steps aside for the studio's own controls.
-    act(() => useLiveStore.setState({ tuned: true, phase: "show" }));
-    expect(host.querySelector('[data-testid="live-tune-in"]')).toBeNull();
-    expect([...host.querySelectorAll("button")].some((b) => b.textContent === "Leave the station")).toBe(true);
+    expect(host.querySelector('[data-testid="live-chat-sheet"]')).toBeNull();
+    expect((document.activeElement as HTMLElement | null)?.getAttribute("aria-label")).toBe("Your call");
+    expect(nav.replace).toHaveBeenCalledWith("/live", { scroll: false });
   });
 
-  it("desktop keeps the studio's Tune in, and no Listen live card", async () => {
+  it("desktop keeps the studio's Tune in, beside the show, and no hero", async () => {
     stationAt(B.start + H + 500);
     await mount();
     expect(host.querySelectorAll('[data-testid="live-tune-in"]')).toHaveLength(1);
     expect(q("live-tune-in").textContent).toBe("Tune in");
-    expect(host.querySelector('[data-testid="listen-title"]')).toBeNull();
+    expect(host.querySelector('[data-testid="live-hero"]')).toBeNull();
+    expect(host.querySelector('[data-testid="phone-lines-preview"]')).toBeNull();
   });
 });

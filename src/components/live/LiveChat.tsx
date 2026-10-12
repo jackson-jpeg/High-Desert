@@ -60,10 +60,23 @@ type Presence = ReturnType<typeof useCommunityNow> & { live?: number };
 const MAX_NAME = 32;
 const MAX_PLACE = 32;
 
-export function LiveChat() {
+/**
+ * `chat`: a stream the caller already holds. The phone's Live screen opens
+ * one for its preview of the latest calls and hands the same one to the
+ * sheet, so the room is joined once (one stream per mounted chat). Without
+ * it, the chat opens its own.
+ */
+export function LiveChat({ chat }: { chat?: Chat } = {}) {
+  return chat ? <LiveChatView chat={chat} /> : <OwnLiveChat />;
+}
+
+function OwnLiveChat() {
+  return <LiveChatView chat={useLiveChat()} />;
+}
+
+function LiveChatView({ chat }: { chat: Chat }) {
   const isMobile = useIsMobile();
   const variant: Variant = isMobile ? "glass" : "w98";
-  const chat = useLiveChat();
   const now = useCommunityNow() as Presence;
   const live = typeof now.live === "number" ? now.live : undefined;
   const [hideTuneins, toggleTuneins] = useHideTuneins();

@@ -21,7 +21,9 @@ import { toast } from "@/stores/toast-store";
  * seeding has settled on an empty one, which answers "No episodes to
  * shuffle"), scroll the first time the list has rows, and a show (`?show=`,
  * from a show page's "Open in High Desert") once the library holds it, or once
- * seeding has settled without it, which says so.
+ * seeding has settled without it, which says so. `?resume=` (the welcome
+ * page's Continue listening) is a show too, started through `onPlay` (the
+ * library's own play, i.e. `play-episode`) once the library holds it.
  */
 export function useLibraryIntents({
   allEpisodes,
@@ -34,6 +36,7 @@ export function useLibraryIntents({
   setFocusedIndex,
   onShuffle,
   setView,
+  onPlay,
 }: {
   allEpisodes: Episode[] | undefined;
   visibleEpisodes: Episode[];
@@ -46,6 +49,8 @@ export function useLibraryIntents({
   onShuffle: (scope: ShuffleScope) => void;
   /** List or Dial. The page decides whether a look has the dial at all. */
   setView?: (view: LibraryView) => void;
+  /** Start a show: the library's play-episode emit. */
+  onPlay?: (episode: Episode) => void;
 }) {
   const scrollToCurrent = useCallback(() => {
     if (!currentEpisodeId || !visibleEpisodes.length) return;
@@ -58,7 +63,7 @@ export function useLibraryIntents({
     scrollListToRow(idx);
   }, [currentEpisodeId, visibleEpisodes, setSelectedEpisode, setFocusedIndex]);
 
-  const pending = useRef<{ shuffle?: ShuffleScope; scroll?: boolean; show?: string }>({});
+  const pending = useRef<{ shuffle?: ShuffleScope; scroll?: boolean; show?: string; resume?: string }>({});
   const [received, setReceived] = useState(0);
 
   const applyIntent = useCallback(
@@ -73,6 +78,7 @@ export function useLibraryIntents({
       if (intent.scroll) pending.current.scroll = true;
       if (intent.show) pending.current.show = intent.show;
       if (intent.view) setView?.(intent.view);
+      if (intent.resume) pending.current.resume = intent.resume;
       setReceived((n) => n + 1);
     },
     [setSortMode, setSearch, setSelectedEpisode, setView],
@@ -105,7 +111,18 @@ export function useLibraryIntents({
         toast.error("That show is not in this library.");
       }
     }
-  }, [received, allEpisodes, seedSettled, visibleEpisodes, onShuffle, scrollToCurrent, setSelectedEpisode, setFocusedIndex]);
+    if (p.resume && allEpisodes) {
+      const key = p.resume;
+      const ep = allEpisodes.find((e) => communityKey(e) === key);
+      if (ep) {
+        p.resume = undefined;
+        onPlay?.(ep);
+      } else if (seedSettled) {
+        p.resume = undefined;
+        toast.error("That show is not in this library.");
+      }
+    }
+  }, [received, allEpisodes, seedSettled, visibleEpisodes, onShuffle, scrollToCurrent, setSelectedEpisode, setFocusedIndex, onPlay]);
 
   return { applyIntent, scrollToCurrent };
 }

@@ -67,10 +67,12 @@ import { useTextScalePreference } from "@/hooks/useTextScalePreference";
 import { useUserDataTransfer } from "@/hooks/useUserDataTransfer";
 import { useHdEvent } from "@/lib/events";
 import { useLook } from "@/hooks/useLook";
+import { captureInstallPrompt, noteVisit, promptInstall, useDeferredInstall } from "@/services/install/install-prompt";
 
 // Win98's taskbar (docs/looks.md), rendered by the server like the rest.
 import { Taskbar as Win98Taskbar } from "@/components/looks/win98/Taskbar";
 import { showsNavPath } from "@/lib/look/nav";
+import { PHONE_LINES_HREF } from "@/lib/live/phone-lines";
 
 interface DesktopShellProps {
   children: ReactNode;
@@ -79,13 +81,19 @@ interface DesktopShellProps {
   className?: string;
 }
 
-const NAV_ITEMS = [
-  { label: "Library", path: "/library" },
-  { label: "Live", path: "/live" },
-  { label: "Scanner", path: "/scanner" },
-  { label: "Search", path: "/search" },
-  { label: "Stats", path: "/stats" },
-] as const;
+/**
+ * The tabs. `phoneOnly`: the Phone Lines tab, in the place Radio had, on a
+ * phone's tab bar only; a desktop has the lines beside the console. It goes
+ * to /live?lines=1, which opens them (src/lib/live/phone-lines.ts).
+ */
+const NAV_ITEMS: readonly { label: string; path: string; nav: string; phoneOnly?: boolean }[] = [
+  { label: "Library", path: "/library", nav: "library" },
+  { label: "Live", path: "/live", nav: "live" },
+  { label: "Phone Lines", path: PHONE_LINES_HREF, nav: "phone-lines", phoneOnly: true },
+  { label: "Scanner", path: "/scanner", nav: "scanner" },
+  { label: "Search", path: "/search", nav: "search" },
+  { label: "Stats", path: "/stats", nav: "stats" },
+];
 
 export function DesktopShell({ children, player, episodeCount = 0, className }: DesktopShellProps) {
   const router = useRouter();
@@ -100,7 +108,9 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const [startupSoundOn, setStartupSoundOn] = useState(true);
   const { textScale, setTextScale, cycleTextScale } = useTextScalePreference();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  // The browser's install event, captured once and shared with the
+  // install prompt (src/services/install/install-prompt.ts).
+  const installPrompt = useDeferredInstall();
   const [paletteOpen, setPaletteOpen] = useState(false);
   // No timer-driven state in the shell. The clock and the caller rotation live in <StatusBar>.
 
@@ -134,21 +144,17 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
   const playerRef = useRef<HTMLDivElement>(null);
   const [bottomPadding, setBottomPadding] = useState(112); // fallback
 
-  // PWA install prompt
+  // PWA install: the shell is on every app route, so it captures the
+  // browser's event and counts the visit (a new day or a new session) that
+  // decides when the install prompt is offered.
   useEffect(() => {
-    const handler = (e: BeforeInstallPromptEvent) => {
-      e.preventDefault();
-      setInstallPrompt(e);
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    noteVisit();
+    return captureInstallPrompt();
   }, []);
 
   const handleInstall = useCallback(async () => {
-    if (!installPrompt) return;
-    installPrompt.prompt();
-    setInstallPrompt(null);
-  }, [installPrompt]);
+    await promptInstall();
+  }, []);
 
   // Load startup sound preference
   useEffect(() => {
@@ -283,7 +289,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           "md:static md:justify-start md:gap-0 md:border-t-0 md:border-b md:border-bevel-dark/15 md:px-2 md:bg-midnight/80 md:backdrop-blur-xs md:pb-0",
         )}
       >
-        {NAV_ITEMS.filter(({ path }) => showsNavPath(path, isAdmin)).map(({ label, path }) => {
+        {NAV_ITEMS.filter(({ path }) => showsNavPath(path, isAdmin)).map(({ label, path, nav, phoneOnly }) => {
           const isActive = pathname === path;
           const showNowPlaying = path === "/library" && isPlaying && !isActive;
           // A live count on the tab is the whole discovery mechanism for the
@@ -300,11 +306,12 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
               onClick={() => router.push(path)}
               aria-current={isActive ? "page" : undefined}
               // A hook for the preview looks' tab icons (src/styles/look-*.css).
-              data-nav={path.slice(1)}
+              data-nav={nav}
               className={cn(
                 "w98-font cursor-pointer select-none transition-colors-fast relative",
                 "flex flex-col items-center justify-center min-h-[52px] flex-1 text-hd-13 gap-1",
                 "md:flex-row md:flex-none md:min-h-0 md:px-3 md:py-1.5 md:text-hd-11 md:gap-0",
+                phoneOnly && "md:hidden",
                 isActive
                   ? "text-desktop-gray md:border-b-2 md:border-b-desert-amber"
                   : "text-bevel-dark active:text-desktop-gray md:hover:text-desktop-gray md:border-b-2 md:border-b-transparent",

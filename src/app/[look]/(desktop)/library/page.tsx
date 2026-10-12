@@ -13,6 +13,9 @@ import { GuestSheet } from "@/components/library/GuestSheet";
 import { FacetSidebar } from "@/components/library/FacetSidebar";
 import { DetailSheet } from "@/components/library/DetailSheet";
 import { ExploreBand } from "@/components/library/ExploreBand";
+import { ContinueListening } from "@/components/library/ContinueListening";
+import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
+import { InstallPrompt } from "@/components/install/InstallPrompt";
 import { LibraryToolbar } from "@/components/library/LibraryToolbar";
 import { ActiveFilterBar, MoodFilterBar, PlayableNowBar, SortPresets } from "@/components/library/LibraryFilterBars";
 import { LibraryListSkeleton, EmptyLibrary, NoFilterMatches, NoSearchMatches, NothingInProgress } from "@/components/library/LibraryListStates";
@@ -52,6 +55,7 @@ export default function LibraryPage() {
   const [seedSettled, setSeedSettled] = useState(false);
   const [guestProfileName, setGuestProfileName] = useState<string | null>(null);
   const currentEpisodeId = usePlayerStore((s) => s.currentEpisode?.id);
+  const currentFileHash = usePlayerStore((s) => s.currentEpisode?.fileHash ?? null);
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const isMobile = useIsMobile();
   const searchBarRef = useRef<HTMLInputElement>(null);
@@ -148,6 +152,7 @@ export default function LibraryPage() {
     setFocusedIndex,
     onShuffle: actions.handleShuffle,
     setView: libraryView.setView,
+    onPlay: handlePlay,
   });
 
   useLibrarySearchShortcuts({
@@ -218,6 +223,16 @@ export default function LibraryPage() {
         showFilter={showFilter}
         onShowTab={onShowTab}
       />
+
+      {/* Continue listening, front and centre: where a returning listener
+          lands (a returning visit to / comes here). Hidden when there is
+          nothing to continue, and in the dial. */}
+      {!dialMode && (
+        <WidgetErrorBoundary name="Continue Listening">
+          <ContinueListening onResume={handlePlay} exclude={currentFileHash} className="mx-3 mt-2 mb-1 flex-shrink-0" />
+        </WidgetErrorBoundary>
+      )}
+      {!dialMode && <InstallPrompt className="mx-3 mb-1 flex-shrink-0" />}
 
       {libraryView.available && (
         <div className="hd-library-modebar flex items-center gap-2 px-3 py-1 flex-shrink-0" data-testid="library-modebar">
