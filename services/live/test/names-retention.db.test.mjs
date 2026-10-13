@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { describeDb } from "../../../src/test-support/test-db.ts";
 import { startLive, newCaller, unique, token } from "./helpers.mjs";
 import { NAME_CHANGE_MS } from "../lib/config.mjs";
+import { EPITHETS } from "../lib/names.mjs";
 
 describeDb("caller names", () => {
   let live;
@@ -18,7 +19,11 @@ describeDb("caller names", () => {
   it("every caller gets a random name and a line on first contact, and keeps them", async () => {
     const ip = newCaller();
     const a = (await live.get("/live-api/me", { ip })).json;
-    expect(a.name).toMatch(/ in | caller|Caller from /);
+    // A generated name: a themed line caller, or an epithet (with a qualifier
+    // or a number), and never a place since 2026-10-13 ("Night Owl in Ely").
+    const base = a.name.replace(/ \d{4}$/, "");
+    expect(/ caller$|^First-Time Caller$/.test(base) || EPITHETS.some((e) => base.endsWith(e)), a.name).toBe(true);
+    expect(a.name).not.toMatch(/ in |from /);
     expect(a.admin).toBe(false);
     const b = (await live.get("/live-api/me", { ip })).json;
     expect(b.name).toBe(a.name);
