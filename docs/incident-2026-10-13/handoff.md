@@ -42,6 +42,17 @@ At 04:39:46 I rolled production back to 7712a6b (before PR #76). I misjudged the
 
 archive.org is up. The site probe says up, and `/download` served three ranged reads in 1.0 to 1.5 s from `dn720703.ca.archive.org`. The mirror badge came from the show on the air, 2001-09-11. It is a repaired show and always plays from the mirror (22 of 23 live mirror plays). The other mirror plays were failovers: 13 in 6 hours, all rescued.
 
+## Two caller asks, shipped (Dogman, 04:53 to 05:10 UTC)
+
+- **Place and line in italics, both looks.** Commit efd24f4: Night's `caller-meta` span, Win98's `.hd-w98-notepad-meta`.
+- **A place replaces the line.** Commit a254174. `shownLine()` in `src/lib/live/chat-rows.ts` drops the line when the caller gave a place. It applies in Night, the Notepad, the Notepad's copied text and the phone's preview. A caller with no place still shows their line.
+- **Checks:**
+  - tests both ways in each look, with the name held upright;
+  - mutations `live-caller-meta-italic`, `win98-notepad-meta-italic` and `lines-place-replaces-line` went red;
+  - `win98-notepad-call-line` re-anchored to the new code, also red;
+  - the branch's changed set went red;
+  - deployed, then checked on production in both looks (`screens/line-*.png`).
+
 ## The watch on the chat (04:52 to 10:52 UTC)
 
 Every new call goes to `/root/hd-notice-watch/calls.log` (read from Postgres, never as a listener). A summary follows below when the watch ends.
