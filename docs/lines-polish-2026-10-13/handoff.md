@@ -1,6 +1,6 @@
 # High Desert: Phone Lines polish and the morning check (2026-10-13)
 
-One PR (branch `ui/lines-polish`), merged and deployed. Screenshots in `screens/`.
+PR #77 (branch `ui/lines-polish`), merged as 4114af5 and deployed 04:32 UTC: the client check passed on `/`, `/library`, `/live` and `/stats`, production's CSS carries the new rules, and `highdesert-status` after the deploy reads `deploy OK, live = HEAD = 4114af5`, service OK, steal 2.2%, and warm and failures unchanged from the morning. Screenshots in `screens/`.
 
 ## 1. Morning check
 
