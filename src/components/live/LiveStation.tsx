@@ -311,9 +311,8 @@ function LinesPreview({ chat, look, onOpen }: { chat: Chat; look: Look; onOpen: 
                 <span className="flex flex-wrap items-baseline gap-x-2 min-w-0 text-hd-caption">
                   <span className="min-w-0 break-words">
                     <span className="font-bold text-desktop-gray" data-testid="caller-name">{m.name}</span>
-                    <span className="text-bevel-dark">
-                      {m.place ? `, calling from ${m.place}` : ""}
-                      {`\u00A0\u00B7 ${m.line}`}
+                    <span className="italic text-bevel-dark" data-testid="caller-meta">
+                      {m.place ? `, calling from ${m.place}` : `\u00A0\u00B7 ${m.line}`}
                     </span>
                   </span>
                   <span className="ml-auto shrink-0 text-hd-micro text-bevel-dark/85">{logTime(m.at)}</span>

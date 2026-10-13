@@ -26,8 +26,8 @@ describe("logTime", () => {
 
 describe("a call is a block: its head, then the message on its own line", () => {
   it("names the caller, then where they are calling from, the line and the time", () => {
-    expect(callHead(call())).toBe("Skeptic, calling from Reno · Line 3 · [10:42 PM]");
-    expect(callLine(call())).toBe("Skeptic, calling from Reno · Line 3 · [10:42 PM]\nmessage");
+    expect(callHead(call())).toBe("Skeptic, calling from Reno · [10:42 PM]");
+    expect(callLine(call())).toBe("Skeptic, calling from Reno · [10:42 PM]\nmessage");
   });
 
   it("drops the place when there is none", () => {

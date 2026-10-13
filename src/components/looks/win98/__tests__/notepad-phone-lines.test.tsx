@@ -96,7 +96,7 @@ describe("Phone Lines - Notepad", () => {
     const first = all("live-message")[0];
     const head = first.querySelector<HTMLElement>('[data-testid="call-head"]')!;
     const body = first.querySelector<HTMLElement>('[data-testid="message-body"]')!;
-    expect(head.textContent!.replace(/\u00A0/g, " ")).toBe("Skeptic, calling from Reno \u00B7 Line 3 [10:42 PM]");
+    expect(head.textContent!.replace(/\u00A0/g, " ")).toBe("Skeptic, calling from Reno [10:42 PM]");
     expect(body.textContent).toBe("message");
     // Two elements, the message after the head: not one run-on line.
     expect(head.contains(body)).toBe(false);
@@ -115,7 +115,7 @@ describe("Phone Lines - Notepad", () => {
     // The name and its meta wrap inside `who`; the time is its own part after
     // it, which the stylesheet holds on the first line.
     expect(who.contains(head.querySelector('[data-testid="caller-name"]'))).toBe(true);
-    expect(who.contains(head.querySelector('[data-testid="line-label"]'))).toBe(true);
+    expect(who.contains(head.querySelector('[data-testid="caller-place"]'))).toBe(true);
     expect(who.contains(time)).toBe(false);
     expect(who.compareDocumentPosition(time) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // Control: the time is still inside the head, not pushed below the message.
@@ -126,7 +126,8 @@ describe("Phone Lines - Notepad", () => {
     mount();
     const first = all("live-message")[0];
     const part = (id: string) => first.querySelector(`[data-testid="${id}"]`)?.textContent;
-    expect(part("line-label")).toBe("Line 3");
+    // With a place, the line is left off (2026-10-13); see the next test for one without.
+    expect(part("line-label")).toBeUndefined();
     expect(part("caller-name")).toBe("Skeptic");
     expect(part("caller-place")).toBe(", calling from Reno");
     expect(part("message-body")).toBe("message");
@@ -186,8 +187,19 @@ describe("Phone Lines - Notepad", () => {
     mount();
     const head = all("call-head")[0];
     const meta = head.querySelector(".hd-w98-notepad-meta")!;
-    expect(meta.querySelector('[data-testid="line-label"]')).not.toBeNull();
+    expect(meta.querySelector('[data-testid="caller-place"]')).not.toBeNull();
     expect(meta.querySelector('[data-testid="caller-name"]')).toBeNull();
+  });
+
+  it("shows the line only for a caller with no place (2026-10-13)", () => {
+    messages = [
+      { id: 1, at: at(22, 42), name: "Skeptic", place: "Reno", line: "Line 3", body: "a" },
+      { id: 2, at: at(22, 43), name: "Insomniac", place: null, line: "Line 4", body: "b" },
+    ];
+    mount();
+    const [withPlace, without] = all("live-message");
+    expect(withPlace.querySelector('[data-testid="line-label"]')).toBeNull();
+    expect(without.querySelector('[data-testid="line-label"]')!.textContent).toBe("Line 4");
   });
 
   it("heads a station notice From the station, with no show link (2026-10-13)", () => {

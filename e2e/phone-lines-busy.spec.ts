@@ -205,7 +205,10 @@ async function assertBusyLines(page: Page, look: Look, browserName: string) {
   await expect(desert.getByTestId("caller-name")).toHaveText("Desert Rat");
   expect(Number(await desert.getByTestId("caller-name").evaluate((el) => getComputedStyle(el).fontWeight))).toBeGreaterThanOrEqual(600);
   await expect(desert.getByTestId("call-head")).toContainText("Desert Rat, calling from Rachel");
-  await expect(desert.getByTestId("line-label")).toHaveText("Area 51 Line");
+  // A place replaces the line (2026-10-13), and the place is italic, the name not.
+  await expect(desert.getByTestId("line-label")).toHaveCount(0);
+  expect(await desert.getByTestId("caller-place").evaluate((el) => getComputedStyle(el).fontStyle)).toBe("italic");
+  expect(await desert.getByTestId("caller-name").evaluate((el) => getComputedStyle(el).fontStyle)).toBe("normal");
   expect(Number(await desert.getByTestId("message-body").evaluate((el) => getComputedStyle(el).fontWeight))).toBeLessThan(600);
   // An old generated name keeps working, and stays apart from the place.
   await expect(calls.nth(2).getByTestId("call-head")).toContainText("Night Owl in Flagstaff, calling from Tucson");

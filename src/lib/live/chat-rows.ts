@@ -65,6 +65,15 @@ export function callerLabel(m: Pick<LiveMessage, "name" | "place">): string {
   return m.place ? `${m.name}, calling from ${m.place}` : m.name;
 }
 
+/**
+ * The line a call shows (2026-10-13, a caller's ask): only when the caller gave
+ * no place. With a place, "calling from Reno" says where they are and the line
+ * is left off to save room.
+ */
+export function shownLine(m: Pick<LiveMessage, "line" | "place">): string | null {
+  return m.place ? null : m.line;
+}
+
 /** This browser's own call: one it posted, or one under the name it holds now (hello's `you`). */
 export function isOwnCall(m: Pick<LiveMessage, "id" | "name">, mine: readonly number[], you: Pick<LiveYou, "name"> | null): boolean {
   return mine.includes(m.id) || (!!you && m.name === you.name);

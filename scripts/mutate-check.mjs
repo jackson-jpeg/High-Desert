@@ -7440,9 +7440,9 @@ export const MUTATIONS = [
     id: "win98-notepad-call-line",
     test: "src/components/looks/win98/__tests__/notepad-log.test.ts",
     file: "src/components/looks/win98/notepad-log.ts",
-    find: "  return `${callerLabel(m)} · ${m.line} · ${logTime(m.at)}`;",
+    find: "  return line ? `${callerLabel(m)} · ${line} · ${logTime(m.at)}` : `${callerLabel(m)} · ${logTime(m.at)}`;",
     replace: "  return `${callerLabel(m)} · ${logTime(m.at)}`;",
-    why: "a call's head loses the caller's line",
+    why: "a call's head loses the caller's line when they gave no place",
   },
   {
     id: "win98-notepad-archive-not-caller",
@@ -8486,6 +8486,14 @@ export const MUTATIONS = [
     find: "  font-style: italic;\n}",
     replace: "}",
     why: "Notepad's place and line in italics, as the Night look (2026-10-13)",
+  },
+  {
+    id: "lines-place-replaces-line",
+    test: "src/components/live/__tests__/live-chat.test.tsx",
+    file: "src/lib/live/chat-rows.ts",
+    find: "  return m.place ? null : m.line;",
+    replace: "  return m.line;",
+    why: "a caller who gave a place shows no line, to save room (2026-10-13)",
   },
 ];
 

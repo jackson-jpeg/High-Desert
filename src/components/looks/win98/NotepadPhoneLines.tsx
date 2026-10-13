@@ -8,7 +8,7 @@ import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { useLiveChat } from "@/hooks/useLiveChat";
 import { placeProblem, useCallBox, useHideTuneins } from "@/hooks/useCallBox";
 import { nameProblem } from "@/components/live/LiveChat";
-import { chatRows, isOwnCall, type ChatRow } from "@/lib/live/chat-rows";
+import { chatRows, isOwnCall, shownLine, type ChatRow } from "@/lib/live/chat-rows";
 import { followKeys, useFollowLog } from "@/hooks/useFollowLog";
 import { charCount, MAX_CHARS, suggestedPlace } from "@/services/live/client";
 import { presenceAttrs } from "@/services/stats/now-feed";
@@ -388,8 +388,12 @@ function NotepadLog({
                   </span>
                   <span className="hd-w98-notepad-meta">
                     {m.place && <span data-testid="caller-place">, calling from {m.place}</span>}
-                    {"\u00A0\u00B7 "}
-                    <span data-testid="line-label">{m.line}</span>
+                    {shownLine(m) && (
+                      <>
+                        {"\u00A0\u00B7 "}
+                        <span data-testid="line-label">{shownLine(m)}</span>
+                      </>
+                    )}
                   </span>
                   {mine && <span className="sr-only"> (your call)</span>}
                 </span>{" "}

@@ -739,6 +739,24 @@ describe("archive lines (2026-10-11): a moment from the show's history, never a 
   });
 });
 
+describe("a place replaces the line (2026-10-13, a caller's ask)", () => {
+  it("shows the line only for a caller with no place, in italics either way", () => {
+    const { host, es, done } = render();
+    act(() =>
+      es().emit("hello", {
+        you, slowMode: slowOff, resumed: false, hidden: [],
+        recent: [msg(1, { place: "Reno", line: "Line 3" }), msg(2, { place: null, line: "Line 4" })],
+      }),
+    );
+    const [withPlace, without] = all(host, "live-message");
+    expect(q(withPlace, "line-label")).toBeNull();
+    expect(q(withPlace, "caller-meta")!.textContent).toBe(", calling from Reno");
+    expect(q(without, "line-label")!.textContent).toBe("Line 4");
+    expect(q(without, "caller-meta")!.className).toContain("italic");
+    done();
+  });
+});
+
 describe("station notices (2026-10-13): the site talking, drawn like an archive card", () => {
   const notice = {
     id: "station-1",
@@ -819,12 +837,13 @@ describe("readable lines (2026-10-13), on a desktop and on a phone", () => {
         const meta = q(head, "caller-meta")!;
         expect(meta.className.split(/\s+/)).toEqual(expect.arrayContaining(["italic", "text-bevel-dark"]));
         expect(meta.contains(q(head, "caller-place"))).toBe(true);
-        expect(meta.contains(q(head, "line-label"))).toBe(true);
         expect(meta.contains(q(head, "caller-name"))).toBe(false);
         expect(q(head, "caller-name")!.closest(".italic")).toBeNull();
-        expect(q(head, "line-label")!.textContent).toBe("Area 51 Line");
+        // A caller who gave a place shows no line: the place says where they are.
+        expect(q(head, "line-label")).toBeNull();
+        expect(head.textContent).not.toContain("Area 51 Line");
         expect(q(head, "call-time")!.className).toContain("text-bevel-dark/85");
-        expect(head.textContent!.replace(/\u00A0/g, " ")).toMatch(/^Desert Rat, calling from Rachel \u00B7 Area 51 Line/);
+        expect(head.textContent!.replace(/\u00A0/g, " ")).toMatch(/^Desert Rat, calling from Rachel\s*\d/);
         expect(body.className).toContain("font-normal");
         done();
       });

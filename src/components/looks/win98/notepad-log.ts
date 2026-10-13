@@ -1,5 +1,5 @@
 import { tuneinText, type ArchiveLine, type LiveMessage, type TuneinNotice } from "@/services/live/client";
-import { callerLabel } from "@/lib/live/chat-rows";
+import { callerLabel, shownLine } from "@/lib/live/chat-rows";
 
 /**
  * The Notepad's wording for each kind of line (NotepadPhoneLines). A call is
@@ -27,7 +27,8 @@ export { callerLabel };
 
 /** A call's first line: who, from where, on which line, when. */
 export function callHead(m: LiveMessage): string {
-  return `${callerLabel(m)} · ${m.line} · ${logTime(m.at)}`;
+  const line = shownLine(m);
+  return line ? `${callerLabel(m)} · ${line} · ${logTime(m.at)}` : `${callerLabel(m)} · ${logTime(m.at)}`;
 }
 
 /** A whole call as text: the head, then the message on its own line. */

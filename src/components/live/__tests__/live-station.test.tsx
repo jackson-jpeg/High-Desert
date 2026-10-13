@@ -458,7 +458,7 @@ describe("Live screen", () => {
         const body = theirs.querySelector('[data-testid="message-body"]')!;
         expect(name.textContent).toBe("Desert Rat");
         expect(name.className).toContain("font-bold");
-        expect(name.parentElement!.textContent!.replace(/\u00A0/g, " ")).toBe("Desert Rat, calling from Rachel \u00B7 Area 51 Line");
+        expect(name.parentElement!.textContent!.replace(/\u00A0/g, " ")).toBe("Desert Rat, calling from Rachel"); // a place replaces the line (2026-10-13)
         expect(name.contains(body) || name.parentElement!.contains(body)).toBe(false);
         expect(own.dataset.mine).toBe("true");
         expect(theirs.dataset.mine).toBeUndefined();
