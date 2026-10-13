@@ -60,7 +60,7 @@ to `/var/log/disk-sweep.log`. `highdesert-status` has a `disk` line: WARN under
 ## The mirror's 328
 
 The warm job last ran on 2026-10-12 at 04:18 UTC and **stopped at its floor**
-with 5.9 GB free (it keeps 10 GB free), 324 pinned of 328. The disk now has room
+with 5.9 GB free (it keeps 10 GB free): 324 shows pinned, 289 of them in the current top 328. The disk now has room
 for the rest. The next run is 04:10 UTC on 2026-10-13. It skips itself while
 hypervisor steal is above 20%, and steal is at 60-70% under Hostinger's CPU cap
 (see the handoff), so it may skip. `highdesert-status`'s `warm` line says which.

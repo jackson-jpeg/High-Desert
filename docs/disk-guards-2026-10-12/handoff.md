@@ -1,6 +1,6 @@
 # Handoff: disk, deploy guards, Live cleanup (2026-10-12)
 
-One PR: __PR__. Merged and deployed: __DEPLOY__.
+One PR: #75 (`ops/disk-guards-live`, three commits plus this handoff). Merged and deployed: merged as `7712a6b` and deployed 2026-10-13 01:26 UTC with `bash scripts/deploy.sh`. The deploy applied `schema.sql` after the build ("Applying scripts/schema.sql (the build passed; the switch is next)") and cleared stale route types (`.next/types`, `.next.prev/types`). `playback_failures.look` and `.live` exist in production.
 The disk report is beside this file (`disk-report.md`).
 
 ## 1. The disk
@@ -18,7 +18,7 @@ The disk report is beside this file (`disk-report.md`).
 - **High Desert's own leaks are fixed.** Each Vitest run now deletes its temp dir
   (`src/test-support/vitest-tmp.global.ts`; a test runs the real Vitest, with a
   control). `verify-live-day.test.ts` removes its `hd-verify-*` dir.
-- **The mirror's 328:** __WARM__
+- **The mirror's 328:** **not reached yet.** The last run (2026-10-12 04:18 UTC) stopped at its 10 GB floor with 5.5 GB free. The disk now has 22.6 GB free, so the next run (04:10 UTC on 2026-10-13) can pin the rest, but it skips itself while steal is above 20%, and steal was 62% at deploy time. `highdesert-status` reads `warm WARN 289 of the top 328 pinned`; check that line tomorrow
 
 ## 2. Live on a phone, both looks
 
@@ -30,7 +30,7 @@ The disk report is beside this file (`disk-report.md`).
 - Desktop is unchanged.
 - Tests: `live-phone-strip.test.tsx` (11, with a desktop control that counts
   two of each) and `e2e/live-phone.spec.ts`.
-- Screenshots, phone and desktop, both looks: `screens/` in this folder. __E2E__
+- Screenshots, phone and desktop, both looks: `screens/` in this folder. Run on a local build against the e2e database, Chromium and WebKit: `live-phone` 6 of 6. `live-qa` had 33 passed and 1 failed. The failure was a real consequence of the strip: on a phone the count had lived in the Studio box. The spec, and `a11y.spec.ts`, now read the top card's count on a phone. Re-run: 6 of 6.
 
 ## 3. Deploy guards
 
@@ -163,11 +163,20 @@ summarised here.
 
 ## Checks
 
-__CHECKS__
+On the VPS, niced, one heavy job at a time:
+- **tsc and eslint:** clean.
+- **Full suite:** 2,449 passed. Two tests (`tonight.test.tsx` topic pages, `retry.test.ts`) timed out at 5 s while the box was CPU-capped; both pass with a 30 s timeout. The live service's tests needed its `npm ci` in the worktree; with it they pass.
+- **Mutations:** all 38 new or moved ones caught (deploy schema and types; the status failures, disk, docs-only and closed-window lines; the five failover fixes; the Live strip; the Vitest cleanup; the commit guard; look and live on failure rows).
+- **Database test:** `store.db.test.ts` against the test database after applying the schema there.
+- **Production after the deploy (`highdesert-status`):**
+  - `deploy`, `disk` (22.6 GB free), `mirror` (324 pinned), `release` (window closed) and `presence` are OK.
+  - `failures` WARN at 5.3%. That is the true figure, over the 3% target; the failover fixes are meant to bring it down.
+  - `steal` FAIL at 62%: the cap.
+  - `warm` WARN: see section 1.
 
 ## Blocks and refusals this session
 
-- **The pipefail hook blocked 5 commands.** Each was a pipe without
+- **The pipefail hook blocked 6 commands.** Each was a pipe without
   `set -o pipefail`; I re-ran each with the prefix.
 - **The permission check refused 2 actions.** I did not retry either one by
   another route:
@@ -176,7 +185,7 @@ __CHECKS__
   2. Editing `/root/vps-tools/bin/heavy`, which is shared. The partial edit is
      reverted; the change is the proposal above.
 - **The Mac's Downloads had no room** when I first copied the disk report.
-  __MAC__
+  Copies of this folder are retried at the end of the session (see the last line).
 
 ## Left for you
 
