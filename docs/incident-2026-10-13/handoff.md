@@ -62,6 +62,15 @@ Calls were read straight from Postgres, never as a listener. The watch ran until
 
 Nothing came in after 05:05: the room was quiet through the morning hours (UTC). No complaints, no reports, nothing hidden.
 
+## The nightly mutation failure (17:18 UTC run, fixed the same day)
+
+- **What failed.** Shard 4/4: `failover-hidden-stall-waits` survived. It deletes the stall clock's "wait while the page is hidden" line, and the 05:02:09 test still passed.
+- **Why.** Since 441cea1 ("why 62"), a failover waits up to 30 s for the mirror's first byte, and until that byte arrives a `waiting` event arms no stall clock at all. The test never sent a byte, so it only exercised the deadline path; the stall path's line was unguarded. The app code was right; the test had stopped reaching it.
+- **Why nobody saw it sooner.** 441cea1 went to main with `[skip ci]`, so neither the PR's nor main's mutation run checked it. The nightly is the first run that did.
+- **Fix (test only, nothing to deploy).** The 05:02:09 test now sends the mirror's first byte before the stall, so the stall clock is armed and has to wait for the page. A new control proves an on-screen page still gives up on the same stall. Both `failover-hidden-*` mutations go red.
+- **A second fault it exposed.** `mutate-check` labelled the survivor NO-RUN ("exit 0 without a vitest summary") though the summary was there: CI colours it, and the parse did not strip the colour codes. It now does. Test in `mutate-select.test.ts`; mutation `mutate-summary-colour-blind` goes red. NO-RUN still fails a run, so nothing was ever passed by mistake; the label just pointed at the runner instead of the test.
+- The branch's whole changed set (27 mutations) went red.
+
 ## Still owed (Jackson chose: redeploy main now, do these afterwards)
 
 1. Every loading state gets a timeout that ends in an error with Retry: the Library list, Stats, and any other Dexie wait.
@@ -72,4 +81,4 @@ These go in a worktree and are not deployed during the busy hours without Jackso
 
 ## Blocks
 
-The pipefail hook blocked three commands: a `highdesert-status | grep`, an `ss | grep -c`, and a heredoc command that ended in `| head`. Each was re-run with `set -o pipefail;`.
+The pipefail hook blocked three commands: a `highdesert-status | grep`, an `ss | grep -c`, and a heredoc command that ended in `| head`. Each was re-run with `set -o pipefail;`. A fourth, while fixing the nightly: a `vitest | tail` without it, re-run with it.
