@@ -41,7 +41,7 @@ export interface LiveChatState {
 
 type Action =
   | { type: "status"; status: LiveStatus }
-  | { type: "hello"; you: LiveYou; slowMode: SlowMode; recent: LiveMessage[]; resumed: boolean; hidden: number[]; tuneins?: TuneinNotice[]; archive?: ArchiveLine[] }
+  | { type: "hello"; you: LiveYou; slowMode: SlowMode; recent: LiveMessage[]; resumed: boolean; hidden: number[]; tuneins?: TuneinNotice[]; archive?: ArchiveLine[]; station?: ArchiveLine[] }
   | { type: "message"; message: LiveMessage; mine?: boolean }
   | { type: "hide"; ids: number[] }
   | { type: "rename"; ids: number[]; name: string; place?: string | null }
@@ -90,7 +90,7 @@ export function liveReducer(state: LiveChatState, a: Action): LiveChatState {
         slowMode: a.slowMode,
         messages: merge(kept, a.recent.filter((m) => !hidden.has(m.id))),
         notices: addNotices(state.notices, a.tuneins ?? []),
-        archive: addArchive(state.archive, a.archive ?? []),
+        archive: addArchive(state.archive, [...(a.archive ?? []), ...(a.station ?? [])]),
       };
     }
     case "message":

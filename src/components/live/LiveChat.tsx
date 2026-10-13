@@ -428,6 +428,12 @@ function MessageList({ chat, variant, hideTuneins }: { chat: Chat; variant: Vari
 }
 
 /** A moment from the show's history: a card, never a call. */
+/** An archive card's heading; a station notice is the site talking, not the archive. */
+export function archiveHeading(a: ArchiveLine): string {
+  if (a.reason === "station") return "From the station";
+  return a.reason === "on-air" ? "From the archive: this show" : "From the archive";
+}
+
 export function ArchiveRow({ a, variant }: { a: ArchiveLine; variant: Variant }) {
   const openLibrary = useOpenLibraryIntent();
   const time = new Date(a.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -444,7 +450,7 @@ export function ArchiveRow({ a, variant }: { a: ArchiveLine; variant: Variant })
     >
       <div className="flex items-baseline gap-2">
         <span className="text-hd-micro font-bold uppercase tracking-wider text-static-green" data-testid="archive-label">
-          {a.reason === "on-air" ? "From the archive: this show" : "From the archive"}
+          {archiveHeading(a)}
         </span>
         <time className="ml-auto shrink-0 text-hd-micro text-bevel-dark/85" dateTime={a.at}>
           {time}

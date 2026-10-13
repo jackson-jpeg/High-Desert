@@ -119,7 +119,7 @@ describeDb("admin", () => {
   it("every admin action is 401 without the credential — the client-side admin hash is irrelevant", async () => {
     const m = await live.post("/live-api/messages", { body: unique() }, { ip: newCaller() });
     const ip = newCaller();
-    for (const action of ["hide", "mute", "ban", "slow", "clear-name"]) {
+    for (const action of ["hide", "mute", "ban", "slow", "clear-name", "notice"]) {
       const r = await live.post(`/live-api/admin/${action}`, { messageId: m.json.id }, {
         ip,
         // What the app's client-side admin mode has: a localStorage flag, and
@@ -166,6 +166,35 @@ describeDb("admin", () => {
 
     // Single use.
     expect((await live.post("/live-api/admin/signin", { nonce }, { ip: newCaller() })).status).toBe(401);
+  });
+
+  it("a station notice (2026-10-13): admin only, its own event, in hello, never a call", async () => {
+    const listener = await live.stream({ ip: newCaller() });
+    await listener.next("hello");
+    const text = unique("Sorry for tonight's hiccups.");
+    // Not without the credential.
+    expect((await live.post("/live-api/admin/notice", { text }, { ip: newCaller() })).status).toBe(401);
+    // Not empty, not too long.
+    const auth = { authorization: `Bearer ${live.adminToken}` };
+    expect((await live.post("/live-api/admin/notice", { text: "  " }, { ip: newCaller(), headers: auth })).status).toBe(400);
+    expect((await live.post("/live-api/admin/notice", { text: "x".repeat(501) }, { ip: newCaller(), headers: auth })).status).toBe(400);
+
+    const r = await live.post("/live-api/admin/notice", { text }, { ip: newCaller(), headers: auth });
+    expect(r.status).toBe(201);
+    expect(r.json).toMatchObject({ text, reason: "station", episode: null, speaker: null });
+    // Its own event: a page from before it ignores it rather than heading it "From the archive".
+    const ev = await listener.next("station", (d) => d.text === text);
+    expect(ev.data.id).toBe(r.json.id);
+    // A newcomer gets it in hello.
+    const late = await live.stream({ ip: newCaller() });
+    const hello = await late.next("hello");
+    expect(hello.data.station.map((l) => l.text)).toContain(text);
+    expect(hello.data.recent.map((m) => m.body)).not.toContain(text);
+    // Never stored as a call.
+    const { rows } = await live.pool.query(`SELECT 1 FROM live_messages WHERE body = $1`, [text]);
+    expect(rows).toHaveLength(0);
+    // Control: hello's station list is not simply everything ever said.
+    expect(hello.data.station.length).toBeLessThanOrEqual(3);
   });
 
   it("the one-time link expires", async () => {

@@ -739,6 +739,41 @@ describe("archive lines (2026-10-11): a moment from the show's history, never a 
   });
 });
 
+describe("station notices (2026-10-13): the site talking, drawn like an archive card", () => {
+  const notice = {
+    id: "station-1",
+    at: "2026-09-25T06:05:00.000Z",
+    text: "Sorry for tonight's hiccups.",
+    form: "moment",
+    speaker: null,
+    episode: null,
+    reason: "station",
+  };
+
+  it("arrives as its own event and in hello, headed From the station, never a call", () => {
+    const { host, es, done } = render();
+    act(() => es().emit("hello", { you, slowMode: slowOff, recent: [msg(1)], resumed: false, hidden: [], station: [notice] }));
+    act(() => es().emit("station", { ...notice, id: "station-2", at: "2026-09-25T06:06:00.000Z", text: "Second notice." }));
+    const cards = all(host, "archive-line");
+    expect(cards.map((c) => c.querySelector('[data-testid="archive-text"]')!.textContent)).toEqual([notice.text, "Second notice."]);
+    for (const card of cards) {
+      expect(card.querySelector('[data-testid="archive-label"]')!.textContent).toBe("From the station");
+      expect(card.querySelector('[data-testid="caller-name"]')).toBeNull();
+      expect(card.querySelector('[data-testid="archive-episode"]')).toBeNull();
+      expect(card.textContent).not.toMatch(/Report/);
+    }
+    expect(all(host, "live-message")).toHaveLength(1);
+    done();
+  });
+
+  it("control: an ordinary archive line is still headed From the archive", () => {
+    const { host, es, done } = render();
+    act(() => es().emit("archive", { ...notice, id: "m", reason: "archive" }));
+    expect(q(host, "archive-label")!.textContent).toBe("From the archive");
+    done();
+  });
+});
+
 describe("readable lines (2026-10-13), on a desktop and on a phone", () => {
   const busy = (es: () => FakeEventSource) =>
     act(() =>

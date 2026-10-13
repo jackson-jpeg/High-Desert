@@ -126,6 +126,10 @@ function readJson(req) {
 
 const positiveInt = (v) => (Number.isSafeInteger(v) && v > 0 ? v : null);
 const seconds = (ms) => Math.max(1, Math.ceil(ms / 1000));
+/** Station notices: how long hello carries them, how many, how long. */
+export const STATION_KEEP_MS = 12 * 60 * 60_000;
+export const STATION_ON_HELLO = 3;
+export const STATION_MAX_CHARS = 500;
 
 /**
  * @param {object} o
@@ -232,6 +236,12 @@ export function createLiveApp({
   let tuneinTimer = null;
   let tuneinLastAt = -Infinity;
   const tuneinRecent = [];
+  // Station notices (2026-10-13): the site talking, posted by an admin
+  // (POST /live-api/admin/notice). Drawn like an archive card under "From the
+  // station", never as a caller. Memory only, like archive lines: kept for
+  // hello for STATION_KEEP_MS, the newest STATION_ON_HELLO.
+  const stationLines = [];
+  const stationRecent = () => stationLines.filter((l) => now() - Date.parse(l.at) < STATION_KEEP_MS);
 
   function flushTuneins() {
     tuneinTimer = null;
@@ -493,6 +503,7 @@ export function createLiveApp({
         hidden,
         tuneins: [...tuneinRecent],
         archive: voice?.recent() ?? [],
+        station: stationRecent(),
       },
       lastSent,
     );
@@ -669,6 +680,19 @@ export function createLiveApp({
         if (ids.length) hub.broadcast("rename", { ids, name, place: null });
         return sendJson(res, 200, { ok: true, name });
       }
+      case "notice": {
+        // Its own event, not "archive": a page from before this release
+        // ignores it rather than heading it "From the archive".
+        const text = typeof body.text === "string" ? body.text.trim() : "";
+        if (!text || text.length > STATION_MAX_CHARS) throw new HttpError(400, { error: "bad-notice", max: STATION_MAX_CHARS });
+        const t = now();
+        const line = { id: `station-${t}`, at: new Date(t).toISOString(), text, form: "moment", speaker: null, episode: null, reason: "station" };
+        stationLines.push(line);
+        if (stationLines.length > STATION_ON_HELLO) stationLines.shift();
+        hub.broadcast("station", line);
+        log(`[live] station notice ${line.id}`);
+        return sendJson(res, 201, line);
+      }
       case "verify": {
         // The deploy's POST round trip (scripts/deploy-live.sh): through nginx,
         // into Postgres as the service's role, read back, deleted. Written
@@ -761,7 +785,7 @@ export function createLiveApp({
       res.writeHead(200, SIGNIN_PAGE_HEADERS);
       return res.end(SIGNIN_PAGE);
     }
-    const adminMatch = /^\/live-api\/admin\/(hide|mute|ban|slow|clear-name|verify)$/.exec(p);
+    const adminMatch = /^\/live-api\/admin\/(hide|mute|ban|slow|clear-name|verify|notice)$/.exec(p);
     if (m === "POST" && adminMatch) return admin(req, res, adminMatch[1]);
     throw new HttpError(404, { error: "not-found" });
   }

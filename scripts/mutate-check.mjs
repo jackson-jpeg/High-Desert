@@ -8447,6 +8447,30 @@ export const MUTATIONS = [
     replace: '<span className="hd-w98-notepad-who" data-testid="call-who"></span><span>',
     why: "the name and line must wrap in their own part so the time stays on the first line (2026-10-13)",
   },
+  {
+    id: "live-station-notice-event",
+    test: "services/live/test/moderation.db.test.mjs",
+    file: "services/live/lib/app.mjs",
+    find: '        hub.broadcast("station", line);',
+    replace: '        hub.broadcast("archive", line);',
+    why: "a station notice is its own event, so a page from before it does not head it From the archive (2026-10-13)",
+  },
+  {
+    id: "live-station-notice-listened",
+    test: "src/components/live/__tests__/live-chat.test.tsx",
+    file: "src/services/live/client.ts",
+    find: '      on<ArchiveLine>("station", handlers.archive);',
+    replace: "      void 0;",
+    why: "the page must draw a station notice that arrives while it is open (2026-10-13)",
+  },
+  {
+    id: "live-station-notice-heading",
+    test: "src/components/live/__tests__/live-chat.test.tsx",
+    file: "src/components/live/LiveChat.tsx",
+    find: '  if (a.reason === "station") return "From the station";',
+    replace: "",
+    why: "a station notice is the site talking, never headed From the archive (2026-10-13)",
+  },
 ];
 
 /**

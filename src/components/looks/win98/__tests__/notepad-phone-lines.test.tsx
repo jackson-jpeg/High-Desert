@@ -175,6 +175,14 @@ describe("Phone Lines - Notepad", () => {
     expect(block.querySelector('[data-testid="caller-name"]')).toBeNull();
   });
 
+  it("heads a station notice From the station, with no show link (2026-10-13)", () => {
+    archive = [{ ...archive[0], reason: "station", text: "Sorry for tonight's hiccups." }];
+    mount();
+    const block = all("archive-line")[0];
+    expect(block.querySelector('[data-testid="archive-label"]')!.textContent).toBe(">>> From the station");
+    expect(block.querySelector('[data-testid="archive-episode"]')).toBeNull();
+  });
+
   describe("scrolled up, new calls wait behind a button", () => {
     const add = (id: number, name = "Desert Rat") => {
       messages = [...messages, { id, at: at(22, 50), name, place: null, line: "Line 2", body: `call ${id}` }];

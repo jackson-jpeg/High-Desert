@@ -52,7 +52,8 @@ export interface ArchiveLine {
   speaker: string | null;
   /** The show it is from, when there is one in the catalog. */
   episode: { airDate: string; title: string } | null;
-  /** Why it was picked: "on-air" (this show), "topic", "this-date" or "archive". */
+  /** Why it was picked: "on-air" (this show), "topic", "this-date" or "archive";
+   *  "station" for a station notice (the site talking, posted by an admin). */
   reason: string;
 }
 
@@ -82,6 +83,8 @@ export interface LiveHello {
   /** The last few tune-in notices, oldest first. */
   tuneins?: TuneinNotice[];  /** The last few archive lines, oldest first. */
   archive?: ArchiveLine[];
+  /** Station notices still current (2026-10-13), drawn like archive lines. */
+  station?: ArchiveLine[];
 }
 
 export type LiveStatus = "connecting" | "live" | "reconnecting";
@@ -144,7 +147,12 @@ export function connectLive(
     on<{ ids: number[]; name: string; place?: string | null }>("rename", (d) => handlers.rename(d.ids, d.name, d.place));
     on<SlowMode>("slow", handlers.slow);
     on<TuneinNotice>("tunein", handlers.tunein);
-    if (handlers.archive) on<ArchiveLine>("archive", handlers.archive);
+    if (handlers.archive) {
+      on<ArchiveLine>("archive", handlers.archive);
+      // A station notice is its own event (an older page ignores it) and is
+      // drawn as the same card, headed "From the station".
+      on<ArchiveLine>("station", handlers.archive);
+    }
     es.onerror = () => {
       if (closed || !es) return;
       if (es.readyState === EventSource.CLOSED) {
