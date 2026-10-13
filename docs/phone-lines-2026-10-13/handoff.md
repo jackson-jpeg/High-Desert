@@ -1,7 +1,10 @@
 # Handoff: Phone Lines easy to read, plus four follow-ups (2026-10-13)
 
-Branch `ui/phone-lines-readable`, from `main` 7712a6b. PR: __PR__. Deploy:
-__DEPLOY__.
+Branch `ui/phone-lines-readable`, from `main` 7712a6b. PR #76, merged as 844b8fc.
+Deployed at 02:52 UTC: the app with `deploy.sh` (client-verified), and the
+chat service with `deploy-live.sh`, because the name generator changed.
+That deploy verified health, an SSE hello through nginx and a POST round
+trip.
 
 At a glance:
 
@@ -13,8 +16,9 @@ At a glance:
 3. **The ScreenReceipts MCP Chrome** is stopped.
 4. **"0 episodes"** was real on production, in both looks, for the first
    seconds of a first visit. I wrote a failing test first, then fixed it.
-5. **The warm job and the failures line:** the 04:10 UTC run is reported
-   below. Tomorrow morning's check is left for the next session.
+5. **The warm job and the failures line:** both lines are below, as of
+   02:53 UTC. The warm job's next run is 04:10 UTC, after this session ends,
+   so tomorrow morning's check is left for the next session.
 
 ## 1. Phone Lines
 
@@ -117,11 +121,14 @@ until the session restarts its MCP server.
 
 ## 4. "0 episodes" in the status bar
 
-**On production, yes.** A headless probe ran in each look on `/live` and
+**On production, yes, and now fixed there.** A headless probe ran in each look on `/live` and
 `/library`, with an empty profile and the visit kept out of the stats. All
 four read **"0 episodes" at 3 s** and 1,413 by 8 s. So it was not
 Night-specific: the Night desktop screenshot happened to be taken during that
 window.
+
+After the deploy, the same probe at 1.5, 3 and 8 s never shows "0 episodes"
+in either look: blank or "Loading library" first, then 1,413.
 
 **Cause:** the layout passed `useLiveQuery(count) ?? 0`. That count answers 0
 before the seed's first write.
@@ -144,16 +151,14 @@ before the seed's first write.
 
 ## 5. The warm job and the failures line
 
-__WARM__
-
-Before the 04:10 run, at 02:05 UTC:
+After the deploy, at 02:53 UTC (`highdesert-status`, before the 04:10 warm run):
 
 - `warm` was WARN: 289 of the top 328 pinned (14.5 of 15.0 GB), last run
   2026-10-12 04:18, stopped at the disk floor before the cleanup freed room.
-- `failures` was WARN at 5.3% of starts lost in 7 days: 57 lost of 1,076
+- `failures` was WARN at 5.3% of starts lost in 7 days: 57 lost of 1,082
   plays, against a 3% target; 168 starts were rescued by the retry or the
   mirror.
-- `steal` was FAIL at 52.7%. The warm job skips itself while steal is above
+- `steal` was WARN at 45.4% (it was FAIL at 52.7% at 02:05). The warm job skips itself while steal is above
   20%, so a skipped run would be the cap, not the disk.
 
 **For the next session (tomorrow morning):**
