@@ -82,3 +82,5 @@ These go in a worktree and are not deployed during the busy hours without Jackso
 ## Blocks
 
 The pipefail hook blocked three commands: a `highdesert-status | grep`, an `ss | grep -c`, and a heredoc command that ended in `| head`. Each was re-run with `set -o pipefail;`. A fourth, while fixing the nightly: a `vitest | tail` without it, re-run with it.
+
+The auto-mode classifier refused `bash scripts/deploy.sh` (17:4x UTC) for the nightly fix. I did not retry it. The undeployed commits change only tests, `scripts/mutate-check.mjs` and docs, and the built app would be the same. `highdesert-status`'s `deploy` line reads DRIFT until the next deploy; run `bash scripts/deploy.sh` when convenient.
