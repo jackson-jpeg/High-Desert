@@ -1778,9 +1778,17 @@ export const MUTATIONS = [
     id: "mutate-no-run-not-green",
     test: "scripts/__tests__/mutate-select.test.ts",
     file: "scripts/mutate-check.mjs",
-    find: 'return /Tests\\s+\\d+ passed/.test(out) ? "GREEN" : "NO-RUN";',
+    find: 'return /Tests\\s+\\d+ passed/.test(plain) ? "GREEN" : "NO-RUN";',
     replace: 'return "GREEN";',
     why: "exit 0 with no tests run is not a pass; on 2026-09-29 an unrun test read green",
+  },
+  {
+    id: "mutate-summary-colour-blind",
+    test: "scripts/__tests__/mutate-select.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: 'const plain = out.replace(/\\x1b\\[[0-9;]*m/g, "");',
+    replace: "const plain = out;",
+    why: "CI colours vitest's summary; on 2026-10-13 a survivor read as NO-RUN, pointing at the runner instead of the test",
   },
   {
     id: "mutate-runner-takes-turn",
@@ -8565,7 +8573,10 @@ export function parseShard(text) {
  */
 export function judgeRun(code, out) {
   if (code !== 0) return "red";
-  return /Tests\s+\d+ passed/.test(out) ? "GREEN" : "NO-RUN";
+  // CI colours the summary ("Tests \x1b[22m \x1b[1m\x1b[32m21 passed"); on
+  // 2026-10-13 a real survivor was reported as NO-RUN because of it.
+  const plain = out.replace(/\x1b\[[0-9;]*m/g, "");
+  return /Tests\s+\d+ passed/.test(plain) ? "GREEN" : "NO-RUN";
 }
 
 /**

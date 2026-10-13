@@ -22,6 +22,12 @@ describe("judgeRun: a pass needs evidence the tests ran", () => {
     // exited 0 without starting vitest.
     expect(judgeRun(0, "")).toBe("NO-RUN");
   });
+
+  it("reads CI's coloured summary (2026-10-13: a survivor was reported as NO-RUN)", () => {
+    const ci = "\x1b[2m      Tests \x1b[22m \x1b[1m\x1b[32m21 passed\x1b[39m\x1b[22m\x1b[90m (21)\x1b[39m";
+    expect(judgeRun(0, ci)).toBe("GREEN");
+    expect(judgeRun(0, "\x1b[2m   Duration \x1b[22m 782ms")).toBe("NO-RUN");
+  });
 });
 
 /**

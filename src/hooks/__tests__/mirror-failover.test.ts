@@ -406,7 +406,10 @@ describe("why two iOS failovers to the mirror did not recover (2026-09-27)", () 
     await playingThenArchiveErrors({ hidden: true });
     expect(element.src).toBe(MIRROR);
     // Five minutes behind the lock screen, with the element saying nothing
-    // useful: nothing is judged while play() is still being held.
+    // useful: nothing is judged while play() is still being held. The
+    // mirror's first byte arrives first, so the stall clock is armed (before
+    // it, a failover's `waiting` arms nothing) and has to wait for the page.
+    act(() => element.dispatchEvent(new Event("progress")));
     act(() => element.dispatchEvent(new Event("waiting")));
     for (let i = 0; i < 30; i++) act(() => void vi.advanceTimersByTime(10_000));
     expect(reportPlaybackFailure).not.toHaveBeenCalled();
@@ -422,6 +425,16 @@ describe("why two iOS failovers to the mirror did not recover (2026-09-27)", () 
     act(() => element.dispatchEvent(new Event("playing")));
     expect(reportPlaybackFailure).toHaveBeenCalledTimes(1);
     expect(reportPlaybackFailure.mock.calls[0][0]).toMatchObject({ kind: "network-error", recovered: true, source: "archive" });
+  });
+
+  it("control: on screen, a mirror stalled after its first byte is still given up on", async () => {
+    plays = [() => new Promise<void>(() => {})];
+    await playingThenArchiveErrors({});
+    act(() => element.dispatchEvent(new Event("progress")));
+    act(() => element.dispatchEvent(new Event("waiting")));
+    for (let i = 0; i < 30; i++) act(() => void vi.advanceTimersByTime(10_000));
+    expect(usePlayerStore.getState().loadState).toBe("failed");
+    expect(reportPlaybackFailure.mock.calls.at(-1)![0]).toMatchObject({ recovered: false, source: "mirror" });
   });
 
   it("control: on screen, a mirror that never starts is still given up on", async () => {
