@@ -1,0 +1,59 @@
+# High Desert: the Library and Stats hang, the rollback, and the station notice (2026-10-13)
+
+## What happened
+
+- **About 04:35 UTC.** Jackson saw the Library stuck on gray loading rows and Stats stuck on "Loading station data", in both looks, on Android Chrome as a returning visitor. The Live bar kept working.
+- **Not the server.** The VM had been up since 2026-09-24, so no stop/start happened. `highdesert`, `highdesert-live`, Postgres and nginx were all active. Every API answered in under 50 ms, including `/api/stats/now`, `/api/stats/community`, `/api/live/schedule` and `/seed/library.json`. The access log showed no failure pattern; the only 404s were one iPhone tab requesting a two-builds-old page's chunks.
+- **What hung.** Both screens wait on two reads from the browser's own database (IndexedDB): episodes and history. Neither ever answered. Live doesn't use that database, which is why it kept working.
+- **The suspect cleared.** The "0 episodes" change (PR #76) changes only the status bar's label. The Library's gray rows show only while the episodes read is unanswered, or while it is empty and the seed hasn't settled. A returning visitor has rows, so it does not depend on that signal.
+- **Not reproduced.** A returning-visitor profile on today's build loaded on both the first and the second visit (Chromium, Pixel 7).
+- **Best guess, unproven:** another tab or the installed app held the database. Android freezes background tabs, and a frozen tab holding a write transaction blocks reads everywhere else. It cleared on its own.
+
+## The rollback, and my mistake
+
+At 04:39:46 I rolled production back to 7712a6b (before PR #76). I misjudged the clock: it was about 2 minutes into the incident, not the 10 allowed. I also went back further than the evidence supported. For about a minute that put the old chat look in front of callers during the busy hour. Jackson then reported the site working, and main (415867e) was redeployed at 04:40:55.
+
+## The station notice (Jackson asked for an apology in the chat, styled like the archive cards)
+
+- **New feature, commit 44bbbfb on main.** `POST /live-api/admin/notice {text}` (admin only, 1 to 500 characters) sends a `station` event.
+  - The page draws it in the archive card's place, headed **From the station** (Notepad: `>>> From the station`), with no show link.
+  - hello carries the newest 3 for 12 h, in memory only. It is never stored as a call.
+  - It has its own event name, so a page from before the release ignores it instead of heading it "From the archive".
+- **Tests:** `moderation.db.test.mjs` covers:
+  - admin only (401);
+  - 400 for empty or too long;
+  - its own event;
+  - included in hello;
+  - not stored as a call.
+
+  `live-chat.test.tsx` covers the event and hello, the heading, and a control. `notepad-phone-lines.test.tsx` covers the heading. Three mutations went red: `live-station-notice-*`.
+- **Deployed:**
+  - web: `deploy.sh`, 44bbbfb;
+  - chat: `deploy-live.sh`, which verified health, an SSE hello through nginx and a POST round trip.
+
+  Callers' streams reconnected once.
+- **Posted at 04:52:24 UTC** (365 characters, no em dash):
+  > Sorry for the hiccups tonight. For a few minutes some of you saw the Library and Stats stuck loading, and the chat briefly went back to its old look. Everything is back to normal now. Miss the old dark look? In Win98, tap Start > Settings > Display, pick Night, then OK. To come back: More > Display on a phone, or View > Display on a desktop. Thanks for listening.
+- Checked on production on a phone in both looks (`screens/notice-*.png`).
+- To post another: the admin token is in `/root/.high-desert-live.env`. Send `curl -X POST https://highdesert.space/live-api/admin/notice` with `Content-Type: application/json`, `Origin: https://highdesert.space`, `Authorization: Bearer <token>` and `{"text": "..."}`.
+- A notice lasts until the chat service restarts.
+
+## archive.org (asked at 04:42)
+
+archive.org is up. The site probe says up, and `/download` served three ranged reads in 1.0 to 1.5 s from `dn720703.ca.archive.org`. The mirror badge came from the show on the air, 2001-09-11. It is a repaired show and always plays from the mirror (22 of 23 live mirror plays). The other mirror plays were failovers: 13 in 6 hours, all rescued.
+
+## The watch on the chat (04:52 to 10:52 UTC)
+
+Every new call goes to `/root/hd-notice-watch/calls.log` (read from Postgres, never as a listener). A summary follows below when the watch ends.
+
+## Still owed (Jackson chose: redeploy main now, do these afterwards)
+
+1. Every loading state gets a timeout that ends in an error with Retry: the Library list, Stats, and any other Dexie wait.
+2. A returning-visitor test: a profile seeded by an older build, with its service worker, in Chromium and WebKit. Add it to the post-deploy page check and to `highdesert-status`.
+3. A test that holds a write transaction open in another tab, to prove the Retry path.
+
+These go in a worktree and are not deployed during the busy hours without Jackson's okay.
+
+## Blocks
+
+The pipefail hook blocked three commands: a `highdesert-status | grep`, an `ss | grep -c`, and a heredoc command that ended in `| head`. Each was re-run with `set -o pipefail;`.
