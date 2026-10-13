@@ -1104,6 +1104,11 @@ deploy never drops a chat stream. The full account is in `docs/live-chat.md`.
   place. Stored names ("Night Owl in Pahrump") are never renamed.
   Tests: `chat-rows.test.ts`, the readable-lines block in `live-chat.test.tsx`,
   `notepad-phone-lines.test.tsx`, `e2e/phone-lines-busy.spec.ts`; mutations `lines-*`.
+  **Polish** (2026-10-13, `docs/lines-polish-2026-10-13/handoff.md`): Change name
+  and Change place are small inline text buttons on one line (`TextAction`, 44 px
+  `::after`); the sheet opens focused on itself (`useFocusTrap` `focusContainer`,
+  `.hd-focus-host`), so a tap shows no ring and Tab still does; Notepad's time
+  stays on the first line (`hd-w98-notepad-who`/`-when`).
 - **One browser, one caller** (2026-09-26). A caller is a random id in the
   signed `hd_live_caller` cookie (HttpOnly, Secure, Path=/live-api, 400 days,
   `services/live/lib/caller.mjs`); `client_ref` is an HMAC of it. Names,
