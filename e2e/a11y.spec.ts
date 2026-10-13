@@ -159,7 +159,7 @@ for (const look of LOOKS) {
     test("/live has no moderate, serious or critical axe violations", async ({ page }, info) => {
       await page.goto("/live");
       if (info.project.use.isMobile) await expect(page.getByTestId("live-tune-in")).toBeVisible({ timeout: 30_000 });
-      await expect(page.getByTestId("live-listeners").first()).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByTestId(info.project.use.isMobile ? "listen-count" : "live-listeners").first()).toBeVisible({ timeout: 30_000 });
       await settled(page);
       await scan(page, "/live");
     });

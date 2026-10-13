@@ -278,7 +278,7 @@ test("the call-in placeholder fits its box, whatever the caller is called", asyn
 test.describe("tuned in", () => {
   streamFromFixture();
 
-  test("join, refresh, resume: this page is live to the server; leave: it says so at once", async ({ page }) => {
+  test("join, refresh, resume: this page is live to the server; leave: it says so at once", async ({ page }, info) => {
     test.setTimeout(180_000);
     // Its heartbeats are real presence writes, and on production the sampler
     // would record them into Signal Traffic's history. Run it on a local stack.
@@ -316,7 +316,8 @@ test.describe("tuned in", () => {
     expect(beats.slice(reloadedAt)[0].sessionId).not.toBe(beats[0].sessionId);
     // And the count on screen includes this page too.
     await expect
-      .poll(async () => Number(await page.getByTestId("live-listeners").first().getAttribute("data-live")), { timeout: 30_000 })
+      // A phone's one count is the hero's (the Studio box and its count are desktop only, 2026-10-12).
+      .poll(async () => Number(await page.getByTestId(info.project.use.isMobile ? "listen-count" : "live-listeners").first().getAttribute("data-live")), { timeout: 30_000 })
       .toBeGreaterThanOrEqual(1);
 
     // Leave: said at once by its own beat, not at the next minute's.
