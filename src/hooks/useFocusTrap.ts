@@ -14,7 +14,10 @@ import { useCallback, useEffect, useRef } from "react";
  *
  * - **On open**, remember what had focus and move focus inside — to
  *   `initialFocus` if given, else the first focusable element, else the
- *   container itself (give it `tabIndex={-1}`).
+ *   container itself (give it `tabIndex={-1}`). With `focusContainer`, the
+ *   container itself: nothing inside shows a focus ring until a key is
+ *   pressed (the Phone Lines sheet opened with a box around Close,
+ *   2026-10-13). The first Tab then goes to the first element.
  * - **Tab / Shift+Tab** wrap at the ends and never leave the container. Focus
  *   that has somehow landed on the container itself goes to the first element.
  * - **Escape** calls `onEscape` and stops there: `stopPropagation()` keeps it
@@ -56,12 +59,16 @@ export interface FocusTrapOptions {
   onEscape?: () => void;
   /** Where focus goes on open, instead of the first focusable element. */
   initialFocus?: React.RefObject<HTMLElement | null>;
+  /** Focus the container itself on open (give it `tabIndex={-1}`), so no
+   *  control inside is ringed until the keyboard moves focus to it. */
+  focusContainer?: boolean;
 }
 
 export function useFocusTrap<T extends HTMLElement = HTMLDivElement>({
   active,
   onEscape,
   initialFocus,
+  focusContainer = false,
 }: FocusTrapOptions) {
   const ref = useRef<T>(null);
   const onEscapeRef = useRef(onEscape);
@@ -76,7 +83,7 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>({
     const raf = requestAnimationFrame(() => {
       const root = ref.current;
       if (!root) return;
-      const target = initialFocus?.current ?? focusableIn(root)[0] ?? root;
+      const target = focusContainer ? root : (initialFocus?.current ?? focusableIn(root)[0] ?? root);
       target.focus();
     });
     return () => {

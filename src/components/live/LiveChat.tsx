@@ -164,7 +164,7 @@ function LinesHeader({
         </button>
       </div>
       {chat.you && !editing && (
-        <div className="flex flex-wrap items-center gap-2 text-hd-caption text-bevel-dark">
+        <p className="text-hd-caption text-bevel-dark" data-testid="you-row">
           <span>
             You&rsquo;re <span className="text-signal-blue font-bold" data-testid="you-name">{chat.you.name}</span> on{" "}
             <span className="text-phosphor-amber" data-testid="you-line">
@@ -178,14 +178,19 @@ function LinesHeader({
                 </span>
               </>
             )}
+          </span>{" "}
+          {/* Two small words on one line, not two big buttons that wrap
+              (2026-10-13). Each keeps a 44 px tap target (TextAction). */}
+          <span className="inline-flex items-baseline gap-2 whitespace-nowrap" data-testid="you-actions">
+            <TextAction onClick={() => setEditing("name")} testId="change-name">
+              Change name
+            </TextAction>
+            <span aria-hidden="true">{"\u00B7"}</span>
+            <TextAction onClick={() => setEditing("place")} testId="change-place">
+              {chat.you.place ? "Change place" : "Add where you're calling from"}
+            </TextAction>
           </span>
-          <InlineButton variant={variant} onClick={() => setEditing("name")} testId="change-name">
-            Change name
-          </InlineButton>
-          <InlineButton variant={variant} onClick={() => setEditing("place")} testId="change-place">
-            {chat.you.place ? "Change place" : "Add where you're calling from"}
-          </InlineButton>
-        </div>
+        </p>
       )}
       {chat.you && editing === "name" && <NameEditor chat={chat} variant={variant} onDone={() => setEditing(null)} />}
       {chat.you && editing === "place" && <PlaceEditor chat={chat} variant={variant} onDone={() => setEditing(null)} />}
@@ -673,6 +678,30 @@ function ReportLink({ onClick, label }: { onClick: () => void; label: string }) 
       )}
     >
       Report
+    </button>
+  );
+}
+
+/**
+ * A small text button inside a sentence ("Change name"), in both looks: the
+ * size of the words around it, underlined, with a centred 44 px ::after tap
+ * target that adds nothing to the layout (the ReportLink pattern).
+ */
+function TextAction({ onClick, testId, children }: { onClick: () => void; testId: string; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-testid={testId}
+      className={cn(
+        "relative text-hd-caption text-signal-blue underline underline-offset-2 cursor-pointer",
+        "hover:text-desktop-gray active:text-desktop-gray",
+        "focus-visible:outline focus-visible:outline-1 focus-visible:outline-signal-blue",
+        "after:content-[''] after:absolute after:left-1/2 after:top-1/2 after:-translate-x-1/2 after:-translate-y-1/2",
+        "after:w-full after:h-full after:min-h-touch",
+      )}
+    >
+      {children}
     </button>
   );
 }

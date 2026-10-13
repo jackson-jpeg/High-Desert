@@ -8407,6 +8407,46 @@ export const MUTATIONS = [
     replace: "tab: FAILURE_TAB_ID,",
     why: "a failure report did not say which look the page was in",
   },
+  {
+    id: "focus-trap-focus-container",
+    test: "src/components/live/__tests__/sheet-focus.test.tsx",
+    file: "src/hooks/useFocusTrap.ts",
+    find: "const target = focusContainer ? root : (initialFocus?.current ?? focusableIn(root)[0] ?? root);",
+    replace: "const target = initialFocus?.current ?? focusableIn(root)[0] ?? root;",
+    why: "the sheet opened with focus (and a ring) on Close; focusContainer must land on the container (2026-10-13)",
+  },
+  {
+    id: "live-sheet-focus-container",
+    test: "src/components/live/__tests__/sheet-focus.test.tsx",
+    file: "src/components/live/LiveChatSheet.tsx",
+    find: "useFocusTrap({ active: open, onEscape: onClose, focusContainer: true })",
+    replace: "useFocusTrap({ active: open, onEscape: onClose })",
+    why: "the Phone Lines sheet must open on itself, not on Close, so no focus ring shows for a tap (2026-10-13)",
+  },
+  {
+    id: "live-you-actions-one-line",
+    test: "src/components/live/__tests__/live-chat.test.tsx",
+    file: "src/components/live/LiveChat.tsx",
+    find: '<span className="inline-flex items-baseline gap-2 whitespace-nowrap" data-testid="you-actions">',
+    replace: '<span className="inline-flex items-baseline gap-2" data-testid="you-actions">',
+    why: "Change name and Change place must stay together on one line, not wrap apart (2026-10-13)",
+  },
+  {
+    id: "live-text-action-target",
+    test: "src/components/live/__tests__/live-chat.test.tsx",
+    file: "src/components/live/LiveChat.tsx",
+    find: '        "after:w-full after:h-full after:min-h-touch",\n      )}\n    >\n      {children}\n    </button>',
+    replace: '        "after:w-full after:h-full",\n      )}\n    >\n      {children}\n    </button>',
+    why: "a small text button still needs a 44px tap target (2026-10-13)",
+  },
+  {
+    id: "win98-notepad-time-outside-who",
+    test: "src/components/looks/win98/__tests__/notepad-phone-lines.test.tsx",
+    file: "src/components/looks/win98/NotepadPhoneLines.tsx",
+    find: '<span className="hd-w98-notepad-who" data-testid="call-who">',
+    replace: '<span className="hd-w98-notepad-who" data-testid="call-who"></span><span>',
+    why: "the name and line must wrap in their own part so the time stays on the first line (2026-10-13)",
+  },
 ];
 
 /**

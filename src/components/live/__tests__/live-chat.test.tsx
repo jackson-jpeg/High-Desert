@@ -587,6 +587,40 @@ describe("calling from", () => {
   });
 });
 
+describe("who you are, in one line (2026-10-13)", () => {
+  it("Change name and Change place are two small words on one line, inside the sentence", () => {
+    const { host, es, done } = render();
+    act(() => es().emit("hello", { you: { ...you, place: "Asuncion" }, slowMode: slowOff, recent: [], resumed: false, hidden: [] }));
+    const row = q(host, "you-row")!;
+    const actions = q(host, "you-actions")!;
+    const name = q(host, "change-name")!;
+    const place = q(host, "change-place")!;
+    // Both in the sentence's row, together in one part that never breaks.
+    expect(row.contains(actions)).toBe(true);
+    expect(actions.contains(name) && actions.contains(place)).toBe(true);
+    expect(actions.className).toContain("whitespace-nowrap");
+    // Text buttons the size of the words around them: no big padded button.
+    for (const b of [name, place]) {
+      expect(b.tagName).toBe("BUTTON");
+      expect(b.className).toContain("text-hd-caption");
+      expect(b.className).toContain("underline");
+      const classes = b.className.split(/\s+/);
+      for (const big of ["min-h-touch", "bg-raised-surface", "px-3", "rounded-lg"]) expect(classes).not.toContain(big);
+      // The tap target stays 44 px, from the ::after.
+      expect(b.className).toContain("after:min-h-touch");
+    }
+    done();
+  });
+
+  it("control: the call box's button is still a full-size button", () => {
+    const { host, es, done } = render();
+    act(() => es().emit("hello", { you, slowMode: slowOff, recent: [], resumed: false, hidden: [] }));
+    const send = q(host, "composer")!.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(send.className.split(/\s+/).some((c) => c === "min-h-touch" || c.startsWith("w98-button"))).toBe(true);
+    done();
+  });
+});
+
 describe("the room, where people decide to speak", () => {
   beforeEach(() => localStorage.clear());
 

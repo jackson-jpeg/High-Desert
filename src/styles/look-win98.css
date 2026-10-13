@@ -1338,6 +1338,25 @@ html[data-look="win98"] .hd-w98-notepad-call {
   border-left: 3px solid transparent;
 }
 
+/* The head keeps the time on its first line (2026-10-13): the name, place
+   and line wrap inside .hd-w98-notepad-who, and the time takes the end of
+   the first line. With Word Wrap off the head is one line anyway. */
+html[data-look="win98"] .hd-w98-notepad-wrap .hd-w98-notepad-head {
+  display: flex;
+  align-items: baseline;
+  column-gap: 1ch;
+}
+
+html[data-look="win98"] .hd-w98-notepad-wrap .hd-w98-notepad-who {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+html[data-look="win98"] .hd-w98-notepad-wrap .hd-w98-notepad-when {
+  flex: none;
+  white-space: nowrap;
+}
+
 html[data-look="win98"] .hd-w98-notepad-name {
   font-weight: bold;
 }

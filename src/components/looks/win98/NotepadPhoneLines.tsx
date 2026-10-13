@@ -378,26 +378,32 @@ function NotepadLog({
             >
               {/* callLine(m) as a block, in parts the chat specs can find, the
                   same parts LiveChat names (caller-name, line-label, message-body). */}
+              {/* The time stays on the first line with the name (2026-10-13):
+                  name and meta wrap inside their own part, and the time sits
+                  at the end of the first line. */}
               <div className="hd-w98-notepad-head" data-testid="call-head">
-                <span className="hd-w98-notepad-name" data-testid="caller-name">
-                  {m.name}
-                </span>
-                <span className="hd-w98-notepad-meta">
-                  {m.place && <span data-testid="caller-place">, calling from {m.place}</span>}
-                  {"\u00A0\u00B7 "}
-                  <span data-testid="line-label">{m.line}</span>
-                  {"\u00A0\u00B7 "}
-                </span>
-                <time className="hd-w98-notepad-time" dateTime={m.at} data-testid="call-time">
-                  {logTime(m.at)}
-                </time>
-                {mine && <span className="sr-only"> (your call)</span>}
-                {chat.reported.includes(m.id) && (
-                  <span className="hd-w98-notepad-time" data-testid="reported">
-                    {" "}
-                    [reported]
+                <span className="hd-w98-notepad-who" data-testid="call-who">
+                  <span className="hd-w98-notepad-name" data-testid="caller-name">
+                    {m.name}
                   </span>
-                )}
+                  <span className="hd-w98-notepad-meta">
+                    {m.place && <span data-testid="caller-place">, calling from {m.place}</span>}
+                    {"\u00A0\u00B7 "}
+                    <span data-testid="line-label">{m.line}</span>
+                  </span>
+                  {mine && <span className="sr-only"> (your call)</span>}
+                </span>{" "}
+                <span className="hd-w98-notepad-when">
+                  <time className="hd-w98-notepad-time" dateTime={m.at} data-testid="call-time">
+                    {logTime(m.at)}
+                  </time>
+                  {chat.reported.includes(m.id) && (
+                    <span className="hd-w98-notepad-time" data-testid="reported">
+                      {" "}
+                      [reported]
+                    </span>
+                  )}
+                </span>
               </div>
               <div className="hd-w98-notepad-body" data-testid="message-body">
                 {m.body}

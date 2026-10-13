@@ -63,7 +63,9 @@ export function LiveChatSheet({
   children: ReactNode;
 }) {
   const box = useVisualViewportBox(open);
-  const { ref, onKeyDown } = useFocusTrap({ active: open, onEscape: onClose });
+  // Focus lands on the sheet itself, not on Close: no ring until a key is
+  // pressed (2026-10-13). Tab then reaches Close and the calls.
+  const { ref, onKeyDown } = useFocusTrap({ active: open, onEscape: onClose, focusContainer: true });
   if (!open) return null;
   return (
     <>
@@ -81,7 +83,7 @@ export function LiveChatSheet({
         onKeyDown={onKeyDown}
         data-testid="live-chat-sheet"
         className={cn(
-          "fixed inset-x-0 z-50 flex flex-col outline-none",
+          "hd-focus-host fixed inset-x-0 z-50 flex flex-col outline-none",
           "glass-light rounded-t-xl animate-glass-sheet",
           "pb-[var(--safe-bottom)] max-h-[85dvh]",
         )}
