@@ -1,7 +1,12 @@
 /**
  * Caller names and phone lines, in the manner of Coast to Coast AM under Art
- * Bell: "Night Owl in Pahrump", "West of the Rockies caller", "First-Time
- * Caller from Tonopah".
+ * Bell: "Sleepless Night Owl", "Prospector", "West of the Rockies caller".
+ *
+ * A generated name carries no place (2026-10-13). A caller says where they
+ * are with "Calling from", and the lines show it after the name ("Night Owl,
+ * calling from Asuncion"); a place in the name too read "Night Owl in
+ * Flagstaff, calling from Asuncion". Names drawn before then ("Night Owl in
+ * Pahrump") are stored and keep working: nothing renames anyone.
  *
  * Lines: the real show took calls on numbered lines and on themed ones — West
  * of the Rockies, East of the Rockies, the Wildcard Line, First-Time Callers,
@@ -67,79 +72,60 @@ export const EPITHETS = [
   "Border Collie Owner",
 ];
 
-export const PLACES = [
-  "Pahrump",
-  "Tonopah",
-  "Rachel",
-  "Area 51",
-  "Beatty",
-  "Ely",
-  "Winnemucca",
-  "Elko",
-  "Barstow",
-  "Baker",
-  "Death Valley",
-  "Roswell",
-  "Sedona",
-  "Flagstaff",
-  "Kingman",
-  "Twentynine Palms",
-  "Needles",
-  "Bishop",
-  "Lone Pine",
-  "Amarillo",
-  "Truth or Consequences",
-  "Marfa",
-  "Moab",
-  "Tucumcari",
-  "Mount Shasta",
-  "Point Pleasant",
-  "Dulce",
-  "Joshua Tree",
-  "Goldfield",
-  "Hawthorne",
-  "Mojave",
-  "Laughlin",
-  "Mesquite",
-  "Boulder City",
-  "Quartzsite",
-  "Alamogordo",
-  "the High Desert",
-  "the Mojave",
-  "the Ozarks",
-  "the Outback",
+/** Read before any epithet: "Sleepless Night Owl", "Longtime Rancher". */
+export const QUALIFIERS = [
+  "Sleepless",
+  "Wide-Awake",
+  "Restless",
+  "Curious",
+  "Lonesome",
+  "Midnight",
+  "Late-Shift",
+  "Wandering",
+  "Quiet",
+  "Skeptical",
+  "Longtime",
+  "Nervous",
+  "Old-School",
+  "Weary",
+  "Patient",
+  "Lucky",
+  "Friendly",
+  "Watchful",
+  "Puzzled",
+  "Faithful",
 ];
 
 const THEMED = [
-  () => "West of the Rockies caller",
-  () => "East of the Rockies caller",
-  () => "Wildcard Line caller",
-  () => "International Line caller",
-  () => "Area 51 Line caller",
-  (p) => `First-Time Caller from ${p}`,
-  (p) => `Caller from ${p}`,
+  "West of the Rockies caller",
+  "East of the Rockies caller",
+  "Wildcard Line caller",
+  "International Line caller",
+  "Area 51 Line caller",
+  "First-Time Caller",
 ];
 
 const pick = (list, rnd) => list[rnd(list.length)];
 
 /**
  * A fresh caller name. `rnd(n)` returns an integer in [0, n) — crypto by
- * default, injectable for tests. Never longer than MAX_NAME_CHARS. Most names are "<epithet> in <place>"; about
- * one in five is a themed line caller.
+ * default, injectable for tests. Never longer than MAX_NAME_CHARS, and never
+ * a place. About one in five is a themed line caller, one in five a bare
+ * epithet, the rest "<qualifier> <epithet>".
  */
 export function randomCallerName(rnd = randomInt) {
   for (let i = 0; i < 100; i++) {
-    const name = rnd(5) === 0
-      ? pick(THEMED, rnd)(pick(PLACES, rnd))
-      : `${pick(EPITHETS, rnd)} in ${pick(PLACES, rnd)}`;
+    const kind = rnd(5);
+    const name =
+      kind === 0 ? pick(THEMED, rnd) : kind === 1 ? pick(EPITHETS, rnd) : `${pick(QUALIFIERS, rnd)} ${pick(EPITHETS, rnd)}`;
     // A generated name obeys the same length limit as a chosen one.
     if (name.length <= MAX_NAME_CHARS) return name;
   }
-  return `${pick(EPITHETS, rnd)} in Ely`;
+  return pick(EPITHETS, rnd);
 }
 
 /**
- * A caller name with a number on the end ("Night Owl in Pahrump 4821"), for
+ * A caller name with a number on the end ("Sleepless Night Owl 4821"), for
  * when the plain names are all held. Still never longer than MAX_NAME_CHARS,
  * and drawn again until `accept` passes it: some numbers read as leetspeak
  * ("4554") to the name filter, which a generated name does not otherwise meet.

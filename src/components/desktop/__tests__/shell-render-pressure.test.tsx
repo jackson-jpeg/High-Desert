@@ -153,3 +153,20 @@ describe("the desktop status bar on a phone", () => {
     expect(footer!.className.split(/\s+/)).toEqual(expect.arrayContaining(["hidden", "md:block"]));
   });
 });
+
+describe("the status bar's episode count", () => {
+  const footer = () => container.querySelector("footer")?.textContent ?? "";
+
+  it("says the library is loading while the count is unknown, never 0 episodes", () => {
+    act(() => {
+      root.render(<DesktopShell episodeCount={null}>{null}</DesktopShell>);
+    });
+    expect(footer()).toContain("Loading library");
+    expect(footer()).not.toMatch(/\b0 episodes/);
+  });
+
+  it("shows the count once it is known (control)", () => {
+    expect(footer()).toContain(`${(1312).toLocaleString()} episodes`);
+    expect(footer()).not.toContain("Loading library");
+  });
+});

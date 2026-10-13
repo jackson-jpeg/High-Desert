@@ -375,10 +375,10 @@ export function createLiveApp({
   }
 
   /**
-   * Claim a random caller name for `ref`. The plain names ("Night Owl in
-   * Pahrump") number about a thousand, and every browser on the lines holds
+   * Claim a random caller name for `ref`. The plain names ("Sleepless Night
+   * Owl") number about six hundred, and every browser on the lines holds
    * one for half an hour, so a busy night fills them: after a few tries the
-   * name gets a number ("Night Owl in Pahrump 4821"), which is as good a name
+   * name gets a number ("Sleepless Night Owl 4821"), which is as good a name
    * and costs no more round trips. Null only if every try was taken.
    */
   async function freshName(ref, { markChanged }) {

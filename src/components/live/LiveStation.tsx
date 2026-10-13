@@ -32,7 +32,8 @@ import type { Look } from "@/lib/look/look";
 
 // Win98's phone lines (docs/looks.md).
 import { NotepadPhoneLines } from "@/components/looks/win98/NotepadPhoneLines";
-import { callLine } from "@/components/looks/win98/notepad-log";
+import { logTime } from "@/components/looks/win98/notepad-log";
+import { isOwnCall } from "@/lib/live/chat-rows";
 
 type Chat = ReturnType<typeof useLiveChat>;
 
@@ -292,22 +293,37 @@ function LinesPreview({ chat, look, onOpen }: { chat: Chat; look: Look; onOpen: 
       <ol className={cn("flex flex-col gap-1.5 w-full", look === "win98" && "w98-inset-dark bg-inset-well p-1")} aria-hidden="true">
         {calls.length === 0 ? (
           <li className="text-hd-caption text-bevel-dark">The lines are open. Be the first caller tonight.</li>
-        ) : look === "win98" ? (
-          calls.map((m) => (
-            <li key={m.id} data-testid="preview-call" className="w98-font text-hd-12 text-desktop-gray line-clamp-2 break-words">
-              {callLine(m)}
-            </li>
-          ))
         ) : (
-          calls.map((m) => (
-            <li key={m.id} data-testid="preview-call" className="flex flex-col min-w-0">
-              <span className="flex items-baseline gap-2 min-w-0 text-hd-caption">
-                <span className="shrink-0 text-hd-micro uppercase tracking-wider text-phosphor-amber">{m.line}</span>
-                <span className="truncate font-bold text-signal-blue">{m.name}</span>
-              </span>
-              <span className="text-hd-body text-desktop-gray line-clamp-2 break-words">{m.body}</span>
-            </li>
-          ))
+          calls.map((m) => {
+            const mine = isOwnCall(m, chat.mine, chat.you);
+            return (
+              <li
+                key={m.id}
+                data-testid="preview-call"
+                data-mine={mine || undefined}
+                className={cn(
+                  "flex flex-col min-w-0 px-1.5 py-1 border-l-2",
+                  mine ? "border-l-signal-blue bg-signal-blue/10" : "border-l-transparent",
+                  look === "win98" ? "w98-font" : "rounded-md",
+                )}
+              >
+                {/* The same head as a call in the lines: name bold, place and line quieter, time dimmer. */}
+                <span className="flex flex-wrap items-baseline gap-x-2 min-w-0 text-hd-caption">
+                  <span className="min-w-0 break-words">
+                    <span className="font-bold text-desktop-gray" data-testid="caller-name">{m.name}</span>
+                    <span className="text-bevel-dark">
+                      {m.place ? `, calling from ${m.place}` : ""}
+                      {`\u00A0\u00B7 ${m.line}`}
+                    </span>
+                  </span>
+                  <span className="ml-auto shrink-0 text-hd-micro text-bevel-dark/85">{logTime(m.at)}</span>
+                </span>
+                <span className="text-hd-body text-desktop-gray line-clamp-2 break-words" data-testid="message-body">
+                  {m.body}
+                </span>
+              </li>
+            );
+          })
         )}
       </ol>
       <span

@@ -92,7 +92,8 @@ import { PHONE_LINES_HREF } from "@/lib/live/phone-lines";
 interface DesktopShellProps {
   children: ReactNode;
   player?: ReactNode;
-  episodeCount?: number;
+  /** null while the library is still loading. */
+  episodeCount?: number | null;
   className?: string;
 }
 
@@ -429,7 +430,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           components render null when closed, so mounting them unconditionally
           would fetch every chunk on load and defeat the split entirely. */}
       {aboutOpen && (
-        <AboutDialog open onClose={handleCloseAbout} isAdmin={isAdmin} episodeCount={episodeCount} showCounts={showCounts} />
+        <AboutDialog open onClose={handleCloseAbout} isAdmin={isAdmin} episodeCount={episodeCount ?? 0} showCounts={showCounts} />
       )}
       {shortcutsOpen && (
         <ShortcutsDialog open onClose={handleCloseShortcuts} isAdmin={isAdmin} />

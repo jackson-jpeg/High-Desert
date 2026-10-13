@@ -437,6 +437,33 @@ describe("Live screen", () => {
         expect(EmittingEventSource.instances.length).toBe(streams);
       });
 
+      it("the preview draws each call as a block (name, place and line, then the message) and tints the caller's own", async () => {
+        vi.stubGlobal("EventSource", EmittingEventSource);
+        stationAt(B.start + H + 500);
+        await mount(look);
+        act(() =>
+          EmittingEventSource.last()!.emit("hello", {
+            you: { name: "Night Owl", line: "Line 3", admin: false },
+            slowMode: { on: false, until: null, intervalMs: 3000, forced: false },
+            recent: [
+              { id: 1, at: "2026-09-25T09:00:00.000Z", name: "Desert Rat", line: "Area 51 Line", body: "a very long call ".repeat(12), place: "Rachel" },
+              { id: 2, at: "2026-09-25T09:01:00.000Z", name: "Night Owl", line: "Line 3", body: "mine", place: null },
+            ],
+            resumed: false,
+            hidden: [],
+          }),
+        );
+        const [theirs, own] = [...host.querySelectorAll<HTMLElement>('[data-testid="preview-call"]')];
+        const name = theirs.querySelector('[data-testid="caller-name"]')!;
+        const body = theirs.querySelector('[data-testid="message-body"]')!;
+        expect(name.textContent).toBe("Desert Rat");
+        expect(name.className).toContain("font-bold");
+        expect(name.parentElement!.textContent!.replace(/\u00A0/g, " ")).toBe("Desert Rat, calling from Rachel \u00B7 Area 51 Line");
+        expect(name.contains(body) || name.parentElement!.contains(body)).toBe(false);
+        expect(own.dataset.mine).toBe("true");
+        expect(theirs.dataset.mine).toBeUndefined();
+      });
+
       it("/live?lines=1 (the Phone Lines tab) opens the sheet, then leaves the address bar", async () => {
         nav.search = "lines=1";
         stationAt(B.start + H + 500);

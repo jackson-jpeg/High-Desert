@@ -14,6 +14,7 @@ import { emit, useHdEvent } from "@/lib/events";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import { episodeTitle } from "@/lib/library/display-title";
 import { shownGuest } from "@/lib/library/guest";
+import { episodeCountLabel } from "@/lib/library/episode-count";
 
 export const CALLER_MESSAGES = [
   "East of the Rockies, you’re on the air...",
@@ -46,7 +47,8 @@ export function formatClock(now: Date): string {
 }
 
 interface StatusBarProps {
-  episodeCount: number;
+  /** null while the library is still loading: never shown as 0. */
+  episodeCount: number | null;
   presence: LivePresence;
 }
 
@@ -244,7 +246,7 @@ export function StatusBar({ episodeCount, presence }: StatusBarProps) {
           ),
           width: "150px",
         }] : []),
-        { content: `${episodeCount.toLocaleString()} episode${episodeCount !== 1 ? "s" : ""}`, width: "120px" },
+        { content: episodeCountLabel(episodeCount), width: "120px" },
         { content: signalBars, width: "24px" },
         { content: clock, width: "72px" },
       ]}

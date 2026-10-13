@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
 import { cn } from "@/lib/utils/cn";
 import { Button } from "@/components/win98/Button";
 import { useIsMobile } from "@/hooks/useMediaQuery";
@@ -14,8 +14,9 @@ import {
   tuneinText,
   type ArchiveLine,
   type LiveMessage,
-  type TuneinNotice,
 } from "@/services/live/client";
+import { chatRows, isOwnCall, listRows } from "@/lib/live/chat-rows";
+import { followKeys, useFollowLog } from "@/hooks/useFollowLog";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import { formatAirDate } from "@/lib/utils/format";
 import { presenceAttrs } from "@/services/stats/now-feed";
@@ -27,8 +28,12 @@ export { HIDE_TUNEINS_KEY, FIRST_CALL_HINT_KEY, placeProblem };
 /**
  * The phone lines: the live broadcast's chat (services/live, docs/live-chat.md).
  *
- * Every message is a call — a line label ("Line 3", "West of the Rockies") and
- * a caller name ("Night Owl in Pahrump").
+ * Every message is a call, its own block: the caller's name in bold, then
+ * ", calling from Ghent" and the line ("Line 3", "West of the Rockies") in a
+ * quieter gray, then the time, dimmer; the message below in normal weight.
+ * Your own calls are tinted. Tune-ins are one small gray line each, and a run
+ * of them folds into one ("3 new listeners tuned in", chatRows). Scrolled up,
+ * new calls wait behind a "New calls below" button (useFollowLog).
  *
  * No props, and no chrome of its own: the Live screen (LiveStation) puts it
  * in the "Phone Lines" Win98 window beside the player on desktop, and in
@@ -353,71 +358,67 @@ function PlaceEditor({ chat, variant, onDone }: { chat: Chat; variant: Variant; 
   );
 }
 
-type Row =
-  | { kind: "call"; at: number; m: LiveMessage }
-  | { kind: "tunein"; at: number; n: TuneinNotice }
-  | { kind: "archive"; at: number; a: ArchiveLine };
-
-/** Calls, tune-in lines and archive lines, in time order; calls keep their own (id) order among themselves. */
-export function listRows(messages: LiveMessage[], notices: TuneinNotice[], archive: ArchiveLine[] = []): Row[] {
-  const rows: Row[] = messages.map((m) => ({ kind: "call", at: Date.parse(m.at), m }));
-  const place = (row: Row) => {
-    // After every row at or before it: a stable place, whatever the calls' clock.
-    let i = rows.length;
-    while (i > 0 && rows[i - 1].at > row.at) i--;
-    rows.splice(i, 0, row);
-  };
-  for (const n of notices) place({ kind: "tunein", at: Date.parse(n.at), n });
-  for (const a of archive) place({ kind: "archive", at: Date.parse(a.at), a });
-  return rows;
-}
+// The rows are shared with the Win98 Notepad and the phone's preview (src/lib/live/chat-rows.ts).
+export { listRows };
 
 function MessageList({ chat, variant, hideTuneins }: { chat: Chat; variant: Variant; hideTuneins: boolean }) {
-  const listRef = useRef<HTMLOListElement>(null);
-  const pinned = useRef(true);
-  const count = chat.messages.length;
-  const lastId = chat.messages[count - 1]?.id;
-  const notices = hideTuneins ? [] : chat.notices;
-  const lastNotice = notices[notices.length - 1]?.at;
-  const lastArchive = chat.archive[chat.archive.length - 1]?.at;
-
+  const rows = chatRows(chat.messages, hideTuneins ? [] : chat.notices, chat.archive);
+  const keys = followKeys(rows);
+  const last = chat.messages[chat.messages.length - 1];
+  const lastIsMine = !!last && isOwnCall(last, chat.mine, chat.you) && keys.alert === `c${last.id}`;
   // Follow new calls only while the listener is at the bottom: scrolling back
   // through the night must not be yanked away by the next message.
-  useLayoutEffect(() => {
-    const el = listRef.current;
-    if (el && pinned.current) el.scrollTop = el.scrollHeight;
-  }, [lastId, lastNotice, lastArchive]);
+  const { ref, onScroll, unseen, jump } = useFollowLog<HTMLOListElement>(keys.follow, keys.alert, lastIsMine);
 
   return (
-    <ol
-      ref={listRef}
-      onScroll={(e) => {
-        const el = e.currentTarget;
-        pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
-      }}
-      aria-live="polite"
-      aria-label="Calls"
-      data-testid="live-messages"
-      className={cn(
-        "flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col gap-1",
-        variant === "w98" ? "w98-inset-dark bg-inset-well p-1" : "rounded-xl bg-inset-well/85 p-2",
+    <div className="relative flex-1 min-h-0 flex flex-col">
+      <ol
+        ref={ref}
+        onScroll={onScroll}
+        aria-live="polite"
+        aria-label="Calls"
+        data-testid="live-messages"
+        className={cn(
+          "flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col gap-2",
+          variant === "w98" ? "w98-inset-dark bg-inset-well p-1.5" : "rounded-xl bg-inset-well/85 p-2",
+        )}
+      >
+        {chat.messages.length === 0 && (
+          <li className="text-hd-caption text-bevel-dark p-2">The lines are open. Be the first caller tonight.</li>
+        )}
+        {rows.map((r) =>
+          r.kind === "call" ? (
+            <MessageRow key={r.m.id} m={r.m} chat={chat} variant={variant} />
+          ) : r.kind === "archive" ? (
+            <ArchiveRow key={`a-${r.a.at}-${r.a.id}`} a={r.a} variant={variant} />
+          ) : (
+            <li
+              key={`t-${r.key}`}
+              data-testid="tunein-notice"
+              data-merged={r.merged}
+              title={tuneinText(r.n)}
+              className="px-2 text-hd-micro text-bevel-dark truncate"
+            >
+              {tuneinText(r.n)}
+            </li>
+          ),
+        )}
+      </ol>
+      {unseen && (
+        <button
+          type="button"
+          onClick={jump}
+          data-testid="new-calls"
+          className={cn(
+            "absolute bottom-2 left-1/2 -translate-x-1/2 min-h-touch md:min-h-0 px-3 py-1 text-hd-caption cursor-pointer",
+            "bg-raised-surface text-desktop-gray shadow-lg",
+            variant === "w98" ? "w98-raised-dark" : "rounded-full border border-signal-blue/60",
+          )}
+        >
+          New calls below <span aria-hidden="true">{"\u2193"}</span>
+        </button>
       )}
-    >
-      {count === 0 && (
-        <li className="text-hd-caption text-bevel-dark p-2">The lines are open. Be the first caller tonight.</li>
-      )}
-      {listRows(chat.messages, notices, chat.archive).map((r) =>
-        r.kind === "call" ? (
-          <MessageRow key={r.m.id} m={r.m} chat={chat} variant={variant} />
-        ) : r.kind === "archive" ? (
-          <ArchiveRow key={`a-${r.a.at}-${r.a.id}`} a={r.a} variant={variant} />
-        ) : (
-          <li key={`t-${r.n.at}`} data-testid="tunein-notice" className="px-1 py-0.5 text-hd-caption text-bevel-dark">
-            {tuneinText(r.n)}
-          </li>
-        ),
-      )}
-    </ol>
+    </div>
   );
 }
 
@@ -432,19 +433,19 @@ export function ArchiveRow({ a, variant }: { a: ArchiveLine; variant: Variant })
       data-form={a.form}
       data-reason={a.reason}
       className={cn(
-        "my-1 flex flex-col gap-0.5 border-l-2 border-static-green bg-raised-surface px-2 py-1",
-        variant === "glass" && "rounded-r-lg",
+        "ml-4 mr-1 my-1 flex flex-col gap-1 border border-static-green/60 border-l-4 border-l-static-green bg-raised-surface px-3 py-2",
+        variant === "glass" && "rounded-lg",
       )}
     >
       <div className="flex items-baseline gap-2">
-        <span className="text-hd-micro uppercase tracking-wider text-static-green" data-testid="archive-label">
+        <span className="text-hd-micro font-bold uppercase tracking-wider text-static-green" data-testid="archive-label">
           {a.reason === "on-air" ? "From the archive: this show" : "From the archive"}
         </span>
         <time className="ml-auto shrink-0 text-hd-micro text-bevel-dark/85" dateTime={a.at}>
           {time}
         </time>
       </div>
-      <p className="text-hd-caption text-desktop-gray" data-testid="archive-text">
+      <p className="text-hd-body italic text-desktop-gray break-words" data-testid="archive-text">
         {quote ? `\u201C${a.text}\u201D` : a.text}
         {quote && a.speaker && <span className="text-bevel-dark">{` (${a.speaker})`}</span>}
       </p>
@@ -463,21 +464,25 @@ export function ArchiveRow({ a, variant }: { a: ArchiveLine; variant: Variant })
 }
 
 function MessageRow({ m, chat, variant }: { m: LiveMessage; chat: Chat; variant: Variant }) {
-  const mine = chat.mine.includes(m.id) || (!!chat.you && m.name === chat.you.name);
+  const mine = isOwnCall(m, chat.mine, chat.you);
   const reported = chat.reported.includes(m.id);
   const time = new Date(m.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   return (
     <li
       data-testid="live-message"
       data-id={m.id}
-      className={cn("flex flex-col px-1 py-0.5", variant === "glass" && "rounded-lg")}
+      data-mine={mine || undefined}
+      className={cn(
+        "flex flex-col gap-0.5 px-2 py-1.5 border-l-2",
+        mine ? "border-l-signal-blue bg-signal-blue/10" : "border-l-transparent",
+        variant === "glass" && "rounded-lg",
+      )}
     >
-      <div className="flex items-baseline gap-2 min-w-0">
-        <span className="shrink-0 text-hd-micro uppercase tracking-wider text-phosphor-amber" data-testid="line-label">
-          {m.line}
-        </span>
-        <span className="truncate text-hd-caption">
-          <span className="font-bold text-signal-blue" data-testid="caller-name">
+      {/* First line: who (bold), their line and place (quieter), when (dimmer).
+          It wraps rather than truncates, so a long name never runs into a place. */}
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0 min-w-0" data-testid="call-head">
+        <span className="min-w-0 break-words text-hd-caption">
+          <span className={cn("font-bold", mine ? "text-signal-blue" : "text-desktop-gray")} data-testid="caller-name">
             {m.name}
           </span>
           {m.place && (
@@ -485,20 +490,27 @@ function MessageRow({ m, chat, variant }: { m: LiveMessage; chat: Chat; variant:
               , calling from {m.place}
             </span>
           )}
+          <span className="text-bevel-dark">
+            {"\u00A0\u00B7 "}
+            <span data-testid="line-label">{m.line}</span>
+          </span>
+          {mine && <span className="sr-only"> (your call)</span>}
         </span>
-        <time className="ml-auto shrink-0 text-hd-micro text-bevel-dark/85" dateTime={m.at}>
-          {time}
-        </time>
-        {!mine &&
-          (reported ? (
-            <span className="shrink-0 text-hd-micro text-bevel-dark/85" data-testid="reported">
-              Reported
-            </span>
-          ) : (
-            <ReportLink onClick={() => void chat.report(m.id)} label={`Report call from ${m.name}`} />
-          ))}
+        <span className="ml-auto flex shrink-0 items-baseline gap-2">
+          <time className="text-hd-micro text-bevel-dark/85" dateTime={m.at} data-testid="call-time">
+            {time}
+          </time>
+          {!mine &&
+            (reported ? (
+              <span className="text-hd-micro text-bevel-dark/85" data-testid="reported">
+                Reported
+              </span>
+            ) : (
+              <ReportLink onClick={() => void chat.report(m.id)} label={`Report call from ${m.name}`} />
+            ))}
+        </span>
       </div>
-      <p className="text-hd-body text-desktop-gray break-words whitespace-pre-wrap" data-testid="message-body">
+      <p className="text-hd-body font-normal text-desktop-gray break-words whitespace-pre-wrap" data-testid="message-body">
         {m.body}
       </p>
       <div className="flex flex-wrap gap-2 empty:hidden">
