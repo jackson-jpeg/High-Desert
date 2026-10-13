@@ -30,6 +30,13 @@ import { test, expect, type Locator, type Page } from "./fixtures";
  * following at the bottom. Screenshots go to
  * test-results/phone-lines/<project>-<look>-<surface>.png for a person to
  * look at; they are evidence, not pixel baselines.
+ *
+ * The polish (2026-10-13, docs/lines-polish-2026-10-13/handoff.md), the
+ * "polish" test per look: the sheet opens with no focus ring on Close (a ring
+ * only once the keyboard moves focus); Night's "You're Night Owl on Line 3"
+ * row has Change name and Change place as two small words on one line; and
+ * Win98's Notepad keeps every call's time on the first line with its name,
+ * the long ones included. Screenshots: <project>-<look>-polish.png.
  */
 
 const LOOKS = ["win98", "night"] as const;
@@ -320,6 +327,96 @@ for (const look of LOOKS) {
       const jump = await assertNewCallsBelow(page);
       await page.screenshot({ path: `${OUT}/${info.project.name}-${look}-lines-new-calls.png` });
       await jump();
+    });
+  });
+}
+
+/** No button anywhere on the page wears a keyboard focus ring. */
+async function ringedButtons(page: Page): Promise<string[]> {
+  return page.evaluate(() =>
+    Array.from(document.querySelectorAll<HTMLElement>("button"))
+      .filter((b) => b.matches(":focus-visible"))
+      .map((b) => b.getAttribute("aria-label") || b.textContent || b.tagName),
+  );
+}
+
+async function assertTimeOnFirstLine(page: Page) {
+  const calls = lines(page).getByTestId("live-message");
+  const rows = await calls.evaluateAll((els) =>
+    els.map((el) => {
+      const name = el.querySelector('[data-testid="caller-name"]')!.getClientRects()[0];
+      const time = el.querySelector('[data-testid="call-time"]')!.getBoundingClientRect();
+      const head = el.querySelector('[data-testid="call-head"]')!.getBoundingClientRect();
+      return { name: el.querySelector('[data-testid="caller-name"]')!.textContent, nameTop: name.top, nameBottom: name.bottom, timeTop: time.top, timeRight: time.right, headRight: head.right, headH: head.height };
+    }),
+  );
+  let wrapped = 0;
+  for (const r of rows) {
+    // The time shares the first line with the name: its box starts within that line.
+    expect(r.timeTop, `${r.name}: the time is on the first line`).toBeLessThan(r.nameBottom);
+    expect(r.timeTop, `${r.name}: the time is on the first line`).toBeGreaterThanOrEqual(r.nameTop - 4);
+    expect(r.timeRight, `${r.name}: inside the head`).toBeLessThanOrEqual(r.headRight + 1);
+    if (r.headH > (r.nameBottom - r.nameTop) * 1.6) wrapped++;
+  }
+  return wrapped;
+}
+
+for (const look of LOOKS) {
+  test.describe(`the phone lines, polished, ${look}`, () => {
+    test("polish", async ({ page, baseURL, browserName }, info) => {
+      const phone = !!info.project.use.isMobile;
+      // A phone opens the sheet the way a link does (no tap first), which is
+      // when a programmatic focus drew a ring on Close.
+      await enter(page, baseURL!, look, "/live?lines=1", browserName);
+      const root = lines(page);
+      await expect(root.getByTestId("live-message")).toHaveCount(14, { timeout: 30_000 });
+      await page.waitForTimeout(400);
+
+      if (phone) {
+        const sheet = page.getByTestId("live-chat-sheet");
+        await expect(sheet).toBeVisible();
+        // The trap moves focus a frame after the sheet opens (WebKit can be later).
+        await expect
+          .poll(() => page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? null), { message: "focus lands on the sheet" })
+          .toBe("live-chat-sheet");
+        expect(await ringedButtons(page), "no focus ring when the sheet opens").toEqual([]);
+        // And the sheet, which holds the focus, draws no ring of its own.
+        const ring = await sheet.evaluate((el) => {
+          const st = getComputedStyle(el);
+          return { outline: st.outlineStyle, shadow: st.boxShadow };
+        });
+        expect(ring.outline, "the sheet draws no outline").toBe("none");
+        expect(ring.shadow.includes("212, 168, 67"), "nor an amber glow").toBe(false);
+      }
+
+      if (look === "night") {
+        const row = root.getByTestId("you-row");
+        await expect(row).toContainText("You\u2019re Night Owl on Line 3, calling from Asuncion");
+        const name = root.getByTestId("change-name");
+        const place = root.getByTestId("change-place");
+        const [nb, pb, rb] = await Promise.all([name.boundingBox(), place.boundingBox(), row.boundingBox()]);
+        expect(Math.abs(nb!.y - pb!.y), "Change name and Change place on one line").toBeLessThan(3);
+        expect(nb!.height, "a small word, not a big button").toBeLessThan(26);
+        expect(pb!.height).toBeLessThan(26);
+        expect(rb!.height, "the whole row is at most two short lines").toBeLessThan(48);
+        // The tap target is still 44 px tall, from the ::after.
+        const target = await name.evaluate((el) => parseFloat(getComputedStyle(el, "::after").height));
+        expect(target).toBeGreaterThanOrEqual(43);
+      } else {
+        const wrapped = await assertTimeOnFirstLine(page);
+        // Control: on a phone some heads do wrap, so the check above saw a wrap.
+        if (phone) expect(wrapped, "some heads wrap onto a second line").toBeGreaterThan(0);
+      }
+
+      await page.screenshot({ path: `${OUT}/${info.project.name}-${look}-polish.png` });
+
+      if (phone) {
+        // The keyboard still gets its ring: Tab from the sheet reaches Close, ringed.
+        await page.keyboard.press("Tab");
+        const ringed = await ringedButtons(page);
+        expect(ringed.length, "Tab shows a focus ring").toBe(1);
+        await page.screenshot({ path: `${OUT}/${info.project.name}-${look}-polish-keyboard.png` });
+      }
     });
   });
 }

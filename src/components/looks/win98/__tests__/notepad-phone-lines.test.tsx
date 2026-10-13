@@ -94,7 +94,7 @@ describe("Phone Lines - Notepad", () => {
     const first = all("live-message")[0];
     const head = first.querySelector<HTMLElement>('[data-testid="call-head"]')!;
     const body = first.querySelector<HTMLElement>('[data-testid="message-body"]')!;
-    expect(head.textContent!.replace(/\u00A0/g, " ")).toBe("Skeptic, calling from Reno \u00B7 Line 3 \u00B7 [10:42 PM]");
+    expect(head.textContent!.replace(/\u00A0/g, " ")).toBe("Skeptic, calling from Reno \u00B7 Line 3 [10:42 PM]");
     expect(body.textContent).toBe("message");
     // Two elements, the message after the head: not one run-on line.
     expect(head.contains(body)).toBe(false);
@@ -103,6 +103,21 @@ describe("Phone Lines - Notepad", () => {
     expect(head.querySelector('[data-testid="caller-name"]')!.className).toContain("hd-w98-notepad-name");
     expect(head.querySelector('[data-testid="caller-place"]')!.closest(".hd-w98-notepad-meta")).not.toBeNull();
     expect(head.querySelector('[data-testid="call-time"]')!.className).toContain("hd-w98-notepad-time");
+  });
+
+  it("keeps the time out of the part that wraps, so it stays on the first line (2026-10-13)", () => {
+    mount();
+    const head = all("live-message")[0].querySelector<HTMLElement>('[data-testid="call-head"]')!;
+    const who = head.querySelector<HTMLElement>('[data-testid="call-who"]')!;
+    const time = head.querySelector<HTMLElement>('[data-testid="call-time"]')!;
+    // The name and its meta wrap inside `who`; the time is its own part after
+    // it, which the stylesheet holds on the first line.
+    expect(who.contains(head.querySelector('[data-testid="caller-name"]'))).toBe(true);
+    expect(who.contains(head.querySelector('[data-testid="line-label"]'))).toBe(true);
+    expect(who.contains(time)).toBe(false);
+    expect(who.compareDocumentPosition(time) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Control: the time is still inside the head, not pushed below the message.
+    expect(head.contains(time)).toBe(true);
   });
 
   it("names a call's parts the way LiveChat does, so one spec reads both looks", () => {

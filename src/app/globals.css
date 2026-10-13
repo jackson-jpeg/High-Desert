@@ -303,6 +303,16 @@ input:not([type="range"]) {
   outline: none;
 }
 
+/* A container that only holds focus while it is open (the Phone Lines sheet,
+   2026-10-13): focus lands on it so no control inside is ringed until a key
+   is pressed, and it draws no ring of its own. Beats both looks' global
+   :focus-visible rings. Tab moves on to the controls, which ring as usual. */
+html[data-look] .hd-focus-host:focus-visible,
+html .hd-focus-host:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 /* ============================================
    Mobile Input Zoom Prevention & Scroll Contain
    ============================================ */
