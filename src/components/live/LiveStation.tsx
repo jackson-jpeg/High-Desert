@@ -25,7 +25,7 @@ import { LiveChat } from "./LiveChat";
 import { LiveChatSheet } from "./LiveChatSheet";
 import { noteFunnelStep } from "@/services/stats/funnel-client";
 import { shownGuest } from "@/lib/library/guest";
-import { ShowTitle } from "@/components/library/ShowTitle";
+import { ShowEpisode, ShowTitle } from "@/components/library/ShowTitle";
 import { InstallPrompt } from "@/components/install/InstallPrompt";
 import { useLook } from "@/hooks/useLook";
 import type { Look } from "@/lib/look/look";
@@ -52,7 +52,10 @@ export const PREVIEW_CALLS = 3;
  *      Listen live, then (tuned in) Leave the station, or (held) Rejoin;
  *   2. the phone lines: a sticky "Phone lines are open" bar and the latest
  *      calls, one tap from the call box in its keyboard-safe sheet;
- *   3. the studio: clock, live count, up next and the day's log.
+ *   3. the install card, when it applies;
+ *   4. one strip (PhoneStudio): the station clock and what is next, then
+ *      Tonight's log, whose on-air row is a marker. ON AIR and the show's
+ *      title appear once on the screen, in the hero.
  *
  * Every number that moves is computed from the published schedule and the
  * synced clock (`useStationClock`), never from the player's element: the
@@ -189,9 +192,7 @@ function PhoneLive({
 
       <InstallPrompt />
 
-      <Window title="High Desert Live · Studio" variant="dark" headingLevel={2} className="flex flex-col min-h-0">
-        {schedule ? <Console schedule={schedule} phone /> : <OffAir />}
-      </Window>
+      {schedule && <PhoneStudio schedule={schedule} look={look} />}
 
       <LiveChatSheet open={linesOpen} onClose={close}>
         {look === "win98" ? <NotepadPhoneLines chat={chat} onClose={close} /> : <LiveChat chat={chat} />}
@@ -322,26 +323,23 @@ function LinesPreview({ chat, look, onOpen }: { chat: Chat; look: Look; onOpen: 
   );
 }
 
-/** The console. Re-renders once a second: it is the clock. On a phone the show and its buttons are in the hero above. */
-function Console({ schedule, phone = false }: { schedule: LiveSchedule; phone?: boolean }) {
+/** The desktop console. Re-renders once a second: it is the clock. A phone has the hero and `PhoneStudio` instead. */
+function Console({ schedule }: { schedule: LiveSchedule }) {
   const now = useStationClock(1000);
   const tuned = useLiveStore((s) => s.tuned);
   const on = onAirAt(schedule, now);
   const slot = on && "slot" in on ? on.slot : null;
   const next = upcoming(knownSlots(schedule), now)[0] ?? null;
-  const row = useCatalogRow(phone ? null : slot?.fileHash ?? null);
-  const hook = slot && !phone ? showHook({ fileHash: slot.fileHash, aiSummary: row?.aiSummary }) : null;
+  const row = useCatalogRow(slot?.fileHash ?? null);
+  const hook = slot ? showHook({ fileHash: slot.fileHash, aiSummary: row?.aiSummary }) : null;
 
   return (
     <div className="flex flex-col min-h-0 flex-1 md:h-full">
       {/* Top of the console: the sign, the wall clock, who is listening. */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 bg-inset-well border-b border-bevel-dark/20">
-        <OnAirLamp lit={!!slot} tuned={tuned} size={phone ? "md" : "lg"} />
+        <OnAirLamp lit={!!slot} tuned={tuned} size="lg" />
         <div className="flex flex-col items-end">
-          <span
-            data-testid="live-clock"
-            className={cn("w98-font text-phosphor-amber tabular-nums leading-none", phone ? "text-hd-h3" : "text-hd-h2")}
-          >
+          <span data-testid="live-clock" className="w98-font text-phosphor-amber tabular-nums leading-none text-hd-h2">
             {formatStationTime(now)}
           </span>
           <span className="text-hd-micro text-bevel-dark uppercase tracking-[0.2em]">Pacific · Station time</span>
@@ -349,31 +347,94 @@ function Console({ schedule, phone = false }: { schedule: LiveSchedule; phone?: 
         <Listeners />
       </div>
 
-      {schedule.outage && (
-        <p className="px-3 py-1.5 text-hd-caption text-desert-amber bg-inset-well border-b border-bevel-dark/20">
-          archive.org is down. The station is playing from the High Desert mirror.
-        </p>
-      )}
+      <OutageNote schedule={schedule} />
 
       <div className="px-3 py-3 flex flex-col gap-3">
-        {!phone && (slot ? <NowPlaying slot={slot} now={now} hook={hook} /> : <StationBreak until={on?.endsAt ?? now} now={now} />)}
-        {!phone && <StationControls />}
+        {slot ? <NowPlaying slot={slot} now={now} hook={hook} /> : <StationBreak until={on?.endsAt ?? now} now={now} />}
+        <StationControls />
         {next && <UpNext slot={next} />}
       </div>
 
-      {/* A scrolling region a keyboard can reach: focusable, and named by its heading. */}
+      <TonightsLog schedule={schedule} now={now} />
+    </div>
+  );
+}
+
+/**
+ * A phone's studio, under the hero (2026-10-12): one row with the station
+ * clock and what is next, then Tonight's log. The hero is the only place for
+ * ON AIR, the show on the air and Listen live. This was a Studio window with
+ * its own ON AIR lamp, and a log whose on-air row carried another lamp and the
+ * title again, so the show was announced twice on one screen.
+ */
+function PhoneStudio({ schedule, look }: { schedule: LiveSchedule; look: Look }) {
+  const now = useStationClock(1000);
+  const next = upcoming(knownSlots(schedule), now)[0] ?? null;
+  return (
+    <>
       <div
-        data-testid="live-log"
-        role="region"
-        aria-labelledby="live-log-heading"
-        tabIndex={0}
-        className="flex-1 min-h-[160px] overflow-auto border-t border-bevel-dark/20 bg-card-surface focus-visible:outline focus-visible:outline-1 focus-visible:outline-signal-blue"
+        data-testid="live-strip"
+        className={cn(
+          "w98-inset-dark bg-inset-well min-h-touch px-3 py-1.5 flex items-center gap-3 min-w-0",
+          look === "night" && "rounded-xl",
+        )}
       >
-        <h3 id="live-log-heading" className="sticky top-0 z-10 px-3 py-1.5 bg-raised-surface w98-font text-hd-caption uppercase tracking-[0.2em] text-bevel-dark">
-          Tonight&apos;s log · {schedule.day}
-        </h3>
-        <ProgramGuide slots={schedule.guide} now={now} />
+        <span className="shrink-0 flex items-baseline gap-1">
+          <span data-testid="live-clock" className="w98-font text-hd-title text-phosphor-amber tabular-nums leading-none">
+            {formatStationTime(now)}
+          </span>
+          <span className="text-hd-micro text-bevel-dark uppercase tracking-[0.18em]">PT</span>
+        </span>
+        <span className="self-stretch w-px bg-bevel-dark/30" aria-hidden="true" />
+        {next ? (
+          <span data-testid="live-up-next" className="flex-1 min-w-0 flex items-baseline gap-2">
+            <span className="shrink-0 text-hd-micro uppercase tracking-[0.18em] text-bevel-dark">
+              Up next {formatStationTime(next.start)}
+            </span>
+            <ShowEpisode title={next.title} className="text-hd-caption text-desktop-gray" />
+          </span>
+        ) : (
+          <span className="flex-1 min-w-0 text-hd-caption text-bevel-dark">The last show of the day</span>
+        )}
       </div>
+      <OutageNote schedule={schedule} />
+      <TonightsLog schedule={schedule} now={now} phone look={look} />
+    </>
+  );
+}
+
+function OutageNote({ schedule }: { schedule: LiveSchedule }) {
+  if (!schedule.outage) return null;
+  return (
+    <p className="px-3 py-1.5 text-hd-caption text-desert-amber bg-inset-well border-b border-bevel-dark/20">
+      archive.org is down. The station is playing from the High Desert mirror.
+    </p>
+  );
+}
+
+/**
+ * The day's program as a scrolling region a keyboard can reach: focusable, and
+ * named by its heading. On a phone it stands on its own under the strip, and
+ * its on-air row is a marker (the hero above has the show).
+ */
+function TonightsLog({ schedule, now, phone = false, look = "night" }: { schedule: LiveSchedule; now: number; phone?: boolean; look?: Look }) {
+  const Heading = phone ? "h2" : "h3";
+  return (
+    <div
+      data-testid="live-log"
+      role="region"
+      aria-labelledby="live-log-heading"
+      tabIndex={0}
+      className={cn(
+        "flex-1 min-h-[160px] overflow-auto bg-card-surface focus-visible:outline focus-visible:outline-1 focus-visible:outline-signal-blue",
+        phone ? "w98-raised-dark" : "border-t border-bevel-dark/20",
+        phone && look === "night" && "rounded-xl",
+      )}
+    >
+      <Heading id="live-log-heading" className="sticky top-0 z-10 px-3 py-1.5 bg-raised-surface w98-font text-hd-caption uppercase tracking-[0.2em] text-bevel-dark">
+        Tonight&apos;s log · {schedule.day}
+      </Heading>
+      <ProgramGuide slots={schedule.guide} now={now} marker={phone} />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isBuildId } from "@/lib/utils/build-id";
+import { isLook } from "@/lib/look/look";
 import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { recordPlaybackFailure, isPlaySource } from "@/services/stats/store";
 import { isKnownEpisodeId } from "@/services/stats/allowlist";
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
   if (parsed.error) return parsed.error;
   const body = parsed.body;
 
-  const { episodeId, kind, retried, recovered, elapsedMs, uaClass, detail, source, build, live, tab } =
+  const { episodeId, kind, retried, recovered, elapsedMs, uaClass, detail, source, build, live, tab, look } =
     body;
 
   if (typeof episodeId !== "string" || !episodeId) {
@@ -175,6 +176,10 @@ export async function POST(request: NextRequest) {
       // The tab's random id (FAILURE_TAB_ID), so a Try Again burst counts as
       // one lost start. Anything else is dropped, not rejected.
       tab: typeof tab === "string" && TAB_ID.test(tab) ? tab : null,
+      // The page's look and the station mark, so failures split by look and
+      // by the live station like plays do (2026-10-12). Tags, never refusals.
+      look: isLook(look) ? look : null,
+      live: live === true,
     });
   } catch (err) {
     // No DATABASE_URL, or Postgres is down. Losing a failure report is not

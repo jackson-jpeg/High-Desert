@@ -369,6 +369,10 @@ export function useAudioPlayer() {
       armListen(ep, audio, audio.currentTime);
     }
 
+    // The source this play() is for. A failover or the watchdog's retry can
+    // move the element while it is pending; its rejection is then the old
+    // source's, already handled by whatever moved it (as in playEpisode).
+    const srcAtPlay = audio.src;
     try {
       await audio.play();
       if (!isCurrentStart(id)) return;
@@ -378,6 +382,7 @@ export function useAudioPlayer() {
     } catch (err) {
       if (!isCurrentStart(id)) return;
       if (isAbortError(err)) return;
+      if (getAudio().src !== srcAtPlay) return;
       console.error("[player] Play failed:", err);
       // This catch used to swallow the rejection entirely, so a refused
       // resume left the UI paused with no explanation whatsoever.

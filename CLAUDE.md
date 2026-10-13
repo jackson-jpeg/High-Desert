@@ -43,6 +43,12 @@ with git's hook variables set, and the tests' throwaway repositories wrote into 
 one, setting `core.bare = true` under `/root/High-Desert`). Every test that runs git
 clears the `GIT_*` variables first (`src/test-support/git-env.ts`).
 
+**Vitest cleans up after itself.** Each run left a module cache in
+`$TMPDIR/<nanoid>/` (2,548 of them, 2.9 GB, on 2026-10-12);
+`src/test-support/vitest-tmp.global.ts` removes the run's own on teardown
+(`scripts/__tests__/vitest-tmp.test.ts` runs the real Vitest, with a control).
+A test that makes a temp dir removes it.
+
 **Database-backed tests** (`*.db.test.ts`, `scripts/__tests__/backup-db.test.ts`) need
 `TEST_DATABASE_URL`, a `*_test` database — enforced by `src/test-support/test-db.ts`. CI
 provides one; on the VPS: `set -a; . /root/.high-desert-test.env; set +a`. Without it they
@@ -739,6 +745,22 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   stall timers re-arm instead of judging (`deferWhileHidden()`): iOS holds a
   background `play()` until the phone wakes, and a frozen timer firing on wake
   gave up on a mirror that was about to play.
+  **Why 62 failovers did not recover** (2026-10-01 to 10-12, fixed 2026-10-12,
+  `mirror-failover.test.ts` and `playback-watchdog.test.ts`, "why 62"):
+  - a restored show's ▶ (`resumePlayback`) now ignores a rejection for a source
+    the element has left, as `playEpisode` always did; archive.org's stale
+    NotSupportedError was failing the mirror it had just moved to;
+  - the failover handler resolves with what its `play()` rejection was
+    (`playRejection`): the mirror's NotSupportedError is a `network-error`,
+    not a refusal;
+  - after a failover the mirror has **`FAILOVER_FIRST_BYTE_MS` (30 s)** to send
+    its first byte, with no stall verdict before it: an unpinned show's first
+    slice is filled from archive.org first (9 to 23 s measured);
+  - a deadline or stall clock that fires more than twice its budget late was
+    frozen with the page and starts again instead of judging (`frozen()`);
+  - once the watchdog has moved a show to the mirror (`useOutageStore.failedOver`),
+    Try Again and the next start of that show go to the mirror
+    (`currentStartPlan`), never back to archive.org.
 - **The health probe's verdicts are re-probed on different clocks** (`src/services/archive/health.ts`):
   up after 5 min, **down after 30 s**, and a probe that failed to reach *our* server
   is not a verdict at all. It used to hold any failure for 5 minutes, and with the
@@ -803,8 +825,18 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   pinned count and bytes, fill-cache size, 24h mirror plays; WARN if the retired
   `highdesert-mirror` unit is running again), `cpu` (every High Desert unit's
   15-minute mean from cgroup accounting, sampled each minute by `hd-cpu-sample.timer`
-  in `/root/vps-tools`; FAIL above 10% of a core) and `warm` (last run; WARN when
-  stale >36h, skipped for steal, or with failed fetches) lines.
+  in `/root/vps-tools`; FAIL above 10% of a core), `warm` (last run; WARN when
+  stale >36h, skipped for steal, or with failed fetches) and `disk` (free space
+  on `/`: WARN under 15 GB, FAIL under 5 GB; the warm job needs 10 GB free and a
+  build about 1 GB; `disk-sweep --dry-run` lists what can go) lines.
+- **The `failures` line is starts lost, the trailing 7 days** (2026-10-12): lost
+  (failed and not rescued by the retry or the mirror, repeats in one tab
+  counted once) over plays, the same accounting as the release line, with
+  rescued starts and all failure rows beside it. It used to divide every
+  failure row by plays: 21.5% for a week that lost 5.3%, because 161 of its 230
+  rows were starts the mirror rescued. The `release` line's window is the 7
+  days after the release; once they are over it says "window closed" and
+  points at `failures` for the current week.
 
 ## Live station — read before touching `src/lib/live/`, `src/audio/live-*` or `/api/live/*`
 
@@ -924,6 +956,18 @@ same offset, computed from a synced clock.
   in, the latest three calls (`phone-lines-preview`) whose tap opens the sheet,
   and the install card when it applies. Preview and sheet share **one**
   `useLiveChat` stream. A phone's first visit to `/` is sent straight to `/live`.
+- **A phone says it once** (2026-10-12, both looks). The hero is the only place
+  for ON AIR, the show on the air and Listen live. Under Call in, the calls and
+  the install card comes **one strip** (`live-strip`, `PhoneStudio`): the
+  station clock in PT (`live-clock`) and up next with its start time
+  (`live-up-next`). Then **Tonight's log** on its own (`TonightsLog`), whose
+  on-air row is a marker ("On the air now", no lamp, no title: `ProgramGuide
+  marker`). The Studio window, with its own lamp and a log that named the show
+  again, is desktop only (`Console`). Tests:
+  `src/components/live/__tests__/live-phone-strip.test.tsx` (a control counts
+  two on desktop) and `e2e/live-phone.spec.ts` (screenshots in
+  `test-results/live-phone/`). Mutations: `live-phone-strip-*`,
+  `live-guide-marker`, `live-strip-up-next`.
 - **Phone Lines is a URL: `/live?lines=1`** (`src/lib/live/phone-lines.ts`).
   On a phone it is the Night tab and the Win98 taskbar button in Radio's old
   place (`md:hidden` / `tasksFor(isMobile)`), and Win98's Start menu and the
@@ -1258,8 +1302,11 @@ No third-party hosting. Same shape as `sanger-next`.
 - **App:** `next start -p 3003` under systemd (`highdesert.service`), nginx vhost with a certbot cert
 - **Stats:** Postgres database `highdesert` on the same host; `DATABASE_URL` comes from a
   chmod-600 `EnvironmentFile=` (`/root/.high-desert.env`), never inlined into the unit and
-  never committed. Apply schema changes with
-  `psql "$DATABASE_URL" -f scripts/schema.sql` — it is idempotent
+  never committed. **`deploy.sh` applies `scripts/schema.sql`** (idempotent)
+  after the new build has passed and right before the switch, in one
+  transaction, and only when its digest differs from `.deploy/schema-applied`;
+  a failed build or a failed schema leaves both the database and the live build
+  as they were. By hand: `psql "$DATABASE_URL" -f scripts/schema.sql`
 - **Backup:** `highdesert-backup.timer` (17:30 UTC) pg_dumps to `/root/backups/highdesert`
   (14 days) and rsyncs to the MacBook over Tailscale (skipped under 5 GB free).
   `highdesert-backup-status` → OK / FAILED / STALE (>36h). Restore procedure and the
@@ -1396,6 +1443,24 @@ highdesert-status                      # deploy drift, service, backup, sampler,
   `/library`, `/radio`, `/stats` must each be 200, reference ≥1 chunk, and every chunk
   must be 200. Any failure **rolls back to `.next.prev` automatically**.
 - The commit is checked into the service-worker registration chunk *before* the swap.
+- **The schema goes in after the build and before the swap** (2026-10-12), only
+  when `scripts/schema.sql` changed since the last deploy that applied it
+  (`.deploy/schema-applied`), with `--single-transaction`. It used to be applied
+  by hand before the build, so a build that then failed left the live code on
+  a newer schema. `deploy.test.ts` ("the schema") proves a failed build leaves
+  it untouched.
+- **Route types from earlier builds are cleared before every build**
+  (`.next/types`, `.next/dev/types`, `.next-dev/types`, `.next.prev/types`):
+  `tsconfig.json` includes them, and a route since deleted failed the next
+  build's type check.
+- **A docs-only commit is not drift.** When everything between the deployed
+  build and `HEAD` is under `docs/` or a top-level `*.md` (a handoff),
+  `highdesert-status`'s `deploy` line reads OK and nothing needs deploying.
+- **Commit guard.** `.commit-guard` opts this repo into
+  `/root/vps-tools/bin/commit-guard` (the global pre-commit): no staged file
+  over 20 MB, nothing inside `.next*`, `node_modules*`, `test-results`,
+  `playwright-report`, `coverage` and the like. `src/lib/__tests__/repo-hygiene.test.ts`
+  holds the same rule for what is already tracked, where hooks do not run.
 
 **Never run `npm install` / `npm ci` in `/root/High-Desert`.** It rewrites the live
 `node_modules` under the running server — this happened during the 2026-09-21 upgrade

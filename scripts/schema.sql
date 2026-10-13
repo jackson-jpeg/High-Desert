@@ -251,6 +251,12 @@ ALTER TABLE playback_failures
 ALTER TABLE playback_failures
   ADD COLUMN IF NOT EXISTS tab_ref text
   CHECK (tab_ref IS NULL OR tab_ref ~ '^[A-Za-z0-9_-]{8,64}$');
+-- The look the page was rendered in, and whether the tab was tuned in to the
+-- live station's show (2026-10-12). Starts failed could not be split by either:
+-- play_events had a look, failures did not. NULL / false on older rows.
+ALTER TABLE playback_failures ADD COLUMN IF NOT EXISTS look text
+  CHECK (look IS NULL OR look IN ('win98', 'night'));
+ALTER TABLE playback_failures ADD COLUMN IF NOT EXISTS live boolean NOT NULL DEFAULT false;
 
 CREATE INDEX IF NOT EXISTS playback_failures_at_idx
   ON playback_failures (at DESC);

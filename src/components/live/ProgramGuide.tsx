@@ -48,8 +48,21 @@ export function revealInGuideBox(list: HTMLElement, row: HTMLElement): void {
  * What has aired is in the dim tier, what is on is lit, what is coming is
  * primary text. The row on the air is brought into view in the log's own box
  * when the guide mounts (`revealInGuideBox`), never by scrolling the page.
+ *
+ * `marker` (a phone, 2026-10-12): the row on the air is a slim "On the air
+ * now" line with its time, no title and no ON AIR lamp. The hero at the top of
+ * the phone's Live screen already names the show and carries the one lamp;
+ * the log repeating both read as the same show announced twice.
  */
-export function ProgramGuide({ slots, now }: { slots: readonly ProgramSlot[]; now: number }) {
+export function ProgramGuide({
+  slots,
+  now,
+  marker = false,
+}: {
+  slots: readonly ProgramSlot[];
+  now: number;
+  marker?: boolean;
+}) {
   const listRef = useRef<HTMLOListElement>(null);
   const onAirRef = useRef<HTMLLIElement>(null);
   const onAirKey = slots.find((s) => guideState(s, now) === "now")?.start;
@@ -61,6 +74,7 @@ export function ProgramGuide({ slots, now }: { slots: readonly ProgramSlot[]; no
     <ol ref={listRef} data-testid="live-guide" className="flex flex-col" aria-label="Today's program">
       {slots.map((slot) => {
         const state = guideState(slot, now);
+        const slim = marker && state === "now";
         return (
           <li
             key={`${slot.start}:${slot.fileHash}`}
@@ -81,24 +95,32 @@ export function ProgramGuide({ slots, now }: { slots: readonly ProgramSlot[]; no
             >
               {formatStationTime(slot.start)}
             </span>
-            <span className="flex flex-col min-w-0">
-              <ShowTitle
-                title={slot.title}
-                className={cn(
-                  "text-hd-body",
-                  state === "past" ? "text-bevel-dark/85" : "text-desktop-gray",
-                  state === "now" && "text-desert-amber",
-                )}
-              />
-              <span className={cn("text-hd-micro truncate", state === "past" ? "text-bevel-dark/85" : "text-bevel-dark")}>
-                {[shownGuest(slot), slot.airDate ? formatAirDate(slot.airDate) : null, KIND_LABEL[slot.kind]]
-                  .filter(Boolean)
-                  .join(" · ")}
+            {slim ? (
+              <span data-testid="live-guide-now" className="col-span-2 w98-font text-hd-caption uppercase tracking-[0.18em] text-desert-amber">
+                On the air now
               </span>
-            </span>
-            <span className="flex items-center gap-2 text-hd-micro tabular-nums text-bevel-dark/85">
-              {state === "now" ? <OnAirLamp lit size="sm" /> : formatLength((slot.end - slot.start) / 1000)}
-            </span>
+            ) : (
+              <>
+                <span className="flex flex-col min-w-0">
+                  <ShowTitle
+                    title={slot.title}
+                    className={cn(
+                      "text-hd-body",
+                      state === "past" ? "text-bevel-dark/85" : "text-desktop-gray",
+                      state === "now" && "text-desert-amber",
+                    )}
+                  />
+                  <span className={cn("text-hd-micro truncate", state === "past" ? "text-bevel-dark/85" : "text-bevel-dark")}>
+                    {[shownGuest(slot), slot.airDate ? formatAirDate(slot.airDate) : null, KIND_LABEL[slot.kind]]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </span>
+                <span className="flex items-center gap-2 text-hd-micro tabular-nums text-bevel-dark/85">
+                  {state === "now" ? <OnAirLamp lit size="sm" /> : formatLength((slot.end - slot.start) / 1000)}
+                </span>
+              </>
+            )}
           </li>
         );
       })}
