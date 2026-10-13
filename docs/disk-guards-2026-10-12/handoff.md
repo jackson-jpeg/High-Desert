@@ -185,7 +185,7 @@ On the VPS, niced, one heavy job at a time:
   2. Editing `/root/vps-tools/bin/heavy`, which is shared. The partial edit is
      reverted; the change is the proposal above.
 - **The Mac's Downloads had no room** when I first copied the disk report.
-  Copies of this folder are retried at the end of the session (see the last line).
+  The retry after the deploy worked: this folder is in `~/Downloads/high-desert-2026-10-12-disk-guards/`.
 
 ## Left for you
 
