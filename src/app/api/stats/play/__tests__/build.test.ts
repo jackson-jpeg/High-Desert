@@ -70,3 +70,19 @@ describe("/api/playback-event build", () => {
     expect(recordPlaybackFailure.mock.calls[0][0]).toMatchObject({ build: null });
   });
 });
+
+describe("/api/playback-event look and live (2026-10-12)", () => {
+  // Starts failed could not be split by look or by the station: neither was
+  // stored on a failure row. Both are tags, never a reason to refuse one.
+  it("stores the page's look and whether the tab was tuned in to the station", async () => {
+    const res = await failure(req("https://highdesert.space/api/playback-event", { ...FAILURE, look: "night", live: true }));
+    expect(res.status).toBe(200);
+    expect(recordPlaybackFailure.mock.calls[0][0]).toMatchObject({ look: "night", live: true });
+  });
+
+  it("an unknown look is null and anything but a literal true is not live, and the failure is still kept", async () => {
+    const res = await failure(req("https://highdesert.space/api/playback-event", { ...FAILURE, look: "vaporwave", live: "yes" }));
+    expect(res.status).toBe(200);
+    expect(recordPlaybackFailure.mock.calls[0][0]).toMatchObject({ look: null, live: false });
+  });
+});

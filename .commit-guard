@@ -1,0 +1,5 @@
+# Read by /root/vps-tools/bin/commit-guard through the global pre-commit hook:
+# no staged file over this size, nothing inside a build or dev-server output
+# folder (.next*, node_modules*, test-results, playwright-report, coverage, ...).
+# Held in CI as well by src/lib/__tests__/repo-hygiene.test.ts.
+max-mb 20

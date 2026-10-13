@@ -8,6 +8,9 @@ export default defineConfig({
     // below is planted so the guard test can see the setup file clear it.
     setupFiles: ["src/test-support/git-env.setup.ts"],
     env: { GIT_DIR: "/nonexistent/git-env-canary" },
+    // Vitest leaves a module cache in $TMPDIR per run; this removes it
+    // (src/test-support/vitest-tmp.global.ts).
+    globalSetup: ["src/test-support/vitest-tmp.global.ts"],
     // deploy.sh keeps the previous node_modules and build beside the live ones
     // for rollback; their packages' own test files are not ours to run.
     exclude: [

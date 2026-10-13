@@ -30,6 +30,10 @@ export interface PlaybackFailureInput {
    * (`LOST_START_GAP_MINUTES`). Null on rows from before 2026-10-11.
    */
   tab?: string | null;
+  /** The look the page was rendered in (`win98`/`night`, docs/looks.md); null when unknown. */
+  look?: string | null;
+  /** The tab was tuned in to the live station's show (the breaker's `live` mark). */
+  live?: boolean;
 }
 
 /**
@@ -71,8 +75,8 @@ export async function recordPlaybackFailure(
       DELETE FROM playback_failures WHERE at < now() - interval '90 days'
     )
     INSERT INTO playback_failures
-      (episode_id, kind, retried, recovered, elapsed_ms, ua_class, detail, source, build, tab_ref)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      (episode_id, kind, retried, recovered, elapsed_ms, ua_class, detail, source, build, tab_ref, look, live)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     `,
     [
       f.episodeId,
@@ -85,6 +89,8 @@ export async function recordPlaybackFailure(
       f.source ?? null,
       f.build ?? null,
       f.tab ?? null,
+      f.look ?? null,
+      f.live === true,
     ],
   );
 }

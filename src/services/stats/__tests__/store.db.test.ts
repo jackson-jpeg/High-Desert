@@ -290,7 +290,7 @@ describeDb("stats store (Postgres)", () => {
       await store.recordPlay(TAG, sid, client, "archive");
       await store.recordPlaybackFailure({
         episodeId: TAG, kind: "stall", retried: true, recovered: false,
-        elapsedMs: 10, uaClass: "ios-safari", build: "1ff3416", tab: "tab-1234abcd",
+        elapsedMs: 10, uaClass: "ios-safari", build: "1ff3416", tab: "tab-1234abcd", look: "night", live: true,
       });
       await store.recordPlaybackFailure({
         episodeId: TAG, kind: "stall", retried: true, recovered: false, elapsedMs: 10, uaClass: "ios-safari",
@@ -303,6 +303,12 @@ describeDb("stats store (Postgres)", () => {
       // The tab's id is stored as sent (one lost start per tab), and is not free text either.
       const tabs = await q<{ tab_ref: string | null }>("SELECT tab_ref FROM playback_failures WHERE episode_id = $1 ORDER BY id", [TAG]);
       expect(tabs.map((r) => r.tab_ref)).toEqual(["tab-1234abcd", null]);
+      // The look and the station mark (2026-10-12); not sent is NULL and false.
+      const tags = await q<{ look: string | null; live: boolean }>("SELECT look, live FROM playback_failures WHERE episode_id = $1 ORDER BY id", [TAG]);
+      expect(tags).toEqual([{ look: "night", live: true }, { look: null, live: false }]);
+      await expect(
+        q("INSERT INTO playback_failures (episode_id, kind, look) VALUES ($1, 'stall', 'vaporwave')", [TAG]),
+      ).rejects.toThrow(/check/i);
       await expect(
         q("INSERT INTO playback_failures (episode_id, kind, tab_ref) VALUES ($1, 'stall', $2)", [TAG, "not a tab id!"]),
       ).rejects.toThrow(/check/i);

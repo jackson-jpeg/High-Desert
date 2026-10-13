@@ -1,6 +1,6 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { afterAll, describe, expect, it } from "vitest";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { candidatesFor, check, communityKey as scriptKey, importable, monthDays, nextPacificDay, sourceFor, walkedSet } from "../verify-live-day.mjs";
@@ -79,6 +79,8 @@ describe("what counts as walked", () => {
 
 describe("walking a file", () => {
   const stateDir = mkdtempSync(path.join(tmpdir(), "hd-verify-"));
+  // Removed when the block is done: 42 of these were left in /tmp (2026-10-12).
+  afterAll(() => rmSync(stateDir, { recursive: true, force: true }));
   mkdirSync(path.join(stateDir, "pins"));
   mkdirSync(path.join(stateDir, "repaired"));
   const row = { fileHash: "archive:coll:x.mp3", sourceUrl: "http://127.0.0.1:9/never", duration: 1000, airDate: "1990-01-01" };

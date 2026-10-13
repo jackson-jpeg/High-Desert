@@ -105,7 +105,7 @@ export function reportPlaybackFailure(failure: PlaybackFailure): void {
   fetch("/api/playback-event", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...failure, ...buildTag(), tab: FAILURE_TAB_ID, ...(onTheStation(failure.episodeId) ? { live: true } : {}) }),
+    body: JSON.stringify({ ...failure, ...buildTag(), tab: FAILURE_TAB_ID, ...lookTag(), ...(onTheStation(failure.episodeId) ? { live: true } : {}) }),
     // A failure reported at the moment the user gives up and closes the tab is
     // the most interesting kind, and is exactly the one a plain fetch drops.
     keepalive: true,

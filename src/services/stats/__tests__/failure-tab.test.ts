@@ -40,3 +40,22 @@ describe("failure reports carry the tab's own id", () => {
     expect(JSON.stringify(play)).not.toContain(FAILURE_TAB_ID);
   });
 });
+
+describe("failure reports carry the page's look (2026-10-12)", () => {
+  afterEach(() => {
+    delete document.documentElement.dataset.look;
+  });
+
+  it("sends the look the page was rendered in, as a play does", () => {
+    document.documentElement.dataset.look = "win98";
+    const sent = bodies();
+    reportPlaybackFailure({ episodeId: "ep", kind: "stall", retried: true, recovered: false, elapsedMs: 1, uaClass: "ios-safari" });
+    expect(sent()[0].body.look).toBe("win98");
+  });
+
+  it("control: a page with no look sends none", () => {
+    const sent = bodies();
+    reportPlaybackFailure({ episodeId: "ep", kind: "stall", retried: true, recovered: false, elapsedMs: 1, uaClass: "ios-safari" });
+    expect(sent()[0].body).not.toHaveProperty("look");
+  });
+});
