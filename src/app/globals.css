@@ -192,6 +192,7 @@
   --hd-w98-teal: #008080;          /* the desktop */
   --hd-w98-title-end: #1084D0;     /* active title bar, navy to this blue */
   --hd-w98-ink-muted: #3A3A3A;     /* secondary text on the button face */
+  --hd-w98-ink-dim: #5C5C5C;       /* the third tier on white (Notepad's times, tune-ins): 6.7:1 on white, 4.9:1 on #DFDFDF */
   --hd-w98-maroon: #800000;        /* the accent, where today's look has amber */
   --hd-w98-brown: #6B3A00;         /* phosphor-amber's role, legible on gray */
   --hd-w98-green-text: #004000;    /* static-green's role: 5.0:1 on gray even at /85 (#005000 was 4.15) */

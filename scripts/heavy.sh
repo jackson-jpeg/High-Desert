@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Runs a heavy command (next build, vitest, tsc, eslint, npm ci) in its turn:
-# through the box-wide `heavy` semaphore (/root/vps-tools/bin/heavy, 2 slots)
+# Runs a heavy command (next build, vitest, tsc, eslint, npm ci, playwright) in
+# its turn: through the box-wide `heavy` semaphore (/root/vps-tools/bin/heavy:
+# one slot, nice 15 and ionice best-effort 7, and a 6-hour CPU gate)
 # when it is installed, and directly where it is not (CI, a laptop).
 #
 #   bash scripts/heavy.sh COMMAND [ARGS...]

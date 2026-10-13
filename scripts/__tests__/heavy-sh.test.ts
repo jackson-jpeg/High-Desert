@@ -54,9 +54,16 @@ describe("scripts/heavy.sh", () => {
 
   it("the build, lint, typecheck, test and mutation scripts all go through it", () => {
     const scripts = JSON.parse(readFileSync(path.join(ROOT, "package.json"), "utf8")).scripts;
-    for (const name of ["build", "lint", "typecheck", "test", "test:mutations"]) {
+    for (const name of ["build", "lint", "typecheck", "test", "test:mutations", "test:e2e"]) {
       expect(scripts[name], name).toMatch(/^bash scripts\/heavy\.sh /);
     }
+  });
+
+  it("Playwright runs one worker off CI (2026-10-13: one heavy job, one browser)", () => {
+    // Read as text: the config imports Playwright's runner, which will not
+    // load inside Vitest.
+    const config = readFileSync(path.join(ROOT, "playwright.config.ts"), "utf8");
+    expect(config).toMatch(/^\s*workers: process\.env\.CI \? \d+ : 1,$/m);
   });
 
   it("mutate-check takes turns through heavy itself, never through heavy.sh (a mutation target)", async () => {

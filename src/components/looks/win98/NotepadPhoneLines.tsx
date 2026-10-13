@@ -1,20 +1,22 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { cn } from "@/lib/utils/cn";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { useCommunityNow } from "@/hooks/useCommunityNow";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { useLiveChat } from "@/hooks/useLiveChat";
 import { placeProblem, useCallBox, useHideTuneins } from "@/hooks/useCallBox";
-import { listRows, nameProblem } from "@/components/live/LiveChat";
+import { nameProblem } from "@/components/live/LiveChat";
+import { chatRows, isOwnCall, type ChatRow } from "@/lib/live/chat-rows";
+import { followKeys, useFollowLog } from "@/hooks/useFollowLog";
 import { charCount, MAX_CHARS, suggestedPlace } from "@/services/live/client";
 import { presenceAttrs } from "@/services/stats/now-feed";
 import { useContextMenuStore, type ContextMenuItem } from "@/stores/context-menu-store";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import { Dialog } from "@/components/win98/Dialog";
 import { Button } from "@/components/win98/Button";
-import { archiveLine, callerLabel, logTime, tuneinLine } from "./notepad-log";
+import { archiveLabel, archiveText, logTime, tuneinLine } from "./notepad-log";
 import { Win98MenuBar, type Win98Menu } from "./Win98MenuBar";
 import { Win98Icon } from "./Win98Icon";
 
@@ -26,11 +28,16 @@ const MAX_PLACE = 32;
 /**
  * The phone lines in the Win98 look: "Phone Lines - Notepad". Same chat as
  * LiveChat (useLiveChat for the stream and the actions, useCallBox for the
- * call box), drawn as a plain-text log, one line per call:
+ * call box), drawn as a plain-text log, each call its own block:
  *
- *   [10:42 PM] Line 3, Skeptic from Reno: message
+ *   Skeptic, calling from Reno · Line 3 · [10:42 PM]
+ *   message
  *
- * Tune-ins and archive moments are their own kinds of line (notepad-log.ts).
+ * The name is bold, the place and line quieter, the time dimmer; your own
+ * calls are tinted. A tune-in is one small gray line, and a run of them folds
+ * into one; an archive moment is an indented, framed block (notepad-log.ts,
+ * src/lib/live/chat-rows.ts). Scrolled up, new calls wait behind a "New calls
+ * below" button.
  * A line is chosen by click or arrow keys; Report, the admin's actions and
  * the archive's "find the show" are on its right-click menu and in Edit,
  * which also holds Change Name and Calling From. Format holds Word Wrap and
@@ -57,9 +64,9 @@ function Notepad({ onClose, chat }: { onClose?: () => void; chat: Chat }) {
   const openLibrary = useOpenLibraryIntent();
   const focusCallBox = () => rootRef.current?.querySelector<HTMLInputElement>('input[aria-label="Your call"]')?.focus();
 
-  const rows = listRows(chat.messages, hideTuneins ? [] : chat.notices, chat.archive);
+  const rows = chatRows(chat.messages, hideTuneins ? [] : chat.notices, chat.archive);
   const selectedMessage = selected === null ? null : chat.messages.find((m) => m.id === selected) ?? null;
-  const isMine = (id: number, name: string) => chat.mine.includes(id) || (!!chat.you && name === chat.you.name);
+  const isMine = (id: number, name: string) => isOwnCall({ id, name }, chat.mine, chat.you);
 
   /** What a call's menu offers: Report for someone else's call; the admin's actions when admin. */
   const callActions = (id: number): ContextMenuItem[] => {
@@ -202,8 +209,8 @@ function Notepad({ onClose, chat }: { onClose?: () => void; chat: Chat }) {
         </span>
         {chat.you && (
           <span className="w98-statusbar-panel-dark min-w-0 hidden sm:block" data-testid="you-name">
-            {chat.you.name}, {chat.you.line}
-            {chat.you.place ? `, ${chat.you.place}` : ""}
+            {chat.you.name}
+            {chat.you.place ? `, calling from ${chat.you.place}` : ""}, {chat.you.line}
           </span>
         )}
         {live !== undefined && (
@@ -233,7 +240,7 @@ function Notepad({ onClose, chat }: { onClose?: () => void; chat: Chat }) {
   );
 }
 
-type Row = ReturnType<typeof listRows>[number];
+type Row = ChatRow;
 
 function NotepadLog({
   chat,
@@ -252,16 +259,12 @@ function NotepadLog({
   actionsFor: (id: number) => ContextMenuItem[];
   onFindShow: (title: string) => void;
 }) {
-  const listRef = useRef<HTMLOListElement>(null);
-  const pinned = useRef(true);
-  const last = rows[rows.length - 1];
-  const lastKey = last ? `${last.kind}-${last.at}` : "";
-
-  // Follow new lines only while the reader is at the bottom.
-  useLayoutEffect(() => {
-    const el = listRef.current;
-    if (el && pinned.current) el.scrollTop = el.scrollHeight;
-  }, [lastKey]);
+  const keys = followKeys(rows);
+  const lastCall = chat.messages[chat.messages.length - 1];
+  const lastIsMine = !!lastCall && isOwnCall(lastCall, chat.mine, chat.you) && keys.alert === `c${lastCall.id}`;
+  // Follow new lines only while the reader is at the bottom; scrolled up, new
+  // calls wait behind "New calls below".
+  const { ref: listRef, onScroll, unseen, jump } = useFollowLog<HTMLOListElement>(keys.follow, keys.alert, lastIsMine);
 
   const callIds = rows.flatMap((r) => (r.kind === "call" ? [r.m.id] : []));
 
@@ -290,88 +293,125 @@ function NotepadLog({
   };
 
   return (
-    <ol
-      ref={listRef}
-      onScroll={(e) => {
-        const el = e.currentTarget;
-        pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
-      }}
-      onKeyDown={onKeyDown}
-      tabIndex={0}
-      aria-live="polite"
-      aria-label="Calls"
-      data-testid="live-messages"
-      className={cn(
-        "hd-w98-notepad-log w98-inset-dark bg-inset-well flex-1 min-h-0 overflow-auto overscroll-contain",
-        wrap ? "hd-w98-notepad-wrap" : "hd-w98-notepad-nowrap",
-      )}
-    >
-      {rows.length === 0 && <li className="hd-w98-notepad-line">The lines are open. Be the first caller tonight.</li>}
-      {rows.map((r) => {
-        if (r.kind === "tunein") {
-          return (
-            <li key={`t-${r.at}`} className="hd-w98-notepad-line hd-w98-notepad-tunein" data-testid="tunein-notice">
-              {tuneinLine(r.n)}
-            </li>
-          );
-        }
-        if (r.kind === "archive") {
-          const a = r.a;
-          return (
-            <li
-              key={`a-${r.at}-${a.id}`}
-              className="hd-w98-notepad-line hd-w98-notepad-archive"
-              data-testid="archive-line"
-              data-form={a.form}
-              data-reason={a.reason}
-              onContextMenu={(e: MouseEvent) => {
-                if (!a.episode) return;
-                e.preventDefault();
-                useContextMenuStore.getState().show(e.clientX, e.clientY, [
-                  { label: "Find the show in the Library", onClick: () => onFindShow(a.episode!.title) },
-                ]);
-              }}
-            >
-              {archiveLine(a)}
-              {a.episode && (
-                <>
-                  {" "}
+    <div className="relative flex-1 min-h-0 flex flex-col">
+      <ol
+        ref={listRef}
+        onScroll={onScroll}
+        onKeyDown={onKeyDown}
+        tabIndex={0}
+        aria-live="polite"
+        aria-label="Calls"
+        data-testid="live-messages"
+        className={cn(
+          "hd-w98-notepad-log w98-inset-dark bg-inset-well flex-1 min-h-0 overflow-auto overscroll-contain",
+          wrap ? "hd-w98-notepad-wrap" : "hd-w98-notepad-nowrap",
+        )}
+      >
+        {rows.length === 0 && <li className="hd-w98-notepad-line">The lines are open. Be the first caller tonight.</li>}
+        {rows.map((r) => {
+          if (r.kind === "tunein") {
+            return (
+              <li
+                key={`t-${r.key}`}
+                className="hd-w98-notepad-line hd-w98-notepad-tunein"
+                data-testid="tunein-notice"
+                data-merged={r.merged}
+                title={tuneinLine(r.n)}
+              >
+                {tuneinLine(r.n)}
+              </li>
+            );
+          }
+          if (r.kind === "archive") {
+            const a = r.a;
+            return (
+              <li
+                key={`a-${r.at}-${a.id}`}
+                className="hd-w98-notepad-line hd-w98-notepad-archive"
+                data-testid="archive-line"
+                data-form={a.form}
+                data-reason={a.reason}
+                onContextMenu={(e: MouseEvent) => {
+                  if (!a.episode) return;
+                  e.preventDefault();
+                  useContextMenuStore.getState().show(e.clientX, e.clientY, [
+                    { label: "Find the show in the Library", onClick: () => onFindShow(a.episode!.title) },
+                  ]);
+                }}
+              >
+                <div className="hd-w98-notepad-head">
+                  <span className="hd-w98-notepad-archive-label" data-testid="archive-label">
+                    {archiveLabel(a)}
+                  </span>{" "}
+                  <time className="hd-w98-notepad-time" dateTime={a.at}>
+                    {logTime(a.at)}
+                  </time>
+                </div>
+                <div className="hd-w98-notepad-body" data-testid="archive-text">
+                  {archiveText(a)}
+                </div>
+                {a.episode && (
                   <button type="button" className="hd-w98-notepad-link" onClick={() => onFindShow(a.episode!.title)} data-testid="archive-episode">
                     [find the show]
                   </button>
-                </>
-              )}
+                )}
+              </li>
+            );
+          }
+          const m = r.m;
+          const mine = isOwnCall(m, chat.mine, chat.you);
+          return (
+            <li
+              key={m.id}
+              id={`notepad-line-${m.id}`}
+              data-selected={selected === m.id || undefined}
+              data-testid="live-message"
+              data-id={m.id}
+              data-mine={mine || undefined}
+              onClick={() => onSelect(m.id)}
+              onContextMenu={(e: MouseEvent) => {
+                e.preventDefault();
+                onSelect(m.id);
+                openMenu(m.id, e.clientX, e.clientY);
+              }}
+              className="hd-w98-notepad-line hd-w98-notepad-call"
+            >
+              {/* callLine(m) as a block, in parts the chat specs can find, the
+                  same parts LiveChat names (caller-name, line-label, message-body). */}
+              <div className="hd-w98-notepad-head" data-testid="call-head">
+                <span className="hd-w98-notepad-name" data-testid="caller-name">
+                  {m.name}
+                </span>
+                <span className="hd-w98-notepad-meta">
+                  {m.place && <span data-testid="caller-place">, calling from {m.place}</span>}
+                  {"\u00A0\u00B7 "}
+                  <span data-testid="line-label">{m.line}</span>
+                  {"\u00A0\u00B7 "}
+                </span>
+                <time className="hd-w98-notepad-time" dateTime={m.at} data-testid="call-time">
+                  {logTime(m.at)}
+                </time>
+                {mine && <span className="sr-only"> (your call)</span>}
+                {chat.reported.includes(m.id) && (
+                  <span className="hd-w98-notepad-time" data-testid="reported">
+                    {" "}
+                    [reported]
+                  </span>
+                )}
+              </div>
+              <div className="hd-w98-notepad-body" data-testid="message-body">
+                {m.body}
+              </div>
             </li>
           );
-        }
-        const m = r.m;
-        const mine = chat.mine.includes(m.id) || (!!chat.you && m.name === chat.you.name);
-        return (
-          <li
-            key={m.id}
-            id={`notepad-line-${m.id}`}
-            data-selected={selected === m.id || undefined}
-            data-testid="live-message"
-            data-id={m.id}
-            data-mine={mine || undefined}
-            onClick={() => onSelect(m.id)}
-            onContextMenu={(e: MouseEvent) => {
-              e.preventDefault();
-              onSelect(m.id);
-              openMenu(m.id, e.clientX, e.clientY);
-            }}
-            className="hd-w98-notepad-line hd-w98-notepad-call"
-          >
-            {/* callLine(m) as text, in parts the chat specs can find, the same
-                parts LiveChat names (line-label, caller-name, message-body). */}
-            {logTime(m.at)} <span data-testid="line-label">{m.line}</span>,{" "}
-            <span data-testid="caller-name">{callerLabel(m)}</span>:{" "}
-            <span data-testid="message-body">{m.body}</span>
-            {chat.reported.includes(m.id) && <span data-testid="reported"> [reported]</span>}
-          </li>
-        );
-      })}
-    </ol>
+        })}
+      </ol>
+      {unseen && (
+        <button type="button" onClick={jump} data-testid="new-calls" className="w98-button hd-w98-notepad-new-calls min-h-touch md:min-h-0">
+          New calls below {"\u2193"}
+        </button>
+      )}
+    </div>
   );
 }
 

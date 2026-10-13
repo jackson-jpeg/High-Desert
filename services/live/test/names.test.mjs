@@ -2,7 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { lstatSync, readlinkSync, realpathSync } from "node:fs";
 import path from "node:path";
-import { randomCallerName, numberedCallerName, lineFor, LINES, EPITHETS, PLACES, nameKey } from "../lib/names.mjs";
+import { randomCallerName, numberedCallerName, lineFor, LINES, EPITHETS, QUALIFIERS, nameKey } from "../lib/names.mjs";
 import { createModerator } from "../lib/moderation/index.mjs";
 import { MAX_NAME_CHARS } from "../lib/config.mjs";
 import * as shared from "../lib/shared/client-key.ts";
@@ -18,13 +18,25 @@ describe("caller names", () => {
       expect(n.length).toBeLessThanOrEqual(MAX_NAME_CHARS);
       expect(n).toMatch(
         new RegExp(
-          `^(?:(?:${EPITHETS.join("|")}) in (?:${PLACES.join("|")})|(?:West|East) of the Rockies caller|Wildcard Line caller|International Line caller|Area 51 Line caller|First-Time Caller from .+|Caller from .+)$`,
+          `^(?:(?:(?:${QUALIFIERS.join("|")}) )?(?:${EPITHETS.join("|")})|(?:West|East) of the Rockies caller|Wildcard Line caller|International Line caller|Area 51 Line caller|First-Time Caller)$`,
         ),
       );
       expect(mod.name(n).ok, n).toBe(true);
     }
     // Enough variety that two callers rarely draw the same one.
-    expect(seen.size).toBeGreaterThan(500);
+    expect(seen.size).toBeGreaterThan(400);
+  });
+
+  it("never carry a place: the caller adds their own, shown as \"Name, calling from Place\" (2026-10-13)", () => {
+    for (let i = 0; i < 2000; i++) {
+      const n = randomCallerName();
+      expect(n, n).not.toMatch(/ (?:in|from) /);
+    }
+    // Every draw path, forced: themed, bare and qualified.
+    for (const kind of [0, 1, 2, 3, 4]) {
+      const n = randomCallerName((max) => (max === 5 ? kind : 0));
+      expect(n, n).not.toMatch(/ (?:in|from) /);
+    }
   });
 
   it("numbered names (for a night that holds every plain one) stay inside the limit and pass the filter", () => {
@@ -49,7 +61,8 @@ describe("caller names", () => {
   });
 
   it("uses the injected randomness", () => {
-    expect(randomCallerName(() => 1)).toBe(`${EPITHETS[1]} in ${PLACES[1]}`);
+    expect(randomCallerName(() => 2)).toBe(`${QUALIFIERS[2]} ${EPITHETS[2]}`);
+    expect(randomCallerName(() => 1)).toBe(EPITHETS[1]);
     expect(randomCallerName(() => 0)).toBe("West of the Rockies caller");
   });
 

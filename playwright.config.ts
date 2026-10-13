@@ -33,7 +33,9 @@ export default defineConfig({
   // No retries: a flaky pass would hide exactly the ordering bugs these specs
   // exist for, and retries interact badly with test.fail() expectations.
   retries: 0,
-  workers: process.env.CI ? 2 : undefined,
+  // One browser at a time off CI: the VPS is CPU-capped by its host when it
+  // runs hot for hours (2026-10-12), and npm run test:e2e takes heavy's one slot.
+  workers: process.env.CI ? 2 : 1,
   reporter: process.env.CI ? [["list"], ["github"]] : "list",
   use: {
     baseURL,
@@ -63,7 +65,7 @@ export default defineConfig({
       ? [
           {
             name: "iphone",
-            testMatch: /(scroll-gestures|library-phone|live-phone)\.spec\.ts$/,
+            testMatch: /(scroll-gestures|library-phone|live-phone|phone-lines-busy)\.spec\.ts$/,
             use: { ...devices["iPhone 13"], viewport: { width: 390, height: 844 } },
           },
         ]

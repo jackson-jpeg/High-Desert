@@ -1326,18 +1326,90 @@ html[data-look="win98"] .hd-w98-notepad-nowrap .hd-w98-notepad-line {
   white-space: pre;
 }
 
+/* Each call is its own block (2026-10-13): a head line (name bold, place and
+   line quieter, time dimmer) and the message below, a little space between
+   blocks. The wrap/nowrap rules above still apply to the whole block. */
+html[data-look="win98"] .hd-w98-notepad-line + .hd-w98-notepad-line {
+  margin-top: 6px;
+}
+
+html[data-look="win98"] .hd-w98-notepad-call {
+  padding: 2px 4px 2px 6px;
+  border-left: 3px solid transparent;
+}
+
+html[data-look="win98"] .hd-w98-notepad-name {
+  font-weight: bold;
+}
+
+html[data-look="win98"] .hd-w98-notepad-meta {
+  color: var(--hd-w98-ink-muted);
+}
+
+html[data-look="win98"] .hd-w98-notepad-time {
+  color: var(--hd-w98-ink-dim);
+  font-size: var(--hd-text-12, 12px);
+}
+
+html[data-look="win98"] .hd-w98-notepad-body {
+  font-weight: normal;
+}
+
+/* Your own calls: a pale tint and a navy edge, so you can find them. */
+html[data-look="win98"] .hd-w98-notepad-call[data-mine] {
+  background: var(--hd-w98-tooltip);
+  border-left-color: var(--hd-navy);
+}
+
 /* A chosen line: Notepad's own selection. */
 html[data-look="win98"] .hd-w98-notepad-call[data-selected] {
   background: var(--hd-navy);
   color: var(--hd-chrome-lighter);
 }
 
-html[data-look="win98"] .hd-w98-notepad-tunein {
-  color: var(--hd-w98-green-text);
+html[data-look="win98"] .hd-w98-notepad-call[data-selected] .hd-w98-notepad-meta,
+html[data-look="win98"] .hd-w98-notepad-call[data-selected] .hd-w98-notepad-time {
+  color: var(--hd-chrome-lighter);
 }
 
+/* A system notice: small, gray, one line however narrow the window. */
+html[data-look="win98"] .hd-w98-notepad-log .hd-w98-notepad-tunein {
+  color: var(--hd-w98-ink-dim);
+  font-size: var(--hd-text-11, 11px);
+  padding-left: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* An archive moment: indented and framed, its own heading, its link inside. */
 html[data-look="win98"] .hd-w98-notepad-archive {
+  margin-left: 3ch;
+  margin-right: 4px;
+  padding: 4px 6px;
+  border: 1px solid var(--hd-w98-maroon);
+  border-left-width: 4px;
+  background: var(--hd-chrome-light);
+  color: var(--hd-ink);
+}
+
+html[data-look="win98"] .hd-w98-notepad-line + .hd-w98-notepad-archive,
+html[data-look="win98"] .hd-w98-notepad-archive + .hd-w98-notepad-line {
+  margin-top: 10px;
+}
+
+html[data-look="win98"] .hd-w98-notepad-archive-label {
   color: var(--hd-w98-maroon);
+  font-weight: bold;
+}
+
+html[data-look="win98"] .hd-w98-notepad-new-calls {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 10px;
+  white-space: nowrap;
 }
 
 html[data-look="win98"] .hd-w98-notepad-link {

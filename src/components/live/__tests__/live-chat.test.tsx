@@ -60,6 +60,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 const { LiveChat } = await import("../LiveChat");
+const { fakeScrollBox } = await import("@/test-support/scroll-box");
 
 const you = { name: "Night Owl in Pahrump", line: "Line 3", admin: false };
 const slowOff = { on: false, until: null, intervalMs: 3000, forced: false };
@@ -702,4 +703,120 @@ describe("archive lines (2026-10-11): a moment from the show's history, never a 
     );
     done();
   });
+});
+
+describe("readable lines (2026-10-13), on a desktop and on a phone", () => {
+  const busy = (es: () => FakeEventSource) =>
+    act(() =>
+      es().emit("hello", {
+        you: { ...you, name: "Night Owl", place: "Asuncion" },
+        slowMode: slowOff,
+        recent: [
+          msg(1, { name: "Desert Rat", place: "Rachel", line: "Area 51 Line", at: "2026-09-25T06:00:00.000Z" }),
+          msg(2, { name: "Night Owl", place: "Asuncion", line: "Line 3", at: "2026-09-25T06:05:00.000Z", body: "hello from me" }),
+        ],
+        resumed: false,
+        hidden: [],
+        tuneins: [
+          { at: "2026-09-25T06:01:00.000Z", count: 1, places: [] },
+          { at: "2026-09-25T06:02:00.000Z", count: 1, places: [] },
+          { at: "2026-09-25T06:03:00.000Z", count: 1, places: [] },
+        ],
+        archive: [
+          { id: "m1", at: "2026-09-25T06:04:00.000Z", text: "Art signs on.", form: "moment", speaker: null, episode: { airDate: "1997-03-13", title: "Area 51 caller" }, reason: "archive" },
+        ],
+      }),
+    );
+
+  for (const phone of [false, true]) {
+    describe(phone ? "phone (glass)" : "desktop", () => {
+      beforeEach(() => {
+        mobile = phone;
+        stubMedia();
+      });
+
+      it("each call is its own block: name, then place and line, then time; the message below", () => {
+        const { host, es, done } = render();
+        busy(es);
+        const call = all(host, "live-message")[0];
+        const head = q(call, "call-head")!;
+        const body = q(call, "message-body")!;
+        expect(head.contains(body)).toBe(false);
+        expect(head.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(q(head, "caller-name")!.textContent).toBe("Desert Rat");
+        expect(q(head, "caller-name")!.className).toContain("font-bold");
+        expect(q(head, "caller-place")!.textContent).toBe(", calling from Rachel");
+        expect(q(head, "caller-place")!.className).toContain("text-bevel-dark");
+        expect(q(head, "line-label")!.textContent).toBe("Area 51 Line");
+        expect(q(head, "call-time")!.className).toContain("text-bevel-dark/85");
+        expect(head.textContent!.replace(/\u00A0/g, " ")).toMatch(/^Desert Rat, calling from Rachel \u00B7 Area 51 Line/);
+        expect(body.className).toContain("font-normal");
+        done();
+      });
+
+      it("folds three tune-ins in a row into one small line", () => {
+        const { host, es, done } = render();
+        busy(es);
+        const notices = all(host, "tunein-notice");
+        expect(notices).toHaveLength(1);
+        expect(notices[0].textContent).toBe("3 new listeners tuned in");
+        expect(notices[0].className).toContain("text-hd-micro");
+        expect(notices[0].className).toContain("truncate");
+        done();
+      });
+
+      it("frames an archive moment, labelled, with Find the show inside it", () => {
+        const { host, es, done } = render();
+        busy(es);
+        const block = q(host, "archive-line")!;
+        expect(block.className).toContain("border-l-4");
+        expect(block.className).toContain("ml-4");
+        expect(q(block, "archive-label")!.textContent).toBe("From the archive");
+        expect(q(block, "archive-episode")).not.toBeNull();
+        done();
+      });
+
+      it("tints the caller's own call, and nobody else's (control)", () => {
+        const { host, es, done } = render();
+        busy(es);
+        const [theirs, own] = all(host, "live-message");
+        expect(own.dataset.mine).toBe("true");
+        expect(own.className).toContain("bg-signal-blue/10");
+        expect(theirs.dataset.mine).toBeUndefined();
+        expect(theirs.className).not.toContain("bg-signal-blue/10");
+        done();
+      });
+
+      it("scrolled up, a new call does not move the list and offers New calls below; at the bottom it follows", () => {
+        const { host, es, done } = render();
+        busy(es);
+        const box = fakeScrollBox(q(host, "live-messages")!);
+        box.scrollUp();
+        box.grow(80);
+        act(() => es().emit("message", msg(3, { name: "Insomniac", at: "2026-09-25T06:06:00.000Z" }), 3));
+        expect(box.top).toBe(0);
+        const button = q(host, "new-calls")!;
+        expect(button.textContent).toContain("New calls below");
+        act(() => button.click());
+        expect(box.top).toBe(box.bottom);
+        expect(q(host, "new-calls")).toBeNull();
+        // Control: at the bottom, the next call is followed and nothing is offered.
+        box.grow(80);
+        act(() => es().emit("message", msg(4, { name: "Insomniac", at: "2026-09-25T06:07:00.000Z" }), 4));
+        expect(box.top).toBe(box.bottom);
+        expect(q(host, "new-calls")).toBeNull();
+        done();
+      });
+
+      it("a tune-in arriving while scrolled up raises nothing", () => {
+        const { host, es, done } = render();
+        busy(es);
+        const box = fakeScrollBox(q(host, "live-messages")!);
+        box.scrollUp();
+        act(() => es().emit("tunein", { at: "2026-09-25T06:09:00.000Z", count: 1, places: [] }));
+        expect(q(host, "new-calls")).toBeNull();
+        done();
+      });
+    });
+  }
 });

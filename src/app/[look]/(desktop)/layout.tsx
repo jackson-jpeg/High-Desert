@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAppPathname } from "@/hooks/useAppPathname";
 import { useLiveQuery } from "dexie-react-hooks";
 import { DesktopShell } from "@/components/desktop/DesktopShell";
@@ -38,6 +38,7 @@ import { toast } from "@/stores/toast-store";
 import { emit, onHdEvent, SW_OFFLINE_FALLBACK } from "@/lib/events";
 import { isKeyOwnedByTarget } from "@/lib/utils/key-ownership";
 import { episodeTitle } from "@/lib/library/display-title";
+import { knownEpisodeCount } from "@/lib/library/episode-count";
 
 export default function DesktopLayout({
   children,
@@ -45,6 +46,8 @@ export default function DesktopLayout({
   children: React.ReactNode;
 }) {
   const pathname = useAppPathname();
+  // The seed (or reconcile) has finished: an empty library is now a real 0.
+  const [seedSettled, setSeedSettled] = useState(false);
   const { playEpisode, primeEpisode, togglePlay, seek, playNext, playPrevious } = useAudioPlayer();
   // NOT subscribed: reading position here would re-render the entire desktop
   // shell 4x/second during playback. The keyboard handler reads it on demand.
@@ -343,6 +346,7 @@ export default function DesktopLayout({
           // without this every first-time visitor was shown "No episodes in
           // the library yet… try refreshing" — a failure message, on success.
           emit("seed-settled");
+          if (!cancelled) setSeedSettled(true);
         });
     };
 
@@ -541,8 +545,10 @@ export default function DesktopLayout({
     return () => window.removeEventListener("keydown", handler);
   }, [togglePlay, seek, volume, setVolume, playNext, playPrevious, pathname]);
 
-  // Episode count for status bar — handled via DesktopShell's episodeCount prop
-  const episodeCount = useLiveQuery(() => db.episodes.count(), []);
+  // Episode count for the status bar: unknown (not 0) until the seed has
+  // settled, or a first visit reads "0 episodes" while it seeds.
+  const liveEpisodeCount = useLiveQuery(() => db.episodes.count(), []);
+  const episodeCount = knownEpisodeCount(liveEpisodeCount, seedSettled);
 
   return (
     <DBErrorBoundary>
@@ -551,7 +557,7 @@ export default function DesktopLayout({
         player={
 <AudioPlayer />
         }
-        episodeCount={episodeCount ?? 0}
+        episodeCount={episodeCount}
       >
         {children}
       </DesktopShell>

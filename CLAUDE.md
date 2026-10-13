@@ -25,10 +25,11 @@ worker, whose fetches bypass `page.route()`. Without it, a spec that starts a sh
 permanent play to whatever server it points at — this broke the test DB once. Run e2e servers
 against the e2e database (`/root/.high-desert-e2e.env`), never `TEST_DATABASE_URL`.
 
-**On the VPS, heavy scripts take turns.** `build`, `lint`, `typecheck`, `test` and
-`test:mutations` (and each mutation's vitest, and `deploy.sh`'s `npm ci` and build) run
-through `scripts/heavy.sh`, i.e. the box-wide `heavy` semaphore (2 slots, `heavy status`);
-where `heavy` is absent (CI) they run directly. Memory fell to 13% on 2026-09-28 with five
+**On the VPS, heavy scripts take turns.** `build`, `lint`, `typecheck`, `test`,
+`test:mutations` and `test:e2e` (and each mutation's vitest, and `deploy.sh`'s `npm ci`
+and build) run through `scripts/heavy.sh`, i.e. the box-wide `heavy` semaphore (one slot
+since 2026-10-13, niced, waiting while the 6-hour CPU mean is over 40%: `heavy status`);
+where `heavy` is absent (CI) they run directly. Playwright runs one worker off CI. Memory fell to 13% on 2026-09-28 with five
 at once (`docs/memory-2026-09-28.md`). Watch modes are deliberately not wrapped.
 
 (Quick Start is for a *development* checkout. In `/root/High-Desert`, which is
@@ -953,7 +954,8 @@ same offset, computed from a synced clock.
   **Listen live** (`live-tune-in`, `tuneIn()` inside the gesture), Leave while
   tuned, Rejoin live / Tap to rejoin while held. It is the only tune-in
   control on a phone (the Studio below has no buttons). Then the sticky Call
-  in, the latest three calls (`phone-lines-preview`) whose tap opens the sheet,
+  in, the latest three calls (`phone-lines-preview`, drawn as the lines'
+  blocks, your own tinted) whose tap opens the sheet,
   and the install card when it applies. Preview and sheet share **one**
   `useLiveChat` stream. A phone's first visit to `/` is sent straight to `/live`.
 - **A phone says it once** (2026-10-12, both looks). The hero is the only place
@@ -1087,6 +1089,21 @@ deploy never drops a chat stream. The full account is in `docs/live-chat.md`.
   that cannot be sourced is cut, never softened: 30 of the first 50 survived.
   All but the sign-on are descriptions, never presented as quotes;
   `form: "quote"` needs a sourced transcript.
+- **Readable lines** (2026-10-13, `docs/phone-lines-2026-10-13/handoff.md`).
+  Every surface draws the same rows from `chatRows()` (`src/lib/live/chat-rows.ts`):
+  each call a block, head first (name bold, then ", calling from Place" and
+  the line quieter, the time dimmer), the message below; a run of tune-ins
+  folded into one small line ("3 new listeners tuned in"); an archive moment
+  indented and framed with its link inside; your own calls tinted
+  (`isOwnCall`: posted here, or under hello's `you.name`). Scrolled up, new
+  calls wait behind **New calls below** (`useFollowLog`); at the bottom the
+  list follows, and your own call takes you down. Win98's Notepad keeps its
+  type and draws the same blocks (`notepad-log.ts`, `look-win98.css`).
+  **Generated names carry no place** ("Sleepless Night Owl",
+  `services/live/lib/names.mjs`): the caller's own "Calling from" is the
+  place. Stored names ("Night Owl in Pahrump") are never renamed.
+  Tests: `chat-rows.test.ts`, the readable-lines block in `live-chat.test.tsx`,
+  `notepad-phone-lines.test.tsx`, `e2e/phone-lines-busy.spec.ts`; mutations `lines-*`.
 - **One browser, one caller** (2026-09-26). A caller is a random id in the
   signed `hd_live_caller` cookie (HttpOnly, Secure, Path=/live-api, 400 days,
   `services/live/lib/caller.mjs`); `client_ref` is an HMAC of it. Names,
