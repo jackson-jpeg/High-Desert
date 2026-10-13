@@ -1,5 +1,5 @@
 import type { Episode } from "@/db/schema";
-import { planStart, type StartPlan } from "@/audio/sources";
+import { mirrorUrl, planStart, type StartPlan } from "@/audio/sources";
 import { archiveKnownDown, checkArchiveHealth } from "@/services/archive/health";
 import { useOutageStore } from "@/stores/outage-store";
 
@@ -9,10 +9,20 @@ import { useOutageStore } from "@/stores/outage-store";
  * between the tap and `play()`.
  */
 export function currentStartPlan(episode: Pick<Episode, "fileHash" | "sourceUrl">): StartPlan {
-  return planStart(episode, {
+  const outage = useOutageStore.getState();
+  const plan = planStart(episode, {
     archiveDown: archiveKnownDown(),
-    playable: useOutageStore.getState().manifest?.fileHashes ?? null,
+    playable: outage.manifest?.fileHashes ?? null,
   });
+  // archive.org already failed this show in this tab (the watchdog moved it to
+  // the mirror). Try Again, or the next start of it, goes to the mirror rather
+  // than back to the host that just failed: on 2026-10-12, 6 of the failed
+  // failovers were a Try Again that asked archive.org again.
+  if (plan.kind === "play" && plan.source.kind === "archive" && outage.failedOver === episode.fileHash) {
+    const mirror = mirrorUrl(episode);
+    if (mirror) return { kind: "play", source: { kind: "mirror", url: mirror } };
+  }
+  return plan;
 }
 
 /**

@@ -6,13 +6,20 @@
 #
 # Each line is OK, WARN or FAIL. Exits non-zero if any line is FAIL.
 #
-#   deploy    the deployed commit (.deploy/deployed) vs HEAD, and HEAD vs origin
+#   deploy    the deployed commit (.deploy/deployed) vs HEAD, and HEAD vs origin.
+#             Commits that change only docs/ or top-level *.md (handoffs) are not
+#             drift: nothing in them is served, so they need no deploy
 #   service   highdesert.service active, and the installed unit == deploy/highdesert.service
 #   nginx     the installed vhost == deploy/nginx/highdesert.conf (WARN on drift:
 #             the stats write limit and the X-Forwarded-For overwrite live there)
 #   backup    highdesert-backup-status (OK / FAILED / STALE after 36h)
 #   sampler   highdesert-sample.timer active and its last run succeeded recently
-#   failures  7-day failed-start rate from /api/stats/failures vs plays from /api/stats/traffic
+#   failures  starts the listener lost in the trailing 7 days, counted as the release
+#             line counts them (/api/stats/failures?since=<7 days ago>): failures the
+#             retry or the mirror did not rescue, one per tab per show; rescues and
+#             repeats beside it. WARN at 3%+ on 300+ plays, or 10%+ on 30+ (2026-10-12:
+#             it used to divide every failure row by plays, and read 21.5% in a week
+#             when 5.3% of starts were lost)
 #   peaks     Signal Traffic's peaks nest: peak(30d) >= peak(7d) >= peak(24h) for online
 #             and listening, from /api/stats/traffic; FAIL if a longer window reads lower
 #   funnel    the last 7 days' arrivals and how far they got, from /api/stats/funnel:
@@ -29,7 +36,9 @@
 #             only ("N starts lost in M plays so far, no verdict until 300 plays"),
 #             and OK unless a tripwire trips: 10%+ lost on at least 30 plays.
 #             Only rows from this release's builds (the release commit and
-#             .deploy/history since the release); other builds' rows beside it
+#             .deploy/history since the release); other builds' rows beside it.
+#             Once the 7 days are over the line says "window closed" and keeps
+#             the verdict: it is history, and the failures line is the current week
 #   presence  the live site's presence surfaces (Stats badge, status bar, mobile
 #             sheet, On Air, Signal Traffic) show the same numbers within one
 #             poll — scripts/presence-check.mjs in headless Chromium; FAIL if not
@@ -37,6 +46,10 @@
 #             WARN above 20%, FAIL above 50% (the 2026-09-22 episode ran ~90%)
 #   memory    MemAvailable as a share of MemTotal (/proc/meminfo): WARN under 15%,
 #             FAIL under 5%; swap in use beside it, reported, not judged
+#   disk      free space on / (df): WARN under 15 GB, FAIL under 5 GB. The mirror's
+#             warm job stops pinning under 10 GB free and nginx's fill cache gives
+#             way at 12, so 15 is the warning before either; a build needs ~1 GB.
+#             On 2026-10-12 the disk reached 99% (2.8 GB free) and nothing said so
 #   mirror    the outage mirror as nginx serves it: /mirror/manifest answering with
 #             at least one pin; pinned count and bytes, the fill cache's size, and
 #             mirror plays in the last 24h. WARN if the retired webtorrent gateway
@@ -62,11 +75,10 @@
 #             this line is where the whole list is held
 #   audit     npm audit --omit=dev critical + high count
 #
-# The failure rate is reported, not judged: WARN above 10%, never FAIL — it
-# is a product metric, and a bad week of archive.org is not an outage here.
-# The release line is the same kind of number held to a tighter target: the
-# trailing rate still carries the old build for a week after a deploy, so it
-# cannot say whether the deploy helped.
+# The failures and release lines count the same thing, lost starts, and only
+# ever WARN: a bad week of archive.org is not an outage here. The failures line
+# is the trailing week; the release line is the 7 days after one release, so it
+# can say whether that release helped.
 #
 # Overridable for scripts/__tests__/status.test.ts:
 #   HD_ROOT, HD_API (http://127.0.0.1:3003), HD_SYSTEMCTL, HD_NPM,
@@ -76,7 +88,8 @@
 #   HD_WARM_STATUS, HD_WARM_MAX_AGE_S (129600), HD_CPU_CMD (hd-cpu-sample report --window 900),
 #   HD_LIVE (http://127.0.0.1:3005), HD_FUNNEL_VERDICT (/var/lib/highdesert-funnel/status.json),
 #   HD_DIGEST_STATUS (/var/lib/highdesert-digest/status.json),
-#   HD_MUTATIONS_CMD (bash scripts/nightly-mutations.sh), HD_MEMINFO (/proc/meminfo)
+#   HD_MUTATIONS_CMD (bash scripts/nightly-mutations.sh), HD_MEMINFO (/proc/meminfo),
+#   HD_DF_CMD (df -B1 --output=avail,size /), HD_NOW (epoch s, for the closed window)
 set -uo pipefail
 
 ROOT="${HD_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -101,6 +114,10 @@ LIVE="${HD_LIVE:-http://127.0.0.1:3005}"
 # Same default as the `cpu` line's HD_CPU_CMD; its own name so the two lines merge cleanly.
 LIVE_CPU_CMD="${HD_CPU_CMD:-hd-cpu-sample report --window 900}"
 MUTATIONS_CMD="${HD_MUTATIONS_CMD:-bash $ROOT/scripts/nightly-mutations.sh}"
+DF_CMD="${HD_DF_CMD:-df -B1 --output=avail,size /}"
+NOW_S="${HD_NOW:-$(date +%s)}"
+DISK_WARN_GB=15
+DISK_FAIL_GB=5
 
 cd "$ROOT" || exit 2
 
@@ -121,7 +138,13 @@ if [[ -z "$deployed_ref" ]]; then
   line FAIL deploy "no .deploy/deployed — nothing has been deployed with scripts/deploy.sh"
 elif [[ "$deployed_ref" != "$head_ref" ]]; then
   behind="$(git rev-list --count "$deployed_ref..HEAD" 2>/dev/null || echo '?')"
-  line FAIL deploy "DRIFT: live is $deployed_ref ($deployed_at), HEAD is $head_ref — $behind commit(s) not deployed"
+  # A handoff or doc commit changes nothing that is served: not drift.
+  changed="$(git diff --name-only "$deployed_ref" HEAD 2>/dev/null)"
+  if [[ -n "$changed" ]] && ! grep -qvE '^(docs/|[^/]+\.md$)' <<<"$changed"; then
+    line OK deploy "live = $deployed_ref (deployed $deployed_at); HEAD $head_ref is $behind docs-only commit(s) ahead, nothing to deploy"
+  else
+    line FAIL deploy "DRIFT: live is $deployed_ref ($deployed_at), HEAD is $head_ref — $behind commit(s) not deployed"
+  fi
 else
   line OK deploy "live = HEAD = $head_ref (deployed $deployed_at)"
 fi
@@ -187,19 +210,33 @@ else
 fi
 
 # --- failures ----------------------------------------------------------------
-failures_json="$(curl -s --max-time 10 "$API/api/stats/failures?days=7" 2>/dev/null)"
+# Lost starts, the trailing week. The thresholds are the release line's (below).
+LOST_TARGET_PCT=3
+LOST_VERDICT_PLAYS=300
+LOST_TRIPWIRE_PLAYS=30
+LOST_TRIPWIRE_PCT=10
 traffic_json="$(curl -s --max-time 10 "$API/api/stats/traffic?range=7d" 2>/dev/null)"
-failures="$(jq -r '.summary.failures // empty' <<<"$failures_json" 2>/dev/null)"
-plays="$(jq -r '.playsInRange // empty' <<<"$traffic_json" 2>/dev/null)"
-if [[ -z "$failures" || -z "$plays" ]]; then
-  line FAIL failures "could not read /api/stats/failures or /api/stats/traffic from $API"
-elif (( plays == 0 )); then
-  line WARN failures "$failures failed start(s) and no plays in 7 days"
+trail_since="$(date -u -d "@$(( NOW_S - 7 * 86400 ))" +%FT%TZ)"
+trail_json="$(curl -s --max-time 10 "$API/api/stats/failures?days=7&since=$trail_since" 2>/dev/null)"
+read -r tf tr tl trep tp < <(jq -r '.window // empty
+  | "\(.failures) \(.recovered // 0) \(.lost // (.failures - (.recovered // 0))) \(.repeats // 0) \(.plays)"' <<<"$trail_json" 2>/dev/null) || true
+if [[ -z "${tf:-}" || -z "${tp:-}" || "$tp" == null ]]; then
+  line FAIL failures "could not read /api/stats/failures?since=$trail_since from $API"
+elif (( tp == 0 )); then
+  line WARN failures "$tl start(s) lost and no plays in 7 days"
 else
-  pct="$(awk -v f="$failures" -v p="$plays" 'BEGIN { printf "%.1f", 100 * f / p }')"
+  tpct="$(awk -v f="$tl" -v p="$tp" 'BEGIN { printf "%.1f", 100 * f / p }')"
+  beside="$tr rescued by the retry or the mirror"
+  (( trep > 0 )) && beside+="; $trep $( (( trep == 1 )) && echo repeat || echo repeats ) of a lost start in the same tab, not counted"
+  beside+="; $tf failure row(s) in all"
   level=OK
-  awk -v x="$pct" 'BEGIN { exit !(x > 10) }' && level=WARN
-  line "$level" failures "${pct}% of starts failed in 7 days ($failures failures / $plays plays)"
+  if (( tp < LOST_VERDICT_PLAYS )); then
+    (( tp >= LOST_TRIPWIRE_PLAYS )) && awk -v x="$tpct" -v t="$LOST_TRIPWIRE_PCT" 'BEGIN { exit !(x >= t) }' && level=WARN
+    line "$level" failures "$tl start(s) lost in $tp plays in 7 days, too few plays for a share; $beside"
+  else
+    awk -v x="$tpct" -v t="$LOST_TARGET_PCT" 'BEGIN { exit !(x >= t) }' && level=WARN
+    line "$level" failures "${tpct}% of starts lost in 7 days ($tl lost / $tp plays; target <${LOST_TARGET_PCT}%); $beside"
+  fi
 fi
 
 # --- peaks -------------------------------------------------------------------
@@ -280,13 +317,13 @@ fi
 # release). A row from any other build, or with no build at all (written before
 # 2026-09-28, or by a tab still on older code), is shown beside it, never
 # dropped and never mixed in (docs/reliability-baseline.md).
-RELEASE_TARGET_PCT=3
-RELEASE_VERDICT_PLAYS=300
+RELEASE_TARGET_PCT=$LOST_TARGET_PCT
+RELEASE_VERDICT_PLAYS=$LOST_VERDICT_PLAYS
 # Under the verdict the line reads OK, with one tripwire so a broken release
 # still flags early: at least RELEASE_TRIPWIRE_PLAYS plays with
 # RELEASE_TRIPWIRE_PCT% or more of them lost.
-RELEASE_TRIPWIRE_PLAYS=30
-RELEASE_TRIPWIRE_PCT=10
+RELEASE_TRIPWIRE_PLAYS=$LOST_TRIPWIRE_PLAYS
+RELEASE_TRIPWIRE_PCT=$LOST_TRIPWIRE_PCT
 baseline_doc="docs/reliability-baseline.md"
 release_at="$(sed -n 's/^\*\*Release deployed:\*\* `\([^`]*\)`.*/\1/p' "$baseline_doc" 2>/dev/null | head -1)"
 release_ref="$(sed -n 's/^\*\*Release deployed:\*\* `[^`]*` (\([0-9a-f]\{7,40\}\)).*/\1/p' "$baseline_doc" 2>/dev/null | head -1)"
@@ -317,6 +354,16 @@ else
           ([$bb[] | select(isrel(.build)) | (.repeats // 0)] | add // 0),
           ([$bb[] | select(isrel(.build) | not) | lost] | add // 0) ] | @tsv
       end' <<<"$window_json" 2>/dev/null)"
+  # The window is the 7 days from the release. Once they are over the line is
+  # a verdict on history and says so: on 2026-10-12 it had printed the same
+  # closed week's 1.7% for a week, while the current week lost 5.3%.
+  release_end_s=$(( $(date -d "$release_at" +%s 2>/dev/null || echo "$NOW_S") + 7 * 86400 ))
+  closed=""
+  sofar="so far"
+  if (( NOW_S > release_end_s )); then
+    closed="window closed $(date -u -d "@$release_end_s" +%F) (see the failures line for this week): "
+    sofar="in its 7 days"
+  fi
   if [[ -z "$wf" || -z "$wp" || -z "$wdays" ]]; then
     line FAIL release "could not read /api/stats/failures?since=$release_at from $API"
   else
@@ -341,7 +388,7 @@ else
     rep=""
     (( rrep > 0 )) && rep="; $rrep $( (( rrep == 1 )) && echo repeat || echo repeats ) of a lost start in the same tab, not counted"
     if (( rp == 0 )); then
-      line OK release "no plays yet $whose since the release ($release_at); target <${RELEASE_TARGET_PCT}% of starts lost$older"
+      line OK release "${closed}no plays yet $whose since the release ($release_at); target <${RELEASE_TARGET_PCT}% of starts lost$older"
     else
       rpct="$(awk -v f="$rl" -v p="$rp" 'BEGIN { printf "%.1f", 100 * f / p }')"
       level=OK
@@ -353,11 +400,11 @@ else
           level=WARN
           trip="; tripwire: ${RELEASE_TRIPWIRE_PCT}% or more lost on ${RELEASE_TRIPWIRE_PLAYS}+ plays"
         fi
-        line "$level" release "$rl $starts lost in $rp $plays $whose so far, no verdict until $RELEASE_VERDICT_PLAYS plays; $rescued$rep (${wdays} of 7 days since $release_at; target <${RELEASE_TARGET_PCT}% lost)$trip$older"
+        line "$level" release "${closed}$rl $starts lost in $rp $plays $whose $sofar, no verdict until $RELEASE_VERDICT_PLAYS plays; $rescued$rep (${wdays} of 7 days since $release_at; target <${RELEASE_TARGET_PCT}% lost)$trip$older"
       else
         awk -v x="$rpct" -v t="$RELEASE_TARGET_PCT" 'BEGIN { exit !(x >= t) }' && level=WARN
         respct="$(awk -v f="$rr" -v p="$rp" 'BEGIN { printf "%.1f", 100 * f / p }')"
-        line "$level" release "${rpct}% of starts lost $whose in the ${wdays} of 7 days since $release_at ($rl lost / $rp plays; target <${RELEASE_TARGET_PCT}%); $rescued (${respct}%)$rep$older"
+        line "$level" release "${closed}${rpct}% of starts lost $whose in the ${wdays} of 7 days since $release_at ($rl lost / $rp plays; target <${RELEASE_TARGET_PCT}%); $rescued (${respct}%)$rep$older"
       fi
     fi
   fi
@@ -414,6 +461,22 @@ else
     line OK memory "$mtext"
   fi
 fi
+# --- disk --------------------------------------------------------------------
+read -r disk_avail disk_size < <($DF_CMD 2>/dev/null | tail -n 1) || true
+if [[ ! "${disk_avail:-}" =~ ^[0-9]+$ || ! "${disk_size:-}" =~ ^[0-9]+$ ]]; then
+  line WARN disk "could not read free space ($DF_CMD)"
+else
+  gb() { awk -v b="$1" 'BEGIN { printf "%.1f", b / 1e9 }'; }
+  disk_msg="$(gb "$disk_avail") GB free of $(gb "$disk_size") GB; the mirror's warm job needs 10 GB free, a build ~1 GB"
+  if (( disk_avail < DISK_FAIL_GB * 1000000000 )); then
+    line FAIL disk "$disk_msg (FAIL under ${DISK_FAIL_GB} GB): disk-sweep --dry-run lists what can go"
+  elif (( disk_avail < DISK_WARN_GB * 1000000000 )); then
+    line WARN disk "$disk_msg (WARN under ${DISK_WARN_GB} GB): disk-sweep --dry-run lists what can go"
+  else
+    line OK disk "$disk_msg"
+  fi
+fi
+
 # --- mirror ------------------------------------------------------------------
 # The archive.org outage fallback: nginx serves the pins and fills the rest
 # (services/mirror/lib/nginx.mjs). No manifest, or an empty one, is a FAIL:

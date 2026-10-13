@@ -27,6 +27,18 @@
 #      NEXT_PUBLIC_BUILD_ID names the service-worker cache, and a build that is
 #      not in git is not reproducible.
 #
+#   5. scripts/schema.sql is applied only after the new build has passed, right
+#      before the switch, in one transaction, and only when the file changed
+#      since the last deploy that applied it (.deploy/schema-applied). A build
+#      that fails changes neither the site nor the database. The schema is
+#      additive (IF NOT EXISTS), so the old build keeps working against it for
+#      the seconds before the restart, and after a rollback.
+#
+#   6. Route types left by earlier builds are cleared before every build. tsc
+#      reads .next/types and .next-dev/types (tsconfig.json), and a route this
+#      commit removed is still declared there, so the build failed on a type
+#      error in code that no longer exists. `next start` never reads them.
+#
 # Usage:
 #   bash scripts/deploy.sh                 # deploy HEAD; refuses a dirty tree
 #   bash scripts/deploy.sh --allow-dirty   # deploy the working tree anyway
@@ -45,8 +57,10 @@
 #   HD_HEAVY      the box-wide turn semaphore   (default: heavy; see scripts/heavy.sh)
 #   HD_WAIT_SECS  how long to wait for the port (default: 60)
 #   HD_STAGE_DIR  parent of the dependency staging copy (default: /root/.hd-deploy-stage)
-#   HD_ENV_FILE   the service's env file, read for GOOGLE_SITE_VERIFICATION only
-#                 (default: /root/.high-desert.env)
+#   HD_ENV_FILE   the service's env file, read for GOOGLE_SITE_VERIFICATION and
+#                 DATABASE_URL only (default: /root/.high-desert.env)
+#   HD_SCHEMA_CMD applies a schema file given as its argument
+#                 (default: psql on the env file's DATABASE_URL, one transaction)
 #
 set -euo pipefail
 
@@ -204,6 +218,11 @@ fi
 
 rm -rf "$STAGING" node_modules.staging
 
+say "Clearing route types left by earlier builds"
+for d in "$LIVE/types" "$LIVE/dev/types" .next-dev/types .next-dev/dev/types "$PREV/types"; do
+  if [[ -d "$d" ]]; then rm -rf "$d"; echo "  removed $d"; fi
+done
+
 # Search Console's meta tag is baked in when the root layout is built
 # (src/lib/seo/verification.ts), and the build does not load the service's env
 # file. Pass that one variable through; nothing else is read from the file.
@@ -212,6 +231,23 @@ if [[ -z "${GOOGLE_SITE_VERIFICATION:-}" && -r "$ENV_FILE" ]]; then
   GOOGLE_SITE_VERIFICATION="$(sed -n 's/^GOOGLE_SITE_VERIFICATION=//p' "$ENV_FILE" | tail -n 1)"
   export GOOGLE_SITE_VERIFICATION
 fi
+
+# The schema, applied by apply_schema() below once the build has passed.
+apply_schema() {
+  if [[ -n "${HD_SCHEMA_CMD:-}" ]]; then
+    $HD_SCHEMA_CMD "$1"
+    return
+  fi
+  local url
+  url="$( [[ -r "$ENV_FILE" ]] && sed -n 's/^DATABASE_URL=//p' "$ENV_FILE" | tail -n 1 || true)"
+  url="${url%\"}"; url="${url#\"}"
+  if [[ -z "$url" ]]; then
+    echo "  no DATABASE_URL in $ENV_FILE"
+    return 1
+  fi
+  psql "$url" -X -q -v ON_ERROR_STOP=1 --single-transaction \
+    -c "SET client_min_messages = warning" -f "$1" >/dev/null
+}
 
 if (( DEPS_CHANGED )); then
   # The staging copy keeps the project's basename and depth, so the relative
@@ -268,6 +304,23 @@ if ! grep -q "$BUILD_REF" "$REG_CHUNK"; then
      swapped. The build did not come from this tree."
 fi
 echo "  $BUILD_REF found in $(basename "$REG_CHUNK")"
+
+SCHEMA_FILE=scripts/schema.sql
+if [[ -f "$SCHEMA_FILE" ]]; then
+  SCHEMA_SHA="$(sha256sum "$SCHEMA_FILE" | cut -d' ' -f1)"
+  if [[ "$(cat "$STATE_DIR/schema-applied" 2>/dev/null || true)" == "$SCHEMA_SHA" ]]; then
+    say "Schema unchanged since it was last applied"
+  else
+    say "Applying $SCHEMA_FILE (the build passed; the switch is next)"
+    if ! apply_schema "$SCHEMA_FILE"; then
+      rm -rf "$STAGING" node_modules.staging
+      die "$SCHEMA_FILE failed and was rolled back (one transaction). Nothing was
+     swapped: the live build and the database are as they were."
+    fi
+    echo "$SCHEMA_SHA" > "$STATE_DIR/schema-applied"
+    echo "  applied"
+  fi
+fi
 
 say "Swapping the new build into place"
 rm -rf "$PREV" .next.failed

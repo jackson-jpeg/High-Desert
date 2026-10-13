@@ -465,10 +465,90 @@ describe("why two iOS failovers to the mirror did not recover (2026-09-27)", () 
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     act(() => void api().playEpisode(episode()));
     await settle();
-    act(() => void vi.advanceTimersByTime(30_000));
+    // Long enough for the retry, the failover and the mirror's first-byte budget.
+    act(() => void vi.advanceTimersByTime(60_000));
     await settle();
     // However the attempt ends, its row carries what play() was told.
     expect(usePlayerStore.getState().loadState).toBe("failed");
     expect(reportPlaybackFailure.mock.calls.at(-1)![0].detail).toContain("play NotAllowedError");
+  });
+});
+
+describe("why 62 failovers to the mirror did not recover (2026-10-12)", () => {
+  it("a restored show's ▶: archive.org's play() rejecting after the failover is not charged to the mirror", async () => {
+    // The same order as the playEpisode case above, on the other start path:
+    // resumePlayback's catch had no "has the element moved on?" check, so the
+    // stale rejection failed the mirror attempt it had just been moved to.
+    plays = ["hang", "hang"];
+    const helperPlay = element.play.bind(element);
+    let rejectFirst: (err: unknown) => void = () => {};
+    let n = 0;
+    element.play = vi.fn(() => {
+      n++;
+      const p = helperPlay();
+      if (n > 1) return p;
+      p.catch(() => {});
+      return new Promise<void>((_, reject) => {
+        rejectFirst = reject;
+      });
+    });
+    const ep = episode();
+    act(() => {
+      usePlayerStore.getState().loadEpisode(ep, "");
+      api().primeEpisode(ep);
+    });
+    act(() => void api().togglePlay());
+    await settle();
+    await act(async () => {
+      rejectFirst(new DOMException("The element has no supported sources.", "NotSupportedError"));
+      mediaError(4);
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+    });
+    const s = usePlayerStore.getState();
+    expect(element.src).toBe(MIRROR);
+    expect(s.loadState).not.toBe("failed");
+    expect(reportPlaybackFailure).not.toHaveBeenCalled();
+    expect(n, "archive.org's play(), then the mirror's — nothing else").toBe(2);
+  });
+
+  it("the mirror's own play() failing for want of a source is recorded as the mirror failing, not as a refusal", async () => {
+    plays = ["hang", "reject-not-supported"];
+    act(() => void api().playEpisode(episode()));
+    act(() => mediaError(4));
+    await settle();
+    await settle();
+    const s = usePlayerStore.getState();
+    expect(s.loadState).toBe("failed");
+    expect(s.failureKind).toBe("network-error");
+    const row = reportPlaybackFailure.mock.calls.at(-1)![0];
+    expect(row).toMatchObject({ kind: "network-error", recovered: false, source: "mirror" });
+    expect(row.detail).toContain("play NotSupportedError");
+  });
+
+  it("Try Again after archive.org failed this show starts on the mirror, not on archive.org again", async () => {
+    useOutageStore.setState({ archiveUp: true, failedOver: null });
+    plays = ["hang", "hang", "resolve"];
+    const ep = episode();
+    act(() => void api().playEpisode(ep));
+    act(() => mediaError(4));
+    await settle();
+    act(() => mediaError(4)); // the mirror fails too: the dialog
+    await settle();
+    expect(usePlayerStore.getState().loadState).toBe("failed");
+    // Try Again replays the same show.
+    await act(async () => {
+      await api().playEpisode(ep);
+    });
+    expect(element.src).toBe(MIRROR);
+    expect(usePlayerStore.getState().source).toBe("mirror");
+  });
+
+  it("control: another show still starts on archive.org", async () => {
+    useOutageStore.setState({ archiveUp: true, failedOver: "archive:some-other-show" });
+    plays = ["resolve"];
+    await act(async () => {
+      await api().playEpisode(episode());
+    });
+    expect(element.src).toBe(ARCHIVE);
   });
 });

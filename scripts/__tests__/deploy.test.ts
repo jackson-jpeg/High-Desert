@@ -19,7 +19,14 @@ import type { AddressInfo } from "node:net";
  *   - "verified" means a server answered, every page returned 200, every page
  *     referenced at least one chunk, and every chunk returned 200 — a dead
  *     server used to verify as "0 broken chunks";
- *   - a deploy that fails verification puts the previous build back.
+ *   - a deploy that fails verification puts the previous build back;
+ *   - the schema is applied only once the new build has passed, right before
+ *     the switch: a failed build leaves the database untouched, and a failed
+ *     schema swaps nothing (2026-10-12);
+ *   - route types from earlier builds are gone before the build reads them.
+ *
+ * No test here can reach a real database: every run sets HD_SCHEMA_CMD to a
+ * stub and HD_ENV_FILE to a path that does not exist.
  *
  * The fake server decides what to serve by reading `.next/marker` in the
  * project directory on every request, so it serves whichever build deploy.sh
@@ -57,6 +64,8 @@ function run(
           HD_WAIT_SECS: "3",
           HD_STAGE_DIR: path.join(h.root, "..", "stage"),
           HD_HEAVY: path.join(h.root, "..", "heavy-stub"),
+          HD_SCHEMA_CMD: path.join(h.root, "..", "schema-stub"),
+          HD_ENV_FILE: path.join(h.root, "..", "no-such-env"),
           ...env,
         },
         timeout: 60_000,
@@ -145,6 +154,8 @@ beforeEach(async () => {
       // next build empties its distDir before compiling. That is the whole
       // reason a build must never target the live directory.
       'rm -rf "$HD_DIST_DIR"',
+      // tsc reads these (tsconfig.json): a stale route there fails the build.
+      'if [ -e .next/types ] || [ -e .next-dev/types ]; then echo "Type error: stale route types" >&2; exit 1; fi',
       'if [ "$FAKE_BUILD" = "fail" ]; then echo "Type error: nope" >&2; exit 1; fi',
       'mkdir -p "$HD_DIST_DIR/static/chunks"',
       'echo "register(\\"/sw.js?v=$(git rev-parse --short HEAD)\\")" > "$HD_DIST_DIR/static/chunks/reg.js"',
@@ -162,6 +173,18 @@ beforeEach(async () => {
       'while [ "$1" != "--" ]; do shift; done; shift',
       'if [ "$1" = npm ]; then mkdir -p node_modules; exit 0; fi',
       'exec "$@"',
+    ].join("\n"),
+    { mode: 0o755 },
+  );
+
+  // The schema step: records what was live and whether a staged build existed
+  // at the moment it ran. $FAKE_SCHEMA=fail makes it fail.
+  await writeFile(
+    path.join(base, "schema-stub"),
+    [
+      "#!/bin/bash",
+      `echo "file=$1 staged=$([ -d .next-staging ] && echo yes || echo no) live=$(cat .next/marker)" >> "${path.join(base, "schema.log")}"`,
+      'if [ "$FAKE_SCHEMA" = "fail" ]; then echo "ERROR: syntax error" >&2; exit 3; fi',
     ].join("\n"),
     { mode: 0o755 },
   );
@@ -312,6 +335,72 @@ describe("deploy.sh", () => {
     expect(r.code).not.toBe(0);
     expect(r.out).toContain("Uncommitted changes");
     expect(await marker(".next")).toBe("good:old");
+  });
+});
+
+async function schemaRuns(): Promise<string[]> {
+  return (await readFile(path.join(h.root, "..", "schema.log"), "utf8").catch(() => "")).split("\n").filter(Boolean);
+}
+
+async function commitSchema(sql: string): Promise<void> {
+  await mkdir(path.join(h.root, "scripts"), { recursive: true });
+  await writeFile(path.join(h.root, "scripts/schema.sql"), sql);
+  await git("-c", "user.email=t@t", "-c", "user.name=t", "add", "-A");
+  await git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "schema");
+}
+
+describe("deploy.sh: the schema", () => {
+  it("a failed build leaves the schema untouched", async () => {
+    await commitSchema("ALTER TABLE t ADD COLUMN IF NOT EXISTS c text;\n");
+    await startServer();
+    const r = await run([], { FAKE_BUILD: "fail" });
+    expect(r.code).not.toBe(0);
+    expect(await schemaRuns()).toEqual([]);
+    expect(await exists(path.join(h.root, ".deploy/schema-applied"))).toBe(false);
+    expect(await marker(".next")).toBe("good:old");
+  });
+
+  it("control: a passing build applies it once, after the build and before the switch", async () => {
+    await commitSchema("ALTER TABLE t ADD COLUMN IF NOT EXISTS c text;\n");
+    await startServer();
+    expect((await run([])).code).toBe(0);
+    // The new build was staged and the old one still live when it ran.
+    expect(await schemaRuns()).toEqual(["file=scripts/schema.sql staged=yes live=good:old"]);
+    // Unchanged on the next deploy: not applied again.
+    expect((await run([])).code).toBe(0);
+    expect(await schemaRuns()).toHaveLength(1);
+    // Changed: applied again.
+    await commitSchema("ALTER TABLE t ADD COLUMN IF NOT EXISTS d text;\n");
+    expect((await run([])).code).toBe(0);
+    expect(await schemaRuns()).toHaveLength(2);
+  });
+
+  it("a schema that fails swaps nothing and restarts nothing", async () => {
+    await commitSchema("NOT SQL;\n");
+    await startServer();
+    const r = await run([], { FAKE_SCHEMA: "fail" });
+    expect(r.code).not.toBe(0);
+    expect(r.out).toContain("Nothing was");
+    expect(await marker(".next")).toBe("good:old");
+    expect(await exists(path.join(h.root, ".next-staging"))).toBe(false);
+    expect(await exists(path.join(h.root, ".deploy/schema-applied"))).toBe(false);
+    expect(await restarts()).toBe(0);
+  });
+});
+
+describe("deploy.sh: stale route types", () => {
+  it("are cleared before the build, which then passes; the live build is otherwise kept", async () => {
+    await mkdir(path.join(h.root, ".next/types"), { recursive: true });
+    await writeFile(path.join(h.root, ".next/types/routes.d.ts"), "declare const gone: '/radio';\n");
+    await mkdir(path.join(h.root, ".next-dev/types"), { recursive: true });
+    await writeFile(path.join(h.root, ".next-dev/types/routes.d.ts"), "x\n");
+    await startServer();
+    const r = await run([]);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain("removed .next/types");
+    expect(await exists(path.join(h.root, ".next-dev/types"))).toBe(false);
+    expect(await marker(".next")).toBe("good:new");
+    expect(await marker(".next.prev")).toBe("good:old");
   });
 });
 

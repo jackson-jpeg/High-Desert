@@ -18,6 +18,14 @@ const SCRIPT = path.resolve(__dirname, "../status.sh");
 const UNIT = path.resolve(__dirname, "../../deploy/highdesert.service");
 const VHOST = path.resolve(__dirname, "../../deploy/nginx/highdesert.conf");
 
+/** ISO seconds, `days` ago: the release's 7 days must still be open in most tests. */
+function isoAgo(days: number): string {
+  return new Date(Date.now() - days * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+const REL_AT = isoAgo(1);
+const BEFORE_REL = isoAgo(2);
+const AFTER_REL = isoAgo(0.5);
+
 interface World {
   timerState: string;
   sampleAgeS: number;
@@ -26,6 +34,10 @@ interface World {
   audit: { critical: number; high: number };
   failures: number;
   plays: number;
+  /** The trailing 7 days' window (/api/stats/failures?since=<7 days ago>), the failures line's input. */
+  trailing: { failures: number; recovered: number; lost: number; repeats: number; plays: number };
+  /** df's avail and size in bytes. */
+  disk: { avail: number; size: number };
   backupOk: boolean;
   backupMacSkipped: boolean;
   deployedIsHead: boolean;
@@ -96,10 +108,12 @@ const HEALTHY: World = {
   audit: { critical: 0, high: 0 },
   failures: 15,
   plays: 300,
+  trailing: { failures: 15, recovered: 10, lost: 5, repeats: 0, plays: 300 },
+  disk: { avail: 21_400_000_000, size: 96_000_000_000 },
   backupOk: true,
   backupMacSkipped: false,
   deployedIsHead: true,
-  releaseAt: "2026-09-21T15:50:00Z",
+  releaseAt: REL_AT,
   release: { failures: 4, recovered: 0, plays: 200, days: 7 },
   releaseOther: [],
   history: [],
@@ -195,6 +209,7 @@ async function run(): Promise<{ code: number; out: string }> {
   ].join("\n");
   await writeFile(path.join(bin, "sar.txt"), sar + "\n");
   await writeFile(path.join(bin, "sar"), `#!/bin/sh\ncat "${path.join(bin, "sar.txt")}"\n`, { mode: 0o755 });
+  await writeFile(path.join(bin, "df"), `#!/bin/sh\necho "     Avail      1B-blocks"\necho "${world.disk.avail} ${world.disk.size}"\n`, { mode: 0o755 });
   await writeFile(path.join(bin, "cpu"), `#!/bin/sh\nprintf '%s\\n' '${world.cpu.out.split("\n").join("' '")}'\nexit ${world.cpu.rc}\n`, { mode: 0o755 });
   const pins = path.join(dir, "pins");
   const fill = path.join(dir, "proxy");
@@ -304,6 +319,7 @@ async function run(): Promise<{ code: number; out: string }> {
           HD_DIGEST_STATUS: digestFile,
           HD_MUTATIONS_CMD: path.join(bin, "mutations"),
           HD_MEMINFO: path.join(dir, "meminfo"),
+          HD_DF_CMD: path.join(bin, "df"),
         },
         timeout: 30_000,
       },
@@ -324,6 +340,8 @@ beforeEach(async () => {
     ...HEALTHY,
     audit: { ...HEALTHY.audit },
     release: { ...HEALTHY.release },
+    trailing: { ...HEALTHY.trailing },
+    disk: { ...HEALTHY.disk },
     presence: { ...HEALTHY.presence },
     steal: [...HEALTHY.steal],
     memory: { ...HEALTHY.memory! },
@@ -356,6 +374,12 @@ beforeEach(async () => {
     res.setHeader("content-type", "application/json");
     if (req.url?.startsWith("/api/stats/failures")) {
       const since = new URL(req.url, "http://x").searchParams.get("since");
+      if (since && since !== world.releaseAt) {
+        // The failures line's trailing week.
+        const t = world.trailing;
+        res.end(JSON.stringify({ summary: { failures: world.failures }, window: { from: since, to: new Date().toISOString(), ...t, byBuild: [] } }));
+        return;
+      }
       if (since) {
         sinceAsked = since;
         const from = new Date(since);
@@ -431,7 +455,10 @@ describe("highdesert-status", () => {
   it("is all OK, and exits 0, when everything is healthy", async () => {
     const r = await run();
     expect(r.out).not.toMatch(/^FAIL/m);
-    expect(lineFor(r.out, "failures")).toContain("5.0% of starts failed in 7 days (15 failures / 300 plays)");
+    expect(lineFor(r.out, "failures")).toBe(
+      "OK    failures  1.7% of starts lost in 7 days (5 lost / 300 plays; target <3%); 10 rescued by the retry or the mirror; 15 failure row(s) in all",
+    );
+    expect(lineFor(r.out, "disk")).toBe("OK    disk      21.4 GB free of 96.0 GB; the mirror's warm job needs 10 GB free, a build ~1 GB");
     expect(r.code).toBe(0);
   });
 
@@ -529,10 +556,10 @@ describe("highdesert-status", () => {
   describe("release line", () => {
     it("measures from the timestamp in docs/reliability-baseline.md; under 300 plays it gives counts, never a percentage", async () => {
       const r = await run();
-      expect(sinceAsked).toBe("2026-09-21T15:50:00Z");
+      expect(sinceAsked).toBe(`${REL_AT}`);
       const l = lineFor(r.out, "release");
       expect(l).toBe(
-        "OK    release   4 starts lost in 200 plays on this release's builds so far, no verdict until 300 plays; 0 rescued by the retry or the mirror (7 of 7 days since 2026-09-21T15:50:00Z; target <3% lost)",
+        `OK    release   4 starts lost in 200 plays on this release's builds so far, no verdict until 300 plays; 0 rescued by the retry or the mirror (7 of 7 days since ${REL_AT}; target <3% lost)`,
       );
       expect(l.slice(0, l.indexOf("target"))).not.toContain("%");
     });
@@ -541,7 +568,7 @@ describe("highdesert-status", () => {
       world.release = { failures: 1, recovered: 0, plays: 1, days: 0.1 };
       const r = await run();
       expect(lineFor(r.out, "release")).toBe(
-        "OK    release   1 start lost in 1 play on this release's builds so far, no verdict until 300 plays; 0 rescued by the retry or the mirror (0.1 of 7 days since 2026-09-21T15:50:00Z; target <3% lost)",
+        `OK    release   1 start lost in 1 play on this release's builds so far, no verdict until 300 plays; 0 rescued by the retry or the mirror (0.1 of 7 days since ${REL_AT}; target <3% lost)`,
       );
     });
 
@@ -554,7 +581,7 @@ describe("highdesert-status", () => {
       world.release = { failures: 3, recovered: 0, plays: 30, days: 0.5 };
       const r = await run();
       expect(lineFor(r.out, "release")).toBe(
-        "WARN  release   3 starts lost in 30 plays on this release's builds so far, no verdict until 300 plays; 0 rescued by the retry or the mirror (0.5 of 7 days since 2026-09-21T15:50:00Z; target <3% lost); tripwire: 10% or more lost on 30+ plays",
+        `WARN  release   3 starts lost in 30 plays on this release's builds so far, no verdict until 300 plays; 0 rescued by the retry or the mirror (0.5 of 7 days since ${REL_AT}; target <3% lost); tripwire: 10% or more lost on 30+ plays`,
       );
       expect(r.code).toBe(0);
     });
@@ -571,7 +598,7 @@ describe("highdesert-status", () => {
       world.release = { failures: 6, recovered: 0, plays: 300, days: 7 };
       const r = await run();
       expect(lineFor(r.out, "release")).toBe(
-        "OK    release   2.0% of starts lost on this release's builds in the 7 of 7 days since 2026-09-21T15:50:00Z (6 lost / 300 plays; target <3%); 0 rescued by the retry or the mirror (0.0%)",
+        `OK    release   2.0% of starts lost on this release's builds in the 7 of 7 days since ${REL_AT} (6 lost / 300 plays; target <3%); 0 rescued by the retry or the mirror (0.0%)`,
       );
     });
 
@@ -587,7 +614,7 @@ describe("highdesert-status", () => {
       world.release = { failures: 20, recovered: 17, plays: 300, days: 7 };
       const r = await run();
       expect(lineFor(r.out, "release")).toBe(
-        "OK    release   1.0% of starts lost on this release's builds in the 7 of 7 days since 2026-09-21T15:50:00Z (3 lost / 300 plays; target <3%); 17 rescued by the retry or the mirror (5.7%)",
+        `OK    release   1.0% of starts lost on this release's builds in the 7 of 7 days since ${REL_AT} (3 lost / 300 plays; target <3%); 17 rescued by the retry or the mirror (5.7%)`,
       );
     });
 
@@ -596,7 +623,7 @@ describe("highdesert-status", () => {
       world.release = { failures: 118, recovered: 61, lost: 23, repeats: 34, plays: 1329, days: 7 };
       const r = await run();
       expect(lineFor(r.out, "release")).toBe(
-        "OK    release   1.7% of starts lost on this release's builds in the 7 of 7 days since 2026-09-21T15:50:00Z (23 lost / 1329 plays; target <3%); 61 rescued by the retry or the mirror (4.6%); 34 repeats of a lost start in the same tab, not counted",
+        `OK    release   1.7% of starts lost on this release's builds in the 7 of 7 days since ${REL_AT} (23 lost / 1329 plays; target <3%); 61 rescued by the retry or the mirror (4.6%); 34 repeats of a lost start in the same tab, not counted`,
       );
     });
 
@@ -614,19 +641,19 @@ describe("highdesert-status", () => {
       ];
       const r = await run();
       expect(lineFor(r.out, "release")).toBe(
-        "OK    release   4 starts lost in 200 plays on this release's builds so far, no verdict until 300 plays; 0 rescued by the retry or the mirror (7 of 7 days since 2026-09-21T15:50:00Z; target <3% lost); older builds: 7 lost, 2 rescued / 20 plays, counted apart",
+        `OK    release   4 starts lost in 200 plays on this release's builds so far, no verdict until 300 plays; 0 rescued by the retry or the mirror (7 of 7 days since ${REL_AT}; target <3% lost); older builds: 7 lost, 2 rescued / 20 plays, counted apart`,
       );
     });
 
     it("a build deployed after the release instant is the release; one deployed before is not", async () => {
-      world.history = ["0ld0001 2026-09-20T10:00:00Z", "abc1234 2026-09-21T15:50:00Z", "d0c5678 2026-09-22T09:00:00Z"];
+      world.history = [`0ld0001 ${BEFORE_REL}`, `abc1234 ${REL_AT}`, `d0c5678 ${AFTER_REL}`];
       world.releaseOther = [
         { build: "d0c5678", failures: 2, recovered: 1, plays: 100 },
         { build: "0ld0001", failures: 3, recovered: 0, plays: 3 },
       ];
       const r = await run();
       expect(lineFor(r.out, "release")).toBe(
-        "OK    release   1.7% of starts lost on this release's builds in the 7 of 7 days since 2026-09-21T15:50:00Z (5 lost / 300 plays; target <3%); 1 rescued by the retry or the mirror (0.3%); older builds: 3 lost, 0 rescued / 3 plays, counted apart",
+        `OK    release   1.7% of starts lost on this release's builds in the 7 of 7 days since ${REL_AT} (5 lost / 300 plays; target <3%); 1 rescued by the retry or the mirror (0.3%); older builds: 3 lost, 0 rescued / 3 plays, counted apart`,
       );
     });
 
@@ -646,6 +673,22 @@ describe("highdesert-status", () => {
       expect(sinceAsked).toBeNull();
       expect(r.code).toBe(0);
     });
+
+    it("once its 7 days are over it says the window closed, and keeps the verdict (2026-10-12)", async () => {
+      // 02db307's release: the line printed this closed week's 1.7% for a week
+      // after it ended, as if it were current.
+      world.releaseAt = "2026-09-28T14:49:18Z";
+      world.release = { failures: 118, recovered: 61, lost: 23, repeats: 34, plays: 1329, days: 7 };
+      const r = await run();
+      expect(lineFor(r.out, "release")).toBe(
+        "OK    release   window closed 2026-10-05 (see the failures line for this week): 1.7% of starts lost on this release's builds in the 7 of 7 days since 2026-09-28T14:49:18Z (23 lost / 1329 plays; target <3%); 61 rescued by the retry or the mirror (4.6%); 34 repeats of a lost start in the same tab, not counted",
+      );
+    });
+
+    it("control: a release inside its 7 days does not say closed", async () => {
+      const r = await run();
+      expect(lineFor(r.out, "release")).not.toContain("closed");
+    });
   });
 
   it("FAILs on a deployed commit that is not HEAD", async () => {
@@ -653,6 +696,28 @@ describe("highdesert-status", () => {
     const r = await run();
     expect(lineFor(r.out, "deploy")).toMatch(/^FAIL.*DRIFT.*1 commit\(s\) not deployed/);
     expect(r.code).not.toBe(0);
+  });
+
+  it("a docs-only commit after the deploy (a handoff) is not drift", async () => {
+    await mkdir(path.join(root, "docs/hotfix"), { recursive: true });
+    await writeFile(path.join(root, "docs/hotfix/handoff.md"), "# Handoff\n");
+    await writeFile(path.join(root, "NOTES.md"), "notes\n");
+    await git("add", "-A");
+    await git("commit", "-qm", "docs: handoff");
+    world.deployedIsHead = false; // live is the commit before the handoff
+    const r = await run();
+    expect(lineFor(r.out, "deploy")).toMatch(/^OK\s+deploy\s+live = \w+ .*1 docs-only commit\(s\) ahead, nothing to deploy/);
+    expect(r.out).not.toContain("DRIFT");
+  });
+
+  it("control: a doc and a code change together are still drift", async () => {
+    await mkdir(path.join(root, "docs"), { recursive: true });
+    await writeFile(path.join(root, "docs/handoff.md"), "# Handoff\n");
+    await writeFile(path.join(root, "two.txt"), "changed");
+    await git("add", "-A");
+    await git("commit", "-qm", "docs and code");
+    world.deployedIsHead = false;
+    expect(lineFor((await run()).out, "deploy")).toMatch(/^FAIL.*DRIFT/);
   });
 
   it("FAILs on any critical or high npm advisory", async () => {
@@ -722,11 +787,78 @@ describe("highdesert-status", () => {
     expect(r.code).not.toBe(0);
   });
 
-  it("only WARNs on a high failure rate — it is a product metric, not an outage", async () => {
-    world.failures = 60;
-    const r = await run();
-    expect(lineFor(r.out, "failures")).toMatch(/^WARN.*20\.0%/);
-    expect(r.code).toBe(0);
+  describe("failures line (lost starts, the trailing week)", () => {
+    it("counts starts the listener lost, not failure rows: the week that read 21.5% lost 5.3% (2026-10-12)", async () => {
+      // 230 rows / 1068 plays was the old line. 161 were rescued, 12 were Try
+      // Again pressed again in the same tab: 57 starts were lost.
+      world.failures = 230;
+      world.plays = 1068;
+      world.trailing = { failures: 230, recovered: 161, lost: 57, repeats: 12, plays: 1072 };
+      const r = await run();
+      const l = lineFor(r.out, "failures");
+      expect(l).toBe(
+        "WARN  failures  5.3% of starts lost in 7 days (57 lost / 1072 plays; target <3%); 161 rescued by the retry or the mirror; 12 repeats of a lost start in the same tab, not counted; 230 failure row(s) in all",
+      );
+      expect(l).not.toContain("21.5");
+      expect(r.code).toBe(0);
+    });
+
+    it("a week where the mirror rescued every failure is OK, however many rows", async () => {
+      world.trailing = { failures: 120, recovered: 120, lost: 0, repeats: 0, plays: 900 };
+      expect(lineFor((await run()).out, "failures")).toMatch(/^OK\s+failures\s+0\.0% of starts lost in 7 days \(0 lost \/ 900 plays/);
+    });
+
+    it("asks for the trailing 7 days", async () => {
+      let asked = "";
+      const orig = server.listeners("request")[0] as (req: { url?: string }, res: unknown) => void;
+      server.removeAllListeners("request");
+      server.on("request", (req: { url?: string }, res: unknown) => {
+        const since = new URL(req.url ?? "/", "http://x").searchParams.get("since");
+        if (since && since !== world.releaseAt) asked = since;
+        orig(req, res);
+      });
+      await run();
+      const ageDays = (Date.now() - new Date(asked).getTime()) / 86_400_000;
+      expect(ageDays).toBeGreaterThan(6.99);
+      expect(ageDays).toBeLessThan(7.01);
+    });
+
+    it("under 300 plays it gives counts; the tripwire WARNs at 10% on 30+ plays, and only WARNs", async () => {
+      world.trailing = { failures: 6, recovered: 3, lost: 3, repeats: 0, plays: 120 };
+      expect(lineFor((await run()).out, "failures")).toBe(
+        "OK    failures  3 start(s) lost in 120 plays in 7 days, too few plays for a share; 3 rescued by the retry or the mirror; 6 failure row(s) in all",
+      );
+      world.trailing = { failures: 9, recovered: 3, lost: 6, repeats: 0, plays: 40 };
+      const r = await run();
+      expect(lineFor(r.out, "failures")).toMatch(/^WARN\s+failures\s+6 start\(s\) lost in 40 plays/);
+      expect(r.code).toBe(0);
+    });
+
+    it("FAILs when the window cannot be read", async () => {
+      world.trailing = { failures: NaN, recovered: 0, lost: 0, repeats: 0, plays: NaN } as never;
+      expect(lineFor((await run()).out, "failures")).toMatch(/^FAIL\s+failures\s+could not read/);
+    });
+  });
+
+  describe("disk line", () => {
+    it("WARNs under 15 GB free, before the warm job's 10 GB floor", async () => {
+      world.disk = { avail: 14_900_000_000, size: 96_000_000_000 };
+      const r = await run();
+      expect(lineFor(r.out, "disk")).toMatch(/^WARN\s+disk\s+14\.9 GB free of 96\.0 GB.*WARN under 15 GB/);
+      expect(r.code).toBe(0);
+    });
+
+    it("FAILs under 5 GB free (a build needs ~1 GB, and 2.8 GB was 99% on 2026-10-12)", async () => {
+      world.disk = { avail: 2_800_000_000, size: 96_000_000_000 };
+      const r = await run();
+      expect(lineFor(r.out, "disk")).toMatch(/^FAIL\s+disk\s+2\.8 GB free/);
+      expect(r.code).not.toBe(0);
+    });
+
+    it("control: 15 GB exactly is OK", async () => {
+      world.disk = { avail: 15_000_000_000, size: 96_000_000_000 };
+      expect(lineFor((await run()).out, "disk")).toMatch(/^OK\s+disk/);
+    });
   });
 
   describe("steal line", () => {

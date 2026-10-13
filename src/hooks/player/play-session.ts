@@ -16,6 +16,7 @@ import {
   isCurrentStart,
   isListenCounted,
   markListenCounted,
+  playRejection,
 } from "@/audio/play-session";
 import { db } from "@/db";
 import { writeProgress } from "@/services/episodes/progress";
@@ -28,6 +29,7 @@ import { claimLiveListen } from "@/audio/live-session";
 import { playSurfaceFor } from "@/audio/play-surface";
 import {
   armWatchdog,
+  describeMediaError,
   setFailureHandler,
   setFailoverHandler,
 } from "@/audio/playback-watchdog";
@@ -248,7 +250,10 @@ export function installFailoverHandler(
     } catch (err) {
       // Superseded (the listener picked something else) is not a refusal.
       if (!isCurrentStart(id) || isAbortError(err)) return true;
-      return false;
+      // What the rejection was: a NotSupportedError is the mirror failing (a
+      // fill archive.org could not serve), not the browser refusing sound. All
+      // of them used to be recorded as play-rejected (2026-10-12).
+      return playRejection(err, describeMediaError(audio.error));
     }
     if (!isCurrentStart(id)) return true;
     setPlaying(true);

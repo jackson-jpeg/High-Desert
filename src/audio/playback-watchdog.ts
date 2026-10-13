@@ -41,6 +41,26 @@ import { isFailoverKind, type PlaySource, type SourceKind } from "@/audio/source
 const LOAD_TIMEOUT_MS = 12_000;
 /** How long the element may sit in `waiting` before we call it a stall. */
 const STALL_TIMEOUT_MS = 8_000;
+/**
+ * After a failover, how long the mirror may take to send its first byte.
+ *
+ * An unpinned show's first slice is filled from archive.org by nginx before a
+ * byte reaches the listener: 9 to 23 s measured on the 2026-10 failures, so
+ * the 8 s stall clock gave up on 12 mirrors that were about to play. Until the
+ * first `progress` there is no stall verdict, only this deadline.
+ */
+const FAILOVER_FIRST_BYTE_MS = 30_000;
+/**
+ * A clock that fires this many budgets late did not watch the time it is
+ * judging: the page was frozen (a phone asleep, a tab discarded) and its
+ * timers did not run. 18 of the failed failovers were given up the moment the
+ * page woke. It starts again instead.
+ */
+const FROZEN_FACTOR = 2;
+
+function frozen(armedAt: number, budget: number): boolean {
+  return Date.now() - armedAt > FROZEN_FACTOR * budget;
+}
 
 export type FailureKind =
   | "timeout"
@@ -108,6 +128,11 @@ interface Attempt {
    * until the page is back. See deferWhileHidden().
    */
   playPending: boolean;
+  /**
+   * Moved to the mirror and no byte has arrived from it yet: the deadline is
+   * FAILOVER_FIRST_BYTE_MS and there is no stall clock until the first one.
+   */
+  awaitingFirstByte: boolean;
 }
 
 let current: Attempt | null = null;
@@ -155,11 +180,15 @@ export function setFailureHandler(handler: FailHandler): void {
 /**
  * Moves the element to another source: same element, same position, resumed
  * if it was playing. Installed by useAudioPlayer, which owns the element and
- * the listen count. Resolves false when `play()` was refused — on iOS a call
- * from a timer may be, even on an element that was already playing — and the
- * attempt then ends in the error dialog, whose Try Again is a real gesture.
+ * the listen count. Resolves true when it played (or had nothing to play),
+ * false when `play()` was refused — on iOS a call from a timer may be, even on
+ * an element that was already playing — and the attempt then ends in the
+ * error dialog, whose Try Again is a real gesture. Or it resolves with what
+ * the rejection was (`playRejection`): a NotSupportedError is the new source
+ * failing, a `network-error`, and was recorded as a refusal before 2026-10-12.
  */
-type FailoverHandler = (next: PlaySource, opts: { position: number; wanted: boolean }) => Promise<boolean>;
+export type FailoverOutcome = boolean | { kind: FailureKind; detail: string | null };
+type FailoverHandler = (next: PlaySource, opts: { position: number; wanted: boolean }) => Promise<FailoverOutcome>;
 let onFailover: FailoverHandler | null = null;
 
 export function setFailoverHandler(handler: FailoverHandler | null): void {
@@ -234,14 +263,17 @@ function deferWhileHidden(attempt: Attempt): boolean {
  */
 function resetLoadDeadline(attempt: Attempt) {
   window.clearTimeout(loadTimer);
+  const budget = attempt.awaitingFirstByte ? FAILOVER_FIRST_BYTE_MS : LOAD_TIMEOUT_MS;
+  const armedAt = Date.now();
   loadTimer = window.setTimeout(() => {
     if (attempt.settled) return;
     if (standDownIfPlaying(attempt)) return;
     if (deferWhileHidden(attempt)) return resetLoadDeadline(attempt);
+    if (frozen(armedAt, budget)) return resetLoadDeadline(attempt);
     if (failover("timeout", attempt)) return;
     if (!attempt.retried) retry("timeout", attempt);
     else giveUp("timeout", attempt);
-  }, LOAD_TIMEOUT_MS);
+  }, budget);
 }
 
 /**
@@ -410,12 +442,17 @@ function failover(kind: FailureKind, attempt: Attempt, wantedHint?: boolean): bo
   clearTimers();
   attempt.startedAt = performance.now();
   attempt.playPending = wanted;
+  attempt.awaitingFirstByte = true;
   resetLoadDeadline(attempt);
 
   onFailover({ ...next }, { position, wanted }).then(
-    (ok) => {
+    (outcome) => {
       attempt.playPending = false;
-      if (!ok && !attempt.settled) giveUp("play-rejected", attempt);
+      const ok = outcome === true;
+      if (typeof outcome === "object" && !attempt.settled) {
+        attempt.detail = shortDetail(outcome.detail) ?? attempt.detail;
+        giveUp(outcome.kind, attempt);
+      } else if (!ok && !attempt.settled) giveUp("play-rejected", attempt);
       // Nobody was playing (a refused or paused start): the mirror is loaded
       // and waiting for the next press of play, which arms its own attempt.
       // Supervising it here read iOS stopping after the metadata, as it does
@@ -526,6 +563,7 @@ export function armWatchdog(opts: {
     settled: false,
     detail: null,
     playPending: false,
+    awaitingFirstByte: false,
   };
   current = attempt;
 
@@ -550,12 +588,16 @@ export function noteReady(): void {
 export function noteWaiting(): void {
   const attempt = current;
   if (!attempt || attempt.settled || stallTimer) return;
+  // The mirror has not sent its first byte: its own deadline is running.
+  if (attempt.awaitingFirstByte) return;
 
+  const armedAt = Date.now();
   stallTimer = window.setTimeout(() => {
     stallTimer = 0;
     if (attempt.settled) return;
     if (standDownIfPlaying(attempt)) return;
     if (deferWhileHidden(attempt)) return noteWaiting();
+    if (frozen(armedAt, STALL_TIMEOUT_MS)) return noteWaiting();
     if (failover("stall", attempt)) return;
     if (!attempt.retried) retry("stall", attempt);
     else giveUp("stall", attempt);
@@ -570,7 +612,10 @@ export function noteWaiting(): void {
 export function noteProgress(): void {
   window.clearTimeout(stallTimer);
   stallTimer = 0;
-  if (current && !current.settled) resetLoadDeadline(current);
+  if (current && !current.settled) {
+    current.awaitingFirstByte = false;
+    resetLoadDeadline(current);
+  }
 }
 
 /**
@@ -632,6 +677,7 @@ export function disarmWatchdog(): void {
 export const __testing = {
   LOAD_TIMEOUT_MS,
   STALL_TIMEOUT_MS,
+  FAILOVER_FIRST_BYTE_MS,
   withCacheBuster,
   resetElement,
   hasUserActivation,

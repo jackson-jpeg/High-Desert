@@ -33,6 +33,7 @@ import {
   noteSuspectDuration,
   noteUnplayable,
   noteWaiting,
+  setFailoverHandler,
   setFailureHandler,
   __testing,
 } from "../playback-watchdog";
@@ -41,6 +42,7 @@ import { reportPlaybackFailure } from "@/services/stats/client";
 const {
   LOAD_TIMEOUT_MS,
   STALL_TIMEOUT_MS,
+  FAILOVER_FIRST_BYTE_MS,
   withCacheBuster,
   resetListeners,
 } = __testing;
@@ -587,6 +589,104 @@ describe("playback watchdog", () => {
       expect(reportPlaybackFailure).not.toHaveBeenCalled();
       // B is still supervised: its own deadline still runs.
       expect(isWatching()).toBe(true);
+    });
+  });
+
+  describe("why 62 failovers to the mirror did not recover (2026-10-12)", () => {
+    const MIRROR = "/mirror/archive%3Acoll%3Ashow.mp3";
+    function armWithMirror(audio: HTMLAudioElement) {
+      armWatchdog({
+        audio, url: URL_A, episodeId: "coll--show", startAt: 42,
+        source: "archive", fallbacks: [{ kind: "mirror", url: MIRROR }],
+      });
+    }
+    afterEach(() => setFailoverHandler(null));
+
+    it("a mirror whose play() fails for want of a source is a network-error, not a refusal", async () => {
+      setFailoverHandler(async () => ({ kind: "network-error", detail: "code=4 (play NotSupportedError)" }));
+      const audio = fakeAudio();
+      armWithMirror(audio);
+      noteError("network-error", "code=2");
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(onFail).toHaveBeenCalledWith("network-error");
+      const row = vi.mocked(reportPlaybackFailure).mock.calls.at(-1)![0];
+      expect(row).toMatchObject({ kind: "network-error", recovered: false, source: "mirror" });
+      expect(row.detail).toContain("play NotSupportedError");
+    });
+
+    it("control: a mirror whose play() is refused by the browser is still play-rejected", async () => {
+      setFailoverHandler(async () => false);
+      const audio = fakeAudio();
+      armWithMirror(audio);
+      noteError("network-error", "code=2");
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(onFail).toHaveBeenCalledWith("play-rejected");
+    });
+
+    it("the mirror gets a first-byte budget: a slow first slice is not a stall", async () => {
+      setFailoverHandler(async () => true);
+      const audio = fakeAudio();
+      armWithMirror(audio);
+      noteError("network-error", "code=2");
+      await Promise.resolve();
+      // nginx fills the first slice from archive.org: 9 to 23 s measured.
+      noteWaiting();
+      vi.advanceTimersByTime(FAILOVER_FIRST_BYTE_MS - 1_000);
+      expect(onFail).not.toHaveBeenCalled();
+      noteProgress();
+      noteReady();
+      expect(onFail).not.toHaveBeenCalled();
+      expect(vi.mocked(reportPlaybackFailure).mock.calls.at(-1)![0]).toMatchObject({ recovered: true, source: "archive" });
+      expect(FAILOVER_FIRST_BYTE_MS).toBeGreaterThan(23_000);
+    });
+
+    it("control: a mirror that never sends a byte is still given up on, at the first-byte budget", async () => {
+      setFailoverHandler(async () => true);
+      const audio = fakeAudio();
+      armWithMirror(audio);
+      noteError("network-error", "code=2");
+      await Promise.resolve();
+      noteWaiting();
+      vi.advanceTimersByTime(FAILOVER_FIRST_BYTE_MS);
+      expect(onFail).toHaveBeenCalledTimes(1);
+    });
+
+    it("control: once the mirror has sent bytes, the ordinary stall clock applies again", async () => {
+      setFailoverHandler(async () => true);
+      const audio = fakeAudio();
+      armWithMirror(audio);
+      noteError("network-error", "code=2");
+      await Promise.resolve();
+      noteProgress();
+      noteWaiting();
+      vi.advanceTimersByTime(STALL_TIMEOUT_MS);
+      expect(onFail).toHaveBeenCalledWith("stall");
+    });
+
+    it("a clock that fires long after its time was frozen with the page: it starts again instead of judging", () => {
+      const audio = fakeAudio();
+      arm(audio);
+      // The phone slept for five minutes; the page's timers did not run.
+      vi.setSystemTime(Date.now() + 300_000);
+      vi.advanceTimersByTime(LOAD_TIMEOUT_MS);
+      expect(audio.play).not.toHaveBeenCalled();
+      expect(onFail).not.toHaveBeenCalled();
+      // Control: the next deadline, on time, is judged as always.
+      vi.advanceTimersByTime(LOAD_TIMEOUT_MS);
+      expect(audio.play).toHaveBeenCalledTimes(1);
+    });
+
+    it("the same for the stall clock", () => {
+      const audio = fakeAudio();
+      arm(audio);
+      noteWaiting();
+      vi.setSystemTime(Date.now() + 300_000);
+      vi.advanceTimersByTime(STALL_TIMEOUT_MS);
+      expect(audio.play).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(STALL_TIMEOUT_MS);
+      expect(audio.play).toHaveBeenCalledTimes(1);
     });
   });
 });
