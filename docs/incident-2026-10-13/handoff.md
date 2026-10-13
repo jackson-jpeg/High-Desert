@@ -55,7 +55,12 @@ archive.org is up. The site probe says up, and `/download` served three ranged r
 
 ## The watch on the chat (04:52 to 10:52 UTC)
 
-Every new call goes to `/root/hd-notice-watch/calls.log` (read from Postgres, never as a listener). A summary follows below when the watch ends.
+Calls were read straight from Postgres, never as a listener. The watch ran until 10:52 UTC. In six hours there were two calls, both from Dogman:
+
+- 04:53 "Cool! Thank you" (a direct reply to the notice). He then asked for the place and line in italics, and for the line to go when there is a place; both shipped above.
+- 05:05 "OJ?" (about the show).
+
+Nothing came in after 05:05: the room was quiet through the morning hours (UTC). No complaints, no reports, nothing hidden.
 
 ## Still owed (Jackson chose: redeploy main now, do these afterwards)
 
