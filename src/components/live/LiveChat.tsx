@@ -496,12 +496,10 @@ function MessageRow({ m, chat, variant }: { m: LiveMessage; chat: Chat; variant:
           <span className={cn("font-bold", mine ? "text-signal-blue" : "text-desktop-gray")} data-testid="caller-name">
             {m.name}
           </span>
-          {m.place && (
-            <span className="text-bevel-dark" data-testid="caller-place">
-              , calling from {m.place}
-            </span>
-          )}
-          <span className="text-bevel-dark">
+          {/* Place and line in italics (2026-10-13, a caller's ask): set apart
+              from the name and from the message. */}
+          <span className="italic text-bevel-dark" data-testid="caller-meta">
+            {m.place && <span data-testid="caller-place">, calling from {m.place}</span>}
             {"\u00A0\u00B7 "}
             <span data-testid="line-label">{m.line}</span>
           </span>

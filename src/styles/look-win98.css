@@ -1363,6 +1363,8 @@ html[data-look="win98"] .hd-w98-notepad-name {
 
 html[data-look="win98"] .hd-w98-notepad-meta {
   color: var(--hd-w98-ink-muted);
+  /* Place and line in italics (2026-10-13), apart from the name and the message. */
+  font-style: italic;
 }
 
 html[data-look="win98"] .hd-w98-notepad-time {

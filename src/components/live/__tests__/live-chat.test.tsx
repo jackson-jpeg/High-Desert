@@ -815,7 +815,13 @@ describe("readable lines (2026-10-13), on a desktop and on a phone", () => {
         expect(q(head, "caller-name")!.textContent).toBe("Desert Rat");
         expect(q(head, "caller-name")!.className).toContain("font-bold");
         expect(q(head, "caller-place")!.textContent).toBe(", calling from Rachel");
-        expect(q(head, "caller-place")!.className).toContain("text-bevel-dark");
+        // Place and line in italics, the name not (2026-10-13).
+        const meta = q(head, "caller-meta")!;
+        expect(meta.className.split(/\s+/)).toEqual(expect.arrayContaining(["italic", "text-bevel-dark"]));
+        expect(meta.contains(q(head, "caller-place"))).toBe(true);
+        expect(meta.contains(q(head, "line-label"))).toBe(true);
+        expect(meta.contains(q(head, "caller-name"))).toBe(false);
+        expect(q(head, "caller-name")!.closest(".italic")).toBeNull();
         expect(q(head, "line-label")!.textContent).toBe("Area 51 Line");
         expect(q(head, "call-time")!.className).toContain("text-bevel-dark/85");
         expect(head.textContent!.replace(/\u00A0/g, " ")).toMatch(/^Desert Rat, calling from Rachel \u00B7 Area 51 Line/);

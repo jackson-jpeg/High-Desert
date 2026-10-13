@@ -3,6 +3,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { fakeScrollBox } from "@/test-support/scroll-box";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 /**
  * Phone Lines - Notepad: the same chat as LiveChat (useLiveChat is the one
@@ -173,6 +175,19 @@ describe("Phone Lines - Notepad", () => {
     expect(block.querySelector('[data-testid="archive-episode"]')).not.toBeNull();
     // Never a call: no caller name, no line.
     expect(block.querySelector('[data-testid="caller-name"]')).toBeNull();
+  });
+
+  it("sets the place and line in italics, the name not (2026-10-13)", () => {
+    // jsdom computes no stylesheet, so read the rule the class is drawn by.
+    const css = readFileSync(join(process.cwd(), "src/styles/look-win98.css"), "utf8");
+    const rule = (sel: string) => css.match(new RegExp(`html\\[data-look="win98"\\] ${sel.replace(".", "\\.")} \\{([^}]*)\\}`))?.[1] ?? "";
+    expect(rule(".hd-w98-notepad-meta")).toMatch(/font-style:\s*italic/);
+    expect(rule(".hd-w98-notepad-name")).not.toMatch(/italic/);
+    mount();
+    const head = all("call-head")[0];
+    const meta = head.querySelector(".hd-w98-notepad-meta")!;
+    expect(meta.querySelector('[data-testid="line-label"]')).not.toBeNull();
+    expect(meta.querySelector('[data-testid="caller-name"]')).toBeNull();
   });
 
   it("heads a station notice From the station, with no show link (2026-10-13)", () => {

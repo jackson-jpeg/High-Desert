@@ -8471,6 +8471,22 @@ export const MUTATIONS = [
     replace: "",
     why: "a station notice is the site talking, never headed From the archive (2026-10-13)",
   },
+  {
+    id: "live-caller-meta-italic",
+    test: "src/components/live/__tests__/live-chat.test.tsx",
+    file: "src/components/live/LiveChat.tsx",
+    find: '<span className="italic text-bevel-dark" data-testid="caller-meta">',
+    replace: '<span className="text-bevel-dark" data-testid="caller-meta">',
+    why: "a caller asked for place and line in italics, apart from the name and the message (2026-10-13)",
+  },
+  {
+    id: "win98-notepad-meta-italic",
+    test: "src/components/looks/win98/__tests__/notepad-phone-lines.test.tsx",
+    file: "src/styles/look-win98.css",
+    find: "  font-style: italic;\n}",
+    replace: "}",
+    why: "Notepad's place and line in italics, as the Night look (2026-10-13)",
+  },
 ];
 
 /**
