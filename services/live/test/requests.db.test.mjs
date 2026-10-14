@@ -97,6 +97,8 @@ d("the Request Line", () => {
     const second = await nominate(a, SHOWS[1]);
     expect(second.status).toBe(409);
     expect(second.json.error).toBe("already-nominated");
+    // The friendly refusal, not the race fallback the unique index would give.
+    expect(second.json.message).toBe("You already picked a show today. Vote for others with one tap.");
     // b asks for the same show: a vote, and b may still nominate their own.
     const join = await nominate(b, SHOWS[0]);
     expect(join.status).toBe(200);
