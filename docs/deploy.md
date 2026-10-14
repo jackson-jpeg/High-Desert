@@ -43,6 +43,17 @@ bash scripts/deploy.sh --rollback      # swap current <-> previous build, restar
    used to pass as "0 broken chunks".
 7. **If verification fails, it rolls back automatically.** It swaps `.next.prev`
    back into place, restarts, verifies again, and exits non-zero either way.
+8. **A returning visitor, in Chromium and WebKit** (2026-10-14,
+   `scripts/returning-visitor.mjs`). Before the swap it primes a real browser
+   profile per engine on the build still serving (the seed in IndexedDB, that
+   build's service worker in control). After the restart, once step 6 has
+   passed, it reopens those profiles on the new build. The Library must show
+   rows and Stats numbers within 25 s, with no "taking too long" and no page
+   error. A failure (exit 1) rolls back like step 7. A run that could not
+   happen (exit 2: no browser, a prime that failed) only warns. Profiles live
+   in `/var/lib/highdesert-returning/deploy/` (`HD_RETURNING_DIR`), each run's
+   result in `<browser>.revisit.json`, which `highdesert-status` reads.
+   `HD_RETURNING_CMD=` (empty) skips it. `--verify-only` runs `check`.
 
 `--rollback` swaps the live and previous builds, so running it twice undoes it.
 There is exactly one level of history.

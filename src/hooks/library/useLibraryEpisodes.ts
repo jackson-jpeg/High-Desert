@@ -1,6 +1,6 @@
 "use client";
 
-import { useLiveQuery } from "dexie-react-hooks";
+import { useTimedLiveQuery } from "@/hooks/useTimedLiveQuery";
 import { db } from "@/db";
 import type { Episode } from "@/db/schema";
 
@@ -10,7 +10,10 @@ import type { Episode } from "@/db/schema";
  * which is why the player's position saves no longer go there (HD-016): they
  * write `progress`. `position-save-quiet.test.tsx` holds that a save leaves
  * this query asleep, with a control proving an episodes write wakes it.
+ *
+ * Timed (useTimedLiveQuery): if the read has not answered in DB_WAIT_MS the
+ * page shows an error with Retry instead of gray rows forever (2026-10-13).
  */
-export function useLibraryEpisodes(): Episode[] | undefined {
-  return useLiveQuery(() => db.episodes.orderBy("airDate").reverse().toArray(), []);
+export function useLibraryEpisodes(): { value: Episode[] | undefined; timedOut: boolean; retry: () => void } {
+  return useTimedLiveQuery(() => db.episodes.orderBy("airDate").reverse().toArray(), []);
 }

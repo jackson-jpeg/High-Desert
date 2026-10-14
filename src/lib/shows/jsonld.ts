@@ -238,3 +238,29 @@ export function tonightJsonLd(day: string, title: string, description: string, s
     },
   };
 }
+
+/** Breadcrumbs for the Request Line: High Desert › Live › Request Line. */
+export function requestLineCrumbs(): Crumb[] {
+  return [
+    { name: SITE_NAME, path: "/" },
+    { name: "Live", path: "/live" },
+    { name: "Request Line", path: "/request-line" },
+  ];
+}
+
+/** The Request Line: today's nominations, most voted first, as one ItemList of show pages. */
+export function requestLineJsonLd(day: string, title: string, description: string, shows: readonly Show[]): Node {
+  const url = absolute("/request-line");
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": url,
+    url,
+    name: title,
+    description,
+    dateModified: day,
+    isPartOf: { "@type": "WebSite", name: SITE_NAME, url: SITE_ORIGIN },
+    // An ItemList must list something: a day with no picks yet has none.
+    ...(shows.length ? { mainEntity: { "@type": "ItemList", numberOfItems: shows.length, itemListElement: showListItems(shows) } } : {}),
+  };
+}

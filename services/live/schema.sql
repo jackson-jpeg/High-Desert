@@ -16,7 +16,9 @@
 -- so an address cannot be written here by mistake.
 --
 -- Retention: live_messages older than 7 days are deleted hourly by the
--- service (and their reports with them, ON DELETE CASCADE).
+-- service (and their reports with them, ON DELETE CASCADE); Request Line
+-- nominations (and their votes) after 35 days. A locked night keeps its
+-- name, place and count, its nomination link set NULL.
 
 CREATE TABLE IF NOT EXISTS live_messages (
   id           bigserial PRIMARY KEY,
@@ -105,6 +107,92 @@ CREATE TABLE IF NOT EXISTS live_admin_nonces (
   used_at     timestamptz
 );
 
+-- The Request Line (2026-10-14, docs/request-line.md). Listeners nominate one
+-- show a day (Pacific) for the station's 10 PM slot and vote with one tap;
+-- voting closes at 6 PM Pacific, when live_request_night() locks the winner.
+-- A nomination keeps the caller's name and place as they were, the way a
+-- message does, and the show's title as the catalog had it. The refs follow
+-- the rule above: HMACs, 64 hex, never an address.
+CREATE TABLE IF NOT EXISTS live_request_nominations (
+  id            bigserial PRIMARY KEY,
+  day           date NOT NULL,
+  file_hash     text NOT NULL,
+  client_ref    text NOT NULL CHECK (client_ref ~ '^[0-9a-f]{64}$'),
+  addr_ref      text NOT NULL CHECK (addr_ref ~ '^[0-9a-f]{64}$'),
+  caller_name   text NOT NULL,
+  caller_place  text,
+  note          text,
+  title         text NOT NULL,
+  air_date      text,
+  guest         text,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  vetoed_at     timestamptz,
+  -- One nomination per listener per day; one nomination per show per day
+  -- (a second listener asking for it is a vote).
+  UNIQUE (day, client_ref),
+  UNIQUE (day, file_hash)
+);
+
+-- One vote per listener per show (nomination).
+CREATE TABLE IF NOT EXISTS live_request_votes (
+  nomination_id  bigint NOT NULL REFERENCES live_request_nominations (id) ON DELETE CASCADE,
+  client_ref     text NOT NULL CHECK (client_ref ~ '^[0-9a-f]{64}$'),
+  addr_ref       text NOT NULL CHECK (addr_ref ~ '^[0-9a-f]{64}$'),
+  at             timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (nomination_id, client_ref)
+);
+CREATE INDEX IF NOT EXISTS live_request_votes_addr ON live_request_votes (nomination_id, addr_ref);
+
+-- The locked night: one row per day once voting has closed. `file_hash` NULL
+-- is a night nobody nominated for (the slot plays the station's own pick).
+-- `announced_at` is set once the station has said "Tonight's request, from
+-- ..." in the lines, so a restart never says it twice.
+CREATE TABLE IF NOT EXISTS live_request_nights (
+  day            date PRIMARY KEY,
+  nomination_id  bigint REFERENCES live_request_nominations (id) ON DELETE SET NULL,
+  file_hash      text,
+  caller_name    text,
+  caller_place   text,
+  votes          int NOT NULL DEFAULT 0,
+  locked_at      timestamptz NOT NULL DEFAULT now(),
+  announced_at   timestamptz
+);
+
+-- Lock (once) and return the night of p_day. Before 6 PM Pacific on p_day it
+-- returns nothing. From 6 PM on: the nomination with the most votes cast
+-- before 6 PM, among those made before 6 PM and not vetoed; a tie goes to the
+-- earliest nomination. ON CONFLICT DO NOTHING makes two first callers (the
+-- app's schedule and the phone lines) agree: whoever inserts first decides,
+-- and both read the same row back. One function, in the database, so the app
+-- and the service cannot disagree on the rule.
+CREATE OR REPLACE FUNCTION live_request_night(p_day date, p_now timestamptz DEFAULT now())
+RETURNS SETOF live_request_nights
+LANGUAGE plpgsql AS $fn$
+DECLARE
+  close_at timestamptz := (p_day + time '18:00') AT TIME ZONE 'America/Los_Angeles';
+BEGIN
+  IF p_now < close_at THEN
+    RETURN;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM live_request_nights WHERE day = p_day) THEN
+    INSERT INTO live_request_nights (day, nomination_id, file_hash, caller_name, caller_place, votes)
+    SELECT p_day, w.id, w.file_hash, w.caller_name, w.caller_place, coalesce(w.votes, 0)
+      FROM (SELECT 1) one
+      LEFT JOIN LATERAL (
+        SELECT n.id, n.file_hash, n.caller_name, n.caller_place, count(v.client_ref)::int AS votes
+          FROM live_request_nominations n
+          LEFT JOIN live_request_votes v ON v.nomination_id = n.id AND v.at < close_at
+         WHERE n.day = p_day AND n.vetoed_at IS NULL AND n.created_at < close_at
+         GROUP BY n.id
+         ORDER BY count(v.client_ref) DESC, n.created_at, n.id
+         LIMIT 1
+      ) w ON true
+    ON CONFLICT (day) DO NOTHING;
+  END IF;
+  RETURN QUERY SELECT * FROM live_request_nights WHERE day = p_day;
+END
+$fn$;
+
 -- The service's own role, least privilege: these tables and nothing else.
 -- Created by scripts/live-setup.sh; absent in test databases, so conditional.
 DO $$
@@ -112,9 +200,17 @@ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'highdesert_live') THEN
     GRANT SELECT, INSERT, UPDATE, DELETE ON
       live_messages, live_reports, live_mutes, live_bans, live_names, live_settings, live_admin_nonces,
-      live_address_holds
+      live_address_holds, live_request_nominations, live_request_votes, live_request_nights
       TO highdesert_live;
-    GRANT USAGE, SELECT ON SEQUENCE live_messages_id_seq TO highdesert_live;
+    GRANT USAGE, SELECT ON SEQUENCE live_messages_id_seq, live_request_nominations_id_seq TO highdesert_live;
+    -- The Request Line reads what the station played (the 30-day rule) and
+    -- which files are known broken; the app's schema owns both tables.
+    IF to_regclass('live_days') IS NOT NULL THEN
+      GRANT SELECT ON live_days TO highdesert_live;
+    END IF;
+    IF to_regclass('audio_checks') IS NOT NULL THEN
+      GRANT SELECT ON audio_checks TO highdesert_live;
+    END IF;
   END IF;
 END
 $$;

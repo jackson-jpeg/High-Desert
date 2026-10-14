@@ -54,6 +54,8 @@ interface World {
   noBuildSplit?: boolean;
   /** What the stub presence check prints and exits with. */
   presence: { rc: number; out: string };
+  /** What the stub returning-visitor check exits with, per browser; and the last deploy's results. */
+  returning: { chromium: number; webkit: number; deploy: { ok: boolean; error?: string }[] | null };
   /** /proc/meminfo's MemTotal, MemAvailable and swap, in kB; null writes no file. */
   memory: { totalKb: number; availKb: number; swapTotalKb: number; swapFreeKb: number } | null;
   /** %steal of each sysstat sample today, oldest first; [] prints no samples. */
@@ -118,6 +120,7 @@ const HEALTHY: World = {
   releaseOther: [],
   history: [],
   presence: { rc: 0, out: "surfaces agree in 3 view(s)" },
+  returning: { chromium: 0, webkit: 0, deploy: [{ ok: true }, { ok: true }] },
   // The oldest sample is high on purpose: only the last three (30 min) count.
   steal: [90, 4, 5, 6],
   memory: { totalKb: 8_000_000, availKb: 3_000_000, swapTotalKb: 12_582_912, swapFreeKb: 10_485_760 },
@@ -194,6 +197,26 @@ async function run(): Promise<{ code: number; out: string }> {
       : "#!/bin/sh\necho 'DB BACKUP STALE — newest dump is 40h old'\nexit 1\n",
     { mode: 0o755 },
   );
+  // The returning-visitor check: "$2"="--browser", "$3" the browser.
+  await writeFile(
+    path.join(bin, "returning"),
+    [
+      "#!/bin/bash",
+      'echo "launching $3"',
+      `case "$3" in chromium) rc=${world.returning.chromium} ;; *) rc=${world.returning.webkit} ;; esac`,
+      'if [ "$rc" = 0 ]; then echo "$3: ok (abc1234, old worker in control), Library 0.6s, Stats 0.4s"; elif [ "$rc" = 1 ]; then echo "$3: FAILED (abc1234, old worker in control): Library showed no rows within 25s"; else echo "$3: could not run: no browser"; fi',
+      'exit $rc',
+    ].join("\n"),
+    { mode: 0o755 },
+  );
+  await rm(path.join(dir, "returning", "deploy"), { recursive: true, force: true });
+  await mkdir(path.join(dir, "returning", "deploy"), { recursive: true });
+  for (const [i, r] of (world.returning.deploy ?? []).entries()) {
+    await writeFile(
+      path.join(dir, "returning", "deploy", `${["chromium", "webkit"][i]}.revisit.json`),
+      JSON.stringify({ at: "2026-10-14T08:31:00.000Z", ...r }),
+    );
+  }
   await writeFile(
     path.join(bin, "presence-check"),
     `#!/bin/sh\necho 'launching chromium'\necho '${world.presence.out}'\nexit ${world.presence.rc}\n`,
@@ -308,6 +331,8 @@ async function run(): Promise<{ code: number; out: string }> {
           HD_INSTALLED_UNIT: path.join(root, "deploy/highdesert.service"),
           HD_INSTALLED_VHOST: installedVhost,
           HD_PRESENCE_CMD: path.join(bin, "presence-check"),
+          HD_RETURNING_CMD: path.join(bin, "returning"),
+          HD_RETURNING_DIR: path.join(dir, "returning"),
           HD_SAR_CMD: path.join(bin, "sar"),
           HD_MIRROR_MANIFEST_URL: `${api}/mirror/manifest`,
           HD_MIRROR_PINS: pins,
@@ -343,6 +368,7 @@ beforeEach(async () => {
     trailing: { ...HEALTHY.trailing },
     disk: { ...HEALTHY.disk },
     presence: { ...HEALTHY.presence },
+    returning: { ...HEALTHY.returning, deploy: HEALTHY.returning.deploy!.map((d) => ({ ...d })) },
     steal: [...HEALTHY.steal],
     memory: { ...HEALTHY.memory! },
     mirrorManifest: { ...HEALTHY.mirrorManifest!, fileHashes: [...HEALTHY.mirrorManifest!.fileHashes] },
@@ -1003,6 +1029,35 @@ describe("highdesert-status", () => {
     const r = await run();
     expect(lineFor(r.out, "presence")).toMatch(/^WARN\s+presence\s+check did not run \(exit 2\): could not load playwright$/);
     expect(r.out).not.toMatch(/^FAIL/m);
+  });
+
+  describe("returning line (2026-10-14: a returning visitor, Chromium and WebKit)", () => {
+    it("OK with both browsers' results and the last deploy's", async () => {
+      const r = await run();
+      const l = lineFor(r.out, "returning");
+      expect(l).toMatch(/^OK\s+returning\s+chromium: ok .*; webkit: ok .*; after the last deploy: ok in 2 \(2026-10-14T08:31\)$/);
+    });
+
+    it("FAIL, and a non-zero exit, when a browser's Library does not load", async () => {
+      world.returning.webkit = 1;
+      const r = await run();
+      expect(lineFor(r.out, "returning")).toMatch(/^FAIL\s+returning\s+webkit: FAILED .*Library showed no rows/);
+      expect(r.code).not.toBe(0);
+    });
+
+    it("WARN, not FAIL, when a browser could not run", async () => {
+      world.returning.chromium = 2;
+      const r = await run();
+      expect(lineFor(r.out, "returning")).toMatch(/^WARN\s+returning\s+chromium: could not run: no browser \(exit 2\); webkit: ok/);
+      expect(lineFor(r.out, "returning")).not.toMatch(/^FAIL/);
+    });
+
+    it("says when the last deploy's check failed, and when it never ran", async () => {
+      world.returning.deploy = [{ ok: true }, { ok: false }];
+      expect(lineFor((await run()).out, "returning")).toMatch(/after the last deploy: FAILED/);
+      world.returning.deploy = null;
+      expect(lineFor((await run()).out, "returning")).toMatch(/after the last deploy: not run$/);
+    });
   });
 
   describe("live line (the phone lines and the 10% rule)", () => {

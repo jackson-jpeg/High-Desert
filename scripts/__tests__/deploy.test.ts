@@ -66,6 +66,8 @@ function run(
           HD_HEAVY: path.join(h.root, "..", "heavy-stub"),
           HD_SCHEMA_CMD: path.join(h.root, "..", "schema-stub"),
           HD_ENV_FILE: path.join(h.root, "..", "no-such-env"),
+          HD_RETURNING_CMD: `bash ${path.join(h.root, "..", "returning-stub")}`,
+          HD_RETURNING_DIR: path.join(h.root, "..", "returning"),
           ...env,
         },
         timeout: 60_000,
@@ -185,6 +187,18 @@ beforeEach(async () => {
       "#!/bin/bash",
       `echo "file=$1 staged=$([ -d .next-staging ] && echo yes || echo no) live=$(cat .next/marker)" >> "${path.join(base, "schema.log")}"`,
       'if [ "$FAKE_SCHEMA" = "fail" ]; then echo "ERROR: syntax error" >&2; exit 3; fi',
+    ].join("\n"),
+    { mode: 0o755 },
+  );
+
+  // The returning-visitor check: records its mode, browser and what was live;
+  // $FAKE_RETURNING_<MODE> (prime/revisit/check) is its exit code.
+  await writeFile(
+    path.join(base, "returning-stub"),
+    [
+      "#!/bin/bash",
+      `echo "$1 $3 live=$(cat .next/marker)" >> "${path.join(base, "returning.log")}"`,
+      'var="FAKE_RETURNING_${1^^}"; exit "${!var:-0}"',
     ].join("\n"),
     { mode: 0o755 },
   );
@@ -401,6 +415,46 @@ describe("deploy.sh: stale route types", () => {
     expect(await exists(path.join(h.root, ".next-dev/types"))).toBe(false);
     expect(await marker(".next")).toBe("good:new");
     expect(await marker(".next.prev")).toBe("good:old");
+  });
+});
+
+describe("deploy.sh: the returning visitor (2026-10-14)", () => {
+  const log = () => readFile(path.join(h.root, "..", "returning.log"), "utf8").catch(() => "");
+
+  it("primes on the old build before the swap, in Chromium and WebKit, and revisits on the new one", async () => {
+    await startServer();
+    const r = await run([]);
+    expect(r.code, r.out).toBe(0);
+    expect((await log()).trim().split("\n")).toEqual([
+      "prime chromium live=good:old",
+      "prime webkit live=good:old",
+      "revisit chromium live=good:new",
+      "revisit webkit live=good:new",
+    ]);
+    expect(await marker(".next")).toBe("good:new");
+  });
+
+  it("a returning visitor whose Library does not load rolls the deploy back", async () => {
+    await startServer();
+    const r = await run([], { FAKE_RETURNING_REVISIT: "1" });
+    expect(r.code).not.toBe(0);
+    expect(r.out).toContain("rolled back");
+    expect(await marker(".next")).toBe("good:old");
+  });
+
+  it("control: a check that could not run (exit 2) warns and the deploy stands", async () => {
+    await startServer();
+    const r = await run([], { FAKE_RETURNING_PRIME: "2", FAKE_RETURNING_REVISIT: "2" });
+    expect(r.code, r.out).toBe(0);
+    expect(r.out).toContain("could not run; not judged");
+    expect(await marker(".next")).toBe("good:new");
+  });
+
+  it("--verify-only runs it too, and fails on a page failure", async () => {
+    await startServer();
+    expect((await run(["--verify-only"])).code).toBe(0);
+    expect(await log()).toContain("check chromium");
+    expect((await run(["--verify-only"], { FAKE_RETURNING_CHECK: "1" })).code).not.toBe(0);
   });
 });
 

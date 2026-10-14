@@ -21,6 +21,14 @@
  * Slots are laid end to end from midnight with a `STATION_ID_SEC` gap between
  * them (the station ID). Slots are added while the next one would *start*
  * before midnight, so the day always fills; the last one usually runs over.
+ *
+ * **10 PM is the Request Line's** (2026-10-14, docs/request-line.md). Before
+ * it, a show that would run past 10 PM gives way to the next one in order
+ * that fits (on-this-date first, then favorites); only when nothing fits is
+ * the last one cut, one station ID before 10 PM. At 10 PM sits a stand-in, a
+ * fan favorite marked `requestSlot`, and the day carries on after it. The
+ * listeners' winner, locked at 6 PM, replaces the stand-in at read time
+ * (`applyRequest`) and everything after it moves to make room.
  * **The next day's first slot starts at midnight regardless, and the overrun is
  * cut** — the slot's `end` is clipped to the day's end. A day whose on-this-date
  * list alone runs past midnight simply never reaches its fan favorites.
@@ -47,8 +55,8 @@
 import { communityKey } from "@/lib/utils/community-key";
 import { REMOVED_FROM_CATALOG } from "@/lib/library/removed-episodes";
 import { episodeTitle } from "@/lib/library/display-title";
+import { STATION_TZ, addDays, pacificDayBounds, parts, requestStartAt } from "./pacific";
 
-export const STATION_TZ = "America/Los_Angeles";
 /** The gap between shows, filled by the station ID. Part of the timeline math. */
 export const STATION_ID_SEC = 8;
 /** A fan favorite that aired in this many previous days is skipped. */
@@ -59,13 +67,30 @@ export const REPEAT_WINDOW_DAYS = 14;
  * substitutes come from; the tail would only bloat the stored day.
  */
 export const RANKING_KEEP = 200;
+/**
+ * Before 10 PM, once nothing in the catalog fits the time left, a gap shorter
+ * than this is left to the station ID; a longer one gets the next show, cut
+ * one station ID before 10 PM. The catalog's short shows (a few minutes) make
+ * a gap this size rare; cutting a three-hour show to air its first minutes
+ * would cost that show its airing for a moment's sound.
+ */
+export const MIN_CUT_MS = 10 * 60_000;
 
 /**
  * `verify-swap`: the scheduled file failed its frame walk before the day was
  * frozen (`applyVerifySwap`). `breaker-swap`: listeners failed on the show
  * while it aired, and the rest of its slot went to another (`applyOverrides`).
  */
-export type SlotKind = "on-this-date" | "fan-favorite" | "outage-swap" | "verify-swap" | "breaker-swap";
+export type SlotKind = "on-this-date" | "fan-favorite" | "outage-swap" | "verify-swap" | "breaker-swap" | "request";
+
+/** Who asked for a `request` slot: the nominator, as they called in, and the night's tally. */
+export interface SlotRequest {
+  by: string;
+  place: string | null;
+  votes: number;
+  /** The Pacific day it was the request for. */
+  day: string;
+}
 
 /** The catalog fields the schedule reads (a `public/seed/library.json` row). */
 export interface CatalogRow {
@@ -102,6 +127,10 @@ export interface ProgramSlot {
   end: number;
   /** For a swap of any kind: the fileHash this slot was scheduled with. */
   replaces?: string;
+  /** The show that starts on the hour at 10 PM, before any request (days frozen from 2026-10-14). */
+  requestSlot?: true;
+  /** A `request` slot's nominator and tally. */
+  request?: SlotRequest;
 }
 
 export interface DayProgram {
@@ -122,82 +151,23 @@ export interface BuildInputs {
 }
 
 // ---------------------------------------------------------------------------
-// Pacific calendar
+// Pacific calendar: src/lib/live/pacific.ts (shared with the phone lines'
+// service, which imports it under Node's type stripping), re-exported here.
 // ---------------------------------------------------------------------------
 
-const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
-
-export function isDayISO(s: unknown): s is string {
-  if (typeof s !== "string") return false;
-  const m = DAY_RE.exec(s);
-  if (!m) return false;
-  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
-  return d.getUTCFullYear() === +m[1] && d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3];
-}
-
-function parts(day: string): [number, number, number] {
-  const m = DAY_RE.exec(day);
-  if (!m) throw new Error(`not a yyyy-mm-dd day: ${day}`);
-  return [+m[1], +m[2], +m[3]];
-}
-
-/** `day` plus `n` calendar days. */
-export function addDays(day: string, n: number): string {
-  const [y, m, d] = parts(day);
-  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
-}
-
-let dtf: Intl.DateTimeFormat | null = null;
-function formatter(): Intl.DateTimeFormat {
-  dtf ??= new Intl.DateTimeFormat("en-US", {
-    timeZone: STATION_TZ,
-    hourCycle: "h23",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-  return dtf;
-}
-
-function wallClock(ms: number): { y: number; mo: number; d: number; h: number; mi: number; s: number } {
-  const out: Record<string, number> = {};
-  for (const p of formatter().formatToParts(new Date(ms))) {
-    if (p.type !== "literal") out[p.type] = Number(p.value);
-  }
-  return { y: out.year, mo: out.month, d: out.day, h: out.hour % 24, mi: out.minute, s: out.second };
-}
-
-/** Pacific wall-clock minus UTC at `ms`, in ms (−7 h or −8 h). */
-function pacificOffsetMs(ms: number): number {
-  const w = wallClock(ms);
-  const asUtc = Date.UTC(w.y, w.mo - 1, w.d, w.h, w.mi, w.s);
-  return asUtc - Math.floor(ms / 1000) * 1000;
-}
-
-/** Epoch ms of 00:00 Pacific on `day`. Midnight is never inside a DST gap here. */
-export function pacificMidnight(day: string): number {
-  const [y, m, d] = parts(day);
-  const guess = Date.UTC(y, m - 1, d);
-  let t = guess - pacificOffsetMs(guess);
-  // Once more from the corrected instant: the offset at UTC midnight can be the
-  // other side of a transition from the offset at Pacific midnight.
-  t = guess - pacificOffsetMs(t);
-  return t;
-}
-
-/** The station day as [start, end) epoch ms. 23 h, 24 h or 25 h long. */
-export function pacificDayBounds(day: string): { start: number; end: number } {
-  return { start: pacificMidnight(day), end: pacificMidnight(addDays(day, 1)) };
-}
-
-/** The Pacific calendar day an instant falls in. */
-export function pacificDay(ms: number): string {
-  const w = wallClock(ms);
-  return `${w.y}-${String(w.mo).padStart(2, "0")}-${String(w.d).padStart(2, "0")}`;
-}
+export {
+  STATION_TZ,
+  isDayISO,
+  addDays,
+  pacificMidnight,
+  pacificDayBounds,
+  pacificDay,
+  REQUEST_HOUR,
+  REQUEST_CLOSE_HOUR,
+  requestStartAt,
+  requestCloseAt,
+  requestDayAt,
+} from "./pacific";
 
 function isLeapYear(y: number): boolean {
   return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
@@ -287,29 +257,70 @@ export function buildDay(day: string, inputs: BuildInputs, history: readonly Day
 
   const slots: ProgramSlot[] = [];
   const gap = STATION_ID_SEC * 1000;
+  const requestStart = requestStartAt(day);
   let t = dayStart;
-  const place = (row: CatalogRow, kind: SlotKind) => {
-    const end = Math.min(t + durationMs(row), dayEnd);
+  const place = (row: CatalogRow, kind: SlotKind, clipAt = dayEnd) => {
+    const end = Math.min(t + durationMs(row), clipAt, dayEnd);
     slots.push(toSlot(row, kind, t, end));
     today.add(row.fileHash);
     t = t + durationMs(row) + gap;
   };
 
-  for (const row of onThisDate) {
-    if (t >= dayEnd) break;
-    place(row, "on-this-date");
-  }
-  for (const row of favorites) {
-    if (t >= dayEnd) break;
-    place(row, "fan-favorite");
-  }
+  // One queue, in the order the day wants them: on this date, then favorites.
+  const queue: { row: CatalogRow; kind: SlotKind }[] = [
+    ...onThisDate.map((row) => ({ row, kind: "on-this-date" as const })),
+    ...favorites.map((row) => ({ row, kind: "fan-favorite" as const })),
+  ];
   // Only reachable with a catalog too small to fill a day without repeats (or a
   // test that makes one): relax the repeat rule rather than leave dead air,
   // most-played first, and cycle if even that runs out.
-  if (t < dayEnd && ranking.length > 0) {
-    const relaxed = ranking.filter((r) => !today.has(r.fileHash));
-    const pool = relaxed.length > 0 ? relaxed : ranking;
-    for (let i = 0; t < dayEnd; i++) place(pool[i % pool.length], "fan-favorite");
+  let relaxed: CatalogRow[] | null = null;
+  let relaxedAt = 0;
+  const next = (fits?: (row: CatalogRow) => boolean): { row: CatalogRow; kind: SlotKind } | null => {
+    const i = fits ? queue.findIndex((q) => fits(q.row)) : queue.length ? 0 : -1;
+    if (i >= 0) return queue.splice(i, 1)[0];
+    if (queue.length || ranking.length === 0) return null;
+    if (!relaxed) {
+      const rest = ranking.filter((r) => !today.has(r.fileHash));
+      relaxed = rest.length > 0 ? rest : ranking;
+    }
+    if (fits) {
+      const row = relaxed.find(fits);
+      return row ? { row, kind: "fan-favorite" } : null;
+    }
+    return { row: relaxed[relaxedAt++ % relaxed.length], kind: "fan-favorite" };
+  };
+
+  // Up to 10 PM: the next show if it ends (and its station ID) by then, else
+  // the next one in order that does; only when none does, cut one at 10 PM.
+  while (t < requestStart) {
+    const room = requestStart - t;
+    const fits = (r: CatalogRow) => durationMs(r) + gap <= room;
+    const pick = next(fits);
+    if (pick) {
+      place(pick.row, pick.kind);
+      continue;
+    }
+    if (room >= MIN_CUT_MS) {
+      const cut = next();
+      if (cut) place(cut.row, cut.kind, requestStart - gap);
+    }
+    break;
+  }
+
+  // 10 PM: the next show in the usual order starts on the hour, marked as the
+  // request slot's (an empty night plays it, as the day always would), then
+  // the rest of the night.
+  t = requestStart;
+  const onTheHour = next();
+  if (onTheHour && t < dayEnd) {
+    place(onTheHour.row, onTheHour.kind);
+    slots[slots.length - 1].requestSlot = true;
+  }
+  while (t < dayEnd) {
+    const pick = next();
+    if (!pick) break;
+    place(pick.row, pick.kind);
   }
 
   return {
@@ -509,6 +520,88 @@ export function applyOverrides(
     }
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// The Request Line (read time)
+// ---------------------------------------------------------------------------
+
+/**
+ * A night's locked request (Postgres `live_request_nights`, locked at 6 PM
+ * Pacific by `live_request_night()`, services/live/schema.sql). `fileHash`
+ * null: nobody nominated, and the stand-in fan favorite plays as frozen.
+ */
+export interface RequestNight {
+  day: string;
+  fileHash: string | null;
+  by: string | null;
+  place: string | null;
+  votes: number;
+}
+
+/**
+ * The day with its listeners' request at 10 PM Pacific.
+ *
+ * - Everything before 10 PM is untouched (a day frozen before the Request
+ *   Line, with no show on the hour, has the one running at 10 PM cut one
+ *   station ID before it).
+ * - The winner starts at exactly 10 PM.
+ * - **The rest of the night shifts**: every show from 10 PM on keeps its
+ *   order and plays one after another from the winner's end, the last cut at
+ *   midnight as ever (what no longer starts before midnight drops off); if
+ *   the night has room left, the frozen ranking fills it. A show already on
+ *   the day is never put on twice.
+ * - Deterministic in the day and the night, like every other read-time
+ *   change; the lock happens four hours before 10 PM, and a tuned-in tab
+ *   follows a changed slot within a minute (`followChanges`).
+ */
+export function applyRequest(
+  program: DayProgram,
+  night: RequestNight | null,
+  catalogByHash: ReadonlyMap<string, CatalogRow>,
+): DayProgram {
+  if (!night || night.day !== program.day || !night.fileHash) return program;
+  const row = catalogByHash.get(night.fileHash);
+  if (!row || !isAirable(row)) return program;
+  const gap = STATION_ID_SEC * 1000;
+  const at = requestStartAt(program.day);
+  const dayEnd = program.end;
+
+  const slots: ProgramSlot[] = [];
+  const after: ProgramSlot[] = [];
+  for (const s of program.slots) {
+    if (s.start < at) {
+      const end = Math.min(s.end, at - gap);
+      if (end > s.start) slots.push(end === s.end ? s : { ...s, end });
+    } else {
+      const { requestSlot: _onTheHour, ...moved } = s;
+      after.push(moved);
+    }
+  }
+  const onDay = new Set(slots.map((s) => s.fileHash));
+  onDay.add(row.fileHash);
+  slots.push({
+    ...toSlot(row, "request", at, Math.min(at + durationMs(row), dayEnd)),
+    request: { by: night.by ?? "a listener", place: night.place, votes: night.votes, day: night.day },
+  });
+  let t = at + durationMs(row) + gap;
+  for (const s of after) {
+    if (t >= dayEnd) break;
+    if (onDay.has(s.fileHash)) continue;
+    const length = Math.round(s.duration * 1000);
+    slots.push({ ...s, start: t, end: Math.min(t + length, dayEnd) });
+    onDay.add(s.fileHash);
+    t += length + gap;
+  }
+  for (const h of program.ranking) {
+    if (t >= dayEnd) break;
+    const r = catalogByHash.get(h);
+    if (!r || onDay.has(h) || !isAirable(r)) continue;
+    slots.push(toSlot(r, "fan-favorite", t, Math.min(t + durationMs(r), dayEnd)));
+    onDay.add(h);
+    t += durationMs(r) + gap;
+  }
+  return { ...program, slots };
 }
 
 // ---------------------------------------------------------------------------

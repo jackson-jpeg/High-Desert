@@ -78,6 +78,8 @@ export interface LineupEntry {
   show: Show | null;
   /** Why it is worth hearing: the cited reason if it is a notable show, else its summary, clipped. */
   why: string | null;
+  /** The Request Line's winner at 10 PM: who asked for it. */
+  request?: { by: string; place: string | null; votes: number };
 }
 
 /** What each kind of slot is, in a word the page shows. */
@@ -87,6 +89,7 @@ export const SLOT_LABELS: Readonly<Record<SlotKind, string>> = {
   "outage-swap": "From the mirror",
   "verify-swap": "Listener favorite",
   "breaker-swap": "Listener favorite",
+  request: "Listener request",
 };
 
 export function whyHear(show: Show | null): string | null {
@@ -112,6 +115,7 @@ export function tonightLineup(program: DayProgram, catalog: ShowCatalog): Lineup
         guestName: s.guestName,
         show,
         why: whyHear(show),
+        ...(s.request ? { request: { by: s.request.by, place: s.request.place, votes: s.request.votes } } : {}),
       };
     });
 }

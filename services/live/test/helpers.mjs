@@ -61,6 +61,9 @@ export async function startLive(opts = {}) {
     adminToken,
     settingsKey: `test-${randomBytes(6).toString("hex")}`,
     log: (m) => logs.push(m),
+    // The Request Line never reaches the real app from a test: no herald
+    // timer, nothing on the air, an empty catalog unless a test gives one.
+    requests: { heraldMs: false, onAir: async () => null, catalog: async () => new Map() },
     ...opts,
   });
   await app.ready;

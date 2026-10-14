@@ -1,6 +1,7 @@
 "use client";
 
 import type { Episode } from "@/db/schema";
+import { RequestItButton } from "@/components/request-line/RequestItButton";
 import { Button } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
 import { toast } from "@/stores/toast-store";
@@ -97,6 +98,12 @@ export function EpisodeManageBar({
       )}
       <EpisodeShareButton episode={episode} />
       <ShowPageLink episode={episode} />
+      {episode.fileHash?.startsWith("archive:") && (
+        <RequestItButton
+          fileHash={episode.fileHash}
+          className={cn(manageClass, "text-bevel-dark/85 hover:text-desktop-gray active:text-desktop-gray")}
+        />
+      )}
       {mirrorUrl(episode) && <MagnetLink episode={episode} />}
       <button
         onClick={async () => {

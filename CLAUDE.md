@@ -106,6 +106,7 @@ CI's 35 minutes run one after another):
 | `/topic/<slug>`, `/topics` | Every show on a topic (categories, curated subjects, big tags; `data/topic-slugs.json`), and the index |
 | `/tonight`, `/tonight/<yyyy-mm-dd>` | One station day: its frozen program and the date's broadcasts. `/tonight` is a 307 to today (Pacific) |
 | `/live` | High Desert Live — the 24/7 station: now playing, time left, up next, the day's log, the live count, the phone lines (chat). See "Live station" |
+| `/request-line` | The Request Line: today's nominations for the station's 10 PM slot with their votes, tonight's pick once locked, its own share card. Server-rendered per request. See "Live station" and `docs/request-line.md` |
 
 All primary pages share `(desktop)/layout.tsx` — the master client component that initializes the audio player, handles global keyboard shortcuts, seeds the library on first visit, and persists playback state.
 
@@ -141,6 +142,7 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/live-api/messages` | POST | **Not Next.js.** `{body}` → **201** `{id, at, name, place, line, body}` (body as stored — mild profanity masked). **400** `{error: "rejected", reason, message}`, **429** `{error: "rate", retryAfter, slowMode}`, **403** muted/banned. Every `/live-api` POST needs `Content-Type: application/json` (415) and a highdesert.space `Origin` (403) |
 | `/live-api/name`, `/live-api/report`, `/live-api/me` | POST/POST/GET | **Not Next.js.** Rename `{name}` → `{name, line, nextChangeInS}` / 409 taken / 429; report `{messageId}` → `{ok, hidden}`; me → `{name, line, place, firstCall, admin, mutedUntil, nextNameChangeInS, nextPlaceChangeInS, slowMode}` |
 | `/live-api/place`, `/live-api/tuned` | POST/POST | **Not Next.js.** "Calling from": `{place}` → `{place, nextChangeInS}`; filtered like a name (400 `place-*` reasons), a change at most every 10 min (429), `""`/null clears it at once and never waits. Suggested in the browser from its time zone only, never from an address. Tuned: `{}` → `{announced}`; the caller tuned in to the station (sent by `tuneIn()`), announced to the room as a `tunein` line with their place |
+| `/live-api/requests`, `/live-api/requests/vote`, `/live-api/admin/request-veto` | GET/POST/POST/POST | **Not Next.js.** The Request Line (`docs/request-line.md`). GET → `{day, closesAt, startsAt, nominations: [{id, fileHash, title, airDate, guestName, name, place, note, votes, mine, voted}], nominated, tonight, admin}`. POST `{fileHash, note?}` → 201 a nomination (one per caller per Pacific day), 200 `joined: true` when the show was already up (a vote); 409 `already-nominated`/`played-recently`/`broken-file`, 400 a note the filter refuses. Vote `{nominationId}` → `{ok, counted, votes}`, 409 `closed` from 6 PM Pacific, 410 vetoed, 429 past 10 votes per address per show. Veto: admin only |
 | `/live-api/admin/*` | POST | **Not Next.js.** `hide`, `mute`, `ban`, `slow`, `clear-name`, `verify` (the deploy's round trip), `signin` `{nonce}`, `signout`; GET `signin-page`. Cookie or `Authorization: Bearer $LIVE_ADMIN_TOKEN`, else **401** `{error: "admin-only"}`. `/live-api/health` is loopback only (nginx 404s it) |
 | `/api/stats/failures` | GET | Which episodes are failing, worst first. `?days=7\|30\|90`. Returns **`{days, summary, entries: [{episodeId, title, failures, recovered, skippedRetries, plays, rate, kinds, uaClasses, details, lastAt}]}`**. Ids resolved to titles from the seed catalog. `details` is the browser's own diagnostics (up to 3 distinct, newest first), **filtered to diagnostic shapes** — the raw text is attacker-controlled (`publicDetails`, HD-038). `skippedRetries` counts retries not attempted for want of a user gesture, excluding `empty-media`, which is never retried by design — it is the instrument for the activation gate. `summary` is site-wide and is deliberately **not** a sum of `entries`, which is capped at 50 episodes. **Excludes advisory kinds** (`ADVISORY_KINDS` in `src/services/stats/db/failures.ts`) — this ranks episodes by how badly they are failing, and a row that never stopped playback would inflate that. Unauthenticated — it is aggregate-only, and the admin gate is presentation, not protection. `?since=<ISO>` adds **`window: {from, to, failures, recovered, plays, byBuild: [{build, failures, recovered, plays}]}`**, the fixed 7 days from that instant (cut at now) — how `highdesert-status` holds a release to `docs/reliability-baseline.md`, leading with `failures − recovered` (starts the listener lost) |
 | `/api/stats/funnel` | POST/GET | **The arrival funnel** (`docs/funnel.md`). POST `{step, cohort, device, look?, again?}`: a browser reached `visit`/`live`/`tune`/`call`/`return` for the first time (`return`: back on a later UTC day), and first arrived on `cohort` (UTC `YYYY-MM-DD`, within 30 days) as a `phone` (narrower than 768 px) or `desktop`, fixed at arrival; `look` is the look it took the step in (`win98`/`night`, else stored NULL), `again: true` when it already counted the step in its other look (each look's funnel is whole; totals count `again` rows never); adds one to `funnel_daily`. Returns `{ok}`; 10/min. GET `?days=7\|30\|90` → **`{days, cohorts: [{day, device, visit, live, tune, call, return}], totals, byDevice: {phone, desktop}, byLook: {win98: {phone, desktop}, night: {phone, desktop}}}`**, `no-store`. A browser that arrived with an empty library is counted; one that already had a library is excluded for good (`src/services/stats/funnel-client.ts`, which keeps "once" in localStorage `hd-funnel`). No session, no address, no id. `highdesert-status`'s `funnel` line reads it. Anything that browses production headless must keep out of it: `csp-check` marks its browser excluded, `presence-check` and the e2e fixture answer the POST in the page |
@@ -991,6 +993,51 @@ same offset, computed from a synced clock.
   390 and on desktop), and `e2e/live.spec.ts` (two browser
   contexts within 2 s — run against a local build on the e2e database, the
   command is in its header). Mutations: the `live-*` ids in `scripts/mutate-check.mjs`.
+- **The Request Line** (2026-10-14, `docs/request-line.md`). Listeners pick
+  the show at **10 PM Pacific**, Art's airtime. Every new frozen day ends a
+  show by 10 PM and marks the show on the hour `requestSlot` (`buildDay`;
+  times from `src/lib/live/pacific.ts`, shared with the chat by symlink). At
+  **6 PM Pacific** `live_request_night()` (one SQL function in
+  `services/live/schema.sql`, so the app and the chat cannot disagree) locks
+  the most voted pick, votes before 6 PM only, ties to the earliest; the
+  schedule applies it at read time (`applyRequest`, before the outage swap
+  and the breaker): the winner at 10 PM as `kind: "request"` with
+  `request: {by, place, votes}`, the rest of the night after it, cut at
+  midnight. Nobody nominated: the day as frozen. A failed read of the night is
+  "no request", never a failed schedule. The chat posts "Tonight's request,
+  from <name>, calling from <place>." once when it airs (`announced_at`).
+  Nominate: Request it on show pages and the Library panel; vote and veto on
+  `/request-line`; Live, Tonight's log and `/tonight` say it.
+## Nothing spins forever, and the returning visitor (2026-10-14, after `docs/incident-2026-10-13/handoff.md`)
+
+On 2026-10-13 the Library and Stats sat on gray rows for returning visitors:
+two IndexedDB reads never answered, and a hanging read never throws.
+
+- **Every Dexie wait times out into Retry.** Use `useTimedLiveQuery(querier,
+  deps)` (`src/hooks/useTimedLiveQuery.ts`, `{value, timedOut, retry}`), never
+  a bare `useLiveQuery` for something a screen waits on. Past `DB_WAIT_MS`
+  (10 s) the screen shows `LoadTimeout` ("... is taking too long to load.
+  Another High Desert tab or the installed app may be holding it." and
+  Retry); Retry reads again, a late answer clears it by itself. The Library
+  list, Stats, the status bar's count ("Not loading · Retry") and Mel's Hole
+  use it. Tests: `timed-live-query.test.tsx` (including a second connection
+  holding a readwrite, the way another tab does, with a control),
+  `stats-page-timeout.test.tsx`, `e2e/db-hold.spec.ts` (a real second tab
+  holding the database; Retry recovers once it lets go).
+- **The returning visitor is checked on every deploy and every status run**
+  (`scripts/returning-visitor.mjs`): a real profile on disk per browser
+  (Chromium and WebKit), primed by the build still serving (the seed in
+  IndexedDB, its service worker in control), then revisited after the swap.
+  The Library must show rows and Stats numbers within 25 s, with no timeout
+  and no page error. `deploy.sh` primes before the swap and revisits after the
+  restart; a failed revisit (exit 1) **rolls back**, a revisit that could not
+  run (exit 2) only warns. `highdesert-status`'s `returning` line runs `check`
+  on the live site (profiles in `/var/lib/highdesert-returning/status/`) and
+  reports the last deploy's revisit. `--hold` is the control: a second tab
+  holds the database and the revisit must FAIL; on the build before this
+  release it did. It never counts itself (`hd-not-counted`; a not-counted
+  browser sends no heartbeat either).
+
 ## Long-lived tabs and the build that wrote each row (read before touching `src/services/build/`)
 
 The station is left open for days. A deploy replaces the server, not the pages
@@ -1464,6 +1511,10 @@ highdesert-status                      # deploy drift, service, backup, sampler,
 - **Verification is client-side and fails closed**: the server must answer, and `/`,
   `/library`, `/radio`, `/stats` must each be 200, reference ≥1 chunk, and every chunk
   must be 200. Any failure **rolls back to `.next.prev` automatically**.
+- **Then a returning visitor, in Chromium and WebKit** (2026-10-14): a
+  profile primed by the old build before the swap is revisited on the new one;
+  a Library or Stats that does not load rolls back too (see "Nothing spins
+  forever"). `HD_RETURNING_CMD=` (empty) skips it.
 - The commit is checked into the service-worker registration chunk *before* the swap.
 - **The schema goes in after the build and before the swap** (2026-10-12), only
   when `scripts/schema.sql` changed since the last deploy that applied it

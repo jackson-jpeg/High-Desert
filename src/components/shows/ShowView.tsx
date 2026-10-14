@@ -23,6 +23,7 @@ import type { Episode } from "@/db/schema";
 import { SHOW_TOPICS_MAX, topicPath, type Topic } from "@/lib/topics/catalog";
 import { momentLabel } from "@/lib/shows/share";
 import { ShowPlayButton } from "@/components/shows/ShowPlayButton";
+import { RequestItButton } from "@/components/request-line/RequestItButton";
 
 /**
  * One show's page (docs/show-pages.md). A server component: the heading, the
@@ -40,7 +41,7 @@ import { ShowPlayButton } from "@/components/shows/ShowPlayButton";
 export const SHOW_AUDIO_ID = "hd-show-audio";
 
 /** Without JavaScript the big Play button cannot work: hide it, the native controls remain. */
-export const NO_SCRIPT_PLAY_CSS = ".hd-show-play{display:none!important}";
+export const NO_SCRIPT_PLAY_CSS = ".hd-show-play{display:none!important}.hd-request-it{display:none!important}";
 
 const link = "text-signal-blue hover:text-desktop-gray transition-colors-fast";
 
@@ -205,6 +206,13 @@ export function ShowView({
               >
                 Open in High Desert
               </Link>
+            ) : null}
+            {row.fileHash.startsWith("archive:") ? (
+              <RequestItButton
+                fileHash={row.fileHash}
+                className="hd-show-request w98-raised-dark bg-raised-surface w98-font text-hd-body text-desktop-gray hover:text-desert-amber px-4 min-h-touch inline-flex items-center"
+                linkClassName={link}
+              />
             ) : null}
             {archive ? (
               <a

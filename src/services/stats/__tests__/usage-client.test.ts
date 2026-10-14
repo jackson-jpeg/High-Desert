@@ -94,11 +94,16 @@ describe("the minute heartbeat", () => {
     expect(sent[0].body).toEqual({ sessionId: "session-abcdefgh", route: "stats", device: "desktop", visible: true });
   });
 
-  it("carries none of it from a not-counted browser, and the beat itself still goes", () => {
+  it("a not-counted browser sends no beat at all (2026-10-14: the returning-visitor check)", () => {
     localStorage.setItem(NOT_COUNTED_KEY, "1");
     expect(heartbeatUsage("/stats", true)).toBeNull();
     reportHeartbeat("session-abcdefgh", null, false, heartbeatUsage("/stats", true));
-    expect(sent[0].body).toEqual({ sessionId: "session-abcdefgh" });
+    reportHeartbeat("session-abcdefgh", "ep-1", true, null);
+    expect(sent).toEqual([]);
+    // Control: the same beats from a counted browser go (the test above).
+    localStorage.removeItem(NOT_COUNTED_KEY);
+    reportHeartbeat("session-abcdefgh", null, false, null);
+    expect(sent).toHaveLength(1);
   });
 });
 

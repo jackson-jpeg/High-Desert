@@ -41,7 +41,7 @@ const { useProgressStore } = await import("@/stores/progress-store");
 let renders = 0;
 let lastCount = -1;
 function Probe() {
-  const eps = useLibraryEpisodes();
+  const eps = useLibraryEpisodes().value;
   renders++;
   lastCount = eps?.length ?? -1;
   return null;

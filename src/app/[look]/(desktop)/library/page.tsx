@@ -5,6 +5,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useRouter } from "next/navigation";
 import { db } from "@/db";
 import { useLibraryEpisodes } from "@/hooks/library/useLibraryEpisodes";
+import { LoadTimeout } from "@/components/LoadTimeout";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
 import { TimelineView } from "@/components/library/TimelineView";
@@ -62,7 +63,7 @@ export default function LibraryPage() {
   const libraryView = useLibraryView();
   const dialMode = libraryView.view === "dial";
 
-  const allEpisodes = useLibraryEpisodes();
+  const { value: allEpisodes, timedOut: episodesTimedOut, retry: retryEpisodes } = useLibraryEpisodes();
 
   // From the `progress` table (HD-016): position saves wake this small query,
   // never the full-table one above.
@@ -270,7 +271,15 @@ export default function LibraryPage() {
           />
         )}
 
-        {(allEpisodes === undefined || (allEpisodes.length === 0 && !seedSettled)) && <LibraryListSkeleton />}
+        {/* Gray rows while the read is out, but never forever (2026-10-13):
+            past DB_WAIT_MS the page says so and offers Retry. */}
+        {episodesTimedOut ? (
+          <div className="flex-1 overflow-hidden min-w-0">
+            <LoadTimeout what="Your library" onRetry={retryEpisodes} />
+          </div>
+        ) : (
+          (allEpisodes === undefined || (allEpisodes.length === 0 && !seedSettled)) && <LibraryListSkeleton />
+        )}
 
         {/* The Library's Dial mode (preview looks): the radio dial over the
             shows the filters leave, in place of the list. */}

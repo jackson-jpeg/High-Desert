@@ -29,6 +29,8 @@ vi.mock("@/services/stats/db/pool", () => ({
       if (failDb) throw new Error("database down");
       // No breaker trips here (the overrides are tested in live-days.db.test.ts).
       if (sql.includes("FROM live_overrides")) return { rows: [] };
+      // Nobody requested anything (applyRequest is tested in schedule.test.ts).
+      if (sql.includes("live_request_night(")) return { rows: [] };
       if (!sql.includes("FROM live_days")) throw new Error(`unexpected query: ${sql}`);
       const [from, to] = params;
       const rows = [];
@@ -93,9 +95,12 @@ describe("GET /api/live/schedule", () => {
     expect(body.upNext).toHaveLength(2);
     expect(body.upNext[0].start).toBeGreaterThan(body.serverNow);
     for (const s of [...body.upNext, ...body.rest]) {
-      expect(Object.keys(s).sort()).toEqual(
+      // `requestSlot` marks the show on the hour at 10 PM (the Request Line), and only it.
+      const keys = Object.keys(s).filter((k) => k !== "requestSlot");
+      expect(keys.sort()).toEqual(
         ["airDate", "duration", "end", "episodeId", "fileHash", "guestName", "kind", "showType", "sourceUrl", "start", "title"].sort(),
       );
+      if ("requestSlot" in s) expect(s.requestSlot).toBe(true);
     }
     // The rest is today's, after up next, in order.
     for (const s of body.rest) expect(s.start).toBeLessThan(today.end);

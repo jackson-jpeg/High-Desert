@@ -194,9 +194,9 @@ describe("evenSample", () => {
 });
 
 describe("sitemap.xml and robots.txt", () => {
-  it("lists the app's routes, every show, guest and topic page, and the last two weeks of Tonight", () => {
+  it("lists the app's routes, the Request Line, every show, guest and topic page, and the last two weeks of Tonight", () => {
     const urls = new Set(sitemap().map((e) => e.url));
-    for (const p of ["", "/library", "/live", "/stats", "/topics"]) expect(urls.has(`${SITE_ORIGIN}${p}`), p).toBe(true);
+    for (const p of ["", "/library", "/live", "/stats", "/topics", "/request-line"]) expect(urls.has(`${SITE_ORIGIN}${p}`), p).toBe(true);
     for (const s of catalog.shows) expect(urls.has(`${SITE_ORIGIN}/show/${s.slug}`), s.slug).toBe(true);
     for (const g of catalog.guests.keys()) expect(urls.has(`${SITE_ORIGIN}/guest/${g}`), g).toBe(true);
     for (const t of topics.topics) expect(urls.has(`${SITE_ORIGIN}/topic/${t.slug}`), t.slug).toBe(true);
@@ -204,7 +204,7 @@ describe("sitemap.xml and robots.txt", () => {
     for (const d of nights) expect(urls.has(`${SITE_ORIGIN}/tonight/${d}`), d).toBe(true);
     // Never a moment: it is its show's page.
     expect([...urls].some((u) => u.includes("?t=") || u.includes("/moment/"))).toBe(false);
-    expect(urls.size).toBe(5 + catalog.shows.length + catalog.guests.size + topics.topics.length + nights.length);
+    expect(urls.size).toBe(6 + catalog.shows.length + catalog.guests.size + topics.topics.length + nights.length);
   });
 
   it("robots keeps crawlers out of the API, admin pages and /look, and names the sitemap", () => {

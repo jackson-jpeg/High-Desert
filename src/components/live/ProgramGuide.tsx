@@ -24,7 +24,15 @@ export const KIND_LABEL: Record<ProgramSlot["kind"], string> = {
   "outage-swap": "From the mirror",
   "verify-swap": "Fan favorite",
   "breaker-swap": "Fan favorite",
+  request: "Listener request",
 };
+
+/** "Requested by Night Owl in Pahrump", for the 10 PM slot that carries one. */
+export function requestedBy(slot: Pick<ProgramSlot, "request">): string | null {
+  const r = slot.request;
+  if (!r) return null;
+  return r.place ? `Requested by ${r.by}, calling from ${r.place}` : `Requested by ${r.by}`;
+}
 
 /**
  * Bring the on-air row into view inside the log's own box, and nowhere else.
@@ -111,7 +119,7 @@ export function ProgramGuide({
                     )}
                   />
                   <span className={cn("text-hd-micro truncate", state === "past" ? "text-bevel-dark/85" : "text-bevel-dark")}>
-                    {[shownGuest(slot), slot.airDate ? formatAirDate(slot.airDate) : null, KIND_LABEL[slot.kind]]
+                    {[shownGuest(slot), slot.airDate ? formatAirDate(slot.airDate) : null, requestedBy(slot) ?? KIND_LABEL[slot.kind]]
                       .filter(Boolean)
                       .join(" · ")}
                   </span>

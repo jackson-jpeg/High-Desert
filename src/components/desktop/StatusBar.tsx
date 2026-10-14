@@ -50,6 +50,9 @@ interface StatusBarProps {
   /** null while the library is still loading: never shown as 0. */
   episodeCount: number | null;
   presence: LivePresence;
+  /** The count's read has not answered in DB_WAIT_MS: say so, with Retry. */
+  countTimedOut?: boolean;
+  onRetryCount?: () => void;
 }
 
 /**
@@ -62,7 +65,7 @@ interface StatusBarProps {
  * tab to change five characters in a corner. Keep any timer-driven state here;
  * `shell-render-pressure.test.tsx` holds it.
  */
-export function StatusBar({ episodeCount, presence }: StatusBarProps) {
+export function StatusBar({ episodeCount, presence, countTimedOut = false, onRetryCount }: StatusBarProps) {
   const router = useRouter();
   const [clock, setClock] = useState("");
   const [callerIdx, setCallerIdx] = useState(0);
@@ -246,7 +249,23 @@ export function StatusBar({ episodeCount, presence }: StatusBarProps) {
           ),
           width: "150px",
         }] : []),
-        { content: episodeCountLabel(episodeCount), width: "120px" },
+        {
+          content:
+            countTimedOut && onRetryCount ? (
+              <button
+                type="button"
+                data-testid="status-count-retry"
+                onClick={onRetryCount}
+                title="Your library has not loaded. Retry"
+                className="text-signal-blue cursor-pointer"
+              >
+                Not loading · Retry
+              </button>
+            ) : (
+              episodeCountLabel(episodeCount)
+            ),
+          width: "120px",
+        },
         { content: signalBars, width: "24px" },
         { content: clock, width: "72px" },
       ]}

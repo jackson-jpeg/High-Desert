@@ -77,7 +77,7 @@ export function pageFindings(doc, { path, kind, base }) {
   }
   need(types.includes("BreadcrumbList"), "no BreadcrumbList JSON-LD");
   if (kind === "show" || kind === "moment") need(types.includes("PodcastEpisode"), "no PodcastEpisode JSON-LD");
-  if (kind === "guest" || kind === "topic" || kind === "tonight") need(types.includes("CollectionPage"), "no CollectionPage JSON-LD");
+  if (kind === "guest" || kind === "topic" || kind === "tonight" || kind === "request-line") need(types.includes("CollectionPage"), "no CollectionPage JSON-LD");
 
   // The page is in the HTML, not drawn by JavaScript afterwards.
   const h1 = doc.querySelectorAll("h1");
@@ -118,6 +118,10 @@ export function pageFindings(doc, { path, kind, base }) {
     need(!!doc.querySelector(`article[data-tonight-day="${day}"]`), "the day's article is not in the server HTML");
     need(!!doc.querySelector('a.hd-tonight-tune[href="/live"]'), "no Tune in link to /live");
     need(!!doc.querySelector(".hd-tonight-program") && !!doc.querySelector(".hd-tonight-dated"), "no program or on-this-date section");
+  }
+  if (kind === "request-line") {
+    need(!!doc.querySelector("article.hd-request-line[data-request-day]"), "the Request Line's article is not in the server HTML");
+    need(!!doc.querySelector(".hd-request-list"), "no list of nominations in the server HTML");
   }
   // The boot screen must not cover the page, with or without JavaScript.
   const styles = [...doc.querySelectorAll("style")].map((s) => s.textContent ?? "").join("\n");
