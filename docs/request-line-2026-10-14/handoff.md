@@ -167,6 +167,48 @@ Full account: `docs/request-line.md`. In short:
   through the legacy cut (the show running then is cut there). From Oct 15
   on, every new day is built around the 10 PM slot.
 
+## Visibility pass (same day, after you asked)
+
+You couldn't find the note on Live. It was there, but on a phone it sat
+below the calls and the clock. Shipped at **14:27 UTC** (1f55649), straight
+to `main` (no second PR), after CI and Mutations passed.
+
+- **On a phone the note sits right under the Listen live card,** both looks,
+  with its own **Pick a show** button to the Request Line. Desktop is
+  unchanged (one link in the console).
+- **Once there are picks it counts them:** "Tonight's request at 10 PM. 1
+  show in the running, vote by 6 PM Pacific." The count comes from
+  `/live-api/requests`, asked on load, every 2 minutes on screen and on
+  coming back. After 6 PM picks are for tomorrow, so they are never shown as
+  tonight's.
+- **In the menus:**
+  - Win98's Start menu, after Phone Lines (shortcut Q, since R is Run;
+    Run... `requestline` too);
+  - the top of Night's More sheet, under Surprise Me. The first try put it
+    under Navigate, and the screenshot showed it below eight sort options,
+    off the sheet's first screen, so it moved up.
+- **Tests:**
+  - unit tests for the order on a phone (hero, note, Call in, strip), the
+    count (one, several, another day's) and both menus;
+  - `e2e/request-line.spec.ts` on a local build, phone, both looks: the note
+    within one gap under the hero, the button on the first screen and at
+    least 44 px, both menu items on screen without scrolling, and each tap
+    lands on `/request-line`. 11 passed;
+  - six new mutations, all red.
+- **Two backup tests fail locally only:** `backup-db.test.ts` assumes the
+  shared test database dumps to under 1 MB, and it is now 1,073,814 bytes.
+  CI starts from a fresh database and passed.
+- **The deploy:** clean. The returning visitor was ok in Chromium and WebKit
+  (bc0e8fc to 1f55649). `highdesert-status`: `deploy` OK on 1f55649,
+  `returning` OK. No chat restart, so no station notice.
+- **On production** (headless phone and desktop, kept out of the stats):
+  - the note is 12 px under the hero on a phone in both looks, with the
+    button;
+  - a listener's real pick is already up: "1 show in the running".
+- **Screenshots:** `~/Downloads/high-desert-2026-10-14-request-line-visibility/`
+  on the Mac. They are the e2e's phone shots in both looks (first screen,
+  menu, the Request Line after Pick a show) and two from production.
+
 ## Blocks hit this session
 
 - **The pipefail hook blocked piped commands without `set -o pipefail`,
@@ -183,6 +225,14 @@ Full account: `docs/request-line.md`. In short:
 - **The harness refused a foreground `sleep 90`** before the CSP rerun.
   Enough time had already passed, so I ran the check at once, in the
   background.
+- **During the visibility pass, the pipefail hook refused three more piped
+  commands:** two `grep | head` reads and an edit followed by a `| head`.
+  The edit was refused whole and run again on its own. Each was re-run with
+  `set -o pipefail;` or without the pipe.
+- **One e2e run failed on the stack, not the code:** killing `npx next
+  start` left its `next-server` child holding :3091, serving the deleted
+  chunks of the build before. I found it by its port, checked its working
+  directory was my worktree, killed it, and the rerun passed.
 - No other hook or permission check blocked anything.
 
 ## Left for you
