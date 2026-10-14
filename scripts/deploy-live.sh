@@ -128,8 +128,9 @@ grep -q '^LIVE_INSECURE_COOKIES=' "$ENV_FILE" && { log "refusing: LIVE_INSECURE_
 # User.
 id hdlive >/dev/null 2>&1 || useradd --system --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin hdlive
 
-# Stage and install. -L: lib/shared/client-key.ts is a symlink into the app's
-# src/ (one implementation of the client key); the copy must be the file.
+# Stage and install. -L: lib/shared/*.ts are symlinks into the app's
+# src/ (one implementation of the client key and of the Pacific calendar);
+# the copy must be the file.
 rm -rf "$STAGE"
 mkdir -p "$STAGE/docs"
 cp -rL "$ROOT/services/live/server.mjs" "$ROOT/services/live/lib" "$ROOT/services/live/scripts" \
@@ -138,7 +139,7 @@ cp "$ROOT/data/chat-blocklist.txt" "$STAGE/chat-blocklist.txt"
 cp "$ROOT/docs/live-chat.md" "$STAGE/docs/live-chat.md"
 git -C "$ROOT" rev-parse HEAD > "$STAGE/COMMIT"
 (cd "$STAGE" && nice -n 10 npm ci --omit=dev --no-audit --no-fund --loglevel=error)
-[ -L "$STAGE/lib/shared/client-key.ts" ] && { log "client-key.ts is still a symlink in the stage"; exit 1; }
+if [ -n "$(find "$STAGE/lib/shared" -type l)" ]; then log "lib/shared still holds a symlink in the stage"; exit 1; fi
 chown -R root:root "$STAGE"
 chmod -R go-w,a+rX "$STAGE"
 

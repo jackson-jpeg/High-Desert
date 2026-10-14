@@ -11,6 +11,9 @@
  * Unit-set:
  *   LIVE_PORT (3005), LIVE_HOST (127.0.0.1), LIVE_BLOCKLIST (path),
  *   LIVE_ORIGINS (comma-separated; default https://highdesert.space,https://www.highdesert.space)
+ *   LIVE_APP_URL (default http://127.0.0.1:3003): the app, for the schedule
+ *                (archive moments, the Request Line's herald) and the catalog
+ *                (what may be nominated). A local or CI stack points it elsewhere.
  * Never set in the unit:
  *   LIVE_LOAD_TEST=1     honour x-live-test-client from loopback (scripts/load.mjs)
  *   LIVE_INSECURE_COOKIES=1  leave Secure off the caller cookie, for a plain-http
@@ -23,6 +26,7 @@ import path from "node:path";
 import pg from "pg";
 import { createLiveApp, DEFAULT_ORIGINS } from "./lib/app.mjs";
 import { watchedBlocklist } from "./lib/moderation/blocklist.mjs";
+import { catalogReader } from "./lib/requests.mjs";
 
 const env = process.env;
 const port = Number(env.LIVE_PORT ?? 3005);
@@ -65,6 +69,12 @@ const app = createLiveApp({
   blocklist: () => blocklist.get(),
   loadTest,
   secureCookies,
+  ...(env.LIVE_APP_URL
+    ? {
+        archive: { scheduleUrl: `${env.LIVE_APP_URL.replace(/\/$/, "")}/api/live/schedule` },
+        requests: { catalog: catalogReader(`${env.LIVE_APP_URL.replace(/\/$/, "")}/seed/library.json`) },
+      }
+    : {}),
 });
 if (!env.LIVE_ADMIN_TOKEN) console.warn("[live] LIVE_ADMIN_TOKEN is not set: admin actions are disabled");
 

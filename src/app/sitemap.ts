@@ -51,6 +51,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     ...catalog.shows.map((s) => ({ url: `${base}${showPath(s.slug)}`, priority: 0.6 })),
     ...[...catalog.guests.values()].map((g) => ({ url: `${base}${guestPath(g.slug)}`, priority: 0.5 })),
+    { url: `${base}/request-line`, lastModified: now, changeFrequency: "hourly", priority: 0.7 },
     { url: `${base}/topics`, changeFrequency: "monthly", priority: 0.6 },
     ...topics.topics.map((t) => ({ url: `${base}${topicPath(t.slug)}`, priority: 0.7 })),
     ...tonightSitemapDays(pacificDay(now.getTime())).map((day, i) => ({

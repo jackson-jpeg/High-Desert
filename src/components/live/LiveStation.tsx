@@ -21,6 +21,7 @@ import { presenceAttrs } from "@/services/stats/now-feed";
 import { db } from "@/db";
 import { OnAirLamp } from "./OnAirLamp";
 import { KIND_LABEL, ProgramGuide } from "./ProgramGuide";
+import { TonightsRequestNote } from "./TonightsRequestNote";
 import { LiveChat } from "./LiveChat";
 import { LiveChatSheet } from "./LiveChatSheet";
 import { noteFunnelStep } from "@/services/stats/funnel-client";
@@ -363,6 +364,7 @@ function Console({ schedule }: { schedule: LiveSchedule }) {
       </div>
 
       <OutageNote schedule={schedule} />
+      <TonightsRequestNote schedule={schedule} now={now} />
 
       <div className="px-3 py-3 flex flex-col gap-3">
         {slot ? <NowPlaying slot={slot} now={now} hook={hook} /> : <StationBreak until={on?.endsAt ?? now} now={now} />}
@@ -412,6 +414,7 @@ function PhoneStudio({ schedule, look }: { schedule: LiveSchedule; look: Look })
           <span className="flex-1 min-w-0 text-hd-caption text-bevel-dark">The last show of the day</span>
         )}
       </div>
+      <TonightsRequestNote schedule={schedule} now={now} look={look} phone />
       <OutageNote schedule={schedule} />
       <TonightsLog schedule={schedule} now={now} phone look={look} />
     </>

@@ -100,6 +100,7 @@ const sitemapPaths = new Set();
   const missingTopics = topicSlugs.filter((s) => s && !sitemapPaths.has(`/topic/${s}`));
   if (missingTopics.length) find("/sitemap.xml", `${missingTopics.length} topic page(s) missing, e.g. /topic/${missingTopics[0]}`);
   if (!sitemapPaths.has("/topics")) find("/sitemap.xml", "missing /topics");
+  if (!sitemapPaths.has("/request-line")) find("/sitemap.xml", "missing /request-line");
 }
 const sitemapShows = [...sitemapPaths].filter((p) => p.startsWith("/show/")).map((p) => p.slice(6));
 const sitemapGuests = [...sitemapPaths].filter((p) => p.startsWith("/guest/"));
@@ -152,6 +153,7 @@ const pages = [
   ...topicSample.map((p) => ({ path: p, kind: "topic" })),
   ...nightSample.map((p) => ({ path: p, kind: "tonight" })),
   ...momentPaths.map((p) => ({ path: p, kind: "moment" })),
+  { path: "/request-line", kind: "request-line" },
 ];
 const links = new Map(); // site path → first page that links to it
 const images = new Map();

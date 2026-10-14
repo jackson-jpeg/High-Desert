@@ -60,6 +60,7 @@ import { clearedCookie, isAdminRequest, parseCookies, sessionCookie, sha256hex }
 import { addressRef, callerCookie, callerRef, mintCallerId, verifyCallerCookie } from "./caller.mjs";
 import { SIGNIN_PAGE, SIGNIN_PAGE_HEADERS } from "./signin-page.mjs";
 import { createCpuSampler } from "./cpu.mjs";
+import { catalogReader, createRequestLine, MAX_NOTE_CHARS, NOMINATIONS_PER_ADDRESS_HOUR, RequestRefusal } from "./requests.mjs";
 
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 export const DEFAULT_ORIGINS = ["https://highdesert.space", "https://www.highdesert.space"];
@@ -163,6 +164,12 @@ export function createLiveApp({
    * object overrides the moments, the schedule reader or the timing.
    */
   archive = {},
+  /**
+   * The Request Line (lib/requests.mjs). `false` turns it off; an object
+   * overrides the catalog reader, the on-air reader or the herald's timing
+   * (`heraldMs: false`: no timer, tests call `requests.herald()`).
+   */
+  requests = {},
 }) {
   if (!clientSecret || clientSecret.length < 32) throw new Error("CHAT_CLIENT_SECRET must be set (32+ chars)");
   const store = createStore(pool, { settingsKey });
@@ -176,6 +183,7 @@ export function createLiveApp({
   const firstCallCounter = createWindowCounter({ max: FIRST_CALLS_PER_ADDRESS_HOUR, windowMs: 60 * 60_000, now });
   const addressMessages = createWindowCounter({ max: MESSAGES_PER_ADDRESS_MINUTE, windowMs: 60_000, now });
   const addressReports = createWindowCounter({ max: REPORTS_PER_ADDRESS_MINUTE, windowMs: 60_000, now });
+  const addressNominations = createWindowCounter({ max: NOMINATIONS_PER_ADDRESS_HOUR, windowMs: 60 * 60_000, now });
   /** addr_ref → open streams, across every caller behind it. */
   const addressStreams = new Map();
   /** Callers known to have talked: they skip the first-call checks. Cleared hourly. */
@@ -195,6 +203,7 @@ export function createLiveApp({
     try {
       const n = await store.sweep();
       if (n > 0) log(`[live] retention: deleted ${n} message(s) older than 7 days`);
+      await requestLine?.sweep();
     } catch (err) {
       log(`[live] retention sweep failed: ${err.message}`);
     }
@@ -212,6 +221,7 @@ export function createLiveApp({
     firstCallCounter.sweep();
     addressMessages.sweep();
     addressReports.sweep();
+    addressNominations.sweep();
     sweepTuneins();
     announceSlowIfChanged();
   }, 5_000);
@@ -242,6 +252,16 @@ export function createLiveApp({
   // hello for STATION_KEEP_MS, the newest STATION_ON_HELLO.
   const stationLines = [];
   const stationRecent = () => stationLines.filter((l) => now() - Date.parse(l.at) < STATION_KEEP_MS);
+  /** Post a station line: an admin's notice, or the Request Line's herald. */
+  function postStation(text, reason = "station") {
+    const t = now();
+    const line = { id: `station-${t}`, at: new Date(t).toISOString(), text, form: "moment", speaker: null, episode: null, reason };
+    stationLines.push(line);
+    if (stationLines.length > STATION_ON_HELLO) stationLines.shift();
+    hub.broadcast("station", line);
+    log(`[live] station notice ${line.id}`);
+    return line;
+  }
 
   function flushTuneins() {
     tuneinTimer = null;
@@ -291,6 +311,23 @@ export function createLiveApp({
           now,
           log,
           ...(archive.timing ?? {}),
+        });
+
+  // ---- the Request Line ----------------------------------------------------
+  // Nominations and votes for the 10 PM slot (lib/requests.mjs). Its herald
+  // says "Tonight's request, from ..." in the lines when the show comes on.
+  const scheduleOnAir = archive && archive.onAir ? archive.onAir : scheduleReader(archive?.scheduleUrl ?? ARCHIVE_SCHEDULE_URL);
+  const requestLine =
+    requests === false
+      ? null
+      : createRequestLine({
+          pool,
+          now,
+          catalog: requests.catalog ?? catalogReader(),
+          onAir: requests.onAir ?? scheduleOnAir,
+          announce: (text) => postStation(text, "request"),
+          heraldMs: requests.heraldMs,
+          log,
         });
 
   // ---- identity ----------------------------------------------------------
@@ -685,13 +722,13 @@ export function createLiveApp({
         // ignores it rather than heading it "From the archive".
         const text = typeof body.text === "string" ? body.text.trim() : "";
         if (!text || text.length > STATION_MAX_CHARS) throw new HttpError(400, { error: "bad-notice", max: STATION_MAX_CHARS });
-        const t = now();
-        const line = { id: `station-${t}`, at: new Date(t).toISOString(), text, form: "moment", speaker: null, episode: null, reason: "station" };
-        stationLines.push(line);
-        if (stationLines.length > STATION_ON_HELLO) stationLines.shift();
-        hub.broadcast("station", line);
-        log(`[live] station notice ${line.id}`);
-        return sendJson(res, 201, line);
+        return sendJson(res, 201, postStation(text));
+      }
+      case "request-veto": {
+        if (!requestLine) throw new HttpError(404, { error: "not-found" });
+        const id = positiveInt(body.nominationId);
+        if (!id) throw new HttpError(400, { error: "bad-nomination" });
+        return sendJson(res, 200, await requestLine.veto(id));
       }
       case "verify": {
         // The deploy's POST round trip (scripts/deploy-live.sh): through nginx,
@@ -704,6 +741,55 @@ export function createLiveApp({
       default:
         throw new HttpError(404, { error: "not-found" });
     }
+  }
+
+  // ---- Request Line routes ---------------------------------------------
+
+  /** GET: today's nominations (tomorrow's after 6 PM), with this caller's own marks. */
+  async function getRequests(req, res) {
+    if (!requestLine) throw new HttpError(404, { error: "not-found" });
+    const caller = await callerOf(req, res);
+    const st = await requestLine.state(caller.ref);
+    sendJson(res, 200, { ...st, admin: isAdminRequest(req, adminToken, now()) });
+  }
+
+  /** POST {fileHash, note?}: nominate a show (or vote for it, if someone already has). */
+  async function postNomination(req, res) {
+    if (!requestLine) throw new HttpError(404, { error: "not-found" });
+    checkPost(req);
+    const body = await readJson(req);
+    const caller = await callerOf(req, res);
+    await assertMayPost(caller.ref);
+    let note = null;
+    if (typeof body.note === "string" && body.note.trim()) {
+      const verdict = moderate.message(body.note);
+      if (!verdict.ok) throw new HttpError(400, { error: "rejected", reason: verdict.reason, message: REASON_TEXT[verdict.reason] });
+      if ([...verdict.text].length > MAX_NOTE_CHARS) {
+        throw new HttpError(400, { error: "rejected", reason: "too-long", message: `Keep the note to ${MAX_NOTE_CHARS} characters.` });
+      }
+      note = verdict.text;
+    }
+    const t = addressNominations.take(caller.addr);
+    if (!t.ok) {
+      const retryAfter = seconds(t.retryAfterMs);
+      throw new HttpError(429, { error: "rate", retryAfter }, { "retry-after": String(retryAfter) }, "address-nominations");
+    }
+    await admitFirstCall(caller);
+    const who = await ensureCaller(caller);
+    const r = await requestLine.nominate(caller, { fileHash: body.fileHash, note }, who);
+    sendJson(res, r.joined ? 200 : 201, r);
+  }
+
+  /** POST {nominationId}: one vote per listener per show. */
+  async function postVote(req, res) {
+    if (!requestLine) throw new HttpError(404, { error: "not-found" });
+    checkPost(req);
+    const body = await readJson(req);
+    const caller = await callerOf(req, res);
+    if (bans.has(caller.ref)) throw new HttpError(403, { error: "banned", message: "This line has been disconnected." });
+    const id = positiveInt(body.nominationId);
+    if (!id) throw new HttpError(400, { error: "bad-nomination" });
+    sendJson(res, 200, await requestLine.vote(caller, id));
   }
 
   async function signin(req, res) {
@@ -776,6 +862,9 @@ export function createLiveApp({
     if (m === "POST" && p === "/live-api/place") return postPlace(req, res);
     if (m === "POST" && p === "/live-api/tuned") return postTuned(req, res);
     if (m === "POST" && p === "/live-api/report") return postReport(req, res);
+    if (m === "GET" && p === "/live-api/requests") return getRequests(req, res);
+    if (m === "POST" && p === "/live-api/requests") return postNomination(req, res);
+    if (m === "POST" && p === "/live-api/requests/vote") return postVote(req, res);
     if (m === "POST" && p === "/live-api/admin/signin") return signin(req, res);
     if (m === "POST" && p === "/live-api/admin/signout") {
       checkPost(req);
@@ -785,7 +874,7 @@ export function createLiveApp({
       res.writeHead(200, SIGNIN_PAGE_HEADERS);
       return res.end(SIGNIN_PAGE);
     }
-    const adminMatch = /^\/live-api\/admin\/(hide|mute|ban|slow|clear-name|verify|notice)$/.exec(p);
+    const adminMatch = /^\/live-api\/admin\/(hide|mute|ban|slow|clear-name|verify|notice|request-veto)$/.exec(p);
     if (m === "POST" && adminMatch) return admin(req, res, adminMatch[1]);
     throw new HttpError(404, { error: "not-found" });
   }
@@ -793,7 +882,12 @@ export function createLiveApp({
   async function handle(req, res) {
     try {
       await route(req, res);
-    } catch (err) {
+    } catch (caught) {
+      // A Request Line refusal is an ordinary 4xx, counted like the rest.
+      const err =
+        caught instanceof RequestRefusal
+          ? new HttpError(caught.status, { error: caught.error, message: caught.publicMessage, ...caught.extra })
+          : caught;
       if (err instanceof HttpError) {
         countRefusal(err, req);
         if (!res.headersSent) sendJson(res, err.status, err.body, err.headers);
@@ -812,6 +906,7 @@ export function createLiveApp({
     limits,
     store,
     voice,
+    requests: requestLine,
     ready,
     sweep,
     addrRefOf,
@@ -821,6 +916,7 @@ export function createLiveApp({
       clearInterval(slowTimer);
       clearTimeout(tuneinTimer);
       voice?.close();
+      requestLine?.close();
       cpu.stop();
       hub.close();
     },

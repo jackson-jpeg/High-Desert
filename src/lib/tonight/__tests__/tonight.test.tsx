@@ -73,7 +73,7 @@ function resolves(href: string): boolean {
   if (p.startsWith("/guest/")) return catalog.guests.has(p.slice(7));
   if (p.startsWith("/topic/")) return topics.bySlug.has(p.slice(7));
   if (p.startsWith("/tonight/")) return tonightDayInRange(p.slice(9), DAY);
-  return ["/", "/library", "/live", "/stats", "/tonight", "/topics"].includes(p);
+  return ["/", "/library", "/live", "/stats", "/tonight", "/topics", "/request-line"].includes(p);
 }
 
 function checkPage(d: Document, label: string) {
@@ -169,6 +169,41 @@ describe("tonightData (read-only, but for today's freeze)", () => {
     const tomorrow = await tonightData("2026-10-13", { now, hasDatabase: () => true, freeze, readDays: async () => new Map() });
     expect(tomorrow.program).toBeNull();
     expect(freeze).not.toHaveBeenCalled();
+  });
+
+  it("applies the Request Line's locked night: the winner at 10 PM, named on the page", async () => {
+    const p = program();
+    const winner = catalog.bySlug.get("1992-12-12-area-51-john-lear-bob-lazar")!.row;
+    const byHash = new Map([[winner.fileHash, { ...winner, duration: 3600 }]]);
+    const r = await tonightData(DAY, {
+      now,
+      hasDatabase: () => true,
+      readDays: async () => new Map([[DAY, p]]),
+      loadNight: async (day) => ({ day, fileHash: winner.fileHash, by: "Night Owl", place: "Pahrump", votes: 4 }),
+      byHash: async () => byHash as never,
+    });
+    const req = r.program!.slots.find((s) => s.kind === "request")!;
+    expect(req.fileHash).toBe(winner.fileHash);
+    expect(req.start).toBe(pacificDayBounds(DAY).end - 2 * 3_600_000);
+    expect(req.request).toMatchObject({ by: "Night Owl", place: "Pahrump", votes: 4 });
+    const page = tonightPage(DAY, r.program, catalog);
+    const html = renderToStaticMarkup(
+      createElement(TonightView, { day: DAY, today: DAY, page, available: true, prev: true, next: false }),
+    );
+    expect(html).toContain("Listener request");
+    expect(doc(html).querySelector('[data-testid="tonight-requested-by"]')!.textContent).toBe("from Night Owl, calling from Pahrump");
+    expect(html).not.toContain(DASH);
+  });
+
+  it("control: an empty night (nobody nominated) leaves the program as frozen", async () => {
+    const p = program();
+    const r = await tonightData(DAY, {
+      now,
+      hasDatabase: () => true,
+      readDays: async () => new Map([[DAY, p]]),
+      loadNight: async (day) => ({ day, fileHash: null, by: null, place: null, votes: 0 }),
+    });
+    expect(r.program).toBe(p);
   });
 
   it("a database that fails reads as unavailable, not as an error page", async () => {

@@ -36,6 +36,7 @@ import {
   addDays,
   applyOutageSwap,
   applyOverrides,
+  applyRequest,
   applyVerifySwap,
   buildDays,
   locate,
@@ -48,6 +49,7 @@ import {
   type DayProgram,
   type LiveSchedule,
   type ManifestSet,
+  type RequestNight,
 } from "@/lib/live/schedule";
 
 export type { LiveSchedule };
@@ -84,7 +86,7 @@ export async function loadCatalog(): Promise<CatalogRow[]> {
   return _catalog;
 }
 
-async function catalogByHash(): Promise<Map<string, CatalogRow>> {
+export async function catalogByHash(): Promise<Map<string, CatalogRow>> {
   await loadCatalog();
   return _byHash!;
 }
@@ -119,6 +121,8 @@ export interface DayDeps {
   loadPinned?: () => Promise<ReadonlySet<string> | null>;
   log?: (line: string) => void;
   loadOverrides?: (days: readonly string[]) => Promise<LiveOverride[]>;
+  /** The night's locked request (src/services/live/requests.ts). */
+  loadNight?: (day: string, now: number) => Promise<RequestNight | null>;
 }
 
 async function pinnedFromManifest(): Promise<ReadonlySet<string> | null> {
@@ -295,8 +299,12 @@ export function assembleSchedule(
   ctx: ScheduleContext,
   byHash: ReadonlyMap<string, CatalogRow>,
   overrides: readonly LiveOverride[] = [],
+  nights: readonly RequestNight[] = [],
 ): LiveSchedule {
-  const swap = (p: DayProgram): DayProgram => {
+  // The listeners' request first (it moves the night's slots), then the
+  // outage swap and the breaker, which keep slot times where they find them.
+  const swap = (frozen: DayProgram): DayProgram => {
+    const p = applyRequest(frozen, nights.find((n) => n.day === frozen.day) ?? null, byHash);
     const q = ctx.archiveDown && ctx.manifest ? applyOutageSwap(p, ctx.manifest, byHash) : p;
     return overrides.length ? { ...q, slots: applyOverrides(q.slots, overrides, byHash) } : q;
   };
@@ -332,5 +340,9 @@ export async function buildSchedule(
   const today = await frozenDay(day, deps);
   const tomorrow = needsTomorrow(today, now) ? await frozenDay(addDays(day, 1), deps) : null;
   const overrides = await (deps.loadOverrides ?? loadOverrides)(tomorrow ? [day, tomorrow.day] : [day]);
-  return assembleSchedule(now, today, tomorrow, await ctx(), await catalogByHash(), overrides);
+  const loadNight = deps.loadNight ?? (await import("@/services/live/requests")).loadRequestNight;
+  const nights = (await Promise.all((tomorrow ? [day, tomorrow.day] : [day]).map((d) => loadNight(d, now)))).filter(
+    (n): n is RequestNight => n !== null,
+  );
+  return assembleSchedule(now, today, tomorrow, await ctx(), await catalogByHash(), overrides, nights);
 }

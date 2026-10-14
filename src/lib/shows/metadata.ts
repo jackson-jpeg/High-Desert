@@ -165,3 +165,25 @@ export function tonightMetadata(day: string, title: string, description: string)
     twitter: { card: "summary_large_image", title, description, images: [shareImage(url, "twitter-image", alt)] },
   };
 }
+
+/** The Request Line's <head>: its own share card ("Vote for my pick on High Desert"). */
+export function requestLineMetadata(title: string, description: string): Metadata {
+  const url = "/request-line";
+  const alt = "A High Desert card: vote for my pick on the Request Line";
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    keywords: ["Art Bell", "Coast to Coast AM", "request line", "listener request", "High Desert Live"],
+    openGraph: {
+      type: "website",
+      title,
+      description,
+      url,
+      siteName: SITE_NAME,
+      locale: "en_US",
+      images: [shareImage(url, "opengraph-image", alt)],
+    },
+    twitter: { card: "summary_large_image", title, description, images: [shareImage(url, "twitter-image", alt)] },
+  };
+}

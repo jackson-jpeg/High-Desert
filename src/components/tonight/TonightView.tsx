@@ -91,6 +91,12 @@ export function TonightView({
         <h2 id="hd-tonight-program" className="hd-show-related-title w98-font text-hd-title text-desert-amber mb-1">
           The program, midnight to midnight Pacific
         </h2>
+        <p data-testid="tonight-request-line" className="hd-tonight-request-line text-hd-caption text-bevel-dark mb-2">
+          At 10 PM Pacific, Art&apos;s old airtime, the station plays the listeners&apos; pick.{" "}
+          <Link href="/request-line" className={link}>
+            Request a show or vote on the Request Line
+          </Link>
+        </p>
         {page.lineup.length ? (
           <ol className="hd-show-list hd-tonight-lineup flex flex-col gap-1">
             {page.lineup.map((e) => (
@@ -98,6 +104,12 @@ export function TonightView({
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-hd-caption text-bevel-dark">
                   <LocalTime ms={e.start} pacific={formatStationTime(e.start)} />
                   <span className="hd-tonight-kind uppercase tracking-wider text-desert-amber">{SLOT_LABELS[e.kind]}</span>
+                  {e.request ? (
+                    <span data-testid="tonight-requested-by" className="hd-tonight-request text-desktop-gray">
+                      from {e.request.by}
+                      {e.request.place ? `, calling from ${e.request.place}` : ""}
+                    </span>
+                  ) : null}
                 </div>
                 {e.show ? (
                   <Link href={showPath(e.show.slug)} className={`hd-tonight-show text-hd-body ${link}`}>
