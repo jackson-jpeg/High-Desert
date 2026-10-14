@@ -95,6 +95,11 @@ Full account: `docs/request-line.md`. In short:
     database.
 - **Mutations:** 18 new `request-*` mutations and the 8 Phase A ones all go
   red.
+  - The PR's first Mutations run found five old anchors STALE: the code
+    they named had moved (`live-midnight-cut`, `live-station-id-gap`,
+    `live-schedule-reads-overrides`, `live-station-notice-event`,
+    `status-bar-episode-count-label`). They were re-anchored with the same
+    intent, and all five go red locally.
   - One survived at first. A second pick a day was also refused by the
     database's unique index, so the test could not tell the friendly check
     from the race fallback.
@@ -124,7 +129,9 @@ _Filled in after the deploy._
   many times over the session.** Examples:
   - `cmd | head` and `grep | head` reads;
   - a heredoc file write followed by a `| grep` (the whole command was
-    refused, so the file was written again on its own).
+    refused, so the file was written again on its own);
+  - a `gh run list | jq` CI poll and a `grep -c | head` read, after the
+    first Mutations run.
 
   Each was re-run with `set -o pipefail;` in front. No other hook or
   permission check blocked anything.
