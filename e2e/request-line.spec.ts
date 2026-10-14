@@ -130,12 +130,15 @@ test.describe("the Request Line", () => {
         await page.locator('[data-nav="more"]').click();
         const item = page.getByTestId("more-request-line");
         await expect(item).toBeVisible();
+        // At the top of the sheet: on screen without scrolling it.
+        await expect(item).toBeInViewport({ ratio: 1 });
         await page.screenshot({ path: `${SHOTS}/phone-menu-${look}.png` });
         await item.click();
       } else {
         await page.getByTestId("w98-start").click();
         const item = page.getByTestId("w98-start-menu").getByRole("menuitem", { name: /Request Line/ });
         await expect(item).toBeVisible();
+        await expect(item).toBeInViewport({ ratio: 1 });
         await page.screenshot({ path: `${SHOTS}/phone-menu-${look}.png` });
         await item.click();
       }

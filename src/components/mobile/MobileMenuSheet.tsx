@@ -141,6 +141,19 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
             <span className="w-[24px] text-center text-hd-16">{"\u21C6"}</span>
             <span>Surprise Me: Shuffle All</span>
           </button>
+          {/* Tonight's 10 PM pick (docs/request-line.md): at the top, where a
+              phone sees it without scrolling the sheet. */}
+          <button
+            onClick={() => {
+              router.push(REQUEST_LINE_PATH);
+              hide();
+            }}
+            data-testid="more-request-line"
+            className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desert-amber cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
+          >
+            <span className="w-[24px] text-center text-hd-14 text-desert-amber/85" aria-hidden="true">{"\u2605"}</span>
+            <span>{REQUEST_LINE_LABEL}</span>
+          </button>
 
           {/* Sort group.
               Mobile had no way to sort at all: the sort pills in the library
@@ -189,17 +202,6 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
           >
             <span className="w-[24px] text-center text-hd-14 text-bevel-dark/85">{"\u{1F4FB}"}</span>
             <span>{DIAL_LABEL}</span>
-          </button>
-          <button
-            onClick={() => {
-              router.push(REQUEST_LINE_PATH);
-              hide();
-            }}
-            data-testid="more-request-line"
-            className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center gap-3 rounded-lg"
-          >
-            <span className="w-[24px] text-center text-hd-14 text-bevel-dark/85" aria-hidden="true">{"\u2605"}</span>
-            <span>{REQUEST_LINE_LABEL}</span>
           </button>
           <button
             onClick={() => {

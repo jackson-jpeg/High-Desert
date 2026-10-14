@@ -124,8 +124,8 @@ restart.
   It is read from the published program (`tonightsRequest`), so it says
   what the station will play.
 - **Menus**: **Request Line** in Win98's Start menu (accelerator Q, since R
-  is Run; Run... `requestline` too) and in Night's More sheet on a phone,
-  under Navigate.
+  is Run; Run... `requestline` too) and at the top of Night's More sheet on a
+  phone, under Quick Actions (under Navigate it was below eight sorts).
 - **Tonight's log**: the request's row says "Requested by <name>, calling
   from <place>" (`requestedBy`).
 - **`/tonight`**: "Listener request" with "from <name>" on the row, and a line
