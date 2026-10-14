@@ -146,7 +146,12 @@ Full account: `docs/request-line.md`. In short:
   - Two WARNs, unchanged from before the deploy: `failures` (3.8% of
     starts lost in 7 days) and `warm` (330 of 331 pinned).
   - `mutations` still FAILed on c8e07f0, the nightly from before the fix.
-    The 09:30 UTC run is below.
+    The full mutation list on `main` after the merge (563fd00, run
+    38501095961, all four shards) passed: every mutation went red,
+    including your nightly fix and the five re-anchored ones. GitHub had
+    not started the 09:30 UTC nightly by 09:37 (yesterday's started at
+    17:04). `highdesert-status` reads only the nightly, so its `mutations`
+    line turns OK once that run lands.
 - **Production checks:**
   - `/request-line` is 200, its share card is a PNG, and it is in the
     sitemap.
