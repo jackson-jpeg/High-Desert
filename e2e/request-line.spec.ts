@@ -141,6 +141,7 @@ test.describe("the Request Line", () => {
       }
       await expect(page).toHaveURL(/\/request-line$/);
     });
+  }
 
   for (const look of ["night", "win98"] as const) {
     test(`Live says tonight's request (${look})`, async ({ page }, testInfo) => {
