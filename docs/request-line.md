@@ -105,15 +105,27 @@ restart.
   ("Vote for my pick on High Desert") and, for an admin, **Veto**. The page
   has its own share card (`src/app/request-line/opengraph-image.tsx`), is in
   the sitemap, and is checked by `check:seo` and `check:csp`.
-- **Live**: `TonightsRequestNote`, under the phone's strip and in the desktop
-  console, both looks. One link to the Request Line:
+- **Live**: `TonightsRequestNote`, both looks.
+  - **On a phone, right under the hero's Listen live** (moved there the same
+    day, after it went unseen below the calls and the clock), as a card with
+    its own **Pick a show** button to the Request Line.
+  - **On a desktop, one link** in the console under its top row.
+
+  What it says:
   - before 6 PM: "Tonight's request at 10 PM. Pick a show or vote by 6 PM Pacific.";
+  - before 6 PM, once there are picks: "Tonight's request at 10 PM. 3 shows in
+    the running, vote by 6 PM Pacific." (`useRequestPicks` asks
+    `/live-api/requests` on mount, every 2 minutes on screen and on coming
+    back; a count for another day, i.e. tomorrow's, is never shown);
   - locked: "Tonight's request at 10 PM: <title>, from <name>, calling from <place>.";
   - empty: "No request tonight. A fan favorite plays at 10 PM.";
   - gone once the request has aired.
 
   It is read from the published program (`tonightsRequest`), so it says
   what the station will play.
+- **Menus**: **Request Line** in Win98's Start menu (accelerator Q, since R
+  is Run; Run... `requestline` too) and in Night's More sheet on a phone,
+  under Navigate.
 - **Tonight's log**: the request's row says "Requested by <name>, calling
   from <place>" (`requestedBy`).
 - **`/tonight`**: "Listener request" with "from <name>" on the row, and a line

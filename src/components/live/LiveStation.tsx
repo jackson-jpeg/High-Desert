@@ -52,10 +52,13 @@ export const PREVIEW_CALLS = 3;
  *   1. the show on the air (LiveHero): what it is, its guest and year, one
  *      line on why it is worth hearing, the time left, and one big button:
  *      Listen live, then (tuned in) Leave the station, or (held) Rejoin;
- *   2. the phone lines: a sticky "Phone lines are open" bar and the latest
+ *   2. the Request Line's note (TonightsRequestNote), with its own "Pick a
+ *      show" button: tonight's 10 PM request (2026-10-14; it sat below the
+ *      clock, where nobody saw it);
+ *   3. the phone lines: a sticky "Phone lines are open" bar and the latest
  *      calls, one tap from the call box in its keyboard-safe sheet;
- *   3. the install card, when it applies;
- *   4. one strip (PhoneStudio): the station clock and what is next, then
+ *   4. the install card, when it applies;
+ *   5. one strip (PhoneStudio): the station clock and what is next, then
  *      Tonight's log, whose on-air row is a marker. ON AIR and the show's
  *      title appear once on the screen, in the hero.
  *
@@ -171,6 +174,8 @@ function PhoneLive({
         </Window>
       )}
 
+      {schedule && <PhoneRequestNote schedule={schedule} look={look} />}
+
       <button
         type="button"
         onClick={open}
@@ -201,6 +206,16 @@ function PhoneLive({
       </LiveChatSheet>
     </>
   );
+}
+
+/**
+ * The phone's Request Line card, under the hero. Its own clock, on a slow
+ * tick: the note changes at 6 PM and when the request ends, never by the
+ * second, so it does not re-render with the hero.
+ */
+function PhoneRequestNote({ schedule, look }: { schedule: LiveSchedule; look: Look }) {
+  const now = useStationClock(15_000);
+  return <TonightsRequestNote schedule={schedule} now={now} look={look} phone />;
 }
 
 function OffAir() {
@@ -414,7 +429,6 @@ function PhoneStudio({ schedule, look }: { schedule: LiveSchedule; look: Look })
           <span className="flex-1 min-w-0 text-hd-caption text-bevel-dark">The last show of the day</span>
         )}
       </div>
-      <TonightsRequestNote schedule={schedule} now={now} look={look} phone />
       <OutageNote schedule={schedule} />
       <TonightsLog schedule={schedule} now={now} phone look={look} />
     </>

@@ -20,6 +20,7 @@ describe("startMenuItems", () => {
       "Library",
       "Live",
       "Phone Lines",
+      "Request Line",
       "Dial",
       "Stats",
       "Settings",
@@ -48,6 +49,15 @@ describe("startMenuItems", () => {
     expect(DIAL_HREF).toBe("/library?view=dial");
     expect(items.find((i) => i.id === "phone-lines")?.action).toEqual({ kind: "route", href: PHONE_LINES_HREF });
     expect(PHONE_LINES_HREF.startsWith("/live")).toBe(true);
+  });
+
+  it("lists the Request Line, which goes to its page (Q, since R is Run)", () => {
+    const items = startMenuItems({ isAdmin: false, isMobile: true });
+    const item = items.find((i) => i.id === "request-line");
+    expect(item?.action).toEqual({ kind: "route", href: "/request-line" });
+    expect(item?.accel).toBe("Q");
+    expect(startMenuKey("q", -1, items)).toBe(items.indexOf(item!));
+    expect(runCommand("requestline")).toEqual({ kind: "action", action: { kind: "route", href: "/request-line" } });
   });
 
   it("adds Scanner and Search for an admin only", () => {

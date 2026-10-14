@@ -56,6 +56,16 @@ function shapes(name: IconName) {
           <path d="M5 5h7M5 7h7M5 9h7M5 11h5" stroke={NAVY} />
         </>
       );
+    case "request":
+      // A ballot going into its box: the night's vote.
+      return (
+        <>
+          <path d="M5 1h6v7H5z" fill={WHITE} stroke={INK} />
+          <path d="M7 3.5h2M7 5.5h2" stroke={MAROON} />
+          <rect x="1" y="7" width="14" height="8" fill={FACE} stroke={INK} />
+          <path d="M4 9h8" stroke={INK} strokeWidth="2" />
+        </>
+      );
     case "dial":
       return (
         <>

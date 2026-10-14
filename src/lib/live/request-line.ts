@@ -37,11 +37,24 @@ export function tonightsRequest(guide: readonly ProgramSlot[], day: string, now:
   return { state: "favorite", slot: held ?? null, startsAt };
 }
 
-/** One line for the Live note. No em dashes: periods and commas. */
-export function tonightsRequestText(note: TonightsRequestNote): string | null {
+/** The phone note's button, and the menus' name for the page. */
+export const REQUEST_LINE_LABEL = "Request Line";
+export const PICK_A_SHOW = "Pick a show";
+
+/**
+ * One line for the Live note. No em dashes: periods and commas. `picks` is
+ * how many shows are up for tonight (the Request Line's own count); while
+ * voting, once there is one, the note says so instead of asking for a pick.
+ */
+export function tonightsRequestText(note: TonightsRequestNote, picks: number | null = null): string | null {
   switch (note.state) {
-    case "voting":
-      return `Tonight's request at 10 PM. Pick a show or vote by ${REQUEST_CLOSE_HOUR - 12} PM Pacific.`;
+    case "voting": {
+      const by = `${REQUEST_CLOSE_HOUR - 12} PM Pacific`;
+      if (picks && picks > 0) {
+        return `Tonight's request at 10 PM. ${picks} ${picks === 1 ? "show" : "shows"} in the running, vote by ${by}.`;
+      }
+      return `Tonight's request at 10 PM. Pick a show or vote by ${by}.`;
+    }
     case "locked": {
       const r = note.slot.request;
       const who = r ? `, from ${r.by}${r.place ? `, calling from ${r.place}` : ""}` : "";

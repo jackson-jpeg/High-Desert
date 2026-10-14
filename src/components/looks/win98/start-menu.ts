@@ -8,6 +8,7 @@
  */
 
 import { PHONE_LINES_HREF } from "@/lib/live/phone-lines";
+import { REQUEST_LINE_LABEL, REQUEST_LINE_PATH } from "@/lib/live/request-line";
 
 export type StartAction =
   | { kind: "route"; href: string }
@@ -24,6 +25,7 @@ export type StartIcon =
   | "library"
   | "live"
   | "phone"
+  | "request"
   | "dial"
   | "stats"
   | "scanner"
@@ -57,6 +59,8 @@ export function startMenuItems({ isAdmin, isMobile }: { isAdmin: boolean; isMobi
     { id: "library", label: "Library", accel: "L", icon: "library", action: { kind: "route", href: "/library" } },
     { id: "live", label: "Live", accel: "V", icon: "live", action: { kind: "route", href: "/live" } },
     { id: "phone-lines", label: "Phone Lines", accel: "P", icon: "phone", action: { kind: "route", href: PHONE_LINES_HREF } },
+    // Tonight's 10 PM pick (docs/request-line.md). Q: R is Run.
+    { id: "request-line", label: REQUEST_LINE_LABEL, accel: "Q", icon: "request", action: { kind: "route", href: REQUEST_LINE_PATH } },
     { id: "dial", label: "Dial", accel: "D", icon: "dial", action: { kind: "route", href: DIAL_HREF } },
     { id: "stats", label: "Stats", accel: "S", icon: "stats", action: { kind: "route", href: "/stats" } },
   ];
@@ -160,6 +164,9 @@ export function runCommand(input: string): RunResult {
     case "notepad":
     case "phonelines":
       return route(PHONE_LINES_HREF);
+    case "requestline":
+    case "request":
+      return route(REQUEST_LINE_PATH);
     case "dial":
     case "radio":
       return route(DIAL_HREF);

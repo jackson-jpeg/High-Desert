@@ -87,6 +87,62 @@ test.describe("the Request Line", () => {
   });
 
   for (const look of ["night", "win98"] as const) {
+    test(`a phone's first screen: the note right under Listen live, with Pick a show (${look})`, async ({ page }, testInfo) => {
+      test.skip(testInfo.project.name !== "mobile", "the phone layout");
+      await setLook(page, look);
+      await page.goto("/live");
+      await expect(page.locator("#app-loading")).toBeHidden({ timeout: 30_000 });
+      const hero = page.getByTestId("live-hero");
+      const note = page.getByTestId("live-request-note");
+      await expect(hero).toBeVisible({ timeout: 30_000 });
+      const sched = (await (await page.request.get("/api/live/schedule")).json()) as { serverNow: number; guide: { kind: string; requestSlot?: boolean; end: number }[] };
+      const slot = sched.guide.find((x) => x.kind === "request") ?? sched.guide.find((x) => x.requestSlot);
+      test.skip(!!slot && sched.serverNow >= slot.end, "tonight's request has aired: no note, by design");
+      await expect(note).toBeVisible();
+      const h = (await hero.boundingBox())!;
+      const n = (await note.boundingBox())!;
+      const call = (await page.getByTestId("live-call-in").boundingBox())!;
+      // Directly under the hero (one grid gap), above Call in.
+      expect(n.y).toBeGreaterThanOrEqual(h.y + h.height);
+      expect(n.y - (h.y + h.height)).toBeLessThan(24);
+      expect(call.y).toBeGreaterThanOrEqual(n.y + n.height);
+      // On the first screen of a 390-wide phone, button and all.
+      const viewport = page.viewportSize()!;
+      const pick = page.getByTestId("live-request-pick");
+      await expect(pick).toHaveText("Pick a show");
+      const p = (await pick.boundingBox())!;
+      expect(p.y + p.height).toBeLessThanOrEqual(viewport.height);
+      expect(p.height).toBeGreaterThanOrEqual(44);
+      expect(p.x + p.width).toBeLessThanOrEqual(viewport.width);
+      await expect(note).not.toContainText("—");
+      await page.screenshot({ path: `${SHOTS}/phone-first-screen-${look}.png` });
+      await pick.click();
+      await expect(page).toHaveURL(/\/request-line$/);
+      await page.screenshot({ path: `${SHOTS}/phone-request-line-${look}.png`, fullPage: true });
+    });
+
+    test(`the Request Line is in the menu (${look})`, async ({ page }, testInfo) => {
+      test.skip(testInfo.project.name !== "mobile", "Night's More sheet and Win98's Start menu on a phone");
+      await setLook(page, look);
+      await page.goto("/live");
+      await expect(page.locator("#app-loading")).toBeHidden({ timeout: 30_000 });
+      if (look === "night") {
+        await page.locator('[data-nav="more"]').click();
+        const item = page.getByTestId("more-request-line");
+        await expect(item).toBeVisible();
+        await page.screenshot({ path: `${SHOTS}/phone-menu-${look}.png` });
+        await item.click();
+      } else {
+        await page.getByTestId("w98-start").click();
+        const item = page.getByTestId("w98-start-menu").getByRole("menuitem", { name: /Request Line/ });
+        await expect(item).toBeVisible();
+        await page.screenshot({ path: `${SHOTS}/phone-menu-${look}.png` });
+        await item.click();
+      }
+      await expect(page).toHaveURL(/\/request-line$/);
+    });
+
+  for (const look of ["night", "win98"] as const) {
     test(`Live says tonight's request (${look})`, async ({ page }, testInfo) => {
       await setLook(page, look);
       await page.goto("/live");
@@ -103,7 +159,9 @@ test.describe("the Request Line", () => {
         return;
       }
       await expect(note).toBeVisible({ timeout: 30_000 });
-      await expect(note).toHaveAttribute("href", "/request-line");
+      // A desktop's note is one link; a phone's has its own Pick a show button.
+      const link = testInfo.project.name === "mobile" ? page.getByTestId("live-request-pick") : note;
+      await expect(link).toHaveAttribute("href", "/request-line");
       await expect(note).toContainText(/Tonight's request at 10 PM|No request tonight/);
       // The boot screen sits over the page for its first seconds.
       await expect(page.locator("#app-loading")).toBeHidden({ timeout: 30_000 });
