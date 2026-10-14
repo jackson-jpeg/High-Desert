@@ -83,6 +83,15 @@ A message never carries its client or address ref, and no public shape does. The
 whose buffered output passes 256 KB is dropped rather than buffered. Its
 EventSource reconnects and resumes from its last id.
 
+### The Request Line (2026-10-14)
+
+`GET/POST /live-api/requests`, `POST /live-api/requests/vote` and
+`POST /live-api/admin/request-veto`: nominations and votes for the station's
+10 PM slot, keyed on the caller cookie like everything here, with the note
+through the same filter as a call. When the request airs, the service posts a
+`station` line: "Tonight's request, from <name>, calling from <place>.", once.
+Shapes, rules and tables: `docs/request-line.md`.
+
 ## Calling from, and the room at the call box (2026-09-27)
 
 On launch night callers greeted the room from Belgium, Canada and Denver under
