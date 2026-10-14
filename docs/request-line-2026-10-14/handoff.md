@@ -121,7 +121,46 @@ Full account: `docs/request-line.md`. In short:
 
 ## Deploy
 
-_Filled in after the deploy._
+- **Merged:** PR #78, as 563fd00, after CI and Mutations both passed on
+  29818b3. Main is bc0e8fc (this handoff's first commit on main).
+- **Site, 08:31 to 08:33 UTC:** `bash scripts/deploy.sh` on bc0e8fc
+  deployed cleanly (deployed 08:32:40Z).
+  - Schema unchanged.
+  - Returning visitor primed on ccab204 in Chromium and WebKit (1,413
+    episodes, worker in control).
+  - After the swap, both came back on bc0e8fc with the old worker still in
+    control: Library 0.9 s and Stats 1.5 s in Chromium, 0.8 s and 0.7 s in
+    WebKit.
+- **Chat, 08:33 UTC:** `bash scripts/deploy-live.sh` dumped the database
+  first (`/root/backups/highdesert/pre-live-20261014T083307Z.dump`),
+  applied the Request Line's tables and function, and verified health, the
+  SSE hello and a POST round trip.
+- **Station notice, 08:33:29 UTC,** after the chat restart: "The station
+  just got an update, so the phone lines may have reconnected. New tonight:
+  the Request Line. Pick a show or vote by 6 PM Pacific, and the winner
+  plays at 10 PM. highdesert.space/request-line"
+- **`highdesert-status` after the deploy:**
+  - `deploy` OK, live = HEAD = bc0e8fc.
+  - New `returning` line OK: Chromium and WebKit both ok, and "after the
+    last deploy: ok in 2".
+  - Two WARNs, unchanged from before the deploy: `failures` (3.8% of
+    starts lost in 7 days) and `warm` (330 of 331 pinned).
+  - `mutations` still FAILed on c8e07f0, the nightly from before the fix.
+    The 09:30 UTC run is below.
+- **Production checks:**
+  - `/request-line` is 200, its share card is a PNG, and it is in the
+    sitemap.
+  - `/live-api/requests` answers: day 2026-10-14, no nominations yet.
+  - `npm run check:seo -- https://highdesert.space`: 46 pages, no findings.
+  - `npm run check:csp -- https://highdesert.space`: 8 routes clean on a
+    second run. The first run had five 429s on `/library` from
+    `/api/live/time` (60 a minute per client). All five came from the
+    VPS's own address, right after the deploy's and the status's own
+    headless page loads. No listener was involved.
+- **Tonight (Oct 14 Pacific) was frozen before this release,** so its
+  program has no 10 PM mark. A pick locked at 6 PM still airs at 10 PM
+  through the legacy cut (the show running then is cut there). From Oct 15
+  on, every new day is built around the 10 PM slot.
 
 ## Blocks hit this session
 
@@ -131,10 +170,15 @@ _Filled in after the deploy._
   - a heredoc file write followed by a `| grep` (the whole command was
     refused, so the file was written again on its own);
   - a `gh run list | jq` CI poll and a `grep -c | head` read, after the
-    first Mutations run.
+    first Mutations run;
+  - during the merge and cleanup, a `ps | grep -c` check and a `grep | cut
+    | tr` read of the admin token's env file (the token was never printed).
 
-  Each was re-run with `set -o pipefail;` in front. No other hook or
-  permission check blocked anything.
+  Each was re-run with `set -o pipefail;` in front.
+- **The harness refused a foreground `sleep 90`** before the CSP rerun.
+  Enough time had already passed, so I ran the check at once, in the
+  background.
+- No other hook or permission check blocked anything.
 
 ## Left for you
 
