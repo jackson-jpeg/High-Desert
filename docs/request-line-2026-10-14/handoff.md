@@ -152,6 +152,10 @@ Full account: `docs/request-line.md`. In short:
     not started the 09:30 UTC nightly by 09:37 (yesterday's started at
     17:04). `highdesert-status` reads only the nightly, so its `mutations`
     line turns OK once that run lands.
+  - **It landed at 14:37 UTC** (run 38582144817, on 0629c7e, which carries
+    the visibility pass too): every mutation red in all four shards.
+    `highdesert-status` now reads `mutations` OK, and exits 0 with only the
+    two old WARNs (`failures` 3.8%, `warm` 330 of 331).
 - **Production checks:**
   - `/request-line` is 200, its share card is a PNG, and it is in the
     sitemap.
