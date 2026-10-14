@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAppPathname } from "@/hooks/useAppPathname";
-import { useLiveQuery } from "dexie-react-hooks";
+import { useTimedLiveQuery } from "@/hooks/useTimedLiveQuery";
 import { DesktopShell } from "@/components/desktop/DesktopShell";
 import { AudioPlayer } from "@/components/player/AudioPlayer";
 import { PlaybackErrorDialog } from "@/components/player/PlaybackErrorDialog";
@@ -547,8 +547,9 @@ export default function DesktopLayout({
 
   // Episode count for the status bar: unknown (not 0) until the seed has
   // settled, or a first visit reads "0 episodes" while it seeds.
-  const liveEpisodeCount = useLiveQuery(() => db.episodes.count(), []);
-  const episodeCount = knownEpisodeCount(liveEpisodeCount, seedSettled);
+  // Timed: "Loading library" turns into Retry if the read never answers.
+  const countQ = useTimedLiveQuery(() => db.episodes.count(), []);
+  const episodeCount = knownEpisodeCount(countQ.value, seedSettled);
 
   return (
     <DBErrorBoundary>
@@ -558,6 +559,8 @@ export default function DesktopLayout({
 <AudioPlayer />
         }
         episodeCount={episodeCount}
+        countTimedOut={countQ.timedOut}
+        onRetryCount={countQ.retry}
       >
         {children}
       </DesktopShell>

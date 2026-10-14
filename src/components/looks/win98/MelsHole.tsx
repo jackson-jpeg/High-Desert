@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
+import { useTimedLiveQuery } from "@/hooks/useTimedLiveQuery";
+import { LoadTimeout } from "@/components/LoadTimeout";
 import { Dialog } from "@/components/win98/Dialog";
 import { Button } from "@/components/win98/Button";
 import { db } from "@/db";
@@ -66,7 +67,7 @@ export function MelsHole({ onClose }: { onClose: () => void }) {
   }, [reduced, reeling]);
 
   const feet = lineOut(reduced ? 0 : elapsed, pressed);
-  const shows = useLiveQuery(async () => {
+  const { value: shows, timedOut: showsTimedOut, retry: retryShows } = useTimedLiveQuery(async () => {
     const rows = await db.episodes.filter((ep) => isMelsHoleShow(ep)).toArray();
     return rows.sort((a, b) => (a.airDate ?? "").localeCompare(b.airDate ?? ""));
   }, []);
@@ -114,7 +115,12 @@ export function MelsHole({ onClose }: { onClose: () => void }) {
           <div className="flex flex-col gap-1">
             <span className="text-hd-12 font-bold">The calls, in the archive</span>
             <ul className="w98-inset-dark bg-inset-well max-h-[140px] overflow-auto p-[2px]" data-testid="w98-hole-shows">
-              {shows === undefined && <li className="px-1 text-hd-12">Looking...</li>}
+              {shows === undefined && !showsTimedOut && <li className="px-1 text-hd-12">Looking...</li>}
+              {shows === undefined && showsTimedOut && (
+                <li>
+                  <LoadTimeout what="The list" onRetry={retryShows} compact />
+                </li>
+              )}
               {shows?.length === 0 && <li className="px-1 text-hd-12">None of the Mel Waters shows are in this library.</li>}
               {shows?.map((ep) => (
                 <li key={ep.fileHash}>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
+import { useTimedLiveQuery } from "@/hooks/useTimedLiveQuery";
+import { LoadTimeout } from "@/components/LoadTimeout";
 import { db } from "@/db";
 import { useAdminStore } from "@/stores/admin-store";
 import { Window, Button } from "@/components/win98";
@@ -35,8 +36,17 @@ function formatBytes(bytes: number): string {
 export default function StatsPage() {
   const openLibrary = useOpenLibraryIntent();
   const isAdmin = useAdminStore((s) => s.isAdmin);
-  const episodes = useLiveQuery(() => db.episodes.toArray(), []);
-  const history = useLiveQuery(() => db.history.orderBy("timestamp").reverse().toArray(), []);
+  // Timed (2026-10-13): a read that never answers ends in an error with
+  // Retry, not "Loading station data" forever (src/hooks/useTimedLiveQuery.ts).
+  const episodesQ = useTimedLiveQuery(() => db.episodes.toArray(), []);
+  const historyQ = useTimedLiveQuery(() => db.history.orderBy("timestamp").reverse().toArray(), []);
+  const episodes = episodesQ.value;
+  const history = historyQ.value;
+  const timedOut = episodesQ.timedOut || historyQ.timedOut;
+  const retryReads = () => {
+    episodesQ.retry();
+    historyQ.retry();
+  };
 
   // Audio cache size
   const [cacheSize, setCacheSize] = useState<number | null>(null);
@@ -64,9 +74,13 @@ export default function StatsPage() {
     return (
       <div className="p-4 flex flex-col gap-4 max-w-5xl mx-auto">
         <Window title="Station Dashboard" variant="dark">
-          <div className="p-6 text-center min-h-[200px] flex items-center justify-center">
-            <div className="animate-dot-1 inline-block text-bevel-dark text-hd-10">Loading station data</div>
-          </div>
+          {timedOut ? (
+            <LoadTimeout what="Your listening stats" onRetry={retryReads} />
+          ) : (
+            <div className="p-6 text-center min-h-[200px] flex items-center justify-center">
+              <div className="animate-dot-1 inline-block text-bevel-dark text-hd-10">Loading station data</div>
+            </div>
+          )}
         </Window>
       </div>
     );

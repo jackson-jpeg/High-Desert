@@ -99,3 +99,4 @@ describe("/stats", () => {
     expect(push).toHaveBeenCalledWith("/library?sort=my-rating");
   });
 });
+

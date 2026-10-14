@@ -42,6 +42,13 @@
 #   presence  the live site's presence surfaces (Stats badge, status bar, mobile
 #             sheet, On Air, Signal Traffic) show the same numbers within one
 #             poll — scripts/presence-check.mjs in headless Chromium; FAIL if not
+#   returning a returning visitor in Chromium and WebKit (scripts/returning-visitor.mjs):
+#             a saved browser profile with the library in IndexedDB and the
+#             site's service worker in control, reopened on the live site; the
+#             Library must show rows and Stats numbers, no "taking too long".
+#             FAIL if either browser's page fails; WARN if a browser could not
+#             run. Primes the profile first when there is none. Beside it, the
+#             last deploy's check (old build's profile on the new build)
 #   steal     hypervisor steal, mean of sysstat's samples over the last 30 minutes:
 #             WARN above 20%, FAIL above 50% (the 2026-09-22 episode ran ~90%)
 #   memory    MemAvailable as a share of MemTotal (/proc/meminfo): WARN under 15%,
@@ -83,7 +90,7 @@
 # Overridable for scripts/__tests__/status.test.ts:
 #   HD_ROOT, HD_API (http://127.0.0.1:3003), HD_SYSTEMCTL, HD_NPM,
 #   HD_BACKUP_STATUS_CMD, HD_INSTALLED_UNIT, HD_INSTALLED_VHOST, HD_SAMPLER_MAX_AGE_S (600),
-#   HD_PRESENCE_CMD, HD_SITE (https://highdesert.space), HD_SAR_CMD (sar -u),
+#   HD_PRESENCE_CMD, HD_RETURNING_CMD, HD_RETURNING_DIR (/var/lib/highdesert-returning), HD_SITE (https://highdesert.space), HD_SAR_CMD (sar -u),
 #   HD_MIRROR_MANIFEST_URL ($HD_SITE/mirror/manifest), HD_MIRROR_PINS, HD_MIRROR_PROXY_CACHE,
 #   HD_WARM_STATUS, HD_WARM_MAX_AGE_S (129600), HD_CPU_CMD (hd-cpu-sample report --window 900),
 #   HD_LIVE (http://127.0.0.1:3005), HD_FUNNEL_VERDICT (/var/lib/highdesert-funnel/status.json),
@@ -102,6 +109,8 @@ INSTALLED_VHOST="${HD_INSTALLED_VHOST:-/etc/nginx/sites-available/highdesert}"
 SAMPLER_MAX_AGE_S="${HD_SAMPLER_MAX_AGE_S:-600}"
 SITE="${HD_SITE:-https://highdesert.space}"
 PRESENCE_CMD="${HD_PRESENCE_CMD:-timeout 120 nice -n 10 node $ROOT/scripts/presence-check.mjs $SITE}"
+RETURNING_CMD="${HD_RETURNING_CMD:-timeout 150 nice -n 10 node $ROOT/scripts/returning-visitor.mjs}"
+RETURNING_DIR="${HD_RETURNING_DIR:-/var/lib/highdesert-returning}"
 SAR_CMD="${HD_SAR_CMD:-sar -u}"
 MIRROR_MANIFEST_URL="${HD_MIRROR_MANIFEST_URL:-$SITE/mirror/manifest}"
 MIRROR_PINS="${HD_MIRROR_PINS:-/var/lib/highdesert-mirror/pins}"
@@ -422,6 +431,42 @@ case "$presence_rc" in
   1) line FAIL presence "surfaces disagree: $presence_msg" ;;
   *) line WARN presence "check did not run (exit $presence_rc): ${presence_msg:-no output}" ;;
 esac
+
+# --- returning ---------------------------------------------------------------
+# The returning visitor (2026-10-13's hang): exit 0 = ok, 1 = the page failed,
+# anything else = the check could not run (a WARN, as for presence).
+returning_fail=()
+returning_warn=()
+returning_ok=()
+mkdir -p "$RETURNING_DIR/status" 2>/dev/null
+for b in chromium webkit; do
+  r_out="$($RETURNING_CMD check --browser "$b" --base "$SITE" --profile "$RETURNING_DIR/status/$b" --json "$RETURNING_DIR/status/$b.json" 2>&1)"
+  r_rc=$?
+  r_msg="$(tail -1 <<<"$r_out")"
+  case "$r_rc" in
+    0) returning_ok+=("$r_msg") ;;
+    1) returning_fail+=("$r_msg") ;;
+    *) returning_warn+=("${r_msg:-$b: no output} (exit $r_rc)") ;;
+  esac
+done
+# The last deploy's check: the old build's profile and worker on the new build.
+returning_deploy="after the last deploy: not run"
+deploy_results=("$RETURNING_DIR"/deploy/*.revisit.json)
+if [[ -e "${deploy_results[0]}" ]]; then
+  returning_deploy="after the last deploy: $(jq -rs '
+    (map(select(.ok == false and (.error // "") == "")) | length) as $bad
+    | (map(select(.error)) | length) as $skipped
+    | if $bad > 0 then "FAILED" elif $skipped > 0 then "ok in \(length - $skipped), not run in \($skipped)" else "ok in \(length)" end
+    + " (\(map(.at) | max | .[0:16]))"' "${deploy_results[@]}" 2>/dev/null || echo unreadable)"
+fi
+r_join() { local IFS=";"; echo "$*" | sed 's/;/; /g'; }
+if (( ${#returning_fail[@]} )); then
+  line FAIL returning "$(r_join "${returning_fail[@]}" "${returning_ok[@]}" "${returning_warn[@]}"); $returning_deploy"
+elif (( ${#returning_warn[@]} )); then
+  line WARN returning "$(r_join "${returning_warn[@]}" "${returning_ok[@]}"); $returning_deploy"
+else
+  line OK returning "$(r_join "${returning_ok[@]}"); $returning_deploy"
+fi
 
 # --- steal -------------------------------------------------------------------
 # The same source and arithmetic as vps-cpu-alert and the warm job's own gate

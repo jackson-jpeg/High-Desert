@@ -94,6 +94,9 @@ interface DesktopShellProps {
   player?: ReactNode;
   /** null while the library is still loading. */
   episodeCount?: number | null;
+  /** The status bar count's read timed out (useTimedLiveQuery), and its Retry. */
+  countTimedOut?: boolean;
+  onRetryCount?: () => void;
   className?: string;
 }
 
@@ -111,7 +114,7 @@ const NAV_ITEMS: readonly { label: string; path: string; nav: string; phoneOnly?
   { label: "Stats", path: "/stats", nav: "stats" },
 ];
 
-export function DesktopShell({ children, player, episodeCount = 0, className }: DesktopShellProps) {
+export function DesktopShell({ children, player, episodeCount = 0, countTimedOut = false, onRetryCount, className }: DesktopShellProps) {
   const router = useRouter();
   const pathname = useAppPathname();
   const isAdmin = useAdminStore((s) => s.isAdmin);
@@ -417,7 +420,7 @@ export function DesktopShell({ children, player, episodeCount = 0, className }: 
           `hidden` utility on the same element. Phones drew it under the tab
           bar until 2026-10-01 (e2e/phone-chrome.spec.ts). */}
       <footer className="hidden md:block">
-        <StatusBar episodeCount={episodeCount} presence={presence} />
+        <StatusBar episodeCount={episodeCount} presence={presence} countTimedOut={countTimedOut} onRetryCount={onRetryCount} />
       </footer>
 
       {/* Global context menu */}

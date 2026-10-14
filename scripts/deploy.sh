@@ -59,6 +59,12 @@
 #   HD_STAGE_DIR  parent of the dependency staging copy (default: /root/.hd-deploy-stage)
 #   HD_ENV_FILE   the service's env file, read for GOOGLE_SITE_VERIFICATION and
 #                 DATABASE_URL only (default: /root/.high-desert.env)
+#   HD_RETURNING_CMD  the returning-visitor check, run as `<cmd> prime|revisit|check
+#                 --browser B --base URL --profile DIR --json FILE`; exit 1 is a
+#                 page failure (rolls back), anything else non-zero is not judged.
+#                 Empty skips it. (default: node scripts/returning-visitor.mjs)
+#   HD_RETURNING_DIR  where its profiles and results live
+#                 (default: /var/lib/highdesert-returning/deploy)
 #   HD_SCHEMA_CMD applies a schema file given as its argument
 #                 (default: psql on the env file's DATABASE_URL, one transaction)
 #
@@ -77,6 +83,12 @@ WAIT_SECS="${HD_WAIT_SECS:-60}"
 STAGE_PARENT="${HD_STAGE_DIR:-/root/.hd-deploy-stage}"
 PAGES=(/ /library /live /stats)
 BASE="http://127.0.0.1:$PORT"
+# The returning visitor (scripts/returning-visitor.mjs): a real browser profile,
+# Chromium and WebKit, primed on the build still serving (IndexedDB seeded, its
+# service worker in control), reopened after the swap. Empty skips it.
+RETURNING_CMD="${HD_RETURNING_CMD-node scripts/returning-visitor.mjs}"
+RETURNING_DIR="${HD_RETURNING_DIR:-/var/lib/highdesert-returning/deploy}"
+RETURNING_BROWSERS=(chromium webkit)
 
 LIVE=".next"
 STAGING=".next-staging"
@@ -150,6 +162,27 @@ verify() {
   (( failed == 0 ))
 }
 
+# returning <mode>: run the returning-visitor check in each browser.
+# Returns 1 if any browser saw the page fail a returning visitor, 0 otherwise.
+# A browser that could not run (exit 2) is a warning, never a failure: the
+# check's own trouble must not roll a good build back.
+returning() {
+  local mode="$1" b code failed=0
+  [[ -n "$RETURNING_CMD" ]] || { echo "  (skipped: HD_RETURNING_CMD is empty)"; return 0; }
+  mkdir -p "$RETURNING_DIR"
+  for b in "${RETURNING_BROWSERS[@]}"; do
+    code=0
+    bash "$HEAVY_SH" $RETURNING_CMD "$mode" --browser "$b" --base "$BASE" \
+      --profile "$RETURNING_DIR/$b" --json "$RETURNING_DIR/$b.$mode.json" || code=$?
+    case "$code" in
+      0) ;;
+      1) failed=1 ;;
+      *) warn "returning visitor ($b, $mode) could not run; not judged" ;;
+    esac
+  done
+  (( failed == 0 ))
+}
+
 restart() {
   say "Restarting $SERVICE"
   "$SYSTEMCTL" restart "$SERVICE"
@@ -178,6 +211,8 @@ swap_back() {
 if [[ "$MODE" == verify ]]; then
   say "Verifying the running server on :$PORT"
   verify || die "verification failed"
+  say "A returning visitor (saved profile, its service worker in control)"
+  returning check || die "verification failed: a returning visitor's Library or Stats did not load"
   say "Verified"
   exit 0
 fi
@@ -322,6 +357,11 @@ if [[ -f "$SCHEMA_FILE" ]]; then
   fi
 fi
 
+# Before the swap, while the old build still serves: a returning visitor's
+# profile, seeded by that build, with its service worker (2026-10-13).
+say "Priming a returning visitor on the build still serving"
+returning prime || warn "a browser could not be primed on the old build"
+
 say "Swapping the new build into place"
 rm -rf "$PREV" .next.failed
 [[ -d "$LIVE" ]] && mv "$LIVE" "$PREV"
@@ -343,7 +383,13 @@ echo "$BUILD_REF $DEPLOYED_AT" >> "$STATE_DIR/history"
 restart
 
 say "Verifying the client, not just the status code"
-if ! verify; then
+VERIFIED=1
+verify || VERIFIED=0
+if (( VERIFIED )); then
+  say "A returning visitor: the old build's profile and worker, on the new build"
+  returning revisit || { VERIFIED=0; warn "a returning visitor's Library or Stats did not load"; }
+fi
+if (( ! VERIFIED )); then
   warn "Verification failed — rolling back to the previous build"
   if [[ ! -d "$PREV" ]]; then
     die "Verification failed and there is no previous build to return to. The site needs a human."

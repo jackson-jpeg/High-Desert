@@ -7,6 +7,7 @@ import { useLiveStore } from "@/stores/live-store";
 import type { PlaySurface } from "@/lib/usage/vocab";
 import type { HeartbeatUsage } from "./usage-client";
 import { pageLook } from "@/lib/look/choice";
+import { notCounted } from "./not-counted";
 
 const RETRY_OPTS = { retries: 1, timeout: 5000 } as const;
 
@@ -242,6 +243,8 @@ export function reportHeartbeat(
    */
   usage?: HeartbeatUsage | null,
 ): Promise<void> {
+  // A headless checker's page is nobody, online included (not-counted.ts).
+  if (notCounted()) return Promise.resolve();
   return fetch("/api/stats/heartbeat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
