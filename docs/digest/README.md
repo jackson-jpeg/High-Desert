@@ -23,7 +23,12 @@ It is one screen, in this order:
    updated itself, and by device.
 5. **The week.** Peaks and plays, the top five shows, and where callers said
    they were calling from.
-6. **Health.** Every non-OK status line, then disk, pins and CPU.
+6. **Health.** Every non-OK status line, then disk, pins and CPU, then the
+   weekly full mutation run (scripts/weekly-mutations.sh, the same Monday at
+   14:00 UTC): its commit, when it finished, how long it took, and all red,
+   which ones survived or went stale, or that it broke. A run still going at
+   17:40 is reported as going, beside the last finished one. A survivor also
+   FAILs highdesert-status, so it heads Needs you.
 
 **Evidence, when it matters.** If a check FAILs, or the release is at 3% or
 more on 300 or more plays, the digest adds a section below the screen: the rows

@@ -83,11 +83,32 @@ before adding a test, and add a mutation alongside it.
 (`npm run test:mutations`). `--changed-from <ref>` checks what a change touched
 and `--shard i/n` splits the list. Until 2026-10-15 GitHub ran them on every
 PR, on main and nightly at 09:30 UTC; that workflow is now manual only.
-- **`highdesert-status`'s `mutations` line still reads the newest scheduled
-  GitHub run** (`scripts/nightly-mutations.sh`). With the schedule gone, it
-  WARNs once that run is over 36 h old (the last one was on 2026-10-15). It
-  needs a decision from Jackson: read a full run on the VPS instead, or drop
-  the line.
+- **The whole list runs weekly on the VPS, Mondays 14:00 UTC**
+  (`highdesert-mutations.timer` → `scripts/weekly-mutations.sh`, Jackson,
+  2026-10-15). It works in its own clone of main,
+  `/var/lib/highdesert-mutations/checkout` (never the production tree:
+  mutate-check edits the files it breaks), with its own `node_modules`
+  (`npm ci` only when a lockfile changes), against the test database.
+  - **Each mutation's vitest takes the `heavy` slot**, so the CPU gate is
+    checked before every one and other sessions' jobs take turns with it.
+    About 1,070 entries, 2.4 CPU-hours, roughly 3 hours.
+  - **It is the one High Desert job exempt from the 10% CPU rule** (no
+    `CPUQuota`; Nice=19, idle IO; heavy runs it under nice 15). The status
+    `cpu` line names `highdesert-mutations` as the exemption instead of
+    failing on it.
+  - **It leaves** `result.json` (`mutate-check.mjs --json` verdicts plus
+    `head`, `error`, `log`), `running.json` while it goes, `runs/` (the last
+    8) and `last.log`.
+  - **`highdesert-status`'s `mutations` line reads it.** FAIL if a mutation
+    survived or went stale. WARN if the run broke before checking, left
+    database mutations NOT CHECKED, is over 8 days old or never finished.
+    It also says when a run is going.
+  - **The Monday digest** has a Mutations line under Health, and a survivor
+    reaches Needs you through the status FAIL.
+  - Run it by hand with `systemctl start --no-block highdesert-mutations`.
+    Tests: `weekly-mutations.test.ts`, the status and digest tests,
+    `service-unit.test.ts`. Mutations: `weekly-mutations-*`,
+    `status-mutations-*`, `digest-mutation-*`, `status-cpu-exempt-one-unit`.
 
 ## Tech Stack
 
