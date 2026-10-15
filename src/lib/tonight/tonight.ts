@@ -13,7 +13,14 @@ import { addDays, isDayISO, onThisDateKeys, type DayProgram, type SlotKind } fro
 /** The first station day there can be a page for: before it the station did not exist. */
 export const FIRST_TONIGHT_DAY = "2026-09-01";
 /** How many days, today included, the sitemap lists. Every one is a frozen day once today is. */
-export const TONIGHT_SITEMAP_DAYS = 14;
+/**
+ * The first day in `live_days`: when the station first froze a day it froze
+ * the 14 before it as its history, so every day from here has a program and a
+ * page (2026-09-10 is a 404). Frozen days are never deleted, so this never
+ * moves. The sitemap lists every day from it (2026-10-15: it listed only the
+ * last 14, which left 21 working pages out).
+ */
+export const FIRST_STATION_DAY = "2026-09-11";
 /** How long a Tonight page is served from cache before it is drawn again. A frozen program never changes. */
 export const TONIGHT_REVALIDATE_S = 3600;
 
@@ -29,12 +36,12 @@ export function tonightDayInRange(day: string, today: string): boolean {
   return day >= FIRST_TONIGHT_DAY && day <= addDays(today, 1);
 }
 
-/** The days the sitemap lists: today and the TONIGHT_SITEMAP_DAYS - 1 before it, never before the first. */
+/** The days the sitemap lists: every station day, today first, back to FIRST_STATION_DAY. */
 export function tonightSitemapDays(today: string): string[] {
   const out: string[] = [];
-  for (let i = 0; i < TONIGHT_SITEMAP_DAYS; i++) {
+  for (let i = 0; ; i++) {
     const d = addDays(today, -i);
-    if (d < FIRST_TONIGHT_DAY) break;
+    if (d < FIRST_STATION_DAY) break;
     out.push(d);
   }
   return out;

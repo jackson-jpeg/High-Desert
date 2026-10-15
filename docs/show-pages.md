@@ -349,11 +349,30 @@ Today: 70 topics (29 subjects, 15 categories, 26 tags).
   summary); then every broadcast of the date in other years; links to the
   neighbouring days that exist. JSON-LD `CollectionPage` + `BreadcrumbList`,
   a card per day ("N broadcasts from October 12"). `revalidate` 3600.
-- **Sitemap:** today and the 13 days before it (`tonightSitemapDays`).
+- **Sitemap:** every station day, from the first in `live_days` (2026-09-11,
+  `FIRST_STATION_DAY`; frozen days are never deleted) to today
+  (`tonightSitemapDays`). Until 2026-10-15 it was only the last 14, which left
+  21 working pages out. `check:seo` fails on a gap, and fetches the oldest.
 
 ## Search Console
 
-The site side is ready; nothing is verified yet. Two ways, pick one.
+**Done, 2026-10-15:** verified as a Domain property by the DNS TXT record
+(way A below), at Hostinger's DNS, and `sitemap.xml` submitted. Kept honest by:
+
+- `highdesert-status`'s `search` line: WARN if the `google-site-verification`
+  TXT record disappears or is not the token in
+  `deploy/google-site-verification.txt` (Google re-checks it; the property
+  lapses without it), or if DNS cannot be read;
+- `check:seo`: robots.txt names the sitemap, and the sitemap lists every show
+  and topic in the catalog, the Request Line, `/topics` and every station day
+  without a gap (guest pages are counted; `seo-page.test.ts` holds the guest
+  list to the catalog);
+- the digests of 2026-11-02 and 11-09: a reminder to screenshot the Pages
+  report for a session to read.
+
+What follows is how it was set up, kept for a re-verification.
+
+Two ways, pick one.
 
 **A. Domain property (recommended: covers http, https and every subdomain).**
 

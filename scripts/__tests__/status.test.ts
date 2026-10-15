@@ -100,7 +100,12 @@ interface World {
   liveActive: string;
   /** /live-api/health's body; null answers 502. */
   liveHealth: Record<string, unknown> | null;
+  /** highdesert.space's TXT records as dig +short prints them; null: dig fails (exit 9). */
+  dnsTxt: string[] | null;
 }
+
+/** The token the test repo records in deploy/google-site-verification.txt. */
+const GSV = "TestToken-abc123_XYZ";
 
 const HEALTHY: World = {
   timerState: "active",
@@ -145,6 +150,7 @@ const HEALTHY: World = {
   mutations: { ageH: 8, conclusion: "success", mutationCheck: ["success", "success", "success", "success"] },
   liveActive: "active",
   liveHealth: { ok: true, clients: 42, messagesLastHour: 17, slowMode: false, cpu: { pct: 2.5, windowS: 900 } },
+  dnsTxt: ['"v=spf1 include:_spf.mail.hostinger.com ~all"', `"google-site-verification=${GSV}"`],
 };
 
 let dir: string;
@@ -233,6 +239,13 @@ async function run(): Promise<{ code: number; out: string }> {
   await writeFile(path.join(bin, "sar.txt"), sar + "\n");
   await writeFile(path.join(bin, "sar"), `#!/bin/sh\ncat "${path.join(bin, "sar.txt")}"\n`, { mode: 0o755 });
   await writeFile(path.join(bin, "df"), `#!/bin/sh\necho "     Avail      1B-blocks"\necho "${world.disk.avail} ${world.disk.size}"\n`, { mode: 0o755 });
+  await writeFile(
+    path.join(bin, "dig"),
+    world.dnsTxt === null
+      ? "#!/bin/sh\necho ';; connection timed out; no servers could be reached'\nexit 9\n"
+      : `#!/bin/sh\n${world.dnsTxt.map((t) => `echo '${t}'`).join("\n")}\nexit 0\n`,
+    { mode: 0o755 },
+  );
   await writeFile(path.join(bin, "cpu"), `#!/bin/sh\nprintf '%s\\n' '${world.cpu.out.split("\n").join("' '")}'\nexit ${world.cpu.rc}\n`, { mode: 0o755 });
   const pins = path.join(dir, "pins");
   const fill = path.join(dir, "proxy");
@@ -345,6 +358,7 @@ async function run(): Promise<{ code: number; out: string }> {
           HD_MUTATIONS_CMD: path.join(bin, "mutations"),
           HD_MEMINFO: path.join(dir, "meminfo"),
           HD_DF_CMD: path.join(bin, "df"),
+          HD_DNS_TXT_CMD: path.join(bin, "dig"),
         },
         timeout: 30_000,
       },
@@ -375,6 +389,7 @@ beforeEach(async () => {
     cpu: { ...HEALTHY.cpu },
     warm: { ...HEALTHY.warm! },
     liveHealth: { ...HEALTHY.liveHealth },
+    dnsTxt: HEALTHY.dnsTxt ? [...HEALTHY.dnsTxt] : null,
   };
   sinceAsked = null;
   dir = await mkdtemp(path.join(tmpdir(), "hd-status-"));
@@ -384,6 +399,7 @@ beforeEach(async () => {
   await mkdir(path.join(root, "docs"));
   await mkdir(path.join(dir, "bin"));
   await copyFile(UNIT, path.join(root, "deploy/highdesert.service"));
+  await writeFile(path.join(root, "deploy/google-site-verification.txt"), `${GSV}\n`);
   await mkdir(path.join(root, "deploy/nginx"));
   await copyFile(VHOST, path.join(root, "deploy/nginx/highdesert.conf"));
   installedVhost = path.join(dir, "installed-vhost.conf");
@@ -884,6 +900,36 @@ describe("highdesert-status", () => {
     it("control: 15 GB exactly is OK", async () => {
       world.disk = { avail: 15_000_000_000, size: 96_000_000_000 };
       expect(lineFor((await run()).out, "disk")).toMatch(/^OK\s+disk/);
+    });
+  });
+
+  describe("search line (Search Console's DNS verification, 2026-10-15)", () => {
+    it("OK while the recorded google-site-verification TXT record is there", async () => {
+      const r = await run();
+      expect(lineFor(r.out, "search")).toMatch(/^OK\s+search\s+google-site-verification TXT record on highdesert\.space \(…23_XYZ\), Search Console stays verified/);
+    });
+
+    it("WARNs when the record disappears: verification lapses without it", async () => {
+      world.dnsTxt = ['"v=spf1 include:_spf.mail.hostinger.com ~all"'];
+      const r = await run();
+      expect(lineFor(r.out, "search")).toMatch(/^WARN\s+search\s+no google-site-verification TXT record on highdesert\.space: Search Console's verification lapses/);
+      // A WARN, never a FAIL: the site is up, the property is at risk.
+      expect(r.code).toBe(0);
+    });
+
+    it("WARNs when there are no TXT records at all (dig answers nothing, exit 0)", async () => {
+      world.dnsTxt = [];
+      expect(lineFor((await run()).out, "search")).toMatch(/^WARN\s+search\s+no google-site-verification TXT record/);
+    });
+
+    it("WARNs on a different token: it is not the one Search Console checked", async () => {
+      world.dnsTxt = ['"google-site-verification=SomeoneElsesToken"'];
+      expect(lineFor((await run()).out, "search")).toMatch(/^WARN\s+search\s+the google-site-verification TXT record is not the token/);
+    });
+
+    it("WARNs when DNS cannot be read, rather than calling the record gone or present", async () => {
+      world.dnsTxt = null;
+      expect(lineFor((await run()).out, "search")).toMatch(/^WARN\s+search\s+could not read highdesert\.space's TXT records \(exit 9/);
     });
   });
 

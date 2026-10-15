@@ -7,7 +7,7 @@ import { buildShowCatalog } from "@/lib/shows/catalog";
 import { pacificDayBounds, type DayProgram, type ProgramSlot } from "@/lib/live/schedule";
 import {
   FIRST_TONIGHT_DAY,
-  TONIGHT_SITEMAP_DAYS,
+  FIRST_STATION_DAY,
   onThisDate,
   tonightCard,
   tonightDate,
@@ -94,12 +94,17 @@ describe("which days have a page", () => {
     for (const bad of ["2026-02-30", "2026-9-1", "today", "2026-10-12x"]) expect(tonightDayInRange(bad, DAY), bad).toBe(false);
   });
 
-  it("the sitemap lists today and the days before it, never before the first", () => {
+  it("the sitemap lists every station day, today first, back to the first and never before it", () => {
     const days = tonightSitemapDays(DAY);
-    expect(days).toHaveLength(TONIGHT_SITEMAP_DAYS);
     expect(days[0]).toBe(DAY);
-    expect(days[days.length - 1]).toBe("2026-09-29");
-    expect(tonightSitemapDays("2026-09-03")).toEqual(["2026-09-03", "2026-09-02", "2026-09-01"]);
+    expect(days[days.length - 1]).toBe(FIRST_STATION_DAY);
+    // 2026-09-11 to 2026-10-12, no gaps (it used to stop at 14).
+    expect(days).toHaveLength(32);
+    for (let i = 1; i < days.length; i++) expect(days[i] < days[i - 1]).toBe(true);
+    expect(new Set(days).size).toBe(days.length);
+    expect(tonightSitemapDays("2026-09-12")).toEqual(["2026-09-12", "2026-09-11"]);
+    // Control: the day before the first is a 404 and is never listed.
+    expect(tonightSitemapDays("2026-09-10")).toEqual([]);
   });
 
   it("names the day in words", () => {

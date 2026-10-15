@@ -74,6 +74,11 @@
 #             week's written to docs/digest/ and copied to the Mac. WARN if the job
 #             has never run or not for 36h, if the week's is not written, or if it
 #             has waited more than 48h for the Mac
+#   search    Search Console's verification: the google-site-verification TXT
+#             record on highdesert.space (dig), the token recorded in
+#             deploy/google-site-verification.txt. WARN if it is gone or is not
+#             that token: the Domain property was verified by that record and
+#             lapses without it (2026-10-15). WARN too if DNS cannot be read
 #   mutations the newest nightly full mutation run on main (.github/workflows/
 #             mutations.yml, scripts/nightly-mutations.sh): FAIL if any shard's
 #             mutation check failed (a mutation survived or its anchor went stale);
@@ -96,7 +101,8 @@
 #   HD_LIVE (http://127.0.0.1:3005), HD_FUNNEL_VERDICT (/var/lib/highdesert-funnel/status.json),
 #   HD_DIGEST_STATUS (/var/lib/highdesert-digest/status.json),
 #   HD_MUTATIONS_CMD (bash scripts/nightly-mutations.sh), HD_MEMINFO (/proc/meminfo),
-#   HD_DF_CMD (df -B1 --output=avail,size /), HD_NOW (epoch s, for the closed window)
+#   HD_DF_CMD (df -B1 --output=avail,size /), HD_NOW (epoch s, for the closed window),
+#   HD_DNS_TXT_CMD (dig +short +time=5 +tries=2 TXT highdesert.space)
 set -uo pipefail
 
 ROOT="${HD_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -124,6 +130,7 @@ LIVE="${HD_LIVE:-http://127.0.0.1:3005}"
 LIVE_CPU_CMD="${HD_CPU_CMD:-hd-cpu-sample report --window 900}"
 MUTATIONS_CMD="${HD_MUTATIONS_CMD:-bash $ROOT/scripts/nightly-mutations.sh}"
 DF_CMD="${HD_DF_CMD:-df -B1 --output=avail,size /}"
+DNS_TXT_CMD="${HD_DNS_TXT_CMD:-dig +short +time=5 +tries=2 TXT highdesert.space}"
 NOW_S="${HD_NOW:-$(date +%s)}"
 DISK_WARN_GB=15
 DISK_FAIL_GB=5
@@ -678,6 +685,27 @@ else
   else
     line OK digest "docs/digest/$d_due.md written $d_at, on the Mac $d_copied"
   fi
+fi
+
+# --- search ------------------------------------------------------------------
+# Search Console's Domain property was verified on 2026-10-15 by a DNS TXT
+# record at Hostinger. Google re-checks it, and the property lapses if the
+# record goes (a DNS cleanup, a host move). Nothing else would say so.
+gsv_file="deploy/google-site-verification.txt"
+gsv_want="$(tr -d '[:space:]' < "$gsv_file" 2>/dev/null)"
+gsv_txt="$($DNS_TXT_CMD 2>/dev/null)"
+gsv_rc=$?
+gsv_txt="$(tr -d '"' <<<"$gsv_txt")"
+if (( gsv_rc != 0 )); then
+  line WARN search "could not read highdesert.space's TXT records (exit $gsv_rc: $DNS_TXT_CMD)"
+elif [[ -z "$gsv_want" ]]; then
+  line WARN search "no token recorded in $gsv_file to check the google-site-verification TXT record against"
+elif grep -qxF "google-site-verification=$gsv_want" <<<"$gsv_txt"; then
+  line OK search "google-site-verification TXT record on highdesert.space (…${gsv_want: -6}), Search Console stays verified"
+elif grep -q '^google-site-verification=' <<<"$gsv_txt"; then
+  line WARN search "the google-site-verification TXT record is not the token in $gsv_file: if Search Console was re-verified, record the new token there; if not, verification lapses"
+else
+  line WARN search "no google-site-verification TXT record on highdesert.space: Search Console's verification lapses without it. Re-add it at Hostinger (DNS, TXT, value google-site-verification=<the token in $gsv_file>)"
 fi
 
 # --- mutations ---------------------------------------------------------------

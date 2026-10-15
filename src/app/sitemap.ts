@@ -8,13 +8,13 @@ import { tonightPath, tonightSitemapDays } from "@/lib/tonight/tonight";
 
 /**
  * Every page Google should index: the app's routes, then every show page,
- * guest page and topic page, and the Tonight pages of the last
- * TONIGHT_SITEMAP_DAYS days (docs/show-pages.md). Show, guest and topic
+ * guest page and topic page, the Request Line, and every station day's
+ * Tonight page from FIRST_STATION_DAY (docs/show-pages.md). Show, guest and topic
  * entries carry no lastModified: a broadcast from 1997 has none worth
  * claiming, and a date that moves on every build teaches Google to ignore the
  * field. A Tonight page's date is its day.
  *
- * Regenerated hourly, not once per build: the Tonight window moves every day.
+ * Regenerated hourly, not once per build: a new Tonight day is added every day.
  */
 export const revalidate = 3600;
 

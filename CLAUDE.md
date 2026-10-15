@@ -379,7 +379,7 @@ Search Console steps: `docs/show-pages.md`.
   (`generateStaticParams` returns `[]`; about 175 KB of disk per crawled page). **Share
   cards are drawn per request** with a week-long `Cache-Control` (`CARD_CACHE_CONTROL`),
   never stored. The build renders neither.
-- `src/app/sitemap.ts` lists every show, guest and topic page, `/topics` and the last 14 Tonight days (never a moment); `public/robots.txt` disallows
+- `src/app/sitemap.ts` lists every show, guest and topic page, `/topics`, the Request Line and every station day's Tonight page from 2026-09-11 (`FIRST_STATION_DAY`; never a moment); `public/robots.txt` disallows
   `/api/`, `/scanner`, `/search`, `/look`.
 - **`npm run check:seo -- <url>`** (`scripts/seo-check.mjs`) crawls robots, the sitemap and
   a fixed sample of pages as raw HTML (no JavaScript) and fails on missing tags, invalid
@@ -408,7 +408,13 @@ Search Console steps: `docs/show-pages.md`.
   `node scripts/gen-topic-slugs.mjs` and commit.**
 - **Tonight** (`src/lib/tonight/`, `src/services/live/tonight.ts`): read-only over
   `live_days` except freezing *today* (the station's own rule); a future day only once
-  frozen; without a database it lists the date's broadcasts. Sitemap: the last 14 days.
+  frozen; without a database it lists the date's broadcasts. Sitemap: every station day from `FIRST_STATION_DAY` (2026-09-11).
+- **Search Console is verified** (2026-10-15) as a Domain property by a DNS
+  TXT record at Hostinger, and `sitemap.xml` is submitted. The token is in
+  `deploy/google-site-verification.txt`; `highdesert-status`'s `search` line
+  WARNs if the record disappears or changes (verification lapses without
+  it). The digests of 2026-11-02 and 11-09 remind Jackson to send a
+  screenshot of the Pages report (`REMINDERS` in `scripts/digest.mjs`).
 - **`GOOGLE_SITE_VERIFICATION`** (in `/root/.high-desert.env`) adds Search Console's meta
   tag. It is read at **build** time (the root layout is static); `deploy.sh` passes that one
   variable through to the build. Absent or malformed: no tag. A DNS TXT record (Domain

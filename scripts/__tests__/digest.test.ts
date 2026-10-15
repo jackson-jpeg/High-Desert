@@ -265,6 +265,22 @@ describe("the digest itself", () => {
     expect(screenLines(md)).toBeLessThanOrEqual(dg.SCREEN_LINES);
   });
 
+  it("reminds about Search Console's Pages report two weeks after the sitemap went in, and only then", async () => {
+    const at = async (day: string) => render({ day, writtenAt: `${day}T17:40:00Z`, ...(await gather(sources(), `${day}T17:40:00Z`)) });
+    // 2026-10-15 + two weeks: the first Monday after is 2026-11-02, then 11-09 in case it was missed.
+    for (const day of ["2026-11-02", "2026-11-09"]) {
+      const md = await at(day);
+      expect(md, day).toContain("- **Reminder:** Search Console, two weeks after the sitemap went in (2026-10-15): open Indexing > Pages for highdesert.space and paste a screenshot of it to Claude.");
+      expect(md, day).not.toContain("Nothing this week.");
+      expect(md, day).not.toMatch(/—/);
+      expect(screenLines(md), day).toBeLessThanOrEqual(dg.SCREEN_LINES);
+    }
+    // Controls: too early (11 days in), and over.
+    for (const day of ["2026-10-26", "2026-11-16"]) expect(await at(day), day).not.toContain("Search Console");
+    expect(dg.remindersFor("2026-10-29")).toHaveLength(1);
+    expect(dg.remindersFor("2026-10-28")).toHaveLength(0);
+  });
+
   it("the station guard: a cut show needs you, a kept-off one is reported, a stale walk is raised", async () => {
     const guard = async () => ({
       trips: [{ fileHash: "archive:coll:ep a.mp3", cutAt: Date.parse("2026-10-03T04:10:00Z"), replacement: "archive:coll:ep b.mp3", clients: 3, kinds: ["decode-error"] }],

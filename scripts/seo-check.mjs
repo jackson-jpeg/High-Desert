@@ -121,6 +121,23 @@ let tonightToday = null;
   }
 }
 
+// Every station day is listed, oldest to today, with no gap (2026-10-15: only
+// the last 14 were). The oldest is in the sample below, so a listed day
+// without a page fails there.
+{
+  const days = sitemapNights.map((p) => p.slice("/tonight/".length));
+  const next = (d) => new Date(Date.parse(`${d}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+  for (let i = 1; i < days.length; i++) {
+    if (days[i] !== next(days[i - 1])) {
+      find("/sitemap.xml", `Tonight days skip from ${days[i - 1]} to ${days[i]}`);
+      break;
+    }
+  }
+  if (tonightToday && days.length && `/tonight/${days[days.length - 1]}` !== tonightToday) {
+    find("/sitemap.xml", `the newest Tonight day listed is ${days[days.length - 1]}, not today (${tonightToday})`);
+  }
+}
+
 // --- the sample --------------------------------------------------------------
 const bySlug = new Map(rows.filter((r) => slugMap[r.fileHash]).map((r) => [slugMap[r.fileHash], r]));
 const firstWhere = (pred) => [...bySlug.keys()].sort().find((s) => pred(bySlug.get(s)));

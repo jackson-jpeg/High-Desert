@@ -194,7 +194,7 @@ describe("evenSample", () => {
 });
 
 describe("sitemap.xml and robots.txt", () => {
-  it("lists the app's routes, the Request Line, every show, guest and topic page, and the last two weeks of Tonight", () => {
+  it("lists the app's routes, the Request Line, every show, guest and topic page, and every station day's Tonight", () => {
     const urls = new Set(sitemap().map((e) => e.url));
     for (const p of ["", "/library", "/live", "/stats", "/topics", "/request-line"]) expect(urls.has(`${SITE_ORIGIN}${p}`), p).toBe(true);
     for (const s of catalog.shows) expect(urls.has(`${SITE_ORIGIN}/show/${s.slug}`), s.slug).toBe(true);
@@ -202,6 +202,9 @@ describe("sitemap.xml and robots.txt", () => {
     for (const t of topics.topics) expect(urls.has(`${SITE_ORIGIN}/topic/${t.slug}`), t.slug).toBe(true);
     const nights = tonightSitemapDays(pacificDay(Date.now()));
     for (const d of nights) expect(urls.has(`${SITE_ORIGIN}/tonight/${d}`), d).toBe(true);
+    // From the first station day: 2026-09-11 is in, the day before is not.
+    expect(urls.has(`${SITE_ORIGIN}/tonight/2026-09-11`)).toBe(true);
+    expect(urls.has(`${SITE_ORIGIN}/tonight/2026-09-10`)).toBe(false);
     // Never a moment: it is its show's page.
     expect([...urls].some((u) => u.includes("?t=") || u.includes("/moment/"))).toBe(false);
     expect(urls.size).toBe(6 + catalog.shows.length + catalog.guests.size + topics.topics.length + nights.length);

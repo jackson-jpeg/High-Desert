@@ -8,8 +8,11 @@ first is 2026-10-05.
 It is one screen, in this order:
 
 1. **Needs you.** Every `FAIL` from `highdesert-status` with what to do about
-   it, the release line if it is over 3% on 300 or more plays, and any source
-   the job could not read. "Nothing this week." when there is nothing.
+   it, the release line if it is over 3% on 300 or more plays, any source
+   the job could not read, and any dated reminder whose weeks have come
+   (`REMINDERS` in `scripts/digest.mjs`; today: check Search Console's Pages
+   report, in the digests of 2026-11-02 and 11-09). "Nothing this week."
+   when there is nothing.
 2. **Release.** The failed-start rate on this release's builds, with its
    sample, and a verdict once there are 300 plays; older builds apart
    (`docs/reliability-baseline.md`).

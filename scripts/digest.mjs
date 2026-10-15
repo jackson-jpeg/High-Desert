@@ -51,6 +51,26 @@ export const ADVISORY_KINDS = ["empty-media-suspected"];
 /** The main part must fit one screen; evidence, when there is any, follows it. */
 export const SCREEN_LINES = 40;
 
+/**
+ * Dated reminders for Jackson, under "Needs you" in every digest whose Monday
+ * falls from `from` to `until` (inclusive). Remove one once it is done. No em
+ * dashes: they are user-facing copy.
+ */
+export const REMINDERS = [
+  {
+    // Search Console's Domain property was verified and sitemap.xml submitted
+    // on 2026-10-15; the Pages report means something after about two weeks.
+    from: "2026-10-29",
+    until: "2026-11-15",
+    text: "Search Console, two weeks after the sitemap went in (2026-10-15): open Indexing > Pages for highdesert.space and paste a screenshot of it to Claude. It shows how many of the site's 1,700 or so pages Google has indexed, and why the rest are not.",
+  },
+];
+
+/** The reminders a digest for `day` (its Monday) carries. */
+export function remindersFor(day, list = REMINDERS) {
+  return list.filter((r) => day >= r.from && day <= r.until).map((r) => r.text);
+}
+
 // ---------------------------------------------------------------------------
 // Pure parts
 // ---------------------------------------------------------------------------
@@ -363,6 +383,7 @@ export function render(d) {
   const verdict = releaseVerdict(release);
   if (verdict === "fail") actions.push(`**Release over target:** ${release.pct}% of starts lost on ${fmtN(release.plays)} plays (target under ${TARGET_PCT}%).`);
   actions.push(...station.actions);
+  for (const t of remindersFor(day)) actions.push(`**Reminder:** ${t}`);
   if (missing.length) actions.push(`**Could not read:** ${missing.join(", ")}. The digest job's journal says why.`);
   if (evidence) actions.push("The evidence for a fix session is at the bottom.");
   L.push("## Needs you");
