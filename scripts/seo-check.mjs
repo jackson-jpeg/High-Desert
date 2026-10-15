@@ -122,8 +122,8 @@ let tonightToday = null;
 }
 
 // Every station day is listed, oldest to today, with no gap (2026-10-15: only
-// the last 14 were). The oldest is in the sample below, so a listed day
-// without a page fails there.
+// the last 14 were). The oldest is in the sample below (on production; see
+// oldestNight), so a listed day without a page fails there.
 {
   const days = sitemapNights.map((p) => p.slice("/tonight/".length));
   const next = (d) => new Date(Date.parse(`${d}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
@@ -157,7 +157,12 @@ if (!guestSample.length) find("sample", "the sitemap lists no guest pages");
 
 const topicSample = [...new Set([...evenSample(sitemapTopics, TOPIC_SAMPLE), "/topic/mels-hole"])];
 if (!sitemapTopics.length) find("sample", "the sitemap lists no topic pages");
-const nightSample = [...new Set([tonightToday, sitemapNights[0]].filter(Boolean))];
+// The oldest listed Tonight day must have a page. Production's station has
+// every day from FIRST_STATION_DAY; a fresh one (CI, a local stack) has frozen
+// only today's 14-day window, so there the oldest it can have is sampled.
+const PRODUCTION = BASE === "https://highdesert.space";
+const oldestNight = PRODUCTION ? sitemapNights[0] : sitemapNights[Math.max(0, sitemapNights.length - 14)];
+const nightSample = [...new Set([tonightToday, oldestNight].filter(Boolean))];
 
 // Moments: one inside a sampled show, and the edge of one that is past the end.
 const momentShow = showSample.find((s) => (bySlug.get(s)?.duration ?? 0) > 600);

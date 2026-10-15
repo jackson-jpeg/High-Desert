@@ -352,7 +352,9 @@ Today: 70 topics (29 subjects, 15 categories, 26 tags).
 - **Sitemap:** every station day, from the first in `live_days` (2026-09-11,
   `FIRST_STATION_DAY`; frozen days are never deleted) to today
   (`tonightSitemapDays`). Until 2026-10-15 it was only the last 14, which left
-  21 working pages out. `check:seo` fails on a gap, and fetches the oldest.
+  21 working pages out. `check:seo` fails on a gap, and fetches the oldest
+  (on production; a fresh station, as in CI, has frozen only the last 14
+  days, so there it fetches the day 13 back).
 
 ## Search Console
 
