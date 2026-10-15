@@ -301,6 +301,7 @@ export const FAIL_ACTIONS = {
   steal: "Hypervisor steal is high: nothing to fix here; note it and watch the CPU line.",
   audit: "npm audit found a high or critical: a dependency upgrade in a worktree (CLAUDE.md, Dependabot).",
   funnel: "The funnel line: /api/stats/funnel?days=7 and docs/funnel.md.",
+  mutations: "A mutation survived the weekly run (or its anchor went stale): make the test see its subject (docs/disconnected-checks.md) or re-anchor the entry; the run's log is /var/lib/highdesert-mutations/last.log.",
   release: "The release line: the rows below.",
   nginx: "The installed vhost differs from deploy/nginx/highdesert.conf: diff them and install the one in git.",
   digest: "The digest job itself: /var/lib/highdesert-digest/status.json and journalctl -u highdesert-digest.",
@@ -367,9 +368,33 @@ export function stationGuardLines(g, titleOf, now) {
   return { lines, actions };
 }
 
+/**
+ * The weekly full mutation run (scripts/weekly-mutations.sh, Mondays 14:00 UTC)
+ * as one Health line. `m` is {result, running} from its state directory;
+ * `running` only while its process is alive.
+ */
+export function mutationLine(m, now) {
+  if (!m) return "- Mutations: no reading.";
+  const { result: r, running } = m;
+  const going = running ? ` A run has been going since ${SHORT_FMT.format(new Date(running.startedAt))} UTC.` : "";
+  if (!r) return `- Mutations: no weekly run has finished yet (highdesert-mutations.timer, Mondays 14:00 UTC).${going}`;
+  const sha = String(r.head ?? "?").slice(0, 7);
+  const when = r.finishedAt ? `${SHORT_FMT.format(new Date(r.finishedAt))} UTC` : "?";
+  if (r.error) return `- Mutations: the weekly run on ${sha} broke before checking: ${cell(r.error, 100)}.${going}`;
+  const mins = Math.round((Date.parse(r.finishedAt) - Date.parse(r.startedAt)) / 60_000);
+  const took = Number.isFinite(mins) ? `, ${Math.floor(mins / 60)}h${mins % 60}m` : "";
+  const ageD = Math.floor((new Date(now).getTime() - Date.parse(r.finishedAt)) / 86_400_000);
+  const old = ageD > 7 ? ` That was ${ageD} days ago: this week's has not finished.` : "";
+  let what;
+  if (r.survived?.length) what = `${r.survived.length} of ${r.total} survived or went stale: ${r.survived.slice(0, 5).map((x) => `${x.id} [${x.verdict}]`).join(", ")}.`;
+  else if (r.skipped?.length) what = `${r.skipped.length} NOT CHECKED (no test database), the other ${r.red} red.`;
+  else what = `all ${r.red} mutations red.`;
+  return `- Mutations: weekly full run on ${sha} (${when}${took}): ${what}${old}${going}`;
+}
+
 /** The digest as markdown. No em dashes anywhere (CLAUDE.md, user-facing copy). */
 export function render(d) {
-  const { day, writtenAt, status, release, funnel, handover, traffic, topShows, places, disk, evidence, titleOf, missing = [], guard } = d;
+  const { day, writtenAt, status, release, funnel, handover, traffic, topShows, places, disk, evidence, titleOf, missing = [], guard, mutations } = d;
   const station = stationGuardLines(guard, titleOf, writtenAt);
   const L = [];
   L.push(`# High Desert, week to ${DAY_FMT.format(new Date(`${day}T00:00:00Z`))}`);
@@ -471,6 +496,7 @@ export function render(d) {
       cpuHi ? `busiest unit ${cpuHi[1]} of a core` : cpu ? cell(cpu.text, 80) : "no reading"
     }.`,
   );
+  L.push(mutationLine(mutations, writtenAt));
 
   if (evidence) {
     L.push("");
@@ -640,6 +666,17 @@ export function productionSources(env) {
       );
       return { trips, swaps, verify: await readJson(env.HD_VERIFY_STATUS ?? "/var/lib/highdesert-verify-live/status.json") };
     },
+    async mutations() {
+      const dir = env.HD_MUTATIONS_STATE ?? "/var/lib/highdesert-mutations";
+      const running = await readJson(path.join(dir, "running.json"));
+      let alive = false;
+      try {
+        alive = Number.isInteger(running?.pid) && process.kill(running.pid, 0);
+      } catch {
+        alive = false;
+      }
+      return { result: await readJson(path.join(dir, "result.json")), running: alive ? running : null };
+    },
     async close() {
       if (poolP) await (await poolP).end();
     },
@@ -689,6 +726,7 @@ export async function gather(sources, now) {
     places: await safe("the phone lines", () => sources.places(weekAgo), null),
     disk: await safe("disk", () => sources.disk(), null),
     guard: await safe("the station guard", () => sources.guard(weekAgo), null),
+    mutations: await safe("the mutation run", () => sources.mutations(), null),
     evidence,
     titleOf,
     missing,

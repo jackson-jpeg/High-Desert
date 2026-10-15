@@ -4,12 +4,10 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 /**
- * The mutation guarantee lives in two YAML files now: a pull request checks
- * only the mutations it touched, so the whole list is held by the full run on
- * main and the nightly one (.github/workflows/mutations.yml), and
- * highdesert-status reads the nightly run by its workflow file, event and step
- * name (scripts/nightly-mutations.sh). Each assertion below is one of those
- * couplings; break one and the guarantee is quietly gone while CI stays green.
+ * Both workflows are manual only since 2026-10-15 (checks run on the VPS, the
+ * whole mutation list weekly through scripts/weekly-mutations.sh). What is
+ * still held here: nothing pushed or scheduled runs them, and a run by hand
+ * still checks everything it used to.
  */
 
 const read = (f: string) => readFileSync(path.resolve(__dirname, "../../.github/workflows", f), "utf8");
@@ -21,7 +19,6 @@ const onBlock = (yml: string) => {
   if (!m) return [];
   return [...m[1].matchAll(/^  ([a-z_]+):/gm)].map((x) => x[1]);
 };
-const helper = readFileSync(path.resolve(__dirname, "../nightly-mutations.sh"), "utf8");
 
 describe("mutations.yml", () => {
   it("runs only by hand: no push, pull request or schedule (checks run on the VPS)", () => {
@@ -51,12 +48,6 @@ describe("mutations.yml", () => {
   it("gives the database-backed mutations their database (NO-ENV fails in CI otherwise)", () => {
     expect(mutations).toMatch(/TEST_DATABASE_URL: postgres:\/\//);
     expect(mutations).toMatch(/-f scripts\/schema\.sql/);
-  });
-
-  it("is what highdesert-status reads: this file, the schedule event, main, and the step name", () => {
-    expect(helper).toMatch(/--workflow mutations\.yml --event schedule --branch main/);
-    expect(helper).toMatch(/select\(\.name == "Mutation check"\)/);
-    expect(mutations).toMatch(/^\s+- name: Mutation check$/m);
   });
 });
 

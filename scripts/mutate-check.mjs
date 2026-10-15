@@ -31,11 +31,13 @@
  *   node scripts/mutate-check.mjs streak dedup # substring filter on id
  *   node scripts/mutate-check.mjs --shard 2/4  # every 4th, from the 2nd
  *   node scripts/mutate-check.mjs --changed-from origin/main  # a PR's (selectMutations)
+ *   node scripts/mutate-check.mjs --json result.json  # also write the verdicts as JSON
+ *     (scripts/weekly-mutations.sh: what highdesert-status and the digest read)
  *
  * Exits non-zero if any mutation survives.
  */
 
-import { readFile, writeFile, mkdtemp } from "node:fs/promises";
+import { readFile, writeFile, mkdtemp, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { spawn, spawnSync } from "node:child_process";
 import { execFile } from "node:child_process";
@@ -6634,41 +6636,122 @@ export const MUTATIONS = [
     id: "status-mutations-fail",
     test: "scripts/__tests__/status.test.ts",
     file: "scripts/status.sh",
-    find: `  if (( m_failed > 0 )); then`,
-    replace: `  if false; then`,
-    why: "a mutation that survived the nightly full run did not FAIL highdesert-status",
+    find: `  elif (( m_surv > 0 )); then`,
+    replace: `  elif false; then`,
+    why: "a mutation that survived the weekly full run did not FAIL highdesert-status",
   },
   {
     id: "status-mutations-broken-run",
     test: "scripts/__tests__/status.test.ts",
     file: "scripts/status.sh",
-    find: `  elif [[ "$(jq -r '.conclusion' <<<"$mj")" != success ]] || (( m_shards == 0 || m_ok != m_shards )); then`,
-    replace: `  elif false; then`,
-    why: "a nightly run that broke before checking read as every mutation red",
+    find: `  if [[ -n "$m_err" ]]; then`,
+    replace: `  if false; then`,
+    why: "a weekly run that broke before checking read as every mutation red",
   },
   {
     id: "status-mutations-stale",
     test: "scripts/__tests__/status.test.ts",
     file: "scripts/status.sh",
-    find: `  elif (( m_age > 129600 )); then`,
+    find: `  elif (( m_age > MUTATIONS_MAX_AGE_S )); then`,
     replace: `  elif false; then`,
-    why: "a nightly run that had stopped running read as fine",
+    why: "a weekly run that had stopped running read as fine",
+  },
+  // The weekly full run on the VPS (2026-10-15): scripts/weekly-mutations.sh.
+  {
+    id: "weekly-mutations-own-checkout",
+    test: "scripts/__tests__/weekly-mutations.test.ts",
+    file: "scripts/weekly-mutations.sh",
+    find: `(cd "$CHECKOUT" && node scripts/mutate-check.mjs`,
+    replace: `(cd "$SRC" && node scripts/mutate-check.mjs`,
+    why: "the weekly run mutated the production tree instead of its own clone",
   },
   {
-    id: "nightly-helper-schedule-only",
-    test: "scripts/__tests__/status.test.ts",
-    file: "scripts/nightly-mutations.sh",
-    find: `--workflow mutations.yml --event schedule --branch main`,
-    replace: `--workflow mutations.yml --branch main`,
-    why: "status read a PR's narrowed run as the nightly full one",
+    id: "weekly-mutations-error-recorded",
+    test: "scripts/__tests__/weekly-mutations.test.ts",
+    file: "scripts/weekly-mutations.sh",
+    find: `broke() { echo "weekly-mutations: $1" >> "$LOG"; finish 2 "$1"; }`,
+    replace: `broke() { echo "weekly-mutations: $1" >> "$LOG"; finish 2 ""; }`,
+    why: "a run that broke before checking left a result that read as clean",
   },
   {
-    id: "nightly-helper-step",
+    id: "weekly-mutations-install-once",
+    test: "scripts/__tests__/weekly-mutations.test.ts",
+    file: "scripts/weekly-mutations.sh",
+    find: `  if [[ -d "$dir/node_modules" && "$(cat "$stamp" 2>/dev/null)" == "$want" ]]; then return 0; fi\n`,
+    replace: ``,
+    why: "every weekly run reinstalled node_modules, a heavy job for nothing",
+  },
+  {
+    id: "weekly-mutations-whole-seconds",
+    test: "scripts/__tests__/weekly-mutations.test.ts",
+    file: "scripts/weekly-mutations.sh",
+    find: `finishedAt: (.finishedAt | sub(`,
+    replace: `finishedAt: (.finishedAt | . // sub(`,
+    why: "milliseconds in finishedAt broke jq's fromdate, so status could not say how long the run took",
+  },
+  {
+    id: "weekly-mutations-running-cleared",
+    test: "scripts/__tests__/weekly-mutations.test.ts",
+    file: "scripts/weekly-mutations.sh",
+    find: `trap 'rm -f "$STATE/running.json"' EXIT`,
+    replace: `trap '' EXIT`,
+    why: "a finished run left running.json behind",
+  },
+  {
+    id: "weekly-mutations-timer-monday",
+    test: "scripts/__tests__/service-unit.test.ts",
+    file: "deploy/highdesert-mutations.timer",
+    find: `OnCalendar=Mon *-*-* 14:00:00 UTC`,
+    replace: `OnCalendar=*-*-* 14:00:00 UTC`,
+    why: "the full run went daily, 2.4 CPU-hours a day instead of a week",
+  },
+  {
+    id: "digest-mutation-line",
+    test: "scripts/__tests__/digest.test.ts",
+    file: "scripts/digest.mjs",
+    find: `  L.push(mutationLine(mutations, writtenAt));\n`,
+    replace: ``,
+    why: "the Monday digest said nothing about the weekly mutation run",
+  },
+  {
+    id: "digest-mutation-survivors",
+    test: "scripts/__tests__/digest.test.ts",
+    file: "scripts/digest.mjs",
+    find: `  if (r.survived?.length) what =`,
+    replace: `  if (false) what =`,
+    why: "the digest called a run with survivors all red",
+  },
+  {
+    id: "digest-mutation-running-alive",
+    test: "scripts/__tests__/digest.test.ts",
+    file: "scripts/digest.mjs",
+    find: `alive = Number.isInteger(running?.pid) && process.kill(running.pid, 0);`,
+    replace: `alive = Number.isInteger(running?.pid);`,
+    why: "a killed run was reported as still going",
+  },
+  {
+    id: "status-mutations-not-checked",
     test: "scripts/__tests__/status.test.ts",
-    file: "scripts/nightly-mutations.sh",
-    find: `select(.name == "Mutation check")`,
-    replace: `select(.name != "")`,
-    why: "status judged every step of a shard, not its mutation check",
+    file: "scripts/status.sh",
+    find: `  elif (( m_skip > 0 )); then`,
+    replace: `  elif false; then`,
+    why: "a run without the test database read as every mutation red",
+  },
+  {
+    id: "status-mutations-running-alive",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: `  if [[ "$m_pid" =~ ^[0-9]+$ ]] && kill -0 "$m_pid" 2>/dev/null; then`,
+    replace: `  if [[ "$m_pid" =~ ^[0-9]+$ ]]; then`,
+    why: "a run killed mid-way was reported as still going, forever",
+  },
+  {
+    id: "status-cpu-exempt-one-unit",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: `'NF >= 2 && $1 != x && $2 + 0 > t {`,
+    replace: `'NF >= 2 && $2 + 0 > t {`,
+    why: "the weekly mutation run, which Jackson exempted, failed the cpu line",
   },
   {
     id: "ci-mutations-manual-only",
@@ -8921,6 +9004,8 @@ if (IS_MAIN) {
   };
   const changedFrom = flag("--changed-from");
   const shardArg = flag("--shard");
+  const jsonOut = flag("--json");
+  const startedAt = new Date().toISOString();
   const filters = args;
   const filtered = filters.length
     ? MUTATIONS.filter((m) => filters.some((f) => m.id.includes(f) || m.test.includes(f)))
@@ -9042,8 +9127,26 @@ if (IS_MAIN) {
     );
   }
 
+  /** The verdicts as JSON, written whole (temp + rename) so a reader never sees half. */
+  async function report(exit) {
+    if (!jsonOut) return;
+    const doc = {
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      exit,
+      total: results.length,
+      red: results.filter((r) => r.verdict === "red").length,
+      skipped: skipped.map((r) => r.id),
+      survived: survivors.map((r) => ({ id: r.id, verdict: r.verdict, test: r.test, file: r.file, why: r.why })),
+    };
+    const tmp = `${jsonOut}.tmp`;
+    await writeFile(tmp, JSON.stringify(doc, null, 2) + "\n", "utf8");
+    await rename(tmp, jsonOut);
+  }
+
   console.log("");
   if (survivors.length === 0) {
+    await report(0);
     console.log(
       `[mutate-check] all ${results.length - skipped.length} checked mutations went red. Every test observes its subject.\n`,
     );
@@ -9063,5 +9166,6 @@ if (IS_MAIN) {
     if (s.detail) console.log(`    note      ${s.detail}`);
   }
   console.log("");
+  await report(1);
   process.exit(1);
 }

@@ -1,0 +1,26 @@
+[Unit]
+Description=High Desert, the weekly full mutation run (scripts/weekly-mutations.sh)
+Documentation=file:///root/High-Desert/CLAUDE.md
+After=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+# Runs the script from the production tree, but every mutation happens in its
+# own clone under /var/lib/highdesert-mutations/checkout, never in
+# /root/High-Desert. root, for the heavy slot (/run/heavy) and the test
+# database's env file.
+WorkingDirectory=/root/High-Desert
+EnvironmentFile=/root/.high-desert-test.env
+ExecStart=/usr/bin/bash /root/High-Desert/scripts/weekly-mutations.sh
+Environment=HOME=/root
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=HD_MUTATIONS_STATE=/var/lib/highdesert-mutations
+StateDirectory=highdesert-mutations
+# The one High Desert job exempt from the 10% rule (Jackson, 2026-10-15): about
+# 2.4 CPU-hours once a week. Every mutation's vitest takes the heavy slot, which
+# runs it under nice 15 and waits while the 6-hour CPU mean is over 40%, so it
+# never runs beside a build and the live sites come first. No CPUQuota.
+Nice=19
+IOSchedulingClass=idle
+TimeoutStartSec=14h
+SyslogIdentifier=highdesert-mutations

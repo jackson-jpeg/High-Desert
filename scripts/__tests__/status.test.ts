@@ -95,8 +95,16 @@ interface World {
   funnelVerdict: ({ ageH: number } & Record<string, unknown>) | null;
   /** scripts/digest.mjs's status.json; null: never run. `ageH` sets checkedAt. */
   digest: ({ ageH: number } & Record<string, unknown>) | null;
-  /** scripts/nightly-mutations.sh's answer; `ageH` sets createdAt. null: never run; "unreadable": GitHub fails. */
-  mutations: { ageH: number; conclusion: string; mutationCheck: string[] } | null | "unreadable";
+  /**
+   * scripts/weekly-mutations.sh's result.json; `ageH` sets finishedAt (the run took 3h7m).
+   * null: never run; "unreadable": not JSON.
+   */
+  mutations:
+    | { ageH: number; survived?: { id: string; verdict: string }[]; skipped?: string[]; error?: string | null }
+    | null
+    | "unreadable";
+  /** running.json: "alive" names this process (alive), "dead" a pid that is not; null writes none. */
+  mutationsRunning: "alive" | "dead" | null;
   liveActive: string;
   /** /live-api/health's body; null answers 502. */
   liveHealth: Record<string, unknown> | null;
@@ -147,7 +155,8 @@ const HEALTHY: World = {
     error: null,
   },
   funnelVerdict: null,
-  mutations: { ageH: 8, conclusion: "success", mutationCheck: ["success", "success", "success", "success"] },
+  mutations: { ageH: 8 },
+  mutationsRunning: null,
   liveActive: "active",
   liveHealth: { ok: true, clients: 42, messagesLastHour: 17, slowMode: false, cpu: { pct: 2.5, windowS: 900 } },
   dnsTxt: ['"v=spf1 include:_spf.mail.hostinger.com ~all"', `"google-site-verification=${GSV}"`],
@@ -295,27 +304,37 @@ async function run(): Promise<{ code: number; out: string }> {
   } else {
     await rm(digestFile, { force: true });
   }
-  const mutationsFile = path.join(dir, "mutations.json");
-  if (world.mutations && world.mutations !== "unreadable") {
-    const { ageH, ...rest } = world.mutations;
+  const mutationsState = path.join(dir, "mutations-state");
+  await rm(mutationsState, { recursive: true, force: true });
+  await mkdir(mutationsState, { recursive: true });
+  if (world.mutations === "unreadable") {
+    await writeFile(path.join(mutationsState, "result.json"), "not json");
+  } else if (world.mutations) {
+    const { ageH, survived = [], skipped = [], error = null } = world.mutations;
+    const finished = Date.now() - ageH * 3_600_000;
+    const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
     await writeFile(
-      mutationsFile,
+      path.join(mutationsState, "result.json"),
       JSON.stringify({
-        databaseId: 4242,
-        headSha: "0123456789abcdef0123456789abcdef01234567",
-        url: "https://github.com/o/r/actions/runs/4242",
-        createdAt: new Date(Date.now() - ageH * 3_600_000).toISOString().replace(/\.\d{3}Z$/, "Z"),
-        ...rest,
+        startedAt: iso(finished - (3 * 3600 + 7 * 60) * 1000),
+        finishedAt: iso(finished),
+        head: "0123456789abcdef0123456789abcdef01234567",
+        total: 1070,
+        red: 1070 - survived.length - skipped.length,
+        skipped,
+        survived,
+        error,
+        log: "/var/lib/highdesert-mutations/last.log",
+        exit: error ? 2 : survived.length ? 1 : 0,
       }),
     );
-  } else {
-    await writeFile(mutationsFile, "{}");
   }
-  await writeFile(
-    path.join(bin, "mutations"),
-    world.mutations === "unreadable" ? "#!/bin/sh\necho 'HTTP 502' >&2\nexit 1\n" : `#!/bin/sh\ncat "${mutationsFile}"\n`,
-    { mode: 0o755 },
-  );
+  if (world.mutationsRunning) {
+    await writeFile(
+      path.join(mutationsState, "running.json"),
+      JSON.stringify({ startedAt: "2026-10-19T14:00:00Z", pid: world.mutationsRunning === "alive" ? process.pid : 2147483646, head: null }),
+    );
+  }
   const head = await git("rev-parse", "--short", "HEAD");
   const deployed = world.deployedIsHead ? head : await git("rev-parse", "--short", "HEAD~1");
   await writeFile(path.join(root, ".deploy/deployed"), `${deployed} 2026-09-21T14:00:00Z\n`);
@@ -355,7 +374,7 @@ async function run(): Promise<{ code: number; out: string }> {
           HD_WARM_STATUS: warmFile,
           HD_FUNNEL_VERDICT: verdictFile,
           HD_DIGEST_STATUS: digestFile,
-          HD_MUTATIONS_CMD: path.join(bin, "mutations"),
+          HD_MUTATIONS_STATE: path.join(dir, "mutations-state"),
           HD_MEMINFO: path.join(dir, "meminfo"),
           HD_DF_CMD: path.join(bin, "df"),
           HD_DNS_TXT_CMD: path.join(bin, "dig"),
@@ -1169,6 +1188,16 @@ describe("highdesert-status", () => {
       expect(lineFor(r.out, "cpu")).toMatch(/^FAIL\s+cpu\s+over 10% of a core, 15-min mean: highdesert-mirror-warm 46\.8%, highdesert-sample 10\.4%$/);
       expect(r.code).toBe(1);
     });
+    it("names the weekly mutation run as the exemption instead of failing on it", async () => {
+      world.cpu.out = "highdesert 3.2\nhighdesert-mutations 78.4";
+      const r = await run();
+      expect(lineFor(r.out, "cpu")).toBe(
+        "OK    cpu       every High Desert unit under 10% of a core over 15 min (highest: highdesert 3.2%); highdesert-mutations 78.4% (exempt: the weekly mutation run, held by heavy)",
+      );
+      // The exemption is one unit, not a pass for everything beside it.
+      world.cpu.out = "highdesert-mutations 78.4\nhighdesert-mirror-warm 46.8";
+      expect(lineFor((await run()).out, "cpu")).toMatch(/^FAIL\s+cpu\s+over 10% of a core, 15-min mean: highdesert-mirror-warm 46\.8%; highdesert-mutations 78\.4% \(exempt/);
+    });
     it("exactly 10% is not over", async () => {
       world.cpu.out = "highdesert 10.0";
       expect(lineFor((await run()).out, "cpu")).toMatch(/^OK\s+cpu/);
@@ -1181,96 +1210,56 @@ describe("highdesert-status", () => {
     });
   });
 
-  describe("mutations line (the nightly full run holds the whole list)", () => {
-    it("OK when the newest nightly run checked every shard and all went red", async () => {
+  describe("mutations line (the weekly full run on the VPS holds the whole list)", () => {
+    it("OK when the newest weekly run finished and every mutation went red", async () => {
       expect(lineFor((await run()).out, "mutations")).toMatch(
-        /^OK\s+mutations\s+nightly full run on 0123456 \(.*\): every mutation red in all 4 shards$/,
+        /^OK\s+mutations\s+weekly full run on 0123456 \(.*Z, took 3h7m\): all 1070 mutations red$/,
       );
     });
 
-    it("FAILs, and the command exits non-zero, when a mutation survived", async () => {
-      world.mutations = { ageH: 8, conclusion: "failure", mutationCheck: ["success", "failure", "success", "success"] };
+    it("FAILs, and the command exits non-zero, when a mutation survived or went stale", async () => {
+      world.mutations = { ageH: 8, survived: [{ id: "a-survivor", verdict: "GREEN" }, { id: "an-anchor", verdict: "STALE" }] };
       const r = await run();
       expect(lineFor(r.out, "mutations")).toMatch(
-        /^FAIL\s+mutations\s+nightly full run on 0123456 .*: 1 of 4 shard\(s\) had a mutation survive or go stale: https:\/\/github.com\/o\/r\/actions\/runs\/4242$/,
+        /^FAIL\s+mutations\s+weekly full run on 0123456 .*: 2 mutation\(s\) survived or went stale: a-survivor \[GREEN\], an-anchor \[STALE\] \(log: \/var\/lib\/highdesert-mutations\/last\.log\)$/,
       );
       expect(r.code).not.toBe(0);
     });
 
     it("FAILs on survivors however old the run is", async () => {
-      world.mutations = { ageH: 80, conclusion: "failure", mutationCheck: ["failure", "success", "success", "success"] };
+      world.mutations = { ageH: 300, survived: [{ id: "x", verdict: "GREEN" }] };
       expect(lineFor((await run()).out, "mutations")).toMatch(/^FAIL\s+mutations/);
     });
 
-    it("WARNs when the run broke before every shard checked", async () => {
-      world.mutations = { ageH: 8, conclusion: "failure", mutationCheck: ["success", "success"] };
-      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+.* ended failure before every shard checked/);
-      world.mutations = { ageH: 8, conclusion: "cancelled", mutationCheck: ["success", "success", "success", "success"] };
-      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+.* ended cancelled/);
+    it("WARNs when the run broke before checking", async () => {
+      world.mutations = { ageH: 8, error: "npm ci failed in the checkout" };
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+the weekly run on 0123456 .* broke before checking: npm ci failed in the checkout$/);
     });
 
-    it("WARNs when the nightly run has stopped running", async () => {
-      world.mutations = { ageH: 40, conclusion: "success", mutationCheck: ["success", "success", "success", "success"] };
-      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+the last nightly full run was 40h ago/);
+    it("WARNs when database mutations were NOT CHECKED", async () => {
+      world.mutations = { ageH: 8, skipped: ["db-one", "db-two"] };
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+.*: 2 mutation\(s\) NOT CHECKED, their tests need TEST_DATABASE_URL$/);
     });
 
-    it("WARNs, never OK, with no run or no answer from GitHub", async () => {
+    it("WARNs once the weekly run is over 8 days old, not before", async () => {
+      world.mutations = { ageH: 190 };
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^OK\s+mutations/);
+      world.mutations = { ageH: 200 };
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+the last weekly full run was 8d ago \(0123456, every mutation red then\)$/);
+    });
+
+    it("WARNs, never OK, with no run or an unreadable result", async () => {
       world.mutations = null;
-      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+no nightly full mutation run yet/);
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+no finished weekly mutation run yet/);
       world.mutations = "unreadable";
       expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+could not read/);
     });
-  });
 
-  describe("scripts/nightly-mutations.sh (what the mutations line reads)", () => {
-    const HELPER = path.resolve(__dirname, "../nightly-mutations.sh");
-    const helper = async (list: unknown[], jobs: unknown) => {
-      const gh = path.join(dir, "bin", "gh");
-      await writeFile(path.join(dir, "list.json"), JSON.stringify(list));
-      await writeFile(path.join(dir, "jobs.json"), JSON.stringify(jobs));
-      await writeFile(
-        gh,
-        [
-          "#!/bin/sh",
-          `echo "$*" >> "${path.join(dir, "gh.log")}"`,
-          `case "$1 $2" in`,
-          `  "run list") cat "${path.join(dir, "list.json")}";;`,
-          `  "run view") cat "${path.join(dir, "jobs.json")}";;`,
-          "esac",
-        ].join("\n"),
-        { mode: 0o755 },
-      );
-      return new Promise<string>((resolve, reject) =>
-        execFile("bash", [HELPER], { env: { ...process.env, HD_GH: gh } }, (err, out) => (err ? reject(err) : resolve(out))),
-      );
-    };
-
-    it("asks for the newest finished scheduled run on main and reports each shard's mutation check", async () => {
-      const out = await helper(
-        [{ databaseId: 7, conclusion: "failure", createdAt: "2026-09-29T09:31:00Z", headSha: "abc", url: "u" }],
-        {
-          jobs: [
-            { name: "mutations (1/4)", steps: [{ name: "Install dependencies", conclusion: "success" }, { name: "Mutation check", conclusion: "success" }] },
-            { name: "mutations (2/4)", steps: [{ name: "Mutation check", conclusion: "failure" }] },
-          ],
-        },
-      );
-      expect(JSON.parse(out)).toEqual({
-        databaseId: 7,
-        conclusion: "failure",
-        createdAt: "2026-09-29T09:31:00Z",
-        headSha: "abc",
-        url: "u",
-        mutationCheck: ["success", "failure"],
-      });
-      const { readFile } = await import("node:fs/promises");
-      const asked = await readFile(path.join(dir, "gh.log"), "utf8");
-      expect(asked).toMatch(/run list .*--workflow mutations\.yml --event schedule --branch main --status completed --limit 1/);
-      expect(asked).toMatch(/run view 7 /);
-    });
-
-    it("prints {} when there has never been a nightly run", async () => {
-      expect(JSON.parse(await helper([], { jobs: [] }))).toEqual({});
+    it("says when a run is going, and only when its process is alive", async () => {
+      world.mutationsRunning = "alive";
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^OK\s+mutations\s+.*all 1070 mutations red; a run has been going since 2026-10-19T14:00:00Z$/);
+      world.mutationsRunning = "dead";
+      expect(lineFor((await run()).out, "mutations")).toMatch(/all 1070 mutations red$/);
     });
   });
 

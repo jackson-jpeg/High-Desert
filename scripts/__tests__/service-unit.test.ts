@@ -57,3 +57,30 @@ describe("highdesert-verify-live.service (the station's nightly pre-air walk)", 
     expect(d("EnvironmentFile")).toEqual(["/root/.high-desert.env"]);
   });
 });
+
+describe("highdesert-mutations.service and .timer (the weekly full mutation run)", () => {
+  const read = (f: string) => readFileSync(path.resolve(__dirname, "../../deploy", f), "utf8");
+  const u = read("highdesert-mutations.service");
+  const d = (name: string) => u.split("\n").filter((l) => l.startsWith(`${name}=`)).map((l) => l.slice(name.length + 1).trim());
+
+  it("is the one exemption from the 10% rule: no CPUQuota, but niced and idle IO, with heavy doing the gating", () => {
+    expect(d("CPUQuota")).toEqual([]);
+    expect(d("Nice")).toEqual(["19"]);
+    expect(d("IOSchedulingClass")).toEqual(["idle"]);
+    // heavy is in /usr/local/bin: without it on PATH every vitest would run ungated.
+    expect(d("Environment")).toContain("PATH=/usr/local/bin:/usr/bin:/bin");
+  });
+
+  it("runs the weekly script against the test database, keeping its state where status and the digest read it", () => {
+    expect(d("ExecStart")).toEqual(["/usr/bin/bash /root/High-Desert/scripts/weekly-mutations.sh"]);
+    expect(d("EnvironmentFile")).toEqual(["/root/.high-desert-test.env"]);
+    expect(d("Environment")).toContain("HD_MUTATIONS_STATE=/var/lib/highdesert-mutations");
+    expect(d("StateDirectory")).toEqual(["highdesert-mutations"]);
+  });
+
+  it("fires Mondays at 14:00 UTC, and catches up a missed Monday", () => {
+    const t = read("highdesert-mutations.timer");
+    expect(t).toMatch(/^OnCalendar=Mon \*-\*-\* 14:00:00 UTC$/m);
+    expect(t).toMatch(/^Persistent=true$/m);
+  });
+});
