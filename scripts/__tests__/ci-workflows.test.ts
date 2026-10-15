@@ -15,11 +15,17 @@ import path from "node:path";
 const read = (f: string) => readFileSync(path.resolve(__dirname, "../../.github/workflows", f), "utf8");
 const mutations = read("mutations.yml");
 const ci = read("ci.yml");
+/** The trigger names under a workflow's top-level `on:`. */
+const onBlock = (yml: string) => {
+  const m = /^on:\n((?:[ \t]+.*\n|\n)*)/m.exec(yml);
+  if (!m) return [];
+  return [...m[1].matchAll(/^  ([a-z_]+):/gm)].map((x) => x[1]);
+};
 const helper = readFileSync(path.resolve(__dirname, "../nightly-mutations.sh"), "utf8");
 
 describe("mutations.yml", () => {
-  it("runs on pull requests, on main, nightly and by hand", () => {
-    expect(mutations).toMatch(/^on:\n\s+pull_request:\n\s+push:\n\s+branches: \[main\]\n\s+schedule:\n\s+- cron: "\d+ \d+ \* \* \*"\n\s+workflow_dispatch:/m);
+  it("runs only by hand: no push, pull request or schedule (checks run on the VPS)", () => {
+    expect(onBlock(mutations)).toEqual(["workflow_dispatch"]);
   });
 
   it("splits into as many shards as the matrix has, and every shard reports", () => {
@@ -75,6 +81,10 @@ describe("dependabot.yml", () => {
 });
 
 describe("ci.yml", () => {
+  it("runs only by hand: no push, pull request or schedule (checks run on the VPS)", () => {
+    expect(onBlock(ci)).toEqual(["workflow_dispatch"]);
+  });
+
   it("no longer runs the mutation check itself", () => {
     expect(ci).not.toMatch(/test:mutations|mutate-check/);
   });

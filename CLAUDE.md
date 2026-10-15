@@ -35,10 +35,24 @@ at once (`docs/memory-2026-09-28.md`). Watch modes are deliberately not wrapped.
 (Quick Start is for a *development* checkout. In `/root/High-Desert`, which is
 production, never `npm install` — see "Deploying to the VPS".)
 
-**CI is the gate**, and it runs once per change: on pull requests and on `main`, never
-twice per push, and a newer push to the same PR or to `main` cancels the older run.
-Two workflows: `ci.yml` (jobs `checks`: lint, typecheck, suite; and `browser`: build, CSP,
-Playwright, in parallel) and `mutations.yml` (below). There is no pre-push
+**Checks run on the VPS, never on GitHub Actions** (standing rule, Jackson,
+2026-10-15). Do not run, trigger or wait on GitHub Actions. Before a push or a
+deploy, run the checks here, each through `heavy` (the npm scripts already go
+through `scripts/heavy.sh`):
+- `npm run lint`, `npm run typecheck`, `npm run test` (with
+  `set -a; . /root/.high-desert-test.env; set +a` for the database tests);
+- the mutations a change touches, `node scripts/mutate-check.mjs <id-substring>`
+  (clean tree; a worktree for anything outside `.github/`, `docs/` and
+  `scripts/`), or all of them with `npm run test:mutations`;
+- for anything a browser loads: `npm run build` in a worktree, then
+  `npm run check:csp` and `npm run check:seo` against it, and the e2e specs it
+  touches (one Playwright run at a time). After a deploy, `check:seo` and
+  `check:csp` against production.
+
+`ci.yml` and `mutations.yml` are **manual only** (`workflow_dispatch`): no
+push, pull request or schedule runs them (`scripts/__tests__/ci-workflows.test.ts`,
+mutations `ci-manual-only` and `ci-mutations-manual-only`). Run them on GitHub
+only when Jackson asks. There is no pre-push
 hook: **no git hooks in production trees** (2026-09-28: a local pre-push gate ran the suite
 with git's hook variables set, and the tests' throwaway repositories wrote into the real
 one, setting `core.bare = true` under `/root/High-Desert`). Every test that runs git
@@ -64,18 +78,16 @@ from working ones. `scripts/mutate-check.mjs` breaks one real line per module an
 requires the suite to notice. Read `docs/disconnected-checks.md`
 before adding a test, and add a mutation alongside it.
 
-**Where the mutations run** (`.github/workflows/mutations.yml`, 2026-09-28; it was 25 of
-CI's 35 minutes run one after another):
-- **A pull request** checks only the mutations whose target or test file it changed, plus
-  entries it added or edited, in 4 shards (`--changed-from HEAD^1`, `selectMutations`).
-  A change to `package.json`, the lockfile or the vitest config checks the whole list
-  (`RUN_ALL_WHEN_CHANGED`). A change to a helper a test imports is *not* seen here.
-- **`main`** after each merge, and **nightly at 09:30 UTC**, check the whole list in 4
-  shards (`--shard i/4`). The nightly run is never cancelled.
-- **`highdesert-status`'s `mutations` line is the guarantee**: it FAILs if any shard of
-  the newest nightly run had a mutation survive or go stale, and WARNs if that run broke
-  before checking, is over 36 h old, or never ran (`scripts/nightly-mutations.sh`).
-- Locally: `node scripts/mutate-check.mjs <id-substring>`, or all of them with no argument.
+**Where the mutations run** (since 2026-10-15): on the VPS, through `heavy`.
+`node scripts/mutate-check.mjs <id-substring>`, or all of them with no argument
+(`npm run test:mutations`). `--changed-from <ref>` checks what a change touched
+and `--shard i/n` splits the list. Until 2026-10-15 GitHub ran them on every
+PR, on main and nightly at 09:30 UTC; that workflow is now manual only.
+- **`highdesert-status`'s `mutations` line still reads the newest scheduled
+  GitHub run** (`scripts/nightly-mutations.sh`). With the schedule gone, it
+  WARNs once that run is over 36 h old (the last one was on 2026-10-15). It
+  needs a decision from Jackson: read a full run on the VPS instead, or drop
+  the line.
 
 ## Tech Stack
 
@@ -384,7 +396,7 @@ Search Console steps: `docs/show-pages.md`.
 - **`npm run check:seo -- <url>`** (`scripts/seo-check.mjs`) crawls robots, the sitemap and
   a fixed sample of pages as raw HTML (no JavaScript) and fails on missing tags, invalid
   JSON-LD, content absent from the server HTML, any internal link or share image not 200.
-  CI's browser job runs it after the CSP check. Run it against production after a deploy.
+  Run it against a local build before a push that touches a page, and against production after a deploy.
 - **Sharing** (`docs/show-pages.md`, "Sharing"): Share sends `/show/<slug>` (the old
   `/library?ep=` link until the slug arrives, and old ones keep working); **Share this
   moment** in both looks' players sends `/show/<slug>?t=<seconds>`. The moment page is

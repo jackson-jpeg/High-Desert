@@ -1,17 +1,14 @@
 name: CI
-# A branch push used to run twice (push + pull_request), so one broken commit
-# on a PR sent two failure emails. Now: push runs only on main; a branch is
-# checked through its pull request; a newer push to the same PR, or to main,
-# cancels the run it supersedes (cancelled runs send no failure email).
+# Manual only (Jackson, 2026-10-15): nothing pushed or opened runs this.
+# CI, the mutations and every check run on the VPS through `heavy` (CLAUDE.md,
+# "Checks run on the VPS"). Run it by hand from the Actions tab or
+# `gh workflow run ci.yml` only when asked.
 #
 # Two jobs in parallel: `checks` (lint, typecheck, the suite) and `browser`
 # (build, CSP, Playwright). The mutation check is its own workflow,
-# mutations.yml: a PR checks what it touched, main and the nightly run check
-# everything in four shards.
+# mutations.yml, also manual only.
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true

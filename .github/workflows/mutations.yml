@@ -1,25 +1,12 @@
 name: Mutations
 # Does each test observe its subject? scripts/mutate-check.mjs breaks one real
-# line per entry and requires the suite to notice. At 632 entries, one after
-# another, it was 25 of CI's 35 minutes, so:
+# line per entry and requires the suite to notice.
 #
-#   pull request  only the mutations whose target or test file the PR changed,
-#                 plus entries it added or edited (all of them if it changed
-#                 package.json, the lockfile or the vitest config), 4 shards
-#   main          the whole list after every merge, 4 shards
-#   nightly       the whole list on main, 4 shards, never cancelled.
-#                 highdesert-status's `mutations` line reads this run and FAILs
-#                 if any mutation survived (scripts/nightly-mutations.sh)
-#
-# A newer push to the same PR or to main cancels the run it supersedes; the
-# nightly run is its own group, so a merge cannot cancel it or be cancelled
-# by it.
+# Manual only (Jackson, 2026-10-15): no push, pull request or schedule runs
+# this. The mutations run on the VPS through `heavy` (`npm run test:mutations`,
+# or `node scripts/mutate-check.mjs <id-substring>`). Run it here by hand only
+# when asked. A run by hand checks the whole list in four shards.
 on:
-  pull_request:
-  push:
-    branches: [main]
-  schedule:
-    - cron: "30 9 * * *"
   workflow_dispatch:
 concurrency:
   group: mutations-${{ github.event_name == 'schedule' && 'nightly' || github.event.pull_request.number || github.ref }}
