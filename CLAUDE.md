@@ -91,7 +91,7 @@ PR, on main and nightly at 09:30 UTC; that workflow is now manual only.
   (`npm ci` only when a lockfile changes), against the test database.
   - **Each mutation's vitest takes the `heavy` slot**, so the CPU gate is
     checked before every one and other sessions' jobs take turns with it.
-    About 1,070 entries, 2.4 CPU-hours, roughly 3 hours.
+    1,080 entries, about 1h20m at most of one core (measured 2026-10-15).
   - **It is the one High Desert job exempt from the 10% CPU rule** (no
     `CPUQuota`; Nice=19, idle IO; heavy runs it under nice 15). The status
     `cpu` line names `highdesert-mutations` as the exemption instead of

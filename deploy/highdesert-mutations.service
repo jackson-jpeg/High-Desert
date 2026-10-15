@@ -17,7 +17,7 @@ Environment=PATH=/usr/local/bin:/usr/bin:/bin
 Environment=HD_MUTATIONS_STATE=/var/lib/highdesert-mutations
 StateDirectory=highdesert-mutations
 # The one High Desert job exempt from the 10% rule (Jackson, 2026-10-15): about
-# 2.4 CPU-hours once a week. Every mutation's vitest takes the heavy slot, which
+# About 1.3 CPU-hours once a week (1h17m measured 2026-10-15). Every mutation's vitest takes the heavy slot, which
 # runs it under nice 15 and waits while the 6-hour CPU mean is over 40%, so it
 # never runs beside a build and the live sites come first. No CPUQuota.
 Nice=19
