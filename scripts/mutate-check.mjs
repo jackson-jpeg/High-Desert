@@ -3244,8 +3244,8 @@ export const MUTATIONS = [
     id: "status-cpu-threshold",
     test: "scripts/__tests__/status.test.ts",
     file: "scripts/status.sh",
-    find: "'NF >= 2 && $2 + 0 > t {",
-    replace: "'NF >= 2 && $2 + 0 > t * 10 {",
+    find: "$1 != x && $2 + 0 > t {",
+    replace: "$1 != x && $2 + 0 > t * 10 {",
     why: "the mirror held ~47% of a core for days and no line said so",
   },
   // ---- Outage mode: archive.org down, the mirror's manifest decides ----
