@@ -53,9 +53,10 @@
 #             WARN above 20%, FAIL above 50% (the 2026-09-22 episode ran ~90%)
 #   memory    MemAvailable as a share of MemTotal (/proc/meminfo): WARN under 15%,
 #             FAIL under 5%; swap in use beside it, reported, not judged
-#   disk      free space on / (df): WARN under 15 GB, FAIL under 5 GB. The mirror's
-#             warm job stops pinning under 10 GB free and nginx's fill cache gives
-#             way at 12, so 15 is the warning before either; a build needs ~1 GB.
+#   disk      free space on / (df): WARN under 10 GB, FAIL under 5 GB (Jackson,
+#             2026-10-16: 15 WARNed most days). The mirror's warm job stops pinning
+#             under 10 GB free and nginx's fill cache gives way at 12, so the WARN
+#             now arrives with the warm floor, not before it; a build needs ~1 GB.
 #             On 2026-10-12 the disk reached 99% (2.8 GB free) and nothing said so
 #   mirror    the outage mirror as nginx serves it: /mirror/manifest answering with
 #             at least one pin; pinned count and bytes, the fill cache's size, and
@@ -137,7 +138,7 @@ MUTATIONS_MAX_AGE_S="${HD_MUTATIONS_MAX_AGE_S:-691200}"
 DF_CMD="${HD_DF_CMD:-df -B1 --output=avail,size /}"
 DNS_TXT_CMD="${HD_DNS_TXT_CMD:-dig +short +time=5 +tries=2 TXT highdesert.space}"
 NOW_S="${HD_NOW:-$(date +%s)}"
-DISK_WARN_GB=15
+DISK_WARN_GB=10
 DISK_FAIL_GB=5
 
 cd "$ROOT" || exit 2

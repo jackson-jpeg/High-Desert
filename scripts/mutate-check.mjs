@@ -8606,9 +8606,9 @@ export const MUTATIONS = [
     id: "status-disk-warn",
     test: "scripts/__tests__/status.test.ts",
     file: "scripts/status.sh",
-    find: "DISK_WARN_GB=15",
+    find: "DISK_WARN_GB=10",
     replace: "DISK_WARN_GB=1",
-    why: "the disk line would stay quiet until the warm job had already stopped pinning",
+    why: "the disk line would stay quiet until the warm job had long stopped pinning and a build could not fit",
   },
   {
     id: "status-disk-fail",

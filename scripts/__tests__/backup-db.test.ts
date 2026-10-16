@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { execFile } from "node:child_process";
-import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, utimes } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, stat, utimes } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { TEST_DATABASE_URL, describeDb } from "../../src/test-support/test-db";
@@ -86,9 +86,28 @@ beforeEach(async () => {
   rsyncLog = path.join(dir, "rsync.log");
   await mkdir(backupDir, { recursive: true });
   // `ssh host "df -m / | …"` prints free MB; `ssh host mkdir …` succeeds.
+  // FAKE_FREE_OVER_DUMP_MB answers relative to the dump this run just wrote
+  // (its size in whole MB, plus that many), so the floor tests hold whatever
+  // the test database weighs. A fixed figure assumed a dump under 1 MB, and the
+  // shared test database grew past it.
   await writeFile(
     path.join(dir, "ssh-stub"),
-    '#!/bin/sh\nfor a in "$@"; do case "$a" in *df*) echo "$FAKE_FREE_MB"; exit 0;; esac; done\nexit 0\n',
+    [
+      "#!/bin/sh",
+      'for a in "$@"; do case "$a" in *df*)',
+      '  if [ -n "$FAKE_FREE_OVER_DUMP_MB" ]; then',
+      '    newest=""',
+      '    for f in "$HD_BACKUP_DIR"/highdesert-*.dump; do',
+      '      [ -e "$f" ] || continue',
+      '      if [ -z "$newest" ] || [ "$f" -nt "$newest" ]; then newest="$f"; fi',
+      "    done",
+      '    bytes=$(stat -c %s "$newest")',
+      "    echo $(( (bytes + 1048575) / 1048576 + FAKE_FREE_OVER_DUMP_MB ))",
+      '  else echo "$FAKE_FREE_MB"; fi',
+      "  exit 0;; esac; done",
+      "exit 0",
+      "",
+    ].join("\n"),
     { mode: 0o755 },
   );
   await writeFile(path.join(dir, "rsync-stub"), `#!/bin/sh\necho "$@" >> "${rsyncLog}"\n`, { mode: 0o755 });
@@ -155,23 +174,31 @@ describeDb("backup-db.sh", () => {
     expect(await readFile(statusFile, "utf8")).toMatch(/mac_result=ok/);
   });
 
-  // The floor is the dump's own size plus 500 MB — not a fixed number of
-  // gigabytes. The test dump is well under 1 MB, so it needs exactly 501 MB.
+  // The floor is the dump's own size (whole MB, rounded up) plus 500 MB, not a
+  // fixed number of gigabytes. The Mac's free space is answered relative to the
+  // dump the run wrote, so these hold at any dump size.
+  async function dumpMb(): Promise<number> {
+    const [file] = await dumps();
+    return Math.ceil((await stat(path.join(backupDir, file))).size / 1048576);
+  }
+
   it("skips the Mac copy, with a warning, when the Mac lacks room for the dump plus 500 MB", async () => {
-    const r = await sh(BACKUP, backupEnv({ FAKE_FREE_MB: "500" }));
+    const r = await sh(BACKUP, backupEnv({ FAKE_FREE_OVER_DUMP_MB: "499" }));
     expect(r.code).toBe(0);
     expect(await rsyncCalls()).toHaveLength(0);
-    expect(r.out).toContain("WARN skipped: Mac has 500MB free, needs 501MB (dump + 500MB)");
     expect(await dumps()).toHaveLength(1);
+    const mb = await dumpMb();
+    expect(r.out).toContain(`WARN skipped: Mac has ${mb + 499}MB free, needs ${mb + 500}MB (dump + 500MB)`);
     const status = await sh(STATUS, statusEnv());
     expect(status.code).toBe(0);
     expect(status.out).toMatch(/^DB BACKUP OK/);
-    expect(status.out).toMatch(/^WARN {2}off-box \(Mac\) copy skipped: Mac has 500MB free/m);
+    expect(status.out).toContain(`WARN  off-box (Mac) copy skipped: Mac has ${mb + 499}MB free`);
   });
 
   it("copies to a Mac with far less than 5 GB free when the dump fits", async () => {
-    const r = await sh(BACKUP, backupEnv({ FAKE_FREE_MB: "501" }));
+    const r = await sh(BACKUP, backupEnv({ FAKE_FREE_OVER_DUMP_MB: "500" }));
     expect(r.code).toBe(0);
+    expect(await dumpMb()).toBeLessThan(5120 - 500); // else this would not test the fixed floor
     expect(await rsyncCalls()).toHaveLength(1);
     const status = await sh(STATUS, statusEnv());
     expect(status.out).not.toMatch(/^WARN/m);

@@ -869,7 +869,7 @@ archive. Feasibility, measurements and sizing: `docs/torrent-mirror-feasibility.
   15-minute mean from cgroup accounting, sampled each minute by `hd-cpu-sample.timer`
   in `/root/vps-tools`; FAIL above 10% of a core), `warm` (last run; WARN when
   stale >36h, skipped for steal, or with failed fetches) and `disk` (free space
-  on `/`: WARN under 15 GB, FAIL under 5 GB; the warm job needs 10 GB free and a
+  on `/`: WARN under 10 GB, FAIL under 5 GB (15 until 2026-10-16); the warm job needs 10 GB free and a
   build about 1 GB; `disk-sweep --dry-run` lists what can go) lines.
 - **The `failures` line is starts lost, the trailing 7 days** (2026-10-12): lost
   (failed and not rescued by the retry or the mirror, repeats in one tab

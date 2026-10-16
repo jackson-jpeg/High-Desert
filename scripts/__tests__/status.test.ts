@@ -902,10 +902,10 @@ describe("highdesert-status", () => {
   });
 
   describe("disk line", () => {
-    it("WARNs under 15 GB free, before the warm job's 10 GB floor", async () => {
-      world.disk = { avail: 14_900_000_000, size: 96_000_000_000 };
+    it("WARNs under 10 GB free, where the warm job stops pinning", async () => {
+      world.disk = { avail: 9_900_000_000, size: 96_000_000_000 };
       const r = await run();
-      expect(lineFor(r.out, "disk")).toMatch(/^WARN\s+disk\s+14\.9 GB free of 96\.0 GB.*WARN under 15 GB/);
+      expect(lineFor(r.out, "disk")).toMatch(/^WARN\s+disk\s+9\.9 GB free of 96\.0 GB.*WARN under 10 GB/);
       expect(r.code).toBe(0);
     });
 
@@ -916,8 +916,10 @@ describe("highdesert-status", () => {
       expect(r.code).not.toBe(0);
     });
 
-    it("control: 15 GB exactly is OK", async () => {
-      world.disk = { avail: 15_000_000_000, size: 96_000_000_000 };
+    it("control: 10 GB exactly is OK, and so is 14.4 GB (a WARN under the old 15 GB line)", async () => {
+      world.disk = { avail: 10_000_000_000, size: 96_000_000_000 };
+      expect(lineFor((await run()).out, "disk")).toMatch(/^OK\s+disk/);
+      world.disk = { avail: 14_400_000_000, size: 96_000_000_000 };
       expect(lineFor((await run()).out, "disk")).toMatch(/^OK\s+disk/);
     });
   });
