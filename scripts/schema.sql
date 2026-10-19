@@ -400,3 +400,72 @@ ALTER TABLE arrival_daily ADD COLUMN IF NOT EXISTS look text
 CREATE UNIQUE INDEX IF NOT EXISTS arrival_daily_key
   ON arrival_daily (day, source, landing, device, look) NULLS NOT DISTINCT;
 ALTER TABLE arrival_daily DROP CONSTRAINT IF EXISTS arrival_daily_pkey;
+
+-- ---------------------------------------------------------------------------
+-- Visitors (src/services/stats/db/visitors.ts, docs/visitors.md)
+-- ---------------------------------------------------------------------------
+
+-- One row per browser: a random id the browser minted and keeps in
+-- localStorage (`hd-visitor`, src/services/stats/visitor-client.ts). Never an
+-- address: the location columns are what the request's address resolved to in
+-- the self-hosted geo database at request time (src/lib/geo/geoip.ts), and the
+-- address itself is never written anywhere.
+--
+-- `origin` says where a row came from:
+--   browser  a browser that posted /api/stats/visitor;
+--   funnel   a backfilled arrival: funnel_daily counted a new browser on
+--            `first_day` (it has no id, so the row is a placeholder for it).
+--            A browser that posts with that cohort day *claims* one (the
+--            placeholder is deleted in the same transaction), so a browser is
+--            never counted twice. reconcileVisitorBackfill() keeps the
+--            placeholders equal to funnel arrivals minus claimed browsers.
+-- `funnel_cohort`/`funnel_device`/`funnel_look`: the browser's own funnel
+-- arrival (day, device, look), when it has one; what a claim matches.
+-- `here_before`: the browser arrived with a library already in it, i.e. it
+-- was a visitor before the funnel began (2026-09-27). Its first_seen is when
+-- this table first saw it, not when it first came.
+CREATE TABLE IF NOT EXISTS visitors (
+  id            text        PRIMARY KEY CHECK (id ~ '^[A-Za-z0-9_-]{16,64}$'),
+  origin        text        NOT NULL DEFAULT 'browser' CHECK (origin IN ('browser', 'funnel')),
+  first_seen    timestamptz NOT NULL DEFAULT now(),
+  last_seen     timestamptz NOT NULL DEFAULT now(),
+  first_day     date        NOT NULL DEFAULT (now() AT TIME ZONE 'UTC')::date,
+  last_day      date        NOT NULL DEFAULT (now() AT TIME ZONE 'UTC')::date,
+  -- Distinct UTC days this browser was seen on.
+  visit_days    int         NOT NULL DEFAULT 1 CHECK (visit_days >= 1),
+  device        text        NOT NULL CHECK (device IN ('phone', 'desktop')),
+  look          text        CHECK (look IS NULL OR look IN ('win98', 'night')),
+  -- ISO 3166-1 alpha-2, and the subdivision's English name ("California").
+  -- The latest lookup; NULL when unknown (a placeholder, or no geo database).
+  country       text        CHECK (country IS NULL OR country ~ '^[A-Z]{2}$'),
+  region        text        CHECK (region IS NULL OR length(region) <= 80),
+  here_before   boolean     NOT NULL DEFAULT false,
+  funnel_cohort date,
+  funnel_device text        CHECK (funnel_device IS NULL OR funnel_device IN ('phone', 'desktop')),
+  funnel_look   text        CHECK (funnel_look IS NULL OR funnel_look IN ('win98', 'night'))
+);
+CREATE INDEX IF NOT EXISTS visitors_last_seen_idx ON visitors (last_seen DESC);
+CREATE INDEX IF NOT EXISTS visitors_funnel_slot_idx
+  ON visitors (first_day, device) WHERE origin = 'funnel';
+CREATE INDEX IF NOT EXISTS visitors_cohort_idx
+  ON visitors (funnel_cohort, funnel_device) WHERE origin = 'browser' AND funnel_cohort IS NOT NULL;
+
+-- Where the people here right now are: the heartbeat's request resolved in the
+-- geo database (never the address). Gone with the row, like everything else
+-- in active_sessions.
+ALTER TABLE active_sessions ADD COLUMN IF NOT EXISTS country text;
+ALTER TABLE active_sessions ADD COLUMN IF NOT EXISTS region text;
+
+-- "Tuning in from": one row each time a tab tunes in to the live station, with
+-- where it resolved to. No session, no client, no address. `city` only when
+-- the geo database says the city is reliable (an accuracy radius it reports
+-- and that is small; DB-IP Lite reports none, so with it `city` stays NULL).
+-- Pruned at 7 days by the sample timer.
+CREATE TABLE IF NOT EXISTS visitor_tuneins (
+  id      bigserial   PRIMARY KEY,
+  at      timestamptz NOT NULL DEFAULT now(),
+  country text        CHECK (country IS NULL OR country ~ '^[A-Z]{2}$'),
+  region  text        CHECK (region IS NULL OR length(region) <= 80),
+  city    text        CHECK (city IS NULL OR length(city) <= 80)
+);
+CREATE INDEX IF NOT EXISTS visitor_tuneins_at_idx ON visitor_tuneins (at DESC);

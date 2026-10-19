@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useAppPathname } from "@/hooks/useAppPathname";
 import { reportView, takeArrival, viewPayload } from "@/services/stats/usage-client";
+import { noteVisitor } from "@/services/stats/visitor-client";
 
 /**
  * How long a tab must stay entered to count as a view. The welcome page sends
@@ -22,6 +23,9 @@ export const VIEW_SETTLE_MS = 1000;
 export function UsageTracker() {
   const pathname = useAppPathname();
   const landing = useRef<string | null>(null);
+
+  // The visitor count (docs/visitors.md): this browser, once per page load.
+  useEffect(() => noteVisitor(), []);
 
   useEffect(() => {
     if (!pathname) return;

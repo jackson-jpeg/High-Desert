@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
-import { SESSIONS_PER_CLIENT, recordHeartbeat, recordRouteMinute } from "@/services/stats/store";
+import { rateLimit, getClientIp, getClientKey } from "@/lib/utils/rate-limit";
+import { SESSIONS_PER_CLIENT, recordHeartbeat, recordRouteMinute, recordTuneIn } from "@/services/stats/store";
+import { lookup } from "@/lib/geo/geoip";
 import { isUsageDevice, isUsageRoute } from "@/lib/usage/vocab";
 import { isKnownEpisodeId } from "@/services/stats/allowlist";
 import { readJsonObject } from "@/lib/utils/json-body";
@@ -26,6 +27,10 @@ const SESSION_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
  * pressed play. Optional by design: a tab that is merely open sends the session
  * alone, and the listening mark it does not send is left untouched rather than
  * cleared, so a pause does not yank the show off the air.
+ *
+ * The request's address is looked up in the self-hosted geo database
+ * (src/lib/geo/geoip.ts): the session row keeps the country and region, and a
+ * beat that tunes in adds a line to `visitor_tuneins` (docs/visitors.md).
  *
  * Response shape: `{ ok: true }` — nothing else. (This comment used to promise
  * `{ ok, online, listening }`, which the route has never returned; HD-041.)
@@ -77,8 +82,16 @@ export async function POST(request: NextRequest) {
       ? episodeId
       : null;
 
+  // Where the beat came from (docs/visitors.md): looked up on this server and
+  // kept as a country and region only. The address goes no further.
+  const geo = lookup(getClientIp(request));
   try {
-    await recordHeartbeat(sessionId, listeningTo, ip, live === true);
+    const beat = await recordHeartbeat(sessionId, listeningTo, ip, live === true, geo);
+    // "Tuning in from": one line per client per half hour, so a flaky
+    // connection re-tuning does not fill the feed with one place.
+    if (beat?.tunedIn && geo.country && tuneInAllowed(ip)) {
+      await recordTuneIn(geo).catch((err) => console.error("[stats/heartbeat] tune-in not stored:", err));
+    }
   } catch (err) {
     console.error("[stats/heartbeat] store error:", err);
     return NextResponse.json({ error: "Stats unavailable" }, { status: 503 });
@@ -95,6 +108,12 @@ export async function POST(request: NextRequest) {
     }
   }
   return NextResponse.json({ ok: true });
+}
+
+const TUNEIN_PER_CLIENT_MS = 30 * 60_000;
+
+function tuneInAllowed(ip: string): boolean {
+  return rateLimit(`stats-tunein:${ip}`, { maxRequests: 1, windowMs: TUNEIN_PER_CLIENT_MS }).allowed;
 }
 
 /**

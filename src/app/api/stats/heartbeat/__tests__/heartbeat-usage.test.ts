@@ -43,7 +43,7 @@ describe("POST /api/stats/heartbeat: time per tab", () => {
     const res = await beat({ sessionId: S, route: "live", device: "phone", visible: true });
     expect(res.status).toBe(200);
     expect(store.recordRouteMinute).toHaveBeenCalledWith("live", "phone");
-    expect(store.recordHeartbeat).toHaveBeenCalledWith(S, null, expect.any(String), false);
+    expect(store.recordHeartbeat).toHaveBeenCalledWith(S, null, expect.any(String), false, expect.anything());
   });
 
   it("a hidden tab, a missing field or an unknown value adds nothing, and the beat still succeeds", async () => {

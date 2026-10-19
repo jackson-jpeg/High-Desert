@@ -33,7 +33,7 @@ describe("POST /api/stats/heartbeat — live", () => {
     const res = await beat({ sessionId: "session-abcdefgh", episodeId: "coll--show", live: true });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
-    expect(store.recordHeartbeat).toHaveBeenCalledWith("session-abcdefgh", "coll--show", expect.any(String), true);
+    expect(store.recordHeartbeat).toHaveBeenCalledWith("session-abcdefgh", "coll--show", expect.any(String), true, expect.anything());
   });
 
   it("absent, false, or a truthy non-boolean is not live", async () => {

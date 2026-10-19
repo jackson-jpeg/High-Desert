@@ -113,26 +113,46 @@ export async function recordHeartbeat(
    * count should drop within one beat of it rather than five minutes.
    */
   live = false,
-): Promise<void> {
+  /**
+   * Where the beat came from, resolved in the geo database by the route (never
+   * the address): what "right now, by state" counts (docs/visitors.md). A beat
+   * that resolved nothing keeps what the session had.
+   */
+  geo: { country: string | null; region: string | null } = { country: null, region: null },
+): Promise<{ tunedIn: boolean }> {
   const ref = clientRef(client);
-  await withClientLock(ref, (c) => c.query(
+  const { rows } = await withClientLock(ref, (c) => c.query<{ tuned_in: boolean }>(
     `
-    INSERT INTO active_sessions (session_id, seen_at, listening_at, episode_id, client_ref, live_at)
-    SELECT $1, now(), CASE WHEN $2::text IS NULL THEN NULL ELSE now() END, $2, $3,
-           CASE WHEN $5::boolean THEN now() ELSE NULL END
-    WHERE ${ADMIT_SESSION("$1", "$3", "$4")}
-    ON CONFLICT (session_id) DO UPDATE SET
-      seen_at = now(),
-      listening_at = CASE
-        WHEN $2::text IS NULL THEN active_sessions.listening_at
-        ELSE now()
-      END,
-      episode_id = COALESCE($2, active_sessions.episode_id),
-      client_ref = $3,
-      live_at = CASE WHEN $5::boolean THEN now() ELSE NULL END
+    WITH prev AS (
+      SELECT live_at FROM active_sessions WHERE session_id = $1
+    ), up AS (
+      INSERT INTO active_sessions (session_id, seen_at, listening_at, episode_id, client_ref, live_at, country, region)
+      SELECT $1, now(), CASE WHEN $2::text IS NULL THEN NULL ELSE now() END, $2, $3,
+             CASE WHEN $5::boolean THEN now() ELSE NULL END, $6, $7
+      WHERE ${ADMIT_SESSION("$1", "$3", "$4")}
+      ON CONFLICT (session_id) DO UPDATE SET
+        seen_at = now(),
+        listening_at = CASE
+          WHEN $2::text IS NULL THEN active_sessions.listening_at
+          ELSE now()
+        END,
+        episode_id = COALESCE($2, active_sessions.episode_id),
+        client_ref = $3,
+        live_at = CASE WHEN $5::boolean THEN now() ELSE NULL END,
+        country = COALESCE($6, active_sessions.country),
+        region = CASE WHEN $6::text IS NOT NULL THEN $7 ELSE active_sessions.region END
+      RETURNING 1
+    )
+    -- A tune-in: this beat is live and the session was not (new, cleared, or
+    -- its mark already outside the window). Read from the snapshot before the
+    -- upsert, which is what CTEs see.
+    SELECT $5::boolean AND EXISTS (SELECT 1 FROM up) AND NOT EXISTS (
+      SELECT 1 FROM prev WHERE live_at >= now() - interval '${ACTIVE_WINDOW_MS / 1000} seconds'
+    ) AS tuned_in
     `,
-    [sessionId, episodeId ?? null, ref, SESSIONS_PER_CLIENT, live],
+    [sessionId, episodeId ?? null, ref, SESSIONS_PER_CLIENT, live, geo.country, geo.region],
   ));
+  return { tunedIn: rows[0]?.tuned_in === true };
 }
 
 /**
@@ -172,7 +192,7 @@ export interface Presence {
  * written before that column existed falls back to its own session, so it
  * still counts once rather than vanishing or merging with a stranger.
  */
-const PRESENCE_WHO = "COALESCE(client_ref, 'session:' || session_id)";
+export const PRESENCE_WHO = "COALESCE(client_ref, 'session:' || session_id)";
 
 /**
  * Who is here right now — the one computation behind every presence number the

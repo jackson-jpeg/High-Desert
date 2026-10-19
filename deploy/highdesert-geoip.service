@@ -1,0 +1,23 @@
+[Unit]
+Description=High Desert — refresh the self-hosted geo database (DB-IP City Lite)
+Documentation=file:///root/High-Desert/docs/visitors.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# One ~130 MB download a month, checked and renamed into place; the app
+# picks up the new file within 10 minutes without a restart. A failed
+# download leaves the old file serving.
+WorkingDirectory=/root/High-Desert
+ExecStart=/usr/bin/node /root/High-Desert/scripts/update-geoip.mjs
+Environment=GEOIP_DB=/var/lib/highdesert-geoip/city.mmdb
+StateDirectory=highdesert-geoip
+StateDirectoryMode=0755
+# Optional: GEOIP_MAXMIND_LICENSE_KEY for GeoLite2 City instead of DB-IP.
+EnvironmentFile=-/root/.high-desert.env
+CPUQuota=10%
+Nice=19
+IOSchedulingClass=idle
+TimeoutStartSec=20min
+SyslogIdentifier=highdesert-geoip
