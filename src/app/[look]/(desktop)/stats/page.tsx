@@ -11,6 +11,7 @@ import { SmartPlaylists } from "@/components/library/SmartPlaylists";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { CommunityLeaderboard } from "@/components/library/CommunityLeaderboard";
 import { SignalTraffic } from "@/components/library/SignalTraffic";
+import { Listeners } from "@/components/library/Listeners";
 import { OnAir } from "@/components/library/OnAir";
 import { PlaybackFailures } from "@/components/library/PlaybackFailures";
 import { Supporters } from "@/components/library/Supporters";
@@ -133,6 +134,14 @@ export default function StatsPage() {
           unavailable. */}
       <WidgetErrorBoundary name="Signal Traffic">
         <SignalTraffic />
+      </WidgetErrorBoundary>
+
+      {/* ── Listeners ── everyone counted once since the funnel began, where
+          they tune in from, and the records (docs/visitors.md). After Signal
+          Traffic: that is how many at once, this is how many in all and where.
+          Renders nothing when the stats service is unavailable. */}
+      <WidgetErrorBoundary name="Listeners">
+        <Listeners />
       </WidgetErrorBoundary>
 
       {/* ── Supporters ── the listeners who chipped in, and how to join them
