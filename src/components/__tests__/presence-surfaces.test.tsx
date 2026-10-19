@@ -53,6 +53,13 @@ vi.mock("@/components/desktop/Starfield", () => ({ Starfield: () => null }));
 const { DesktopShell } = await import("@/components/desktop/DesktopShell");
 const { OnAir } = await import("@/components/library/OnAir");
 const { SignalTraffic } = await import("@/components/library/SignalTraffic");
+const { Listeners } = await import("@/components/library/Listeners");
+const VISITORS = {
+  countingSince: "2026-09-27",
+  totals: { visitors: 1200, browsers: 40, backfilled: 1160, hereBefore: 3, newThisWeek: 90, activeThisWeek: 140, returning: 114 },
+  locations: { allTime: { total: 0, countries: [], states: [] }, week: { total: 0, countries: [], states: [] }, now: { total: 0, countries: [], states: [] } },
+  attribution: null,
+};
 const { resetNowFeedForTests } = await import("@/services/stats/now-feed");
 const { LiveStation } = await import("@/components/live/LiveStation");
 const { useLiveStore } = await import("@/stores/live-store");
@@ -103,6 +110,9 @@ beforeEach(() => {
       if (u.startsWith("/api/stats/active")) return json(LEGACY_ACTIVE);
       if (u.startsWith("/api/stats/traffic")) return json(traffic());
       if (u.startsWith("/api/stats/heartbeat")) return json({ ok: true });
+      if (u.startsWith("/api/stats/visitors")) return json(VISITORS);
+      if (u.startsWith("/api/stats/tuning-in")) return json({ entries: [], attribution: null });
+      if (u.startsWith("/api/stats/records")) return json({ biggestCrowd: null, biggestDay: null, biggestArrivalDay: null, mostPlayed: null });
       return new Response("{}", { status: 404 });
     }),
   );
@@ -130,6 +140,7 @@ describe("presence: one truth on every surface", () => {
         <DesktopShell episodeCount={1312}>
           <OnAir />
           <SignalTraffic />
+          <Listeners />
         </DesktopShell>,
       );
     });
@@ -143,7 +154,7 @@ describe("presence: one truth on every surface", () => {
 
     const surfaces = [...host.querySelectorAll("[data-presence]")];
     const names = surfaces.map((s) => s.getAttribute("data-presence")).sort();
-    expect(names).toEqual(["badge", "mobile-sheet", "on-air", "signal-traffic", "status-bar"]);
+    expect(names).toEqual(["badge", "listeners", "mobile-sheet", "on-air", "signal-traffic", "status-bar"]);
 
     const polls = new Set(surfaces.map((s) => s.getAttribute("data-presence-poll")));
     expect(polls.size).toBe(1);
@@ -153,8 +164,8 @@ describe("presence: one truth on every surface", () => {
       expect(s.getAttribute("data-online"), name!).toBe("8");
       expect(s.getAttribute("data-listening"), name!).toBe("3");
       const shown = numbersIn(s);
-      // The badge shows online only; every other surface shows both.
-      expect(shown, name!).toEqual(name === "badge" ? [8] : [8, 3]);
+      // The badge and Listeners show online only; every other surface shows both.
+      expect(shown, name!).toEqual(name === "badge" || name === "listeners" ? [8] : [8, 3]);
     }
   });
 

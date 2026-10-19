@@ -373,3 +373,118 @@ export async function fetchTraffic(
     return null;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Visitors (docs/visitors.md): /api/stats/visitors, /tuning-in, /records
+// ---------------------------------------------------------------------------
+
+export interface PlaceCountry {
+  country: string | null;
+  name: string | null;
+  n: number;
+}
+export interface PlaceState {
+  region: string | null;
+  code: string | null;
+  n: number;
+}
+export interface PlaceBreakdown {
+  total: number;
+  countries: PlaceCountry[];
+  states: PlaceState[];
+}
+export interface Attribution {
+  text: string;
+  url: string;
+}
+export interface VisitorStats {
+  countingSince: string;
+  totals: {
+    visitors: number;
+    browsers: number;
+    backfilled: number;
+    hereBefore: number;
+    newThisWeek: number;
+    activeThisWeek: number;
+    returning: number;
+  };
+  locations: { allTime: PlaceBreakdown; week: PlaceBreakdown; now: PlaceBreakdown };
+  attribution: Attribution | null;
+}
+export interface TuneInEntry {
+  at: string;
+  country: string | null;
+  name: string | null;
+  region: string | null;
+  code: string | null;
+  city: string | null;
+}
+export interface StationRecords {
+  biggestCrowd: { online: number; listening: number; at: string | null; day: string; since: string } | null;
+  biggestDay: { day: string; plays: number } | null;
+  biggestArrivalDay: { day: string; visitors: number } | null;
+  mostPlayed: { episodeId: string; plays: number; title: string | null } | null;
+}
+
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+
+function breakdownOf(v: unknown): PlaceBreakdown {
+  const b = (v ?? {}) as Partial<PlaceBreakdown>;
+  return {
+    total: num(b.total),
+    countries: Array.isArray(b.countries) ? b.countries.filter((c) => c && typeof c.n === "number") : [],
+    states: Array.isArray(b.states) ? b.states.filter((s) => s && typeof s.n === "number") : [],
+  };
+}
+
+async function getJson(url: string): Promise<unknown | null> {
+  try {
+    const res = await fetchWithRetry(url, undefined, RETRY_OPTS);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/** Unique visitors and where they are. Null when stats are unavailable or the shape is not one we know. */
+export async function fetchVisitorStats(): Promise<VisitorStats | null> {
+  const d = (await getJson("/api/stats/visitors")) as Record<string, unknown> | null;
+  if (!d || typeof d.countingSince !== "string" || !d.totals || !d.locations) return null;
+  const t = d.totals as Record<string, unknown>;
+  const l = d.locations as Record<string, unknown>;
+  const a = d.attribution as Attribution | undefined;
+  return {
+    countingSince: d.countingSince,
+    totals: {
+      visitors: num(t.visitors),
+      browsers: num(t.browsers),
+      backfilled: num(t.backfilled),
+      hereBefore: num(t.hereBefore),
+      newThisWeek: num(t.newThisWeek),
+      activeThisWeek: num(t.activeThisWeek),
+      returning: num(t.returning),
+    },
+    locations: { allTime: breakdownOf(l.allTime), week: breakdownOf(l.week), now: breakdownOf(l.now) },
+    attribution: a && typeof a.text === "string" && typeof a.url === "string" ? a : null,
+  };
+}
+
+/** The last tune-ins, newest first; [] when unavailable. */
+export async function fetchTuningIn(): Promise<{ entries: TuneInEntry[]; attribution: Attribution | null }> {
+  const d = (await getJson("/api/stats/tuning-in")) as { entries?: unknown; attribution?: Attribution } | null;
+  const entries = Array.isArray(d?.entries) ? (d.entries as TuneInEntry[]).filter((e) => e && typeof e.at === "string") : [];
+  return { entries, attribution: d?.attribution ?? null };
+}
+
+/** The station's records; null when unavailable. */
+export async function fetchRecords(): Promise<StationRecords | null> {
+  const d = (await getJson("/api/stats/records")) as Partial<StationRecords> | null;
+  if (!d || typeof d !== "object") return null;
+  return {
+    biggestCrowd: d.biggestCrowd ?? null,
+    biggestDay: d.biggestDay ?? null,
+    biggestArrivalDay: d.biggestArrivalDay ?? null,
+    mostPlayed: d.mostPlayed ?? null,
+  };
+}
