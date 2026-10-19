@@ -14,6 +14,8 @@ const store = {
   rollUpTraffic: vi.fn(),
   anonymizeOldSessions: vi.fn(),
   pruneOldWeeks: vi.fn(),
+  reconcileVisitorBackfill: vi.fn(),
+  pruneTuneIns: vi.fn(),
 };
 vi.mock("@/services/stats/store", () => store);
 
@@ -32,6 +34,8 @@ beforeEach(() => {
   store.rollUpTraffic.mockReset().mockResolvedValue(3);
   store.anonymizeOldSessions.mockReset().mockResolvedValue(0);
   store.pruneOldWeeks.mockReset().mockResolvedValue(5);
+  store.reconcileVisitorBackfill.mockReset().mockResolvedValue({ inserted: 0, deleted: 0, placeholders: 7 });
+  store.pruneTuneIns.mockReset().mockResolvedValue(0);
 });
 
 describe("POST /api/stats/sample", () => {
@@ -49,6 +53,19 @@ describe("POST /api/stats/sample", () => {
     const res = await POST(sample());
     expect(res.status).toBe(200);
     expect(store.pruneOldWeeks).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the visitors backfill reconciled on every sample, and survives it failing", async () => {
+    const { POST } = await import("../route");
+    const res = await POST(sample());
+    expect(store.reconcileVisitorBackfill).toHaveBeenCalledTimes(1);
+    expect(store.pruneTuneIns).toHaveBeenCalledTimes(1);
+    expect(await res.json()).toMatchObject({ ok: true, placeholders: 7 });
+
+    store.reconcileVisitorBackfill.mockRejectedValue(new Error("visitors down"));
+    const again = await POST(sample());
+    expect(again.status).toBe(200);
+    expect(await again.json()).toMatchObject({ ok: true, prunedWeeks: 5, placeholders: null });
   });
 
   it("does nothing without the token", async () => {

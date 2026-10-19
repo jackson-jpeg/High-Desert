@@ -1,0 +1,12 @@
+[Unit]
+Description=High Desert — monthly geo database refresh
+
+[Timer]
+# DB-IP publishes each month's Lite file in its first days; the 4th leaves
+# room, and the script falls back to last month's if this month's is absent.
+OnCalendar=*-*-04 04:40:00 UTC
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target

@@ -93,3 +93,29 @@ export type {
   FailureSummary,
   FailureWindow,
 } from "./db/failures";
+
+export {
+  COUNTING_SINCE_FALLBACK,
+  CROWDS_COMPARABLE_FROM,
+  isVisitorId,
+  isCohortDay,
+  visitorExists,
+  recordVisit,
+  reconcileVisitorBackfill,
+  recordTuneIn,
+  pruneTuneIns,
+  getVisitorTotals,
+  getVisitorLocations,
+  getTuneIns,
+  getRecords,
+} from "./db/visitors";
+export type {
+  VisitInput,
+  VisitResult,
+  ReconcileResult,
+  VisitorTotals,
+  VisitorLocations,
+  LocationBreakdown,
+  TuneIn,
+  Records,
+} from "./db/visitors";

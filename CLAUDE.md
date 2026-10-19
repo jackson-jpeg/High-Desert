@@ -181,6 +181,10 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/funnel` | POST/GET | **The arrival funnel** (`docs/funnel.md`). POST `{step, cohort, device, look?, again?}`: a browser reached `visit`/`live`/`tune`/`call`/`return` for the first time (`return`: back on a later UTC day), and first arrived on `cohort` (UTC `YYYY-MM-DD`, within 30 days) as a `phone` (narrower than 768 px) or `desktop`, fixed at arrival; `look` is the look it took the step in (`win98`/`night`, else stored NULL), `again: true` when it already counted the step in its other look (each look's funnel is whole; totals count `again` rows never); adds one to `funnel_daily`. Returns `{ok}`; 10/min. GET `?days=7\|30\|90` → **`{days, cohorts: [{day, device, visit, live, tune, call, return}], totals, byDevice: {phone, desktop}, byLook: {win98: {phone, desktop}, night: {phone, desktop}}}`**, `no-store`. A browser that arrived with an empty library is counted; one that already had a library is excluded for good (`src/services/stats/funnel-client.ts`, which keeps "once" in localStorage `hd-funnel`). No session, no address, no id. `highdesert-status`'s `funnel` line reads it. Anything that browses production headless must keep out of it: `csp-check` marks its browser excluded, `presence-check` and the e2e fixture answer the POST in the page |
 | `/api/stats/view` | POST | **A tab entered** (`docs/usage-tracking.md`). Body `{route, device, arrival?: {source, landing, look?}}`: adds one view to `route_daily` for today (UTC). `route`/`landing` are `welcome`/`library`/`radio`/`stats`/`live`/`show`/`other` (`routeOf()`, `src/lib/usage/vocab.ts`), `device` `phone` (narrower than 768 px) or `desktop`; an unknown route or device is **400**. `arrival` rides on a browser session's first view (sessionStorage `hd-arrival`): a coarse class decided in the browser, `reddit`/`google`/`other-search`/`ai`/`social`/`internal`/`direct`/`other` (`src/lib/usage/arrival.ts`), counted in `arrival_daily` with the look it landed in (`win98`/`night`, else NULL); a malformed one is dropped and the view still counted. Returns `{ok}`; 60/min. Sent by `UsageTracker` (root layout) once a tab has been on screen 1 s. **Never** a referrer, host, URL, session, address or user agent. Kept out like the funnel: `localStorage["hd-not-counted"]` (set by `csp-check`) stops it, and the minutes and funnel steps too; `presence-check` and the e2e fixture answer the POST in the page |
 | `/api/stats/usage` | GET | **Usage, aggregate only.** `?days=7\|30\|90` (else 7) → **`{days, routes: [{route, device, views, minutes}], arrivals: [{source, landing, device, look, n}], playsBySurface: {library, radio, live, stats, show, palette, queue, restore, other, unknown}, playsByLook: {win98, night, unknown}}`**. UTC days, today included; `routes` most viewed first, `arrivals` largest first; `playsBySurface` counts `play_events` in the same window (`unknown`: no surface). `no-store`, 30/min |
+| `/api/stats/visitor` | POST | **A browser was here** (`docs/visitors.md`). Body `{visitorId, device, look?, cohort?, cohortDevice?, cohortLook?, hereBefore?}`: the browser's random id (localStorage `hd-visitor`, 16–64 of `A-Za-z0-9_-`, never `funnel-…`), once per page load from `UsageTracker`, with its funnel arrival once known, which claims one backfilled placeholder. Returns `{ok, counted}` (`counted: false`: a robot's UA, or past 30 new ids per client an hour). The address is looked up in the self-hosted geo database (country, region) and **never stored**. 20/min |
+| `/api/stats/visitors` | GET | **Unique visitors, all time, and where.** **`{countingSince, totals: {visitors, browsers, backfilled, hereBefore, newThisWeek, activeThisWeek, returning}, locations: {allTime, week, now}, attribution}`**, each location `{total, countries: [{country, name, n}], states: [{region, code, n}]}` (US only), unknown (null) last. `now` is the presence set by where heartbeats resolved. `countingSince` is the first funnel cohort (2026-09-27). `no-store`, 30/min |
+| `/api/stats/tuning-in` | GET | **`{entries: [{at, country, name, region, code, city}], attribution}`**, the last 10 tune-ins to the station, newest first, one per client per half hour. `city` only when the geo database reports an accuracy radius ≤ 50 km (never with DB-IP Lite). `no-store`, 60/min |
+| `/api/stats/records` | GET | **`{biggestCrowd: {online, listening, at, day, since}, biggestDay: {day, plays}, biggestArrivalDay: {day, visitors}, mostPlayed: {episodeId, plays, title}}`**, each null when empty. The crowd counts from 2026-09-24 (`since`), when `online` began counting people. `max-age=60`, 30/min |
 | `/api/stats/export` | GET | **The permanent record, for sang3r.com.** Requires `x-service-token` (`STATS_EXPORT_SECRET`). `?mode=summary\|events\|daily\|episodes`. The only route that returns the event log rather than aggregates, and the only one not reachable from a browser. Episode ids are resolved to titles from the seed catalog. Page `events` with `after=<last id>` — **not** with `since`, which cannot disambiguate two plays sharing a timestamp |
 
 > Response shapes are inconsistent by history, not design. `src/services/stats/client.ts`
@@ -1139,6 +1143,23 @@ release came from one tab still running the build before it.
   and `e2e/stale-tab.spec.ts` (a tab on build A, B deployed in the page, the
   reload after the slot boundary, B playing with no tap). Mutations: the
   `stale-tab-*`, `live-*reload*`, `build-*` ids.
+
+## Visitors and location (2026-10-19, read before touching `src/services/stats/db/visitors.ts` or `src/lib/geo/`)
+
+Full account: `docs/visitors.md`.
+
+- **`visitors` is one row per browser**, keyed by a random id the browser keeps
+  (`hd-visitor`). Location is a country and a region from the self-hosted geo
+  database (`/var/lib/highdesert-geoip/city.mmdb`, DB-IP City Lite, refreshed by
+  `highdesert-geoip.timer`); **the address is never stored**, here or anywhere.
+  Never add a third-party geo or analytics service.
+- **Backfill is placeholders, claimed.** Funnel arrivals since 2026-09-27 are
+  `origin = 'funnel'` rows; a browser naming its arrival deletes one in the
+  same transaction; the sample timer reconciles them (`planPlaceholders`).
+  Anything that writes `visitors` must keep "a browser is counted once".
+- **A city only when the database vouches for it** (accuracy radius ≤ 50 km);
+  DB-IP Lite has none, so the feed is region-level. Pages showing places credit
+  DB-IP (the APIs carry `attribution`).
 
 ## The weekly digest
 

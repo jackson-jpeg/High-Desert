@@ -3,6 +3,8 @@ import { timingSafeEqual } from "node:crypto";
 import {
   anonymizeOldSessions,
   pruneOldWeeks,
+  pruneTuneIns,
+  reconcileVisitorBackfill,
   recordSample,
   rollUpTraffic,
 } from "@/services/stats/store";
@@ -55,7 +57,17 @@ export async function POST(request: NextRequest) {
       console.error("[stats/sample] weekly prune:", err);
     }
 
-    return NextResponse.json({ ok: true, ...sample, rolledUp, anonymized, prunedWeeks });
+    // Visitors (docs/visitors.md): the funnel's arrivals kept backfilled as
+    // placeholders, and the tune-in feed pruned. Its own block, like the prune.
+    let placeholders: number | null = null;
+    try {
+      placeholders = (await reconcileVisitorBackfill()).placeholders;
+      await pruneTuneIns();
+    } catch (err) {
+      console.error("[stats/sample] visitors:", err);
+    }
+
+    return NextResponse.json({ ok: true, ...sample, rolledUp, anonymized, prunedWeeks, placeholders });
   } catch (err) {
     console.error("[stats/sample] store error:", err);
     return NextResponse.json(

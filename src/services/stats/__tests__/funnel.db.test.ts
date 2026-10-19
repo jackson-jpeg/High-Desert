@@ -5,11 +5,12 @@ import { TEST_DATABASE_URL, describeDb } from "@/test-support/test-db";
 /**
  * The funnel's counters against real Postgres: a step adds one to its own
  * (day, step) and nothing else, a day's steps come back as one cohort row, and
- * the table refuses a step that is not one of the four. Only this file writes
- * funnel_daily, so it owns the rows it reads.
+ * the table refuses a step that is not one of the four. It owns the rows of
+ * the last 60 days; visitors.db.test.ts writes funnel rows in 2001 only.
  */
 
 type Store = typeof import("../store");
+const OWN_ROWS = "DELETE FROM funnel_daily WHERE day >= current_date - 60";
 let store: Store;
 
 beforeAll(async () => {
@@ -20,13 +21,13 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (store) {
-    await store.getPool().query("DELETE FROM funnel_daily");
+    await store.getPool().query(OWN_ROWS);
     await store.getPool().end();
   }
 });
 
 beforeEach(async () => {
-  await store.getPool().query("DELETE FROM funnel_daily");
+  await store.getPool().query(OWN_ROWS);
 });
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);

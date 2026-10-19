@@ -120,6 +120,19 @@ export function startFunnel(libraryWasEmpty: boolean, nowMs = Date.now(), device
   for (const step of waiting) report(state, step);
 }
 
+/**
+ * This browser's own funnel arrival, for the visitor count
+ * (src/services/stats/visitor-client.ts): its cohort day, device and the
+ * look it first visited in; `excluded` when it arrived with a library (a
+ * visitor from before the funnel); null while there is no verdict yet.
+ */
+export function funnelArrival(): { cohort: string; device: FunnelDevice; look: Look | null } | { excluded: true } | null {
+  const state = read();
+  if (!state) return null;
+  if (state.cohort === null) return { excluded: true };
+  return { cohort: state.cohort, device: state.device ?? "desktop", look: state.looks?.visit?.[0] ?? null };
+}
+
 /** Whether this browser already has a verdict (so no library count is needed). */
 export function funnelDecided(): boolean {
   return read() !== null;
