@@ -1,5 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { US_TILES, US_TILE_COLS, US_TILE_ROWS, agoLabel, countsByCode, dayLabel, placeLabel, splitKnown, tileTier } from "../places";
+import {
+  US_TILES,
+  US_TILE_COLS,
+  US_TILE_ROWS,
+  agoLabel,
+  countsByCode,
+  dayLabel,
+  defaultPeriod,
+  placeLabel,
+  placedCount,
+  placedNote,
+  splitKnown,
+  tileTier,
+} from "../places";
 import { US_STATES } from "@/lib/geo/places";
 
 describe("the Listeners panel's arithmetic", () => {
@@ -52,5 +65,49 @@ describe("the Listeners panel's arithmetic", () => {
     expect(agoLabel("2026-10-19T11:56:00Z", now)).toBe("4 min ago");
     expect(agoLabel("2026-10-19T09:00:00Z", now)).toBe("3 h ago");
     expect(agoLabel("2026-10-16T12:00:00Z", now)).toBe("3 d ago");
+  });
+});
+
+/** A period with `placed` listeners in the US and the rest in the unknown bucket. */
+const period = (placed: number, total: number) => ({
+  total,
+  countries: [
+    ...(placed ? [{ country: "US", n: placed }] : []),
+    ...(total > placed ? [{ country: null, n: total - placed }] : []),
+  ],
+});
+
+describe("how much of a period is placed", () => {
+  it("placed is the total less the unknown-country bucket", () => {
+    expect(placedCount(period(1, 1206))).toBe(1);
+    expect(placedCount({ total: 9, countries: [{ country: "US", n: 4 }, { country: "CA", n: 3 }, { country: null, n: 2 }] })).toBe(7);
+  });
+
+  it("says so while under 90% is placed, in the period's own numbers", () => {
+    expect(placedNote(period(1, 1206))).toBe("1 of 1,206 placed so far. The map fills in as listeners come back.");
+    expect(placedNote(period(89, 100))).toBe("89 of 100 placed so far. The map fills in as listeners come back.");
+  });
+
+  it("goes quiet at 90% placed, and for an empty period", () => {
+    expect(placedNote(period(90, 100))).toBeNull();
+    expect(placedNote(period(100, 100))).toBeNull();
+    expect(placedNote(period(0, 0))).toBeNull();
+  });
+});
+
+describe("defaultPeriod", () => {
+  it("opens on All time once a quarter of it is placed", () => {
+    expect(defaultPeriod({ allTime: period(25, 100), week: period(0, 10) })).toBe("allTime");
+  });
+
+  it("else on This week once a quarter of that is placed", () => {
+    expect(defaultPeriod({ allTime: period(24, 100), week: period(3, 12) })).toBe("week");
+    // Today's numbers: 1 of 1,206 all time, most of this week's 212 not yet placed either.
+    expect(defaultPeriod({ allTime: period(1, 1206), week: period(52, 212) })).toBe("now");
+  });
+
+  it("else on Right now, also before anyone is counted", () => {
+    expect(defaultPeriod({ allTime: period(1, 1206), week: period(2, 212) })).toBe("now");
+    expect(defaultPeriod({ allTime: period(0, 0), week: period(0, 0) })).toBe("now");
   });
 });

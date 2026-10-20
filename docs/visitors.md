@@ -95,6 +95,31 @@ carries `attribution`). With `GEOIP_MAXMIND_LICENSE_KEY` in
   within 75 days, and resolves 8.8.8.8 to the US, then renames it in place;
   a failure keeps the old file). `status.json` beside it says how it went.
 
+## The panel (Stats, Listeners)
+
+`src/components/library/Listeners.tsx`; its arithmetic and words are pure
+functions in `src/lib/stats/places.ts`.
+
+- **Placed so far.** All time and This week carry the backfilled funnel
+  arrivals, which have no place until that browser comes back, so at first
+  their maps are nearly empty (1 of 1,206 placed on 2026-10-20). Under the map
+  the panel says so in the period's own numbers, "1 of 1,206 placed so far.
+  The map fills in as listeners come back." (`placedNote`: the period's total
+  less its unknown-country bucket), while under 90% is placed. Never on Right
+  now: heartbeats are looked up fresh, so everyone there is placed.
+- **Where it opens** (`defaultPeriod`): All time once a quarter of it is
+  placed, else This week once a quarter of that is, else Right now. Chosen
+  once, when the numbers first arrive; after that only a click moves it, and
+  the minute's poll never does.
+- **What it says about privacy**: the footer says locations are looked up on
+  our own server and addresses are never stored; the About dialog's Privacy
+  paragraph says the rest (one random id per browser, nothing to a third
+  party).
+- Tests: `listeners.test.tsx` ("how much is placed, and where the panel
+  opens", with a pick that survives a real poll as the control) and
+  `places.test.ts`. Mutations `listeners-placed-*`, `listeners-default-*`,
+  `listeners-pick-survives-poll`.
+
 ## The routes
 
 - `POST /api/stats/visitor` `{visitorId, device, look?, cohort?, cohortDevice?, cohortLook?, hereBefore?}` → `{ok, counted}`. Answered in the page by the e2e fixture (`SERVER_WRITES`).

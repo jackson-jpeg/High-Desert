@@ -49,6 +49,8 @@ const RECORDS = {
 let root: Root;
 let host: HTMLDivElement;
 let available = true;
+/** What /api/stats/visitors answers; a test swaps it, then a poll reads it. */
+let visitors: typeof VISITORS = VISITORS;
 
 async function flush() {
   for (let i = 0; i < 6; i++) await act(async () => { await new Promise((r) => setTimeout(r, 5)); });
@@ -56,12 +58,13 @@ async function flush() {
 
 beforeEach(() => {
   available = true;
+  visitors = VISITORS;
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
       const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200 });
       if (!available && !url.startsWith("/api/stats/now")) return new Response("{}", { status: 503 });
-      if (url.startsWith("/api/stats/visitors")) return json(VISITORS);
+      if (url.startsWith("/api/stats/visitors")) return json(visitors);
       if (url.startsWith("/api/stats/tuning-in")) return json(FEED);
       if (url.startsWith("/api/stats/records")) return json(RECORDS);
       if (url.startsWith("/api/stats/now")) return json({ online: 4, listening: 2, live: 1, onAir: [], recent: [] });
@@ -82,6 +85,21 @@ afterEach(() => {
 });
 
 const q = (id: string) => host.querySelector(`[data-testid="${id}"]`);
+const button = (label: string) => [...host.querySelectorAll("button")].find((b) => b.textContent === label)!;
+const pressed = () => [...host.querySelectorAll('button[aria-pressed="true"]')].map((b) => b.textContent);
+
+/** `placed` of `total` all time and this week; the rest in the unknown bucket. */
+function withPlaced(allTime: [number, number], week: [number, number]): typeof VISITORS {
+  const p = ([placed, total]: [number, number]) =>
+    place([["US", "United States", placed], ...(total > placed ? [[null, null, total - placed] as [null, null, number]] : [])], [["Nevada", "NV", placed]]);
+  return { ...VISITORS, locations: { ...VISITORS.locations, allTime: p(allTime), week: p(week) } };
+}
+
+/** A poll: coming back on screen reads all three routes at once (useListeners). */
+async function poll() {
+  act(() => document.dispatchEvent(new Event("visibilitychange")));
+  await flush();
+}
 
 describe("Listeners panel", () => {
   it("leads with everyone counted once, and what it counts from", async () => {
@@ -97,6 +115,7 @@ describe("Listeners panel", () => {
   it("all time: states on the map by count, the unplaced said once, countries ranked", async () => {
     act(() => root.render(<Listeners />));
     await flush();
+    act(() => button("All time").click());
     const map = q("listeners-map")!;
     expect(map.querySelector('[data-state="CA"]')?.getAttribute("data-tier")).toBe("4");
     expect(map.querySelector('[data-state="NV"]')?.getAttribute("data-tier")).toBe("2");
@@ -144,6 +163,65 @@ describe("Listeners panel", () => {
     const credit = host.querySelector('a[href="https://db-ip.com"]');
     expect(credit?.textContent).toBe("IP Geolocation by DB-IP");
     expect(host.textContent).toContain("1,154 early listeners have no place on the map yet");
+  });
+
+  describe("how much is placed, and where the panel opens", () => {
+    it("under the map, how much of the period is placed, in its own numbers, while under 90%", async () => {
+      visitors = withPlaced([1, 1206], [189, 212]);
+      act(() => root.render(<Listeners />));
+      await flush();
+      act(() => button("All time").click());
+      expect(q("listeners-placed")?.textContent).toBe("1 of 1,206 placed so far. The map fills in as listeners come back.");
+      act(() => button("This week").click());
+      expect(q("listeners-placed")?.textContent).toBe("189 of 212 placed so far. The map fills in as listeners come back.");
+    });
+
+    it("goes away at 90% placed", async () => {
+      visitors = withPlaced([1, 1206], [190, 211]);
+      act(() => root.render(<Listeners />));
+      await flush();
+      act(() => button("This week").click());
+      expect(q("listeners-placed")).toBeNull(); // 190 of 211 is 90.05%
+      act(() => button("All time").click());
+      expect(q("listeners-placed")).not.toBeNull(); // the control: the same render shows it under 90%
+    });
+
+    it("never on Right now, where everyone is placed", async () => {
+      visitors = { ...withPlaced([1, 1206], [1, 212]), locations: { ...withPlaced([1, 1206], [1, 212]).locations, now: place([["US", "United States", 5]], [["Nevada", "NV", 5]]) } };
+      act(() => root.render(<Listeners />));
+      await flush();
+      expect(pressed()).toEqual(["Right now"]);
+      expect(q("listeners-map")).not.toBeNull();
+      expect(q("listeners-placed")).toBeNull();
+    });
+
+    it("opens where the data is: All time, else This week, else Right now", async () => {
+      for (const [data, want] of [
+        [withPlaced([302, 1206], [10, 212]), "All time"],
+        [withPlaced([1, 1206], [53, 212]), "This week"],
+        [withPlaced([1, 1206], [52, 212]), "Right now"],
+      ] as const) {
+        visitors = data;
+        act(() => root.render(<Listeners key={want} />));
+        await flush();
+        expect(pressed(), want).toEqual([want]);
+      }
+    });
+
+    it("a period the listener picks stays picked when a poll brings new numbers", async () => {
+      visitors = withPlaced([1, 1206], [1, 212]);
+      act(() => root.render(<Listeners />));
+      await flush();
+      expect(pressed()).toEqual(["Right now"]);
+      act(() => button("This week").click());
+      expect(q("listeners-placed")?.textContent).toMatch(/^1 of 212 /);
+
+      // New numbers in which All time would now be the default.
+      visitors = withPlaced([600, 1206], [20, 212]);
+      await poll();
+      expect(q("listeners-placed")?.textContent).toMatch(/^20 of 212 /); // the poll landed
+      expect(pressed()).toEqual(["This week"]);
+    });
   });
 
   it("renders nothing when the stats service is unavailable", async () => {

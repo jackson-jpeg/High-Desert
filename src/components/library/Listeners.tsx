@@ -16,7 +16,9 @@ import {
   agoLabel,
   countsByCode,
   dayLabel,
+  defaultPeriod,
   placeLabel,
+  placedNote,
   splitKnown,
   tileTier,
 } from "@/lib/stats/places";
@@ -194,7 +196,10 @@ function Records({ records }: { records: StationRecords }) {
 export function Listeners() {
   const { visitors, tuneIns, records, attribution, loading } = useListeners();
   const now = useCommunityNow();
-  const [period, setPeriod] = useState<Period>("allTime");
+  // Chosen once, when the numbers first arrive (defaultPeriod), then only by
+  // a click: a poll never moves it, picked or not.
+  const [period, setPeriod] = useState<Period | null>(null);
+  if (visitors && period === null) setPeriod(defaultPeriod(visitors.locations));
 
   if (loading && !visitors) {
     return (
@@ -208,10 +213,14 @@ export function Listeners() {
   if (!visitors) return null;
 
   const { totals } = visitors;
-  const where = visitors.locations[period];
+  const shown: Period = period ?? defaultPeriod(visitors.locations);
+  const where = visitors.locations[shown];
   const states = splitKnown(where.states, (s) => s.code ?? s.region);
   const countries = splitKnown(where.countries, (c) => c.country);
-  const unit = period === "now" ? "here now" : "listeners";
+  const unit = shown === "now" ? "here now" : "listeners";
+  // Right now is always placed (heartbeats are looked up fresh); the other
+  // periods carry backfilled arrivals with no place until they come back.
+  const note = shown === "now" ? null : placedNote(where);
 
   return (
     <Window title="Listeners" variant="dark" headingLevel={2}>
@@ -249,10 +258,10 @@ export function Listeners() {
             <button
               key={key}
               onClick={() => setPeriod(key)}
-              aria-pressed={period === key}
+              aria-pressed={shown === key}
               className={cn(
                 "px-2 py-1 md:py-0.5 text-hd-caption cursor-pointer transition-colors-fast min-h-[32px] md:min-h-0",
-                period === key
+                shown === key
                   ? "bg-desert-amber/15 text-desert-amber w98-inset-dark"
                   : "text-bevel-dark/85 hover:text-desktop-gray",
               )}
@@ -262,7 +271,7 @@ export function Listeners() {
           ))}
         </div>
 
-        {period === "now" && where.total === 0 ? (
+        {shown === "now" && where.total === 0 ? (
           <div className="w98-inset-dark bg-inset-well p-4 text-center text-hd-caption text-bevel-dark">
             Nobody is on the site this minute. The map fills in as people tune in.
           </div>
@@ -270,6 +279,11 @@ export function Listeners() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex flex-col gap-3">
               <StateMap states={where.states} />
+              {note && (
+                <p className="text-hd-caption text-bevel-dark" data-testid="listeners-placed">
+                  {note}
+                </p>
+              )}
               <PlaceList
                 title="By state"
                 testId="listeners-states"
@@ -304,7 +318,7 @@ export function Listeners() {
           </span>
           {attribution && (
             <span>
-              Locations are approximate, by state at most.{" "}
+              Locations are approximate, by state at most, looked up on our own server. Addresses are never stored.{" "}
               <a href={attribution.url} target="_blank" rel="noopener noreferrer" className="text-signal-blue underline">
                 {attribution.text}
               </a>

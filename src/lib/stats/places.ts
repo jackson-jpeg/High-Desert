@@ -62,6 +62,46 @@ export function placeLabel(p: { country: string | null; name?: string | null; re
   return p.city && p.region ? `${p.city}, ${p.country === "US" ? p.region : where}` : where;
 }
 
+/** Below this share placed, a period says how much of it is on the map. */
+export const PLACED_NOTE_BELOW = 0.9;
+/** A period is where the panel opens once this share of it is placed. */
+export const DEFAULT_PERIOD_PLACED = 0.25;
+
+interface Placed {
+  total: number;
+  countries: { country: string | null; n: number }[];
+}
+
+/** How many of a period's listeners have a place: its total less the unknown-country bucket. */
+export function placedCount(b: Placed): number {
+  const unknown = b.countries.reduce((sum, c) => (c.country === null ? sum + c.n : sum), 0);
+  return Math.max(0, b.total - unknown);
+}
+
+const placedShare = (b: Placed) => (b.total > 0 ? placedCount(b) / b.total : 0);
+
+/**
+ * "1 of 1,206 placed so far. ...", while under PLACED_NOTE_BELOW of the period
+ * is placed; null once the map is mostly filled, and for an empty period.
+ * The backfilled funnel arrivals have no place until that browser comes back.
+ */
+export function placedNote(b: Placed): string | null {
+  const placed = placedCount(b);
+  if (b.total <= 0 || placed >= b.total * PLACED_NOTE_BELOW) return null;
+  const fmt = (v: number) => v.toLocaleString("en-US");
+  return `${fmt(placed)} of ${fmt(b.total)} placed so far. The map fills in as listeners come back.`;
+}
+
+/**
+ * Where the panel opens: All time once a quarter of it is placed, else This
+ * week if a quarter of that is, else Right now (heartbeats are always placed).
+ */
+export function defaultPeriod(locations: { allTime: Placed; week: Placed }): "allTime" | "week" | "now" {
+  if (placedShare(locations.allTime) >= DEFAULT_PERIOD_PLACED) return "allTime";
+  if (placedShare(locations.week) >= DEFAULT_PERIOD_PLACED) return "week";
+  return "now";
+}
+
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** "2026-09-27" → "27 Sep 2026" (the date as written, no time zone moves it). */
