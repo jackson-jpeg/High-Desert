@@ -43,6 +43,12 @@ describe("judgeSurfaces", () => {
     expect(judgeSurfaces([s("taskbar", 17, 7, "4", [7]), s("status-bar", 17, 7)]).verdict).toBe("disagree");
   });
 
+  it("the Listeners panel's \"here now\" is online alone, as the badge is", () => {
+    expect(judgeSurfaces([s("listeners", 18, 9, "4", [18]), s("status-bar", 18, 9)]).verdict).toBe("agree");
+    // ...and a "here now" that is not the online count still disagrees.
+    expect(judgeSurfaces([s("listeners", 18, 9, "4", [9]), s("status-bar", 18, 9)]).verdict).toBe("disagree");
+  });
+
   it("no surfaces is empty, not agreement", () => {
     expect(judgeSurfaces([]).verdict).toBe("empty");
   });
