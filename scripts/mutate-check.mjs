@@ -548,7 +548,7 @@ export const MUTATIONS = [
     id: "listeners-period-switch",
     test: "src/components/library/__tests__/listeners.test.tsx",
     file: "src/components/library/Listeners.tsx",
-    find: "  const where = visitors.locations[period];",
+    find: "  const where = visitors.locations[shown];",
     replace: "  const where = visitors.locations.allTime;",
     why: "This week and Right now showed the all-time places",
   },
