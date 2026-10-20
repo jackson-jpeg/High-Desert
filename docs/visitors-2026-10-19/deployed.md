@@ -83,3 +83,34 @@ Florida 104, Michigan 69, New York 48.
   (`/var/lib/highdesert-geoip/status.json` is ready for it). The privacy note on the site
   still needs a look, since the site now keeps a per-browser id.
 - No hook blocked anything this session. The pipefail hook prefixed commands as usual.
+
+## Follow-ups, deployed as 1faf0f4 (2026-10-20 19:39 UTC)
+
+- **`geoip` line in `highdesert-status`** (bd235b4): OK when `city.mmdb` is there and
+  was built within 45 days; WARN past 45 days or when the last refresh failed; FAIL
+  when the file is missing or older than 75 days. `update-geoip.mjs` used to write no
+  build date after a failed refresh, so it now carries the serving file forward as
+  `installed` (`failedStatus`). Tests in `status.test.ts` and `update-geoip.test.ts`;
+  mutations `status-geoip-*` and `update-geoip-failed-keeps-installed`, all red. Reads
+  OK on production: DBIP-City-Lite built 2026-10-01 (19 days).
+- **Privacy wording** (a97e9ce), as approved: a Privacy paragraph in the About dialog
+  (held by `about-dialog.test.tsx`, mutation `about-privacy-paragraph`), the Listeners
+  footer, `docs/usage-tracking.md` and `docs/funnel.md`.
+- **Listeners panel** (ba8a8a5): "N of M placed so far. The map fills in as listeners
+  come back." under the map while under 90% of the period is placed (never on Right
+  now), and the panel opens where the data is (`defaultPeriod`). It is chosen once when
+  the numbers arrive, then only by a click. Six new mutations, all red; the existing
+  `listeners-period-switch` was re-anchored (1faf0f4) after its line changed.
+  On production at 19:40 it opens on Right now in both looks, at phone and desktop width.
+  All time reads "9 of 1,207 placed so far.", with no errors and no overflow.
+- Checks before the deploy (worktree, through `heavy`): lint (the usual one warning),
+  typecheck, the full suite 307 files / 2,950 tests passed, a build. `check:seo` was
+  clean locally; `check:csp` had only the `/live-api` 404s a bare `next start` gives.
+  After the deploy, both were clean on production.
+- `highdesert-status` after the deploy: every line OK except `backup`'s WARN that
+  the Mac copy was skipped (the Mac was unreachable at 17:30).
+- **A hook block:** the npm hook (`block-npm-in-prod.py`) refused
+  `cd ../hd-geoip && ... ; (cd services/live && npm ci)`. It was right: after the
+  `;`, the second `npm ci` could have run from production's `services/live`. Nothing
+  ran. I redid it with absolute worktree paths joined by `&&`, as the block message
+  says.
