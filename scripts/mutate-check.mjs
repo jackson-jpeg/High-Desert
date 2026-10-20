@@ -6721,6 +6721,50 @@ export const MUTATIONS = [
     why: "the digest job was allowed past the 10% CPU rule",
   },
   {
+    id: "status-geoip-missing-file",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: `if [[ ! -s "$GEOIP_DB" ]]; then
+  line FAIL geoip`,
+    replace: `if false; then
+  line FAIL geoip`,
+    why: "with no geo file every visitor's place is unknown and nothing else fails",
+  },
+  {
+    id: "status-geoip-fail-age",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: "    if (( g_age_s > GEOIP_FAIL_DAYS * 86400 )); then",
+    replace: "    if false; then",
+    why: "a geo file over 75 days old read as merely late",
+  },
+  {
+    id: "status-geoip-failed-refresh",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: `    elif [[ "$g_ok" != true ]]; then
+      line WARN geoip`,
+    replace: `    elif false; then
+      line WARN geoip`,
+    why: "a failed monthly refresh read as fine while the old file aged",
+  },
+  {
+    id: "status-geoip-warn-age",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: "    elif (( g_age_s > GEOIP_WARN_DAYS * 86400 )); then",
+    replace: "    elif false; then",
+    why: "a refresh that silently stopped replacing the file said nothing until 75 days",
+  },
+  {
+    id: "update-geoip-failed-keeps-installed",
+    test: "scripts/__tests__/update-geoip.test.ts",
+    file: "scripts/update-geoip.mjs",
+    find: "  const installed = prev?.ok === true ? keep(prev) : (prev?.installed ?? null);",
+    replace: "  const installed = null;",
+    why: "a failed refresh erased the serving file's build date, so status could not judge its age",
+  },
+  {
     id: "status-digest-not-written",
     test: "scripts/__tests__/status.test.ts",
     file: "scripts/status.sh",

@@ -18,7 +18,9 @@
  * 1.1.1.1 to a country. Then it is renamed into place atomically
  * (GEOIP_DB, default /var/lib/highdesert-geoip/city.mmdb); the app notices the
  * new mtime within 10 minutes, no restart. A failed refresh leaves the old
- * file serving and exits 1. Writes `status.json` beside it for status.
+ * file serving and exits 1. Writes `status.json` beside it for status
+ * (highdesert-status's `geoip` line); after a failure it still names the
+ * installed file's build date (`installed`, failedStatus).
  */
 
 import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
@@ -88,6 +90,25 @@ export function untarMmdb(tar) {
   throw new Error("no .mmdb in the archive");
 }
 
+/**
+ * status.json after a failed refresh. The old file is still serving, so what
+ * it is (type, build date) is carried forward as `installed`: highdesert-status
+ * judges the file's age from it, and a failure must not hide how old it is.
+ */
+export function failedStatus(prev, err, at = new Date().toISOString()) {
+  const keep = ({ type, builtAt, source, size, at: installedAt }) => ({ type, builtAt, source, size, at: installedAt });
+  const installed = prev?.ok === true ? keep(prev) : (prev?.installed ?? null);
+  return { ok: false, at, error: String(err?.message ?? err), installed };
+}
+
+async function readStatus(file) {
+  try {
+    return JSON.parse(await readFile(file, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
 async function main() {
   const target = process.env.GEOIP_DB || DEFAULT_GEOIP_DB;
   const statusFile = join(dirname(target), "status.json");
@@ -108,7 +129,7 @@ async function main() {
     console.log(`installed ${target} (${(size / 1e6).toFixed(1)} MB) from ${source}: ${info.type}, built ${info.builtAt}`);
   } catch (err) {
     await rm(tmp, { force: true });
-    await writeFile(statusFile, JSON.stringify({ ok: false, at: new Date().toISOString(), error: String(err?.message ?? err) }, null, 2) + "\n").catch(() => {});
+    await writeFile(statusFile, JSON.stringify(failedStatus(await readStatus(statusFile), err), null, 2) + "\n").catch(() => {});
     console.error(`geoip refresh failed, the installed file is unchanged: ${err?.message ?? err}`);
     process.exitCode = 1;
   }

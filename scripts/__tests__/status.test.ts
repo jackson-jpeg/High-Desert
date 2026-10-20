@@ -110,6 +110,12 @@ interface World {
   liveHealth: Record<string, unknown> | null;
   /** highdesert.space's TXT records as dig +short prints them; null: dig fails (exit 9). */
   dnsTxt: string[] | null;
+  /**
+   * The geo database: `file` writes city.mmdb; `status` is status.json beside it, with
+   * `builtDaysAgo` turned into `builtAt` (or `installed.builtAt` when `ok` is false, as
+   * update-geoip.mjs's failedStatus writes it); null writes no status.json.
+   */
+  geoip: { file: boolean; status: { ok: boolean; builtDaysAgo: number; error?: string } | null };
 }
 
 /** The token the test repo records in deploy/google-site-verification.txt. */
@@ -160,6 +166,7 @@ const HEALTHY: World = {
   liveActive: "active",
   liveHealth: { ok: true, clients: 42, messagesLastHour: 17, slowMode: false, cpu: { pct: 2.5, windowS: 900 } },
   dnsTxt: ['"v=spf1 include:_spf.mail.hostinger.com ~all"', `"google-site-verification=${GSV}"`],
+  geoip: { file: true, status: { ok: true, builtDaysAgo: 19 } },
 };
 
 let dir: string;
@@ -290,6 +297,19 @@ async function run(): Promise<{ code: number; out: string }> {
   } else {
     await rm(warmFile, { force: true });
   }
+  const geoDir = path.join(dir, "geoip");
+  await rm(geoDir, { recursive: true, force: true });
+  await mkdir(geoDir);
+  if (world.geoip.file) await writeFile(path.join(geoDir, "city.mmdb"), "not empty");
+  if (world.geoip.status) {
+    const { ok, builtDaysAgo, error } = world.geoip.status;
+    const file = { type: "DBIP-City-Lite", builtAt: new Date(Date.now() - builtDaysAgo * 86_400_000).toISOString() };
+    const at = new Date(Date.now() - 3_600_000).toISOString();
+    await writeFile(
+      path.join(geoDir, "status.json"),
+      JSON.stringify(ok ? { ok, at, ...file } : { ok, at, error: error ?? "HTTP 503", installed: file }),
+    );
+  }
   const verdictFile = path.join(dir, "funnel-verdict.json");
   if (world.funnelVerdict) {
     const { ageH, ...rest } = world.funnelVerdict;
@@ -378,6 +398,7 @@ async function run(): Promise<{ code: number; out: string }> {
           HD_MEMINFO: path.join(dir, "meminfo"),
           HD_DF_CMD: path.join(bin, "df"),
           HD_DNS_TXT_CMD: path.join(bin, "dig"),
+          HD_GEOIP_DB: path.join(dir, "geoip", "city.mmdb"),
         },
         timeout: 30_000,
       },
@@ -409,6 +430,7 @@ beforeEach(async () => {
     warm: { ...HEALTHY.warm! },
     liveHealth: { ...HEALTHY.liveHealth },
     dnsTxt: HEALTHY.dnsTxt ? [...HEALTHY.dnsTxt] : null,
+    geoip: { ...HEALTHY.geoip, status: HEALTHY.geoip.status ? { ...HEALTHY.geoip.status } : null },
   };
   sinceAsked = null;
   dir = await mkdtemp(path.join(tmpdir(), "hd-status-"));
@@ -521,6 +543,38 @@ describe("highdesert-status", () => {
     );
     expect(lineFor(r.out, "disk")).toBe("OK    disk      21.4 GB free of 96.0 GB; the mirror's warm job needs 10 GB free, a build ~1 GB");
     expect(r.code).toBe(0);
+  });
+
+  describe("geoip line", () => {
+    it("is OK when the file is there and was built within 45 days", async () => {
+      expect(lineFor((await run()).out, "geoip")).toMatch(/^OK\s+geoip\s+DBIP-City-Lite built \d{4}-\d\d-\d\d \(19d ago\), refreshed /);
+    });
+    it("WARNs past 45 days: the monthly refresh has not replaced it", async () => {
+      world.geoip.status!.builtDaysAgo = 46;
+      expect(lineFor((await run()).out, "geoip")).toMatch(/^WARN\s+geoip\s+.*\(46d ago\), over 45 days: the monthly refresh/);
+    });
+    it("WARNs when the last refresh failed, and still says how old the serving file is", async () => {
+      world.geoip.status = { ok: false, builtDaysAgo: 20, error: "HTTP 503 from db-ip.com" };
+      expect(lineFor((await run()).out, "geoip")).toMatch(
+        /^WARN\s+geoip\s+the last refresh .* failed: HTTP 503 from db-ip\.com; still serving DBIP-City-Lite built .* \(20d ago\)$/,
+      );
+    });
+    it("FAILs when the file is missing", async () => {
+      world.geoip.file = false;
+      const r = await run();
+      expect(lineFor(r.out, "geoip")).toMatch(/^FAIL\s+geoip\s+no .*city\.mmdb: every visitor's place is unknown/);
+      expect(r.code).toBe(1);
+    });
+    it("FAILs past 75 days, also when the failed refresh is what left it there", async () => {
+      world.geoip.status!.builtDaysAgo = 76;
+      expect(lineFor((await run()).out, "geoip")).toMatch(/^FAIL\s+geoip\s+.*\(76d ago\), over 75 days/);
+      world.geoip.status = { ok: false, builtDaysAgo: 80 };
+      expect(lineFor((await run()).out, "geoip")).toMatch(/^FAIL\s+geoip\s+.*\(80d ago\), over 75 days.*the last refresh .* failed: HTTP 503/);
+    });
+    it("WARNs when there is a file but no status.json to date it", async () => {
+      world.geoip.status = null;
+      expect(lineFor((await run()).out, "geoip")).toMatch(/^WARN\s+geoip\s+.*status\.json is missing or unreadable/);
+    });
   });
 
   describe("funnel line", () => {

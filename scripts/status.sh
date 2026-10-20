@@ -71,6 +71,11 @@
 #             CPU (hd-cpu-sample) against the 10% rule — FAIL above 10% of a core
 #   warm      the nightly warm job's last run (warm-status.json): WARN if it is
 #             older than 36h, skipped for steal, or fetched with failures
+#   geoip     the self-hosted geo database (docs/visitors.md, "Location"): OK when
+#             the file is there and was built within 45 days; WARN past 45 days
+#             (the monthly refresh has not replaced it) or when the last refresh
+#             failed; FAIL when the file is missing or was built over 75 days
+#             ago. Read from status.json beside it (scripts/update-geoip.mjs)
 #   digest    the weekly digest (scripts/digest.mjs, HD_DIGEST_STATUS): the latest
 #             week's written to docs/digest/ and copied to the Mac. WARN if the job
 #             has never run or not for 36h, if the week's is not written, or if it
@@ -104,7 +109,8 @@
 #   HD_MUTATIONS_STATE (/var/lib/highdesert-mutations: result.json, running.json),
 #   HD_MUTATIONS_MAX_AGE_S (691200, 8 days), HD_MEMINFO (/proc/meminfo),
 #   HD_DF_CMD (df -B1 --output=avail,size /), HD_NOW (epoch s, for the closed window),
-#   HD_DNS_TXT_CMD (dig +short +time=5 +tries=2 TXT highdesert.space)
+#   HD_DNS_TXT_CMD (dig +short +time=5 +tries=2 TXT highdesert.space),
+#   HD_GEOIP_DB (/var/lib/highdesert-geoip/city.mmdb; status.json beside it)
 set -uo pipefail
 
 ROOT="${HD_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -137,6 +143,9 @@ MUTATIONS_STATE="${HD_MUTATIONS_STATE:-/var/lib/highdesert-mutations}"
 MUTATIONS_MAX_AGE_S="${HD_MUTATIONS_MAX_AGE_S:-691200}"
 DF_CMD="${HD_DF_CMD:-df -B1 --output=avail,size /}"
 DNS_TXT_CMD="${HD_DNS_TXT_CMD:-dig +short +time=5 +tries=2 TXT highdesert.space}"
+GEOIP_DB="${HD_GEOIP_DB:-/var/lib/highdesert-geoip/city.mmdb}"
+GEOIP_WARN_DAYS=45
+GEOIP_FAIL_DAYS=75
 NOW_S="${HD_NOW:-$(date +%s)}"
 DISK_WARN_GB=10
 DISK_FAIL_GB=5
@@ -658,6 +667,42 @@ else
     line WARN warm "last run $w_at ($w_out): $w_desc"
   else
     line OK warm "last run $w_at ($w_out): $w_desc"
+  fi
+fi
+
+# --- geoip -------------------------------------------------------------------
+# Where visitors are (docs/visitors.md, "Location"). Without the file every
+# place is unknown and nothing else fails, so only this line would say so.
+# highdesert-geoip.timer refreshes it monthly; a failed refresh keeps the old
+# file serving and records it as `installed` in status.json.
+g_status="$(dirname "$GEOIP_DB")/status.json"
+if [[ ! -s "$GEOIP_DB" ]]; then
+  line FAIL geoip "no $GEOIP_DB: every visitor's place is unknown (bash scripts/geoip-setup.sh)"
+elif ! jq -e 'type == "object"' "$g_status" >/dev/null 2>&1; then
+  line WARN geoip "$GEOIP_DB is there, but $g_status is missing or unreadable, so its age is unknown (systemctl start highdesert-geoip)"
+else
+  g_ok="$(jq -r '.ok == true' "$g_status")"
+  g_at="$(jq -r '.at // "?"' "$g_status")"
+  g_err="$(jq -r '.error // empty' "$g_status")"
+  g_type="$(jq -r '.type // .installed.type // "the geo database"' "$g_status")"
+  g_built="$(jq -r '.builtAt // .installed.builtAt // empty' "$g_status")"
+  g_built_s="$(date -d "${g_built:-invalid}" +%s 2>/dev/null)"
+  g_failed=""
+  [[ "$g_ok" != true ]] && g_failed="; the last refresh ($g_at) failed: ${g_err:0:120}"
+  if [[ -z "$g_built_s" ]]; then
+    line WARN geoip "$GEOIP_DB is there, but $g_status does not say when it was built$g_failed"
+  else
+    g_age_s=$(( NOW_S - g_built_s ))
+    g_desc="$g_type built ${g_built%%T*} ($(( g_age_s / 86400 ))d ago)"
+    if (( g_age_s > GEOIP_FAIL_DAYS * 86400 )); then
+      line FAIL geoip "$g_desc, over $GEOIP_FAIL_DAYS days: places are going stale$g_failed"
+    elif [[ "$g_ok" != true ]]; then
+      line WARN geoip "the last refresh ($g_at) failed: ${g_err:0:120}; still serving $g_desc"
+    elif (( g_age_s > GEOIP_WARN_DAYS * 86400 )); then
+      line WARN geoip "$g_desc, over $GEOIP_WARN_DAYS days: the monthly refresh (highdesert-geoip.timer) has not replaced it; last refresh $g_at"
+    else
+      line OK geoip "$g_desc, refreshed $g_at"
+    fi
   fi
 fi
 
