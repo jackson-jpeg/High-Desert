@@ -143,6 +143,19 @@ export function AboutDialog({
             &ldquo;I have seen things that I cannot explain...&rdquo;
           </div>
 
+          {/* Privacy (2026-10-20): what the site keeps, said plainly. The
+              visitor count and its places are docs/visitors.md. */}
+          <div className="flex flex-col gap-1" data-testid="about-privacy">
+            <div className="text-hd-10 text-desktop-gray/85 font-bold">Privacy</div>
+            <p className="text-hd-9 text-desktop-gray/85 leading-relaxed">
+              Your library, favorites and history stay in this browser. To count visitors once, the site keeps
+              one random id per browser, and our own server looks up an approximate country and state from your
+              connection. Your address is never stored, and none of this goes to a third party.
+            </p>
+          </div>
+
+          <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-bevel-dark/20 to-transparent" />
+
           {/* Attribution */}
           <div className="text-hd-9 text-desktop-gray/85">
             A{" "}

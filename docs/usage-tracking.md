@@ -45,8 +45,12 @@ first party, aggregate only.
 
 ## What is never stored or sent
 
-No referrer, host, URL, query string, session id, address, user agent or
-browser id. The referrer is read and classed in the browser and only the
+No referrer, host, URL, query string, session id, address or user agent.
+Since 2026-10-20 there is one browser id, and it is not in these tables: the
+visitors table keeps one random id per browser to count visitors once, with a
+country and state looked up on this server from the connection
+(`docs/visitors.md`). The address is never stored and nothing goes to a third
+party. The referrer is read and classed in the browser and only the
 class leaves it. Like every public counter here the numbers can be inflated by
 someone who wants to; the writes are rate limited per client (views 60 a
 minute; minutes at most `SESSIONS_PER_CLIENT` a minute per client).

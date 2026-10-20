@@ -33,7 +33,9 @@ its funnel.
   before the library count answers on a direct load of `/live`) waits for it,
   and is reported or dropped with it.
 - **No ids.** The server keeps `funnel_daily (day, device, step, look, again, n)` and nothing else:
-  no session, no address, no browser id. Like every public counter here it can
+  no session, no address, no browser id. The funnel still keeps no id; the
+  per-browser id the site has kept since 2026-10-20 lives in the visitors
+  table (`docs/visitors.md`) and is never joined to it. Like every public counter here it can
   be inflated by someone who wants to; the POST is rate limited per client
   (10 a minute).
 - Headless checkers keep out: `csp-check` marks its browser excluded,
