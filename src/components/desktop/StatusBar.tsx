@@ -220,7 +220,7 @@ export function StatusBar({ episodeCount, presence, countTimedOut = false, onRet
               {SEASON_GREETING[season]}
             </span>
           ),
-          width: "128px",
+          width: "150px",
         }] : []),
         ...((streak ?? 0) > 1 ? [{
           content: (
