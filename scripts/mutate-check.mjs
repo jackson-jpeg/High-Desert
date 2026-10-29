@@ -5265,8 +5265,8 @@ export const MUTATIONS = [
     id: "shoutout-reads-supporters",
     test: "scripts/__tests__/donor-shoutout.test.ts",
     file: "scripts/donor-shoutout.mjs",
-    find: "  return [...list.matchAll(",
-    replace: "  return [...list.slice(1).matchAll(",
+    find: "  const list = source.slice(source.indexOf(\"SUPPORTERS\"));",
+    replace: "  const list = source.slice(source.lastIndexOf(\"{ name\"));",
     why: "the chat thanks the same people the Stats page does",
   },
   {
