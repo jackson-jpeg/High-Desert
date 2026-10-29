@@ -895,7 +895,11 @@ same offset, computed from a synced clock.
   Every airable episode whose air date is today's month-day, any year, **oldest
   first** (29 Feb folds onto 28 Feb in non-leap years), then fan favorites by
   community plays (`episode_plays`), skipping any that aired in the previous
-  **14 days**. Ties break on `fileHash`, so the program is a function of the
+  **30 days** (14 until 2026-10-29), any whose own date comes up in the next
+  30 (held for it: 2013-10-28 aired on 27 and 28 October 2026), and any
+  holiday show out of its season (`showSeason`, below); a favorite whose
+  guest was on today or the 2 days before waits behind one whose was not
+  (`guestsOf`). Ties break on `fileHash`, so the program is a function of the
   date and the inputs. Slots are end to end with an **8 s station ID** between
   each; the last is **cut at midnight** and the next day starts at its own
   midnight. A catalog too small to fill a day relaxes the repeat rule rather
@@ -903,7 +907,7 @@ same offset, computed from a synced clock.
 - **Frozen, not recomputed.** `frozenDay()` (`src/services/live/days.ts`)
   builds a day once, under `pg_advisory_xact_lock`, and stores it in
   `live_days (day, program jsonb)` — together with any missing days of its
-  14-day window, so its history never shifts. A frozen day never changes when
+  30-day window, so its history never shifts. A frozen day never changes when
   plays move; the returned program is the stored jsonb (`INSERT … RETURNING`),
   so the first answer is byte-identical to every later one. The program also keeps
   the top-200 `ranking` it was built from, for the outage swap.
@@ -1160,6 +1164,29 @@ Full account: `docs/visitors.md`.
 - **A city only when the database vouches for it** (accuracy radius ≤ 50 km);
   DB-IP Lite has none, so the feed is region-level. Pages showing places credit
   DB-IP (the APIs carry `attribution`).
+
+## Holiday seasons (2026-10-29, read before touching `src/lib/season/` or `src/styles/seasons.css`)
+
+Full account: `docs/seasons.md`.
+
+- **`<html data-season>`** is set in the head before first paint by
+  `SEASON_SCRIPT`, from the visitor's own date: `halloween` 15 Oct to 1 Nov,
+  `thanksgiving` the 10 days before Thanksgiving (fourth Thursday of
+  November) and the day, `winter` the day after Thanksgiving to 6 January.
+  `?season=halloween|thanksgiving|winter|off` previews one on any page. The
+  script inlines `seasonOn`'s source, so `seasonOn` must stay
+  self-contained (no imports, no outside calls).
+- **Looks:** Win98's title bars (`--hd-w98-title-start`/`-end`) and desktop
+  (`--hd-w98-teal`) take the season's colours; Night's `--hd-amber` becomes
+  the season's accent. Everything lives in `src/styles/seasons.css`.
+- **SeasonSky** (`src/components/desktop/SeasonSky.tsx`): bats, leaves or
+  snow on a canvas in the shell, behind the glass in Night and over the
+  windows in Win98 (a third as many, z-index 45, never a tap). Nothing with
+  reduced motion or while hidden. The status bar greets the season
+  (Halloween keeps its Ghost to Ghost badge).
+- **The station** airs a holiday show (`showSeason`: Ghost to Ghost,
+  Christmas, New Year's) as a fan favorite only in its season; it always
+  airs on its own date.
 
 ## The weekly digest
 
