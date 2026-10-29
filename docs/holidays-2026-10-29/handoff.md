@@ -63,6 +63,11 @@ program freezes at about 04:00 UTC. A "From the station" notice went out first.
        went red.
      - `check:csp` on a local build showed only the bare server's `/live-api` 404s.
      - Screenshots in both looks, phone and desktop, on /, /live, /library and /stats.
+   - **Deployed** 740448f at 16:27 UTC (Jackson chose "Deploy now"), after a
+     station notice. The returning-visitor check passed in Chromium and WebKit.
+     On production `check:csp` and `check:seo` are clean. Today's real date shows
+     the scene and tray pumpkin in Win98, no scene in Night, the badge pumpkin in
+     both, and no canvas.
 
 ## Checks (worktree `/root/hd-holidays`, through `heavy`)
 
