@@ -44,8 +44,6 @@ html[data-look="win98"] {
   --hd-midnight: var(--hd-w98-face);
   --hd-well: var(--hd-chrome-lighter);
   --hd-strip: var(--hd-chrome-lighter);
-  /* The title bar's sweep starts here (navy; a holiday re-points it, seasons.css). */
-  --hd-w98-title-start: var(--hd-navy);
   --hd-titlebar-glow: var(--hd-w98-title-end);
   --hd-titlebar-sky: var(--hd-w98-title-end);
 
