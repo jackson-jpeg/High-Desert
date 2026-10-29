@@ -6,6 +6,7 @@
 /* Preview looks (docs/looks.md): every rule scoped to html[data-look=…]. */
 @import "../styles/look-night.css";
 @import "../styles/look-win98.css";
+@import "../styles/seasons.css";
 /* Show, guest, topic and Tonight pages: the newer hooks, both looks (docs/show-pages.md). */
 @import "../styles/show-pages.css";
 
@@ -181,6 +182,20 @@
   /* Easter eggs */
   --hd-egg-blue: #7EB8FF;
   --hd-egg-halloween: #FF8C00;
+
+  /* Holiday seasons (src/styles/seasons.css, docs/seasons.md). Title-bar ends
+     carry the chrome's white title text at 4.5:1 or better; the Night
+     accents sit where amber does, on the dark surfaces, at 6.6:1 or better
+     (amber is 7.4:1). */
+  --hd-season-dusk: #2A0E3F;       /* Halloween: title start, Win98 desktop */
+  --hd-season-pumpkin: #B84E08;    /* Halloween: title end */
+  --hd-season-bark: #4A2208;       /* Thanksgiving: title start, Win98 desktop */
+  --hd-season-harvest: #9A4E16;    /* Thanksgiving: title end */
+  --hd-season-harvest-glow: #E8913F; /* Thanksgiving: the Night accent */
+  --hd-season-holly: #8A1426;      /* Christmas: title start */
+  --hd-season-pine: #1F6B3B;       /* Christmas: title end */
+  --hd-season-snow-night: #16304D; /* Winter: the Win98 desktop */
+  --hd-season-ice: #A9D8F5;        /* Winter: the Night accent */
 
   /* The "Win98" preview look (src/styles/look-win98.css, docs/looks.md).
      Only that look reads these; it reuses the classic chrome above for the

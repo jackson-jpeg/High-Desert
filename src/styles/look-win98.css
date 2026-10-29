@@ -44,6 +44,8 @@ html[data-look="win98"] {
   --hd-midnight: var(--hd-w98-face);
   --hd-well: var(--hd-chrome-lighter);
   --hd-strip: var(--hd-chrome-lighter);
+  /* The title bar's sweep starts here (navy; a holiday re-points it, seasons.css). */
+  --hd-w98-title-start: var(--hd-navy);
   --hd-titlebar-glow: var(--hd-w98-title-end);
   --hd-titlebar-sky: var(--hd-w98-title-end);
 
@@ -154,7 +156,7 @@ html[data-look="win98"] button:active {
    ============================================ */
 
 html[data-look="win98"] .w98-titlebar-gradient {
-  background: linear-gradient(90deg, var(--hd-navy) 0%, var(--hd-w98-title-end) 100%);
+  background: linear-gradient(90deg, var(--hd-w98-title-start) 0%, var(--hd-w98-title-end) 100%);
 }
 
 html[data-look="win98"] .w98-titlebar-inactive-gradient {
@@ -438,7 +440,7 @@ html[data-look="win98"] .hd-w98-start-menu-large {
 html[data-look="win98"] .hd-w98-start-band {
   flex-shrink: 0;
   width: 24px;
-  background: linear-gradient(0deg, var(--hd-navy) 0%, var(--hd-w98-title-end) 100%);
+  background: linear-gradient(0deg, var(--hd-w98-title-start) 0%, var(--hd-w98-title-end) 100%);
   color: var(--hd-chrome-lighter);
   display: flex;
   align-items: flex-end;
@@ -1659,7 +1661,7 @@ html[data-look="win98"] div[data-hydrated] > main::before {
   font-weight: bold;
   font-size: var(--hd-text-12);
   color: var(--hd-chrome-lighter);
-  background: linear-gradient(90deg, var(--hd-navy) 0%, var(--hd-w98-title-end) 100%);
+  background: linear-gradient(90deg, var(--hd-w98-title-start) 0%, var(--hd-w98-title-end) 100%);
 }
 
 html[data-look="win98"] div[data-hydrated] > main h1 {
@@ -1823,7 +1825,7 @@ html[data-look="win98"] .min-h-screen.bg-midnight > .glass-heavy.p-8::before {
   font-weight: bold;
   font-size: var(--hd-text-12);
   color: var(--hd-chrome-lighter);
-  background: linear-gradient(90deg, var(--hd-navy) 0%, var(--hd-w98-title-end) 100%);
+  background: linear-gradient(90deg, var(--hd-w98-title-start) 0%, var(--hd-w98-title-end) 100%);
 }
 
 /* /look: Display Properties. */
@@ -1851,7 +1853,7 @@ html[data-look="win98"] .hd-look-page > *::before {
   font-weight: bold;
   font-size: var(--hd-text-12);
   color: var(--hd-chrome-lighter);
-  background: linear-gradient(90deg, var(--hd-navy) 0%, var(--hd-w98-title-end) 100%);
+  background: linear-gradient(90deg, var(--hd-w98-title-start) 0%, var(--hd-w98-title-end) 100%);
 }
 
 /* ============================================
@@ -1974,7 +1976,7 @@ html[data-look="win98"] .hd-show-article::before {
   font-weight: bold;
   font-size: var(--hd-text-12);
   color: var(--hd-chrome-lighter);
-  background: linear-gradient(90deg, var(--hd-navy) 0%, var(--hd-w98-title-end) 100%);
+  background: linear-gradient(90deg, var(--hd-w98-title-start) 0%, var(--hd-w98-title-end) 100%);
 }
 
 html[data-look="win98"] .hd-show-article.hd-show-guest::before {
@@ -2016,7 +2018,7 @@ html[data-look="win98"] .hd-show-related-title {
   font-size: var(--hd-text-12);
   font-weight: bold;
   color: var(--hd-chrome-lighter);
-  background: linear-gradient(90deg, var(--hd-navy) 0%, var(--hd-w98-title-end) 100%);
+  background: linear-gradient(90deg, var(--hd-w98-title-start) 0%, var(--hd-w98-title-end) 100%);
 }
 
 html[data-look="win98"] .hd-show-related .hd-show-list {

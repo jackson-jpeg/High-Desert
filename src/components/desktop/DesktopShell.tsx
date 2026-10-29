@@ -7,6 +7,7 @@ import { ContextMenu } from "@/components/win98/ContextMenu";
 import { Toaster } from "@/components/ui/Toaster";
 import { PageTransition } from "@/components/PageTransition";
 import { Starfield } from "./Starfield";
+import { SeasonSky } from "./SeasonSky";
 import { StatusBar } from "./StatusBar";
 import { AdminPromptDialog } from "./AdminPromptDialog";
 import type { EasterEgg } from "./EasterEggOverlays";
@@ -265,6 +266,8 @@ export function DesktopShell({ children, player, episodeCount = 0, countTimedOut
 
       {/* Desert night sky */}
       <Starfield />
+      {/* Bats, leaves or snow, in a holiday season (docs/seasons.md). */}
+      <SeasonSky />
 
       {/* Skip link — first tab stop, so keyboard users aren't forced through
           the menu bar and every nav tab to reach the episode list. */}

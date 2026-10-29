@@ -1,0 +1,61 @@
+/*
+ * Holiday seasons (docs/seasons.md, src/lib/season/season.ts). The page head
+ * sets html[data-season] from the visitor's own date before first paint;
+ * everything here is scoped to it, so outside a season nothing matches.
+ *
+ *   - Win98: the title bars' sweep and the desktop take the season's colours
+ *     (white title text stays at 5:1 or better).
+ *   - Night: desert amber, the look's accent, becomes the season's.
+ *   - Both: the holiday sky (SeasonSky.tsx). Behind the glass in Night; over
+ *     the windows in Win98, whose desktop the windows cover.
+ *
+ * Colours are palette tokens only (no-raw-hex.test.ts).
+ */
+
+.hd-season-sky {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Over the windows, under the menus' and dialogs' z-50, never over a tap. */
+html[data-look="win98"] .hd-season-sky {
+  z-index: 45;
+}
+
+/* ---------------- Halloween ---------------- */
+
+html[data-look="win98"][data-season="halloween"] {
+  --hd-w98-title-start: var(--hd-season-dusk);
+  --hd-w98-title-end: var(--hd-season-pumpkin);
+  --hd-w98-teal: var(--hd-season-dusk);
+}
+
+html[data-look="night"][data-season="halloween"] {
+  --hd-amber: var(--hd-egg-halloween);
+}
+
+/* ---------------- Thanksgiving ---------------- */
+
+html[data-look="win98"][data-season="thanksgiving"] {
+  --hd-w98-title-start: var(--hd-season-bark);
+  --hd-w98-title-end: var(--hd-season-harvest);
+  --hd-w98-teal: var(--hd-season-bark);
+}
+
+html[data-look="night"][data-season="thanksgiving"] {
+  --hd-amber: var(--hd-season-harvest-glow);
+}
+
+/* ---------------- Christmas and winter ---------------- */
+
+html[data-look="win98"][data-season="winter"] {
+  --hd-w98-title-start: var(--hd-season-holly);
+  --hd-w98-title-end: var(--hd-season-pine);
+  --hd-w98-teal: var(--hd-season-snow-night);
+}
+
+html[data-look="night"][data-season="winter"] {
+  --hd-amber: var(--hd-season-ice);
+}

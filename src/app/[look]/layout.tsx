@@ -6,6 +6,7 @@ import { isLook, LOOKS, lookFrom } from "@/lib/look/look";
 import { notFound } from "next/navigation";
 import { UsageTracker } from "@/components/UsageTracker";
 import { BOOT_SCRIPT } from "../boot-script";
+import { SEASON_SCRIPT } from "@/lib/season/season";
 import { PALETTE } from "@/lib/palette";
 import { BUILD_META } from "@/lib/utils/build-id";
 import { siteVerification } from "@/lib/seo/verification";
@@ -125,8 +126,12 @@ export default async function RootLayout({
   if (!isLook(asked)) notFound();
   const look = lookFrom(asked);
   return (
-    <html lang="en" data-look={look}>
+    // suppressHydrationWarning: SEASON_SCRIPT adds data-season to <html>
+    // before React hydrates (this element only; children are still checked).
+    <html lang="en" data-look={look} suppressHydrationWarning>
       <head>
+        {/* The holiday season, from the visitor's own date, before first paint (docs/seasons.md). */}
+        <script dangerouslySetInnerHTML={{ __html: SEASON_SCRIPT }} />
         {/* The build this document belongs to (src/lib/utils/build-id.ts). */}
         <meta name={BUILD_META} content={process.env.NEXT_PUBLIC_BUILD_ID ?? "dev"} />
         <link rel="preconnect" href="https://archive.org" />

@@ -12,9 +12,17 @@ import { presenceAttrs, type LivePresence } from "@/services/stats/now-feed";
 import { MirrorBadge } from "@/components/player/MirrorBadge";
 import { emit, useHdEvent } from "@/lib/events";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
+import { useSeason } from "@/hooks/useSeason";
 import { episodeTitle } from "@/lib/library/display-title";
 import { shownGuest } from "@/lib/library/guest";
 import { episodeCountLabel } from "@/lib/library/episode-count";
+
+
+/** The status bar's hello outside Halloween (which has its Ghost to Ghost badge). */
+const SEASON_GREETING = {
+  thanksgiving: "🦃 Happy Thanksgiving",
+  winter: "❄ Happy holidays",
+} as const;
 
 export const CALLER_MESSAGES = [
   "East of the Rockies, you’re on the air...",
@@ -124,15 +132,9 @@ export function StatusBar({ episodeCount, presence, countTimedOut = false, onRet
     return computeStreak(entries);
   }, []);
 
-  // Ghost to Ghost easter egg: detect Halloween season (Oct 28 - Nov 2)
-  const [isHalloweenSeason, setIsHalloweenSeason] = useState(false);
-  useEffect(() => {
-    const now = new Date();
-    const m = now.getMonth(); // 0-indexed
-    const d = now.getDate();
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe: false on SSR, computed once on client
-    setIsHalloweenSeason((m === 9 && d >= 28) || (m === 10 && d <= 2));
-  }, []);
+  // The holiday season (docs/seasons.md): Halloween keeps its Ghost to Ghost
+  // badge; Thanksgiving and winter say hello. Null through hydration.
+  const season = useSeason();
 
   // The now-playing text and the Ghost to Ghost badge both ask the library for
   // something. They used to navigate and then fire a window event — the first
@@ -199,18 +201,26 @@ export function StatusBar({ episodeCount, presence, countTimedOut = false, onRet
       variant="dark"
       panels={[
         { content: statusContent, flex: 1 },
-        ...(isHalloweenSeason ? [{
+        ...(season === "halloween" ? [{
           content: (
             <button
               onClick={handleGhostClick}
               className="text-hd-10 cursor-pointer hover:text-desert-amber transition-colors-fast"
               style={{ color: "var(--hd-egg-halloween)" }}
               title="Ghost to Ghost AM Collection"
+              data-season-greeting="halloween"
             >
               🎃 Ghost to Ghost
             </button>
           ),
           width: "110px",
+        }] : season ? [{
+          content: (
+            <span className="text-hd-10 text-desert-amber" data-season-greeting={season}>
+              {SEASON_GREETING[season]}
+            </span>
+          ),
+          width: "128px",
         }] : []),
         ...((streak ?? 0) > 1 ? [{
           content: (
