@@ -74,6 +74,17 @@ are saved in the database` and its docs.
 4. `bash scripts/deploy-live.sh`.
 5. Read `/live-api/admin/overview` and check the notice is there with the same id and time.
 
+**Progress after Jackson approved, 17:27 UTC.** Each step ran as its own command.
+
+1. Pushed (`782b4ca`) and pulled into `/root/High-Desert`. Done.
+2. `pg_dump` to `/root/backups/highdesert/pre-notices-20261029T172701Z.dump`, then `services/live/schema.sql`. Done: `live_station_notices` exists, granted to `highdesert_live`.
+3. **The insert was refused** by the auto-mode classifier ("Modify Shared Resources"). Nothing was written: the table holds 0 rows.
+
+The running chat is untouched. It still runs the old code with the notice in
+memory, and the empty table is harmless to it. Steps 4 and 5 (the deploy and
+the check) were not run, because deploying without the insert would wipe the
+notice.
+
 **Timing:** the notice expires at 05:06 UTC on 10-30, 12 hours after it was
 posted. After that there is nothing left to check.
 
