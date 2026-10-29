@@ -119,7 +119,7 @@ describeDb("admin", () => {
   it("every admin action is 401 without the credential — the client-side admin hash is irrelevant", async () => {
     const m = await live.post("/live-api/messages", { body: unique() }, { ip: newCaller() });
     const ip = newCaller();
-    for (const action of ["hide", "mute", "ban", "slow", "clear-name", "notice"]) {
+    for (const action of ["hide", "unhide", "mute", "unmute", "ban", "unban", "slow", "clear-name", "notice"]) {
       const r = await live.post(`/live-api/admin/${action}`, { messageId: m.json.id }, {
         ip,
         // What the app's client-side admin mode has: a localStorage flag, and

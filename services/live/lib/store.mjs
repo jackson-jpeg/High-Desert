@@ -156,6 +156,103 @@ export function createStore(pool, { settingsKey = "slow_mode" } = {}) {
       return rows.map((r) => r.client_ref);
     },
 
+    // ---- the admin console (sang3r.com, 2026-10-29) -----------------------
+    // Admin reads see hidden messages and the caller's ref, so a console can
+    // group a caller's calls and lift a mute or a ban. The ref is an HMAC of
+    // the browser's cookie id, never an address, and leaves only through the
+    // admin routes.
+
+    /**
+     * The newest `limit` messages, hidden ones included, newest first, each
+     * with its distinct reporters (addresses, as hiding counts them) and its
+     * caller's standing. `beforeId` pages back.
+     */
+    async adminMessages(limit, beforeId = null) {
+      const { rows } = await q(
+        `SELECT m.id::text AS id, m.at, m.caller_name AS name, m.caller_place AS place, m.line, m.body,
+                m.hidden_at, m.hidden_by, m.client_ref,
+                (SELECT count(DISTINCT COALESCE(r.addr_ref, r.client_ref))::int FROM live_reports r WHERE r.message_id = m.id) AS reports,
+                (SELECT mu.until FROM live_mutes mu WHERE mu.client_ref = m.client_ref AND mu.until > now()) AS muted_until,
+                EXISTS (SELECT 1 FROM live_bans b WHERE b.client_ref = m.client_ref) AS banned
+         FROM live_messages m
+         WHERE ($2::bigint IS NULL OR m.id < $2::bigint)
+         ORDER BY m.id DESC LIMIT $1`,
+        [limit, beforeId],
+      );
+      return rows.map((r) => ({
+        ...publicMessage(r),
+        hiddenAt: r.hidden_at ? new Date(r.hidden_at).toISOString() : null,
+        hiddenBy: r.hidden_by ?? null,
+        reports: r.reports,
+        callerRef: r.client_ref,
+        mutedUntil: r.muted_until ? new Date(r.muted_until).toISOString() : null,
+        banned: r.banned,
+      }));
+    },
+
+    /** Mutes still running, soonest to end first, with the caller's current name. */
+    async activeMutes() {
+      const { rows } = await q(
+        `SELECT mu.client_ref, mu.until, mu.reason, n.name, n.place
+         FROM live_mutes mu LEFT JOIN live_names n USING (client_ref)
+         WHERE mu.until > now() ORDER BY mu.until`,
+      );
+      return rows.map((r) => ({
+        callerRef: r.client_ref,
+        name: r.name ?? null,
+        place: r.place ?? null,
+        until: new Date(r.until).toISOString(),
+        reason: r.reason,
+      }));
+    },
+
+    /** Every ban, newest first, with the caller's current name. */
+    async banList() {
+      const { rows } = await q(
+        `SELECT b.client_ref, b.at, n.name, n.place
+         FROM live_bans b LEFT JOIN live_names n USING (client_ref)
+         ORDER BY b.at DESC`,
+      );
+      return rows.map((r) => ({
+        callerRef: r.client_ref,
+        name: r.name ?? null,
+        place: r.place ?? null,
+        at: new Date(r.at).toISOString(),
+      }));
+    },
+
+    /** Show a hidden message again. True only if it was hidden. */
+    async unhideMessage(id) {
+      const { rowCount } = await q(
+        `UPDATE live_messages SET hidden_at = NULL, hidden_by = NULL WHERE id = $1 AND hidden_at IS NOT NULL`,
+        [id],
+      );
+      return rowCount === 1;
+    },
+
+    /** Lift a caller's mute. True only if one was running. */
+    async unmute(clientRef) {
+      const { rowCount } = await q(`DELETE FROM live_mutes WHERE client_ref = $1 AND until > now()`, [clientRef]);
+      return rowCount === 1;
+    },
+
+    /**
+     * Lift a ban, and the hold the ban put on the addresses the caller used
+     * (their last known one and those of their messages). True only if there
+     * was a ban.
+     */
+    async unban(clientRef) {
+      const { rowCount } = await q(`DELETE FROM live_bans WHERE client_ref = $1`, [clientRef]);
+      if (rowCount !== 1) return false;
+      await q(
+        `DELETE FROM live_address_holds WHERE addr_ref IN (
+           SELECT addr_ref FROM live_names WHERE client_ref = $1 AND addr_ref IS NOT NULL
+           UNION SELECT addr_ref FROM live_messages WHERE client_ref = $1 AND addr_ref IS NOT NULL)`,
+        [clientRef],
+      );
+      return true;
+    },
+
     /** A caller's name and line (the line's index; null until assigned). */
     async getName(clientRef) {
       const { rows } = await q(`SELECT name, changed_at, line, place FROM live_names WHERE client_ref = $1`, [clientRef]);

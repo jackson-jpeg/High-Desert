@@ -8,7 +8,9 @@
  * highdesert-shoutout.timer runs this hourly. A run posts only when the gap
  * chosen at the last post has passed and it is 6 PM to 11 PM Pacific, then
  * picks the next gap (96 to 144 hours). `--now` posts at once (and starts a
- * new gap); `--dry-run` prints the text and what it would do.
+ * new gap); `--dry-run` prints the text and what it would do; `--status`
+ * prints, as JSON, the supporters, the last post and when the next is due
+ * (sang3r.com's admin console reads it).
  *
  * State: $SHOUTOUT_STATE (default /var/lib/highdesert-shoutout/state.json).
  * Admin token: LIVE_ADMIN_TOKEN (/root/.high-desert-live.env).
@@ -76,6 +78,24 @@ export function due(state, nowMs) {
   return nowMs >= Date.parse(state.lastAt) + (state.gapHours ?? MIN_GAP_HOURS) * 3_600_000;
 }
 
+/**
+ * What the admin console shows: everyone thanked, the last shout-out, and
+ * when the next one may go (`dueFrom`; it then waits for the evening window).
+ */
+export function shoutoutStatus(state, supporters, nowMs) {
+  const lastAt = state?.lastAt ?? null;
+  const gapHours = state?.gapHours ?? null;
+  return {
+    supporters,
+    last: lastAt ? { at: lastAt, text: state.text ?? null } : null,
+    gapHours,
+    dueFrom: lastAt ? new Date(Date.parse(lastAt) + (gapHours ?? MIN_GAP_HOURS) * 3_600_000).toISOString() : null,
+    due: due(state, nowMs),
+    evening: { from: EVENING[0], to: EVENING[1], tz: "America/Los_Angeles" },
+    preview: shoutoutText(supporters, ((state?.template ?? -1) + 1) % TEMPLATE_COUNT),
+  };
+}
+
 async function readState(file) {
   try {
     return JSON.parse(await readFile(file, "utf8"));
@@ -101,6 +121,11 @@ async function main(argv) {
   const url = process.env.LIVE_NOTICE_URL ?? "http://127.0.0.1:3005/live-api/admin/notice";
   const state = await readState(stateFile);
   const nowMs = Date.now();
+  if (argv.includes("--status")) {
+    const supporters = parseSupporters(await readFile(path.join(ROOT, "src/lib/support/supporters.ts"), "utf8"));
+    console.log(JSON.stringify(shoutoutStatus(state, supporters, nowMs)));
+    return;
+  }
   if (!now && !due(state, nowMs)) {
     console.log(`[shoutout] not due (last ${state?.lastAt ?? "never"}, gap ${state?.gapHours ?? "-"} h, Pacific hour ${pacificHour(nowMs)})`);
     return;

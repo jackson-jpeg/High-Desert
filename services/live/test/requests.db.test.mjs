@@ -88,6 +88,23 @@ d("the Request Line", () => {
     expect(other.json.nominations[0]).toMatchObject({ mine: false, voted: false, votes: 1 });
   });
 
+  it("the admin console reads the same nominations, makes no caller, and refuses a non-admin", async () => {
+    const day = freshDay();
+    clock = noonOf(day);
+    expect((await nominate(newCaller(), SHOWS[2], { note: "for the console" })).status).toBe(201);
+    const bearer = { headers: { authorization: `Bearer ${live.adminToken}` } };
+    const r = await live.get("/live-api/admin/requests", { jar: false, ...bearer });
+    expect(r.status).toBe(200);
+    expect(r.json).toMatchObject({ day, admin: true, nominated: false });
+    expect(r.json.nominations).toEqual([expect.objectContaining({ fileHash: SHOWS[2], note: "for the console", votes: 1, mine: false, voted: false })]);
+    // Polled every few seconds, so it must not mint a caller (the public GET does).
+    expect(r.headers.get("set-cookie")).toBeNull();
+    // Control: the public GET hands a new browser its caller cookie.
+    expect((await live.get("/live-api/requests", { ip: newCaller() })).headers.get("set-cookie")).toMatch(/hd_live_caller=/);
+    expect((await live.get("/live-api/admin/requests", { jar: false })).status).toBe(401);
+    expect((await live.get("/live-api/admin/requests", { jar: false, headers: { authorization: "Bearer nope" } })).status).toBe(401);
+  });
+
   it("one nomination per listener per day; nominating a show already up is a vote and spends nothing", async () => {
     const day = freshDay();
     clock = noonOf(day);

@@ -126,6 +126,10 @@ function readJson(req) {
 }
 
 const positiveInt = (v) => (Number.isSafeInteger(v) && v > 0 ? v : null);
+/** A query parameter as a positive integer, or null. */
+const queryInt = (v) => (typeof v === "string" && /^[1-9][0-9]{0,15}$/.test(v) ? positiveInt(Number(v)) : null);
+/** The console's stand-in caller for the Request Line state: matches no real caller. */
+const NOBODY_REF = "0".repeat(64);
 const seconds = (ms) => Math.max(1, Math.ceil(ms / 1000));
 /** Station notices: how long hello carries them, how many, how long. */
 export const STATION_KEEP_MS = 12 * 60 * 60_000;
@@ -494,6 +498,46 @@ export function createLiveApp({
     if (await store.hideMessage(id, by)) hub.broadcast("hide", { ids: [id] });
   }
 
+  /** The caller an undo is about: `callerRef` (from the console's lists) or a message of theirs. */
+  async function callerRefOr400(body) {
+    if (typeof body.callerRef === "string" && /^[0-9a-f]{64}$/.test(body.callerRef)) return body.callerRef;
+    if (body.messageId !== undefined) return (await messageOr404(body.messageId)).clientRef;
+    throw new HttpError(400, { error: "bad-caller" });
+  }
+
+  /**
+   * GET /live-api/admin/overview: what the admin console shows (sang3r.com).
+   * Messages hidden ones and all, the running mutes, the bans, slow mode, the
+   * station's recent notices and the service's health. `?limit=` (1..500,
+   * default 200) and `?before=<id>` page the messages.
+   */
+  async function adminOverview(req, res, url) {
+    requireAdmin(req);
+    const limit = Math.min(queryInt(url.searchParams.get("limit")) ?? 200, 500);
+    const before = queryInt(url.searchParams.get("before"));
+    const [messages, mutes, bans, messagesLastHour] = await Promise.all([
+      store.adminMessages(limit, before),
+      store.activeMutes(),
+      store.banList(),
+      store.messagesSince(60 * 60_000),
+    ]);
+    sendJson(res, 200, {
+      at: new Date(now()).toISOString(),
+      messages,
+      mutes,
+      bans,
+      slowMode: limits.slowMode(),
+      notices: stationRecent(),
+      health: {
+        clients: hub.size,
+        messagesLastHour,
+        cpu: cpu.average(),
+        startedAt,
+        refusals: Object.fromEntries(refusals),
+      },
+    });
+  }
+
   // ---- routes ------------------------------------------------------------
 
   async function stream(req, res, url) {
@@ -706,6 +750,23 @@ export function createLiveApp({
         announceSlowIfChanged();
         return sendJson(res, 200, { ok: true, slowMode: limits.slowMode() });
       }
+      case "unhide": {
+        // Back in the record and in every hello from now on. Pages already
+        // open dropped it on the hide and keep it dropped until they reload:
+        // there is no event that puts a message back in place.
+        const m = await messageOr404(body.messageId);
+        return sendJson(res, 200, { ok: true, shown: await store.unhideMessage(m.id) });
+      }
+      case "unmute": {
+        const ref = await callerRefOr400(body);
+        return sendJson(res, 200, { ok: true, lifted: await store.unmute(ref) });
+      }
+      case "unban": {
+        const ref = await callerRefOr400(body);
+        const lifted = await store.unban(ref);
+        bans.delete(ref);
+        return sendJson(res, 200, { ok: true, lifted });
+      }
       case "clear-name": {
         const m = await messageOr404(body.messageId);
         const name = await freshName(m.clientRef, { markChanged: true });
@@ -751,6 +812,19 @@ export function createLiveApp({
     const caller = await callerOf(req, res);
     const st = await requestLine.state(caller.ref);
     sendJson(res, 200, { ...st, admin: isAdminRequest(req, adminToken, now()) });
+  }
+
+  /**
+   * GET /live-api/admin/requests: the same state as GET /live-api/requests,
+   * for the admin console. No caller is made for it (the console has no
+   * cookie, and a poll every few seconds would mint one each time), so the
+   * per-caller marks (`mine`, `voted`, `nominated`) are always false.
+   */
+  async function adminRequests(req, res) {
+    requireAdmin(req);
+    if (!requestLine) throw new HttpError(404, { error: "not-found" });
+    const st = await requestLine.state(NOBODY_REF);
+    sendJson(res, 200, { ...st, admin: true });
   }
 
   /** POST {fileHash, note?}: nominate a show (or vote for it, if someone already has). */
@@ -874,7 +948,9 @@ export function createLiveApp({
       res.writeHead(200, SIGNIN_PAGE_HEADERS);
       return res.end(SIGNIN_PAGE);
     }
-    const adminMatch = /^\/live-api\/admin\/(hide|mute|ban|slow|clear-name|verify|notice|request-veto)$/.exec(p);
+    if (m === "GET" && p === "/live-api/admin/overview") return adminOverview(req, res, url);
+    if (m === "GET" && p === "/live-api/admin/requests") return adminRequests(req, res);
+    const adminMatch = /^\/live-api\/admin\/(hide|unhide|mute|unmute|ban|unban|slow|clear-name|verify|notice|request-veto)$/.exec(p);
     if (m === "POST" && adminMatch) return admin(req, res, adminMatch[1]);
     throw new HttpError(404, { error: "not-found" });
   }

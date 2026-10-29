@@ -59,6 +59,23 @@ describe("donor shout-out", () => {
     expect(S.due(last, pacific("2026-11-03", 18))).toBe(true);
   });
 
+  it("status, for the admin console: the supporters, the last post, when the next may go, and its text", () => {
+    const supporters = S.parseSupporters(source);
+    const lastAt = new Date(pacific("2026-10-29", 20)).toISOString();
+    const st = S.shoutoutStatus({ lastAt, gapHours: 100, template: 0, text: "the last one" }, supporters, pacific("2026-11-01", 20));
+    expect(st.supporters).toEqual(supporters);
+    expect(st.last).toEqual({ at: lastAt, text: "the last one" });
+    expect(st.gapHours).toBe(100);
+    expect(st.dueFrom).toBe(new Date(Date.parse(lastAt) + 100 * 3_600_000).toISOString());
+    expect(st.due).toBe(false);
+    expect(st.evening).toEqual({ from: 18, to: 23, tz: "America/Los_Angeles" });
+    // The next phrasing, not the last one's.
+    expect(st.preview).toBe(S.shoutoutText(supporters, 1));
+    // Never posted: due in the evening, nothing last, no gap yet.
+    const fresh = S.shoutoutStatus(null, supporters, pacific("2026-10-29", 19));
+    expect(fresh).toMatchObject({ last: null, gapHours: null, dueFrom: null, due: true, preview: S.shoutoutText(supporters, 0) });
+  });
+
   it("the timer and service are what the script expects", () => {
     const unit = readFileSync(path.resolve(import.meta.dirname, "../../deploy/highdesert-shoutout.service"), "utf8");
     expect(unit).toMatch(/ExecStart=\/usr\/bin\/node \/root\/High-Desert\/scripts\/donor-shoutout\.mjs\n/);
