@@ -1,0 +1,19 @@
+[Unit]
+Description=High Desert: thank the supporters in the phone lines, every 4 to 6 days
+Documentation=file:///root/High-Desert/scripts/donor-shoutout.mjs
+After=highdesert-live.service
+
+[Service]
+Type=oneshot
+# Posts only when its random 4-6 day gap has passed and it is evening in
+# Pacific time; most runs read a file and exit.
+WorkingDirectory=/root/High-Desert
+ExecStart=/usr/bin/node /root/High-Desert/scripts/donor-shoutout.mjs
+Environment=SHOUTOUT_STATE=/var/lib/highdesert-shoutout/state.json
+StateDirectory=highdesert-shoutout
+EnvironmentFile=/root/.high-desert-live.env
+CPUQuota=10%
+Nice=19
+IOSchedulingClass=idle
+TimeoutStartSec=2min
+SyslogIdentifier=highdesert-shoutout
