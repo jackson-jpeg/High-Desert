@@ -61,6 +61,7 @@ defence, and the admin cookie's `SameSite=Strict` adds to it.
 | `/live-api/admin/ban` | POST | `{messageId}` → `{ok, hidden}`. Hides that caller's last 24 h, closes their streams and holds their address for 24 h |
 | `/live-api/admin/slow` | POST | `{on, minutes}` (default 30) → `{ok, slowMode}` |
 | `/live-api/admin/clear-name` | POST | `{messageId}` → `{ok, name}`. Gives the caller a fresh random name, clears their place, and renames their past messages on every screen (the `rename` event carries `place: null`) |
+| `/live-api/admin/notice` | POST | `{text}` (at most 500 characters) → **201** the line, broadcast as a `station` event and shown under "From the station". Kept 12 hours, the newest 3, in hello's `station`. **Saved in `live_station_notices`** since 2026-10-29, so a restart (every chat deploy) keeps them; before that they were memory only and a deploy wiped them. The Request Line's herald is a notice too (`reason: "request"`) |
 | `/live-api/admin/unhide` | POST | `{messageId}` → `{ok, shown}`. Undoes a hide (an admin's or three reports'). Not broadcast: open pages show it again on their next load |
 | `/live-api/admin/unmute` | POST | `{callerRef}` or `{messageId}` → `{ok, lifted}`. Ends a mute early |
 | `/live-api/admin/unban` | POST | `{callerRef}` or `{messageId}` → `{ok, lifted}`. Lifts the ban in the database and in memory, and the 24 h hold on the caller's addresses. Hidden messages stay hidden |

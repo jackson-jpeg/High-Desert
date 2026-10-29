@@ -1219,7 +1219,7 @@ the Mac.
 
 The chat beside Live Broadcast. Its own unit, **`highdesert-live`**, runs as
 user `hdlive` from `/opt/highdesert-live` on 127.0.0.1:3005. It carries SSE
-down and JSON POST up, and keeps its state in eight `live_*` tables in the
+down and JSON POST up, and keeps its state in its `live_*` tables in the
 `highdesert` database. It connects as its own role, `highdesert_live`. A web
 deploy never drops a chat stream. The full account is in `docs/live-chat.md`.
 
@@ -1296,6 +1296,12 @@ deploy never drops a chat stream. The full account is in `docs/live-chat.md`.
     false positive with `allow:`, never by weakening a transformer.
   - **Test fixtures hold no slurs in plain text.** They are base64, and the
     variants are derived at test time.
+- **Station notices survive a restart** (2026-10-29). "From the station"
+  lines (an admin's notice, the Request Line's herald) are saved in
+  `live_station_notices`, 12 hours and the newest 3 as before, and loaded at
+  start. They were memory only, and that day's chat deploy wiped seven.
+  `station-notices.db.test.mjs` restarts the service and finds a notice with
+  its original time; mutations `live-station-notices-*`.
 - **Ship a blocklist change without a restart:** commit it, then run
   `bash scripts/deploy-live.sh --blocklist`, which parses the file, installs
   it and sends SIGHUP.
