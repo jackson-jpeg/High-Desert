@@ -28,14 +28,14 @@ interface Flake {
 
 /** How many at once, by season: [desktop, phone]. Win98 draws a third of them over its windows. */
 export const SKY_COUNT: Record<Season, readonly [number, number]> = {
-  halloween: [7, 3],
+  halloween: [12, 6],
   thanksgiving: [22, 10],
   winter: [90, 40],
 };
 
 // Canvas cannot read var(); these are tints of the palette's own colours.
 const LEAF_COLORS = ["rgba(200, 98, 26, 0.55)", "rgba(168, 86, 26, 0.55)", "rgba(212, 168, 67, 0.5)", "rgba(150, 52, 30, 0.5)"];
-const BAT_COLOR = "rgba(255, 140, 0, 0.42)";
+const BAT_COLOR = "rgba(255, 140, 0, 0.62)";
 
 function spawn(season: Season, w: number, h: number, anywhere: boolean): Flake {
   const r = Math.random;
@@ -43,8 +43,8 @@ function spawn(season: Season, w: number, h: number, anywhere: boolean): Flake {
     const right = r() < 0.5;
     return {
       x: anywhere ? r() * w : right ? -40 : w + 40,
-      y: h * (0.06 + r() * 0.4),
-      size: 7 + r() * 7,
+      y: h * (0.06 + r() * 0.6),
+      size: 10 + r() * 9,
       vx: (0.5 + r() * 0.7) * (right ? 1 : -1),
       vy: (r() - 0.5) * 0.15,
       phase: r() * Math.PI * 2,
