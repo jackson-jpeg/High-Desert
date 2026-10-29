@@ -99,6 +99,22 @@ CREATE TABLE IF NOT EXISTS live_settings (
   at     timestamptz NOT NULL DEFAULT now()
 );
 
+-- Station notices (2026-10-29): the site talking in the lines, an admin's
+-- notice or the Request Line's herald. They were memory only, so every
+-- restart of this service (each deploy) wiped them. Kept as long as before:
+-- 12 hours, the newest 3 (STATION_KEEP_MS, STATION_ON_HELLO in lib/app.mjs);
+-- older rows are deleted when a new one is posted. `scope` is 'station' in
+-- production; parallel test apps each use their own.
+CREATE TABLE IF NOT EXISTS live_station_notices (
+  scope   text NOT NULL DEFAULT 'station',
+  id      text NOT NULL,
+  at      timestamptz NOT NULL,
+  text    text NOT NULL,
+  reason  text NOT NULL,
+  PRIMARY KEY (scope, id)
+);
+CREATE INDEX IF NOT EXISTS live_station_notices_at ON live_station_notices (scope, at DESC);
+
 -- One-time admin sign-in links (scripts/live-setup.sh). Only the SHA-256 of
 -- the nonce is stored; the nonce itself exists in the link file alone.
 CREATE TABLE IF NOT EXISTS live_admin_nonces (
@@ -200,7 +216,8 @@ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'highdesert_live') THEN
     GRANT SELECT, INSERT, UPDATE, DELETE ON
       live_messages, live_reports, live_mutes, live_bans, live_names, live_settings, live_admin_nonces,
-      live_address_holds, live_request_nominations, live_request_votes, live_request_nights
+      live_address_holds, live_request_nominations, live_request_votes, live_request_nights,
+      live_station_notices
       TO highdesert_live;
     GRANT USAGE, SELECT ON SEQUENCE live_messages_id_seq, live_request_nominations_id_seq TO highdesert_live;
     -- The Request Line reads what the station played (the 30-day rule) and

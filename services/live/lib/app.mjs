@@ -176,7 +176,8 @@ export function createLiveApp({
   requests = {},
 }) {
   if (!clientSecret || clientSecret.length < 32) throw new Error("CHAT_CLIENT_SECRET must be set (32+ chars)");
-  const store = createStore(pool, { settingsKey });
+  // A test app's settingsKey also scopes its station notices, so parallel test apps never see each other's.
+  const store = createStore(pool, settingsKey ? { settingsKey, noticeScope: settingsKey } : {});
   const hub = createHub({ heartbeatMs });
   const limits = createLimits({ now });
   const moderate = createModerator(blocklist);
@@ -199,6 +200,7 @@ export function createLiveApp({
   const ready = (async () => {
     for (const ref of await store.allBans()) bans.add(ref);
     limits.setForced(await store.getForcedSlow());
+    await loadStation();
     await sweep();
   })();
 
@@ -252,14 +254,22 @@ export function createLiveApp({
   const tuneinRecent = [];
   // Station notices (2026-10-13): the site talking, posted by an admin
   // (POST /live-api/admin/notice). Drawn like an archive card under "From the
-  // station", never as a caller. Memory only, like archive lines: kept for
-  // hello for STATION_KEEP_MS, the newest STATION_ON_HELLO.
+  // station", never as a caller. Kept for hello for STATION_KEEP_MS, the
+  // newest STATION_ON_HELLO. In live_station_notices since 2026-10-29 (they
+  // were memory only, and every deploy wiped them); `stationLines` is the
+  // copy hello reads, loaded at start.
   const stationLines = [];
   const stationRecent = () => stationLines.filter((l) => now() - Date.parse(l.at) < STATION_KEEP_MS);
-  /** Post a station line: an admin's notice, or the Request Line's herald. */
-  function postStation(text, reason = "station") {
+  const stationLine = ({ id, at, text, reason }) => ({ id, at, text, form: "moment", speaker: null, episode: null, reason });
+  async function loadStation() {
+    const rows = await store.stationNotices(now() - STATION_KEEP_MS, STATION_ON_HELLO);
+    stationLines.splice(0, stationLines.length, ...rows.map(stationLine));
+  }
+  /** Post a station line: an admin's notice, or the Request Line's herald. Saved before it is sent. */
+  async function postStation(text, reason = "station") {
     const t = now();
-    const line = { id: `station-${t}`, at: new Date(t).toISOString(), text, form: "moment", speaker: null, episode: null, reason };
+    const line = stationLine({ id: `station-${t}`, at: new Date(t).toISOString(), text, reason });
+    await store.saveStationNotice(line, t - STATION_KEEP_MS, STATION_ON_HELLO);
     stationLines.push(line);
     if (stationLines.length > STATION_ON_HELLO) stationLines.shift();
     hub.broadcast("station", line);
@@ -329,7 +339,7 @@ export function createLiveApp({
           now,
           catalog: requests.catalog ?? catalogReader(),
           onAir: requests.onAir ?? scheduleOnAir,
-          announce: (text) => postStation(text, "request"),
+          announce: (text) => postStation(text, "request").catch((err) => log(`[live] herald notice not saved: ${err.message}`)),
           heraldMs: requests.heraldMs,
           log,
         });
@@ -783,7 +793,7 @@ export function createLiveApp({
         // ignores it rather than heading it "From the archive".
         const text = typeof body.text === "string" ? body.text.trim() : "";
         if (!text || text.length > STATION_MAX_CHARS) throw new HttpError(400, { error: "bad-notice", max: STATION_MAX_CHARS });
-        return sendJson(res, 201, postStation(text));
+        return sendJson(res, 201, await postStation(text));
       }
       case "request-veto": {
         if (!requestLine) throw new HttpError(404, { error: "not-found" });

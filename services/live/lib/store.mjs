@@ -30,10 +30,38 @@ export function publicMessage(row) {
   };
 }
 
-export function createStore(pool, { settingsKey = "slow_mode" } = {}) {
+export function createStore(pool, { settingsKey = "slow_mode", noticeScope = "station" } = {}) {
   const q = (text, params) => pool.query(text, params);
 
   return {
+    /**
+     * Station notices, the newest `limit` posted after `sinceMs`, oldest first
+     * (the order hello and the console show them in).
+     */
+    async stationNotices(sinceMs, limit) {
+      const { rows } = await q(
+        `SELECT id, at, text, reason FROM live_station_notices
+          WHERE scope = $1 AND at > $2 ORDER BY at DESC, id DESC LIMIT $3`,
+        [noticeScope, new Date(sinceMs), limit],
+      );
+      return rows.reverse().map((r) => ({ id: r.id, at: new Date(r.at).toISOString(), text: r.text, reason: r.reason }));
+    },
+
+    /** Keep one notice, and drop what has aged out: past `sinceMs`, or beyond the newest `keep`. */
+    async saveStationNotice({ id, at, text, reason }, sinceMs, keep) {
+      await q(
+        `INSERT INTO live_station_notices (scope, id, at, text, reason) VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (scope, id) DO NOTHING`,
+        [noticeScope, id, at, text, reason],
+      );
+      await q(
+        `DELETE FROM live_station_notices
+          WHERE scope = $1
+            AND (at <= $2 OR id NOT IN (SELECT id FROM live_station_notices WHERE scope = $1 ORDER BY at DESC, id DESC LIMIT $3))`,
+        [noticeScope, new Date(sinceMs), keep],
+      );
+    },
+
     async insertMessage({ clientRef, addrRef, name, place = null, line, body }) {
       const { rows } = await q(
         `INSERT INTO live_messages (client_ref, addr_ref, caller_name, caller_place, line, body)
