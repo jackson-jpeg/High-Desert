@@ -11,6 +11,7 @@ export interface Supporter {
 }
 
 export const SUPPORTERS: readonly Supporter[] = [
+  { name: "Alexandra M.", amount: 15 },
   { name: "Rachel B.", amount: 10 },
   { name: "Craig A.", amount: 5 },
 ];

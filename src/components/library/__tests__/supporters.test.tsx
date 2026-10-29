@@ -32,7 +32,7 @@ describe("Supporters", () => {
   it("thanks each listener by first name and last initial, with the gift", () => {
     const c = render(<Supporters />);
     const items = [...thanks(c)!.querySelectorAll("li")].map((li) => li.textContent);
-    expect(items).toEqual(["Rachel B. $10", "Craig A. $5"]);
+    expect(items).toEqual(["Alexandra M. $15", "Rachel B. $10", "Craig A. $5"]);
   });
 
   it("every name is a first name and an initial, never a full name", () => {
