@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { SUPPORTERS } from "@/lib/support/supporters";
-// @ts-expect-error: a plain .mjs script
 import * as S from "../donor-shoutout.mjs";
 
 /**
@@ -24,7 +23,7 @@ describe("donor shout-out", () => {
 
   it("names every supporter, newest first, in each phrasing, with no em dash and no amounts", () => {
     for (let i = 0; i < S.TEMPLATE_COUNT; i++) {
-      const text = S.shoutoutText(SUPPORTERS, i);
+      const text = S.shoutoutText(SUPPORTERS, i)!;
       expect(text).toContain(S.listNames(SUPPORTERS.map((s) => s.name)));
       expect(text).not.toContain("—");
       expect(text).not.toMatch(/\$\d/);
@@ -38,7 +37,7 @@ describe("donor shout-out", () => {
 
   it("a long list stays under the notice limit and says how many more", () => {
     const many = Array.from({ length: 80 }, (_, i) => ({ name: `Person${i} X.`, amount: 5 }));
-    const text = S.shoutoutText(many, 0);
+    const text = S.shoutoutText(many, 0)!;
     expect(text.length).toBeLessThanOrEqual(500);
     expect(text).toMatch(/ and \d+ more\. /);
   });
