@@ -61,6 +61,11 @@ defence, and the admin cookie's `SameSite=Strict` adds to it.
 | `/live-api/admin/ban` | POST | `{messageId}` → `{ok, hidden}`. Hides that caller's last 24 h, closes their streams and holds their address for 24 h |
 | `/live-api/admin/slow` | POST | `{on, minutes}` (default 30) → `{ok, slowMode}` |
 | `/live-api/admin/clear-name` | POST | `{messageId}` → `{ok, name}`. Gives the caller a fresh random name, clears their place, and renames their past messages on every screen (the `rename` event carries `place: null`) |
+| `/live-api/admin/unhide` | POST | `{messageId}` → `{ok, shown}`. Undoes a hide (an admin's or three reports'). Not broadcast: open pages show it again on their next load |
+| `/live-api/admin/unmute` | POST | `{callerRef}` or `{messageId}` → `{ok, lifted}`. Ends a mute early |
+| `/live-api/admin/unban` | POST | `{callerRef}` or `{messageId}` → `{ok, lifted}`. Lifts the ban in the database and in memory, and the 24 h hold on the caller's addresses. Hidden messages stay hidden |
+| `/live-api/admin/overview` | GET | The admin console's read (2026-10-29, `docs/admin-console.md`). `?limit` (default 200, max 500), `?before=<id>` pages back. `{at, messages, mutes, bans, slowMode, notices, health}`: messages newest first, **hidden ones included**, each with `hiddenAt`, `hiddenBy`, `reports` (distinct reporters), `callerRef`, `mutedUntil`, `banned`; active mutes and bans with the caller's name; the recent station notices; the service's health numbers |
+| `/live-api/admin/requests` | GET | The Request Line as an admin sees it: the public state plus `admin: true`. **Mints no caller cookie** and votes as nobody |
 | `/live-api/admin/verify` | POST | → `{ok, id, ms}`. Used by the deploy's POST round trip: writes an already-hidden row, reads it back and deletes it. Never broadcast |
 | `/live-api/health` | GET | `{ok, clients, messagesLastHour, slowMode, cpu: {pct, windowS} or null, startedAt, refusals: {kind: n}, refusedAddresses: {kind: n}}`. `refusals` counts every 4xx a caller route answered since start, by kind: the client's `error` (with `:reason` for a rejection), or for the address caps, which answer `rate` like a caller's own pace, `address-messages`/`address-reports`/`address-streams`. `refusedAddresses` is how many distinct addresses met each address cap (`ADDRESS_REFUSALS`). **nginx returns 404 for it publicly.** `highdesert-status` reads it on loopback |
 
@@ -398,6 +403,11 @@ on stdout and never committed.
 Signed in, each message row gets admin controls: hide, mute, ban and clear
 name. The header gets a slow-mode toggle. The UI shows these only when the
 server says `admin: true`, and the server checks every action anyway.
+
+**The admin console on sang3r.com** (2026-10-29, `docs/admin-console.md`) is
+the other way in: `/high-desert/admin` reads `/live-api/admin/overview` with
+the bearer token on loopback and can undo what this page cannot (unhide,
+unmute, unban).
 
 ## The 10% rule and the load test
 
