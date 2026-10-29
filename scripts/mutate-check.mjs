@@ -5565,8 +5565,8 @@ export const MUTATIONS = [
     id: "live-heartbeat-route",
     test: "src/app/api/stats/heartbeat/__tests__/heartbeat-live.test.ts",
     file: "src/app/api/stats/heartbeat/route.ts",
-    find: "    await recordHeartbeat(sessionId, listeningTo, ip, live === true);",
-    replace: "    await recordHeartbeat(sessionId, listeningTo, ip, !!live);",
+    find: "    const beat = await recordHeartbeat(sessionId, listeningTo, ip, live === true, geo);",
+    replace: "    const beat = await recordHeartbeat(sessionId, listeningTo, ip, !!live, geo);",
     why: "only a literal true marks a tab live",
   },
   {
@@ -7804,8 +7804,8 @@ export const MUTATIONS = [
     id: "e2e-fixture-view-answered",
     test: "scripts/__tests__/e2e-fixture-writes.test.ts",
     file: "e2e/fixtures.ts",
-    find: "heartbeat|funnel|view)",
-    replace: "heartbeat|funnel)",
+    find: "heartbeat|funnel|view|visitor)",
+    replace: "heartbeat|funnel|visitor)",
     why: "an e2e run against production would count its views",
   },
   // 2026-10-12: show pages for search engines (docs/show-pages.md).
