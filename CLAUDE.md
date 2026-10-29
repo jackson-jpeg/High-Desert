@@ -1179,7 +1179,12 @@ Full account: `docs/seasons.md`.
 - **Looks:** Win98's title bars (`--hd-w98-title-start`/`-end`) and desktop
   (`--hd-w98-teal`) take the season's colours; Night's `--hd-amber` becomes
   the season's accent. Everything lives in `src/styles/seasons.css`.
-- **SeasonSky** (`src/components/desktop/SeasonSky.tsx`): bats, leaves or
+- **Halloween is still pixel art, never motion** (`HalloweenScene`,
+  `src/lib/season/pixel-art.ts`): a moon with bats and a jack-o'-lantern on
+  Win98's desktop behind the windows, a pumpkin in its tray and in the
+  status bar's badge; Night shows no scene. Flying bats were removed as
+  distracting and a photosensitivity risk: do not bring motion back to it.
+- **SeasonSky** (`src/components/desktop/SeasonSky.tsx`): leaves or
   snow on a canvas in the shell, behind the glass in Night and over the
   windows in Win98 (a third as many, z-index 45, never a tap). Nothing with
   reduced motion or while hidden. The status bar greets the season

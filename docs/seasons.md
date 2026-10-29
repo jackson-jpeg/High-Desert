@@ -40,14 +40,24 @@ hydration).
 - **Night:** desert amber (`--hd-amber`) becomes pumpkin orange, harvest
   orange or ice blue: every amber heading, accent and focus ring follows.
   6.6:1 or better on the raised surface (amber is 7.4:1).
-- **Both:** `SeasonSky`, a full-screen canvas that never takes a tap. Bats
-  flap across the top of the sky at Halloween, leaves fall at Thanksgiving,
-  snow falls in winter. In Night it sits behind the glass with the
+- **Halloween is a still picture** (revised the same day). Flying bats were
+  distracting, and a flap near 3 a second sits close to the line for
+  photosensitivity, so Halloween draws nothing that moves. `HalloweenScene`
+  shows 90s pixel art (`src/lib/season/pixel-art.ts`, text grids drawn as
+  crisp SVG): a dithered harvest moon with a bat across it and two off its
+  edge, and a jack-o'-lantern. In Win98 they sit on the dusk desktop behind
+  every window (top right and bottom left), and the taskbar tray gets a
+  16 x 16 pumpkin beside the clock. Night shows no scene: its glass covers
+  the whole screen, so the moon could not be seen or sat behind buttons.
+  The status bar's Ghost to Ghost badge carries the pixel pumpkin in both
+  looks.
+- **Thanksgiving and winter:** `SeasonSky`, a full-screen canvas that never
+  takes a tap. Leaves fall at Thanksgiving, snow falls in winter. In Night it sits behind the glass with the
   starfield. In Win98 the windows cover the desktop, so it drifts over them,
   a third as many, like the desktop snow programs of the day. Nothing is
   drawn when the visitor asks for reduced motion, or while the tab is hidden.
-- **The status bar** (desktop): Halloween keeps its 🎃 Ghost to Ghost badge,
-  now for the whole season; Thanksgiving says "🦃 Happy Thanksgiving", winter
+- **The status bar** (desktop): Halloween keeps its Ghost to Ghost badge,
+  now for the whole season and with the pixel pumpkin; Thanksgiving says "🦃 Happy Thanksgiving", winter
   "❄ Happy holidays".
 - **The station:** a holiday show (`showSeason`: Ghost to Ghost or
   Halloween, Thanksgiving, Christmas, New Year's or the Millennium in the
@@ -67,10 +77,14 @@ the same colours (canvas cannot read `var()`).
   the preview parameter, and the stylesheet's rules.
 - `src/components/desktop/__tests__/season-shell.test.tsx`: the real
   DesktopShell, SeasonSky and StatusBar under each season, drawing into a
-  recording canvas: snow, bats and leaves counted, a third in Win98, nothing
-  with reduced motion, stopped while hidden, the greeting; a no-season
-  control.
-- Mutations: `season-*`, `live-season-favorites`.
+  recording canvas: snow and leaves counted, a third in Win98, nothing
+  with reduced motion, stopped while hidden, Halloween drawing no frame at
+  all, the greeting and its pixel pumpkin; a no-season control.
+- `src/components/desktop/__tests__/halloween-scene.test.tsx`: the moon and
+  the pumpkin drawn crisp at Halloween only, no frame requested and no
+  animation in the rules, Night hiding the scene, the sprites' pixels and
+  colours. `taskbar.test.tsx`: the tray pumpkin before the clock.
+- Mutations: `season-*`, `halloween-*`, `live-season-favorites`.
 
 ## The schedule's variety (same day)
 
