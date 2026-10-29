@@ -27,7 +27,8 @@ program freezes at about 04:00 UTC. A "From the station" notice went out first.
      27 November to 6 January.
    - **Win98:** seasonal title bars and desktop.
    - **Night:** the amber accent becomes the season's colour.
-   - **Both looks:** bats, leaves or snow. The status bar greets the season.
+   - **Both looks:** leaves or snow. The status bar greets the season.
+   - **Halloween is still pixel art** (revised the same afternoon, item 5).
    - **Preview** any season with `?season=thanksgiving` (or `winter`, `halloween`,
      `off`) on any page.
 4. **Supporter shout-outs in the phone lines.**
@@ -42,6 +43,26 @@ program freezes at about 04:00 UTC. A "From the station" notice went out first.
    - **Files:** `scripts/donor-shoutout.mjs` (`--dry-run`, `--now`); install with
      `scripts/shoutout-setup.sh`; state in
      `/var/lib/highdesert-shoutout/state.json`.
+
+5. **Halloween, revised: a still 90s scene instead of flying bats.** Jackson
+   found the bats distracting and asked about photosensitivity; he picked a still
+   scene with a pumpkin, "nostalgic and 90s-esque".
+   - **Win98:** on the dusk desktop, behind every window, a dithered pixel moon
+     with a bat across it and two off its edge (top right), and a jack-o'-lantern
+     (bottom left). A 16 x 16 pixel pumpkin sits in the taskbar tray by the clock.
+   - **Night:** no scene. The glass covers the whole screen, so the moon either
+     could not be seen or sat behind List/Dial and the On Air bar.
+   - **Both looks:** the Ghost to Ghost badge uses the pixel pumpkin, not the 🎃 emoji.
+   - **Nothing moves** at Halloween: no canvas, no frames, no animation in the
+     rules (tested). Leaves and snow are unchanged.
+   - **Moon:** the first draft read as a grumpy face (a bat across the middle under
+     two craters), so the bat moved to the top and the craters low and off centre.
+   - **Checks** (worktree `/root/hd-halloween`):
+     - Lint, typecheck and the full suite (311 files) pass.
+     - The new `halloween-*` mutations and the re-anchored `season-sky-draws` all
+       went red.
+     - `check:csp` on a local build showed only the bare server's `/live-api` 404s.
+     - Screenshots in both looks, phone and desktop, on /, /live, /library and /stats.
 
 ## Checks (worktree `/root/hd-holidays`, through `heavy`)
 
