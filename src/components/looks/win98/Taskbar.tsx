@@ -14,6 +14,9 @@ import { StartMenu } from "./StartMenu";
 import { HelpDialog, RunDialog, SafeToTurnOff, ShutDownDialog } from "./Win98Dialogs";
 import { startMenuItems, typeKey, type StartAction, type StartItem } from "./start-menu";
 import { Win98Icon } from "./Win98Icon";
+import { useSeason } from "@/hooks/useSeason";
+import { PixelSprite } from "@/components/desktop/PixelSprite";
+import { trayPumpkinSprite } from "@/lib/season/pixel-art";
 import { PHONE_LINES_HREF } from "@/lib/live/phone-lines";
 
 // Reachable only by the Run box or by typing on the desktop: fetched when opened.
@@ -238,12 +241,16 @@ export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings, o
   );
 }
 
+/** A jack-o'-lantern in the tray at Halloween, the way 90s desktop toys sat there. */
+const TRAY_PUMPKIN = trayPumpkinSprite();
+
 /** The tray: presence, the speaker, the clock. Owns the clock's timer, so a tick re-renders only this. */
 function Tray({ presence, compact }: { presence: LivePresence; compact: boolean }) {
   const [clock, setClock] = useState("");
   const muted = usePlayerStore((s) => s.volume === 0);
   const toggleMute = usePlayerStore((s) => s.toggleMute);
   const playing = usePlayerStore((s) => s.playing);
+  const season = useSeason();
   useEffect(() => {
     const tick = () => setClock(formatClock(new Date()));
     tick();
@@ -279,6 +286,9 @@ function Tray({ presence, compact }: { presence: LivePresence; compact: boolean 
         >
           <Win98Icon name="speaker" size={16} />
         </button>
+      )}
+      {season === "halloween" && (
+        <PixelSprite sprite={TRAY_PUMPKIN} className="hd-w98-tray-pumpkin" title="Happy Halloween" data-testid="w98-tray-pumpkin" />
       )}
       <span className="tabular-nums whitespace-nowrap" data-testid="w98-tray-clock">
         {clock}

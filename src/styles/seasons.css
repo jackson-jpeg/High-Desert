@@ -6,8 +6,12 @@
  *   - Win98: the title bars' sweep and the desktop take the season's colours
  *     (white title text stays at 5:1 or better).
  *   - Night: desert amber, the look's accent, becomes the season's.
- *   - Both: the holiday sky (SeasonSky.tsx). Behind the glass in Night; over
- *     the windows in Win98, whose desktop the windows cover.
+ *   - Both: the holiday sky (SeasonSky.tsx), leaves or snow. Behind the
+ *     glass in Night; over the windows in Win98, whose desktop the windows
+ *     cover.
+ *   - Halloween: no motion. A still pixel-art moon with bats and a
+ *     jack-o'-lantern (HalloweenScene.tsx) on the desktop behind everything,
+ *     and a pumpkin in Win98's tray.
  *
  * Colours are palette tokens only (no-raw-hex.test.ts).
  */
@@ -25,6 +29,71 @@ html[data-look="win98"] .hd-season-sky {
 }
 
 /* ---------------- Halloween ---------------- */
+
+/* The scene sits on the desktop: fixed, behind every page, never a tap.
+   Sprites scale by whole multiples of their pixel grid (36 and 20 wide). */
+.hd-halloween {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.hd-halloween svg {
+  position: absolute;
+  image-rendering: pixelated;
+}
+.hd-halloween-moon {
+  top: 64px;
+  right: 3vw;
+  width: 144px; /* 36 × 4 */
+}
+.hd-halloween-pumpkin {
+  bottom: 88px;
+  left: 3vw;
+  width: 80px; /* 20 × 4 */
+}
+@media (max-width: 767px) {
+  .hd-halloween-moon {
+    top: calc(var(--safe-top, 0px) + 12px);
+    right: 12px;
+    width: 72px; /* 36 × 2 */
+  }
+  .hd-halloween-pumpkin {
+    width: 40px; /* 20 × 2 */
+    bottom: calc(var(--safe-bottom, 0px) + 72px);
+    left: 12px;
+  }
+}
+
+/* Night: no scene. Its glass covers the whole screen, so the moon either
+   could not be seen or sat behind buttons and rows; the pixel pumpkin rides
+   in the status bar's Ghost to Ghost badge instead. */
+html[data-look="night"] .hd-halloween {
+  display: none;
+}
+
+.hd-badge-pumpkin {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  image-rendering: pixelated;
+}
+
+/* Win98: the desktop is dusk, and the surfaces that paint it go clear so
+   the moon shows on it (the windows keep their own faces). */
+html[data-look="win98"][data-season="halloween"] div[data-hydrated]:has(> main),
+html[data-look="win98"][data-season="halloween"][data-w98-route="/live"] #hd-main,
+html[data-look="win98"][data-season="halloween"][data-w98-route="/stats"] #hd-main,
+html[data-look="win98"][data-season="halloween"] .min-h-screen.bg-midnight,
+html[data-look="win98"][data-season="halloween"] .hd-look-page {
+  background: transparent;
+}
+
+html[data-look="win98"] .hd-w98-tray-pumpkin {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
 
 html[data-look="win98"][data-season="halloween"] {
   --hd-w98-title-start: var(--hd-season-dusk);

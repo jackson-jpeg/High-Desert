@@ -5,6 +5,8 @@ import { createRoot, type Root } from "react-dom/client";
 /**
  * The holiday season in the shell (docs/seasons.md): the real DesktopShell,
  * with the real SeasonSky and StatusBar, under each `<html data-season>`.
+ * Halloween has no falling sky: the test that it draws nothing is the guard
+ * against the flying bats coming back.
  * The sky draws into a recording 2D context (jsdom has no canvas), frames
  * stepped by hand, so "it drew snow" is counted, not assumed. Outside a
  * season (the control) nothing is drawn and the status bar has no greeting.
@@ -108,12 +110,12 @@ describe("the holiday sky", () => {
     expect(drawn.arc).toBe(Math.round(SKY_COUNT.winter[0] / 3));
   });
 
-  it("Halloween: bats, drawn as wings, and they keep flying", () => {
+  it("Halloween: nothing moves (its scene is still, HalloweenScene.tsx)", () => {
     mount("halloween");
     step(3);
-    // Seven curves a bat, each frame.
-    expect(drawn.quadraticCurveTo).toBe(3 * 7 * SKY_COUNT.halloween[0]);
-    expect(frames.length).toBe(1);
+    expect(sky()).toBeNull();
+    expect(drawn).toEqual({});
+    expect(frames.length).toBe(0);
   });
 
   it("Thanksgiving: leaves", () => {
@@ -151,7 +153,11 @@ describe("the holiday sky", () => {
 describe("the status bar's greeting", () => {
   it("Halloween keeps its Ghost to Ghost badge", () => {
     mount("halloween");
-    expect(greeting()?.textContent).toBe("🎃 Ghost to Ghost");
+    expect(greeting()?.textContent).toBe("Ghost to Ghost");
+    // The pumpkin is the pixel one, not an emoji (docs/seasons.md).
+    const pumpkin = greeting()?.querySelector('[data-testid="badge-pumpkin"]');
+    expect(pumpkin?.getAttribute("shape-rendering")).toBe("crispEdges");
+    expect(pumpkin?.querySelectorAll("rect").length).toBeGreaterThan(20);
   });
   it("Thanksgiving and winter say hello, with no em dash", () => {
     mount("thanksgiving");

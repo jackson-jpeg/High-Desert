@@ -248,3 +248,43 @@ describe("the tray", () => {
     expect(document.querySelector('[data-presence="taskbar"]')).not.toBeNull();
   });
 });
+
+describe("the tray at Halloween (docs/seasons.md)", () => {
+  const remount = () => {
+    act(() => root.unmount());
+    root = createRoot(container);
+    act(() =>
+      root.render(
+        createElement(Taskbar, {
+          isAdmin: false,
+          presence: { online: 3, listening: 1, poll: 0 },
+          onAbout,
+          onShortcuts: vi.fn(),
+          onSettings: vi.fn(),
+          onDisplay,
+        }),
+      ),
+    );
+  };
+  afterEach(() => document.documentElement.removeAttribute("data-season"));
+
+  it("holds a pixel jack-o'-lantern before the clock, named for screen readers", () => {
+    document.documentElement.setAttribute("data-season", "halloween");
+    remount();
+    const pumpkin = q("w98-tray-pumpkin")!;
+    expect(pumpkin).not.toBeNull();
+    expect(pumpkin.getAttribute("aria-label")).toBe("Happy Halloween");
+    expect(pumpkin.querySelectorAll("rect").length).toBeGreaterThan(20);
+    expect(pumpkin.nextElementSibling).toBe(q("w98-tray-clock"));
+  });
+
+  it("control: not at Thanksgiving, nor outside a season", () => {
+    document.documentElement.setAttribute("data-season", "thanksgiving");
+    remount();
+    expect(q("w98-tray-pumpkin")).toBeNull();
+    document.documentElement.removeAttribute("data-season");
+    remount();
+    expect(q("w98-tray-pumpkin")).toBeNull();
+    expect(q("w98-tray-clock")).not.toBeNull();
+  });
+});

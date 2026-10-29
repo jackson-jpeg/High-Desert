@@ -189,6 +189,11 @@
      (amber is 7.4:1). */
   --hd-season-dusk: #2A0E3F;       /* Halloween: title start, Win98 desktop */
   --hd-season-pumpkin: #B84E08;    /* Halloween: title end */
+  --hd-season-moon: #F2E3A6;       /* Halloween scene: the harvest moon */
+  --hd-season-moon-shade: #C9B46F; /* Halloween scene: its shade and craters */
+  --hd-season-bat: #160A22;        /* Halloween scene: bats against the moon */
+  --hd-season-glow: #FFD447;       /* Halloween scene: the jack-o'-lantern's candle */
+  --hd-season-stem: #4C7A25;       /* Halloween scene: stem and leaf */
   --hd-season-bark: #4A2208;       /* Thanksgiving: title start, Win98 desktop */
   --hd-season-harvest: #9A4E16;    /* Thanksgiving: title end */
   --hd-season-harvest-glow: #E8913F; /* Thanksgiving: the Night accent */

@@ -5,8 +5,10 @@ import { useSeason } from "@/hooks/useSeason";
 import type { Season } from "@/lib/season/season";
 
 /**
- * The holiday sky (docs/seasons.md): bats for Halloween, falling leaves for
- * Thanksgiving, snow for Christmas and winter. A fixed, full-screen canvas
+ * The holiday sky (docs/seasons.md): falling leaves for Thanksgiving, snow
+ * for Christmas and winter. Halloween has no motion: its moon and
+ * jack-o'-lantern hold still (HalloweenScene.tsx); flying bats were
+ * distracting, and their wings flapped near 3 times a second. A fixed, full-screen canvas
  * that never takes a tap. In Night it sits in the sky behind the glass, with
  * the starfield; in Win98 the windows cover the desktop, so it drifts over
  * them like the desktop snow of the day, a few at a time (look-win98.css).
@@ -26,32 +28,21 @@ interface Flake {
   hue: number;
 }
 
+/** The seasons with a falling sky. */
+type SkySeason = Exclude<Season, "halloween">;
+const isSky = (s: Season | null): s is SkySeason => s === "thanksgiving" || s === "winter";
+
 /** How many at once, by season: [desktop, phone]. Win98 draws a third of them over its windows. */
-export const SKY_COUNT: Record<Season, readonly [number, number]> = {
-  halloween: [12, 6],
+export const SKY_COUNT: Record<SkySeason, readonly [number, number]> = {
   thanksgiving: [22, 10],
   winter: [90, 40],
 };
 
 // Canvas cannot read var(); these are tints of the palette's own colours.
 const LEAF_COLORS = ["rgba(200, 98, 26, 0.55)", "rgba(168, 86, 26, 0.55)", "rgba(212, 168, 67, 0.5)", "rgba(150, 52, 30, 0.5)"];
-const BAT_COLOR = "rgba(255, 140, 0, 0.62)";
 
-function spawn(season: Season, w: number, h: number, anywhere: boolean): Flake {
+function spawn(season: SkySeason, w: number, h: number, anywhere: boolean): Flake {
   const r = Math.random;
-  if (season === "halloween") {
-    const right = r() < 0.5;
-    return {
-      x: anywhere ? r() * w : right ? -40 : w + 40,
-      y: h * (0.06 + r() * 0.6),
-      size: 10 + r() * 9,
-      vx: (0.5 + r() * 0.7) * (right ? 1 : -1),
-      vy: (r() - 0.5) * 0.15,
-      phase: r() * Math.PI * 2,
-      spin: 0.18 + r() * 0.1,
-      hue: 0,
-    };
-  }
   if (season === "thanksgiving") {
     return {
       x: r() * w,
@@ -74,31 +65,6 @@ function spawn(season: Season, w: number, h: number, anywhere: boolean): Flake {
     spin: 0.01 + r() * 0.015,
     hue: 0.3 + r() * 0.5,
   };
-}
-
-function drawBat(ctx: CanvasRenderingContext2D, f: Flake, t: number) {
-  const flap = Math.sin(t * f.spin + f.phase);
-  const s = f.size;
-  const lift = flap * s * 0.55;
-  ctx.save();
-  ctx.translate(f.x, f.y);
-  if (f.vx < 0) ctx.scale(-1, 1);
-  ctx.fillStyle = BAT_COLOR;
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  // Left wing, scalloped, then right: a silhouette, flapping.
-  ctx.quadraticCurveTo(-s * 0.6, -lift - s * 0.3, -s * 1.4, -lift);
-  ctx.quadraticCurveTo(-s, -lift * 0.3 + s * 0.1, -s * 0.9, s * 0.25);
-  ctx.quadraticCurveTo(-s * 0.5, s * 0.05, -s * 0.2, s * 0.3);
-  ctx.quadraticCurveTo(0, s * 0.15, s * 0.2, s * 0.3);
-  ctx.quadraticCurveTo(s * 0.5, s * 0.05, s * 0.9, s * 0.25);
-  ctx.quadraticCurveTo(s, -lift * 0.3 + s * 0.1, s * 1.4, -lift);
-  ctx.quadraticCurveTo(s * 0.6, -lift - s * 0.3, 0, 0);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(0, s * 0.05, s * 0.22, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
 }
 
 function drawLeaf(ctx: CanvasRenderingContext2D, f: Flake, t: number) {
@@ -128,7 +94,7 @@ export function SeasonSky() {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!season || !canvas) return;
+    if (!isSky(season) || !canvas) return;
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -161,18 +127,11 @@ export function SeasonSky() {
       ctx.clearRect(0, 0, w, h);
       for (let i = 0; i < flakes.length; i++) {
         const f = flakes[i];
-        if (season === "halloween") {
-          f.x += f.vx;
-          f.y += f.vy + Math.sin(t * 0.0012 + f.phase) * 0.25;
-          if (f.x < -60 || f.x > w + 60) flakes[i] = spawn(season, w, h, false);
-          drawBat(ctx, f, t);
-        } else {
-          f.x += f.vx + Math.sin(t * 0.001 + f.phase) * (season === "thanksgiving" ? 0.6 : 0.25);
-          f.y += f.vy;
-          if (f.y > h + 20) flakes[i] = spawn(season, w, h, false);
-          if (season === "thanksgiving") drawLeaf(ctx, f, t);
-          else drawFlake(ctx, f);
-        }
+        f.x += f.vx + Math.sin(t * 0.001 + f.phase) * (season === "thanksgiving" ? 0.6 : 0.25);
+        f.y += f.vy;
+        if (f.y > h + 20) flakes[i] = spawn(season, w, h, false);
+        if (season === "thanksgiving") drawLeaf(ctx, f, t);
+        else drawFlake(ctx, f);
       }
       raf = requestAnimationFrame(frame);
     };
@@ -192,7 +151,7 @@ export function SeasonSky() {
     };
   }, [season]);
 
-  if (!season) return null;
+  if (!isSky(season)) return null;
   return (
     <canvas
       ref={canvasRef}

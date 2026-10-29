@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { UsageTracker } from "@/components/UsageTracker";
 import { BOOT_SCRIPT } from "../boot-script";
 import { SEASON_SCRIPT } from "@/lib/season/season";
+import { HalloweenScene } from "@/components/desktop/HalloweenScene";
 import { PALETTE } from "@/lib/palette";
 import { BUILD_META } from "@/lib/utils/build-id";
 import { siteVerification } from "@/lib/seo/verification";
@@ -210,6 +211,8 @@ export default async function RootLayout({
         <LookProvider look={look}>
           <ServiceWorkerRegistration />
           <UsageTracker />
+          {/* Halloween's moon and jack-o'-lantern, on the desktop behind every page (docs/seasons.md). */}
+          <HalloweenScene />
           {children}
         </LookProvider>
       </body>

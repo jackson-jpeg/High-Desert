@@ -13,10 +13,15 @@ import { MirrorBadge } from "@/components/player/MirrorBadge";
 import { emit, useHdEvent } from "@/lib/events";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import { useSeason } from "@/hooks/useSeason";
+import { PixelSprite } from "@/components/desktop/PixelSprite";
+import { trayPumpkinSprite } from "@/lib/season/pixel-art";
 import { episodeTitle } from "@/lib/library/display-title";
 import { shownGuest } from "@/lib/library/guest";
 import { episodeCountLabel } from "@/lib/library/episode-count";
 
+
+/** Halloween's badge pumpkin: the same pixel jack-o'-lantern as Win98's tray. */
+const BADGE_PUMPKIN = trayPumpkinSprite();
 
 /** The status bar's hello outside Halloween (which has its Ghost to Ghost badge). */
 const SEASON_GREETING = {
@@ -205,12 +210,13 @@ export function StatusBar({ episodeCount, presence, countTimedOut = false, onRet
           content: (
             <button
               onClick={handleGhostClick}
-              className="text-hd-10 cursor-pointer hover:text-desert-amber transition-colors-fast"
+              className="inline-flex items-center gap-1 text-hd-10 cursor-pointer hover:text-desert-amber transition-colors-fast"
               style={{ color: "var(--hd-egg-halloween)" }}
               title="Ghost to Ghost AM Collection"
               data-season-greeting="halloween"
             >
-              🎃 Ghost to Ghost
+              <PixelSprite sprite={BADGE_PUMPKIN} className="hd-badge-pumpkin" data-testid="badge-pumpkin" />
+              Ghost to Ghost
             </button>
           ),
           width: "110px",
