@@ -5,6 +5,9 @@ import path from "node:path";
 import {
   STATION_ID_SEC,
   REPEAT_WINDOW_DAYS,
+  GUEST_GAP_DAYS,
+  guestsOf,
+  isAirable,
   addDays,
   applyOutageSwap,
   buildDay,
@@ -120,7 +123,7 @@ describe("the program is a function of the date", () => {
     const a = buildDays("2026-09-25", inputs, new Map());
     const b = buildDays("2026-09-25", inputs, new Map());
     expect(a.map((d) => d.day)).toEqual(
-      Array.from({ length: REPEAT_WINDOW_DAYS + 1 }, (_, i) => addDays("2026-09-11", i)),
+      Array.from({ length: REPEAT_WINDOW_DAYS + 1 }, (_, i) => addDays("2026-09-25", i - REPEAT_WINDOW_DAYS)),
     );
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
@@ -181,7 +184,7 @@ describe("on this date", () => {
   });
 });
 
-describe("fan favorites and the 14-day repeat rule", () => {
+describe("fan favorites and the repeat rule", () => {
   // Thirty two-hour shows, none on any date near the test days.
   const catalog = Array.from({ length: 30 }, (_, i) => row(`show-${String(i).padStart(2, "0")}`, "1990-01-01"));
   const inputs: BuildInputs = {
@@ -194,16 +197,16 @@ describe("fan favorites and the 14-day repeat rule", () => {
     expect(p.slots.slice(0, 3).map((s) => s.title)).toEqual(["show-00", "show-01", "show-02"]);
   });
 
-  it("skips a favorite that aired in the last 14 days, and allows it again after", () => {
+  it("skips a favorite that aired in the last 30 days, and allows it again after", () => {
     const earlier = buildDay("2026-06-01", inputs, []);
     const aired = new Set(hashes(earlier));
     expect(aired.size).toBeGreaterThan(5);
 
-    // 14 days later is still inside the window.
+    // 30 days later is still inside the window.
     const within = buildDay(addDays("2026-06-01", REPEAT_WINDOW_DAYS), inputs, [earlier]);
     expect(hashes(within).filter((h) => aired.has(h))).toEqual([]);
 
-    // 15 days later it is not: the most-played show is back at the top.
+    // 31 days later it is not: the most-played show is back at the top.
     const after = buildDay(addDays("2026-06-01", REPEAT_WINDOW_DAYS + 1), inputs, [earlier]);
     expect(after.slots[0].fileHash).toBe(earlier.slots[0].fileHash);
   });
@@ -212,10 +215,84 @@ describe("fan favorites and the 14-day repeat rule", () => {
     const special = row("anniv", "1997-06-15");
     const cat = [special, ...catalog];
     const inp: BuildInputs = { catalog: cat, plays: plays([[special, 5000]]) };
-    const before = buildDay("2026-06-10", inp, []);
-    expect(before.slots[0].fileHash).toBe(special.fileHash);
-    const onItsDate = buildDay("2026-06-15", inp, [before]);
+    // Its own date is 36 days off, outside the hold: a favorite, on top.
+    const before = buildDay("2026-05-10", inp, []);
+    expect(before.slots[0]).toMatchObject({ fileHash: special.fileHash, kind: "fan-favorite" });
+    // As if it had aired as a favorite five days before its date.
+    const aired: DayProgram = { ...before, day: "2026-06-10" };
+    const onItsDate = buildDay("2026-06-15", inp, [aired]);
     expect(onItsDate.slots[0]).toMatchObject({ fileHash: special.fileHash, kind: "on-this-date" });
+  });
+
+  it("holds a favorite for its own date when that comes up in the window (back-to-back days, 2026-10-28)", () => {
+    const special = row("anniv", "1997-06-15");
+    const inp: BuildInputs = { catalog: [special, ...catalog], plays: plays([[special, 5000]]) };
+    // The day before its date, and 30 days before: held, though it is the most played.
+    for (const day of ["2026-06-14", addDays("2026-06-15", -REPEAT_WINDOW_DAYS)]) {
+      expect(hashes(buildDay(day, inp, [])), day).not.toContain(special.fileHash);
+    }
+    // Control: 31 days before, outside the hold, it is the first favorite.
+    expect(buildDay(addDays("2026-06-15", -REPEAT_WINDOW_DAYS - 1), inp, []).slots[0].fileHash).toBe(special.fileHash);
+  });
+
+  it("the real catalog: 28 October's broadcast is not 27 October's favorite", () => {
+    const md = "10-28";
+    const own = CATALOG.filter(isAirable).filter((r) => r.airDate?.slice(5, 10) === md);
+    expect(own.length).toBeGreaterThan(0);
+    // Make every one of them the most played show there is.
+    const inp: BuildInputs = { catalog: CATALOG, plays: plays(own.map((r) => [r, 1_000_000] as [CatalogRow, number])) };
+    const favs = buildDay("2026-10-27", inp, []).slots.filter((s) => s.kind === "fan-favorite").map((s) => s.fileHash);
+    expect(favs.length).toBeGreaterThan(0);
+    for (const r of own) expect(favs).not.toContain(r.fileHash);
+  });
+
+  it("a favorite whose guest was on yesterday or today waits behind one whose guest was not", () => {
+    const g = (name: string, guest: string) => ({ ...row(name, "1990-01-01"), guestName: guest });
+    const a1 = g("hoagland-1", "Richard C. Hoagland");
+    const a2 = g("hoagland-2", "Richard C. Hoagland & Seth Shostak");
+    const b = g("dames-1", "Major Ed Dames");
+    const cat = [a1, a2, b, ...catalog];
+    const inp: BuildInputs = { catalog: cat, plays: plays([[a1, 9000], [a2, 8000], [b, 10]]) };
+    const day = buildDay("2026-06-10", inp, []);
+    // Hoagland, then not Hoagland again until nothing else is left.
+    expect(hashes(day).slice(0, 2)).toEqual([a1.fileHash, b.fileHash]);
+    expect(hashes(day)).not.toContain(a2.fileHash);
+    // Yesterday's guest waits today too; the day after, he is back on top.
+    const yesterday: DayProgram = { ...day, day: "2026-06-11", slots: day.slots.filter((s) => s.fileHash === a1.fileHash) };
+    const next = buildDay("2026-06-12", inp, [yesterday]);
+    expect(next.slots[0].fileHash).not.toBe(a2.fileHash);
+    expect(hashes(next)).toContain(b.fileHash);
+    const later = buildDay(addDays("2026-06-11", GUEST_GAP_DAYS + 1), inp, [yesterday]);
+    expect(later.slots[0].fileHash).toBe(a2.fileHash);
+  });
+
+  it("a holiday show is a favorite only in its own season", () => {
+    // Dated 2 December, so on 3 December it is not held for its date (24 December would be).
+    const xmas = row("Christmas Open Lines", "1998-12-02");
+    const g2g = row("Ghost to Ghost 1999", "1999-06-10");
+    // Dated in July, so none of them is held for its date in any of these months.
+    const rest = catalog.map((r) => ({ ...r, airDate: "1990-07-01" }));
+    const inp: BuildInputs = { catalog: [xmas, g2g, ...rest], plays: plays([[xmas, 9000], [g2g, 8000]]) };
+    const october = hashes(buildDay("2026-10-20", inp, []));
+    expect(october).not.toContain(xmas.fileHash);
+    expect(october[0]).toBe(g2g.fileHash);
+    const december = hashes(buildDay("2026-12-03", inp, []));
+    expect(december[0]).toBe(xmas.fileHash);
+    expect(december).not.toContain(g2g.fileHash);
+    // Out of every season, neither.
+    const march = hashes(buildDay("2026-03-03", inp, []));
+    expect(march).not.toContain(xmas.fileHash);
+    expect(march).not.toContain(g2g.fileHash);
+  });
+});
+
+describe("guestsOf", () => {
+  it("splits a guest field into people, lower case", () => {
+    expect(guestsOf("Richard C. Hoagland & Seth Shostak")).toEqual(["richard c. hoagland", "seth shostak"]);
+    expect(guestsOf("Brendan Cook, Barbara McBeath")).toEqual(["brendan cook", "barbara mcbeath"]);
+    expect(guestsOf("Michael Sebastian and Nicole Sebastian")).toEqual(["michael sebastian", "nicole sebastian"]);
+    expect(guestsOf(null)).toEqual([]);
+    expect(guestsOf("")).toEqual([]);
   });
 });
 

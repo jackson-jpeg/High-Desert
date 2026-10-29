@@ -15,8 +15,16 @@
  *      and day, any year, oldest first. On 28 February of a non-leap year the
  *      29 February broadcasts join them, or they would never air.
  *   2. **Fan favorites** — the rest of the catalog by community plays, most
- *      first, skipping anything already on today and anything that aired on the
- *      station in the previous `REPEAT_WINDOW_DAYS` days.
+ *      first, skipping anything already on today, anything that aired on the
+ *      station in the previous `REPEAT_WINDOW_DAYS` days, and anything whose
+ *      own date comes up in the next `REPEAT_WINDOW_DAYS` days (it is held for
+ *      that date: a favorite on 27 October was on again as 28 October's
+ *      broadcast, 2026-10-28). A favorite sharing a guest with a show already
+ *      on today, or on in the previous `GUEST_GAP_DAYS` days, waits behind the
+ *      ones that do not (Richard C. Hoagland has 67 shows). A holiday show
+ *      (Ghost to Ghost, Christmas, New Year's: `showSeason`) is a favorite
+ *      only in its own season (src/lib/season/season.ts); a Christmas Eve
+ *      show was about to air on Halloween.
  *
  * Slots are laid end to end from midnight with a `STATION_ID_SEC` gap between
  * them (the station ID). Slots are added while the next one would *start*
@@ -55,12 +63,20 @@
 import { communityKey } from "@/lib/utils/community-key";
 import { REMOVED_FROM_CATALOG } from "@/lib/library/removed-episodes";
 import { episodeTitle } from "@/lib/library/display-title";
+import { seasonOfDay, showSeason } from "@/lib/season/season";
 import { STATION_TZ, addDays, pacificDayBounds, parts, requestStartAt } from "./pacific";
 
 /** The gap between shows, filled by the station ID. Part of the timeline math. */
 export const STATION_ID_SEC = 8;
-/** A fan favorite that aired in this many previous days is skipped. */
-export const REPEAT_WINDOW_DAYS = 14;
+/**
+ * A fan favorite that aired in this many previous days is skipped, and one
+ * whose own date is this many days ahead or fewer is held for it. 14 until
+ * 2026-10-29 (listeners heard the same shows on back-to-back days); 30 is
+ * the Request Line's "played recently" too.
+ */
+export const REPEAT_WINDOW_DAYS = 30;
+/** A favorite whose guest was on in this many previous days (or today) waits. */
+export const GUEST_GAP_DAYS = 2;
 /**
  * How much of the fan-favorite ranking a frozen day keeps, for the outage swap.
  * The mirror pins the most-played shows, so the top of this list is where its
@@ -232,10 +248,22 @@ export function toSlot(row: CatalogRow, kind: SlotKind, start: number, end: numb
 }
 
 /**
+ * The people in a guest field, for spacing them out: "Richard C. Hoagland &
+ * Seth Shostak" is two. Lower case, trimmed; an empty field is nobody.
+ */
+export function guestsOf(field: string | null | undefined): string[] {
+  if (!field) return [];
+  return field
+    .split(/\s*(?:&|,|;|\band\b)\s*/i)
+    .map((g) => g.trim().toLowerCase())
+    .filter((g) => g.length > 2);
+}
+
+/**
  * One day's program.
  *
  * `history` is the programs of earlier days; only those within
- * REPEAT_WINDOW_DAYS before `day` are read. Pure: same arguments, same day.
+ * REPEAT_WINDOW_DAYS before `day` are read (GUEST_GAP_DAYS for guests). Pure: same arguments, same day.
  */
 export function buildDay(day: string, inputs: BuildInputs, history: readonly DayProgram[]): DayProgram {
   const { start: dayStart, end: dayEnd } = pacificDayBounds(day);
@@ -245,6 +273,15 @@ export function buildDay(day: string, inputs: BuildInputs, history: readonly Day
     if (h.day >= earliest && h.day < day) for (const s of h.slots) aired.add(s.fileHash);
   }
 
+  const recentGuests = new Set<string>();
+  const guestFrom = addDays(day, -GUEST_GAP_DAYS);
+  for (const h of history) {
+    if (h.day >= guestFrom && h.day < day) for (const s of h.slots) for (const g of guestsOf(s.guestName)) recentGuests.add(g);
+  }
+  // Month-days coming up in the window: their broadcasts are held for them.
+  const comingUp = new Set<string>();
+  for (let i = 1; i <= REPEAT_WINDOW_DAYS; i++) for (const md of onThisDateKeys(addDays(day, i))) comingUp.add(md);
+
   const airable = inputs.catalog.filter(isAirable);
   const mds = new Set(onThisDateKeys(day));
   const onThisDate = airable
@@ -253,7 +290,18 @@ export function buildDay(day: string, inputs: BuildInputs, history: readonly Day
   const today = new Set(onThisDate.map((r) => r.fileHash));
 
   const ranking = rankByPlays(inputs);
-  const favorites = ranking.filter((r) => !today.has(r.fileHash) && !aired.has(r.fileHash));
+  const season = seasonOfDay(day);
+  const inSeason = (r: CatalogRow) => {
+    const own = showSeason(r.title);
+    return own === null || own === season;
+  };
+  const favorites = ranking.filter(
+    (r) =>
+      !today.has(r.fileHash) &&
+      !aired.has(r.fileHash) &&
+      !(r.airDate && comingUp.has(r.airDate.slice(5, 10))) &&
+      inSeason(r),
+  );
 
   const slots: ProgramSlot[] = [];
   const gap = STATION_ID_SEC * 1000;
@@ -263,6 +311,7 @@ export function buildDay(day: string, inputs: BuildInputs, history: readonly Day
     const end = Math.min(t + durationMs(row), clipAt, dayEnd);
     slots.push(toSlot(row, kind, t, end));
     today.add(row.fileHash);
+    for (const g of guestsOf(row.guestName)) recentGuests.add(g);
     t = t + durationMs(row) + gap;
   };
 
@@ -276,8 +325,14 @@ export function buildDay(day: string, inputs: BuildInputs, history: readonly Day
   // most-played first, and cycle if even that runs out.
   let relaxed: CatalogRow[] | null = null;
   let relaxedAt = 0;
+  // A favorite whose guest was just on waits for one whose guest was not;
+  // with none left, the queue's order stands.
+  const fresh = (q: { row: CatalogRow; kind: SlotKind }) =>
+    q.kind !== "fan-favorite" || !guestsOf(q.row.guestName).some((g) => recentGuests.has(g));
   const next = (fits?: (row: CatalogRow) => boolean): { row: CatalogRow; kind: SlotKind } | null => {
-    const i = fits ? queue.findIndex((q) => fits(q.row)) : queue.length ? 0 : -1;
+    const ok = (q: { row: CatalogRow }) => !fits || fits(q.row);
+    let i = queue.findIndex((q) => ok(q) && fresh(q));
+    if (i < 0) i = queue.findIndex(ok);
     if (i >= 0) return queue.splice(i, 1)[0];
     if (queue.length || ranking.length === 0) return null;
     if (!relaxed) {
