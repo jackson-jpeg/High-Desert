@@ -1646,9 +1646,19 @@ highdesert-status                      # deploy drift, service, backup, sampler,
   (`.next/types`, `.next/dev/types`, `.next-dev/types`, `.next.prev/types`):
   `tsconfig.json` includes them, and a route since deleted failed the next
   build's type check.
-- **A docs-only commit is not drift.** When everything between the deployed
-  build and `HEAD` is under `docs/` or a top-level `*.md` (a handoff),
-  `highdesert-status`'s `deploy` line reads OK and nothing needs deploying.
+- **Only the web build is drift; only a failed deploy fails** (2026-10-30).
+  `highdesert-status`'s `deploy` line reads DRIFT only when a commit since the
+  deployed build touches what `next build` is made from (or
+  `scripts/schema.sql`, which the deploy applies), and names those files.
+  Docs and handoffs, `scripts/`, the chat (`services/`, `deploy-live.sh`), the
+  units (`deploy/`), tests, lint and CI read OK, nothing to deploy (`NOT_WEB`
+  in `scripts/status.sh`; a status test fails if the build imports from any
+  of them). The line FAILs as FAILED when the last deploy failed or was
+  killed (`.deploy/attempt`, written by `deploy.sh`), until one succeeds.
+  sang3r.com's portfolio raises "deploy failed" for FAILED only; DRIFT shows
+  as undeployed commits on `/projects`. Why: nine commits of scripts, the chat
+  and docs raised "High Desert deploy failed" on sang3r.com, and a deploy
+  that failed verification and rolled back read as live = HEAD, OK.
 - **Commit guard.** `.commit-guard` opts this repo into
   `/root/vps-tools/bin/commit-guard` (the global pre-commit): no staged file
   over 20 MB, nothing inside `.next*`, `node_modules*`, `test-results`,

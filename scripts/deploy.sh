@@ -100,7 +100,7 @@ cd "$ROOT"
 
 say() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33m  ! %s\033[0m\n' "$*" >&2; }
-die() { printf '\n\033[1;31mdeploy: %s\033[0m\n' "$*" >&2; exit 1; }
+die() { DIE_MSG="$*"; printf '\n\033[1;31mdeploy: %s\033[0m\n' "$*" >&2; exit 1; }
 
 MODE=deploy
 ALLOW_DIRTY=0
@@ -206,6 +206,19 @@ swap_back() {
     mv node_modules.failed node_modules.prev
   fi
   echo "  $LIVE <-> $PREV swapped$( (( deps )) && echo ', node_modules <-> node_modules.prev swapped')"
+
+  # .deploy/deployed names the build that serves, so it swaps with the build.
+  # Deploys before 2026-10-30 kept no .deploy/previous: the build in $PREV is
+  # then the one before the last in the history. With neither, no record says
+  # which build serves, and none is better than a wrong one.
+  local was=""
+  if [[ -s "$STATE_DIR/previous" ]]; then
+    was="$(cat "$STATE_DIR/previous")"
+  elif (( $(wc -l 2>/dev/null < "$STATE_DIR/history" || echo 0) >= 2 )); then
+    was="$(tail -n 2 "$STATE_DIR/history" | head -n 1)"
+  fi
+  if [[ -f "$STATE_DIR/deployed" ]]; then cp "$STATE_DIR/deployed" "$STATE_DIR/previous"; fi
+  if [[ -n "$was" ]]; then echo "$was" > "$STATE_DIR/deployed"; else rm -f "$STATE_DIR/deployed"; fi
 }
 
 if [[ "$MODE" == verify ]]; then
@@ -244,6 +257,25 @@ fi
 
 BUILD_REF="$(git rev-parse --short HEAD)"
 say "Deploying $BUILD_REF — $(git log -1 --pretty=%s)"
+
+# The record highdesert-status reads (scripts/status.sh): "running <pid>" while
+# this runs, then "ok" or "failed <why>". A failed build, a rollback after
+# verification, a schema that would not apply: each is a failed deploy, and
+# the status line says so until a deploy succeeds. A record left "running"
+# with its pid gone was killed. Refusals above (a dirty tree, the lock) are
+# not deploys and leave it alone.
+ATTEMPT_AT="$(date -u +%FT%TZ)"
+echo "$BUILD_REF $ATTEMPT_AT running $$" > "$STATE_DIR/attempt"
+record_attempt() {
+  local rc=$? why
+  if (( rc == 0 )); then
+    echo "$BUILD_REF $ATTEMPT_AT ok" > "$STATE_DIR/attempt"
+  else
+    why="$(tr -s '[:space:]' ' ' <<<"${DIE_MSG:-exited $rc}" | sed 's/^ //; s/ $//')"
+    echo "$BUILD_REF $ATTEMPT_AT failed $why" > "$STATE_DIR/attempt"
+  fi
+}
+trap record_attempt EXIT
 
 LOCK_SHA="$(sha256sum package-lock.json | cut -d' ' -f1)"
 DEPS_CHANGED=0
@@ -375,6 +407,7 @@ if [[ -d node_modules.staging ]]; then
   echo "  node_modules replaced (previous kept as node_modules.prev)"
 fi
 DEPLOYED_AT="$(date -u +%FT%TZ)"
+[[ -f "$STATE_DIR/deployed" ]] && cp "$STATE_DIR/deployed" "$STATE_DIR/previous"
 echo "$BUILD_REF $DEPLOYED_AT" > "$STATE_DIR/deployed"
 # Every build that has gone live, oldest first. The release line counts rows
 # from the builds deployed since the release (scripts/status.sh).

@@ -476,3 +476,98 @@ describe("deploy.sh --rollback", () => {
     expect(await marker(".next")).toBe("good:old");
   });
 });
+
+// What highdesert-status reads (scripts/status.sh): .deploy/attempt says how
+// the last deploy ended, .deploy/deployed which build serves. Before
+// 2026-10-30 a failed deploy left no trace, and a rollback left `deployed`
+// naming the build it had just taken down.
+describe("deploy.sh: the records highdesert-status reads", () => {
+  const ISO = "\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ";
+  const state = (f: string) => readFile(path.join(h.root, ".deploy", f), "utf8").then((s) => s.trim(), () => null);
+  const deployedRef = async () => (await state("deployed"))?.split(" ")[0] ?? null;
+  async function commit(name: string): Promise<string> {
+    await writeFile(path.join(h.root, `${name}.txt`), name);
+    await git("-c", "user.email=t@t", "-c", "user.name=t", "add", "-A");
+    await git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", name);
+    return git("rev-parse", "--short", "HEAD");
+  }
+
+  it("a failed build is a failed deploy, with its reason; the next good deploy clears it", async () => {
+    await startServer();
+    const head = await git("rev-parse", "--short", "HEAD");
+    expect((await run([], { FAKE_BUILD: "fail" })).code).not.toBe(0);
+    expect(await state("attempt")).toMatch(new RegExp(`^${head} ${ISO} failed Build failed\\. The live site is untouched\\.$`));
+    expect((await run([])).code).toBe(0);
+    expect(await state("attempt")).toMatch(new RegExp(`^${head} ${ISO} ok$`));
+  });
+
+  it("while it runs, the record is 'running' with the deploy's pid", async () => {
+    await startServer();
+    const during = path.join(h.root, "..", "attempt-during-build");
+    const build = path.join(h.root, "..", "build-and-look.sh");
+    await writeFile(build, `cp .deploy/attempt "${during}"\nexec bash "${path.join(h.root, "..", "fake-build.sh")}"\n`);
+    expect((await run([], { HD_BUILD_CMD: `bash ${build}` })).code).toBe(0);
+    const head = await git("rev-parse", "--short", "HEAD");
+    expect((await readFile(during, "utf8")).trim()).toMatch(new RegExp(`^${head} ${ISO} running \\d+$`));
+  });
+
+  it("a deploy rolled back after verification is a failed deploy, and `deployed` names the build that serves", async () => {
+    await startServer();
+    const a = await git("rev-parse", "--short", "HEAD");
+    expect((await run([])).code).toBe(0);
+    const b = await commit("b");
+    expect((await run([], { FAKE_BUILD: "no-chunks" })).code).not.toBe(0);
+    expect(await marker(".next")).toBe("good:new"); // a's build, back in place
+    expect(await state("attempt")).toMatch(new RegExp(`^${b} ${ISO} failed Deploy of ${b} failed verification and was rolled back\\.`));
+    expect(await deployedRef()).toBe(a);
+  });
+
+  it("--rollback swaps the record with the build, both ways", async () => {
+    await startServer();
+    const a = await git("rev-parse", "--short", "HEAD");
+    expect((await run([])).code).toBe(0);
+    const b = await commit("b");
+    expect((await run([])).code).toBe(0);
+    expect(await deployedRef()).toBe(b);
+    expect((await run(["--rollback"])).code).toBe(0);
+    expect(await deployedRef()).toBe(a);
+    expect((await run(["--rollback"])).code).toBe(0);
+    expect(await deployedRef()).toBe(b);
+  });
+
+  it("after a rollback and a new deploy, a rollback restores the build live before that deploy", async () => {
+    await startServer();
+    const a = await git("rev-parse", "--short", "HEAD");
+    expect((await run([])).code).toBe(0);
+    await commit("b");
+    expect((await run([])).code).toBe(0);
+    expect((await run(["--rollback"])).code).toBe(0); // a serves; b is in .next.prev
+    const c = await commit("c");
+    expect((await run([])).code).toBe(0); // c serves; a is in .next.prev
+    expect(await deployedRef()).toBe(c);
+    expect((await run(["--rollback"])).code).toBe(0);
+    expect(await deployedRef()).toBe(a);
+  });
+
+  it("with no .deploy/previous (deploys before it existed), the history's build before the last is the one restored; with neither, no record", async () => {
+    await startServer();
+    const a = await git("rev-parse", "--short", "HEAD");
+    expect((await run([])).code).toBe(0);
+    await commit("b");
+    expect((await run([])).code).toBe(0);
+    await rm(path.join(h.root, ".deploy/previous"));
+    expect((await run(["--rollback"])).code).toBe(0);
+    expect(await deployedRef()).toBe(a);
+
+    await rm(path.join(h.root, ".deploy/previous"));
+    await writeFile(path.join(h.root, ".deploy/history"), "");
+    expect((await run(["--rollback"])).code).toBe(0);
+    expect(await state("deployed")).toBeNull();
+  });
+
+  it("a refusal is not a deploy: a dirty tree leaves no record", async () => {
+    await writeFile(path.join(h.root, "uncommitted.txt"), "x");
+    expect((await run([])).code).not.toBe(0);
+    expect(await state("attempt")).toBeNull();
+  });
+});

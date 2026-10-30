@@ -59,7 +59,14 @@ bash scripts/deploy.sh --rollback      # swap current <-> previous build, restar
 There is exactly one level of history.
 
 A flock on `.deploy/lock` prevents two deploys from running at once.
-`.deploy/deployed` records the last deployed commit and its time.
+`.deploy/deployed` records the commit that serves and when it went live; a
+rollback (by hand or after a failed verification) swaps it with
+`.deploy/previous`, so it names the build in `.next`, not the one just taken
+down. `.deploy/attempt` records the last deploy: `<ref> <started> running
+<pid>` while it runs, then `ok` or `failed <why>`. `highdesert-status` FAILs
+on a failed one (or a `running` one whose pid is gone) until a deploy
+succeeds. A refusal (a dirty tree, the lock) is not a deploy and writes
+nothing. Both since 2026-10-30.
 
 ## Tests
 

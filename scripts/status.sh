@@ -6,9 +6,12 @@
 #
 # Each line is OK, WARN or FAIL. Exits non-zero if any line is FAIL.
 #
-#   deploy    the deployed commit (.deploy/deployed) vs HEAD, and HEAD vs origin.
-#             Commits that change only docs/ or top-level *.md (handoffs) are not
-#             drift: nothing in them is served, so they need no deploy
+#   deploy    the last deploy (.deploy/attempt): FAIL "FAILED" when it failed or
+#             was killed, until a deploy succeeds. Then the deployed commit
+#             (.deploy/deployed) vs HEAD, and HEAD vs origin. Only commits that
+#             touch what `next build` is made from are drift: docs, the scripts
+#             and the chat (they run from their own units and deploys), the
+#             units, tests, lint and CI need no web deploy (2026-10-30)
 #   service   highdesert.service active, and the installed unit == deploy/highdesert.service
 #   nginx     the installed vhost == deploy/nginx/highdesert.conf (WARN on drift:
 #             the stats write limit and the X-Forwarded-For overwrite live there)
@@ -165,16 +168,38 @@ line() {
 head_ref="$(git rev-parse --short HEAD 2>/dev/null)"
 deployed_ref="$(cut -d' ' -f1 .deploy/deployed 2>/dev/null)"
 deployed_at="$(cut -d' ' -f2 .deploy/deployed 2>/dev/null)"
-if [[ -z "$deployed_ref" ]]; then
-  line FAIL deploy "no .deploy/deployed — nothing has been deployed with scripts/deploy.sh"
+# scripts/deploy.sh's record of its last run: "<ref> <started> running <pid>",
+# then "ok" or "failed <why>". None before 2026-10-30's deploy.
+read -r attempt_ref attempt_at attempt_state attempt_rest < .deploy/attempt 2>/dev/null || attempt_state=""
+# What a web deploy ships: everything `next build` reads (src/, public/, data/,
+# the top-level config) and scripts/schema.sql, which deploy.sh applies. Not
+# docs and handoffs, the scripts the timers run from this tree, the chat
+# (services/, deploy-live.sh), the units and vhost (deploy/, their own lines
+# below), tests, lint or CI. A path this list does not name counts as the web
+# app, so a new kind of file reads as drift until someone says otherwise.
+NOT_WEB='^(docs/|[^/]+\.md$|scripts/|services/|deploy/|e2e/|eslint-rules/|\.github/|(.*/)?__tests__/|.*\.(test|spec)\.[cm]?[jt]sx?$|(playwright\.config\.ts|vitest\.config\.mts|eslint\.config\.mjs|LICENSE|\.gitignore|\.gitattributes|\.commit-guard|\.env\.example)$)'
+web_changes() {
+  grep -vE "$NOT_WEB" <<<"$1" || true
+  grep -xF scripts/schema.sql <<<"$1" || true
+}
+live_is="${deployed_ref:+$deployed_ref ($deployed_at)}"
+if [[ "$attempt_state" == failed ]]; then
+  line FAIL deploy "FAILED: the deploy of $attempt_ref at $attempt_at failed (${attempt_rest:-no reason recorded}); live is ${live_is:-not recorded}"
+elif [[ "$attempt_state" == running ]] && ! kill -0 "${attempt_rest%% *}" 2>/dev/null; then
+  line FAIL deploy "FAILED: the deploy of $attempt_ref at $attempt_at stopped before it finished; live is ${live_is:-not recorded}"
+elif [[ "$attempt_state" == running ]]; then
+  line WARN deploy "a deploy of $attempt_ref is running (since $attempt_at); live is ${live_is:-not recorded}"
+elif [[ -z "$deployed_ref" ]]; then
+  line FAIL deploy "no .deploy/deployed — no record of which build is live (scripts/deploy.sh writes it)"
 elif [[ "$deployed_ref" != "$head_ref" ]]; then
   behind="$(git rev-list --count "$deployed_ref..HEAD" 2>/dev/null || echo '?')"
-  # A handoff or doc commit changes nothing that is served: not drift.
-  changed="$(git diff --name-only "$deployed_ref" HEAD 2>/dev/null)"
-  if [[ -n "$changed" ]] && ! grep -qvE '^(docs/|[^/]+\.md$)' <<<"$changed"; then
-    line OK deploy "live = $deployed_ref (deployed $deployed_at); HEAD $head_ref is $behind docs-only commit(s) ahead, nothing to deploy"
+  changed="$(git diff --name-only "$deployed_ref" HEAD 2>/dev/null)" || changed="(no diff: $deployed_ref is not a commit here)"
+  web="$(web_changes "$changed" | sed '/^$/d')"
+  if [[ -z "$web" ]]; then
+    line OK deploy "live = $deployed_ref (deployed $deployed_at); HEAD $head_ref is $behind commit(s) ahead with nothing for the web build (docs, scripts, the chat, units, tests), nothing to deploy"
   else
-    line FAIL deploy "DRIFT: live is $deployed_ref ($deployed_at), HEAD is $head_ref — $behind commit(s) not deployed"
+    n_web="$(wc -l <<<"$web")"
+    line FAIL deploy "DRIFT: live is $deployed_ref ($deployed_at), HEAD is $head_ref — $behind commit(s) not deployed, $n_web web file(s): $(head -3 <<<"$web" | paste -sd, - | sed 's/,/, /g')$( (( n_web > 3 )) && echo ", ..." )"
   fi
 else
   line OK deploy "live = HEAD = $head_ref (deployed $deployed_at)"

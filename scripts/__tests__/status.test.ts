@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { execFile } from "node:child_process";
 import { createServer, type Server } from "node:http";
-import { mkdtemp, mkdir, writeFile, rm, copyFile, truncate } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, rm, copyFile, truncate, readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
@@ -821,7 +821,7 @@ describe("highdesert-status", () => {
     await git("commit", "-qm", "docs: handoff");
     world.deployedIsHead = false; // live is the commit before the handoff
     const r = await run();
-    expect(lineFor(r.out, "deploy")).toMatch(/^OK\s+deploy\s+live = \w+ .*1 docs-only commit\(s\) ahead, nothing to deploy/);
+    expect(lineFor(r.out, "deploy")).toMatch(/^OK\s+deploy\s+live = \w+ .*1 commit\(s\) ahead with nothing for the web build.*nothing to deploy/);
     expect(r.out).not.toContain("DRIFT");
   });
 
@@ -832,7 +832,108 @@ describe("highdesert-status", () => {
     await git("add", "-A");
     await git("commit", "-qm", "docs and code");
     world.deployedIsHead = false;
-    expect(lineFor((await run()).out, "deploy")).toMatch(/^FAIL.*DRIFT/);
+    expect(lineFor((await run()).out, "deploy")).toMatch(/^FAIL.*DRIFT.*1 web file\(s\): two\.txt$/);
+  });
+
+  // 2026-10-30: nine commits of scripts, the chat and docs read as DRIFT, and
+  // sang3r.com raised "High Desert deploy failed" for them.
+  it("scripts, the chat, the units, tests, lint and CI after the deploy are not drift", async () => {
+    const files = [
+      "scripts/digest.mjs",
+      "scripts/__tests__/digest.test.ts",
+      "services/live/lib/app.mjs",
+      "deploy/highdesert-shoutout.timer",
+      "e2e/live.spec.ts",
+      "src/lib/__tests__/notable.test.ts",
+      "src/app/page.test.tsx",
+      ".github/workflows/ci.yml",
+      "eslint-rules/no-x.mjs",
+      "vitest.config.mts",
+    ];
+    for (const f of files) {
+      await mkdir(path.dirname(path.join(root, f)), { recursive: true });
+      await writeFile(path.join(root, f), "x\n");
+    }
+    await git("add", "-A");
+    await git("commit", "-qm", "scripts, chat and tests");
+    world.deployedIsHead = false;
+    const r = await run();
+    expect(lineFor(r.out, "deploy")).toMatch(/^OK\s+deploy\s+live = \w+ .*1 commit\(s\) ahead with nothing for the web build/);
+    expect(r.out).not.toContain("DRIFT");
+  });
+
+  it("control: scripts/schema.sql is the web deploy's, which applies it", async () => {
+    await mkdir(path.join(root, "scripts"), { recursive: true });
+    await writeFile(path.join(root, "scripts/schema.sql"), "-- x\n");
+    await writeFile(path.join(root, "scripts/digest.mjs"), "x\n");
+    await git("add", "-A");
+    await git("commit", "-qm", "schema");
+    world.deployedIsHead = false;
+    expect(lineFor((await run()).out, "deploy")).toMatch(/^FAIL\s+deploy\s+DRIFT: .*1 web file\(s\): scripts\/schema\.sql$/);
+  });
+
+  it("control: the app beside a script is drift, and the line names the app's files", async () => {
+    for (const f of ["src/app/page.tsx", "public/a.svg", "data/notable.json", "next.config.ts", "scripts/x.mjs"]) {
+      await mkdir(path.dirname(path.join(root, f)), { recursive: true });
+      await writeFile(path.join(root, f), "x\n");
+    }
+    await git("add", "-A");
+    await git("commit", "-qm", "app and script");
+    world.deployedIsHead = false;
+    const r = await run();
+    expect(lineFor(r.out, "deploy")).toMatch(
+      /^FAIL\s+deploy\s+DRIFT: .*1 commit\(s\) not deployed, 4 web file\(s\): data\/notable\.json, next\.config\.ts, public\/a\.svg, \.\.\.$/,
+    );
+    expect(r.code).not.toBe(0);
+  });
+
+  // .deploy/attempt is scripts/deploy.sh's record of its last run.
+  it("FAILs on a deploy that failed, until a deploy succeeds", async () => {
+    const head = await git("rev-parse", "--short", "HEAD");
+    const attempt = path.join(root, ".deploy/attempt");
+    await writeFile(attempt, `${head} 2026-10-30T20:00:00Z failed Build failed. The live site is untouched.\n`);
+    const r = await run();
+    expect(lineFor(r.out, "deploy")).toBe(
+      `FAIL  deploy    FAILED: the deploy of ${head} at 2026-10-30T20:00:00Z failed (Build failed. The live site is untouched.); live is ${head} (2026-09-21T14:00:00Z)`,
+    );
+    expect(r.code).not.toBe(0);
+    await writeFile(attempt, `${head} 2026-10-30T20:05:00Z ok\n`);
+    expect(lineFor((await run()).out, "deploy")).toMatch(/^OK\s+deploy\s+live = HEAD/);
+  });
+
+  it("a deploy whose process is gone before it finished FAILs; one still running WARNs", async () => {
+    const head = await git("rev-parse", "--short", "HEAD");
+    const attempt = path.join(root, ".deploy/attempt");
+    await writeFile(attempt, `${head} 2026-10-30T20:00:00Z running 2147483646\n`);
+    expect(lineFor((await run()).out, "deploy")).toMatch(/^FAIL\s+deploy\s+FAILED: the deploy of \w+ at \S+ stopped before it finished/);
+    await writeFile(attempt, `${head} 2026-10-30T20:00:00Z running ${process.pid}\n`);
+    expect(lineFor((await run()).out, "deploy")).toMatch(/^WARN\s+deploy\s+a deploy of \w+ is running/);
+  });
+
+  // NOT_WEB holds only while nothing the build compiles reads from those
+  // directories. Read from status.sh, so a directory added there is held too.
+  it("the web build imports nothing from the directories status.sh calls not the web's", async () => {
+    const repo = path.resolve(__dirname, "../..");
+    const notWeb = (await readFile(SCRIPT, "utf8")).match(/^NOT_WEB='(.*)'$/m)?.[1] ?? "";
+    const dirs = [...notWeb.matchAll(/[(|]([a-z][a-z0-9-]*)\/(?=\|)/g)].map((m) => m[1]);
+    expect(dirs).toEqual(expect.arrayContaining(["docs", "scripts", "services", "deploy", "e2e"]));
+    const files = (await readdir(path.join(repo, "src"), { recursive: true }))
+      .map((f) => path.join(repo, "src", f))
+      .filter((f) => /\.(tsx?|[cm]?js)$/.test(f) && !/\/__tests__\/|\.(test|spec)\.[cm]?[jt]sx?$/.test(f))
+      .concat(path.join(repo, "next.config.ts"), path.join(repo, "postcss.config.mjs"));
+    const reached: string[] = [];
+    for (const f of files) {
+      const text = await readFile(f, "utf8");
+      for (const m of text.matchAll(/(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["'`](\.[^"'`]*)["'`]/g)) {
+        const rel = path.relative(repo, path.resolve(path.dirname(f), m[1]));
+        if (dirs.some((d) => rel === d || rel.startsWith(`${d}/`))) reached.push(`${path.relative(repo, f)} -> ${rel}`);
+      }
+      for (const m of text.matchAll(/cwd\(\)\s*,\s*["'`]([a-z-]+)["'`/]/g)) {
+        if (dirs.includes(m[1])) reached.push(`${path.relative(repo, f)} -> ${m[1]}/`);
+      }
+    }
+    expect(files.length).toBeGreaterThan(100);
+    expect(reached).toEqual([]);
   });
 
   it("FAILs on any critical or high npm advisory", async () => {
