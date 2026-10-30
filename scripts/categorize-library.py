@@ -10,9 +10,10 @@ Usage:
   python3 scripts/categorize-library.py
   python3 scripts/categorize-library.py --dry-run   # Preview batches only
 
-The model is Claude Sonnet 5.5 (2026-10-11; it was Gemini 2.0 Flash for the
-first 1,312 rows). ANTHROPIC_API_KEY comes from the environment or
-.env.local; HD_CATEGORIZE_MODEL overrides the model id.
+The model is SONNET_MODEL from scripts/claude_models.py, the one place for
+model ids (Sonnet since 2026-10-11; it was Gemini 2.0 Flash for the first
+1,312 rows). ANTHROPIC_API_KEY comes from the environment or .env.local;
+HD_CATEGORIZE_MODEL overrides the model id.
 """
 
 import json
@@ -22,9 +23,11 @@ import time
 import re
 from pathlib import Path
 
+from claude_models import SONNET_MODEL
+
 LIBRARY_PATH = Path(__file__).parent.parent / "public" / "seed" / "library.json"
 API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-MODEL = os.environ.get("HD_CATEGORIZE_MODEL", "claude-sonnet-5-5")
+MODEL = os.environ.get("HD_CATEGORIZE_MODEL", SONNET_MODEL)
 BATCH_SIZE = 40  # Episodes per API call
 RATE_DELAY = 2   # Seconds between batches
 
@@ -76,20 +79,40 @@ def save_library(data):
         f.write(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
 
 
+def request_body(prompt: str) -> dict:
+    """The Messages API request for one batch.
+
+    Sonnet 5.5 (2026-10-30): a non-default temperature, top_p or top_k is a
+    400, so none is sent. It thinks by default and the thinking counts toward
+    max_tokens, so the cap leaves room for it above the ~1K-token array, and
+    effort is low, as for any classification.
+    """
+    return {
+        "model": MODEL,
+        "max_tokens": 16000,
+        "output_config": {"effort": "low"},
+        "system": SYSTEM_PROMPT,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+
+
+def reply_text(result: dict) -> str:
+    """The text of a reply, read by block type (it can open with thinking blocks)."""
+    stop = result.get("stop_reason")
+    if stop in ("refusal", "max_tokens"):
+        raise RuntimeError(f"stop_reason {stop}, no usable reply")
+    text = "".join(b.get("text", "") for b in result.get("content", []) if b.get("type") == "text")
+    # A fenced reply is still the array.
+    return re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
+
+
 def call_claude(prompt: str) -> str:
     """Call the Anthropic Messages API, return the text of the reply."""
     import urllib.request
 
-    payload = {
-        "model": MODEL,
-        "max_tokens": 4096,
-        "temperature": 0.1,
-        "system": SYSTEM_PROMPT,
-        "messages": [{"role": "user", "content": prompt}],
-    }
     req = urllib.request.Request(
         "https://api.anthropic.com/v1/messages",
-        data=json.dumps(payload).encode(),
+        data=json.dumps(request_body(prompt)).encode(),
         headers={
             "content-type": "application/json",
             "x-api-key": API_KEY,
@@ -97,11 +120,8 @@ def call_claude(prompt: str) -> str:
         },
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        result = json.loads(resp.read())
-    text = "".join(b.get("text", "") for b in result.get("content", []) if b.get("type") == "text")
-    # A fenced reply is still the array.
-    return re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
+    with urllib.request.urlopen(req, timeout=300) as resp:
+        return reply_text(json.loads(resp.read()))
 
 
 def categorize_batch(episodes: list[dict], start_idx: int) -> dict[int, str]:

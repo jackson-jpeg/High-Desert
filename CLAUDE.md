@@ -1577,7 +1577,12 @@ No third-party hosting. Same shape as `sanger-next`.
 
 ## Scripts (`/scripts/`)
 
-- `categorize-library.py` — offline batch AI categorization; output is committed into `public/seed/library.json`. This is the ONLY place AI runs
+- `categorize-library.py` — offline batch AI categorization; output is committed into `public/seed/library.json`. This is the ONLY place AI runs.
+  Its model id comes from `claude_models.py`, the one place for Claude model ids (Jackson's model policy,
+  2026-10-30), with the API's dated model list beside it (`anthropic-models.json`).
+  `scripts/__tests__/claude-models.test.ts` fails on an id anywhere else, on one the list doesn't have, and on
+  one that isn't the newest of its tier, and holds the request to Sonnet 5.5's rules (mutations `claude-models-*`,
+  `categorize-*`)
 - `clean-library.py` — Python script for library cleanup
 - `import-community-sources.mjs` — add-only import of the shows in `data/community-sources.json`
   (a listener's torrents, used only as a list of names; every show streams from an existing
