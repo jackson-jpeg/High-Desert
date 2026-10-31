@@ -179,6 +179,20 @@ describe("the voice: rare, and only into a quiet room", () => {
     expect(sent[1].id).not.toBe(sent[0].id);
   });
 
+  // In hours, not the constant: hourly, a quiet night heard the same few
+  // lines again and again (2026-10-31).
+  it("a quiet night hears nothing two hours after a line, and one at three", async () => {
+    const { v, sent, advance } = voice();
+    advance(ARCHIVE_QUIET_MS);
+    await v.tick();
+    advance(2 * 60 * MIN);
+    await v.tick();
+    expect(sent).toHaveLength(1);
+    advance(60 * MIN);
+    await v.tick();
+    expect(sent).toHaveLength(2);
+  });
+
   it("never to an empty room", async () => {
     const { v, sent, advance } = voice({ listeners: 0 });
     advance(3 * ARCHIVE_INTERVAL_MS);
