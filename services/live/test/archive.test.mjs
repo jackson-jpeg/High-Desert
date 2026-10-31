@@ -6,7 +6,8 @@ import { ARCHIVE_INTERVAL_MS, ARCHIVE_QUIET_MS, MAX_MESSAGE_CHARS } from "../lib
 
 /**
  * Archive moments (2026-10-11): lines from the show's history when the room
- * is quiet. Never a caller, tied to the show on the air, at most one an hour.
+ * is quiet. Never a caller, tied to the show on the air, at most one every three hours,
+ * and never the same one again soon.
  */
 
 const MIN = 60_000;
@@ -102,6 +103,23 @@ describe("pickMoment: tied to the show on the air", () => {
     expect(pickMoment(moments, null, { now: night, recent, random: () => 0 }).moment.id).toBe(moments[last].id);
   });
 
+  // 2026-10-31: a day of Ghost to Ghost shows matched one moment's "ghost"
+  // tag and posted it 31 times; a topic match must not beat a fresh moment.
+  it("a show on the topic all day never brings the same moment back", () => {
+    const slot = { title: "Special - Ghost to Ghost 2006", airDate: "2006-10-31", guestName: null };
+    const recent = [];
+    for (let i = 0; i < 12; i++) {
+      const { moment } = pickMoment(moments, slot, { now: night, recent, random: () => 0 });
+      expect(recent, moment.id).not.toContain(moment.id);
+      recent.push(moment.id);
+    }
+  });
+
+  it("once every moment was used recently, the least recent one goes", () => {
+    const recent = moments.map((m) => m.id);
+    expect(pickMoment(moments, null, { now: night, recent }).moment.id).toBe(moments[0].id);
+  });
+
   it("a quote keeps its speaker on the line; a description has none", () => {
     const quote = archiveLine(moments.find((m) => m.form === "quote"), "archive", night);
     expect(quote).toMatchObject({ form: "quote", speaker: "Art Bell" });
@@ -148,7 +166,7 @@ describe("the voice: rare, and only into a quiet room", () => {
     expect(sent).toHaveLength(1);
   });
 
-  it("at most one an hour, however quiet", async () => {
+  it("at most one every three hours, however quiet", async () => {
     const { v, sent, advance } = voice();
     advance(ARCHIVE_QUIET_MS);
     await v.tick();

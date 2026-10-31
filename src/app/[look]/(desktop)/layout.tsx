@@ -20,6 +20,7 @@ import { usePlayerStore } from "@/stores/player-store";
 import { useLiveStore } from "@/stores/live-store";
 import { positionOf } from "@/stores/progress-store";
 import { progressReady, startProgressSync } from "@/services/episodes/progress";
+import { recordHistory } from "@/services/episodes/history";
 import { useAdminStore } from "@/stores/admin-store";
 import { db, getPreference, setPreference } from "@/db";
 import type { Episode } from "@/db/schema";
@@ -37,7 +38,6 @@ import { bindPlaySurface } from "@/audio/play-surface";
 import { toast } from "@/stores/toast-store";
 import { emit, onHdEvent, SW_OFFLINE_FALLBACK } from "@/lib/events";
 import { isKeyOwnedByTarget } from "@/lib/utils/key-ownership";
-import { episodeTitle } from "@/lib/library/display-title";
 import { knownEpisodeCount } from "@/lib/library/episode-count";
 
 export default function DesktopLayout({
@@ -284,15 +284,9 @@ export default function DesktopLayout({
     return usePlayerStore.subscribe((state, prevState) => {
       if (state.currentEpisode?.id !== prevState.currentEpisode?.id && state.currentEpisode?.id) {
         setPreference("last-episode-id", String(state.currentEpisode.id));
-        // Record listening history entry
-        const ep = state.currentEpisode;
-        db.history.add({
-          episodeId: ep.id!,
-          timestamp: Date.now(),
-          duration: 0,
-          episodeTitle: episodeTitle(ep),
-          guestName: ep.guestName,
-        }).catch((err) => { console.warn("[layout] Failed to record history:", err); });
+        // Record listening history (not again for the show already newest today)
+        recordHistory(state.currentEpisode)
+          .catch((err) => { console.warn("[layout] Failed to record history:", err); });
       }
       // Persist queue when it changes
       if (state.queue !== prevState.queue || state.queueIndex !== prevState.queueIndex) {

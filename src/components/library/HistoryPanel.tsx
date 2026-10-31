@@ -6,6 +6,7 @@ import type { HistoryEntry } from "@/db/schema";
 import { Window } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
 import { emit } from "@/lib/events";
+import { foldRepeats } from "@/services/episodes/history";
 
 interface HistoryPanelProps {
   onPlayEpisode?: (episodeId: number) => void;
@@ -36,7 +37,7 @@ export function HistoryPanel({ onPlayEpisode, className }: HistoryPanelProps) {
 
   // Group by day
   const groups = new Map<string, HistoryEntry[]>();
-  for (const entry of entries) {
+  for (const entry of foldRepeats(entries)) {
     const day = new Date(entry.timestamp).toLocaleDateString();
     const group = groups.get(day) ?? [];
     group.push(entry);

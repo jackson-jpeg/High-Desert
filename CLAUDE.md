@@ -1236,7 +1236,8 @@ deploy never drops a chat stream. The full account is in `docs/live-chat.md`.
   can hide them.
 - **Archive moments** (2026-10-11, `services/live/lib/archive.mjs`,
   `docs/live-chat.md`). A line from the show's history, only into a quiet
-  room: someone connected, no call for 20 min, none posted for 60 min.
+  room: someone connected, no call for 20 min, none posted for 3 hours, and
+  none of the last 30 again at any rank (2026-10-31: one went out 31 times).
   Picked against the show on the air (that episode, its topic, today's
   date, then any). Its own event and its own card ("From the archive"),
   never a caller: no name, no line, no Report, **nothing stored or counted**.

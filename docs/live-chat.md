@@ -166,13 +166,18 @@ a caller and never looks like one.
   - a stream is open;
   - no call for `ARCHIVE_QUIET_MS` (20 min), measured from the later of the
     last call and the service's start, so a restart is not a quiet room;
-  - none posted for `ARCHIVE_INTERVAL_MS` (60 min).
+  - none posted for `ARCHIVE_INTERVAL_MS` (3 hours since 2026-10-31; it was
+    60 min, and a quiet night heard the same few lines all night).
   Checked every minute.
 - **Tied to the broadcast.** The show on the air comes from the app's own
   `/api/live/schedule` over loopback (`ARCHIVE_SCHEDULE_URL`). Best first:
   a moment from that very episode, then one whose tags are in its title or
   guest, then one from an episode that aired on today's date (Pacific), then
-  any. The last 30 used are not picked again while another candidate exists.
+  any. The last 30 used are not picked again, **at any rank**, while any
+  other moment is fresh; with none fresh, the least recently used goes.
+  Until 2026-10-31 a rank with only used moments repeated one rather than
+  give way, and two days of Ghost to Ghost shows posted the `ghost-to-ghost`
+  moment 31 times, hourly (mutation `archive-no-repeat-any-rank`).
   A schedule that cannot be read leaves the room a line from anywhere.
 - **The moments, and their sources.** 50 were written on 2026-10-11 from
   general knowledge of the show. The same day each was checked against a

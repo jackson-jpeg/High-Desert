@@ -127,9 +127,10 @@ export const LEGACY_ADOPT_MS = 30 * 24 * 60 * 60_000;
  * only while a stream is open. Checked every ARCHIVE_CHECK_MS.
  */
 export const ARCHIVE_QUIET_MS = 20 * 60_000;
-export const ARCHIVE_INTERVAL_MS = 60 * 60_000;
+/** Three hours since 2026-10-31: hourly, a quiet night heard the same few lines again and again. */
+export const ARCHIVE_INTERVAL_MS = 3 * 60 * 60_000;
 export const ARCHIVE_CHECK_MS = 60_000;
-/** Moments not picked again while another candidate exists. */
+/** Moments not picked again, at any rank, while another is fresh. */
 export const ARCHIVE_NO_REPEAT = 30;
 /** Lines a new stream is sent in its hello, newest last. */
 export const ARCHIVE_ON_HELLO = 3;

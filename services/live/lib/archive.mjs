@@ -17,8 +17,9 @@
  *   2. one whose tags appear in the show's title or guest;
  *   3. one from an episode that aired on today's date (Pacific);
  *   4. any other.
- * A moment used recently (the last ARCHIVE_NO_REPEAT) is not picked again
- * while another candidate in the same rank exists.
+ * A moment used recently (the last ARCHIVE_NO_REPEAT) is not picked again,
+ * at any rank, while any other moment is fresh; when none is, the least
+ * recently used one goes.
  *
  * The moments are archive-moments.json, beside this file (deploy-live.sh
  * copies lib/ whole). Each is `{id, text, tags, source, form?, speaker?, episode?}`;
@@ -60,11 +61,12 @@ export function pickMoment(moments, slot, { now = Date.now(), recent = [], rando
   for (const r of [0, 1, 2, 3]) {
     const pool = moments.filter((m) => rank(m) === r);
     if (!pool.length) continue;
+    // No rank repeats a recent moment (2026-10-31): a topic match once let
+    // "ghost-to-ghost" go out 31 times in two days of Ghost to Ghost shows.
+    // A rank whose moments were all used recently gives way to the next.
     const fresh = pool.filter((m) => !used.has(m.id));
-    // Ranks 0 to 2 are about tonight: a repeat there beats a stranger from rank 3.
-    const from = fresh.length ? fresh : r < 3 ? pool : null;
-    if (!from) continue;
-    return { moment: from[Math.floor(random() * from.length)], reason: ["on-air", "topic", "this-date", "archive"][r] };
+    if (!fresh.length) continue;
+    return { moment: fresh[Math.floor(random() * fresh.length)], reason: ["on-air", "topic", "this-date", "archive"][r] };
   }
   // Every moment used recently: the least recent one.
   const oldest = recent.find((id) => moments.some((m) => m.id === id));
