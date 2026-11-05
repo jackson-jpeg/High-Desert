@@ -69,3 +69,53 @@ due).
   Today's deploy wrote one, so it may be quiet now.
 - A worktree's full suite needs `npm ci` in `services/live` too, or 13 chat
   test files fail to import `obscenity`.
+
+## Incident after the deploy: /stats stuck on Jackson's phone
+
+About 20:15 UTC, 25 minutes after the web deploy, /stats would not load on
+Jackson's iPhone (Safari). **Closing the browser window fixed it.** What is
+known:
+
+- The server was fine: /stats 200 in under 40 ms, every chunk 200 since the
+  deploy. The only 502 was the restart itself (19:49:54).
+- That phone's requests at 20:15:40 and 20:15:49 loaded /library and /stats
+  with every chunk 200, so the stall was in the browser after load.
+- Not reproduced: production /stats on an iPhone 13 viewport, Win98 look,
+  with repeated history rows saved, loads fully in Chromium and in WebKit
+  (`deploy.sh`'s returning-visitor check passed in both too).
+- Likeliest explanation, **unproven**: a tab already open on the old build
+  (740448f) kept the IndexedDB busy, and the new /stats waited on it. The
+  10 s LoadTimeout ("taking too long to load… Retry") should have shown;
+  whether it did, and whether `recordHistory()`'s readwrite transaction on
+  `history` made the wait worse, is not known.
+
+Jackson: "we cant be fucking up live users like that". Fair: this deploy
+went out mid-afternoon with about 20 online, at his request, and no check
+covered a tab left open across the deploy.
+
+## Where we left off (next session starts here)
+
+1. **Reproduce the open-tab case (not started; Jackson had not yet said
+   go).** In WebKit: open a tab on the old build and leave it open, deploy,
+   then load /stats in a second tab of the same profile. Old build to serve:
+   `.next.prev` (740448f) until the next deploy replaces it; otherwise build
+   any earlier commit in a worktree. Starting points: `e2e/stale-tab.spec.ts`
+   (one tab across a deploy), `e2e/db-hold.spec.ts` (a second tab holding
+   the database), `scripts/returning-visitor.mjs` (the deploy's check, which
+   primes and closes, so it never keeps an old tab open). Through `heavy`,
+   one Playwright run at a time.
+2. **If it hangs:** find what holds the database (the old build's
+   transactions, a `versionchange`, or `recordHistory`'s rw transaction),
+   fix it, and add "an old tab left open" to `returning-visitor.mjs` so
+   `deploy.sh` rolls back on it.
+3. **Web deploys go back to the 08:30 UTC window** (about 4:30 AM Eastern)
+   unless it is a live outage. Chat-only deploys (`deploy-live.sh`) restart
+   only the phone lines and can go the same day.
+4. Still open from before: `highdesert-status` `mutations` FAIL
+   (`live-heartbeat-route`, `e2e-fixture-view-answered` STALE in the
+   2026-10-26 weekly run; check whether Monday 2026-11-02's run cleared
+   them), and the `.deploy/attempt: No such file` line from `status.sh`.
+
+State at hand-off: main = origin/main = `34c0cc6`, tree clean, no worktrees.
+Live web build `4727f44`, chat `4727f44`. Nothing uncommitted, nothing
+running.
