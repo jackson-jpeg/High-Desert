@@ -111,11 +111,11 @@ covered a tab left open across the deploy.
 3. **Web deploys go back to the 08:30 UTC window** (about 4:30 AM Eastern)
    unless it is a live outage. Chat-only deploys (`deploy-live.sh`) restart
    only the phone lines and can go the same day.
-4. Still open from before: `highdesert-status` `mutations` FAIL
-   (`live-heartbeat-route`, `e2e-fixture-view-answered` STALE in the
-   2026-10-26 weekly run; check whether Monday 2026-11-02's run cleared
-   them), and the `.deploy/attempt: No such file` line from `status.sh`.
+4. Cleared since: the weekly mutation run of Monday 2026-11-02 (on
+   34c0cc6) had all 1,180 mutations red, so the two STALE anchors are gone.
+   Still to look at: the `.deploy/attempt: No such file` line from
+   `status.sh` (line 173).
 
-State at hand-off: main = origin/main = `34c0cc6`, tree clean, no worktrees.
+State at hand-off: main = origin/main (this commit), tree clean, no worktrees.
 Live web build `4727f44`, chat `4727f44`. Nothing uncommitted, nothing
 running.
