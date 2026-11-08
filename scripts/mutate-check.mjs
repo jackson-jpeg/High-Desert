@@ -1001,6 +1001,14 @@ export const MUTATIONS = [
     why: "the panel exists to thank people by name",
   },
   {
+    id: "supporters-paypal-link",
+    test: "src/components/library/__tests__/supporters.test.tsx",
+    file: "src/components/library/Supporters.tsx",
+    find: "          <a href={PAYPAL_URL} target=\"_blank\"",
+    replace: "          <a href={VENMO_URL} target=\"_blank\"",
+    why: "a listener outside the US had no way to chip in",
+  },
+  {
     id: "live-chat-report-target",
     test: "src/components/live/__tests__/live-chat.test.tsx",
     file: "src/components/live/LiveChat.tsx",

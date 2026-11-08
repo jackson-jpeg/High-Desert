@@ -1,7 +1,10 @@
 "use client";
 
 import { Window } from "@/components/win98";
-import { SUPPORTERS, VENMO_HANDLE, VENMO_URL, type Supporter } from "@/lib/support/supporters";
+import { PAYPAL_HANDLE, PAYPAL_URL, SUPPORTERS, VENMO_HANDLE, VENMO_URL, type Supporter } from "@/lib/support/supporters";
+
+const LINK =
+  "inline-flex items-center min-h-touch md:min-h-0 text-hd-12 md:text-hd-10 text-signal-blue underline underline-offset-2";
 
 /** The thank-you list and the way to join it (2026-10-09). */
 export function Supporters({ supporters = SUPPORTERS }: { supporters?: readonly Supporter[] }) {
@@ -23,14 +26,15 @@ export function Supporters({ supporters = SUPPORTERS }: { supporters?: readonly 
             ))}
           </ul>
         )}
-        <a
-          href={VENMO_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="self-start inline-flex items-center min-h-touch md:min-h-0 text-hd-12 md:text-hd-10 text-signal-blue underline underline-offset-2"
-        >
-          Chip in on Venmo: @{VENMO_HANDLE}
-        </a>
+        {/* Venmo first (most supporters so far), PayPal for everyone outside the US. */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1" data-testid="donate-links">
+          <a href={VENMO_URL} target="_blank" rel="noopener noreferrer" className={LINK}>
+            Chip in on Venmo: @{VENMO_HANDLE}
+          </a>
+          <a href={PAYPAL_URL} target="_blank" rel="noopener noreferrer" className={LINK}>
+            PayPal: paypal.me/{PAYPAL_HANDLE}
+          </a>
+        </div>
       </div>
     </Window>
   );

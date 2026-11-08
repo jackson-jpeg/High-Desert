@@ -19,3 +19,7 @@ export const SUPPORTERS: readonly Supporter[] = [
 
 export const VENMO_HANDLE = "sanger";
 export const VENMO_URL = `https://venmo.com/u/${VENMO_HANDLE}`;
+
+/** PayPal (2026-11-08): Venmo is US-only, and the listeners are not. */
+export const PAYPAL_HANDLE = "JacksonSanger";
+export const PAYPAL_URL = `https://www.paypal.me/${PAYPAL_HANDLE}`;
