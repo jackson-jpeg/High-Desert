@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { Supporters } from "@/components/library/Supporters";
-import { SUPPORTERS, VENMO_URL } from "@/lib/support/supporters";
+import { PAYPAL_URL, SUPPORTERS, VENMO_URL } from "@/lib/support/supporters";
 
 /** The thank-you panel on /stats (2026-10-09). */
 
@@ -28,6 +28,7 @@ afterEach(() => {
 
 const thanks = (c: HTMLElement) => c.querySelector('ul[aria-label="Thank you"]');
 const link = (c: HTMLElement) => c.querySelector("a")!;
+const links = (c: HTMLElement) => [...c.querySelectorAll('[data-testid="donate-links"] a')];
 describe("Supporters", () => {
   it("thanks each listener by first name and last initial, with the gift", () => {
     const c = render(<Supporters />);
@@ -61,6 +62,16 @@ describe("Supporters", () => {
     expect(a.getAttribute("rel")).toContain("noopener");
   });
 
+  it("offers PayPal beside Venmo, for listeners outside the US, in a new tab", () => {
+    const [venmo, paypal] = links(render(<Supporters />));
+    expect(venmo.getAttribute("href")).toBe(VENMO_URL);
+    expect(paypal.textContent).toBe("PayPal: paypal.me/JacksonSanger");
+    expect(paypal.getAttribute("href")).toBe(PAYPAL_URL);
+    expect(PAYPAL_URL).toBe("https://www.paypal.me/JacksonSanger");
+    expect(paypal.getAttribute("target")).toBe("_blank");
+    expect(paypal.getAttribute("rel")).toContain("noopener");
+  });
+
   it("no em dash in its copy", () => {
     expect(render(<Supporters />).textContent).not.toContain("—");
   });
@@ -68,6 +79,6 @@ describe("Supporters", () => {
   it("with nobody yet, the thanks list is not drawn but the link is", () => {
     const c = render(<Supporters supporters={[]} />);
     expect(thanks(c)).toBeNull();
-    expect(link(c).getAttribute("href")).toBe(VENMO_URL);
+    expect(links(c).map((a) => a.getAttribute("href"))).toEqual([VENMO_URL, PAYPAL_URL]);
   });
 });

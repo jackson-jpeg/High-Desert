@@ -341,7 +341,8 @@ holds the page to that function. Findings and fixes: `docs/stats-audit.md`.
 - **Supporters** (2026-10-09): the panel after Signal Traffic thanks listeners who
   chipped in, from `src/lib/support/supporters.ts`, **first name and last initial
   only** (a test fails on a full name, and on either full surname anywhere in
-  `src/`), and links the Venmo. Add a gift at the top of the list.
+  `src/`), and links Venmo and PayPal (`PAYPAL_URL`, 2026-11-08: Venmo is
+  US-only). Add a gift at the top of the list.
 - **"Plays all time" exceeds every range total by design** — the counter predates the
   `play_events` log (2026-07-28). The page says so.
 

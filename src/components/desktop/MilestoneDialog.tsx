@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { PAYPAL_URL, VENMO_HANDLE, VENMO_URL } from "@/lib/support/supporters";
 import { Dialog, Button } from "@/components/win98";
 import { db } from "@/db";
 import { safeSetItem } from "@/lib/utils/safe-storage";
@@ -116,14 +117,24 @@ export function MilestoneDialog() {
           <div className="text-hd-9 text-bevel-dark/85 mb-2">
             If you&apos;re enjoying High Desert, consider buying the developer a coffee.
           </div>
-          <a
-            href="https://venmo.com/sanger"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block text-hd-11 text-desert-amber hover:text-desert-amber/85 underline underline-offset-2 transition-colors-fast"
-          >
-            @sanger on Venmo
-          </a>
+          <div className="flex justify-center gap-4">
+            <a
+              href={VENMO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block text-hd-11 text-desert-amber hover:text-desert-amber/85 underline underline-offset-2 transition-colors-fast"
+            >
+              @{VENMO_HANDLE} on Venmo
+            </a>
+            <a
+              href={PAYPAL_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block text-hd-11 text-desert-amber hover:text-desert-amber/85 underline underline-offset-2 transition-colors-fast"
+            >
+              PayPal
+            </a>
+          </div>
         </div>
 
         <div className="flex justify-center mt-1">
