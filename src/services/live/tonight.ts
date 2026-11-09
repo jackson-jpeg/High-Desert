@@ -1,4 +1,5 @@
 import { pool } from "@/services/stats/db/pool";
+import { applyBreaks } from "@/lib/live/breaks";
 import { addDays, applyRequest, pacificDay, type CatalogRow, type DayProgram, type RequestNight } from "@/lib/live/schedule";
 import { catalogByHash, frozenDay } from "@/services/live/days";
 import { loadRequestNight } from "@/services/live/requests";
@@ -58,6 +59,8 @@ export async function tonightData(day: string, deps: TonightDeps = {}): Promise<
       // station's schedule applies, so the page and the air agree.
       const night = await (deps.loadNight ?? loadRequestNight)(day, (deps.now ?? Date.now)());
       if (night?.fileHash) program = applyRequest(program, night, await (deps.byHash ?? catalogByHash)());
+      // And its station breaks, which move the shows after them a little.
+      program = applyBreaks(program).program;
     }
     return {
       available: true,

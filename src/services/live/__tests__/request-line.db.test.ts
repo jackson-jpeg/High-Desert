@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { applyBreaks } from "@/lib/live/breaks";
 import { beforeAll, afterAll, it, expect } from "vitest";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -107,6 +108,7 @@ describeDb("the Request Line in the station's schedule (Postgres)", () => {
     const night = await requests.loadRequestNight(empty, requestCloseAt(empty) + 1);
     expect(night).toMatchObject({ fileHash: null, votes: 0 });
     const s = await days.buildSchedule(requestStartAt(empty) + 60_000, async () => ({ archiveDown: false, manifest: null }));
-    expect(s.guide).toEqual((await days.frozenDay(empty)).slots);
+    // Exactly as frozen, but for its station breaks (applied at read time, docs/station-breaks.md).
+    expect(s.guide).toEqual(applyBreaks(await days.frozenDay(empty)).program.slots);
   });
 });

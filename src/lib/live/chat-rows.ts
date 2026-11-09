@@ -1,4 +1,5 @@
 import type { ArchiveLine, LiveMessage, LiveYou, TuneinNotice } from "@/services/live/client";
+import type { StationBreak } from "./breaks";
 
 /**
  * What the phone lines draw, in order, for every surface and both looks
@@ -9,13 +10,20 @@ export type ChatRow =
   | { kind: "call"; at: number; m: LiveMessage }
   /** One line for one or more tune-in notices in a row; `key` is the first one's time, so it holds still while more fold in. */
   | { kind: "tunein"; at: number; n: TuneinNotice; key: string; merged: number }
-  | { kind: "archive"; at: number; a: ArchiveLine };
+  | { kind: "archive"; at: number; a: ArchiveLine }
+  /** A station break's card (docs/station-breaks.md), at the time its spot started. */
+  | { kind: "break"; at: number; b: StationBreak };
 
 /** How many places a folded tune-in line names, the same as the service's batch (TUNEIN_PLACES_SHOWN). */
 export const TUNEIN_PLACES_KEPT = 3;
 
-/** Calls, tune-in lines and archive lines, in time order; calls keep their own (id) order among themselves. */
-export function listRows(messages: LiveMessage[], notices: TuneinNotice[], archive: ArchiveLine[] = []): ChatRow[] {
+/** Calls, tune-in lines, archive lines and station breaks, in time order; calls keep their own (id) order among themselves. */
+export function listRows(
+  messages: LiveMessage[],
+  notices: TuneinNotice[],
+  archive: ArchiveLine[] = [],
+  breaks: readonly StationBreak[] = [],
+): ChatRow[] {
   const rows: ChatRow[] = messages.map((m) => ({ kind: "call", at: Date.parse(m.at), m }));
   const place = (row: ChatRow) => {
     // After every row at or before it: a stable place, whatever the calls' clock.
@@ -25,6 +33,7 @@ export function listRows(messages: LiveMessage[], notices: TuneinNotice[], archi
   };
   for (const n of notices) place({ kind: "tunein", at: Date.parse(n.at), n, key: n.at, merged: 1 });
   for (const a of archive) place({ kind: "archive", at: Date.parse(a.at), a });
+  for (const b of breaks) place({ kind: "break", at: b.start, b });
   return rows;
 }
 
@@ -56,8 +65,13 @@ export function groupTuneins(rows: ChatRow[]): ChatRow[] {
 }
 
 /** Every row the lines draw: `listRows`, with runs of tune-ins folded into one. */
-export function chatRows(messages: LiveMessage[], notices: TuneinNotice[], archive: ArchiveLine[] = []): ChatRow[] {
-  return groupTuneins(listRows(messages, notices, archive));
+export function chatRows(
+  messages: LiveMessage[],
+  notices: TuneinNotice[],
+  archive: ArchiveLine[] = [],
+  breaks: readonly StationBreak[] = [],
+): ChatRow[] {
+  return groupTuneins(listRows(messages, notices, archive, breaks));
 }
 
 /** "Night Owl, calling from Asuncion", or just the name. */

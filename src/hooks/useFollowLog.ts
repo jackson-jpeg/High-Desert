@@ -62,7 +62,7 @@ export function useFollowLog<T extends HTMLElement>(followKey: string, alertKey:
 }
 
 /** The keys `useFollowLog` watches, from the rows a surface draws. */
-export function followKeys(rows: readonly { kind: string; at: number; m?: { id: number }; a?: { id: string } }[]) {
+export function followKeys(rows: readonly { kind: string; at: number; m?: { id: number }; a?: { id: string }; b?: { id: string } }[]) {
   const last = rows[rows.length - 1];
   let alert = "";
   for (let i = rows.length - 1; i >= 0; i--) {
@@ -73,6 +73,10 @@ export function followKeys(rows: readonly { kind: string; at: number; m?: { id: 
     }
     if (r.kind === "archive" && r.a) {
       alert = `a${r.a.id}@${r.at}`;
+      break;
+    }
+    if (r.kind === "break" && r.b) {
+      alert = `b${r.b.id}`;
       break;
     }
   }

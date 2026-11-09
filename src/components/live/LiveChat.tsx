@@ -1,5 +1,8 @@
 "use client";
 
+import { StationBreakCard } from "./StationBreakCard";
+import { useStationBreakRows } from "@/hooks/useStationBreakRows";
+import { useBreaksMuted } from "@/lib/live/breaks-pref";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
 import { cn } from "@/lib/utils/cn";
 import { Button } from "@/components/win98/Button";
@@ -162,6 +165,7 @@ function LinesHeader({
         >
           {hideTuneins ? "Show tune-ins" : "Hide tune-ins"}
         </button>
+        <BreaksToggle />
       </div>
       {chat.you && !editing && (
         <p className="text-hd-caption text-bevel-dark" data-testid="you-row">
@@ -367,7 +371,8 @@ function PlaceEditor({ chat, variant, onDone }: { chat: Chat; variant: Variant; 
 export { listRows };
 
 function MessageList({ chat, variant, hideTuneins }: { chat: Chat; variant: Variant; hideTuneins: boolean }) {
-  const rows = chatRows(chat.messages, hideTuneins ? [] : chat.notices, chat.archive);
+  const breaks = useStationBreakRows();
+  const rows = chatRows(chat.messages, hideTuneins ? [] : chat.notices, chat.archive, breaks);
   const keys = followKeys(rows);
   const last = chat.messages[chat.messages.length - 1];
   const lastIsMine = !!last && isOwnCall(last, chat.mine, chat.you) && keys.alert === `c${last.id}`;
@@ -396,6 +401,8 @@ function MessageList({ chat, variant, hideTuneins }: { chat: Chat; variant: Vari
             <MessageRow key={r.m.id} m={r.m} chat={chat} variant={variant} />
           ) : r.kind === "archive" ? (
             <ArchiveRow key={`a-${r.a.at}-${r.a.id}`} a={r.a} variant={variant} />
+          ) : r.kind === "break" ? (
+            <StationBreakCard key={`b-${r.b.id}`} b={r.b} />
           ) : (
             <li
               key={`t-${r.key}`}
@@ -424,6 +431,22 @@ function MessageList({ chat, variant, hideTuneins }: { chat: Chat; variant: Vari
         </button>
       )}
     </div>
+  );
+}
+
+/** The setting beside Hide tune-ins: station breaks on or off for this browser. */
+function BreaksToggle() {
+  const [muted, setMuted] = useBreaksMuted();
+  return (
+    <button
+      type="button"
+      onClick={() => setMuted(!muted)}
+      aria-pressed={muted}
+      data-testid="toggle-breaks"
+      className="text-hd-caption text-bevel-dark underline min-h-touch md:min-h-0 cursor-pointer"
+    >
+      {muted ? "Play station breaks" : "Mute breaks"}
+    </button>
   );
 }
 

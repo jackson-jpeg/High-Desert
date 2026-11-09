@@ -65,6 +65,7 @@ import { REMOVED_FROM_CATALOG } from "@/lib/library/removed-episodes";
 import { episodeTitle } from "@/lib/library/display-title";
 import { seasonOfDay, showSeason } from "@/lib/season/season";
 import { STATION_TZ, addDays, pacificDayBounds, parts, requestStartAt } from "./pacific";
+import type { StationBreak } from "./breaks";
 
 /** The gap between shows, filled by the station ID. Part of the timeline math. */
 export const STATION_ID_SEC = 8;
@@ -698,6 +699,12 @@ export interface LiveSchedule {
   guide: ProgramSlot[];
   /** archive.org is down; `outage-swap` slots are what the mirror can play. */
   outage: boolean;
+  /**
+   * Station breaks today and in whatever of tomorrow the schedule reaches
+   * (src/lib/live/breaks.ts), in time order. Each sits in a gap between
+   * slots. Absent from a server before 2026-11-09: read as none.
+   */
+  breaks?: StationBreak[];
 }
 
 /**

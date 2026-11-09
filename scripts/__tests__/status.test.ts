@@ -87,6 +87,8 @@ interface World {
   } | null;
   /** peakOnline / peakListening /api/stats/traffic answers per range; a missing range answers no peaks. */
   peaks: Partial<Record<"24h" | "7d" | "30d", { online: number; listening: number }>>;
+  /** /api/stats/sponsors?days=7's apps; null answers 503. */
+  sponsors: { app: string; heard: number; seenChat: number; seenStats: number; clicksChat: number; clicksStats: number; mutes: number }[] | null;
   /** /api/stats/funnel's 7-day totals; null answers 503. */
   funnel: { visit: number; live: number; tune: number; call: number } | null;
   /** Its `byDevice.phone`; null leaves `byDevice` out, as a build before the split did. */
@@ -152,6 +154,11 @@ const HEALTHY: World = {
   warm: { ageH: 5, outcome: "ok", pinned: 120, bytes: 14 * 2 ** 30, fetched: 4, failed: 0 },
   peaks: { "24h": { online: 4, listening: 2 }, "7d": { online: 9, listening: 5 }, "30d": { online: 9, listening: 6 } },
   funnel: { visit: 40, live: 30, tune: 12, call: 2 },
+  sponsors: [
+    { app: "sogojet", heard: 9, seenChat: 4, seenStats: 6, clicksChat: 1, clicksStats: 1, mutes: 0 },
+    { app: "screenreceipts", heard: 3, seenChat: 2, seenStats: 5, clicksChat: 0, clicksStats: 1, mutes: 1 },
+    { app: "simsunday", heard: 1, seenChat: 1, seenStats: 5, clicksChat: 0, clicksStats: 0, mutes: 0 },
+  ],
   funnelPhone: { visit: 30, live: 22, tune: 8, call: 1 },
   digest: {
     ageH: 2,
@@ -506,6 +513,9 @@ beforeEach(async () => {
           ...(peak ? { peakOnline: peak.online, peakListening: peak.listening } : {}),
         }),
       );
+    } else if (req.url === "/api/stats/sponsors?days=7") {
+      if (!world.sponsors) res.statusCode = 503;
+      res.end(JSON.stringify(world.sponsors ? { days: 7, apps: world.sponsors } : { error: "Stats unavailable" }));
     } else if (req.url === "/api/stats/funnel?days=7") {
       if (!world.funnel) res.statusCode = 503;
       res.end(JSON.stringify(world.funnel ? { days: 7, cohorts: [], totals: world.funnel, ...(world.funnelPhone ? { byDevice: { phone: world.funnelPhone, desktop: world.funnel } } : {}) } : { error: "Stats unavailable" }));
@@ -543,6 +553,18 @@ describe("highdesert-status", () => {
     );
     expect(lineFor(r.out, "disk")).toBe("OK    disk      21.4 GB free of 96.0 GB; the mirror's warm job needs 10 GB free, a build ~1 GB");
     expect(r.code).toBe(0);
+  });
+
+  describe("sponsors line (docs/station-breaks.md)", () => {
+    it("reports each app's week, never judged", async () => {
+      expect(lineFor((await run()).out, "sponsors")).toBe(
+        "OK    sponsors  7d: SoGoJet 9 heard, 4 cards, 6 panels, 2 clicks, 0 mutes; Screen Receipts 3 heard, 2 cards, 5 panels, 1 clicks, 1 mutes; Sim Sunday 1 heard, 1 cards, 5 panels, 0 clicks, 0 mutes",
+      );
+    });
+    it("WARNs only when it cannot be read", async () => {
+      world.sponsors = null;
+      expect(lineFor((await run()).out, "sponsors")).toMatch(/^WARN\s+sponsors\s+could not read .*\/api\/stats\/sponsors$/);
+    });
   });
 
   describe("geoip line", () => {

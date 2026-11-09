@@ -91,6 +91,7 @@ import { syncClock } from "@/lib/live/time-sync";
 import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/utils/safe-storage";
 import { noteFunnelStep } from "@/services/stats/funnel-client";
 import { announceTuneIn } from "@/services/live/client";
+import { breakInGap, type StationBreak } from "@/lib/live/breaks";
 
 /** Drift beyond this, in seconds, is corrected with a seek. The owner's number. */
 export const DRIFT_LIMIT_SEC = 2;
@@ -125,8 +126,11 @@ function visibility(): string {
 
 /** The bridge between shows, on the player's element (engine.ts). */
 export interface StationIdPlayer {
-  /** The ID, then quiet until the next show takes the element. Rejects as play() does. */
-  start(): Promise<void>;
+  /**
+   * The ID, then quiet until the next show takes the element. With `spotUrl`
+   * (a station break), the spot first, then the ID. Rejects as play() does.
+   */
+  start(spotUrl?: string): Promise<void>;
   /** The listener paused in the gap: it is no longer the bridge playing. */
   stop(): void;
   /** Leaving the station: silence the bridge if it is on. */
@@ -150,7 +154,18 @@ export interface LiveDeps {
   prefetch?(slot: ProgramSlot): void;
   /** Local clock. Tests replace it. */
   now?(): number;
+  /** This listener muted station breaks: the gap plays the station ID only. */
+  breaksMuted?(): boolean;
+  /** A break's spot started playing for this listener (the impression). */
+  onBreakAired?(b: StationBreak): void;
 }
+
+/**
+ * How late into a break a tab may still start its spot: a tab tuning in, or
+ * reaching the gap a moment late, hears it; one joining halfway hears the
+ * station ID instead, never half an ad.
+ */
+export const BREAK_JOIN_MS = 3_000;
 
 /**
  * A change of show the browser refused, recorded as its own kind. Not
@@ -201,6 +216,8 @@ export interface LiveStation {
   install(): () => void;
   /** Back on the air, no tap, after the tab reloaded itself onto a new build. */
   resumeAfterReload(): Promise<void>;
+  /** Muted mid-spot: the station ID in its place. */
+  skipBreak(): void;
 }
 
 export function createLiveStation(deps: LiveDeps): LiveStation {
@@ -211,6 +228,10 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
   let slotTimer: ReturnType<typeof setTimeout> | undefined;
   let prefetchTimer: ReturnType<typeof setTimeout> | undefined;
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
+  /** A break later in this gap (the show before it ran short): when its spot starts. */
+  let breakTimer: ReturnType<typeof setTimeout> | undefined;
+  /** The break whose spot is on the element now, if any. */
+  let onAirBreak: StationBreak | null = null;
   /**
    * True while a tap is starting the station (tune in, rejoin): the play()
    * that follows has a gesture behind it. Every other start is the program
@@ -239,8 +260,10 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
     clearTimeout(slotTimer);
     clearTimeout(prefetchTimer);
     clearTimeout(retryTimer);
-    slotTimer = prefetchTimer = retryTimer = undefined;
+    clearTimeout(breakTimer);
+    slotTimer = prefetchTimer = retryTimer = breakTimer = undefined;
     idUntil = null;
+    onAirBreak = null;
   }
 
   /** The show after `slot`, if the program knows it. */
@@ -405,13 +428,46 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
     setLiveStart(null);
     transition(() => live().setPhase("station-id", null));
     const tap = byTap;
-    deps.stationId.start().catch((err: unknown) => {
-      if (!tap && isNotAllowed(err)) refused(`handover to=station-id ${visibility()}`);
-    });
+    clearTimeout(breakTimer);
+    breakTimer = undefined;
+    onAirBreak = null;
+    const t = sNow();
+    const muted = deps.breaksMuted?.() ?? false;
+    const b = until !== null && !muted ? breakInGap(live().schedule?.breaks ?? [], t, until) : null;
+    // Its spot now (the gap is the break's), the ID now and the spot at its
+    // time (the show before ran short), or the ID only (joined mid-break).
+    const spotNow = b && b.start - t <= BREAK_JOIN_MS && t - b.start <= BREAK_JOIN_MS ? b : null;
+    playGap(spotNow, tap);
+    if (b && b.start - t > BREAK_JOIN_MS) {
+      breakTimer = setTimeout(() => {
+        if (live().tuned && !live().paused && live().phase === "station-id" && !(deps.breaksMuted?.() ?? false)) playGap(b, false);
+      }, b.start - t);
+    }
     if (until !== null) {
       at(until, go);
       idUntil = until;
     }
+  }
+
+  /** The bridge, with `spot`'s file first when there is one. */
+  function playGap(spot: StationBreak | null, tap: boolean) {
+    onAirBreak = spot;
+    deps.stationId
+      .start(spot?.url)
+      .then(() => {
+        if (spot && onAirBreak === spot) deps.onBreakAired?.(spot);
+      })
+      .catch((err: unknown) => {
+        if (!tap && isNotAllowed(err)) refused(`handover to=station-id ${visibility()}`);
+      });
+  }
+
+  /** The listener muted breaks while a spot was on: the station ID instead, at once. */
+  function skipBreak() {
+    if (!onAirBreak || !live().tuned || live().paused || live().phase !== "station-id") return;
+    clearTimeout(breakTimer);
+    breakTimer = undefined;
+    playGap(null, false);
   }
 
   function resync() {
@@ -666,7 +722,7 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
     };
   }
 
-  return { tuneIn, tuneOut, leave, resync, refreshSchedule, refreshClock, install, resumeAfterReload };
+  return { tuneIn, tuneOut, leave, resync, refreshSchedule, refreshClock, install, resumeAfterReload, skipBreak };
 }
 
 // ---------------------------------------------------------------------------
@@ -714,6 +770,11 @@ export function tuneOut(): void {
 /** The tab reloaded itself onto a new build while on the air (src/services/build/stale-tab.ts). */
 export function resumeStationAfterReload(): Promise<void> {
   return station ? station.resumeAfterReload() : Promise.resolve();
+}
+
+/** Breaks were muted while one played: drop the spot for the station ID. */
+export function skipStationBreak(): void {
+  station?.skipBreak();
 }
 
 /** "Leave the station": tune out, stop the audio, clear the player. */

@@ -1,5 +1,8 @@
 "use client";
 
+import { StationBreakCard } from "@/components/live/StationBreakCard";
+import { useStationBreakRows } from "@/hooks/useStationBreakRows";
+import { useBreaksMuted } from "@/lib/live/breaks-pref";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { cn } from "@/lib/utils/cn";
 import { useIsMobile } from "@/hooks/useMediaQuery";
@@ -64,7 +67,9 @@ function Notepad({ onClose, chat }: { onClose?: () => void; chat: Chat }) {
   const openLibrary = useOpenLibraryIntent();
   const focusCallBox = () => rootRef.current?.querySelector<HTMLInputElement>('input[aria-label="Your call"]')?.focus();
 
-  const rows = chatRows(chat.messages, hideTuneins ? [] : chat.notices, chat.archive);
+  const breaks = useStationBreakRows();
+  const [breaksMuted, setBreaksMuted] = useBreaksMuted();
+  const rows = chatRows(chat.messages, hideTuneins ? [] : chat.notices, chat.archive, breaks);
   const selectedMessage = selected === null ? null : chat.messages.find((m) => m.id === selected) ?? null;
   const isMine = (id: number, name: string) => isOwnCall({ id, name }, chat.mine, chat.you);
 
@@ -145,6 +150,7 @@ function Notepad({ onClose, chat }: { onClose?: () => void; chat: Chat }) {
       items: [
         { label: "Word Wrap", checked: wrap, onClick: () => setWrap((w) => !w), testId: "notepad-wrap" },
         { label: "Hide Tune-ins", checked: hideTuneins, onClick: toggleTuneins, testId: "toggle-tuneins" },
+        { label: "Mute Station Breaks", checked: breaksMuted, onClick: () => setBreaksMuted(!breaksMuted), testId: "toggle-breaks" },
         ...(chat.you?.admin
           ? [
               {
@@ -322,6 +328,7 @@ function NotepadLog({
               </li>
             );
           }
+          if (r.kind === "break") return <StationBreakCard key={`b-${r.b.id}`} b={r.b} />;
           if (r.kind === "archive") {
             const a = r.a;
             return (

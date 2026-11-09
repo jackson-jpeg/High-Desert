@@ -469,3 +469,16 @@ CREATE TABLE IF NOT EXISTS visitor_tuneins (
   city    text        CHECK (city IS NULL OR length(city) <= 80)
 );
 CREATE INDEX IF NOT EXISTS visitor_tuneins_at_idx ON visitor_tuneins (at DESC);
+
+-- Station sponsors (2026-11-09, docs/station-breaks.md): per UTC day, per app,
+-- where (`air`: the spot played to a tuned-in listener; `chat`: the station
+-- break card; `stats`: the /stats panel) and what (`heard`, `seen`, `click`
+-- on the App Store link). Counters only: no session, no address, no id.
+CREATE TABLE IF NOT EXISTS sponsor_daily (
+  day     date   NOT NULL,
+  app     text   NOT NULL CHECK (app IN ('sogojet', 'screenreceipts', 'simsunday')),
+  surface text   NOT NULL CHECK (surface IN ('air', 'chat', 'stats')),
+  event   text   NOT NULL CHECK (event IN ('heard', 'seen', 'click', 'mute')),
+  n       bigint NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, app, surface, event)
+);

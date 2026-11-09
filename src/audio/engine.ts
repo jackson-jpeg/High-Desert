@@ -62,6 +62,14 @@ export function initEngine(audio: HTMLAudioElement): void {
   // the same element, so it never stops playing (see playBridge).
   audio.addEventListener("ended", () => {
     if (mediaElement !== audio || !bridging || audio.loop) return;
+    // A station break's spot is over: the station ID, then quiet.
+    const next = bridgeQueue.shift();
+    if (next) {
+      audio.src = next;
+      fromTheTop(audio);
+      audio.play().catch(() => {});
+      return;
+    }
     audio.loop = true;
     audio.src = BRIDGE_QUIET_URL;
     fromTheTop(audio);
@@ -120,6 +128,8 @@ export const STATION_ID_URL = "/audio/station-id.mp3";
 export const BRIDGE_QUIET_URL = "/audio/station-quiet.mp3";
 
 let bridging = false;
+/** What the bridge plays after the current source, before quiet (a break's station ID). */
+let bridgeQueue: string[] = [];
 
 /**
  * A new bridge source starts at 0, said out loud. A `currentTime` written
@@ -146,14 +156,18 @@ export function isBridging(): boolean {
  * Play the station ID on the player's element, straight over whatever it is
  * playing: no pause, no teardown. Rejects as play() does (NotAllowedError when
  * the browser refuses), for the station to handle.
+ *
+ * With `spotUrl` (a station break, src/lib/live/breaks.ts), the spot plays
+ * first and the station ID after it, on the same element, then quiet.
  */
-export function playBridge(): Promise<void> {
+export function playBridge(spotUrl?: string): Promise<void> {
   const a = mediaElement;
   if (!a) return Promise.resolve();
   bridging = true;
   pendingSeek = null;
   a.loop = false;
-  a.src = STATION_ID_URL;
+  bridgeQueue = spotUrl ? [STATION_ID_URL] : [];
+  a.src = spotUrl ?? STATION_ID_URL;
   fromTheTop(a);
   a.playbackRate = 1;
   return a.play();
@@ -166,6 +180,7 @@ export function playBridge(): Promise<void> {
 export function endBridge(): void {
   if (!bridging) return;
   bridging = false;
+  bridgeQueue = [];
   if (mediaElement) mediaElement.loop = false;
 }
 
@@ -173,6 +188,7 @@ export function endBridge(): void {
 export function stopBridge(): void {
   if (!bridging) return;
   bridging = false;
+  bridgeQueue = [];
   const a = mediaElement;
   if (!a) return;
   a.loop = false;

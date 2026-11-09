@@ -4,8 +4,10 @@ import { LAST_EPISODE_PREF } from "@/db/merge";
 import { stopPlayerForLive } from "@/audio/live-session";
 import { emit, onHdEvent } from "@/lib/events";
 import { usePlayerStore } from "@/stores/player-store";
-import { installLiveStation } from "@/audio/live-controller";
+import { installLiveStation, skipStationBreak } from "@/audio/live-controller";
 import { endBridge, playBridge, stopBridge } from "@/audio/engine";
+import { breaksMuted, onBreaksMutedChange } from "@/lib/live/breaks-pref";
+import { noteSponsor } from "@/services/stats/sponsor-client";
 import { currentStartPlan } from "@/audio/outage-gate";
 import { fetchServerNow } from "@/lib/live/time-sync";
 import { knownSlots, type LiveSchedule, type ProgramSlot } from "@/lib/live/schedule";
@@ -135,7 +137,9 @@ export function installBrowserLiveStation(): () => void {
       void deletePreference(LAST_EPISODE_PREF).catch(() => {});
     },
     // The bridge between shows is the player's own element (engine.ts).
-    stationId: { start: playBridge, stop: endBridge, release: stopBridge },
+    stationId: { start: (spotUrl) => playBridge(spotUrl), stop: endBridge, release: stopBridge },
+    breaksMuted,
+    onBreakAired: (b) => noteSponsor(b.spot, "air", "heard", b.id),
     prefetch: (slot) => void prefetchSlotStart(slot),
   });
   const held = useLiveStore.getState().schedule;
@@ -148,7 +152,12 @@ export function installBrowserLiveStation(): () => void {
     const s = useLiveStore.getState().schedule;
     if (s) void prefetch(s);
   });
+  // Muting breaks mid-spot drops it for the station ID at once.
+  const offMute = onBreaksMutedChange(() => {
+    if (breaksMuted()) skipStationBreak();
+  });
   return () => {
+    offMute();
     offPrefetch();
     offSeed();
     offStation();

@@ -15,6 +15,7 @@ import { Listeners } from "@/components/library/Listeners";
 import { OnAir } from "@/components/library/OnAir";
 import { PlaybackFailures } from "@/components/library/PlaybackFailures";
 import { Supporters } from "@/components/library/Supporters";
+import { StationSponsors } from "@/components/library/StationSponsors";
 import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
 import { getCacheSize, clearAudioCache } from "@/audio/cache";
@@ -573,6 +574,12 @@ export default function StatsPage() {
           <HistoryPanel />
         </WidgetErrorBoundary>
       </div>
+
+      {/* ── Station sponsors ── Jackson's own apps, one per visit, at the very
+          bottom and apart from Supporters (docs/station-breaks.md). */}
+      <WidgetErrorBoundary name="Station sponsors">
+        <StationSponsors />
+      </WidgetErrorBoundary>
     </div>
   );
 }

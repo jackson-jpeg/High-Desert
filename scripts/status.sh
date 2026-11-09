@@ -32,6 +32,10 @@
 #             before-and-after verdict's progress, or the verdict once written
 #             (scripts/funnel-verdict.mjs, HD_FUNNEL_VERDICT); WARN if that job
 #             has not run for 36h
+#   sponsors  the station breaks' last 7 days per app, from /api/stats/sponsors:
+#             spots heard by tuned-in listeners, chat cards and /stats panels seen,
+#             App Store clicks, mutes (docs/station-breaks.md). Reported, never
+#             judged; WARN only if it cannot be read
 #   release   starts the listener lost over the 7 days after the release recorded
 #             in docs/reliability-baseline.md (/api/stats/failures?since=): failures
 #             the retry or the mirror did not rescue, WARN at 3%+ of plays; the
@@ -364,6 +368,21 @@ else
     phones="; phones: $pv > $(fpct "$pl" "$pv") saw Live > $(fpct "$pt" "$pv") tuned in > $(fpct "$pc" "$pv") called"
   fi
   line "$verdict_level" funnel "7d: $fv first visits > $fl saw Live ($(fpct "$fl")) > $ft tuned in ($(fpct "$ft")) > $fc called ($(fpct "$fc"))$phones$verdict"
+fi
+
+# --- sponsors ----------------------------------------------------------------
+# Station breaks (docs/station-breaks.md): what aired, what was seen, what was
+# clicked, per app. Reported, never judged.
+sponsors_json="$(curl -s --max-time 10 "$API/api/stats/sponsors?days=7" 2>/dev/null)"
+sponsors_text="$(jq -r '
+  def name: {sogojet: "SoGoJet", screenreceipts: "Screen Receipts", simsunday: "Sim Sunday"}[.] // .;
+  if (.apps | type) != "array" then empty else
+  "7d: " + ([.apps[] | "\(.app | name) \(.heard) heard, \(.seenChat) cards, \(.seenStats) panels, \(.clicksChat + .clicksStats) clicks, \(.mutes) mutes"] | join("; "))
+  end' <<<"$sponsors_json" 2>/dev/null)"
+if [[ -z "$sponsors_text" ]]; then
+  line WARN sponsors "could not read $API/api/stats/sponsors"
+else
+  line OK sponsors "$sponsors_text"
 fi
 
 # --- release -----------------------------------------------------------------

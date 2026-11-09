@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { applyBreaks } from "@/lib/live/breaks";
 import { buildDay, pacificDay, addDays, locate, type CatalogRow, type DayProgram } from "@/lib/live/schedule";
 
 /**
@@ -76,16 +77,18 @@ describe("GET /api/live/schedule", () => {
     const body = await res.json();
 
     expect(Object.keys(body).sort()).toEqual(
-      ["day", "guide", "now", "outage", "rest", "serverNow", "stationIdSec", "tz", "upNext"].sort(),
+      ["breaks", "day", "guide", "now", "outage", "rest", "serverNow", "stationIdSec", "tz", "upNext"].sort(),
     );
     expect(body.tz).toBe("America/Los_Angeles");
     expect(body.day).toBe(pacificDay(body.serverNow));
     expect(body.stationIdSec).toBe(8);
     expect(body.outage).toBe(false);
 
-    const today = frozenFor(body.day);
+    // The frozen day as published: with its station breaks (read time, docs/station-breaks.md).
+    const published = (d: string) => applyBreaks(frozenFor(d)).program;
+    const today = published(body.day);
     expect(body.guide).toEqual(today.slots);
-    const expected = locate([...today.slots, ...frozenFor(addDays(body.day, 1)).slots], body.serverNow, today.end);
+    const expected = locate([...today.slots, ...published(addDays(body.day, 1)).slots], body.serverNow, today.end);
     expect(body.now).toEqual(expected);
     if ("slot" in body.now) {
       expect(Object.keys(body.now).sort()).toEqual(["endsAt", "offsetSec", "slot", "startedAt"]);
@@ -144,7 +147,8 @@ describe("GET /api/live/schedule", () => {
     manifest = null;
     const body = await (await GET(req("/api/live/schedule"))).json();
     expect(body.outage).toBe(true);
-    expect(body.guide).toEqual(frozenFor(body.day).slots);
+    // Unswapped: the frozen day with only its station breaks (read time, docs/station-breaks.md).
+    expect(body.guide).toEqual(applyBreaks(frozenFor(body.day)).program.slots);
   });
 
   it("is 503 without a database", async () => {

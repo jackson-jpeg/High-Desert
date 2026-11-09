@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { applyBreaks } from "@/lib/live/breaks";
 import { beforeAll, afterAll, afterEach, it, expect } from "vitest";
 import { TEST_DATABASE_URL, describeDb } from "@/test-support/test-db";
 import { communityKey } from "@/lib/utils/community-key";
@@ -128,12 +129,14 @@ describeDb("frozen station days (Postgres)", () => {
   it("a breaker trip cuts the show on the air at the next schedule read, and the replacement follows a station ID", async () => {
     const day = "2099-10-02";
     const p = await days.frozenDay(day, { loadPlays: async () => ranked(1), loadPinned: async () => null });
-    const A = p.slots[3];
+    // The slot as published: station breaks can move it off its frozen start,
+    // and the breaker records what clients were playing (docs/station-breaks.md).
+    const A = applyBreaks(p).program.slots[3];
     const cutAt = A.start + 30 * 60_000;
     const replacement = p.ranking.find((h) => !p.slots.some((s) => s.fileHash === h))!;
     const ctx = async () => ({ archiveDown: false, manifest: null });
     const before = await days.buildSchedule(cutAt + 1000, ctx);
-    expect("slot" in before.now && before.now.slot.fileHash).toBe(A.fileHash);
+    expect("slot" in before.now && before.now.slot).toMatchObject({ fileHash: A.fileHash, start: A.start });
 
     await poolMod.pool().query(
       "INSERT INTO live_overrides (slot_start, file_hash, day, cut_at, replacement, clients, kinds) VALUES ($1, $2, $3::date, $4, $5, 3, '{decode-error}')",

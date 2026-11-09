@@ -51,6 +51,7 @@ import {
   type ManifestSet,
   type RequestNight,
 } from "@/lib/live/schedule";
+import { applyBreaks, type StationBreak } from "@/lib/live/breaks";
 
 export type { LiveSchedule };
 
@@ -303,8 +304,14 @@ export function assembleSchedule(
 ): LiveSchedule {
   // The listeners' request first (it moves the night's slots), then the
   // outage swap and the breaker, which keep slot times where they find them.
+  // Station breaks after the request (they make room the way it does, and
+  // never move its 10 PM start), before the swaps, which keep times as found.
+  const breaks: StationBreak[] = [];
   const swap = (frozen: DayProgram): DayProgram => {
-    const p = applyRequest(frozen, nights.find((n) => n.day === frozen.day) ?? null, byHash);
+    const r = applyRequest(frozen, nights.find((n) => n.day === frozen.day) ?? null, byHash);
+    const b = applyBreaks(r);
+    breaks.push(...b.breaks);
+    const p = b.program;
     const q = ctx.archiveDown && ctx.manifest ? applyOutageSwap(p, ctx.manifest, byHash) : p;
     return overrides.length ? { ...q, slots: applyOverrides(q.slots, overrides, byHash) } : q;
   };
@@ -323,6 +330,7 @@ export function assembleSchedule(
     rest: future.slice(UP_NEXT).filter((s) => s.start < t.end),
     guide: t.slots,
     outage: ctx.archiveDown,
+    breaks,
   };
 }
 

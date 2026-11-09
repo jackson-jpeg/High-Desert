@@ -12,7 +12,7 @@ export function Supporters({ supporters = SUPPORTERS }: { supporters?: readonly 
     <Window title="Supporters" variant="dark" headingLevel={2}>
       <div className="p-3 flex flex-col gap-3" data-testid="supporters">
         <p className="text-hd-12 md:text-hd-10 text-desktop-gray">
-          High Desert has no ads. Thank you to the listeners who chipped in to keep it on the air.
+          High Desert runs no outside ads. Thank you to the listeners who chipped in to keep it on the air.
         </p>
         {supporters.length > 0 && (
           <ul className="flex flex-wrap gap-2" aria-label="Thank you">

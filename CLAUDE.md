@@ -185,6 +185,8 @@ All primary pages share `(desktop)/layout.tsx` — the master client component t
 | `/api/stats/visitors` | GET | **Unique visitors, all time, and where.** **`{countingSince, totals: {visitors, browsers, backfilled, hereBefore, newThisWeek, activeThisWeek, returning}, locations: {allTime, week, now}, attribution}`**, each location `{total, countries: [{country, name, n}], states: [{region, code, n}]}` (US only), unknown (null) last. `now` is the presence set by where heartbeats resolved. `countingSince` is the first funnel cohort (2026-09-27). `no-store`, 30/min |
 | `/api/stats/tuning-in` | GET | **`{entries: [{at, country, name, region, code, city}], attribution}`**, the last 10 tune-ins to the station, newest first, one per client per half hour. `city` only when the geo database reports an accuracy radius ≤ 50 km (never with DB-IP Lite). `no-store`, 60/min |
 | `/api/stats/records` | GET | **`{biggestCrowd: {online, listening, at, day, since}, biggestDay: {day, plays}, biggestArrivalDay: {day, visitors}, mostPlayed: {episodeId, plays, title}}`**, each null when empty. The crowd counts from 2026-09-24 (`since`), when `online` began counting people. `max-age=60`, 30/min |
+| `/api/stats/sponsor` | POST | A station break was heard, seen, clicked or muted (`docs/station-breaks.md`). Body `{app, surface, event}`: `app` `sogojet`/`screenreceipts`/`simsunday`, `surface`/`event` one of `air/heard`, `chat/seen`, `chat/click`, `chat/mute`, `stats/seen`, `stats/click`; anything else **400**. Adds one to `sponsor_daily` (UTC day). Returns `{ok}`; 20/min. Counters only: no session, address or id. Kept out by `hd-not-counted` |
+| `/api/stats/sponsors` | GET | `?days=7\|30\|90` (else 30) → **`{days, apps: [{app, heard, seenChat, seenStats, clicksChat, clicksStats, mutes}]}`**. `no-store`, 30/min. Read by `highdesert-status`'s `sponsors` line and the admin table on /stats |
 | `/api/stats/export` | GET | **The permanent record, for sang3r.com.** Requires `x-service-token` (`STATS_EXPORT_SECRET`). `?mode=summary\|events\|daily\|episodes`. The only route that returns the event log rather than aggregates, and the only one not reachable from a browser. Episode ids are resolved to titles from the seed catalog. Page `events` with `after=<last id>` — **not** with `since`, which cannot disambiguate two plays sharing a timestamp |
 
 > Response shapes are inconsistent by history, not design. `src/services/stats/client.ts`
@@ -1193,6 +1195,26 @@ Full account: `docs/seasons.md`.
 - **The station** airs a holiday show (`showSeason`: Ghost to Ghost,
   Christmas, New Year's) as a fan favorite only in its season; it always
   airs on its own date.
+
+## Station Breaks (2026-11-09, read before touching `src/lib/live/breaks.ts`, `data/station-breaks/` or the bridge)
+
+Short spots for Jackson's own apps (SoGoJet, Screen Receipts, Sim Sunday) as
+an old-radio station break. Full account: `docs/station-breaks.md`.
+
+- **Only between shows, 1 or 2 a day** (evening at the boundary nearest 8 PM
+  Pacific, late at midnight Pacific on four days), cards in the phone lines 5
+  times a week (`WEEK`). Applied at read time by `applyBreaks` in
+  `assembleSchedule` after the request, and on Tonight. **The 10 PM slot never
+  moves and a show playing in full is never shortened**; only a show already
+  cut before 10 PM may lose a little more. A break that does not fit skips.
+- **The spot plays on the bridge** (`playBridge(url)`: spot, then the station
+  ID, then the quiet loop); a tab joining more than 3 s in hears the ID only.
+- **Mute breaks** (`hd-breaks-muted`): ID instead of the spot, no cards.
+- **Audio is rendered, not recorded live**: Piper + ffmpeg via
+  `node scripts/make-station-breaks.mjs`; commit the MP3s and
+  `src/data/station-break-audio.json` together. No em dashes in a script; never
+  imitate a real host.
+- **Counters only** in `sponsor_daily`; `highdesert-status` `sponsors` line.
 
 ## The admin console on sang3r.com (2026-10-29, `docs/admin-console.md`)
 

@@ -1,0 +1,338 @@
+/* Station Breaks (2026-11-09, docs/station-breaks.md): the chat card and the
+   print ad, in both looks. Colours are palette tokens only (no-raw-hex test).
+   Win98: a gray window, newsprint and ink (not cream: Jackson, 2026-11-09).
+   Night: dark card stock, amber ink, the glass of the rest of Night. */
+
+.hd-break {
+  list-style: none;
+  margin: 6px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hd-break-marker {
+  font-family: var(--font-mono);
+  font-size: var(--hd-text-11);
+  letter-spacing: 0.04em;
+  text-align: center;
+  white-space: normal;
+}
+
+.hd-break-window {
+  position: relative;
+  max-width: 340px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.hd-break-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  font-family: var(--font-w95);
+  font-size: var(--hd-text-12);
+  font-weight: 700;
+}
+
+.hd-break-title-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.hd-break-cart {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: var(--hd-text-11);
+  padding: 0 4px;
+}
+
+.hd-break-lamp {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--hd-chrome-darker);
+  border: 1px solid var(--hd-ink);
+}
+
+.hd-break-lamp-on {
+  background: var(--hd-needle);
+  animation: hd-break-lamp 1s steps(1, end) infinite;
+}
+
+@keyframes hd-break-lamp {
+  0% { background: var(--hd-needle); box-shadow: 0 0 6px var(--hd-needle); }
+  50% { background: var(--hd-chrome-darker); box-shadow: none; }
+}
+
+/* The cart machine: black LCD, lit segments in phosphor green. */
+.hd-break-lcd {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "label time" "bar bar";
+  gap: 3px 8px;
+  margin: 4px;
+  padding: 4px 6px;
+  background: var(--hd-ink);
+  color: var(--hd-w98-amp-lcd);
+  font-family: var(--font-mono);
+  font-size: var(--hd-text-11);
+  border: 2px inset var(--hd-chrome-dark);
+}
+
+.hd-break-lcd-label {
+  grid-area: label;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hd-break-lcd-time {
+  grid-area: time;
+  font-variant-numeric: tabular-nums;
+}
+
+.hd-break-lcd-bar {
+  grid-area: bar;
+  height: 6px;
+  background: var(--hd-w98-amp-lcd-dim);
+  position: relative;
+  overflow: hidden;
+}
+
+.hd-break-lcd-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--hd-w98-amp-lcd);
+  transition: width 250ms linear;
+}
+
+.hd-break-mute {
+  display: block;
+  margin: 2px 6px 6px auto;
+  min-height: 44px;
+  padding: 0 4px;
+  font-size: var(--hd-text-11);
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+@media (min-width: 768px) {
+  .hd-break-mute { min-height: 0; }
+}
+
+/* ── The print ad ───────────────────────────────────────────────────── */
+
+.hd-sponsor-ad {
+  position: relative;
+  overflow: hidden;
+  margin: 4px;
+  padding: 10px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+}
+
+.hd-sponsor-headline {
+  font-family: Georgia, "Times New Roman", Times, serif;
+  font-size: var(--hd-text-16);
+  font-weight: 700;
+  line-height: 1.2;
+  margin-top: 10px;
+}
+
+.hd-sponsor-name {
+  font-family: var(--font-w95);
+  font-size: var(--hd-text-20);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  line-height: 1.1;
+}
+
+.hd-sponsor-body {
+  font-family: Georgia, "Times New Roman", Times, serif;
+  font-size: var(--hd-text-12);
+  line-height: 1.45;
+}
+
+.hd-sponsor-coupon {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 8px;
+  border: 2px dashed currentColor;
+  font-family: Georgia, "Times New Roman", Times, serif;
+}
+
+.hd-sponsor-clip {
+  font-size: var(--hd-text-11);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.hd-sponsor-price {
+  font-size: var(--hd-text-14);
+  font-weight: 700;
+}
+
+.hd-sponsor-get {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  font-family: var(--font-w95);
+  font-size: var(--hd-text-12);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+@media (min-width: 768px) {
+  .hd-sponsor-get { min-height: 28px; }
+}
+
+.hd-sponsor-line {
+  font-family: Georgia, "Times New Roman", Times, serif;
+  font-style: italic;
+  font-size: var(--hd-text-11);
+}
+
+/* The small plane, across the top of the ad while the spot plays. */
+.hd-sponsor-plane {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  line-height: 0;
+  animation-name: hd-sponsor-fly;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+@keyframes hd-sponsor-fly {
+  from { transform: translateX(-30px); }
+  to { transform: translateX(340px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hd-break-lamp-on { animation: none; }
+  .hd-sponsor-plane { animation: none; left: auto; right: 8px; }
+  .hd-break-lcd-fill { transition: none; }
+}
+
+/* ── Win98: a gray window, newsprint and ink ───────────────────────── */
+
+html[data-look="win98"] .hd-break-marker { color: var(--hd-w98-ink-dim); }
+
+html[data-look="win98"] .hd-break-window {
+  background: var(--hd-w98-face);
+  color: var(--hd-ink);
+  border: 2px solid;
+  border-color: var(--hd-chrome-lighter) var(--hd-chrome-darker) var(--hd-chrome-darker) var(--hd-chrome-lighter);
+  box-shadow: 1px 1px 0 var(--hd-ink);
+}
+
+html[data-look="win98"] .hd-break-title {
+  background: linear-gradient(90deg, var(--hd-w98-title-start), var(--hd-w98-title-end));
+  color: var(--hd-chrome-lighter);
+}
+
+html[data-look="win98"] .hd-break-cart {
+  background: var(--hd-w98-face);
+  color: var(--hd-ink);
+  border: 1px solid var(--hd-chrome-darker);
+}
+
+html[data-look="win98"] .hd-sponsor-ad {
+  background-color: var(--hd-chrome-lighter);
+  /* a faint halftone, as if printed */
+  background-image: radial-gradient(color-mix(in srgb, var(--hd-ink) 7%, transparent) 0.6px, transparent 0.8px);
+  background-size: 4px 4px;
+  color: var(--hd-ink);
+  border: 1px solid var(--hd-ink);
+}
+
+html[data-look="win98"] .hd-sponsor-headline { color: var(--hd-w98-maroon); }
+html[data-look="win98"] .hd-sponsor-plane { color: var(--hd-navy); }
+html[data-look="win98"] .hd-sponsor-line { color: var(--hd-w98-ink-muted); }
+
+html[data-look="win98"] .hd-sponsor-get {
+  background: var(--hd-w98-face);
+  color: var(--hd-ink);
+  border: 2px solid;
+  border-color: var(--hd-chrome-lighter) var(--hd-chrome-darker) var(--hd-chrome-darker) var(--hd-chrome-lighter);
+  box-shadow: 1px 1px 0 var(--hd-ink);
+}
+
+html[data-look="win98"] .hd-sponsor-get:active {
+  border-color: var(--hd-chrome-darker) var(--hd-chrome-lighter) var(--hd-chrome-lighter) var(--hd-chrome-darker);
+}
+
+html[data-look="win98"] .hd-break-mute { color: var(--hd-ink); }
+
+/* ── Night: dark card stock, amber ink ────────────────────────────── */
+
+html[data-look="night"] .hd-break-marker { color: var(--hd-muted); }
+
+html[data-look="night"] .hd-break-window {
+  background: var(--hd-raised);
+  color: var(--hd-muted);
+  border: 1px solid color-mix(in srgb, var(--hd-amber) 45%, transparent);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+html[data-look="night"] .hd-break-title {
+  color: var(--hd-amber);
+  border-bottom: 1px solid color-mix(in srgb, var(--hd-amber) 30%, transparent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: var(--hd-text-11);
+  padding: 6px 8px;
+}
+
+html[data-look="night"] .hd-break-cart {
+  color: var(--hd-amber);
+  border: 1px solid color-mix(in srgb, var(--hd-amber) 60%, transparent);
+  border-radius: 4px;
+}
+
+html[data-look="night"] .hd-break-lcd {
+  border: 1px solid var(--hd-edge);
+  border-radius: 6px;
+  margin: 8px;
+}
+
+html[data-look="night"] .hd-sponsor-ad {
+  background: var(--hd-card);
+  color: var(--hd-muted);
+  border: 1px solid var(--hd-edge);
+  border-radius: 8px;
+  margin: 0 8px 4px;
+}
+
+html[data-look="night"] .hd-sponsor-headline { color: var(--hd-amber); }
+html[data-look="night"] .hd-sponsor-name { color: var(--hd-chrome-lighter); }
+html[data-look="night"] .hd-sponsor-plane { color: var(--hd-amber); }
+html[data-look="night"] .hd-sponsor-coupon { color: var(--hd-amber); }
+html[data-look="night"] .hd-sponsor-body { color: var(--hd-chrome-light); }
+
+html[data-look="night"] .hd-sponsor-get {
+  background: var(--hd-amber);
+  color: var(--hd-ink);
+  border-radius: 999px;
+}
+
+html[data-look="night"] .hd-break-mute { color: var(--hd-muted); }
+
+/* ── /stats: the sponsors panel's ad is a little wider ─────────────── */
+
+.hd-sponsors-panel .hd-sponsor-ad { max-width: 420px; margin: 0 auto; }
