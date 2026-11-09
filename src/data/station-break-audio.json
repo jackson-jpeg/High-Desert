@@ -2,28 +2,28 @@
   "sogojet": {
     "id": "sogojet",
     "cart": "07",
-    "durationSec": 18.08,
-    "bytes": 108687,
-    "sha256": "5363e3d00560c811d80d5b835471e9270b31621d30b26b46f38c4b6bd67196a9",
-    "voice": "piper en_US-ryan-high",
+    "durationSec": 19.44,
+    "bytes": 155733,
+    "sha256": "0c912afab2c51e9d50d79e0a88400a7dfad7ee51f1ce6a9fecc2f48d03bddff0",
+    "voice": "piper en_US-ryan-high x1.08",
     "url": "/audio/breaks/sogojet.mp3"
   },
   "screenreceipts": {
     "id": "screenreceipts",
     "cart": "12",
-    "durationSec": 17.63,
-    "bytes": 106023,
-    "sha256": "9a6e1bfb47fbaeb893d61d5dda61ea465f380743c8ca6dc6608aac082d6fcb5d",
-    "voice": "piper en_US-ryan-high",
+    "durationSec": 17.87,
+    "bytes": 143195,
+    "sha256": "8423642bb7875e0d6e892e9ed0f8569aba81539e4a7c314162776ca26a30f1db",
+    "voice": "piper en_US-ryan-high x1.08",
     "url": "/audio/breaks/screenreceipts.mp3"
   },
   "simsunday": {
     "id": "simsunday",
     "cart": "21",
-    "durationSec": 19.8,
-    "bytes": 119032,
-    "sha256": "a45360ea5496838f5907d823cd091bb8156cf2c2cfea4d9ca7c0d06c69e10d18",
-    "voice": "piper en_US-ryan-high",
+    "durationSec": 20.64,
+    "bytes": 165346,
+    "sha256": "210e56393b9a16686ae40cb647ad73aee6cc498a5d97c3d7156d562b857e9a3b",
+    "voice": "piper en_US-ryan-high x1.08",
     "url": "/audio/breaks/simsunday.mp3"
   }
 }

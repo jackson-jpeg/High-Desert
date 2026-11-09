@@ -1,25 +1,25 @@
 {
-  "_readme": "Station Breaks: the spoken spots. Edit a script or the voice, then run `node scripts/make-station-breaks.mjs` (all) or `node scripts/make-station-breaks.mjs sogojet` (one), commit public/audio/breaks/ and src/data/station-break-audio.json, deploy. A human recording can replace the voice: put a mono WAV at data/station-breaks/recorded/<id>.wav and the script uses it instead of Piper (same sting and AM texture). No em dashes in scripts. Never imitate a real host.",
+  "_readme": "Station Breaks: the spoken spots. Edit a script or the voice, then run `node scripts/make-station-breaks.mjs` (all) or `node scripts/make-station-breaks.mjs sogojet` (one), commit public/audio/breaks/ and src/data/station-break-audio.json, deploy. A human recording can replace the voice: put a mono WAV at data/station-breaks/recorded/<id>.wav and the script uses it instead of Piper (same sting and broadcast texture). No em dashes in scripts. Never imitate a real host. Pace is the voice's lengthScale only; each sentence gets sentencePause seconds of silence after it. \"Free, on the App Store.\" has its comma on purpose: without it Piper's ryan swallows \"App Store\" (checked by transcription, 2026-11-09).",
   "voice": {
     "model": "en_US-ryan-high",
-    "lengthScale": 1.1,
-    "sentenceSilence": 0.35
+    "lengthScale": 1.08,
+    "sentencePause": 0.4
   },
   "spots": [
     {
       "id": "sogojet",
       "cart": "07",
-      "script": "This station break is brought to you by SoGoJet. Roswell. Rachel, Nevada. Point Pleasant. Some trips are for the strange. SoGoJet shows real fares from your home airport, to the airport nearest whatever's out there. SoGoJet. Free on the App Store."
+      "script": "This station break is brought to you by SoGoJet. Roswell. Rachel, Nevada. Point Pleasant. Some trips are for the strange. SoGoJet shows real flight prices from your home airport, to the airport nearest whatever's out there. SoGoJet. Free, on the App Store."
     },
     {
       "id": "screenreceipts",
       "cart": "12",
-      "script": "Still up at three in the morning? So is your phone, and it's been keeping count. Screen Receipts prints your screen time like a receipt. Every app, every hour, and a total at the bottom. Then somebody reads it back to you. Screen Receipts. On the App Store."
+      "script": "Still up at three in the morning? So is your phone, and it's been keeping count. Screen Receipts prints your screen time like a receipt. Every app, every hour, and a total at the bottom. Then somebody reads it back to you. Screen Receipts, on the App Store."
     },
     {
       "id": "simsunday",
       "cart": "21",
-      "script": "It's always Sunday somewhere. Sim Sunday plays a whole fantasy football season in twenty minutes, live, with a broadcast calling every touchdown. Bring your league from Sleeper or ESPN. Draft. Sweat. Gloat. Repeat. Sim Sunday. Free on the App Store."
+      "script": "It's always Sunday somewhere. Sim Sunday plays a whole fantasy football season in twenty minutes, live, with a broadcast calling every touchdown. Import your league from Sleeper, or E S P N. Draft it, sweat it, gloat about it, and do it again. Sim Sunday. Free, on the App Store."
     }
   ]
 }

@@ -70,11 +70,28 @@ whose file ran short reaches the gap early: the ID now, the spot at its time.
 
 ## The spots (`data/station-breaks/spots.json`)
 
-Voice: Piper (self-hosted, no API), `en_US-ryan-high`, length scale 1.1. Then
-ffmpeg: a 1.4 s synthesized three-note sting (E5, A5, C#6: not any network's
-chime), the voice, an AM texture (300 Hz to 3.2 kHz, compression, soft
-clipping, pink hiss), -21 LUFS (the station ID sits at about -23), mono 48k
-MP3. 17.6 to 19.8 s each.
+Voice: Piper (self-hosted, no API), `en_US-ryan-high`, length scale 1.08
+(the pace; nothing is time-stretched afterwards). Each sentence is rendered on
+its own and followed by 0.4 s of silence (`sentencePause`), so "Roswell.
+Rachel, Nevada. Point Pleasant." lands as three places. Then ffmpeg: a 1.4 s
+synthesized three-note sting (E5, A5, C#6: not any network's chime), the
+voice, a warm vintage broadcast texture (`CHAINS.warm`: 120 Hz to 5.5 kHz, a
++3 dB presence lift at 3 kHz, 2:1 compression, faint pink hiss, no soft
+clipping), two-pass loudness to the station ID's -22.8 LUFS, mono 64k MP3.
+17.6 to 21 s each.
+
+**Revised 2026-11-09 evening** (Jackson: "too tinny and words blur
+together"). The first cut was 300 Hz to 3.2 kHz with soft clipping and 4:1
+compression, at -21 LUFS, a phone line more than a radio. Clarity was judged
+by transcribing each take with a local Whisper (base.en) and counting words it
+got wrong: ryan beat norman (norman's "Roswell" came out "Barats"), the warm
+chain beat the barely-filtered one, and three lines were rewritten for the
+voice, not the meaning: "Free, on the App Store." (the comma stops ryan
+swallowing "App Store"), "real flight prices" (ryan's "fares" reads as
+"fizz"), and Sim Sunday's "Import your league from Sleeper, or E S P N. Draft
+it, sweat it, gloat about it, and do it again." (one-word sentences such as
+"Draft. Sweat. Gloat. Repeat." came out as noise). Piper takes vary run to
+run; the committed takes are the best of four by that count.
 
 To re-record: edit a script or the voice in `spots.json`, then
 `node scripts/make-station-breaks.mjs [id]`, commit `public/audio/breaks/` and
@@ -82,7 +99,9 @@ To re-record: edit a script or the voice in `spots.json`, then
 timing; a test checks the files against it), deploy. Audition another voice
 without touching the repo: `--voice en_US-norman-medium --out /tmp/x`. A
 human take: a mono WAV at `data/station-breaks/recorded/<id>.wav` is used in
-place of Piper, with the same sting and texture. Piper lives at
+place of Piper, with the same sting and texture. `--chain light`
+(the filter barely there), `--length-scale` and `--noise-scale` exist for
+auditions. Piper lives at
 `~/.local/share/hd-piper-venv`, voices in `~/.local/share/hd-piper-voices`
 (huggingface.co/rhasspy/piper-voices). Never imitate a real host.
 

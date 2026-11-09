@@ -1213,7 +1213,8 @@ an old-radio station break. Full account: `docs/station-breaks.md`.
 - **Audio is rendered, not recorded live**: Piper + ffmpeg via
   `node scripts/make-station-breaks.mjs`; commit the MP3s and
   `src/data/station-break-audio.json` together. No em dashes in a script; never
-  imitate a real host.
+  imitate a real host. Pace is Piper's length scale only (no time-stretch);
+  sentences are joined with explicit pauses; loudness is the station ID's.
 - **Counters only** in `sponsor_daily`; `highdesert-status` `sponsors` line.
 
 ## The admin console on sang3r.com (2026-10-29, `docs/admin-console.md`)
