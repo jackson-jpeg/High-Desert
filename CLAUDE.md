@@ -1201,6 +1201,10 @@ Full account: `docs/seasons.md`.
 Short spots for Jackson's own apps (SoGoJet, Screen Receipts, Sim Sunday) as
 an old-radio station break. Full account: `docs/station-breaks.md`.
 
+- **The audio is off the air since 2026-11-10** (`AIR_SPOTS = false`: the
+  first spot halved listening for a while). Cards still post 5 times a week in
+  the station ID gap, nothing plays, the program is never moved. The rest of
+  this section describes the spots with it on.
 - **Only between shows, 1 or 2 a day** (evening at the boundary nearest 8 PM
   Pacific, late at midnight Pacific on four days), cards in the phone lines 5
   times a week (`WEEK`). Applied at read time by `applyBreaks` in

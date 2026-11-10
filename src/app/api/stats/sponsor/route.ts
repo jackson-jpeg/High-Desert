@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { readJsonObject } from "@/lib/utils/json-body";
 import { isSponsorId } from "@/lib/support/sponsors";
+import { AIR_SPOTS } from "@/lib/live/breaks";
 import { SURFACE_EVENTS, isSponsorEvent, isSponsorSurface, recordSponsorEvent } from "@/services/stats/db/sponsors";
 
 /**
@@ -29,6 +30,9 @@ export async function POST(request: NextRequest) {
   if (!isSponsorSurface(surface) || !isSponsorEvent(event) || !SURFACE_EVENTS[surface].includes(event)) {
     return NextResponse.json({ error: "unknown surface or event" }, { status: 400 });
   }
+  // Spots off the air: a tab still on an older build can report one it never
+  // played (it hears the plain station ID). Accepted, never counted.
+  if (surface === "air" && !AIR_SPOTS) return NextResponse.json({ ok: true });
   try {
     await recordSponsorEvent(app, surface, event);
     return NextResponse.json({ ok: true });

@@ -453,7 +453,7 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
   function playGap(spot: StationBreak | null, tap: boolean) {
     onAirBreak = spot;
     deps.stationId
-      .start(spot?.url)
+      .start(spot?.url ?? undefined)
       .then(() => {
         if (spot && onAirBreak === spot) deps.onBreakAired?.(spot);
       })

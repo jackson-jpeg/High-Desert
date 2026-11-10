@@ -1,5 +1,17 @@
 # Station Breaks
 
+> **The audio is off the air (2026-11-10), the chat cards stay.** After the
+> first spot (SoGoJet, 7:26 PM Pacific on 9 November), listening went from 20
+> to 10 at the break and stayed near 13 for the next twenty minutes; at no
+> other show change that day did it move. The lines said "Lol was that an ad".
+> Jackson: pull the audio, keep the cards "as long as it doesn't interrupt the
+> show". `AIR_SPOTS = false` in `src/lib/live/breaks.ts`: the program stays
+> exactly as frozen (no break moves a show), nothing plays in the gap, and the
+> five cards a week appear in the phone lines in the station ID gap at their
+> boundary, `url: null`. An old tab that still reports a spot heard is
+> accepted and not counted. The /stats panel is unchanged. Everything below
+> describes the spots with `AIR_SPOTS = true`; flip it to bring them back.
+
 Shipped 2026-11-09. Sponsor spots for Jackson's own iOS apps, done as an
 old-radio station break, not as ads: SoGoJet, Screen Receipts, Sim Sunday.
 

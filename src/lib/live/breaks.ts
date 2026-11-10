@@ -31,6 +31,15 @@
  * midnight, where the last show is cut as it always is. Applied at read time
  * after the request (src/services/live/days.ts), so the breaker and every
  * client see the same times. Deterministic in the day.
+ *
+ * ## Off the air, for now (2026-11-10)
+ *
+ * `AIR_SPOTS` is false (Jackson, after the first spot: listening went from 20
+ * to 10 at the break and stayed near 13; no other show change that day
+ * moved; "Lol was that an ad" in the lines). The chat cards stay, "as long as
+ * it doesn't interrupt the show": the program is left exactly as frozen,
+ * nothing plays, and each card break sits in the station ID gap at its
+ * boundary with `url: null`. Set it true to put the spots back on the air.
  */
 
 import { STATION_ID_SEC } from "./schedule";
@@ -53,6 +62,9 @@ export const EVENING_WINDOW = { beforeMs: 90 * 60_000, afterMs: 150 * 60_000 };
  * moved every show since midnight, the one playing included.
  */
 export const BREAKS_FROM_MS = Date.UTC(2026, 10, 9, 22, 0, 0);
+
+/** Play the spots on the air. False: chat cards only, the program untouched (see the header). */
+export const AIR_SPOTS = false;
 
 /** A cut show trimmed for a break keeps at least this much air. */
 export const MIN_KEEP_MS = 5 * 60_000;
@@ -94,8 +106,8 @@ export interface StationBreak {
   slot: BreakSlot;
   spot: SponsorId;
   cart: string;
-  /** The spot's file, on this origin. */
-  url: string;
+  /** The spot's file, on this origin; null when spots are off the air (a card only). */
+  url: string | null;
   durationSec: number;
   card: boolean;
   /** When the spot starts: the previous show's end (or midnight). */
@@ -176,6 +188,7 @@ function shiftFrom(
 export function applyBreaks(
   program: DayProgram,
   audio: Readonly<Record<string, SpotAudio>> = SPOT_AUDIO,
+  air: boolean = AIR_SPOTS,
 ): { program: DayProgram; breaks: StationBreak[] } {
   const { start: dayStart, end: dayEnd } = pacificDayBounds(program.day);
   const tenPm = requestStartAt(program.day);
@@ -186,6 +199,7 @@ export function applyBreaks(
   for (const { slot, entry } of planFor(program.day)) {
     const a = audio[entry.spot];
     if (!a || !(a.durationSec > 0) || !SPONSORS[entry.spot]) continue;
+    if (!air && !entry.card) continue; // nothing to show for an audio-only break
     const len = breakMs(a);
 
     // Candidate boundaries: index i means "before slots[i]" (i = 0 is midnight).
@@ -205,18 +219,20 @@ export function applyBreaks(
       const start = i === 0 ? dayStart : slots[i - 1].end;
       if (start < BREAKS_FROM_MS) continue;
       if (breaks.some((b) => start < b.end + gap && b.start < start + len + gap)) continue;
-      // A boundary at or before 10 PM answers to 10 PM, which never moves.
-      const anchor = slots[i].start <= tenPm ? tenPm : dayEnd;
-      const moved = shiftFrom(slots, i, start + len + gap, anchor, dayEnd);
-      if (!moved) continue;
-      slots = moved;
+      if (air) {
+        // A boundary at or before 10 PM answers to 10 PM, which never moves.
+        const anchor = slots[i].start <= tenPm ? tenPm : dayEnd;
+        const moved = shiftFrom(slots, i, start + len + gap, anchor, dayEnd);
+        if (!moved) continue;
+        slots = moved;
+      }
       breaks.push({
         id: `${program.day}:${slot}`,
         day: program.day,
         slot,
         spot: entry.spot,
         cart: a.cart,
-        url: a.url,
+        url: air ? a.url : null,
         durationSec: a.durationSec,
         card: entry.card,
         start,
@@ -235,5 +251,6 @@ export function applyBreaks(
  * the station ID.
  */
 export function breakInGap(breaks: readonly StationBreak[], from: number, until: number): StationBreak | null {
-  return breaks.find((b) => b.end > from && b.start < until) ?? null;
+  // A card-only break (url null) has nothing to play.
+  return breaks.find((b) => b.url && b.end > from && b.start < until) ?? null;
 }

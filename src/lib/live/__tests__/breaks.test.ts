@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  AIR_SPOTS,
   applyBreaks,
   breakInGap,
   BREAK_PAD_SEC,
@@ -96,10 +97,10 @@ describe("the week", () => {
   });
 });
 
-describe("applyBreaks", () => {
+describe("applyBreaks with the spots on the air (AIR_SPOTS true)", () => {
   it("puts the late break at midnight and the evening one at the boundary nearest 8 PM", () => {
     const p = day(MON, LENGTHS, { slackMin: 4 });
-    const { breaks } = applyBreaks(p, AUDIO);
+    const { breaks } = applyBreaks(p, AUDIO, true);
     expect(breaks.map((b) => [b.slot, b.spot, b.card])).toEqual([
       ["late", "screenreceipts", true],
       ["evening", "sogojet", false],
@@ -117,7 +118,7 @@ describe("applyBreaks", () => {
 
   it("never starts a show before its break, the station ID and the pad are over", () => {
     const p = day(MON, LENGTHS, { slackMin: 4 });
-    const { program, breaks } = applyBreaks(p, AUDIO);
+    const { program, breaks } = applyBreaks(p, AUDIO, true);
     for (const b of breaks) {
       const next = program.slots.find((s) => s.start >= b.start)!;
       expect(next.start - b.start).toBeGreaterThanOrEqual(lenMs(b.spot) + GAP);
@@ -128,7 +129,7 @@ describe("applyBreaks", () => {
 
   it("never moves the 10 PM slot, and shortens no show that plays in full", () => {
     const p = day(MON, LENGTHS, { slackMin: 4 });
-    const { program } = applyBreaks(p, AUDIO);
+    const { program } = applyBreaks(p, AUDIO, true);
     const ten = requestStartAt(MON);
     expect(program.slots.find((s) => s.requestSlot)!.start).toBe(ten);
     for (const s of program.slots) {
@@ -141,7 +142,7 @@ describe("applyBreaks", () => {
 
   it("with no slack before 10 PM, trims only the show the day already cut, and keeps 10 PM", () => {
     const p = day(MON, LENGTHS, { cut: true });
-    const { program, breaks } = applyBreaks(p, AUDIO);
+    const { program, breaks } = applyBreaks(p, AUDIO, true);
     expect(breaks.length).toBe(2);
     const ten = requestStartAt(MON);
     const cutBefore = p.slots[p.slots.length - 2];
@@ -158,7 +159,7 @@ describe("applyBreaks", () => {
 
   it("skips a break that does not fit rather than cut into a show playing in full", () => {
     const p = day(MON, LENGTHS, { slackMin: 0.2 });
-    const { program, breaks } = applyBreaks(p, AUDIO);
+    const { program, breaks } = applyBreaks(p, AUDIO, true);
     expect(breaks).toEqual([]);
     expect(program).toBe(p);
   });
@@ -166,22 +167,22 @@ describe("applyBreaks", () => {
   it("puts nothing before BREAKS_FROM_MS (the day they shipped keeps its morning)", () => {
     const d = "2026-11-09";
     expect(pacificDayBounds(d).start).toBeLessThan(BREAKS_FROM_MS);
-    const { breaks } = applyBreaks(day(d, LENGTHS, { slackMin: 4 }), AUDIO);
+    const { breaks } = applyBreaks(day(d, LENGTHS, { slackMin: 4 }), AUDIO, true);
     expect(breaks.map((b) => b.slot)).toEqual(["evening"]);
     expect(breaks[0].start).toBeGreaterThanOrEqual(BREAKS_FROM_MS);
-    expect(applyBreaks(day("2026-11-08", LENGTHS, { slackMin: 4 }), AUDIO).breaks).toEqual([]);
+    expect(applyBreaks(day("2026-11-08", LENGTHS, { slackMin: 4 }), AUDIO, true).breaks).toEqual([]);
   });
 
   it("is deterministic in the day", () => {
     const p = day(MON, LENGTHS, { slackMin: 4 });
-    expect(applyBreaks(p, AUDIO)).toEqual(applyBreaks(p, AUDIO));
+    expect(applyBreaks(p, AUDIO, true)).toEqual(applyBreaks(p, AUDIO, true));
   });
 
   it("a whole week of real-shaped days airs 11 spots and 5 cards", () => {
     let spots = 0;
     let cards = 0;
     for (let i = 0; i < 7; i++) {
-      const { breaks } = applyBreaks(day(addDays(MON, i), LENGTHS, { slackMin: 4 }), AUDIO);
+      const { breaks } = applyBreaks(day(addDays(MON, i), LENGTHS, { slackMin: 4 }), AUDIO, true);
       spots += breaks.length;
       cards += breaks.filter((b) => b.card).length;
     }
@@ -189,18 +190,52 @@ describe("applyBreaks", () => {
   });
 
   it("a missing spot file airs nothing for it", () => {
-    const { breaks } = applyBreaks(day(MON, LENGTHS, { slackMin: 4 }), { sogojet: AUDIO.sogojet });
+    const { breaks } = applyBreaks(day(MON, LENGTHS, { slackMin: 4 }), { sogojet: AUDIO.sogojet }, true);
     expect(breaks.map((b) => b.spot)).toEqual(["sogojet"]);
   });
 });
 
 describe("breakInGap", () => {
   it("finds the unfinished break inside a gap, and none outside it", () => {
-    const { breaks } = applyBreaks(day(MON, LENGTHS, { slackMin: 4 }), AUDIO);
+    const { breaks } = applyBreaks(day(MON, LENGTHS, { slackMin: 4 }), AUDIO, true);
     const b = breaks[1];
     expect(breakInGap(breaks, b.start, b.end + GAP)).toBe(b);
     expect(breakInGap(breaks, b.start - 5_000, b.start + 60_000)).toBe(b);
     expect(breakInGap(breaks, b.end, b.end + GAP)).toBeNull();
     expect(breakInGap(breaks, b.end + 60_000, b.end + 120_000)).toBeNull();
+  });
+});
+
+describe("off the air (AIR_SPOTS false, 2026-11-10): cards only, never interrupting the show", () => {
+  it("is the setting today", () => {
+    expect(AIR_SPOTS).toBe(false);
+  });
+
+  it("leaves the program exactly as frozen and plays nothing", () => {
+    const p = day(MON, LENGTHS, { slackMin: 4 });
+    const { program, breaks } = applyBreaks(p, AUDIO, false);
+    expect(program).toEqual(p);
+    expect(breaks.length).toBeGreaterThan(0);
+    for (const b of breaks) expect(b.url).toBeNull();
+    // Nothing for the controller to play in any gap.
+    for (const b of breaks) expect(breakInGap(breaks, b.start, b.end + GAP)).toBeNull();
+  });
+
+  it("keeps only the breaks with a card, each in the station ID gap at its boundary", () => {
+    const p = day(MON, LENGTHS, { slackMin: 4 });
+    const { breaks } = applyBreaks(p, AUDIO, false);
+    // Monday: the midnight Screen Receipts card; the evening SoGoJet had none.
+    expect(breaks.map((b) => [b.slot, b.spot, b.card])).toEqual([["late", "screenreceipts", true]]);
+    expect(breaks[0].start).toBe(p.start);
+    const tue = day(addDays(MON, 1), LENGTHS, { slackMin: 4 });
+    const [evening] = applyBreaks(tue, AUDIO, false).breaks;
+    expect(evening).toMatchObject({ slot: "evening", spot: "sogojet", card: true, url: null });
+    expect(tue.slots.some((s) => s.end === evening.start)).toBe(true);
+  });
+
+  it("five cards a week, as before", () => {
+    let cards = 0;
+    for (let i = 0; i < 7; i++) cards += applyBreaks(day(addDays(MON, i), LENGTHS, { slackMin: 4 }), AUDIO, false).breaks.length;
+    expect(cards).toBe(5);
   });
 });

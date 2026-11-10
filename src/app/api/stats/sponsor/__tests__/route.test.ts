@@ -26,7 +26,7 @@ function post(body: unknown) {
 beforeEach(() => recordSponsorEvent.mockClear());
 
 describe("POST /api/stats/sponsor", () => {
-  it("counts a spot heard, a card seen, a click and a mute", async () => {
+  it("counts a card seen, a click and a mute; with the spots off the air, never a spot heard", async () => {
     for (const b of [
       { app: "sogojet", surface: "air", event: "heard" },
       { app: "screenreceipts", surface: "chat", event: "seen" },
@@ -37,8 +37,8 @@ describe("POST /api/stats/sponsor", () => {
       expect(r.status).toBe(200);
       expect(await r.json()).toEqual({ ok: true });
     }
+    // Spots are off the air (AIR_SPOTS false): "heard" from an old tab is accepted, never counted.
     expect(recordSponsorEvent.mock.calls).toEqual([
-      ["sogojet", "air", "heard"],
       ["screenreceipts", "chat", "seen"],
       ["simsunday", "stats", "click"],
       ["sogojet", "chat", "mute"],
