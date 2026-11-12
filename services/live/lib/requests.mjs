@@ -26,6 +26,14 @@
  */
 
 import { pacificDay, requestCloseAt, requestDayAt, requestStartAt } from "./shared/pacific.ts";
+import notArtHosted from "./shared/not-art-hosted.json" with { type: "json" };
+
+/**
+ * Shows someone other than Art hosted, or not verified as his
+ * (data/hosts.json, docs/hosts.md): the station never airs them, so they
+ * cannot be nominated either. The schedule refuses them too (isAirable).
+ */
+const NOT_ART_HOSTED = new Set(notArtHosted);
 
 /** Days back the station's own plays keep a show off the Request Line. */
 export const REQUEST_REPEAT_DAYS = 30;
@@ -222,6 +230,9 @@ export function createRequestLine({ pool, now, catalog, announce, onAir, heraldM
     const day = requestDayAt(t);
     const row = typeof fileHash === "string" ? (await catalog()).get(fileHash) : undefined;
     if (!row || !(row.duration > 0)) throw new RequestRefusal(404, "not-a-show", "That show is not in the catalog.");
+    if (NOT_ART_HOSTED.has(fileHash)) {
+      throw new RequestRefusal(409, "not-art", "Someone other than Art hosted that night, so the station does not play it. Pick another.");
+    }
     const existing = await q(
       `SELECT id, vetoed_at FROM live_request_nominations WHERE day = $1::date AND file_hash = $2`,
       [day, fileHash],

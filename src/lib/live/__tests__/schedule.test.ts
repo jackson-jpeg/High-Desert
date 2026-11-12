@@ -19,7 +19,15 @@ import {
   requestCloseAt,
   requestDayAt,
   applyRequest,
-  MIN_CUT_MS,
+  applyHostSwap,
+  isProgrammable,
+  packer,
+  requestHourOf,
+  requestHourLabel,
+  pacificHourLabel,
+  NOT_ART_HOSTED,
+  MIN_PROGRAM_SEC,
+  TIGHT_MS,
   type BuildInputs,
   type RequestNight,
   type CatalogRow,
@@ -85,10 +93,10 @@ describe("Pacific station day", () => {
       const { start, end } = pacificDayBounds(day);
       expect(p.slots[0].start).toBe(start);
       const last = p.slots[p.slots.length - 1];
-      expect(last.start).toBeLessThan(end);
-      // Filled: nothing more could start before midnight.
-      expect(last.start + last.duration * 1000 + STATION_ID_SEC * 1000).toBeGreaterThanOrEqual(end);
-      expect(last.end).toBeLessThanOrEqual(end);
+      // Filled to midnight, and the last show plays to its end inside the day.
+      expect(last.end + STATION_ID_SEC * 1000).toBeLessThanOrEqual(end);
+      expect(end - (last.end + STATION_ID_SEC * 1000)).toBeLessThanOrEqual(TIGHT_MS);
+      for (const s of p.slots) expect(s.end).toBe(s.start + Math.round(s.duration * 1000));
       const next = buildDay(addDays(day, 1), inputs, [p]);
       expect(next.slots[0].start).toBe(end);
     }
@@ -150,17 +158,14 @@ describe("on this date", () => {
 
   it("uses the real catalog's broadcasts for the date", () => {
     const p = buildDay("2026-09-25", { catalog: CATALOG, plays: new Map() }, []);
-    const expected = CATALOG.filter(
-      (r) => r.airDate?.slice(5) === "09-25" && (r.duration ?? 0) > 0 && !REMOVED_FROM_CATALOG.has(r.fileHash),
-    )
+    const expected = CATALOG.filter((r) => r.airDate?.slice(5) === "09-25" && isProgrammable(r))
       .map((r) => r.airDate!)
       .sort();
-    // Oldest first, save that one that would run past 10 PM gives way to the
-    // next that fits (the Request Line). Every one airs that starts before
-    // midnight; a long date can push its last past it.
+    // Oldest first, save that one that does not pack before the request hour
+    // gives way to the next that does. Every one airs that fits the day.
     const got = p.slots.filter((s) => s.kind === "on-this-date").map((s) => s.airDate);
     expect(got.length).toBeGreaterThan(0);
-    expect(got.length).toBeGreaterThanOrEqual(expected.length - 1);
+    expect(got.length).toBeGreaterThanOrEqual(expected.length - 2);
     expect(expected).toEqual(expect.arrayContaining(got));
     expect(new Set(got).size).toBe(got.length);
   });
@@ -297,15 +302,16 @@ describe("guestsOf", () => {
 });
 
 describe("the timeline", () => {
-  it("lays slots end to end with a station ID gap between each, except into 10 PM", () => {
+  it("lays slots end to end with a station ID gap between each, except into the request hour", () => {
     const p = buildDay("2026-09-25", { catalog: CATALOG, plays: new Map() }, []);
     const ten = requestStartAt("2026-09-25");
     for (let i = 1; i < p.slots.length; i++) {
       const prev = p.slots[i - 1];
       if (p.slots[i].start === ten) {
-        // The last show before 10 PM ends, with its station ID, by 10 PM
-        // (cut there only when nothing fitted).
+        // The last show before the request hour ends, with its station ID,
+        // by then, and close to it.
         expect(prev.end + STATION_ID_SEC * 1000).toBeLessThanOrEqual(ten);
+        expect(ten - (prev.end + STATION_ID_SEC * 1000)).toBeLessThanOrEqual(TIGHT_MS);
         continue;
       }
       expect(prev.end).toBe(prev.start + Math.round(prev.duration * 1000));
@@ -313,17 +319,36 @@ describe("the timeline", () => {
     }
   });
 
-  it("cuts the last slot at midnight, and cuts at 10 PM only when nothing fits before it", () => {
+  it("never cuts a show: what fits nowhere is left out, and the station ID holds the time (2026-11-12)", () => {
+    // Before, the third ten-hour show was cut at 10 PM and a fourth at midnight.
     const catalog = [row("long", "1990-01-01", 10 * H), row("long2", "1990-01-02", 10 * H), row("long3", "1990-01-03", 10 * H)];
     const p = buildDay("2026-09-25", { catalog, plays: new Map() }, []);
-    const ten = requestStartAt("2026-09-25");
-    expect(p.slots).toHaveLength(4);
-    // Nothing of ten hours fits the two left before 10 PM: the third is cut.
-    expect(p.slots[2].end).toBe(ten - STATION_ID_SEC * 1000);
-    expect(p.slots[2].duration).toBe(10 * H);
-    // On the hour at 10 PM, the next show (here the catalog again: too small
-    // to fill a day), cut at midnight.
-    expect(p.slots[3]).toMatchObject({ start: ten, end: p.end, requestSlot: true, kind: "fan-favorite" });
+    expect(p.slots.map((s) => s.title)).toEqual(["long", "long2"]);
+    for (const s of p.slots) expect(s.end - s.start).toBe(10 * H * 1000);
+  });
+
+  it("packs the real catalog: every show plays in full, the day ends within TIGHT_MS of midnight, before the hour too", () => {
+    let history: DayProgram[] = [];
+    for (let i = 0; i < 20; i++) {
+      const day = addDays("2026-11-10", i);
+      const p = buildDay(day, { catalog: CATALOG, plays: new Map() }, history);
+      history = [p, ...history];
+      const hour = requestStartAt(day);
+      for (const s of p.slots) {
+        expect(s.end).toBe(s.start + Math.round(s.duration * 1000));
+        expect(s.end + STATION_ID_SEC * 1000).toBeLessThanOrEqual(s.start < hour ? hour : p.end);
+      }
+      const before = p.slots.filter((s) => s.start < hour);
+      const last = before[before.length - 1];
+      expect(hour - (last.end + STATION_ID_SEC * 1000)).toBeLessThanOrEqual(TIGHT_MS);
+      const end = p.slots[p.slots.length - 1];
+      expect(p.end - (end.end + STATION_ID_SEC * 1000)).toBeLessThanOrEqual(TIGHT_MS);
+    }
+  });
+
+  it("programs no fragment: every slot is at least MIN_PROGRAM_SEC long", () => {
+    const p = buildDay("2026-11-20", { catalog: CATALOG, plays: new Map() }, []);
+    for (const s of p.slots) expect(s.duration).toBeGreaterThanOrEqual(MIN_PROGRAM_SEC);
   });
 
   it("locates the show, the offset into it, and the station ID between shows", () => {
@@ -406,17 +431,25 @@ describe("splitShowTitle", () => {
   });
 });
 
-describe("the Request Line's 10 PM slot (2026-10-14)", () => {
+describe("the Request Line's slot (2026-10-14; 8 PM from 2026-11-14)", () => {
   const inputs: BuildInputs = { catalog: CATALOG, plays: new Map() };
   const byHash = new Map(CATALOG.map((r) => [r.fileHash, r]));
-  const DAYS = ["2026-09-25", "2026-10-14", "2026-03-08", "2026-11-01", "2027-02-28", "2026-12-31"];
+  const DAYS = ["2026-09-25", "2026-10-14", "2026-03-08", "2026-11-01", "2027-02-28", "2026-12-31", "2026-11-14", "2027-03-14"];
 
-  it("10 PM and 6 PM Pacific, on ordinary and DST days", () => {
-    expect(new Date(requestStartAt("2026-10-14")).toISOString()).toBe("2026-10-15T05:00:00.000Z"); // PDT
+  it("10 PM until 2026-11-13, 8 PM from 2026-11-14; 6 PM close; ordinary and DST days", () => {
+    expect(new Date(requestStartAt("2026-10-14")).toISOString()).toBe("2026-10-15T05:00:00.000Z"); // 10 PM PDT
     expect(new Date(requestCloseAt("2026-10-14")).toISOString()).toBe("2026-10-15T01:00:00.000Z");
-    expect(new Date(requestStartAt("2026-12-01")).toISOString()).toBe("2026-12-02T06:00:00.000Z"); // PST
     expect(new Date(requestStartAt("2026-03-08")).toISOString()).toBe("2026-03-09T05:00:00.000Z"); // spring forward
     expect(new Date(requestStartAt("2026-11-01")).toISOString()).toBe("2026-11-02T06:00:00.000Z"); // fall back
+    // The move: the 13th was frozen for 10 PM, the 14th is the first 8 PM night.
+    expect(new Date(requestStartAt("2026-11-13")).toISOString()).toBe("2026-11-14T06:00:00.000Z"); // 10 PM PST
+    expect(new Date(requestStartAt("2026-11-14")).toISOString()).toBe("2026-11-15T04:00:00.000Z"); // 8 PM PST
+    expect(new Date(requestStartAt("2026-12-01")).toISOString()).toBe("2026-12-02T04:00:00.000Z");
+    expect(new Date(requestStartAt("2027-03-14")).toISOString()).toBe("2027-03-15T03:00:00.000Z"); // 8 PM PDT, spring forward
+    expect(new Date(requestCloseAt("2026-11-14")).toISOString()).toBe("2026-11-15T02:00:00.000Z"); // 6 PM PST
+    expect([requestHourOf("2026-11-13"), requestHourOf("2026-11-14")]).toEqual([22, 20]);
+    expect([requestHourLabel("2026-11-13"), requestHourLabel("2026-11-14")]).toEqual(["10 PM", "8 PM"]);
+    expect(pacificHourLabel(requestStartAt("2026-12-01"))).toBe("8 PM");
   });
 
   it("a vote counts for tonight until 6 PM Pacific, and for tomorrow from 6 PM", () => {
@@ -426,41 +459,45 @@ describe("the Request Line's 10 PM slot (2026-10-14)", () => {
     expect(requestDayAt(pacificDayBounds("2026-10-14").start)).toBe("2026-10-14");
   });
 
-  it.each(DAYS)("every day built (%s) starts a show at exactly 10 PM, and nothing before it runs into it", (day) => {
+  it.each(DAYS)("every day built (%s) starts a show exactly on the request hour, and nothing before it runs into it", (day) => {
     const p = buildDay(day, inputs, []);
     const ten = requestStartAt(day);
     const onHour = p.slots.filter((s) => s.requestSlot);
     expect(onHour).toHaveLength(1);
     expect(onHour[0].start).toBe(ten);
     for (const s of p.slots.filter((x) => x.start < ten)) expect(s.end + STATION_ID_SEC * 1000).toBeLessThanOrEqual(ten);
-    // The gap left before 10 PM is never a long silence: under a minute, or a show was cut into it.
+    // The gap left before the hour is never a long silence, and nothing is cut.
     const before = p.slots.filter((x) => x.start < ten);
     const last = before[before.length - 1];
-    expect(ten - (last.end + STATION_ID_SEC * 1000) < MIN_CUT_MS || last.end < last.start + last.duration * 1000).toBe(true);
-    // Filled to midnight after it, as ever.
-    expect(p.slots[p.slots.length - 1].end).toBe(p.end);
+    expect(ten - (last.end + STATION_ID_SEC * 1000)).toBeLessThanOrEqual(TIGHT_MS);
+    for (const s of p.slots) expect(s.end).toBe(s.start + Math.round(s.duration * 1000));
+    // Filled to midnight after it.
+    const end = p.slots[p.slots.length - 1].end + STATION_ID_SEC * 1000;
+    expect(end).toBeLessThanOrEqual(p.end);
+    expect(p.end - end).toBeLessThanOrEqual(TIGHT_MS);
   });
 
-  it("a show that would run past 10 PM gives way to one that fits, and still airs after 10 PM", () => {
-    // From midnight: 7 x 3 h on this date fill to 21:00:56; the next 3 h one
-    // cannot fit, the 50-minute favorite can, and the 3 h ones go on at 10 PM.
-    const today = Array.from({ length: 9 }, (_, i) => row(`d${i}`, `19${90 + i}-10-14`, 3 * H));
-    const short = row("short", "1980-01-01", 50 * 60);
-    const fav = row("fav", "1981-01-01", 2 * H);
-    const p = buildDay("2026-10-14", { catalog: [...today, short, fav], plays: plays([[fav, 9], [short, 1]]) }, []);
-    const ten = requestStartAt("2026-10-14");
+  it("a show that would run past the hour gives way to one that fits, and still airs after it", () => {
+    // 2026-11-20 (8 PM): 6 x 3 h on this date reach 18:00:48; the seventh
+    // cannot fit the 1:59:12 left, the 118-minute favorite does (64 s left),
+    // and the seventh goes on at 8 PM, in full. Nothing else fits after it.
+    const today = Array.from({ length: 9 }, (_, i) => row(`d${i}`, `19${90 + i}-11-20`, 3 * H));
+    const short = row("short", "1980-01-01", 118 * 60);
+    const p = buildDay("2026-11-20", { catalog: [...today, short], plays: plays([[short, 1]]) }, []);
+    const hour = requestStartAt("2026-11-20");
     const titles = p.slots.map((x) => x.title);
-    expect(titles.slice(0, 8)).toEqual(["d0", "d1", "d2", "d3", "d4", "d5", "d6", "short"]);
-    expect(p.slots[8]).toMatchObject({ title: "d7", start: ten, requestSlot: true, kind: "on-this-date" });
-    expect(titles.slice(9)).toEqual([]);
+    expect(titles).toEqual(["d0", "d1", "d2", "d3", "d4", "d5", "short", "d6"]);
+    expect(p.slots[6].end + STATION_ID_SEC * 1000).toBe(hour - 64_000);
+    expect(p.slots[7]).toMatchObject({ title: "d6", start: hour, requestSlot: true, kind: "on-this-date" });
+    expect(p.slots[7].end).toBe(hour + 3 * H * 1000);
   });
 
   it("is deterministic: same inputs, same day", () => {
     expect(JSON.stringify(buildDay("2026-10-14", inputs, []))).toBe(JSON.stringify(buildDay("2026-10-14", inputs, [])));
   });
 
-  describe("applyRequest: the winner at 10 PM, the night shifted", () => {
-    const day = "2026-10-14";
+  describe("applyRequest: the winner on the hour, the night packed again", () => {
+    const day = "2026-11-20";
     const p = buildDay(day, inputs, []);
     const ten = requestStartAt(day);
     const onDay = new Set(p.slots.map((x) => x.fileHash));
@@ -469,34 +506,43 @@ describe("the Request Line's 10 PM slot (2026-10-14)", () => {
     const night: RequestNight = { day, fileHash: winnerRow.fileHash, by: "Dogman", place: "Pahrump", votes: 7 };
     const q = applyRequest(p, night, byHash);
 
-    it("leaves everything before 10 PM exactly as frozen", () => {
+    it("leaves everything before the hour exactly as frozen", () => {
       expect(q.slots.filter((x) => x.start < ten)).toEqual(p.slots.filter((x) => x.start < ten));
     });
 
-    it("puts the winner at exactly 10 PM, with who asked and the tally; the show that was on the hour goes next", () => {
+    it("puts the winner exactly on the hour (8 PM), with who asked and the tally, played in full", () => {
+      expect(new Date(ten).toISOString()).toBe("2026-11-21T04:00:00.000Z");
       const r = q.slots.find((x) => x.start === ten)!;
       expect(r).toMatchObject({ kind: "request", fileHash: winnerRow.fileHash, request: { by: "Dogman", place: "Pahrump", votes: 7, day } });
       expect(r.end).toBe(ten + Math.round(winnerRow.duration! * 1000));
-      const onHour = p.slots.find((x) => x.requestSlot)!;
-      const moved = q.slots[q.slots.indexOf(r) + 1];
-      expect(moved.fileHash).toBe(onHour.fileHash);
-      expect(moved.start).toBe(r.end + STATION_ID_SEC * 1000);
       expect(q.slots.filter((x) => x.requestSlot)).toEqual([]);
     });
 
-    it("shifts the rest of the night: same order, end to end from the winner, cut at midnight", () => {
+    it("packs the rest of the night: the frozen night's shows keep their order, every show plays in full, the last ends by midnight", () => {
       const after = q.slots.filter((x) => x.start > ten);
       const frozenAfter = p.slots.filter((x) => x.start >= ten).map((x) => x.fileHash);
-      // The frozen order, as far as the night reaches (then the ranking fills).
-      const shifted = after.map((x) => x.fileHash).filter((h) => frozenAfter.includes(h));
-      expect(shifted).toEqual(frozenAfter.slice(0, shifted.length));
+      // The frozen order, as a subsequence (one that does not fit is passed over).
+      const kept = after.map((x) => x.fileHash).filter((h) => frozenAfter.includes(h));
+      expect(kept.length).toBeGreaterThan(0);
+      expect(kept.map((h) => frozenAfter.indexOf(h))).toEqual([...kept.map((h) => frozenAfter.indexOf(h))].sort((a, b) => a - b));
       let prevEnd = ten + Math.round(winnerRow.duration! * 1000);
       for (const s of after) {
         expect(s.start).toBe(prevEnd + STATION_ID_SEC * 1000);
-        prevEnd = s.start + Math.round(s.duration * 1000);
+        expect(s.end).toBe(s.start + Math.round(s.duration * 1000));
+        prevEnd = s.end;
       }
-      expect(after[after.length - 1].end).toBe(q.end);
-      expect(after[after.length - 1].start).toBeLessThan(q.end);
+      expect(prevEnd + STATION_ID_SEC * 1000).toBeLessThanOrEqual(q.end);
+      expect(q.end - (prevEnd + STATION_ID_SEC * 1000)).toBeLessThanOrEqual(TIGHT_MS);
+    });
+
+    it("a three-hour winner is no longer cut at midnight (it was at 10 PM)", () => {
+      const long = CATALOG.find((r) => !onDay.has(r.fileHash) && isProgrammable(r) && (r.duration ?? 0) > 3.4 * H && (r.duration ?? 0) < 3.8 * H)!;
+      const lq = applyRequest(p, { ...night, fileHash: long.fileHash }, byHash);
+      for (const s of lq.slots) expect(s.end).toBe(s.start + Math.round(s.duration * 1000));
+      const old = buildDay("2026-10-20", inputs, []);
+      const oq = applyRequest(old, { ...night, day: "2026-10-20", fileHash: long.fileHash }, byHash);
+      // At 10 PM it still could not be helped: under two hours to midnight.
+      expect(oq.slots.find((s) => s.kind === "request")!.end).toBe(oq.end);
     });
 
     it("never puts a show on twice", () => {
@@ -512,7 +558,7 @@ describe("the Request Line's 10 PM slot (2026-10-14)", () => {
       expect(applyRequest(p, { ...night, day: addDays(day, 1) }, byHash)).toBe(p);
     });
 
-    it("a day frozen before the Request Line (no stand-in): the show running at 10 PM is cut before it", () => {
+    it("a day frozen before the Request Line (no stand-in): the show running on the hour is cut before it", () => {
       const legacy: DayProgram = {
         ...p,
         slots: [
@@ -523,8 +569,71 @@ describe("the Request Line's 10 PM slot (2026-10-14)", () => {
       const r = applyRequest(legacy, night, byHash);
       expect(r.slots[0].end).toBe(ten - STATION_ID_SEC * 1000);
       expect(r.slots[1]).toMatchObject({ kind: "request", start: ten });
-      expect(r.slots[2].fileHash).toBe(p.slots[1].fileHash);
       expect(r.slots[2].start).toBe(ten + Math.round(winnerRow.duration! * 1000) + STATION_ID_SEC * 1000);
+      expect(r.slots[2].end).toBe(r.slots[2].start + Math.round(r.slots[2].duration * 1000));
     });
+  });
+});
+
+describe("only Art Bell's own nights air (2026-11-12, docs/hosts.md)", () => {
+  const byHash = new Map(CATALOG.map((r) => [r.fileHash, r]));
+  const NOORY = "archive:ultimate-ultimate-art-bell-collection:2001-11-12 - Coast to Coast AM with Art Bell - Eugene Mallove - Infinite Energy Magazine.mp3";
+
+  it("the George Noory night of 2001-11-12 is excluded, and is not airable", () => {
+    expect(NOT_ART_HOSTED.has(NOORY)).toBe(true);
+    expect(isAirable(byHash.get(NOORY)!)).toBe(false);
+  });
+
+  it("no day built from the real catalog puts on a show that is not Art's: the 12th of November included", () => {
+    let history: DayProgram[] = [];
+    for (let i = 0; i < 40; i++) {
+      const day = addDays("2026-11-01", i);
+      const p = buildDay(day, { catalog: CATALOG, plays: new Map(CATALOG.map((r) => [communityKey(r)!, 1000])) }, history);
+      history = [p, ...history];
+      for (const s of p.slots) expect(NOT_ART_HOSTED.has(s.fileHash)).toBe(false);
+      for (const h of p.ranking) expect(NOT_ART_HOSTED.has(h)).toBe(false);
+    }
+    // A control: the same file under a hash the list does not name airs on
+    // its date, so the exclusion (not the packing) is what kept it off.
+    const renamed = CATALOG.map((r) => (r.fileHash === NOORY ? { ...r, fileHash: "archive:control:noory.mp3" } : r));
+    expect(buildDay("2026-11-12", { catalog: renamed, plays: new Map() }, []).slots.some((s) => s.fileHash === "archive:control:noory.mp3")).toBe(true);
+    expect(buildDay("2026-11-12", { catalog: CATALOG, plays: new Map() }, []).slots.some((s) => s.airDate === "2001-11-12")).toBe(false);
+  });
+
+  it("applyHostSwap: a day frozen with a non-Art show swaps it, slot times unchanged", () => {
+    const p = buildDay("2026-11-20", { catalog: CATALOG, plays: new Map() }, []);
+    const frozen: DayProgram = { ...p, slots: p.slots.map((s, i) => (i === 1 ? { ...s, fileHash: NOORY } : s)) };
+    const q = applyHostSwap(frozen, byHash);
+    expect(q.slots[1]).toMatchObject({ kind: "host-swap", replaces: NOORY, start: frozen.slots[1].start });
+    expect(q.slots[1].end).toBeLessThanOrEqual(frozen.slots[1].end);
+    expect(q.slots.filter((s, i) => i !== 1)).toEqual(frozen.slots.filter((s, i) => i !== 1));
+    expect(applyHostSwap(p, byHash)).toBe(p);
+  });
+
+  it("a nominated non-Art show never airs: applyRequest leaves the stand-in", () => {
+    const p = buildDay("2026-11-20", { catalog: CATALOG, plays: new Map() }, []);
+    expect(applyRequest(p, { day: "2026-11-20", fileHash: NOORY, by: "x", place: null, votes: 3 }, byHash)).toBe(p);
+  });
+});
+
+describe("packer: a pick must leave time another show can close", () => {
+  it("accepts a pick that leaves almost nothing, or what one or two shows close, and refuses one that leaves a hole", () => {
+    const m = 60_000;
+    const gap = STATION_ID_SEC * 1000;
+    const pk = packer([30 * m, 45 * m, 180 * m]);
+    // 60 min room, a 59-minute show: 52 s left.
+    expect(pk.fits(59 * m, 60 * m)).toBe(true);
+    // 4 h room, a 3 h show: 59:52 left, closed by none of 30/45 alone, nor 30+45 (75:16): refused.
+    expect(pk.fits(180 * m, 240 * m)).toBe(false);
+    // 4 h room, 2 h 44 m: 75:52 left = 30 + 45 + two IDs, within TIGHT_MS.
+    expect(pk.fits(164 * m, 240 * m)).toBe(true);
+    // Past OPEN (6 h) anything that fits is fine.
+    expect(pk.fits(30 * m, 10 * 60 * m)).toBe(true);
+    // Never past the room.
+    expect(pk.fits(60 * m, 60 * m)).toBe(false);
+    expect(pk.fits(60 * m - gap, 60 * m)).toBe(true);
+    // A taken length no longer counts.
+    pk.take(45 * m);
+    expect(pk.fits(164 * m, 240 * m)).toBe(false);
   });
 });

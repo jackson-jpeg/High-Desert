@@ -1,6 +1,6 @@
 import { pool } from "@/services/stats/db/pool";
 import { applyBreaks } from "@/lib/live/breaks";
-import { addDays, applyRequest, pacificDay, type CatalogRow, type DayProgram, type RequestNight } from "@/lib/live/schedule";
+import { addDays, applyHostSwap, applyRequest, pacificDay, type CatalogRow, type DayProgram, type RequestNight } from "@/lib/live/schedule";
 import { catalogByHash, frozenDay } from "@/services/live/days";
 import { loadRequestNight } from "@/services/live/requests";
 
@@ -55,10 +55,13 @@ export async function tonightData(day: string, deps: TonightDeps = {}): Promise<
       frozeNow = true;
     }
     if (program) {
-      // The 10 PM request, once voting has closed: the same transform the
+      const byHash = await (deps.byHash ?? catalogByHash)();
+      // Only Art's nights, as on the air (a day frozen before data/hosts.json).
+      program = applyHostSwap(program, byHash);
+      // The request, once voting has closed: the same transform the
       // station's schedule applies, so the page and the air agree.
       const night = await (deps.loadNight ?? loadRequestNight)(day, (deps.now ?? Date.now)());
-      if (night?.fileHash) program = applyRequest(program, night, await (deps.byHash ?? catalogByHash)());
+      if (night?.fileHash) program = applyRequest(program, night, byHash);
       // And its station breaks, which move the shows after them a little.
       program = applyBreaks(program).program;
     }

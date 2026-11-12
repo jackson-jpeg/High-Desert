@@ -107,7 +107,9 @@ describe("applyBreaks with the spots on the air (AIR_SPOTS true)", () => {
     ]);
     expect(breaks[0].start).toBe(p.start);
     const eight = p.end - 4 * 3_600_000;
-    const boundaries = p.slots.slice(1).map((s) => s.start);
+    // The request hour (8 PM from 2026-11-14) never moves, so its own boundary
+    // takes a break only when the slack before it holds one.
+    const boundaries = p.slots.slice(1).filter((s) => !s.requestSlot).map((s) => s.start);
     const nearest = boundaries.reduce((a, b) => (Math.abs(b - eight) < Math.abs(a - eight) ? b : a));
     const evening = breaks[1];
     // It starts where a show ended, and that show's successor was nearest 8 PM.

@@ -23,6 +23,7 @@ export const KIND_LABEL: Record<ProgramSlot["kind"], string> = {
   "fan-favorite": "Fan favorite",
   "outage-swap": "From the mirror",
   "verify-swap": "Fan favorite",
+  "host-swap": "Fan favorite",
   "breaker-swap": "Fan favorite",
   request: "Listener request",
 };

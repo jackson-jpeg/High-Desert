@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { SilentEventSource } from "@/test-support/event-source";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { pacificDayBounds, requestCloseAt, type LiveSchedule, type ProgramSlot } from "@/lib/live/schedule";
+import { pacificDayBounds, requestCloseAt, requestStartAt, type LiveSchedule, type ProgramSlot } from "@/lib/live/schedule";
 import { tonightsRequest, tonightsRequestText } from "@/lib/live/request-line";
 
 /**
@@ -150,6 +150,22 @@ describe("tonightsRequest: what the 10 PM slot is, from the program", () => {
     ]);
     for (const t of texts) expect(t).not.toContain(DASH);
     expect(tonightsRequestText({ state: "over" })).toBeNull();
+  });
+
+  it("says 8 PM from 2026-11-14, from the day's own hour (2026-11-12)", () => {
+    const day = "2026-11-20";
+    const eight = requestStartAt(day);
+    const hold = { ...ON_THE_HOUR, start: eight, end: eight + 2 * H };
+    const won = { ...WINNER, start: eight, end: eight + 2 * H };
+    expect(tonightsRequestText(tonightsRequest([hold], day, pacificDayBounds(day).start))).toBe(
+      "Tonight's request at 8 PM. Pick a show or vote by 6 PM Pacific.",
+    );
+    expect(tonightsRequestText(tonightsRequest([won], day, requestCloseAt(day) + 1))).toBe(
+      "Tonight's request at 8 PM: Coast to Coast AM - Area 51, from Night Owl, calling from Pahrump.",
+    );
+    expect(tonightsRequestText(tonightsRequest([hold], day, requestCloseAt(day) + 1))).toBe("No request tonight. A fan favorite plays at 8 PM.");
+    // With no slot marked yet, the hour still comes from the day.
+    expect(tonightsRequest([], day, pacificDayBounds(day).start)).toMatchObject({ state: "voting", startsAt: eight });
   });
 });
 

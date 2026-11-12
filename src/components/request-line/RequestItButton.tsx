@@ -6,7 +6,7 @@ import { requestShow, requestedText } from "@/services/live/request-client";
 import { REQUEST_LINE_PATH } from "@/lib/live/request-line";
 
 /**
- * "Request it": nominate this show for tonight's 10 PM slot on the station
+ * "Request it": nominate this show for tonight's request slot (8 PM Pacific) on the station
  * (docs/request-line.md). On a show page and in the Library's episode panel
  * (both looks). One nomination per listener per day; a show already up gets
  * this listener's vote instead. The answer, good or not, is said beside the
@@ -28,7 +28,7 @@ export function RequestItButton({ fileHash, className, linkClassName }: { fileHa
         onClick={onClick}
         disabled={state.busy}
         className={className}
-        title="Ask the station to play this tonight at 10 PM Pacific"
+        title="Ask the station to play this tonight on the Request Line"
         data-testid="request-it-button"
       >
         {state.busy ? "Requesting..." : "Request it"}

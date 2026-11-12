@@ -8,18 +8,47 @@
  *
  * The station day runs midnight to midnight Pacific: 23 h on the
  * spring-forward date, 25 on the fall-back one. DST changes at 2 AM, so 6 PM
- * and 10 PM are always 6 h and 2 h before the next midnight.
+ * and 8 PM (10 PM before 2026-11-14) are always 6 h and 4 h (2 h) before the
+ * next midnight.
  */
 
 export const STATION_TZ = "America/Los_Angeles";
 
 /**
  * The Request Line (2026-10-14, docs/request-line.md): the listeners' pick
- * airs at 10 PM Pacific, Art Bell's original airtime, and voting for that
- * night closes at 6 PM.
+ * airs at 8 PM Pacific, and voting for that night closes at 6 PM.
+ *
+ * It aired at 10 PM until 2026-11-13 (Jackson, 2026-11-12: move it to 8 PM).
+ * At 10 PM a three-hour pick ran past midnight and was cut there, and so was
+ * everything after it; at 8 PM there are four hours for it. Days are frozen
+ * a day ahead, so the hour belongs to the day: `requestHourOf()`.
  */
-export const REQUEST_HOUR = 22;
+export const REQUEST_HOUR = 20;
+export const REQUEST_HOUR_BEFORE = 22;
+/** The first station day whose request airs at REQUEST_HOUR. */
+export const REQUEST_HOUR_FROM = "2026-11-14";
 export const REQUEST_CLOSE_HOUR = 18;
+
+/** The hour (Pacific, 24 h) the request airs on `day`. */
+export function requestHourOf(day: string): number {
+  return day >= REQUEST_HOUR_FROM ? REQUEST_HOUR : REQUEST_HOUR_BEFORE;
+}
+
+/** "8 PM": an hour of the day as listeners read it. */
+export function hourLabel(hour: number): string {
+  const h = hour % 12 === 0 ? 12 : hour % 12;
+  return `${h} ${hour < 12 ? "AM" : "PM"}`;
+}
+
+/** "8 PM": the Pacific hour an instant falls in, as listeners read it. */
+export function pacificHourLabel(ms: number): string {
+  return hourLabel(wallClock(ms).h);
+}
+
+/** "8 PM", the request's hour on `day`. */
+export function requestHourLabel(day: string): string {
+  return hourLabel(requestHourOf(day));
+}
 
 const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -96,9 +125,9 @@ export function pacificDay(ms: number): string {
 }
 
 
-/** Epoch ms of 10 PM Pacific on `day`: the request slot's start. */
+/** Epoch ms of 8 PM Pacific on `day` (10 PM before 2026-11-14): the request slot's start. */
 export function requestStartAt(day: string): number {
-  return pacificDayBounds(day).end - (24 - REQUEST_HOUR) * 3_600_000;
+  return pacificDayBounds(day).end - (24 - requestHourOf(day)) * 3_600_000;
 }
 
 /** Epoch ms of 6 PM Pacific on `day`: voting for that night closes. */

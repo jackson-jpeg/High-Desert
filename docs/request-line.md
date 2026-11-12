@@ -1,7 +1,8 @@
 # The Request Line (2026-10-14)
 
-Listeners pick one show for High Desert Live to play every night at 10 PM
-Pacific, Art's original airtime.
+Listeners pick one show for High Desert Live to play every night at 8 PM
+Pacific (10 PM, Art's original airtime, until the station day 2026-11-13;
+moved 2026-11-12, see `docs/hosts.md`).
 
 ## The rules
 
@@ -29,7 +30,7 @@ Pacific, Art's original airtime.
   tomorrow (`requestDayAt`).
 - **Admin veto:** `POST /live-api/admin/request-veto {nominationId}`, or the
   Veto button on `/request-line` for a signed-in admin. A vetoed pick leaves
-  the list and takes no more votes (410). Before 10 PM, vetoing the locked
+  the list and takes no more votes (410). Before the request hour, vetoing the locked
   winner deletes the night, and the next read locks the runner-up.
 
 ## The lock: one function, in the database
@@ -50,33 +51,42 @@ cached 15 s). Any failure to read it, including tables or a function that do
 not exist yet, reads as "no request". The station never fails for the
 Request Line.
 
-## The schedule: the 10 PM slot
+## The schedule: the request hour
 
-`buildDay` (`src/lib/live/schedule.ts`) builds every new frozen day around
-10 PM (`requestStartAt` = the day's end − 2 h, DST-safe; `src/lib/live/pacific.ts`):
+The hour belongs to the day (`requestHourOf`, `src/lib/live/pacific.ts`): 8 PM
+Pacific from 2026-11-14, 10 PM before, because days are frozen a day ahead
+with the stand-in on the hour. `requestStartAt` is the day's end minus 4 h
+(2 h before the move), DST-safe. Copy takes its hour from the day
+(`requestHourLabel`, `pacificHourLabel`); voting still closes at 6 PM.
 
-1. Before 10 PM it takes the next show that ends, with its station ID, by
-   10 PM.
-2. If none fits and at least 10 minutes are left (`MIN_CUT_MS`), it cuts the
-   next show at 10 PM.
-3. At 10 PM it places the next show in order and marks it `requestSlot`.
-4. The rest of the day fills to midnight.
+`buildDay` (`src/lib/live/schedule.ts`) packs every new frozen day in two
+stretches (`docs/hosts.md`, "A show plays to its end"):
+
+1. Midnight to the hour: shows that end, with their station ID, by then, and
+   leave either under 2 minutes or time one or two more shows can close.
+   Nothing is cut (until 2026-11-12 one was, when nothing fitted).
+2. On the hour it places the next show in order that fits the night and marks
+   it `requestSlot`.
+3. The rest of the night is packed the same way to midnight.
 
 `applyRequest` runs at read time, before the outage swap and the breaker's
 overrides (`assembleSchedule`), and on `/tonight` (`src/services/live/tonight.ts`):
 
-- slots before 10 PM are clipped to end, with their station ID, by 10 PM;
-- the winner airs at 10 PM as `kind: "request"` with `request: {by, place, votes, day}`;
-- everything that was on from 10 PM moves after the winner, end to end, cut at
-  midnight, with duplicates skipped;
-- any time left before midnight is filled from the frozen ranking.
+- slots before the hour are clipped to end, with their station ID, by then
+  (only a day frozen before the Request Line has one that runs into it);
+- the winner airs on the hour as `kind: "request"` with `request: {by, place, votes, day}`;
+- the rest of the night is packed again after the winner: the frozen night's
+  shows in their order, then the frozen ranking, then the rest of the catalog,
+  each only if it plays in full by midnight, with duplicates skipped.
 
-On an empty night, or one whose winner cannot air, the frozen day is returned
-untouched. Days frozen before this release have no `requestSlot` mark;
-`applyRequest` still works on them (the "legacy cut" test).
+On an empty night, or one whose winner cannot air (a show someone other than
+Art hosted is refused at nomination and by `isAirable`), the frozen day is
+returned untouched. Days frozen before the Request Line have no `requestSlot`
+mark; `applyRequest` still works on them (the "legacy cut" test).
 
-**A pick longer than two hours runs to midnight**, and the show that held
-10 PM does not air that night. That is the shift, by design.
+**A pick longer than the time to midnight is cut there**: four hours at 8 PM,
+which two catalog files exceed. The show that held the hour airs after the
+pick only if it still fits.
 
 ## The herald
 
@@ -95,7 +105,7 @@ restart.
 - **`/request-line`** (`src/app/[look]/request-line/`, `force-dynamic`):
   - the rules in one paragraph;
   - tonight's pick once locked (title, who asked, votes), or "a fan favorite
-    plays at 10 PM" on an empty night;
+    plays at 8 PM" on an empty night;
   - the day's nominations, most voted first, with who picked them and their
     notes.
 
@@ -112,13 +122,13 @@ restart.
   - **On a desktop, one link** in the console under its top row.
 
   What it says:
-  - before 6 PM: "Tonight's request at 10 PM. Pick a show or vote by 6 PM Pacific.";
-  - before 6 PM, once there are picks: "Tonight's request at 10 PM. 3 shows in
+  - before 6 PM: "Tonight's request at 8 PM. Pick a show or vote by 6 PM Pacific.";
+  - before 6 PM, once there are picks: "Tonight's request at 8 PM. 3 shows in
     the running, vote by 6 PM Pacific." (`useRequestPicks` asks
     `/live-api/requests` on mount, every 2 minutes on screen and on coming
     back; a count for another day, i.e. tomorrow's, is never shown);
-  - locked: "Tonight's request at 10 PM: <title>, from <name>, calling from <place>.";
-  - empty: "No request tonight. A fan favorite plays at 10 PM.";
+  - locked: "Tonight's request at 8 PM: <title>, from <name>, calling from <place>.";
+  - empty: "No request tonight. A fan favorite plays at 8 PM.";
   - gone once the request has aired.
 
   It is read from the published program (`tonightsRequest`), so it says
@@ -159,8 +169,8 @@ granted these tables, plus `SELECT` on `live_days` and `audio_checks`.
 
 ## Tests
 
-- `src/lib/live/__tests__/schedule.test.ts`, "the Request Line's 10 PM slot":
-  the times across DST, one `requestSlot` at 10 PM every day, the shift, no
+- `src/lib/live/__tests__/schedule.test.ts`, "the Request Line's slot (2026-10-14; 8 PM from 2026-11-14)":
+  the times across DST, one `requestSlot` on the hour every day, the night packed again, no
   duplicates, the empty night, another day, the legacy cut.
 - `services/live/test/requests.db.test.mjs`: vote limits (one per listener,
   10 per address), one pick a day, the 6 PM lock and tie, after 6 PM is

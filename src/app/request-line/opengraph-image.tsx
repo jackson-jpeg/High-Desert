@@ -3,6 +3,7 @@ import { ImageResponse } from "next/og";
 import { PALETTE } from "@/lib/palette";
 import { CARD_CACHE_CONTROL, ShowCard } from "@/components/shows/ShowCard";
 import { requestLineData } from "@/services/live/request-line-page";
+import { requestHourLabel } from "@/lib/live/pacific";
 
 /**
  * The Request Line's share card (docs/request-line.md): "Vote for my pick on
@@ -18,7 +19,7 @@ export default async function Image() {
   return new ImageResponse(
     <ShowCard
       palette={PALETTE}
-      card={{ kicker: "THE REQUEST LINE · HIGH DESERT LIVE", stamp: "Tonight at 10 PM Pacific", title: page.card.title, subtitle: page.card.subtitle, footer: "Vote at highdesert.space/request-line" }}
+      card={{ kicker: "THE REQUEST LINE · HIGH DESERT LIVE", stamp: `Tonight at ${requestHourLabel(page.day)} Pacific`, title: page.card.title, subtitle: page.card.subtitle, footer: "Vote at highdesert.space/request-line" }}
     />,
     { ...size, headers: { "Cache-Control": CARD_CACHE_CONTROL } },
   );

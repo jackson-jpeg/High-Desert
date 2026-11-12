@@ -1,11 +1,12 @@
 /**
  * The Request Line's words and its one rule for what the Live screens say
- * about tonight's 10 PM slot (docs/request-line.md). Pure: read from the
+ * about tonight's request slot, 8 PM Pacific (docs/request-line.md). Pure: read from the
  * station's own published program, so the note on Live, the log and the
  * station's air can never disagree.
  */
 
-import { REQUEST_CLOSE_HOUR, requestCloseAt, type ProgramSlot } from "@/lib/live/schedule";
+import { REQUEST_CLOSE_HOUR, requestCloseAt, requestStartAt, type ProgramSlot } from "@/lib/live/schedule";
+import { pacificHourLabel } from "@/lib/live/pacific";
 
 export const REQUEST_LINE_PATH = "/request-line";
 /** The share card's headline, and the share text. */
@@ -22,14 +23,14 @@ export type TonightsRequestNote =
   | { state: "over" };
 
 /**
- * What tonight's 10 PM slot is, from today's guide at `now`. The request slot
+ * What tonight's request slot is, from today's guide at `now`. The request slot
  * is the one with `kind: "request"` once voting has closed, or the one marked
  * `requestSlot` (the show on the hour) while it is open or on an empty night.
  */
 export function tonightsRequest(guide: readonly ProgramSlot[], day: string, now: number): TonightsRequestNote {
   const won = guide.find((s) => s.kind === "request");
   const held = won ?? guide.find((s) => s.requestSlot);
-  const startsAt = held?.start ?? requestCloseAt(day) + 4 * 3_600_000;
+  const startsAt = held?.start ?? requestStartAt(day);
   if (held && now >= held.end) return { state: "over" };
   if (won) return { state: "locked", slot: won, startsAt };
   const closesAt = requestCloseAt(day);
@@ -50,18 +51,19 @@ export function tonightsRequestText(note: TonightsRequestNote, picks: number | n
   switch (note.state) {
     case "voting": {
       const by = `${REQUEST_CLOSE_HOUR - 12} PM Pacific`;
+      const at = pacificHourLabel(note.startsAt);
       if (picks && picks > 0) {
-        return `Tonight's request at 10 PM. ${picks} ${picks === 1 ? "show" : "shows"} in the running, vote by ${by}.`;
+        return `Tonight's request at ${at}. ${picks} ${picks === 1 ? "show" : "shows"} in the running, vote by ${by}.`;
       }
-      return `Tonight's request at 10 PM. Pick a show or vote by ${by}.`;
+      return `Tonight's request at ${at}. Pick a show or vote by ${by}.`;
     }
     case "locked": {
       const r = note.slot.request;
       const who = r ? `, from ${r.by}${r.place ? `, calling from ${r.place}` : ""}` : "";
-      return `Tonight's request at 10 PM: ${note.slot.title}${who}.`;
+      return `Tonight's request at ${pacificHourLabel(note.startsAt)}: ${note.slot.title}${who}.`;
     }
     case "favorite":
-      return "No request tonight. A fan favorite plays at 10 PM.";
+      return `No request tonight. A fan favorite plays at ${pacificHourLabel(note.startsAt)}.`;
     case "over":
       return null;
   }

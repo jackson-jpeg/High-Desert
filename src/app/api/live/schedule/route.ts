@@ -18,7 +18,7 @@ import { scheduleContext } from "@/services/live/context";
  *   slot = { fileHash, episodeId, title, airDate, guestName, showType,
  *            duration, sourceUrl, start, end,
  *            kind: "on-this-date" | "fan-favorite" | "outage-swap"
- *                | "verify-swap" | "breaker-swap",
+ *                | "verify-swap" | "breaker-swap" | "host-swap",
  *            replaces? }
  *
  * `rest` is today's program after `upNext`; `guide` is all of today's,

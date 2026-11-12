@@ -4,7 +4,7 @@ import { LocalTime } from "@/components/tonight/LocalTime";
 import { headlineGuest, longDate, showPath, showSubject } from "@/lib/shows/describe";
 import { breadcrumbJsonLd, jsonLdScript, tonightCrumbs, tonightJsonLd } from "@/lib/shows/jsonld";
 import { formatStationTime } from "@/lib/live/format";
-import { addDays } from "@/lib/live/schedule";
+import { addDays, requestHourLabel } from "@/lib/live/schedule";
 import { SLOT_LABELS, monthDayName, tonightDate, tonightPath, type tonightPage } from "@/lib/tonight/tonight";
 
 /**
@@ -92,7 +92,7 @@ export function TonightView({
           The program, midnight to midnight Pacific
         </h2>
         <p data-testid="tonight-request-line" className="hd-tonight-request-line text-hd-caption text-bevel-dark mb-2">
-          At 10 PM Pacific, Art&apos;s old airtime, the station plays the listeners&apos; pick.{" "}
+          At {requestHourLabel(day)} Pacific, the station plays the listeners&apos; pick.{" "}
           <Link href="/request-line" className={link}>
             Request a show or vote on the Request Line
           </Link>

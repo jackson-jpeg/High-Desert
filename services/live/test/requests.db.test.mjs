@@ -33,6 +33,9 @@ const CATALOG = new Map(SHOWS.map((h, i) => [h, { title: `Coast to Coast AM - Te
 const AIRED = [0, 1, 2].map((i) => `archive:test-${tag}:aired-${i}.mp3`);
 for (const h of AIRED) CATALOG.set(h, { title: `Aired ${h.slice(-5)}`, airDate: null, guestName: null, duration: 10_800 });
 CATALOG.set(`archive:test-${tag}:empty.mp3`, { title: "Empty", airDate: null, guestName: null, duration: 0 });
+/** The George Noory night the station aired on 2026-11-12 (data/hosts.json): never nominated. */
+const NOORY = "archive:ultimate-ultimate-art-bell-collection:2001-11-12 - Coast to Coast AM with Art Bell - Eugene Mallove - Infinite Energy Magazine.mp3";
+CATALOG.set(NOORY, { title: "Coast to Coast AM - Cold Fusion", airDate: "2001-11-12", guestName: "Dr. Eugene Mallove", duration: 14_313 });
 
 /** A note the filter refuses, not written here in plain text (the fixtures' rule). */
 const REFUSED = Buffer.from("bmlnZ2VyIGluIEJhcnN0b3c=", "base64").toString("utf8");
@@ -223,6 +226,17 @@ d("the Request Line", () => {
     expect((await nominate(newCaller(), `archive:test-${tag}:empty.mp3`)).status).toBe(404);
     await live.pool.query(`INSERT INTO audio_checks (file_hash, ok, reason) VALUES ($1, false, 'midstream') ON CONFLICT DO NOTHING`, [SHOWS[5]]);
     expect((await nominate(newCaller(), SHOWS[5])).json.error).toBe("broken-file");
+  });
+
+  it("refuses a night someone other than Art hosted (2026-11-12), and says so without an em dash", async () => {
+    clock = noonOf(freshDay());
+    const r = await nominate(newCaller(), NOORY);
+    expect(r.status).toBe(409);
+    expect(r.json.error).toBe("not-art");
+    expect(r.json.message).toContain("Art");
+    expect(r.json.message).not.toContain("\u2014");
+    // Control: the same caller set-up nominates an Art show.
+    expect((await nominate(newCaller(), SHOWS[4])).status).toBe(201);
   });
 
   it("a note goes through the word filter; links are refused like a call", async () => {

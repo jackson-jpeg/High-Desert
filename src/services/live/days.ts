@@ -35,6 +35,7 @@ import {
   STATION_TZ,
   addDays,
   applyOutageSwap,
+  applyHostSwap,
   applyOverrides,
   applyRequest,
   applyVerifySwap,
@@ -305,10 +306,11 @@ export function assembleSchedule(
   // The listeners' request first (it moves the night's slots), then the
   // outage swap and the breaker, which keep slot times where they find them.
   // Station breaks after the request (they make room the way it does, and
-  // never move its 10 PM start), before the swaps, which keep times as found.
+  // never move the request's start), before the swaps, which keep times as found.
   const breaks: StationBreak[] = [];
   const swap = (frozen: DayProgram): DayProgram => {
-    const r = applyRequest(frozen, nights.find((n) => n.day === frozen.day) ?? null, byHash);
+    // A day frozen before a show was found not to be Art's: swapped first.
+    const r = applyRequest(applyHostSwap(frozen, byHash), nights.find((n) => n.day === frozen.day) ?? null, byHash);
     const b = applyBreaks(r);
     breaks.push(...b.breaks);
     const p = b.program;

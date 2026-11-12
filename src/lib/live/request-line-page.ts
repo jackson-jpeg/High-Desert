@@ -7,6 +7,7 @@
 import type { ShowCatalog } from "@/lib/shows/catalog";
 import type { Show } from "@/lib/shows/describe";
 import { REQUEST_SHARE_TITLE } from "@/lib/live/request-line";
+import { requestHourLabel } from "@/lib/live/pacific";
 
 export interface PageNomination {
   id: number;
@@ -50,14 +51,15 @@ export function requestLinePage(
     : null;
   const title = "The Request Line · High Desert";
   const count = nominations.length;
+  const hour = requestHourLabel(day);
   const description =
     count > 0
-      ? `${count} ${count === 1 ? "show is" : "shows are"} up for tonight's 10 PM request on High Desert Live. Vote with one tap, or pick an Art Bell show of your own.`
-      : "Pick the Art Bell show High Desert Live plays tonight at 10 PM Pacific, Art's old airtime. Nominate one, and vote with one tap.";
+      ? `${count} ${count === 1 ? "show is" : "shows are"} up for tonight's ${hour} request on High Desert Live. Vote with one tap, or pick an Art Bell show of your own.`
+      : `Pick the Art Bell show High Desert Live plays tonight at ${hour} Pacific. Nominate one, and vote with one tap.`;
   const top = nominations[0];
   const card = {
     title: REQUEST_SHARE_TITLE,
-    subtitle: top ? `Leading tonight: ${top.title}` : "Pick tonight's 10 PM show on High Desert Live",
+    subtitle: top ? `Leading tonight: ${top.title}` : `Pick tonight's ${hour} show on High Desert Live`,
   };
   return { day, nominations, listed, tonight, title, description, card };
 }

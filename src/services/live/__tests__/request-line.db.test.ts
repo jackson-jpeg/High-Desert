@@ -4,7 +4,7 @@ import { beforeAll, afterAll, it, expect } from "vitest";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { TEST_DATABASE_URL, describeDb } from "@/test-support/test-db";
-import { pacificDayBounds, requestCloseAt, requestStartAt } from "@/lib/live/schedule";
+import { STATION_ID_SEC, pacificDayBounds, requestCloseAt, requestStartAt } from "@/lib/live/schedule";
 
 /**
  * The Request Line as the app reads it (2026-10-14, docs/request-line.md):
@@ -96,10 +96,12 @@ describeDb("the Request Line in the station's schedule (Postgres)", () => {
       start: requestStartAt(DAY),
       request: { by: "Night Owl", place: "Pahrump", votes: 2, day: DAY },
     });
-    const frozen = await days.frozenDay(DAY);
-    const onTheHour = frozen.slots.find((x) => x.requestSlot)!;
-    // The show that held 10 PM is still on tonight, after the pick (a pick under 90 minutes leaves it room before midnight).
-    expect(s.guide.find((x) => x.fileHash === onTheHour.fileHash && x.start > requestStartAt(DAY))).toBeDefined();
+    // After the pick the night is packed again: every show plays in full and
+    // the last ends, station ID and all, by midnight (2026-11-12; it was cut).
+    const night2 = s.guide.filter((x) => x.start >= requestStartAt(DAY));
+    expect(night2.length).toBeGreaterThan(0);
+    for (const x of night2) expect(x.end).toBe(x.start + Math.round(x.duration * 1000));
+    expect(night2[night2.length - 1].end + STATION_ID_SEC * 1000).toBeLessThanOrEqual(pacificDayBounds(DAY).end);
     requests.forgetRequestNightsForTests();
   });
 

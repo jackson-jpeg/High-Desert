@@ -95,6 +95,7 @@ export const SLOT_LABELS: Readonly<Record<SlotKind, string>> = {
   "fan-favorite": "Listener favorite",
   "outage-swap": "From the mirror",
   "verify-swap": "Listener favorite",
+  "host-swap": "Listener favorite",
   "breaker-swap": "Listener favorite",
   request: "Listener request",
 };

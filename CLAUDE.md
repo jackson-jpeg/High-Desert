@@ -139,7 +139,7 @@ PR, on main and nightly at 09:30 UTC; that workflow is now manual only.
 | `/topic/<slug>`, `/topics` | Every show on a topic (categories, curated subjects, big tags; `data/topic-slugs.json`), and the index |
 | `/tonight`, `/tonight/<yyyy-mm-dd>` | One station day: its frozen program and the date's broadcasts. `/tonight` is a 307 to today (Pacific) |
 | `/live` | High Desert Live — the 24/7 station: now playing, time left, up next, the day's log, the live count, the phone lines (chat). See "Live station" |
-| `/request-line` | The Request Line: today's nominations for the station's 10 PM slot with their votes, tonight's pick once locked, its own share card. Server-rendered per request. See "Live station" and `docs/request-line.md` |
+| `/request-line` | The Request Line: today's nominations for the station's request slot (8 PM Pacific) with their votes, tonight's pick once locked, its own share card. Server-rendered per request. See "Live station" and `docs/request-line.md` |
 
 All primary pages share `(desktop)/layout.tsx` — the master client component that initializes the audio player, handles global keyboard shortcuts, seeds the library on first visit, and persists playback state.
 
@@ -904,9 +904,25 @@ same offset, computed from a synced clock.
   guest was on today or the 2 days before waits behind one whose was not
   (`guestsOf`). Ties break on `fileHash`, so the program is a function of the
   date and the inputs. Slots are end to end with an **8 s station ID** between
-  each; the last is **cut at midnight** and the next day starts at its own
-  midnight. A catalog too small to fill a day relaxes the repeat rule rather
-  than leave dead air.
+  each, and the next day starts at its own midnight.
+- **Every show plays to its end** (2026-11-12, `docs/hosts.md`). The day is
+  packed in two stretches, midnight to the request hour and the hour to
+  midnight: a show goes in only if it ends inside the stretch and leaves
+  under 2 minutes (`TIGHT_MS`) or time one or two more shows can close
+  (`packer()`). When the day's queue has nothing that fits, a filler from
+  the ranking does (not aired lately first). `applyRequest` packs the night
+  after the winner the same way. Nothing is cut (1 or 2 shows a day were, at
+  midnight and before 10 PM). Fragments under 20 minutes
+  (`MIN_PROGRAM_SEC`) are not programmed.
+- **Only Art Bell's own nights air** (2026-11-12, `docs/hosts.md`). The
+  archive.org files all say "with Art Bell"; the station aired a George Noory
+  night and the phone lines said so. `data/hosts.json` classifies every
+  catalog show against artbellarchive.org's episode list
+  (`scripts/classify-hosts.mjs`); the 16 that are someone else's or
+  unverified (`src/data/not-art-hosted.json`, `NOT_ART_HOSTED`) are refused by
+  `isAirable`, swapped out of an older frozen day (`applyHostSwap`, kind
+  `host-swap`) and refused as a request (409 `not-art`). **After adding
+  shows, run the script**: `hosts.test.ts` fails on an unclassified one.
 - **Frozen, not recomputed.** `frozenDay()` (`src/services/live/days.ts`)
   builds a day once, under `pg_advisory_xact_lock`, and stores it in
   `live_days (day, program jsonb)` — together with any missing days of its
@@ -1044,16 +1060,17 @@ same offset, computed from a synced clock.
   contexts within 2 s — run against a local build on the e2e database, the
   command is in its header). Mutations: the `live-*` ids in `scripts/mutate-check.mjs`.
 - **The Request Line** (2026-10-14, `docs/request-line.md`). Listeners pick
-  the show at **10 PM Pacific**, Art's airtime. Every new frozen day ends a
-  show by 10 PM and marks the show on the hour `requestSlot` (`buildDay`;
-  times from `src/lib/live/pacific.ts`, shared with the chat by symlink). At
+  the show at **8 PM Pacific** (10 PM, Art's airtime, until the station day
+  2026-11-13: the hour belongs to the day, `requestHourOf`, since days freeze
+  a day ahead). Every new frozen day ends a show by the hour and marks the
+  show on the hour `requestSlot` (`buildDay`; times from
+  `src/lib/live/pacific.ts`, shared with the chat by symlink). At
   **6 PM Pacific** `live_request_night()` (one SQL function in
   `services/live/schema.sql`, so the app and the chat cannot disagree) locks
   the most voted pick, votes before 6 PM only, ties to the earliest; the
   schedule applies it at read time (`applyRequest`, before the outage swap
-  and the breaker): the winner at 10 PM as `kind: "request"` with
-  `request: {by, place, votes}`, the rest of the night after it, cut at
-  midnight. Nobody nominated: the day as frozen. A failed read of the night is
+  and the breaker): the winner on the hour as `kind: "request"` with
+  `request: {by, place, votes}`, the rest of the night packed again after it. Nobody nominated: the day as frozen. A failed read of the night is
   "no request", never a failed schedule. The chat posts "Tonight's request,
   from <name>, calling from <place>." once when it airs (`announced_at`).
   Nominate: Request it on show pages and the Library panel; vote and veto on
@@ -1208,9 +1225,9 @@ an old-radio station break. Full account: `docs/station-breaks.md`.
 - **Only between shows, 1 or 2 a day** (evening at the boundary nearest 8 PM
   Pacific, late at midnight Pacific on four days), cards in the phone lines 5
   times a week (`WEEK`). Applied at read time by `applyBreaks` in
-  `assembleSchedule` after the request, and on Tonight. **The 10 PM slot never
+  `assembleSchedule` after the request, and on Tonight. **The request slot never
   moves and a show playing in full is never shortened**; only a show already
-  cut before 10 PM may lose a little more. A break that does not fit skips.
+  cut before the request hour may lose a little more. A break that does not fit skips.
 - **The spot plays on the bridge** (`playBridge(url)`: spot, then the station
   ID, then the quiet loop); a tab joining more than 3 s in hears the ID only.
 - **Mute breaks** (`hd-breaks-muted`): ID instead of the spot, no cards.
