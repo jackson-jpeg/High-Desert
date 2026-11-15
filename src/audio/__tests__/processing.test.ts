@@ -31,6 +31,7 @@ let nodes: FakeWorkletNode[];
 let addModule: { resolve: () => void; reject: (e: Error) => void } | null;
 let sourcesMade: number;
 let lastDelay: FakeDelay | null;
+let gains: Record<string, FakeGain>;
 
 class FakeParam {
   value: number;
@@ -93,7 +94,9 @@ class FakeContext {
   }
   createGain() {
     // In route(): volume first, then wet, then dry.
-    return new FakeGain(["volume", "wet", "dry"][this.gains++] ?? "gain");
+    const g = new FakeGain(["volume", "wet", "dry"][this.gains++] ?? "gain");
+    gains[g.name] = g;
+    return g;
   }
   createDelay() {
     return (lastDelay = new FakeDelay("delay"));
@@ -152,6 +155,7 @@ beforeEach(() => {
   addModule = null;
   sourcesMade = 0;
   lastDelay = null;
+  gains = {};
   fetches.length = 0;
   localStorage.clear();
   sessionStorage.clear();
@@ -229,6 +233,9 @@ describe("routing", () => {
       ]),
     );
     expect(nodes[0].opts.processorOptions).toMatchObject({ level: true, cleanup: false });
+    // The worklet carries the sound; the dry path is silent until it is needed.
+    expect(gains.wet.gain.value).toBe(1);
+    expect(gains.dry.gain.value).toBe(0);
     expect(el.volume).toBe(1);
     // The slider moves the graph's volume, and element.volume stays at 1.
     processing.setProcessingVolume(0.4);
@@ -254,6 +261,18 @@ describe("routing", () => {
     playing(el);
     el.dispatchEvent(new Event("play"));
     expect(ctxs).toHaveLength(0);
+    expect(sourcesMade).toBe(0);
+  });
+
+  it("a switch turned on and off again before the module loaded: nothing is routed", async () => {
+    localStorage.setItem("hd-dsp", JSON.stringify({ level: false, cleanup: false }));
+    const { processing } = await load();
+    processing.startProcessing();
+    processing.setLevelSwitch(true); // the context is made, the module starts loading
+    processing.setLevelSwitch(false);
+    addModule!.resolve();
+    await flush();
+    expect(ctxs).toHaveLength(1);
     expect(sourcesMade).toBe(0);
   });
 
@@ -309,7 +328,10 @@ describe("failure is plain sound or a message, never silence", () => {
     processing.startProcessing();
     addModule!.resolve();
     await flush();
+    expect(gains.dry.gain.value).toBe(0);
     nodes[0].onprocessorerror!();
+    expect(gains.wet.gain.value).toBe(0);
+    expect(gains.dry.gain.value).toBe(1);
     expect(store.getState().availability).toBe("failed");
     expect(fetches).toContain("fallback-worklet");
   });
