@@ -18,8 +18,8 @@
  *   - a worklet that will not load leaves plain playback, the switches greyed
  *     with the reason, never silence;
  *   - an offline cached show (a local file from OPFS) is processed;
- *   - the live station, across a handover (the station ID on the same element),
- *     stays processed.
+ *   - the live station, across a handover (the station ID and the quiet on the
+ *     same element), stays processed.
  *
  * Every audio byte comes from page.route (the meter tone, e2e/tone-fixture.ts),
  * stats writes are answered by the fixture. Run against a local build on the
@@ -296,7 +296,9 @@ test("the live station stays processed across a handover", async ({ page }) => {
   const b0 = pool.find((s) => s.fileHash !== a0.fileHash)!;
   const t0 = Date.now();
   const A: Slot = { ...a0, start: t0 - 60_000, end: t0 + 25_000, duration: 85 };
-  const B: Slot = { ...b0, start: A.end + 8_000, end: A.end + 8_000 + 3_600_000, duration: 3600 };
+  // A gap longer than the station ID: the quiet loop plays between them, as
+  // before the request hour and midnight (up to 2 minutes, src/lib/live/schedule.ts).
+  const B: Slot = { ...b0, start: A.end + 20_000, end: A.end + 20_000 + 3_600_000, duration: 3600 };
   await page.route(/\/api\/live\/schedule(\?|$)/, (route) => {
     const now = Date.now();
     const on =
