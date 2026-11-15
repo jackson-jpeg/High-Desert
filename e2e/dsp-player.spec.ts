@@ -74,6 +74,8 @@ async function wire(page: Page, opts: { refused?: boolean; workletFails?: boolea
       };
     });
   }
+  // Clean up is held back from listeners (CLEANUP_RELEASED); these specs test it through the preview.
+  await page.addInitScript(() => localStorage.setItem("hd-dsp-preview", "cleanup"));
   await page.addInitScript(() => {
     const w = window as unknown as { __dsp: { el: HTMLMediaElement | null; status: unknown[]; nodes: number } };
     w.__dsp = { el: null, status: [], nodes: 0 };

@@ -286,6 +286,7 @@ describe("routing", () => {
   });
 
   it("a switch flipped while playing is sent to the worklet", async () => {
+    localStorage.setItem("hd-dsp-preview", "cleanup");
     const { processing } = await load();
     processing.startProcessing();
     addModule!.resolve();
@@ -293,6 +294,19 @@ describe("routing", () => {
     processing.setCleanupSwitch(true);
     expect(nodes[0].posted).toContainEqual({ type: "set", level: true, cleanup: true });
     expect(fetches).toContain("cleanup-on");
+  });
+
+  it("Clean up held back: its switch does nothing and a saved choice never runs it", async () => {
+    localStorage.setItem("hd-dsp", JSON.stringify({ level: true, cleanup: true }));
+    const { processing, store } = await load();
+    processing.startProcessing();
+    addModule!.resolve();
+    await flush();
+    expect(nodes[0].opts.processorOptions).toMatchObject({ level: true, cleanup: false });
+    processing.setCleanupSwitch(true);
+    expect(store.getState().cleanup).toBe(false);
+    expect(nodes[0].posted).not.toContainEqual(expect.objectContaining({ cleanup: true }));
+    expect(fetches).not.toContain("cleanup-on");
   });
 
   it("routing mid-show fades the element out first, then ducks and unducks the worklet", async () => {

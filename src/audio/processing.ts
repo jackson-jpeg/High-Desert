@@ -39,6 +39,7 @@
  * one sound is exposed, and a same-origin source (/mirror, the e2e stack's
  * silent show) cannot be refused.
  */
+import { safeSetItem } from "@/lib/utils/safe-storage";
 import { getMediaElement, isBridging, onEngineEvent } from "@/audio/engine";
 import { isIOSDevice } from "@/lib/utils/platform";
 import { pageBuild } from "@/lib/utils/build-id";
@@ -122,7 +123,7 @@ export function countDsp(event: DspEvent, oncePerSession = false): void {
       const seen = new Set((sessionStorage.getItem(ONCE_KEY) ?? "").split(",").filter(Boolean));
       if (seen.has(event)) return;
       seen.add(event);
-      sessionStorage.setItem(ONCE_KEY, [...seen].join(","));
+      safeSetItem("session", ONCE_KEY, [...seen].join(","));
     } catch {
       // No session storage: counted, possibly more than once.
     }
@@ -153,6 +154,7 @@ export function setLevelSwitch(on: boolean): void {
 export function setCleanupSwitch(on: boolean): void {
   const s = useProcessingStore.getState();
   if (s.cleanup === on) return;
+  if (on && !s.cleanupOffered) return;
   s.setCleanup(on);
   countDsp(on ? "cleanup-on" : "cleanup-off");
   if (on) ensureContext(true);

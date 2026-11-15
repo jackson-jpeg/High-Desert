@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { safeSetItem } from "@/lib/utils/safe-storage";
 
 /**
  * Level and Clean up (docs/audio-processing/README.md): the listener's two
@@ -16,6 +17,30 @@ import { create } from "zustand";
  */
 
 export const DSP_STORAGE_KEY = "hd-dsp";
+
+/**
+ * Clean up is built but not released: it misses the hiss target on the
+ * heaviest-hiss shows (docs/audio-processing/README.md, "Clean up is held
+ * back"). Until it passes every target its switch is hidden and it never
+ * runs, whatever a listener saved. Jackson, 2026-11-15: ship Level, keep
+ * Clean up hidden, deploy it on its own once it passes.
+ */
+export const CLEANUP_RELEASED = false;
+/**
+ * The preview: `localStorage["hd-dsp-preview"] = "cleanup"` shows the hidden
+ * switch in that one browser (the e2e specs, and listening on the live site).
+ */
+export const DSP_PREVIEW_KEY = "hd-dsp-preview";
+
+/** Whether this browser is offered Clean up. Reads storage: call after mount. */
+export function cleanupOffered(): boolean {
+  if (CLEANUP_RELEASED) return true;
+  try {
+    return localStorage.getItem(DSP_PREVIEW_KEY) === "cleanup";
+  } catch {
+    return false;
+  }
+}
 
 /** Level is on unless the listener turned it off; Clean up is off unless they turned it on. */
 export const DEFAULT_LEVEL = true;
@@ -53,6 +78,8 @@ export interface DspMeter {
 interface ProcessingState {
   level: boolean;
   cleanup: boolean;
+  /** Whether the Clean up switch is shown and may run (cleanupOffered(), read at hydrate). */
+  cleanupOffered: boolean;
   availability: DspAvailability;
   meter: DspMeter | null;
   /** True once hydrate() has read the listener's choice. */
@@ -66,11 +93,8 @@ interface ProcessingState {
 }
 
 function save(level: boolean, cleanup: boolean): void {
-  try {
-    localStorage.setItem(DSP_STORAGE_KEY, JSON.stringify({ level, cleanup }));
-  } catch {
-    // Private mode or storage off: the choice lasts this page only.
-  }
+  // Private mode or storage off: the choice lasts this page only.
+  safeSetItem("local", DSP_STORAGE_KEY, JSON.stringify({ level, cleanup }));
 }
 
 export function readSaved(): { level: boolean; cleanup: boolean } {
@@ -80,7 +104,7 @@ export function readSaved(): { level: boolean; cleanup: boolean } {
       const v = JSON.parse(raw) as { level?: unknown; cleanup?: unknown };
       return {
         level: typeof v.level === "boolean" ? v.level : DEFAULT_LEVEL,
-        cleanup: typeof v.cleanup === "boolean" ? v.cleanup : DEFAULT_CLEANUP,
+        cleanup: cleanupOffered() && typeof v.cleanup === "boolean" ? v.cleanup : DEFAULT_CLEANUP,
       };
     }
   } catch {
@@ -92,6 +116,7 @@ export function readSaved(): { level: boolean; cleanup: boolean } {
 export const useProcessingStore = create<ProcessingState>((set, get) => ({
   level: DEFAULT_LEVEL,
   cleanup: DEFAULT_CLEANUP,
+  cleanupOffered: false,
   availability: "pending",
   meter: null,
   hydrated: false,
@@ -100,6 +125,7 @@ export const useProcessingStore = create<ProcessingState>((set, get) => ({
     save(on, get().cleanup);
   },
   setCleanup: (on) => {
+    if (on && !get().cleanupOffered) return;
     set({ cleanup: on });
     save(get().level, on);
   },
@@ -107,7 +133,7 @@ export const useProcessingStore = create<ProcessingState>((set, get) => ({
   setMeter: (meter) => set({ meter }),
   hydrate: () => {
     if (get().hydrated) return;
-    set({ ...readSaved(), hydrated: true });
+    set({ ...readSaved(), cleanupOffered: cleanupOffered(), hydrated: true });
   },
 }));
 

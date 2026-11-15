@@ -26,7 +26,7 @@ vi.mock("@/audio/processing", async () => {
 });
 
 const { useProcessingStore, UNAVAILABLE_REASON } = await import("@/stores/processing-store");
-const { ProcessingSwitches, LEVEL_EXPLAINER, CLEANUP_EXPLAINER, STRIP_DEFAULT } = await import("@/components/player/ProcessingSwitches");
+const { ProcessingSwitches, LEVEL_EXPLAINER, CLEANUP_EXPLAINER, STRIP_DEFAULT, STRIP_LEVEL_ONLY } = await import("@/components/player/ProcessingSwitches");
 
 let root: Root;
 let el: HTMLDivElement;
@@ -39,7 +39,7 @@ const q = (id: string) => el.querySelector(`[data-testid="${id}"]`) as HTMLEleme
 beforeEach(() => {
   calls.length = 0;
   localStorage.clear();
-  useProcessingStore.setState({ level: true, cleanup: false, availability: "ok", hydrated: true });
+  useProcessingStore.setState({ level: true, cleanup: false, cleanupOffered: true, availability: "ok", hydrated: true });
   el = document.createElement("div");
   document.body.appendChild(el);
   root = createRoot(el);
@@ -98,8 +98,20 @@ describe("ProcessingSwitches", () => {
     expect(q("dsp-level").getAttribute("aria-disabled")).toBe("true");
   });
 
+  it("Clean up held back: only Level is drawn, and the strip explains Level alone", () => {
+    useProcessingStore.setState({ cleanupOffered: false });
+    for (const layout of ["rows", "strip"] as const) {
+      mount({ look: "win98", layout });
+      expect(q("dsp-cleanup")).toBeNull();
+      expect(q("dsp-level")).not.toBeNull();
+      if (layout === "strip") expect(q("dsp-line").textContent).toBe(STRIP_LEVEL_ONLY);
+      act(() => root.unmount());
+      root = createRoot(el);
+    }
+  });
+
   it("no em dash in any copy", () => {
-    for (const s of [LEVEL_EXPLAINER, CLEANUP_EXPLAINER, STRIP_DEFAULT]) expect(s).not.toMatch(/—/);
+    for (const s of [LEVEL_EXPLAINER, CLEANUP_EXPLAINER, STRIP_DEFAULT, STRIP_LEVEL_ONLY]) expect(s).not.toMatch(/—/);
     for (const look of ["win98", "night"] as const)
       for (const layout of ["rows", "strip"] as const) {
         mount({ look, layout });

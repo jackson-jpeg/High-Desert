@@ -107,7 +107,7 @@ describe("Level", () => {
     expect(checkLevel(o, orig, []).pass.swing).toBe(false);
     // And above the line the halving is the rule: the 12 dB clip, unprocessed, fails.
     expect(checkLevel(orig, orig, []).pass.swing).toBe(false);
-  });
+  }, 30_000); // a 48 s render inside the test; under heavy's nice 15 it can pass 5 s
 
   it(`does not breathe: the floor in a pause rises at most ${TARGETS.maxPauseRiseDb} dB`, () => {
     expect(pauseLift(orig, out)).toBeLessThanOrEqual(TARGETS.maxPauseRiseDb);

@@ -23,12 +23,17 @@ import { UNAVAILABLE_REASON, switchesUsable, useProcessingStore } from "@/stores
  * switches are greyed and the reason is the line. They stay visible, so the
  * listener knows the feature exists and why it is off.
  *
+ * While Clean up is held back (CLEANUP_RELEASED in the store) only Level is
+ * drawn; the hidden switch appears with the preview key.
+ *
  * Copy is user-facing: no em dashes (src/components/player/__tests__/processing-switches.test.tsx).
  */
 
 export const LEVEL_EXPLAINER = "Evens out quiet guests and loud callers.";
 export const CLEANUP_EXPLAINER = "Takes out hiss and hum.";
 export const STRIP_DEFAULT = "Level evens out voices. Clean up takes out hiss and hum.";
+/** The strip's line while Clean up is held back (CLEANUP_RELEASED). */
+export const STRIP_LEVEL_ONLY = "Level evens out quiet guests and loud callers.";
 
 type Which = "level" | "cleanup";
 
@@ -44,6 +49,7 @@ export function ProcessingSwitches({
   const level = useProcessingStore((s) => s.level);
   const cleanup = useProcessingStore((s) => s.cleanup);
   const availability = useProcessingStore((s) => s.availability);
+  const offered = useProcessingStore((s) => s.cleanupOffered);
   const [hover, setHover] = useState<Which | null>(null);
   const id = useId();
   const usable = switchesUsable(availability);
@@ -90,7 +96,7 @@ export function ProcessingSwitches({
     );
   };
 
-  const line = reason ?? (hover === "level" ? LEVEL_EXPLAINER : hover === "cleanup" ? CLEANUP_EXPLAINER : STRIP_DEFAULT);
+  const line = reason ?? (hover === "level" ? LEVEL_EXPLAINER : hover === "cleanup" ? CLEANUP_EXPLAINER : offered ? STRIP_DEFAULT : STRIP_LEVEL_ONLY);
 
   return (
     <div
@@ -106,7 +112,7 @@ export function ProcessingSwitches({
         </span>
       )}
       {sw("level")}
-      {sw("cleanup")}
+      {offered && sw("cleanup")}
       {layout === "strip" ? (
         <span id={`${id}-line`} className="hd-dsp-line" data-testid="dsp-line">
           {line}

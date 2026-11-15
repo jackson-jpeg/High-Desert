@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_CLEANUP,
   DEFAULT_LEVEL,
+  CLEANUP_RELEASED,
+  DSP_PREVIEW_KEY,
   DSP_STORAGE_KEY,
+  cleanupOffered,
   UNAVAILABLE_REASON,
   readSaved,
   switchesUsable,
@@ -16,7 +19,7 @@ import {
 
 function reset() {
   localStorage.clear();
-  useProcessingStore.setState({ level: DEFAULT_LEVEL, cleanup: DEFAULT_CLEANUP, availability: "pending", meter: null, hydrated: false });
+  useProcessingStore.setState({ level: DEFAULT_LEVEL, cleanup: DEFAULT_CLEANUP, cleanupOffered: false, availability: "pending", meter: null, hydrated: false });
 }
 
 describe("processing store", () => {
@@ -29,13 +32,15 @@ describe("processing store", () => {
   });
 
   it("remembers a change in localStorage, and hydrate() brings it back", () => {
+    localStorage.setItem(DSP_PREVIEW_KEY, "cleanup");
+    useProcessingStore.getState().hydrate();
     useProcessingStore.getState().setLevel(false);
     useProcessingStore.getState().setCleanup(true);
     expect(JSON.parse(localStorage.getItem(DSP_STORAGE_KEY)!)).toEqual({ level: false, cleanup: true });
     // A new page: the store starts from the defaults, then reads the choice.
-    useProcessingStore.setState({ level: true, cleanup: false, hydrated: false });
+    useProcessingStore.setState({ level: true, cleanup: false, cleanupOffered: false, hydrated: false });
     useProcessingStore.getState().hydrate();
-    expect(useProcessingStore.getState()).toMatchObject({ level: false, cleanup: true, hydrated: true });
+    expect(useProcessingStore.getState()).toMatchObject({ level: false, cleanup: true, cleanupOffered: true, hydrated: true });
   });
 
   it("does not read storage until hydrate() (no hydration mismatch)", () => {
@@ -52,6 +57,7 @@ describe("processing store", () => {
   });
 
   it("falls back to the defaults on garbage, field by field", () => {
+    localStorage.setItem(DSP_PREVIEW_KEY, "cleanup");
     localStorage.setItem(DSP_STORAGE_KEY, "{not json");
     expect(readSaved()).toEqual({ level: true, cleanup: false });
     localStorage.setItem(DSP_STORAGE_KEY, JSON.stringify({ level: "no", cleanup: true }));
@@ -70,5 +76,28 @@ describe("processing store", () => {
       expect(r).not.toMatch(/\n/);
       expect(r.length).toBeLessThan(60);
     }
+  });
+
+  describe("Clean up held back (CLEANUP_RELEASED false)", () => {
+    it("is not released yet", () => {
+      expect(CLEANUP_RELEASED).toBe(false);
+    });
+
+    it("a saved Clean up on is read as off, and the switch cannot turn it on", () => {
+      localStorage.setItem(DSP_STORAGE_KEY, JSON.stringify({ level: false, cleanup: true }));
+      expect(readSaved()).toEqual({ level: false, cleanup: false });
+      useProcessingStore.getState().hydrate();
+      expect(useProcessingStore.getState()).toMatchObject({ level: false, cleanup: false, cleanupOffered: false });
+      useProcessingStore.getState().setCleanup(true);
+      expect(useProcessingStore.getState().cleanup).toBe(false);
+    });
+
+    it("the preview key offers it in this browser only", () => {
+      expect(cleanupOffered()).toBe(false);
+      localStorage.setItem(DSP_PREVIEW_KEY, "yes");
+      expect(cleanupOffered()).toBe(false);
+      localStorage.setItem(DSP_PREVIEW_KEY, "cleanup");
+      expect(cleanupOffered()).toBe(true);
+    });
   });
 });
