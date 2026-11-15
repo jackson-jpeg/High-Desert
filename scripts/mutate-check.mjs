@@ -10093,17 +10093,17 @@ export const MUTATIONS = [
     id: "dsp-chain-bypass-exact",
     test: "src/audio/dsp/__tests__/dsp-targets.test.ts",
     file: "src/audio/dsp/chain.ts",
-    find: "    if (this.cSw.running) {",
-    replace: "    if (true) {",
-    why: "with both off the chain must be the input, delayed, sample for sample",
+    find: "      if (this.cSw.running) this.level.measure(ch, n);",
+    replace: "      this.level.measure(ch, n);",
+    why: "with both off nothing but the delay lines may run (bypass means bypass, and an old phone's battery)",
   },
   {
     id: "dsp-hum-notch",
     test: "src/audio/dsp/__tests__/dsp-targets.test.ts",
     file: "src/audio/dsp/hum.ts",
-    find: "          const y1 = x[i] - d * b1.tick(x[i]);",
-    replace: "          const y1 = x[i];",
-    why: "each hum line needs both notches to stay over 20 dB off its exact frequency",
+    find: "        this.lines.set(k, this.makeLine(k, inFamily ? 0.5 * (h.freq + k * f0) : h.freq));",
+    replace: "",
+    why: "a detected hum line must be notched: hum peaks down at least 20 dB",
   },
 ];
 

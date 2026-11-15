@@ -98,18 +98,43 @@ describe("Level", () => {
     expect(pauseLift(orig, out)).toBeLessThanOrEqual(TARGETS.maxPauseRiseDb);
   });
 
+  it(`does not breathe after a loud last word (at most ${TARGETS.maxPauseRiseDb} dB)`, () => {
+    // Every phrase ends on an emphatic word 8 dB up, the case where a
+    // compressor recovering in the pause lifts the floor after it.
+    const base = programme({ levelsDb: [-20, -20, -20, -20], segSec: 8, floorDb: -55, seed: 11 });
+    const x = base.ch[0];
+    const phrase = Math.round(2.3 * FS);
+    for (let i = 0; i < x.length; i++) {
+      const p = i % phrase;
+      if (p >= Math.round(1.5 * FS) && p < Math.round(1.8 * FS)) x[i] *= db(8);
+    }
+    const o = original(base, PRE);
+    const y = render(base, { level: true, cleanup: false, preRollSec: PRE });
+    expect(pauseLift(o, y)).toBeLessThanOrEqual(TARGETS.maxPauseRiseDb);
+  });
+
   it("lands near -16 LUFS", () => {
     expect(Math.abs(measure(out).lufs - -16)).toBeLessThan(2);
   });
 });
 
 describe("both switches off", () => {
-  it("is the input, sample for sample, only delayed", () => {
+  it("is the input, sample for sample, only delayed, and nothing else runs", () => {
     const clip = programme({ levelsDb: [-20], segSec: 4, floorDb: -50, seed: 3 });
     const out = render(clip, { level: false, cleanup: false });
     let maxDiff = 0;
     for (let i = 0; i < out.ch[0].length; i++) maxDiff = Math.max(maxDiff, Math.abs(out.ch[0][i] - clip.ch[0][i]));
     expect(maxDiff).toBe(0);
+    // Bypass means bypass: not even Level's meter runs (an old phone's battery).
+    const chain = new Chain(FS, { level: false, cleanup: false });
+    const b = [new Float32Array(128), new Float32Array(128)];
+    for (let i = 0; i + 128 <= clip.ch[0].length; i += 128) {
+      b[0].set(clip.ch[0].subarray(i, i + 128));
+      b[1].set(clip.ch[0].subarray(i, i + 128));
+      chain.process(b, 128);
+    }
+    expect(chain.idle()).toBe(true);
+    expect(chain.level.state().activeLufs).toBe(-Infinity);
   });
 });
 
