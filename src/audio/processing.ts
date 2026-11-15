@@ -69,7 +69,7 @@ const SILENT_SOURCE_SEC = 20;
 const FADE_OUT_MS = 30;
 
 export const STALLED_MESSAGE = "Sound was interrupted. Press play to continue.";
-export const SILENT_MESSAGE = "This show could not be processed. Press play to hear it as it is.";
+export const SILENT_MESSAGE = "The browser blocked this show's sound. Try another show, or reload the page.";
 
 type ModuleState = "idle" | "loading" | "ready" | "failed";
 
