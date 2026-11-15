@@ -363,7 +363,7 @@ describe("failure is plain sound or a message, never silence", () => {
     expect(fetches).toContain("fallback-stalled");
   });
 
-  it("a few seconds of digital silence do not stop the show; 20 s of zero input with the playhead moving does", async () => {
+  it("a source refused from its first second stops after 20 s of playhead; a few seconds do not", async () => {
     const { processing, el, store } = await load();
     processing.startProcessing();
     addModule!.resolve();
@@ -373,15 +373,35 @@ describe("failure is plain sound or a message, never silence", () => {
       Object.defineProperty(el, "currentTime", { value: t, configurable: true, writable: true });
       nodes[0].say({ type: "status", inPeak: 0 });
     };
-    for (let t = 100; t <= 108; t += 0.25) at(t);
-    nodes[0].say({ type: "status", inPeak: 0.2 }); // the show speaks again
+    for (let t = 100; t < 119.5; t += 0.25) at(t);
     expect(el.paused).toBe(false);
-    for (let t = 200; t < 219.5; t += 0.25) at(t);
-    expect(el.paused).toBe(false);
-    for (let t = 219.5; t <= 220.5; t += 0.25) at(t);
+    for (let t = 119.5; t <= 120.5; t += 0.25) at(t);
     expect(el.paused).toBe(true);
     expect(store.getState().availability).toBe("failed");
     expect(fetches).toContain("fallback-silent");
+  });
+
+  it("real silence never stops the show: once the source has made a sound, or from this origin", async () => {
+    const { processing, el, store } = await load();
+    processing.startProcessing();
+    addModule!.resolve();
+    await flush();
+    playing(el);
+    const at = (t: number) => {
+      Object.defineProperty(el, "currentTime", { value: t, configurable: true, writable: true });
+      nodes[0].say({ type: "status", inPeak: 0 });
+    };
+    nodes[0].say({ type: "status", inPeak: 0.2 }); // the show speaks
+    for (let t = 100; t <= 160; t += 0.25) at(t); // then a minute of dead air
+    expect(el.paused).toBe(false);
+    // A new source starts unheard: the mirror, same origin, silent throughout.
+    el.src = `${location.origin}/mirror/archive%3Ax%3Aa.mp3`;
+    el.dispatchEvent(new Event("loadstart"));
+    el.dispatchEvent(new Event("playing"));
+    for (let t = 0; t <= 60; t += 0.25) at(t);
+    expect(el.paused).toBe(false);
+    expect(store.getState().availability).toBe("ok");
+    expect(fetches).not.toContain("fallback-silent");
   });
 });
 

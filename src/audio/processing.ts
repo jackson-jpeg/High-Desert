@@ -31,10 +31,13 @@
  * the context is not running → resume; still not after 2.5 s → pause, with a
  * message, never silence (`fallback-stalled`). The context runs but the
  * worklet has gone quiet for 2 s, or threw → the dry path (`fallback-worklet`).
- * The worklet's input has been exactly zero for 20 s of playhead while it plays
- * (a cross-origin source the browser refuses to expose; crossOrigin is set on
- * the element, so this is a backstop) → pause, with a message, and never
- * route again in this session (`fallback-silent`).
+ * A cross-origin source whose input has been exactly zero from its first
+ * second, for 20 s of playhead while it plays (a source the browser refuses
+ * to expose; crossOrigin is set on the element, so this is a backstop) →
+ * pause, with a message, and never route again in this session
+ * (`fallback-silent`). Real silence never trips it: a source that has made
+ * one sound is exposed, and a same-origin source (/mirror, the e2e stack's
+ * silent show) cannot be refused.
  */
 import { getMediaElement, isBridging, onEngineEvent } from "@/audio/engine";
 import { isIOSDevice } from "@/lib/utils/platform";
@@ -91,6 +94,8 @@ let neverRoute = false;
 let lastStatusAt = 0;
 /** The playhead when the input went exactly silent, or null. */
 let silentFrom: number | null = null;
+/** The current source has given the worklet a non-zero sample: it is exposed, whatever follows. */
+let heardSource = false;
 let stalledSince: number | null = null;
 let pendingNewSource = false;
 let lastShowKey: string | null = null;
@@ -207,6 +212,15 @@ function installGestureResume(): void {
 
 // ── Routing ──
 
+/** A source from another origin: the only kind a browser could refuse to expose to Web Audio. */
+function crossOrigin(el: HTMLMediaElement): boolean {
+  try {
+    return new URL(el.currentSrc || el.src, location.href).origin !== location.origin;
+  } catch {
+    return false;
+  }
+}
+
 function audible(el: HTMLMediaElement): boolean {
   return !el.paused && !el.ended && el.readyState >= 3;
 }
@@ -311,7 +325,8 @@ function onWorkletMessage(m: { type?: string; latency?: number; inPeak?: number;
   if (m?.type !== "status") return;
   lastStatusAt = performance.now();
   const el = getMediaElement();
-  if (el && audible(el) && !isBridging() && m.inPeak === 0) {
+  if (typeof m.inPeak === "number" && m.inPeak > 0 && el && !isBridging()) heardSource = true;
+  if (el && audible(el) && !isBridging() && m.inPeak === 0 && !heardSource && crossOrigin(el)) {
     if (silentFrom === null || el.currentTime < silentFrom) silentFrom = el.currentTime;
     else if (el.currentTime - silentFrom >= SILENT_SOURCE_SEC) silentSource();
   } else silentFrom = null;
@@ -393,6 +408,8 @@ function installElementEvents(): void {
   });
   onEngineEvent("loadstart", () => {
     pendingNewSource = true;
+    heardSource = false;
+    silentFrom = null;
     post({ type: "duck" });
   });
   onEngineEvent("playing", () => {
@@ -478,6 +495,7 @@ export function __resetProcessingForTests(): void {
   routing = started = wantAnalyser = onDry = neverRoute = eventsInstalled = pendingNewSource = false;
   lastStatusAt = 0;
   silentFrom = null;
+  heardSource = false;
   stalledSince = null;
   lastShowKey = null;
   watch = null;

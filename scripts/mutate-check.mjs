@@ -10010,6 +10010,22 @@ export const MUTATIONS = [
     why: "a few seconds of digital silence (dead air decodes to exact zeros) must never stop a show",
   },
   {
+    id: "processing-silent-source-heard",
+    test: "src/audio/__tests__/processing.test.ts",
+    file: "src/audio/processing.ts",
+    find: "m.inPeak === 0 && !heardSource && crossOrigin(el)) {",
+    replace: "m.inPeak === 0 && crossOrigin(el)) {",
+    why: "a source that has made a sound is exposed: a minute of dead air after it must never stop the show",
+  },
+  {
+    id: "processing-silent-source-same-origin",
+    test: "src/audio/__tests__/processing.test.ts",
+    file: "src/audio/processing.ts",
+    find: "m.inPeak === 0 && !heardSource && crossOrigin(el)) {",
+    replace: "m.inPeak === 0 && !heardSource) {",
+    why: "a same-origin source (/mirror, the e2e stack's silent show) cannot be refused, so its silence is real",
+  },
+  {
     id: "processing-quiet-worklet-to-dry",
     test: "src/audio/__tests__/processing.test.ts",
     file: "src/audio/processing.ts",
