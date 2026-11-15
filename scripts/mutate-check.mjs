@@ -1057,6 +1057,14 @@ export const MUTATIONS = [
     why: "the station ID must still follow the spot",
   },
   {
+    id: "live-bridge-end-is-not-a-pause",
+    test: "src/audio/__tests__/live-station.test.ts",
+    file: "src/audio/live-controller.ts",
+    find: "if (usePlayerStore.getState().playing || !st || !st.paused || st.ended) return;",
+    replace: "if (usePlayerStore.getState().playing || !st || !st.paused) return;",
+    why: "the station ID reaching its own end fires pause then ended: holding there ended the bridge and the ID's end read as an empty show",
+  },
+  {
     id: "live-break-muted",
     test: "src/audio/__tests__/live-breaks.test.ts",
     file: "src/audio/live-controller.ts",

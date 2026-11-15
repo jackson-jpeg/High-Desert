@@ -81,18 +81,47 @@ export function mountHook<T>(useHook: () => T): Mounted<T> {
  * could not happen in the one place built to catch it.
  *
  * `paused` is tracked the way the element reports it: `play()` clears it
- * synchronously, `pause()` and `load()` set it.
+ * synchronously, `pause()` and `load()` set it. `ended` too: set by
+ * `endNaturally()`, cleared by `play()` and `load()`.
  */
+const enders = new WeakMap<HTMLMediaElement, () => void>();
+
+/**
+ * The element plays to the end of its file, as a browser reports it (HTML,
+ * "reaches the end"; Chromium and WebKit alike, traced 2026-11-15): `paused`
+ * and `ended` become true, then `pause` fires, then (a task later) `ended`. A test that fires
+ * only `ended` misses whatever a listener on `pause` does in between.
+ */
+export async function endNaturally(el: HTMLMediaElement): Promise<void> {
+  const end = enders.get(el);
+  if (!end) throw new Error("endNaturally: not an element from makeMediaElement");
+  end();
+  el.dispatchEvent(new Event("pause"));
+  // The browser dispatches each event from its own task: the microtasks a
+  // `pause` listener queued run before `ended` arrives.
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  el.dispatchEvent(new Event("ended"));
+}
+
 export function makeMediaElement(
   play: () => Promise<void> = () => Promise.resolve(),
 ): HTMLAudioElement {
   const el = document.createElement("audio");
   const pending = new Set<(err: DOMException) => void>();
   let paused = true;
+  let ended = false;
 
   Object.defineProperty(el, "paused", {
     get: () => paused,
     configurable: true,
+  });
+  Object.defineProperty(el, "ended", {
+    get: () => ended,
+    configurable: true,
+  });
+  enders.set(el, () => {
+    paused = true;
+    ended = true;
   });
 
   const abortPending = (message: string) => {
@@ -104,6 +133,7 @@ export function makeMediaElement(
   // A spy, so suites can assert on play() calls as they did against the old stub.
   el.play = vi.fn(() => {
     paused = false;
+    ended = false;
     return new Promise<void>((resolve, reject) => {
       const abort = (err: DOMException) => {
         pending.delete(abort);
@@ -131,6 +161,7 @@ export function makeMediaElement(
 
   el.load = () => {
     paused = true;
+    ended = false;
     abortPending("The play() request was interrupted by a new load request.");
   };
 

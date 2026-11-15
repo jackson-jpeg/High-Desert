@@ -693,11 +693,15 @@ export function createLiveStation(deps: LiveDeps): LiveStation {
         } else if (prev.playing && !s.playing) {
           // Paused in the gap (the lock screen, a headset): hold, so the next
           // show does not start behind them. After the current task, like the
-          // show's: a source change clears `playing` for a moment.
+          // show's: a source change clears `playing` for a moment. Not the
+          // bridge's file reaching its own end: a browser fires `pause` and
+          // then `ended` there, and the engine moves on to the quiet at the
+          // `ended` (2026-11-15: holding it here ended the bridge, and that
+          // `ended` was then judged as the show's, "Nothing On This Tape").
           queueMicrotask(() => {
             if (!live().tuned || live().phase !== "station-id" || live().paused) return;
             const st = engineState();
-            if (usePlayerStore.getState().playing || !st || !st.paused) return;
+            if (usePlayerStore.getState().playing || !st || !st.paused || st.ended) return;
             hold();
           });
         }

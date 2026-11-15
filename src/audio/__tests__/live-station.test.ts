@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act } from "react";
 import type { Episode } from "@/db/schema";
 import type { LiveSchedule, ProgramSlot } from "@/lib/live/schedule";
-import { mountHook, makeMediaElement, setReadyState, type Mounted } from "@/hooks/__tests__/support/mount-player";
+import { mountHook, makeMediaElement, endNaturally, setReadyState, type Mounted } from "@/hooks/__tests__/support/mount-player";
 
 /**
  * Synced playback, through the real player.
@@ -696,15 +696,23 @@ describe("with the screen off: one element, never paused, from one show to the n
     expect(pausedDuringID).toEqual([]);
     expect(element.src).toMatch(/\/audio\/station-id\.mp3$/);
     expect(vi.mocked(element.play).mock.calls.length).toBe(plays + 1);
+    // The ID is playing, as the browser says so (the mock's play() fires nothing).
+    act(() => {
+      element.dispatchEvent(new Event("play"));
+      element.dispatchEvent(new Event("playing"));
+    });
+    expect(usePlayerStore.getState().playing).toBe(true);
 
     // The ID's file ends: quiet on a loop, on the same element. As a real
     // element reports it: eight seconds long, at its end, which for the show
-    // it follows would read as an empty file or a dropped connection.
+    // it follows would read as an empty file or a dropped connection; and
+    // `pause` before `ended`, which is not the listener pausing (2026-11-15:
+    // it held the station, then judged the ID's end as the show's).
     Object.defineProperty(element, "duration", { value: 8, configurable: true });
     setPlayhead(8);
-    act(() => {
-      element.dispatchEvent(new Event("ended"));
-    });
+    await act(() => endNaturally(element));
+    await flush();
+    expect(useLiveStore.getState().paused).toBe(false);
     expect(reportPlaybackFailure).not.toHaveBeenCalled();
     expect(element.src).toMatch(/\/audio\/station-quiet\.mp3$/);
     expect(element.loop).toBe(true);
