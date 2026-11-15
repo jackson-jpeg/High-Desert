@@ -177,6 +177,7 @@ async function playRow(page: Page, fileHash: string, rewrite?: Record<string, un
   );
 }
 
+const switches = (page: Page) => page.getByTestId("dsp-switches").filter({ visible: true }).first();
 const sw = (page: Page, which: "level" | "cleanup") => page.getByTestId(`dsp-${which}`).filter({ visible: true }).first();
 
 async function openNowPlaying(page: Page) {
@@ -196,12 +197,13 @@ for (const look of ["win98", "night"] as const) {
     await startShow(page, SHOW_A);
     expect(showOf((await element(page))!.src)).toBe(SHOW_A.fileHash);
 
-    await expect(page.getByTestId("dsp-switches").first()).toHaveAttribute("data-availability", "ok");
+    // On a phone the switches are in the expanded player.
+    await openNowPlaying(page);
+    await expect(switches(page)).toHaveAttribute("data-availability", "ok");
     await expect(sw(page, "level")).toHaveAttribute("aria-checked", "true");
     await expect(sw(page, "cleanup")).toHaveAttribute("aria-checked", "false");
     await expectProcessing(page, { level: true, cleanup: false }, "by default");
 
-    await openNowPlaying(page);
     await chooseVu(page);
     await expectMetersMove(page, "Level on");
 
@@ -233,6 +235,7 @@ for (const look of ["win98", "night"] as const) {
     await sw(page, "cleanup").click();
     await page.reload();
     await expect(page.locator("#app-loading")).toBeHidden({ timeout: 15_000 });
+    await openNowPlaying(page);
     await expect(sw(page, "level")).toHaveAttribute("aria-checked", "false");
     await expect(sw(page, "cleanup")).toHaveAttribute("aria-checked", "true");
     expect(await page.evaluate(() => localStorage.getItem("hd-dsp"))).toBe(JSON.stringify({ level: false, cleanup: true }));
@@ -252,11 +255,11 @@ test("a worklet that will not load: plain playback, switches greyed with the rea
   test.setTimeout(90_000);
   await wire(page, { workletFails: true });
   await startShow(page, SHOW_A);
-  await expect(page.getByTestId("dsp-switches").first()).toHaveAttribute("data-availability", "failed");
+  await openNowPlaying(page);
+  await expect(switches(page)).toHaveAttribute("data-availability", "failed");
   await expect(sw(page, "level")).toHaveAttribute("aria-disabled", "true");
   await expect(sw(page, "level")).toHaveAttribute("aria-checked", "false");
   await expectPlaying(page, "with the worklet failed");
-  await openNowPlaying(page);
   await chooseVu(page);
   await expectMetersMove(page, "with the worklet failed");
   // A greyed switch ignores a tap (forced: Playwright waits on aria-disabled).
@@ -264,7 +267,11 @@ test("a worklet that will not load: plain playback, switches greyed with the rea
   await expect(sw(page, "level")).toHaveAttribute("aria-checked", "false");
 });
 
-test("an offline cached show (a local file from OPFS) is processed", async ({ page }) => {
+test("an offline cached show (a local file from OPFS) is processed", async ({ page, browserName }) => {
+  // Playwright's Linux WebKit refuses the OPFS write that stages the cached
+  // file ("UnknownError: transient"), before any app code runs. The path
+  // under test is the same element and graph on every engine.
+  test.skip(browserName === "webkit", "Linux WebKit cannot write OPFS to stage the fixture");
   test.setTimeout(90_000);
   await wire(page);
   await startShow(page, SHOW_A);
@@ -324,5 +331,6 @@ test("the live station stays processed across a handover", async ({ page }) => {
     .toBe(B.fileHash);
   await expectPlaying(page, "show B after the handover");
   await expectProcessing(page, { level: true, cleanup: false }, "show B after the handover");
-  await expect(page.getByTestId("dsp-switches").first()).toHaveAttribute("data-availability", "ok");
+  await openNowPlaying(page);
+  await expect(switches(page)).toHaveAttribute("data-availability", "ok");
 });

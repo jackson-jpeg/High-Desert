@@ -68,6 +68,12 @@ export default defineConfig({
             testMatch: /(scroll-gestures|library-phone|live-phone|phone-lines-busy|dsp-render)\.spec\.ts$/,
             use: { ...devices["iPhone 13"], viewport: { width: 390, height: 844 } },
           },
+          {
+            // Desktop Safari's engine: where Level runs for Mac listeners.
+            name: "desktop-webkit",
+            testMatch: /dsp-(player|render)\.spec\.ts$/,
+            use: { ...devices["Desktop Safari"], viewport: { width: 1440, height: 900 } },
+          },
         ]
       : []),
   ],
