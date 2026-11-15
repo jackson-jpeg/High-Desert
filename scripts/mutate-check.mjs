@@ -10125,8 +10125,8 @@ export const MUTATIONS = [
     id: "dsp-truepeak-bound",
     test: "src/audio/dsp/__tests__/dsp-math.test.ts",
     file: "src/audio/dsp/oversample.ts",
-    find: "      if (m * L1 < below) {",
-    replace: "      if (m < below) {",
+    find: "      const bound = m * L1;",
+    replace: "      const bound = m;",
     why: "the limiter's shortcut must bound the reconstruction, not the samples: inter-sample peaks over -1 dBTP slip through",
   },
 ];

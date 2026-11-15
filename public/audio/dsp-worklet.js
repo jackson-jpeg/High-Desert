@@ -1254,9 +1254,10 @@ class TruePeakDetector {
         const a = h[k] < 0 ? -h[k] : h[k];
         if (a > m) m = a;
       }
-      if (m * L1 < below) {
+      const bound = m * L1;
+      if (bound < below) {
         this.pos = (this.pos + 1) % TAPS_PER_PHASE;
-        return m * L1;
+        return bound;
       }
     }
     let peak = 0;
