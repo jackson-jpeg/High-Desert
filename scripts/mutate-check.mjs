@@ -10010,6 +10010,22 @@ export const MUTATIONS = [
     why: "a few seconds of digital silence (dead air decodes to exact zeros) must never stop a show",
   },
   {
+    id: "dsp-target-swing-level-clip-no-free-pass",
+    test: "src/audio/dsp/__tests__/dsp-targets.test.ts",
+    file: "src/audio/dsp/targets.ts",
+    find: "swing: tIn >= TARGETS.swingAppliesFromDb ? swingRatio <= TARGETS.swingRatio : tOut <= tIn,",
+    replace: "swing: tIn >= TARGETS.swingAppliesFromDb ? swingRatio <= TARGETS.swingRatio : true,",
+    why: "an already-level clip is held to adding no swing, not waved through",
+  },
+  {
+    id: "dsp-target-swing-halving-above-line",
+    test: "src/audio/dsp/__tests__/dsp-targets.test.ts",
+    file: "src/audio/dsp/targets.ts",
+    find: "swing: tIn >= TARGETS.swingAppliesFromDb ? swingRatio <= TARGETS.swingRatio : tOut <= tIn,",
+    replace: "swing: tOut <= tIn,",
+    why: "a clip with real talker swing must have it halved, not merely not increased",
+  },
+  {
     id: "processing-silent-source-heard",
     test: "src/audio/__tests__/processing.test.ts",
     file: "src/audio/processing.ts",

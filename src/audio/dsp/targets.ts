@@ -17,6 +17,13 @@ export const TARGETS = {
    * (docs/audio-processing/README.md, "Why talker swing").
    */
   swingRatio: 0.5,
+  /**
+   * ...on a clip whose talker swing is at least this (dB). Under it the clip
+   * is already level: the 1.3 to 1.5 dB left is phrasing within one talker,
+   * which no setting removed without pumping (README, "Already-level clips").
+   * There Level must not add swing: out at most in. Jackson, 2026-11-15.
+   */
+  swingAppliesFromDb: 3,
   /** Level: nothing above -1 dBTP. */
   truePeakDb: -1,
   /** Level: gain never moves faster than this, either way (dB/s). */
@@ -184,7 +191,7 @@ export function checkLevel(orig: Clip, out: Clip, trace: GainPoint[]): LevelChec
     maxFallRate: fall,
     maxPauseRise: pauseRise,
     pass: {
-      swing: swingRatio <= TARGETS.swingRatio,
+      swing: tIn >= TARGETS.swingAppliesFromDb ? swingRatio <= TARGETS.swingRatio : tOut <= tIn,
       peak: mo.truePeakDb <= TARGETS.truePeakDb,
       rate: rise <= TARGETS.maxGainRate && fall <= TARGETS.maxGainRate,
       pause: pauseRise <= TARGETS.maxPauseRiseDb,

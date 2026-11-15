@@ -3,7 +3,7 @@ import type { Clip } from "@/audio/dsp/metrics";
 import { measure } from "@/audio/dsp/metrics";
 import { render, original } from "@/audio/dsp/render";
 import { Chain } from "@/audio/dsp/chain";
-import { TARGETS, checkCleanup, humDrop, pauseLift, talkerSwing } from "@/audio/dsp/targets";
+import { TARGETS, checkCleanup, checkLevel, humDrop, pauseLift, talkerSwing } from "@/audio/dsp/targets";
 
 /**
  * The Phase 3 targets on synthetic programme, so they are held on every run
@@ -92,6 +92,21 @@ describe("Level", () => {
 
   it(`never goes over ${TARGETS.truePeakDb} dBTP`, () => {
     expect(measure(out).truePeakDb).toBeLessThanOrEqual(TARGETS.truePeakDb);
+  });
+
+  it(`adds no swing to a clip already level (under ${TARGETS.swingAppliesFromDb} dB in), and the check says which rule it used`, () => {
+    // One talker throughout, with phrase-to-phrase emphasis only.
+    const level = programme({ levelsDb: [-20, -21, -19.5, -20.5, -20, -19], segSec: 8, floorDb: -62 });
+    const o = original(level, PRE);
+    const l = render(level, { level: true, cleanup: false, preRollSec: PRE });
+    const inSw = talkerSwing(o);
+    expect(inSw).toBeLessThan(TARGETS.swingAppliesFromDb);
+    expect(talkerSwing(l)).toBeLessThanOrEqual(inSw);
+    expect(checkLevel(o, l, []).pass.swing).toBe(true);
+    // Not a free pass: an output with more swing than the level input fails.
+    expect(checkLevel(o, orig, []).pass.swing).toBe(false);
+    // And above the line the halving is the rule: the 12 dB clip, unprocessed, fails.
+    expect(checkLevel(orig, orig, []).pass.swing).toBe(false);
   });
 
   it(`does not breathe: the floor in a pause rises at most ${TARGETS.maxPauseRiseDb} dB`, () => {
