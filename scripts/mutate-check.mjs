@@ -10105,6 +10105,22 @@ export const MUTATIONS = [
     replace: "",
     why: "a detected hum line must be notched: hum peaks down at least 20 dB",
   },
+  {
+    id: "dsp-worklet-fresh",
+    test: "src/audio/dsp/__tests__/worklet-build.test.ts",
+    file: "src/audio/dsp/leveler.ts",
+    find: "export const TARGET_LUFS = -16;",
+    replace: "export const TARGET_LUFS = -15;",
+    why: "a DSP change not rebuilt into public/audio/dsp-worklet.js ships the old sound while the source's tests pass",
+  },
+  {
+    id: "dsp-route-refuses-unknown",
+    test: "src/app/api/stats/dsp/__tests__/route.test.ts",
+    file: "src/app/api/stats/dsp/route.ts",
+    find: "  if (!isDspEvent(event)) return NextResponse.json({ error: \"unknown event\" }, { status: 400 });",
+    replace: "",
+    why: "the counters take only the events the app sends; anything else is 400 and stored nowhere",
+  },
 ];
 
 /**
