@@ -152,6 +152,7 @@ export interface LevelCheck {
   swingRatio: number;
   stSwingIn: number;
   stSwingOut: number;
+  truePeakIn: number;
   truePeakOut: number;
   lufsIn: number;
   lufsOut: number;
@@ -184,6 +185,7 @@ export function checkLevel(orig: Clip, out: Clip, trace: GainPoint[]): LevelChec
     swingRatio,
     stSwingIn: mi.swing,
     stSwingOut: mo.swing,
+    truePeakIn: mi.truePeakDb,
     truePeakOut: mo.truePeakDb,
     lufsIn: mi.lufs,
     lufsOut: mo.lufs,
