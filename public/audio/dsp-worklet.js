@@ -260,6 +260,13 @@ const m_denoise = (() => {
  * It also computes the speech/music features (music.ts) from the spectra it
  * already has, so the music detector costs almost nothing.
  *
+ * Stereo is one gate, linked: both channels go through one complex FFT (left
+ * in the real part, right in the imaginary), the gain is decided on their
+ * average power, and the same gain is applied to both. A real gain keeps the
+ * packing intact, so one inverse FFT gives both channels back. Half the work
+ * of two gates, and the stereo image cannot wander as the gain moves. Mono
+ * (most of the archive, or two identical channels) uses the real part only.
+ *
  * Latency is exactly N samples, whatever the block size.
  */
 const { fft, hann } = m_fft;
@@ -282,8 +289,15 @@ class Denoiser {
           fs        ;
           win              ;
           inBuf              ;
+          inBufR              ;
           outBuf              ;
+          outBufR              ;
           outQ              ;
+          outQR              ;
+  /** Two channels, linked. Set once, when the channels first differ. */
+          stereo = false;
+  /** This frame's power per bin (average over the channels). */
+          pw = new Float64Array(BINS);
           cnt = 0;
           re = new Float64Array(N);
           im = new Float64Array(N);
@@ -293,6 +307,8 @@ class Denoiser {
           quietAge = 1e9;
           curMin = new Float64Array(BINS).fill(Infinity);
           subMins                 = Array.from({ length: SUB_U }, () => new Float64Array(BINS).fill(Infinity));
+  /** The minimum over every finished subwindow, kept as they rotate (not searched per frame). */
+          subMinAll = new Float64Array(BINS).fill(Infinity);
           subPos = 0;
           subCount = 0;
           prevClean = new Float64Array(BINS);
@@ -317,8 +333,11 @@ class Denoiser {
     const h = hann(N);
     this.win = h.map((v) => Math.sqrt(v));
     this.inBuf = new Float64Array(N);
+    this.inBufR = new Float64Array(N);
     this.outBuf = new Float64Array(N);
+    this.outBufR = new Float64Array(N);
     this.outQ = new Float64Array(HOP);
+    this.outQR = new Float64Array(HOP);
     this.floor = new Float64Array(BINS);
     const binHz = o.fs / N;
     for (let k = 0; k < BINS; k++) {
@@ -336,8 +355,11 @@ class Denoiser {
 
   reset()       {
     this.inBuf.fill(0);
+    this.inBufR.fill(0);
     this.outBuf.fill(0);
+    this.outBufR.fill(0);
     this.outQ.fill(0);
+    this.outQR.fill(0);
     this.cnt = 0;
     this.gain.fill(1);
     this.prevClean.fill(0);
@@ -354,36 +376,76 @@ class Denoiser {
     this.quietAge = 1e9;
     this.curMin.fill(Infinity);
     for (const s of this.subMins) s.fill(Infinity);
+    this.subMinAll.fill(Infinity);
     this.subCount = 0;
+    this.stereo = false;
     this.frames = 0;
     this.talk = 0;
   }
 
-  /** Process one channel in place (call once per sample block). */
-  process(x              , len        )       {
+  /**
+   * From now on, two channels. Until now they were identical, so the right
+   * channel's buffers start as copies of the left's: no seam.
+   */
+  goStereo()       {
+    if (this.stereo) return;
+    this.stereo = true;
+    this.inBufR.set(this.inBuf);
+    this.outBufR.set(this.outBuf);
+    this.outQR.set(this.outQ);
+  }
+
+  /** Process in place: `l` alone (mono), or `l` and `r` once goStereo() was called. */
+  process(l              , len        , r               )       {
+    const st = this.stereo && r !== undefined;
     for (let i = 0; i < len; i++) {
-      this.inBuf[N - HOP + this.cnt] = x[i];
-      x[i] = this.outQ[this.cnt];
+      const at = N - HOP + this.cnt;
+      this.inBuf[at] = l[i];
+      l[i] = this.outQ[this.cnt];
+      if (st) {
+        this.inBufR[at] = r [i];
+        r [i] = this.outQR[this.cnt];
+      }
       if (++this.cnt === HOP) {
         this.cnt = 0;
-        this.frame();
+        this.frame(st);
       }
     }
   }
 
-          frame()       {
-    const { re, im, win, P } = this;
-    for (let i = 0; i < N; i++) {
-      re[i] = this.inBuf[i] * win[i];
-      im[i] = 0;
+          frame(st         )       {
+    const { re, im, win, P, pw } = this;
+    if (st) {
+      for (let i = 0; i < N; i++) {
+        re[i] = this.inBuf[i] * win[i];
+        im[i] = this.inBufR[i] * win[i];
+      }
+    } else {
+      for (let i = 0; i < N; i++) {
+        re[i] = this.inBuf[i] * win[i];
+        im[i] = 0;
+      }
     }
     fft(re, im);
     this.frames++;
 
+    // Power per bin. Packed stereo: |L|^2 + |R|^2 = (|Z_k|^2 + |Z_N-k|^2) / 2,
+    // and the channel average is half that (equal to |L|^2 when L = R).
+    if (st) {
+      pw[0] = (re[0] * re[0] + im[0] * im[0]) / 2;
+      for (let k = 1; k < BINS; k++) {
+        const j = N - k;
+        pw[k] = (re[k] * re[k] + im[k] * im[k] + re[j] * re[j] + im[j] * im[j]) / 4;
+      }
+      pw[N / 2] = (re[N / 2] * re[N / 2] + im[N / 2] * im[N / 2]) / 2;
+    } else {
+      for (let k = 0; k < BINS; k++) pw[k] = re[k] * re[k] + im[k] * im[k];
+    }
+
     // Smoothed periodogram, minimum statistics, frame power.
     let power = 0;
     for (let k = 0; k < BINS; k++) {
-      const p = re[k] * re[k] + im[k] * im[k];
+      const p = pw[k];
       P[k] = this.frames === 1 ? p : 0.8 * P[k] + 0.2 * p;
       if (P[k] < this.curMin[k]) this.curMin[k] = P[k];
       if (k >= this.lo && k <= this.hi) power += p;
@@ -393,6 +455,12 @@ class Denoiser {
       this.subMins[this.subPos].set(this.curMin);
       this.subPos = (this.subPos + 1) % SUB_U;
       this.curMin.fill(Infinity);
+      const all = this.subMinAll;
+      all.set(this.subMins[0]);
+      for (let u = 1; u < SUB_U; u++) {
+        const sm = this.subMins[u];
+        for (let k = 0; k < BINS; k++) if (sm[k] < all[k]) all[k] = sm[k];
+      }
     }
 
     // The talking level: follows loud frames quickly, sinks slowly.
@@ -402,8 +470,7 @@ class Denoiser {
     this.quietAge = quiet ? 0 : this.quietAge + 1;
 
     for (let k = 0; k < BINS; k++) {
-      let m = this.curMin[k];
-      for (let u = 0; u < SUB_U; u++) if (this.subMins[u][k] < m) m = this.subMins[u][k];
+      const m = this.curMin[k] < this.subMinAll[k] ? this.curMin[k] : this.subMinAll[k];
       const ms = Number.isFinite(m) ? m * MS_BIAS : P[k];
       if (quiet) this.quietNoise[k] = this.quietNoise[k] > 0 ? 0.9 * this.quietNoise[k] + 0.1 * P[k] : P[k];
       // Quiet passages are the better teacher while they are recent (5 s).
@@ -415,7 +482,7 @@ class Denoiser {
     // Decision-directed Wiener gain.
     const g = this.gain;
     for (let k = 0; k < BINS; k++) {
-      const p = re[k] * re[k] + im[k] * im[k];
+      const p = pw[k];
       const n = this.noise[k] + 1e-20;
       const post = p / n;
       let xi = 0.98 * (this.prevClean[k] / n) + 0.02 * Math.max(post - 1, 0);
@@ -433,8 +500,7 @@ class Denoiser {
     let clean = 0;
     for (let k = 0; k < BINS; k++) {
       if (g[k] < this.floor[k]) g[k] = this.floor[k];
-      const p = re[k] * re[k] + im[k] * im[k];
-      this.prevClean[k] = g[k] * g[k] * p;
+      this.prevClean[k] = g[k] * g[k] * pw[k];
       if (k >= this.v0 && k <= this.v1) vg += g[k];
       if (k >= this.lo && k <= this.hi) clean += this.prevClean[k];
     }
@@ -446,17 +512,19 @@ class Denoiser {
     let peaks = 0;
     let kept = 0;
     for (let k = this.p0; k <= this.p1; k++) {
-      const pk = re[k] * re[k] + im[k] * im[k];
-      const pl = re[k - 1] * re[k - 1] + im[k - 1] * im[k - 1];
-      const pr = re[k + 1] * re[k + 1] + im[k + 1] * im[k + 1];
-      if (pk > pl && pk > pr && pk > 4 * this.noise[k]) {
+      const pk = pw[k];
+      if (pk > pw[k - 1] && pk > pw[k + 1] && pk > 4 * this.noise[k]) {
         ring[k] = 1;
         peaks++;
         if (old[k - 1] || old[k] || old[k + 1]) kept++;
       }
     }
     this.peakPos = (this.peakPos + 1) % PERSIST_FRAMES;
-    this.info = { power, cleanPower: clean, persistence: peaks >= 4 ? kept / peaks : -1, voiceGain: vg / (this.v1 - this.v0 + 1) };
+    const info = this.info;
+    info.power = power;
+    info.cleanPower = clean;
+    info.persistence = peaks >= 4 ? kept / peaks : -1;
+    info.voiceGain = vg / (this.v1 - this.v0 + 1);
     this.onFrame?.(this.info);
 
     // Apply (Hermitian: mirror the gain), invert, window, overlap-add.
@@ -470,12 +538,20 @@ class Denoiser {
     }
     for (let i = 0; i < N; i++) im[i] = -im[i];
     fft(re, im);
-    // ifft = conj(fft(conj)) / N; only the real part is needed.
+    // ifft = conj(fft(conj)) / N: the real part is the left (or only)
+    // channel, the imaginary part, negated, the right.
     const scale = 1 / N / 2; // and 1/2: sqrt-Hann squared overlaps to 2 at hop N/4
     for (let i = 0; i < N; i++) this.outBuf[i] += re[i] * scale * win[i];
     this.outQ.set(this.outBuf.subarray(0, HOP));
     this.outBuf.copyWithin(0, HOP);
     this.outBuf.fill(0, N - HOP);
+    if (st) {
+      for (let i = 0; i < N; i++) this.outBufR[i] -= im[i] * scale * win[i];
+      this.outQR.set(this.outBufR.subarray(0, HOP));
+      this.outBufR.copyWithin(0, HOP);
+      this.outBufR.fill(0, N - HOP);
+      this.inBufR.copyWithin(0, HOP);
+    }
     this.inBuf.copyWithin(0, HOP);
   }
 }
@@ -540,6 +616,11 @@ class HumRemover {
           aa          ;
           phase = 0;
           ring = new Float64Array(FFT);
+  /** Evaluation scratch, kept (no allocation on the audio thread). */
+          frame = new Float64Array(FFT);
+          spec = new Float64Array(FFT / 2 + 1);
+          fre = new Float64Array(FFT);
+          fim = new Float64Array(FFT);
           rpos = 0;
           sinceEval = 0;
           evalLen        ;
@@ -597,7 +678,7 @@ class HumRemover {
 
           evaluate()       {
     // The last FFT decimated samples, in order.
-    const frame = new Float64Array(FFT);
+    const frame = this.frame;
     let e = 0;
     for (let i = 0; i < FFT; i++) {
       const v = this.ring[(this.rpos + i) % FFT];
@@ -610,8 +691,9 @@ class HumRemover {
     const sorted = [...this.energies].sort((a, b) => a - b);
     const median = sorted[sorted.length >> 1];
     if (this.energies.length >= 4 && e > median) return; // only the quiet half teaches
-    const spec = new Float64Array(FFT / 2 + 1);
-    addPowerSpectrum(frame, 0, FFT, spec);
+    const spec = this.spec;
+    spec.fill(0);
+    addPowerSpectrum(frame, 0, FFT, spec, this.fre, this.fim);
     // A running average with a memory of about 12 quiet frames.
     const a = this.avgN < 12 ? 1 / ++this.avgN : 1 / 12;
     for (let k = 0; k < spec.length; k++) this.avg[k] += (spec[k] - this.avg[k]) * a;
@@ -703,7 +785,7 @@ class HumRemover {
 
   /** Notch every engaged line, channel by channel, in place. */
   process(ch                , len        )       {
-    for (const [k, l] of this.lines) {
+    for (const l of this.lines.values()) {
       for (let c = 0; c < ch.length && c < l.bp.length; c++) {
         const x = ch[c];
         const [b1, b2] = l.bp[c];
@@ -717,7 +799,7 @@ class HumRemover {
         }
         if (c === ch.length - 1 || c === l.bp.length - 1) l.depth = d;
       }
-      if (l.want === 0 && l.depth === 0) this.lines.delete(k);
+      if (l.want === 0 && l.depth === 0) this.lines.delete(l.k);
     }
   }
 }
@@ -831,10 +913,10 @@ const m_cleanup = (() => {
  * The output here is the *wet* signal, delayed by exactly `latency` samples.
  * The chain mixes it with the dry signal it delays by the same amount.
  *
- * Most of the archive is mono (or two identical channels). Then the gate,
- * the costly part, runs once and is copied; if the channels ever differ, the
- * right channel's gate is cloned from the left's at that instant (they were
- * identical until then) and both run from there on.
+ * Mono (or two identical channels) runs the gate, the costly part, on one
+ * channel and copies it. When the channels first differ the gate goes linked
+ * stereo (denoise.ts: one FFT for both, one gain for both), carrying on from
+ * where it was: they were identical until then.
  */
 const { Biquad, highPass } = m_biquad;
 const { DEFAULT_DENOISE, Denoiser, HOP, N } = m_denoise;
@@ -849,7 +931,7 @@ class Cleanup {
            fs        ;
           hpf            ;
            hum            ;
-          dn            ;
+          dn          ;
            music               ;
           stereo = false;
   /** HPF+hum signal, delayed N, per channel: the gate's dry. */
@@ -865,9 +947,9 @@ class Cleanup {
     // Butterworth 4th order = two sections, Q 0.5412 and 1.3066.
     this.hpf = [0, 1].map(() => [new Biquad(highPass(fs, HPF_HZ, 0.5412)), new Biquad(highPass(fs, HPF_HZ, 1.3066))]);
     this.hum = new HumRemover(fs, 2);
-    this.dn = [new Denoiser({ fs, ...DEFAULT_DENOISE }), new Denoiser({ fs, ...DEFAULT_DENOISE })];
+    this.dn = new Denoiser({ fs, ...DEFAULT_DENOISE });
     this.music = new MusicDetector(fs / HOP);
-    this.dn[0].onFrame = (f) => this.music.push(f.power);
+    this.dn.onFrame = (f) => this.music.push(f.power);
     this.aDelay = [new Float32Array(N), new Float32Array(N)];
     this.mono = new Float32Array(128);
   }
@@ -876,7 +958,7 @@ class Cleanup {
   resetAll()       {
     for (const s of this.hpf) for (const b of s) b.reset();
     this.hum.reset();
-    for (const d of this.dn) d.resetNoise();
+    this.dn.resetNoise();
     this.music.reset();
     this.stereo = false;
     for (const a of this.aDelay) a.fill(0);
@@ -886,7 +968,7 @@ class Cleanup {
   /** A seek: the signal jumps, but the show's hiss and hum are the same. */
   resetPosition()       {
     for (const s of this.hpf) for (const b of s) b.reset();
-    for (const d of this.dn) d.reset();
+    this.dn.reset();
     for (const a of this.aDelay) a.fill(0);
   }
 
@@ -897,7 +979,7 @@ class Cleanup {
       for (let i = 0; i < len; i++) {
         if (l[i] !== r[i]) {
           this.stereo = true;
-          this.cloneRight();
+          this.dn.goStereo();
           break;
         }
       }
@@ -926,9 +1008,11 @@ class Cleanup {
       this.aDelay[1][p] = r[i];
       this.apos = (p + 1) % N;
     }
-    this.dn[0].process(l, len);
-    if (this.stereo) this.dn[1].process(r, len);
-    else r.set(l.subarray(0, len));
+    if (this.stereo) this.dn.process(l, len, r);
+    else {
+      this.dn.process(l, len);
+      r.set(l.subarray(0, len));
+    }
 
     // Ease the gate off during music, smoothly across the block.
     const sc = this.music.score;
@@ -941,23 +1025,6 @@ class Cleanup {
     }
     this.gateMix = want;
   }
-
-          cloneRight()       {
-    this.dn[1] = cloneDenoiser(this.dn[0]);
-  }
-}
-
-/** A deep copy of a gate's whole state (typed arrays copied, the frame hook left out). */
-function cloneDenoiser(src          )           {
-  const d = Object.create(Object.getPrototypeOf(src))            ;
-  for (const [k, v] of Object.entries(src)) {
-    if (k === "onFrame") (d                                      )[k] = null;
-    else if (v instanceof Float64Array || v instanceof Float32Array) (d                                      )[k] = v.slice();
-    else if (Array.isArray(v)) (d                                      )[k] = v.map((x) => (x instanceof Float64Array ? x.slice() : x));
-    else if (v && typeof v === "object") (d                                      )[k] = { ...v };
-    else (d                                      )[k] = v;
-  }
-  return d;
 }
 return { HPF_HZ, MUSIC_EASE, Cleanup };
 })();
@@ -1156,6 +1223,8 @@ function design()                 {
 }
 
 const PH = design();
+/** The largest sum of |taps| of any phase: |reconstruction| <= this x max|sample| in the window. */
+const L1 = Math.max(...PH.map((ph) => ph.reduce((a, v) => a + Math.abs(v), 0)));
 
 /**
  * Streaming detector: feed samples one at a time, get the largest absolute
@@ -1169,9 +1238,27 @@ class TruePeakDetector {
     this.hist.fill(0);
     this.pos = 0;
   }
-  tick(x        )         {
+  /**
+   * `below`: a caller that only needs to know whether the peak reaches it
+   * (the limiter, with its ceiling). When the window's largest sample times
+   * L1 is under it, the reconstruction cannot reach it, and that bound is
+   * returned instead of the exact peak (still >= the sample, still < below):
+   * 12 comparisons instead of 48 multiplies, for nearly every sample.
+   */
+  tick(x        , below = Infinity)         {
     const h = this.hist;
     h[this.pos] = x;
+    if (below !== Infinity) {
+      let m = 0;
+      for (let k = 0; k < TAPS_PER_PHASE; k++) {
+        const a = h[k] < 0 ? -h[k] : h[k];
+        if (a > m) m = a;
+      }
+      if (m * L1 < below) {
+        this.pos = (this.pos + 1) % TAPS_PER_PHASE;
+        return m * L1;
+      }
+    }
     let peak = 0;
     for (let p = 0; p < PHASES; p++) {
       const ph = PH[p];
@@ -1283,7 +1370,7 @@ class Limiter {
       let pk = 0;
       for (let c = 0; c < C; c++) {
         const x = ch[c][i];
-        const a = this.det[c].tick(x);
+        const a = this.det[c].tick(x, this.ceiling);
         if (a > pk) pk = a;
         this.delay[c][this.dpos] = x;
       }
@@ -1697,9 +1784,11 @@ class Switch {
       }
     } else if (!on) this.want = false;
   }
-  /** Advance by n samples; return the mix at the start and end of the block. */
-  advance(n        )                   {
-    const m0 = this.mix;
+  /** The mix at the start of the block advance() just stepped (the end is `mix`). */
+  m0 = 0;
+  /** Advance by n samples (no allocation: read m0 and mix after). */
+  advance(n        )       {
+    this.m0 = this.mix;
     if (this.want) {
       if (this.warm > 0) this.warm = Math.max(0, this.warm - n);
       else this.mix = Math.min(1, this.mix + this.step * n);
@@ -1707,7 +1796,6 @@ class Switch {
       this.mix = Math.max(0, this.mix - this.step * n);
       if (this.mix === 0) this.running = false;
     }
-    return [m0, this.mix];
   }
   /** Ready to be heard immediately (the first show of a page with it on). */
   snapOn()       {
@@ -1816,7 +1904,9 @@ class Chain {
 
     // ── Clean up ──
     this.dCleanup.run(ch, dry, n);
-    const [c0, c1] = this.cSw.advance(n);
+    this.cSw.advance(n);
+    const c0 = this.cSw.m0;
+    const c1 = this.cSw.mix;
     if (this.cSw.running) {
       wet[0].set(ch[0].subarray(0, n));
       wet[1].set(ch[1].subarray(0, n));
@@ -1837,7 +1927,9 @@ class Chain {
     // then its gain comes in over LEVEL_RAMP_MS.
     if (!this.levelWant && this.levelAmount === 0) this.lSw.set(false);
     this.dLevel.run(ch, dry, n);
-    const [l0, l1] = this.lSw.advance(n);
+    this.lSw.advance(n);
+    const l0 = this.lSw.m0;
+    const l1 = this.lSw.mix;
     if (this.lSw.running) {
       if (this.levelWant && this.lSw.mix === 1) this.levelAmount = Math.min(1, this.levelAmount + this.levelStep * n);
       else if (!this.levelWant) this.levelAmount = Math.max(0, this.levelAmount - 2 * this.levelStep * n);

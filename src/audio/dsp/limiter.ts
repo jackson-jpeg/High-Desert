@@ -80,7 +80,7 @@ export class Limiter {
       let pk = 0;
       for (let c = 0; c < C; c++) {
         const x = ch[c][i];
-        const a = this.det[c].tick(x);
+        const a = this.det[c].tick(x, this.ceiling);
         if (a > pk) pk = a;
         this.delay[c][this.dpos] = x;
       }

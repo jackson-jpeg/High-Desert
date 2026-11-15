@@ -11,10 +11,10 @@
  * The output here is the *wet* signal, delayed by exactly `latency` samples.
  * The chain mixes it with the dry signal it delays by the same amount.
  *
- * Most of the archive is mono (or two identical channels). Then the gate,
- * the costly part, runs once and is copied; if the channels ever differ, the
- * right channel's gate is cloned from the left's at that instant (they were
- * identical until then) and both run from there on.
+ * Mono (or two identical channels) runs the gate, the costly part, on one
+ * channel and copies it. When the channels first differ the gate goes linked
+ * stereo (denoise.ts: one FFT for both, one gain for both), carrying on from
+ * where it was: they were identical until then.
  */
 import { Biquad, highPass } from "./biquad.ts";
 import { DEFAULT_DENOISE, Denoiser, HOP, N } from "./denoise.ts";
@@ -30,7 +30,7 @@ export class Cleanup {
   readonly fs: number;
   private hpf: Biquad[][];
   readonly hum: HumRemover;
-  private dn: Denoiser[];
+  private dn: Denoiser;
   readonly music: MusicDetector;
   private stereo = false;
   /** HPF+hum signal, delayed N, per channel: the gate's dry. */
@@ -46,9 +46,9 @@ export class Cleanup {
     // Butterworth 4th order = two sections, Q 0.5412 and 1.3066.
     this.hpf = [0, 1].map(() => [new Biquad(highPass(fs, HPF_HZ, 0.5412)), new Biquad(highPass(fs, HPF_HZ, 1.3066))]);
     this.hum = new HumRemover(fs, 2);
-    this.dn = [new Denoiser({ fs, ...DEFAULT_DENOISE }), new Denoiser({ fs, ...DEFAULT_DENOISE })];
+    this.dn = new Denoiser({ fs, ...DEFAULT_DENOISE });
     this.music = new MusicDetector(fs / HOP);
-    this.dn[0].onFrame = (f) => this.music.push(f.power);
+    this.dn.onFrame = (f) => this.music.push(f.power);
     this.aDelay = [new Float32Array(N), new Float32Array(N)];
     this.mono = new Float32Array(128);
   }
@@ -57,7 +57,7 @@ export class Cleanup {
   resetAll(): void {
     for (const s of this.hpf) for (const b of s) b.reset();
     this.hum.reset();
-    for (const d of this.dn) d.resetNoise();
+    this.dn.resetNoise();
     this.music.reset();
     this.stereo = false;
     for (const a of this.aDelay) a.fill(0);
@@ -67,7 +67,7 @@ export class Cleanup {
   /** A seek: the signal jumps, but the show's hiss and hum are the same. */
   resetPosition(): void {
     for (const s of this.hpf) for (const b of s) b.reset();
-    for (const d of this.dn) d.reset();
+    this.dn.reset();
     for (const a of this.aDelay) a.fill(0);
   }
 
@@ -78,7 +78,7 @@ export class Cleanup {
       for (let i = 0; i < len; i++) {
         if (l[i] !== r[i]) {
           this.stereo = true;
-          this.cloneRight();
+          this.dn.goStereo();
           break;
         }
       }
@@ -107,9 +107,11 @@ export class Cleanup {
       this.aDelay[1][p] = r[i];
       this.apos = (p + 1) % N;
     }
-    this.dn[0].process(l, len);
-    if (this.stereo) this.dn[1].process(r, len);
-    else r.set(l.subarray(0, len));
+    if (this.stereo) this.dn.process(l, len, r);
+    else {
+      this.dn.process(l, len);
+      r.set(l.subarray(0, len));
+    }
 
     // Ease the gate off during music, smoothly across the block.
     const sc = this.music.score;
@@ -122,21 +124,4 @@ export class Cleanup {
     }
     this.gateMix = want;
   }
-
-  private cloneRight(): void {
-    this.dn[1] = cloneDenoiser(this.dn[0]);
-  }
-}
-
-/** A deep copy of a gate's whole state (typed arrays copied, the frame hook left out). */
-function cloneDenoiser(src: Denoiser): Denoiser {
-  const d = Object.create(Object.getPrototypeOf(src)) as Denoiser;
-  for (const [k, v] of Object.entries(src)) {
-    if (k === "onFrame") (d as unknown as Record<string, unknown>)[k] = null;
-    else if (v instanceof Float64Array || v instanceof Float32Array) (d as unknown as Record<string, unknown>)[k] = v.slice();
-    else if (Array.isArray(v)) (d as unknown as Record<string, unknown>)[k] = v.map((x) => (x instanceof Float64Array ? x.slice() : x));
-    else if (v && typeof v === "object") (d as unknown as Record<string, unknown>)[k] = { ...v };
-    else (d as unknown as Record<string, unknown>)[k] = v;
-  }
-  return d;
 }

@@ -46,6 +46,8 @@ function design(): Float64Array[] {
 }
 
 const PH = design();
+/** The largest sum of |taps| of any phase: |reconstruction| <= this x max|sample| in the window. */
+const L1 = Math.max(...PH.map((ph) => ph.reduce((a, v) => a + Math.abs(v), 0)));
 
 /**
  * Streaming detector: feed samples one at a time, get the largest absolute
@@ -59,9 +61,27 @@ export class TruePeakDetector {
     this.hist.fill(0);
     this.pos = 0;
   }
-  tick(x: number): number {
+  /**
+   * `below`: a caller that only needs to know whether the peak reaches it
+   * (the limiter, with its ceiling). When the window's largest sample times
+   * L1 is under it, the reconstruction cannot reach it, and that bound is
+   * returned instead of the exact peak (still >= the sample, still < below):
+   * 12 comparisons instead of 48 multiplies, for nearly every sample.
+   */
+  tick(x: number, below = Infinity): number {
     const h = this.hist;
     h[this.pos] = x;
+    if (below !== Infinity) {
+      let m = 0;
+      for (let k = 0; k < TAPS_PER_PHASE; k++) {
+        const a = h[k] < 0 ? -h[k] : h[k];
+        if (a > m) m = a;
+      }
+      if (m * L1 < below) {
+        this.pos = (this.pos + 1) % TAPS_PER_PHASE;
+        return m * L1;
+      }
+    }
     let peak = 0;
     for (let p = 0; p < PHASES; p++) {
       const ph = PH[p];

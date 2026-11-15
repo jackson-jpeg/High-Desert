@@ -82,9 +82,11 @@ class Switch {
       }
     } else if (!on) this.want = false;
   }
-  /** Advance by n samples; return the mix at the start and end of the block. */
-  advance(n: number): [number, number] {
-    const m0 = this.mix;
+  /** The mix at the start of the block advance() just stepped (the end is `mix`). */
+  m0 = 0;
+  /** Advance by n samples (no allocation: read m0 and mix after). */
+  advance(n: number): void {
+    this.m0 = this.mix;
     if (this.want) {
       if (this.warm > 0) this.warm = Math.max(0, this.warm - n);
       else this.mix = Math.min(1, this.mix + this.step * n);
@@ -92,7 +94,6 @@ class Switch {
       this.mix = Math.max(0, this.mix - this.step * n);
       if (this.mix === 0) this.running = false;
     }
-    return [m0, this.mix];
   }
   /** Ready to be heard immediately (the first show of a page with it on). */
   snapOn(): void {
@@ -207,7 +208,9 @@ export class Chain {
 
     // ── Clean up ──
     this.dCleanup.run(ch, dry, n);
-    const [c0, c1] = this.cSw.advance(n);
+    this.cSw.advance(n);
+    const c0 = this.cSw.m0;
+    const c1 = this.cSw.mix;
     if (this.cSw.running) {
       wet[0].set(ch[0].subarray(0, n));
       wet[1].set(ch[1].subarray(0, n));
@@ -228,7 +231,9 @@ export class Chain {
     // then its gain comes in over LEVEL_RAMP_MS.
     if (!this.levelWant && this.levelAmount === 0) this.lSw.set(false);
     this.dLevel.run(ch, dry, n);
-    const [l0, l1] = this.lSw.advance(n);
+    this.lSw.advance(n);
+    const l0 = this.lSw.m0;
+    const l1 = this.lSw.mix;
     if (this.lSw.running) {
       if (this.levelWant && this.lSw.mix === 1) this.levelAmount = Math.min(1, this.levelAmount + this.levelStep * n);
       else if (!this.levelWant) this.levelAmount = Math.max(0, this.levelAmount - 2 * this.levelStep * n);

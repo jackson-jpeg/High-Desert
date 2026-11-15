@@ -69,6 +69,11 @@ export class HumRemover {
   private aa: Biquad[];
   private phase = 0;
   private ring = new Float64Array(FFT);
+  /** Evaluation scratch, kept (no allocation on the audio thread). */
+  private frame = new Float64Array(FFT);
+  private spec = new Float64Array(FFT / 2 + 1);
+  private fre = new Float64Array(FFT);
+  private fim = new Float64Array(FFT);
   private rpos = 0;
   private sinceEval = 0;
   private evalLen: number;
@@ -126,7 +131,7 @@ export class HumRemover {
 
   private evaluate(): void {
     // The last FFT decimated samples, in order.
-    const frame = new Float64Array(FFT);
+    const frame = this.frame;
     let e = 0;
     for (let i = 0; i < FFT; i++) {
       const v = this.ring[(this.rpos + i) % FFT];
@@ -139,8 +144,9 @@ export class HumRemover {
     const sorted = [...this.energies].sort((a, b) => a - b);
     const median = sorted[sorted.length >> 1];
     if (this.energies.length >= 4 && e > median) return; // only the quiet half teaches
-    const spec = new Float64Array(FFT / 2 + 1);
-    addPowerSpectrum(frame, 0, FFT, spec);
+    const spec = this.spec;
+    spec.fill(0);
+    addPowerSpectrum(frame, 0, FFT, spec, this.fre, this.fim);
     // A running average with a memory of about 12 quiet frames.
     const a = this.avgN < 12 ? 1 / ++this.avgN : 1 / 12;
     for (let k = 0; k < spec.length; k++) this.avg[k] += (spec[k] - this.avg[k]) * a;
@@ -232,7 +238,7 @@ export class HumRemover {
 
   /** Notch every engaged line, channel by channel, in place. */
   process(ch: Float32Array[], len: number): void {
-    for (const [k, l] of this.lines) {
+    for (const l of this.lines.values()) {
       for (let c = 0; c < ch.length && c < l.bp.length; c++) {
         const x = ch[c];
         const [b1, b2] = l.bp[c];
@@ -246,7 +252,7 @@ export class HumRemover {
         }
         if (c === ch.length - 1 || c === l.bp.length - 1) l.depth = d;
       }
-      if (l.want === 0 && l.depth === 0) this.lines.delete(k);
+      if (l.want === 0 && l.depth === 0) this.lines.delete(l.k);
     }
   }
 }

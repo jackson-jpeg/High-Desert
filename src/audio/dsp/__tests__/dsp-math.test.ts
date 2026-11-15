@@ -9,7 +9,7 @@ import { Denoiser, N as DN_N } from "../denoise.ts";
 import { fft, ifft } from "../fft.ts";
 import { Limiter } from "../limiter.ts";
 import { integrated, kBlocks, loudnessRange, measure } from "../metrics.ts";
-import { truePeakOf } from "../oversample.ts";
+import { TruePeakDetector, truePeakOf } from "../oversample.ts";
 
 const FS = 48000;
 function sine(freq: number, dbfs: number, sec: number, phase = 0, fs = FS): Float32Array {
@@ -134,6 +134,29 @@ describe("limiter", () => {
     const from = Math.round(FS * 0.43);
     const to = FS / 2 - 1000;
     expect(Math.abs(rmsDb(l, from + d, to + d) - rmsDb(keep, from, to))).toBeLessThan(0.1);
+  });
+});
+
+describe("limiter, between the samples", () => {
+  it("catches a peak no sample shows (a quarter-rate sine at 45 degrees: samples -3 dBFS, true peak 0 dBTP)", () => {
+    const lim = new Limiter({ fs: FS, channels: 2, ceilingDb: -1.3, lookaheadMs: 5, releaseMs: 80 });
+    const len = FS;
+    const l = new Float32Array(len);
+    for (let i = 0; i < len; i++) l[i] = Math.sin((Math.PI / 2) * i + Math.PI / 4);
+    const r = l.slice();
+    expect(Math.max(...l)).toBeLessThan(0.71); // every sample is under the ceiling
+    expect(truePeakOf(l)).toBeGreaterThan(-0.5); // the waveform is not
+    for (let i = 0; i < len; i += 128) lim.process([l.subarray(i, i + 128), r.subarray(i, i + 128)], Math.min(128, len - i));
+    // Measured inside the signal: truePeakOf pads the end with zeros, and a
+    // full-scale sine stopped dead rings in the reconstruction (that edge is
+    // the meter's, not the limiter's).
+    const d = new TruePeakDetector();
+    let peak = 0;
+    for (let i = 0; i < len; i++) {
+      const t = d.tick(l[i]);
+      if (i > FS / 10 && t > peak) peak = t;
+    }
+    expect(20 * Math.log10(peak)).toBeLessThanOrEqual(-1.0);
   });
 });
 

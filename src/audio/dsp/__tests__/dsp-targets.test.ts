@@ -209,4 +209,34 @@ describe("Clean up", () => {
     expect(c.floorDrop).toBeGreaterThanOrEqual(TARGETS.floorDropDb);
     expect(Math.abs(c.voiceBandDelta)).toBeLessThanOrEqual(TARGETS.voiceBandDb);
   });
+
+  it("stereo: one linked gate cleans both channels, and going stereo mid-stream leaves no seam", () => {
+    // Identical channels for 4 s (mono to the gate), then the right channel
+    // gets its own hiss: the gate goes stereo there.
+    const a = programme({ levelsDb: [-20, -20, -20], segSec: 6, floorDb: -48, seed: 7 }).ch[0];
+    const r0 = rng(99);
+    const b = Float32Array.from(a, (v, i) => (i < 4 * FS ? v : v + (r0() * 2 - 1) * db(-50) * Math.sqrt(3)));
+    const clip: Clip = { fs: FS, ch: [a, b] };
+    const orig = original(clip, PRE);
+    const out = render(clip, { level: false, cleanup: true, preRollSec: PRE });
+    for (const c of [0, 1]) {
+      const o1 = { fs: FS, ch: [orig.ch[c]] };
+      const y1 = { fs: FS, ch: [out.ch[c]] };
+      const k = checkCleanup(o1, y1, { hissy: true });
+      expect(k.floorDrop).toBeGreaterThanOrEqual(TARGETS.floorDropDb);
+      expect(Math.abs(k.voiceBandDelta)).toBeLessThanOrEqual(TARGETS.voiceBandDb);
+    }
+    // Around the switch (at 4 s of input) the right channel carries on: no
+    // sample-to-sample step bigger than the programme makes anywhere else.
+    const full = render(clip, { level: false, cleanup: true });
+    const y = full.ch[1];
+    const steps = (from: number, to: number) => {
+      let m = 0;
+      for (let i = from + 1; i < to; i++) m = Math.max(m, Math.abs(y[i] - y[i - 1]));
+      return m;
+    };
+    const atSwitch = steps(4 * FS - 2048, 4 * FS + 2048);
+    const elsewhere = steps(FS, 4 * FS - 4096);
+    expect(atSwitch).toBeLessThanOrEqual(elsewhere * 1.5);
+  });
 });

@@ -10121,6 +10121,14 @@ export const MUTATIONS = [
     replace: "",
     why: "the counters take only the events the app sends; anything else is 400 and stored nowhere",
   },
+  {
+    id: "dsp-truepeak-bound",
+    test: "src/audio/dsp/__tests__/dsp-math.test.ts",
+    file: "src/audio/dsp/oversample.ts",
+    find: "      if (m * L1 < below) {",
+    replace: "      if (m < below) {",
+    why: "the limiter's shortcut must bound the reconstruction, not the samples: inter-sample peaks over -1 dBTP slip through",
+  },
 ];
 
 /**
