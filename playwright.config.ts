@@ -65,7 +65,7 @@ export default defineConfig({
       ? [
           {
             name: "iphone",
-            testMatch: /(scroll-gestures|library-phone|live-phone|phone-lines-busy)\.spec\.ts$/,
+            testMatch: /(scroll-gestures|library-phone|live-phone|phone-lines-busy|dsp-render)\.spec\.ts$/,
             use: { ...devices["iPhone 13"], viewport: { width: 390, height: 844 } },
           },
         ]
