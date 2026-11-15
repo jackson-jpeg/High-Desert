@@ -2103,3 +2103,110 @@ html[data-look="win98"] .hd-view-switch-option[aria-pressed="true"] {
 html[data-look="win98"] [data-on-air="lit"] > span {
   color: var(--hd-ink);
 }
+
+/* ==========================================================
+   Level and Clean up (ProcessingSwitches, docs/audio-processing/README.md):
+   Winamp's DSP strip. Gray keys with a square LED that lights green, the
+   explanation in LCD green on black, as Winamp's readout named the button
+   under the mouse.
+   ========================================================== */
+html[data-look="win98"] .hd-dsp-win98 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+html[data-look="win98"] .hd-dsp-win98.hd-dsp-rows {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+html[data-look="win98"] .hd-dsp-win98 .hd-dsp-title {
+  color: var(--hd-w98-amp-text);
+  font-size: var(--hd-text-11);
+  letter-spacing: 1px;
+  padding-right: 2px;
+}
+
+html[data-look="win98"] .hd-dsp-win98 .hd-dsp-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 6px 0 4px;
+  font-size: var(--hd-text-11);
+  color: var(--hd-ink);
+  background: var(--hd-w98-face);
+  border: 2px solid;
+  border-color: var(--hd-chrome-lighter) var(--hd-ink) var(--hd-ink) var(--hd-chrome-lighter);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+html[data-look="win98"] .hd-dsp-win98 .hd-dsp-switch:active,
+html[data-look="win98"] .hd-dsp-win98 .hd-dsp-switch-on {
+  border-color: var(--hd-ink) var(--hd-chrome-lighter) var(--hd-chrome-lighter) var(--hd-ink);
+  box-shadow: inset 1px 1px 0 var(--hd-chrome-dark);
+}
+
+html[data-look="win98"] .hd-dsp-win98 .hd-dsp-switch-off {
+  color: var(--hd-chrome-dark);
+  cursor: default;
+}
+
+html[data-look="win98"] .hd-dsp-win98 .hd-dsp-led {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  background: var(--hd-w98-amp-lcd-dim);
+  border: 1px solid var(--hd-chrome-darker);
+}
+
+html[data-look="win98"] .hd-dsp-win98 .hd-dsp-switch-on .hd-dsp-led {
+  background: var(--hd-w98-amp-lcd);
+  box-shadow: 0 0 3px var(--hd-w98-amp-lcd);
+}
+
+html[data-look="win98"] .hd-dsp-win98 .hd-dsp-line,
+html[data-look="win98"] .hd-dsp-win98 .hd-dsp-reason {
+  flex: 1;
+  min-width: 0;
+  padding: 1px 6px;
+  color: var(--hd-w98-amp-lcd);
+  background: var(--hd-ink);
+  font-size: var(--hd-text-11);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+html[data-look="win98"] .hd-dsp-win98.hd-dsp-rows .hd-dsp-reason {
+  white-space: normal;
+}
+
+html[data-look="win98"] .hd-dsp-win98 .hd-dsp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+html[data-look="win98"] .hd-dsp-win98 .hd-dsp-explainer {
+  color: var(--hd-w98-amp-text);
+  font-size: var(--hd-text-12);
+}
+
+/* A phone: real touch targets. */
+@media (max-width: 767px) {
+  html[data-look="win98"] .hd-dsp-win98 .hd-dsp-switch {
+    min-height: 44px;
+    min-width: 112px;
+    padding: 0 10px;
+    font-size: var(--hd-text-14);
+  }
+  html[data-look="win98"] .hd-dsp-win98 .hd-dsp-led {
+    width: 9px;
+    height: 9px;
+  }
+}

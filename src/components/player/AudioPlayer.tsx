@@ -27,6 +27,7 @@ import { splitShowTitle } from "@/lib/live/format";
 import { retryWithPlaySurface } from "@/audio/play-surface";
 import { useLook } from "@/hooks/useLook";
 import { PlayerEmptyState } from "./PlayerEmptyState";
+import { ProcessingSwitches } from "./ProcessingSwitches";
 
 // Win98's Winamp window (docs/looks.md).
 import { WinampPlayer } from "@/components/looks/win98/WinampPlayer";
@@ -256,6 +257,8 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
               <ShareMomentButton className="text-hd-13 text-bevel-dark active:text-desktop-gray min-h-touch px-3 cursor-pointer" />
             </div>
 
+            <ProcessingSwitches look="night" layout="rows" />
+
             {/* Volume + extras */}
             <PlaybackControls
               onTogglePlay={togglePlay}
@@ -398,6 +401,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
             onNext={playNext}
             className="flex-shrink-0 w-[340px]"
           />
+          <ProcessingSwitches look="night" layout="strip" className="hd-dsp-compact flex-shrink-0" />
           <ShareMomentButton className="text-hd-11 text-bevel-dark hover:text-desktop-gray cursor-pointer ml-1 px-1.5 py-0.5 whitespace-nowrap" label="Share moment" />
           <button
             onClick={() => setShowQueue(!showQueue)}
@@ -480,6 +484,7 @@ export function AudioPlayer({ className }: AudioPlayerProps) {
           onPrevious={playPrevious}
           onNext={playNext}
         />
+        <ProcessingSwitches look="night" layout="strip" />
       </div>
       {showQueue && <QueuePanel />}
     </div>

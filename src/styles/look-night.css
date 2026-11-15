@@ -1093,3 +1093,116 @@ html[data-look="night"] {
     }
   }
 }
+
+/* ==========================================================
+   Level and Clean up (ProcessingSwitches, docs/audio-processing/README.md):
+   two quiet pills with an amber lamp, the explanation in the text ramp.
+   ========================================================== */
+html[data-look="night"] .hd-dsp-night {
+  display: flex;
+  align-items: center;
+  gap: var(--cl-2);
+  min-width: 0;
+}
+
+html[data-look="night"] .hd-dsp-night.hd-dsp-rows {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--cl-2);
+}
+
+html[data-look="night"] .hd-dsp-night .hd-dsp-title {
+  color: var(--hd-muted);
+  font-size: var(--hd-text-11);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+html[data-look="night"] .hd-dsp-night .hd-dsp-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cl-2);
+  min-height: 26px;
+  padding: 0 var(--cl-3) 0 var(--cl-2);
+  border: 1px solid var(--cl-line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--hd-muted);
+  font-size: var(--hd-text-12);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+html[data-look="night"] .hd-dsp-night .hd-dsp-switch:hover {
+  background: var(--cl-hover);
+}
+
+html[data-look="night"] .hd-dsp-night .hd-dsp-switch-on {
+  border-color: var(--cl-accent-line);
+  background: var(--cl-accent-soft);
+  color: var(--hd-chrome-light);
+}
+
+html[data-look="night"] .hd-dsp-night .hd-dsp-switch-off {
+  color: color-mix(in srgb, var(--hd-muted) 85%, transparent);
+  border-style: dashed;
+  cursor: default;
+}
+
+html[data-look="night"] .hd-dsp-night .hd-dsp-switch-off:hover {
+  background: transparent;
+}
+
+html[data-look="night"] .hd-dsp-night .hd-dsp-led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--cl-line-strong);
+}
+
+html[data-look="night"] .hd-dsp-night .hd-dsp-switch-on .hd-dsp-led {
+  background: var(--hd-amber);
+  box-shadow: 0 0 6px var(--hd-amber);
+}
+
+html[data-look="night"] .hd-dsp-night .hd-dsp-line,
+html[data-look="night"] .hd-dsp-night .hd-dsp-reason {
+  flex: 1;
+  min-width: 0;
+  color: color-mix(in srgb, var(--hd-muted) 85%, transparent);
+  font-size: var(--hd-text-11);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+html[data-look="night"] .hd-dsp-night.hd-dsp-rows .hd-dsp-reason {
+  white-space: normal;
+}
+
+html[data-look="night"] .hd-dsp-night .hd-dsp-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cl-3);
+}
+
+html[data-look="night"] .hd-dsp-night .hd-dsp-explainer {
+  color: var(--hd-muted);
+  font-size: var(--hd-text-12);
+}
+
+@media (max-width: 767px) {
+  html[data-look="night"] .hd-dsp-night .hd-dsp-switch {
+    min-height: 44px;
+    min-width: 116px;
+    font-size: var(--hd-text-14);
+  }
+}
+
+/* In the desktop bar the switches stand alone; the line returns on a wide screen. */
+html[data-look="night"] .hd-dsp-night.hd-dsp-compact .hd-dsp-title,
+html[data-look="night"] .hd-dsp-night.hd-dsp-compact .hd-dsp-line {
+  display: none;
+}

@@ -20,6 +20,7 @@ import { usePlayerStore } from "@/stores/player-store";
 import { useLiveStore } from "@/stores/live-store";
 import { positionOf } from "@/stores/progress-store";
 import { progressReady, startProgressSync } from "@/services/episodes/progress";
+import { startProcessing } from "@/audio/processing";
 import { recordHistory } from "@/services/episodes/history";
 import { useAdminStore } from "@/stores/admin-store";
 import { db, getPreference, setPreference } from "@/db";
@@ -401,6 +402,8 @@ export default function DesktopLayout({
   // Keep the in-memory progress mirror equal to the `progress` table, for the
   // life of the page. The player reads start positions from it synchronously.
   useEffect(() => startProgressSync(), []);
+  // Level and Clean up: decide availability, read the switches (docs/audio-processing/README.md).
+  useEffect(() => startProcessing(), []);
 
   // On mount, restore queue and silently load last-played episode into player
   useEffect(() => {

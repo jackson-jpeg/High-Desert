@@ -4,36 +4,32 @@
  * Audio plays natively through HTMLAudioElement — this survives iOS lock
  * screen, background tabs, and AudioContext suspension.
  *
- * For the oscilloscope visualization, we create an AudioContext and route
- * the media element through createMediaElementSource(). This gives us
- * real waveform data via an AnalyserNode. The audio is connected:
- *   mediaElement → source → analyser → destination
- * so playback continues normally through speakers.
- *
- * createMediaElementSource() can only be called ONCE per element, so we
- * guard with `elementConnected` and never tear down the graph.
+ * On desktop and Android the element is routed through Web Audio by
+ * src/audio/processing.ts, for Level and Clean up and for the visualizers'
+ * analyser: element → worklet → analyser → volume → speakers. That module
+ * owns the AudioContext; this one asks it for the analyser and hands it the
+ * volume. createMediaElementSource() can only be called once per element, so
+ * the graph is never torn down. On iOS nothing is routed (see levels.ts).
  */
 
-import { isIOSDevice } from "@/lib/utils/platform";
+import { processingAnalyser, resumeProcessing, setProcessingVolume } from "@/audio/processing";
 
 let mediaElement: HTMLAudioElement | null = null;
-let audioContext: AudioContext | null = null;
-let analyserNode: AnalyserNode | null = null;
-let elementConnected = false;
-/** Set once analyser setup has failed, so the frame loop stops retrying forever. */
-let analyserInitFailed = false;
 /**
  * A seek requested before the element knew its own timeline (readyState 0).
  * Applied on `loadedmetadata`. See seekEngine().
  */
 let pendingSeek: number | null = null;
 
+/**
+ * The analyser the visualizers read (desktop and Android), or null until the
+ * element is routed. Asking is what routes it when neither switch is on: the
+ * graph waits for a running context (a tap), never one created suspended in
+ * an animation frame, which is what left the meters flat on Safari.
+ */
 export function getAnalyserNode(): AnalyserNode | null {
-  // Lazy init: try when we don't have an analyser and audio is playing
-  if (!analyserNode && mediaElement?.src && !mediaElement.paused) {
-    tryInitAnalyser();
-  }
-  return analyserNode;
+  if (!mediaElement?.src) return null;
+  return processingAnalyser();
 }
 
 export function getMediaElement(): HTMLAudioElement | null {
@@ -75,17 +71,12 @@ export function initEngine(audio: HTMLAudioElement): void {
     fromTheTop(audio);
     audio.play().catch(() => {});
   });
-  // Reset connection flag only if we get a brand new element
-  if (!elementConnected) {
-    analyserNode = null;
-    audioContext = null;
-  }
 }
 
+/** The listener's volume: on the graph once routed (after the processing), else on the element. */
 export function setEngineVolume(volume: number): void {
-  if (mediaElement) {
-    mediaElement.volume = volume;
-  }
+  if (setProcessingVolume(volume)) return;
+  if (mediaElement) mediaElement.volume = volume;
 }
 
 // ── The one way to touch the element from outside the player hook ──
@@ -261,7 +252,7 @@ export function engineState(): EngineState | null {
   };
 }
 
-type EngineEvent = "waiting" | "playing" | "seeked" | "pause";
+type EngineEvent = "waiting" | "playing" | "seeked" | "pause" | "play" | "seeking" | "loadstart";
 const engineListeners = new Map<EngineEvent, Set<() => void>>();
 
 /**
@@ -280,55 +271,9 @@ export function onEngineEvent(type: EngineEvent, fn: () => void): () => void {
 }
 
 /**
- * Resume the analyser AudioContext (for oscilloscope).
- * Not required for audio playback — the element plays natively.
+ * Resume the processing AudioContext, if there is one and it needs it.
+ * Not required for audio playback while nothing is routed.
  */
 export function resumeContext(): Promise<void> {
-  if (audioContext?.state === "suspended") {
-    return audioContext.resume();
-  }
-  return Promise.resolve();
+  return resumeProcessing();
 }
-
-/**
- * Try to create an AnalyserNode for oscilloscope visualization.
- * Uses createMediaElementSource() to route audio through Web Audio API.
- * Can only be called once per media element.
- */
-function tryInitAnalyser(): void {
-  if (analyserNode || !mediaElement || elementConnected || analyserInitFailed) return;
-  // Never route through AudioContext on iOS — it kills background playback.
-  // The visualizers read the level tap there instead (src/audio/levels.ts).
-  if (isIOSDevice()) return;
-
-  try {
-    audioContext = new AudioContext();
-    const source = audioContext.createMediaElementSource(mediaElement);
-    analyserNode = audioContext.createAnalyser();
-    analyserNode.fftSize = 2048;
-    analyserNode.smoothingTimeConstant = 0.8;
-
-    source.connect(analyserNode);
-    analyserNode.connect(audioContext.destination); // MUST connect or no audio!
-    elementConnected = true;
-
-    // Resume in case created outside a user gesture
-    if (audioContext.state === "suspended") {
-      audioContext.resume().catch((err) => { console.warn("[engine] Failed to resume AudioContext:", err); });
-    }
-  } catch {
-    // createMediaElementSource not supported or CORS issue — that's fine,
-    // oscilloscope shows the idle breathing animation.
-    // Latch the failure: this is called from the animation frame loop, so without
-    // it we would construct a new AudioContext ~60x/sec until the browser's
-    // per-document limit is hit and the tab degrades.
-    analyserNode = null;
-    analyserInitFailed = true;
-    if (audioContext) {
-      audioContext.close().catch(() => {});
-      audioContext = null;
-    }
-  }
-}
-
-// cleanupAnalyser removed — createMediaElementSource graph is permanently bound

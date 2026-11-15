@@ -482,3 +482,20 @@ CREATE TABLE IF NOT EXISTS sponsor_daily (
   n       bigint NOT NULL DEFAULT 0,
   PRIMARY KEY (day, app, surface, event)
 );
+
+-- Level and Clean up, the in-browser audio processing (2026-11-15,
+-- docs/audio-processing/README.md): per UTC day, what happened, counted.
+-- Switches flipped (`level-on` ...), shows started with each on (`play-*`),
+-- and every fallback to plain playback (`unavailable-*`, `fallback-*`).
+-- Counters only: no session, no address, no id.
+CREATE TABLE IF NOT EXISTS dsp_daily (
+  day   date   NOT NULL,
+  event text   NOT NULL CHECK (event IN (
+    'level-on', 'level-off', 'cleanup-on', 'cleanup-off',
+    'play-level', 'play-cleanup', 'play-plain',
+    'unavailable-ios', 'unavailable-unsupported',
+    'fallback-load', 'fallback-worklet', 'fallback-stalled', 'fallback-silent'
+  )),
+  n     bigint NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, event)
+);

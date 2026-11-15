@@ -21,6 +21,7 @@ import { SleepTimer } from "@/components/player/SleepTimer";
 import { BookmarkMarkers } from "@/components/player/BookmarkMarkers";
 import { SeekRange, ProgressFill } from "@/components/player/PositionReadouts";
 import { ShareMomentButton } from "@/components/share/ShareMomentButton";
+import { ProcessingSwitches } from "@/components/player/ProcessingSwitches";
 import { ledTime, marqueeText, nextRate, streamReadout } from "./winamp";
 
 /**
@@ -388,6 +389,7 @@ export function WinampPlayer({ controls, className }: { controls: WinampControls
                 <BookmarkMarkers mode="button" variant="mobile" />
                 <ShareMomentButton className="hd-w98-amp-small" />
               </div>
+              <ProcessingSwitches look="win98" layout="rows" />
             </>
           )}
           {showQueue && (
@@ -474,7 +476,10 @@ export function WinampPlayer({ controls, className }: { controls: WinampControls
             {info}
           </div>
           <div className="px-[6px]">{seekBar}</div>
-          <div className="p-[6px] pt-[4px]">{transport(false)}</div>
+          <div className="p-[6px] pt-[4px] pb-[3px]">{transport(false)}</div>
+          <div className="px-[6px] pb-[6px]">
+            <ProcessingSwitches look="win98" layout="strip" />
+          </div>
         </div>
         <div className="hd-w98-amp-details w98-raised-dark bg-raised-surface flex-1 min-w-0 flex flex-col gap-1 p-2" data-testid="w98-amp-details">
           <div className="flex items-start gap-2 min-w-0">
