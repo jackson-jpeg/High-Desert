@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { backoffHours, parseEbur128, stationHashes, workOrder } from "../level-envelopes.mjs";
+import { YIELD_MS, backoffHours, parseEbur128, stationHashes, workOrder } from "../level-envelopes.mjs";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 /** The shape of ffmpeg 6.1's ebur128 frame log (framelog=verbose), abridged. */
 const LOG = `Input #0, mp3, from 'x.mp3':
@@ -66,5 +68,13 @@ describe("backoffHours", () => {
     expect(backoffHours(1)).toBe(2);
     expect(backoffHours(3)).toBe(8);
     expect(backoffHours(40)).toBe(168);
+  });
+});
+
+describe("sharing the heavy slot", () => {
+  it("leaves the slot for at least 10 s after every item, pinned or not", () => {
+    expect(YIELD_MS).toBeGreaterThanOrEqual(10_000);
+    const src = readFileSync(path.resolve(__dirname, "../level-envelopes.mjs"), "utf8");
+    expect(src).toMatch(/await sleep\(Math\.max\(YIELD_MS, /);
   });
 });

@@ -40,6 +40,12 @@ const UA = "HighDesert-level/1 (+https://highdesert.space)";
 const STALL_MS = 60_000;
 const RATE = Number(process.env.HD_ENVELOPE_RATE || 1_000_000);
 const ARCHIVE_GAP_MS = 3_000;
+/**
+ * Out of the heavy slot between items, so other projects' queued jobs get a
+ * turn: flock is not first come, first served, and a loop that retakes the
+ * slot at once starved a waiting vitest for 40 minutes (2026-11-16).
+ */
+export const YIELD_MS = 15_000;
 const MAX_BACKOFF_H = 24 * 7;
 
 function arg(name, fallback) {
@@ -281,7 +287,7 @@ async function main() {
       const r = dry ? { code: 0 } : await runChild(row.fileHash);
       if (r.code === 0) ok++;
       else failed++;
-      if (fromArchive) await sleep(ARCHIVE_GAP_MS);
+      await sleep(Math.max(YIELD_MS, fromArchive ? ARCHIVE_GAP_MS : 0));
     }
     const status = { at: new Date().toISOString(), version: ENVELOPE_VERSION, done: done.size + ok, ok, failed, left: todo.length - ok - failed, catalog: catalog.length };
     console.log(JSON.stringify(status));
