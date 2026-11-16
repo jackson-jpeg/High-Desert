@@ -33,6 +33,7 @@ import { expect, test, busEventName } from "./fixtures";
 import { chooseVu, expectMetersMove, FIXTURE, serveFixture } from "./tone-fixture";
 import { showOf } from "./fixture-audio";
 import { communityKey } from "../src/lib/utils/community-key";
+import { packEnvelope } from "../src/lib/audio/level-envelope";
 
 interface SeedRow {
   fileHash: string;
@@ -241,6 +242,34 @@ for (const look of ["win98", "night"] as const) {
     expect(await page.evaluate(() => localStorage.getItem("hd-dsp"))).toBe(JSON.stringify({ level: false, cleanup: true }));
   });
 }
+
+test("two-pass Level: a show with an envelope uses it, a show without one keeps the live leveler", async ({ page }) => {
+  test.setTimeout(120_000);
+  await wire(page);
+  const keyA = communityKey({ archiveIdentifier: SHOW_A.archiveIdentifier, fileName: SHOW_A.fileName })!;
+  const asked: string[] = [];
+  // +3 dB for 20 minutes for show A; show B has none yet (404, as the server says).
+  const body = Buffer.from(packEnvelope(new Int8Array(12_000).fill(12)));
+  await page.route(/\/api\/level\/envelope\?/, (route) => {
+    const key = new URL(route.request().url()).searchParams.get("key")!;
+    asked.push(key);
+    return key === keyA
+      ? route.fulfill({ status: 200, contentType: "application/octet-stream", body })
+      : route.fulfill({ status: 404, json: { error: "none" } });
+  });
+  await startShow(page, SHOW_A);
+  await openNowPlaying(page);
+  await expect(switches(page)).toHaveAttribute("data-level-source", "envelope", { timeout: 15_000 });
+  await expectProcessing(page, { level: true, cleanup: false }, "show A, envelope");
+  await expectPlaying(page, "show A, envelope");
+  expect(asked).toContain(keyA);
+
+  await playRow(page, SHOW_B.fileHash);
+  await expect.poll(async () => showOf((await element(page))?.src ?? ""), { timeout: 20_000 }).toBe(SHOW_B.fileHash);
+  await expect(switches(page)).toHaveAttribute("data-level-source", "live", { timeout: 15_000 });
+  await expectProcessing(page, { level: true, cleanup: false }, "show B, live leveler");
+  await expectPlaying(page, "show B, live leveler");
+});
 
 test("a source the browser refuses (no CORS) fails over to the mirror, and the mirror is processed", async ({ page }) => {
   test.setTimeout(90_000);
