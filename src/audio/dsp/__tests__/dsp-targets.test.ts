@@ -80,6 +80,14 @@ function programme(opts: { levelsDb: number[]; segSec: number; floorDb: number; 
 const PRE = 6;
 
 describe("talker swing is measured on talk only", () => {
+  it("a talker who pauses more in one stretch is not a quieter talker", () => {
+    // One talker at one level: 24 s of dense talk, then 24 s with long pauses.
+    const dense = programme({ levelsDb: [-20, -20, -20], segSec: 8, floorDb: -62 });
+    const sparse = programme({ levelsDb: [-20, -20, -20], segSec: 8, floorDb: -62, talkSec: 0.9, phraseSec: 3.2, seed: 2 });
+    const both: Clip = { fs: FS, ch: [Float32Array.from([...dense.ch[0], ...sparse.ch[0]])] };
+    expect(talkerSwing(both)).toBeLessThan(2);
+  });
+
   it("long pauses add no swing: a pause is not a quiet talker", () => {
     const levelsDb = [-20, -20, -20, -20, -20, -20];
     const dense = talkerSwing(programme({ levelsDb, segSec: 8, floorDb: -62 }));

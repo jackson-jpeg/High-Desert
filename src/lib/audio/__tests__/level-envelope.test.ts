@@ -82,6 +82,15 @@ describe("the gap after a talker (ours, after the prototype)", () => {
     expect(h[h.length - 1]).toBe(g[g.length - 1]);
   });
 
+  it("levelEnvelope holds the gain through a dip the late rise alone would climb through", () => {
+    // A loud talker, an 0.8 s dip that is still talk (within the 20 dB window), a quieter talker.
+    const L = [...new Array(60).fill(-10), ...new Array(8).fill(-25), ...new Array(60).fill(-20)];
+    const lateOnly = delayRises(gainEnvelope(L));
+    const d = levelEnvelope(L);
+    expect(lateOnly[64] - lateOnly[59]).toBeGreaterThan(1);
+    for (let i = 60; i <= 64; i++) expect(d[i]).toBeLessThanOrEqual(d[59] + 0.01);
+  });
+
   it("levelEnvelope holds the gain still through a short gap that the prototype rises across", () => {
     // A loud talker, a 0.5 s gap, a quieter one: too short to be a pause.
     const L = [...new Array(60).fill(-14), ...new Array(5).fill(-45), ...new Array(60).fill(-26)];

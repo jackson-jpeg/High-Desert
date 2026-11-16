@@ -6222,8 +6222,8 @@ export const MUTATIONS = [
     id: "live-bridge-never-pauses",
     test: "src/audio/__tests__/live-station.test.ts",
     file: "src/audio/engine.ts",
-    find: "  a.loop = false;\n  a.src = STATION_ID_URL;",
-    replace: "  a.pause();\n  a.loop = false;\n  a.src = STATION_ID_URL;",
+    find: "  a.loop = false;\n  bridgeQueue = spotUrl ? [STATION_ID_URL] : [];\n  a.src = spotUrl ?? STATION_ID_URL;",
+    replace: "  a.pause();\n  a.loop = false;\n  bridgeQueue = spotUrl ? [STATION_ID_URL] : [];\n  a.src = spotUrl ?? STATION_ID_URL;",
     why: "the element paused at the change of show: with the screen off the audio session lapsed and iOS refused the next play() (04:34:25)",
   },
   {
@@ -6909,9 +6909,9 @@ export const MUTATIONS = [
     id: "live-bridge-from-the-top",
     test: "src/audio/__tests__/live-station.test.ts",
     file: "src/audio/engine.ts",
-    find: `  a.src = STATION_ID_URL;
+    find: `  a.src = spotUrl ?? STATION_ID_URL;
   fromTheTop(a);`,
-    replace: `  a.src = STATION_ID_URL;`,
+    replace: `  a.src = spotUrl ?? STATION_ID_URL;`,
     why: "the station ID inherited a primed show's position, ended at once, and the next show never started",
   },
   {
@@ -10245,8 +10245,8 @@ export const MUTATIONS = [
     id: "processing-seek-waits-for-new-source",
     test: "src/audio/__tests__/processing.test.ts",
     file: "src/audio/processing.ts",
-    find: "    if (!pendingNewSource) post({ type: \"unduck\", newShow: false });",
-    replace: "    post({ type: \"unduck\", newShow: false });",
+    find: "    if (pendingNewSource) return;\n    updateEnvelope(true);\n    post({ type: \"unduck\", newShow: false });",
+    replace: "    updateEnvelope(true);\n    post({ type: \"unduck\", newShow: false });",
     why: "a restore seek before a new show plays would unduck the old show's state into it",
   },
   {
