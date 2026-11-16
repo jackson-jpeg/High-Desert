@@ -7,12 +7,17 @@
  * clips.json: [{ name, src, start?, dur?, preRoll?, kind: {hissy?, hummy?, music?} }]
  * `src` is a local file or a URL (decoded with ffmpeg; a URL is one Range read).
  * With --out, each version is written as <dir>/<name>-<version>.mp3.
+ * Level is two-pass by default: the envelope is computed from the clip with
+ * ENVELOPE_CONTEXT_SEC more after it (the server sees the whole file);
+ * `--live` scores the live leveler instead (the fallback).
  */
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { measure, type Clip } from "../../src/audio/dsp/metrics.ts";
 import { original, render } from "../../src/audio/dsp/render.ts";
 import { checkCleanup, checkLevel, type GainPoint } from "../../src/audio/dsp/targets.ts";
 import { decode, encode, probe } from "./lib/decode.ts";
+import { envelopeForClip } from "../../src/audio/dsp/envelope-offline.ts";
+import { LEVEL_EXTRAS } from "../../src/lib/audio/level-envelope.ts";
 
 interface ClipSpec {
   name: string;
@@ -28,6 +33,12 @@ const specFile = args[0];
 const outDir = args.includes("--out") ? args[args.indexOf("--out") + 1] : null;
 const jsonOut = args.includes("--json") ? args[args.indexOf("--json") + 1] : null;
 const only = args.includes("--only") ? args[args.indexOf("--only") + 1] : null;
+const live = args.includes("--live");
+const levelOnly = args.includes("--level-only");
+for (const [flag, k] of [["--rise-delay", "riseDelayS"], ["--dip-db", "dipDb"]] as const) {
+  if (args.includes(flag)) LEVEL_EXTRAS[k] = Number(args[args.indexOf(flag) + 1]);
+}
+const ENVELOPE_CONTEXT_SEC = 10;
 if (!specFile) throw new Error("usage: evaluate.ts <clips.json> [--out dir] [--json file] [--only name]");
 const specs: ClipSpec[] = JSON.parse(readFileSync(specFile, "utf8")).filter((s: ClipSpec) => !only || s.name.includes(only));
 if (outDir) mkdirSync(outDir, { recursive: true });
@@ -40,21 +51,32 @@ for (const s of specs) {
   const pr = await probe(s.src);
   const clip: Clip = await decode(s.src, Math.max(0, (s.start ?? 0) - pre), (s.dur ?? 60) + pre, pr.channels);
   const kind = s.kind ?? {};
+  const envelope = live
+    ? undefined
+    : envelopeForClip(await decode(s.src, Math.max(0, (s.start ?? 0) - pre), (s.dur ?? 60) + pre + ENVELOPE_CONTEXT_SEC, pr.channels));
   const t0 = performance.now();
   const trace: GainPoint[] = [];
   const lv = render(clip, {
     level: true,
     cleanup: false,
     preRollSec: pre,
+    envelope,
     onStatus: (t, st) => {
       if (t >= pre) trace.push({ t: t - pre, gainDb: st.level.gainDb, frozen: st.level.frozen });
     },
   });
   const tLevel = performance.now() - t0;
   const t1 = performance.now();
+  if (levelOnly) {
+    const L = checkLevel(original(clip, pre), lv, trace);
+    const ok = Object.values(L.pass).every(Boolean);
+    results.push({ name: s.name, level: L });
+    console.log(`${ok ? "PASS" : "FAIL"} ${s.name.padEnd(28)} | talk ${f(L.swingIn)}->${f(L.swingOut)} (${f(L.swingRatio, 2)}) TP ${f(L.truePeakOut)} rate +${f(L.maxRiseRate)}/-${f(L.maxFallRate)} pause +${f(L.maxPauseRise, 2)} LUFS ${f(L.lufsOut)}` + (ok ? "" : `  fails: ${Object.entries(L.pass).filter(([, v]) => !v).map(([k]) => k).join(",")}`));
+    continue;
+  }
   const cu = render(clip, { level: false, cleanup: true, preRollSec: pre });
   const tClean = performance.now() - t1;
-  const both = render(clip, { level: true, cleanup: true, preRollSec: pre });
+  const both = render(clip, { level: true, cleanup: true, preRollSec: pre, envelope });
   const orig = original(clip, pre);
   const L = checkLevel(orig, lv, trace);
   const C = checkCleanup(orig, cu, kind);

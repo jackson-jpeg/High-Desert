@@ -1449,8 +1449,10 @@ const MAX_CUT = 10;
  *   talkerChangeDb: the newest second of talk this far from the 3 s mean is
  *     a new talker, and becomes the estimate (slowEstimate)
  */
-const LEVEL_AGC = { riseTau: 1.0, riseCap: 6, fallTau: 0.3, fallCap: 30, momentaryHeadroom: 5, gateAbs: -60, gateBelow: 22, talkerChangeDb: 4, maxBoost: 12, activeBlocks: 30, talkerBlocks: 10, lookaheadMs: 200, onset: false, onsetRiseCap: 20, onsetRiseTau: 0.15, onsetBackMs: 1500, onsetGapHops: 8, onsetGateBelow: 18, onsetForward: false, onsetForwardHops: 20, onsetForwardStop: false, onsetWindowMs: Infinity, onsetDriftCap: 2 };
+const LEVEL_AGC = { riseTau: 1.0, riseCap: 6, fallTau: 0.3, fallCap: 30, momentaryHeadroom: 5, gateAbs: -60, gateBelow: 22, talkerChangeDb: 4 };
 const LOOKAHEAD_MS = 200;
+/** The handover between the live AGC and the envelope (setExternal). */
+const EXT_RAMP_MS = 300;
 const CEILING_DBTP = -1.3; // the promise is -1 dBTP; a little margin
 /**
  * The leveling compressor after the AGC (compressor.ts). The AGC sets each
@@ -1462,6 +1464,8 @@ const LEVEL_COMP = { thresholdDb: -30, ratio: 4, kneeDb: 10, attackMs: 20, relea
 const GAIN_SMOOTH_S = 0.02;
 
 const HOP_MS = 25;
+/** A talker change is judged on the newest second of talk (LEVEL_AGC.talkerChangeDb from the 3 s mean). */
+const TALKER_CHANGE_BLOCKS = 10;
 const BLOCK_MS = 100;
 
 const lufs = (ms        ) => (ms > 0 ? -0.691 + 10 * Math.log10(ms) : -Infinity);
@@ -1480,7 +1484,7 @@ class Leveler {
           blockAcc = 0;
           blockHops = 0;
   /** The last 30 active 100 ms blocks (3 s of speech). */
-          active = new Float64Array(LEVEL_AGC.activeBlocks);
+          active = new Float64Array(30);
           activeN = 0;
           activePos = 0;
           gainDb        ;
@@ -1499,26 +1503,23 @@ class Leveler {
            lim         ;
           cur              ;
   /**
-   * Onset mode: per-hop history (mean square, active) from onsetBackMs behind
-   * what is heard up to the detector's front, so the gain can be judged on
-   * the audio as heard and steered by the phrase coming up.
+   * Two-pass Level (src/lib/audio/level-envelope.ts): the gain comes from the
+   * show's envelope on a GainNode upstream, so the live AGC and the
+   * compressor step aside and only the limiter acts. `ext` is how far aside
+   * (0..1, ramped over EXT_RAMP_MS); `extDelay` holds a change back until the
+   * audio that had the new upstream gain reaches this stage.
    */
-          hist              ;
-          histAct            ;
-          histPos = 0;
-          histN = 0;
-          lookHops        ;
-  /** Onset mode: hops since what is heard became talk after a pause (Infinity in a pause). */
-          sinceOnset = Infinity;
-          heardWasActive = false;
-          pauseHops = 0;
-          sinceChange = Infinity;
+          ext = 0;
+          extWant = false;
+          extDelay = 0;
+          extStep        ;
+          pre                 = [new Float32Array(128), new Float32Array(128)];
 
   constructor(fs        , initialGainDb = 0) {
     this.fs = fs;
     this.kw = [0, 1].map(() => kWeighting(fs).map((c) => new Biquad(c)));
     this.hop = Math.round((HOP_MS / 1000) * fs);
-    this.look = Math.round((LEVEL_AGC.lookaheadMs / 1000) * fs);
+    this.look = Math.round((LOOKAHEAD_MS / 1000) * fs);
     this.dlen = this.look + 1;
     this.delay = [new Float32Array(this.dlen), new Float32Array(this.dlen)];
     this.gainDb = this.targetDb = clamp(initialGainDb);
@@ -1527,11 +1528,27 @@ class Leveler {
     this.smooth = 1 - Math.exp(-1 / (GAIN_SMOOTH_S * fs));
     this.lim = new Limiter({ fs, channels: 2, ceilingDb: CEILING_DBTP, lookaheadMs: 5, releaseMs: 80 });
     this.latency = this.look + this.lim.latency;
-    this.lookHops = Math.round(LEVEL_AGC.lookaheadMs / HOP_MS);
-    const H = this.lookHops + Math.max(Math.round(LEVEL_AGC.onsetBackMs / HOP_MS), 120) + 20;
-    this.hist = new Float64Array(H);
-    this.histAct = new Uint8Array(H);
+    this.extStep = 1 / ((EXT_RAMP_MS / 1000) * fs);
     this.cur = { gainDb: this.gainDb, targetDb: this.gainDb, frozen: false, activeLufs: -Infinity, momentaryLufs: -Infinity };
+  }
+
+  /**
+   * Hand the gain to the envelope upstream (true) or take it back (false).
+   * `afterSamples`: start the ramp once that much audio has passed (the
+   * stages before this one plus this one's lookahead); `now`: no ramp, for
+   * a moment the output is ducked anyway (a new show).
+   */
+  setExternal(on         , opts                                           = {})       {
+    this.extWant = on;
+    if (opts.now) {
+      this.ext = on ? 1 : 0;
+      this.extDelay = 0;
+    } else this.extDelay = Math.max(0, Math.round(opts.afterSamples ?? this.look));
+  }
+
+  /** How far the envelope has the gain (0..1). */
+  external()         {
+    return this.ext;
   }
 
   /** Forget the material (a seek, a new show) and start from `gainDb`. Never a blast: clamped. */
@@ -1543,10 +1560,6 @@ class Leveler {
     this.active.fill(0);
     this.activeN = 0;
     this.activePos = 0;
-    this.hist.fill(0);
-    this.histAct.fill(0);
-    this.histPos = 0;
-    this.histN = 0;
     this.hopAcc = 0;
     this.hopCount = 0;
     this.learned = 0;
@@ -1592,7 +1605,7 @@ class Leveler {
    * sentences went by quiet.
    */
           slowEstimate(La        )         {
-    const Lr = this.recentLufs(LEVEL_AGC.talkerBlocks);
+    const Lr = this.recentLufs(TALKER_CHANGE_BLOCKS);
     if (Lr > -Infinity && Math.abs(Lr - La) > LEVEL_AGC.talkerChangeDb) return Lr;
     return La;
   }
@@ -1621,10 +1634,6 @@ class Leveler {
       }
     }
     const La = this.activeLufs();
-    if (LEVEL_AGC.onset) {
-      this.controlOnset(hopMs, La, Lm);
-      return;
-    }
     // Frozen in a pause: when the momentary loudness is quiet, or as soon as
     // the latest 100 ms block is (the momentary window still holds the last
     // words for 400 ms, and the gain kept climbing into the gap).
@@ -1642,146 +1651,6 @@ class Leveler {
       let step = diff > 0 ? diff * (1 - Math.exp(-dt / riseTau)) : diff * (1 - Math.exp(-dt / LEVEL_AGC.fallTau));
       step = diff > 0 ? Math.min(step, riseCap * dt) : Math.max(step, -LEVEL_AGC.fallCap * dt);
       this.gainDb = clamp(this.gainDb + step);
-    }
-    this.cur = { gainDb: this.gainDb, targetDb: this.targetDb, frozen: this.frozen, activeLufs: La, momentaryLufs: Lm };
-  }
-
-  /** The k-th hop back from the detector's front (0 = newest). */
-          histAt(k        )         {
-    return this.hist[(this.histPos - 1 - k + this.hist.length * 2) % this.hist.length];
-  }
-          histActAt(k        )         {
-    return this.histAct[(this.histPos - 1 - k + this.hist.length * 2) % this.hist.length];
-  }
-
-  /**
-   * Onset mode. The engineer's way: the fader moves when someone starts
-   * talking, set for what they are about to say, and never in the silence
-   * before them. "Talking" is judged on the audio as heard (lookHops behind
-   * the detector); the level is the power mean of the talk coming up (the
-   * next lookahead), or with the last onsetBackMs when too little is coming.
-   * A hot caller still cuts at once from the detector (the fast path).
-   */
-          controlOnset(hopMs        , La        , Lm        )       {
-    const hopL = lufs(hopMs);
-    const act = hopL > LEVEL_AGC.gateAbs && (La === -Infinity || hopL > La - LEVEL_AGC.onsetGateBelow) ? 1 : 0;
-    this.hist[this.histPos] = hopMs;
-    this.histAct[this.histPos] = act;
-    this.histPos = (this.histPos + 1) % this.hist.length;
-    if (this.histN < this.hist.length) this.histN++;
-    const look = Math.min(this.lookHops, this.histN - 1);
-    // Heard now: the 100 ms (4 hops) ending at what is playing, and its 400 ms momentary.
-    let heardAct = 0;
-    let heardMs = 0;
-    let heardN = 0;
-    for (let k = look; k < Math.min(this.histN, look + 16); k++) {
-      if (k < look + 4) heardAct += this.histActAt(k);
-      heardMs += this.histAt(k);
-      heardN++;
-    }
-    const Lh = lufs(heardMs / Math.max(1, heardN));
-    const heardTalk = heardAct >= 4;
-    // A talker change is an onset too, pause or not (hiss can fill every
-    // gap): the last second heard this far under the two seconds before it.
-    let changed = false;
-    if (heardTalk && this.histN > look + 120 && this.sinceChange > 40) {
-      let a = 0, an = 0, b = 0, bn = 0;
-      for (let k = look; k < look + 40; k++) if (this.histActAt(k)) { a += this.histAt(k); an++; }
-      for (let k = look + 40; k < look + 120; k++) if (this.histActAt(k)) { b += this.histAt(k); bn++; }
-      if (an >= 20 && bn >= 40 && lufs(a / an) < lufs(b / bn) - LEVEL_AGC.talkerChangeDb) changed = true;
-    }
-    this.sinceChange = changed ? 0 : this.sinceChange + 1;
-    if (heardTalk && ((!this.heardWasActive && this.pauseHops >= LEVEL_AGC.onsetGapHops) || changed)) this.sinceOnset = 0;
-    else if (heardTalk) this.sinceOnset++;
-    this.pauseHops = heardTalk ? 0 : this.pauseHops + 1;
-    this.heardWasActive = heardTalk;
-    this.frozen = heardAct < 4 || !(Lh > LEVEL_AGC.gateAbs && (La === -Infinity || Lh > La - LEVEL_AGC.onsetGateBelow));
-    // The phrase being heard: its active run, gaps under onsetGapHops
-    // bridged, back to where it began (at most onsetBackMs) and forward to
-    // where it ends or the lookahead runs out. Never the next phrase: the
-    // gain set for the next talker belongs at their onset, not at the tail
-    // of this one.
-    let ph = 0;
-    let phN = 0;
-    const G = LEVEL_AGC.onsetGapHops;
-    for (let k = look, gap = 0; k >= 0 && gap <= G; k--) {
-      if (this.histActAt(k)) {
-        ph += this.histAt(k);
-        phN++;
-        gap = 0;
-      } else gap++;
-    }
-    const backEnd = Math.min(this.histN, look + 1 + Math.round(LEVEL_AGC.onsetBackMs / HOP_MS));
-    for (let k = look + 1, gap = 0; k < backEnd && gap <= G; k++) {
-      if (this.histActAt(k)) {
-        ph += this.histAt(k);
-        phN++;
-        gap = 0;
-      } else gap++;
-    }
-    let est = -Infinity;
-    if (LEVEL_AGC.onsetForward) {
-      // Forward window: the talk coming up in the lookahead when there is
-      // enough of it, else with what was heard in the last onsetBackMs.
-      // It stops at the first pause of onsetGapHops (with onsetForwardStop):
-      // the next phrase's level belongs at its own onset.
-      let fwd = 0;
-      let fwdN = 0;
-      const stop = LEVEL_AGC.onsetForwardStop;
-      for (let k = look, gap = 0; k >= 0 && (!stop || gap <= G); k--) {
-        if (this.histActAt(k)) {
-          fwd += this.histAt(k);
-          fwdN++;
-          gap = 0;
-        } else gap++;
-      }
-      if (stop && fwdN < LEVEL_AGC.onsetForwardHops && phN >= 8) est = lufs(ph / phN);
-      else if (fwdN >= LEVEL_AGC.onsetForwardHops) est = lufs(fwd / fwdN);
-      else {
-        let all = fwd;
-        let allN = fwdN;
-        const back = Math.min(this.histN, look + 1 + Math.round(LEVEL_AGC.onsetBackMs / HOP_MS));
-        for (let k = look + 1; k < back; k++)
-          if (this.histActAt(k)) {
-            all += this.histAt(k);
-            allN++;
-          }
-        if (allN >= 8) est = lufs(all / allN);
-        else if (La > -Infinity) est = La;
-      }
-    } else if (phN >= 8) est = lufs(ph / phN);
-    else if (La > -Infinity) est = La;
-    const dt = HOP_MS / 1000;
-    // The hot-caller cut, judged where it will be heard: the loudest 400 ms
-    // momentary from what is playing to 200 ms ahead of it (the plain AGC's
-    // own lookahead). From the detector's front it cut a lookahead early and
-    // recovered while the caller was still being heard.
-    let Lf = -Infinity;
-    for (let k = Math.max(0, look - 8); k <= look; k++) {
-      let m = 0;
-      let mN = 0;
-      for (let j = k; j < Math.min(this.histN, k + 16); j++) {
-        m += this.histAt(j);
-        mN++;
-      }
-      if (mN) Lf = Math.max(Lf, lufs(m / mN));
-    }
-    const fast = TARGET_LUFS + LEVEL_AGC.momentaryHeadroom - Lf;
-    if (est > -Infinity) {
-      this.targetDb = clamp(Math.min(TARGET_LUFS - est, fast));
-      const diff = this.targetDb - this.gainDb;
-      if (diff < 0) {
-        // Down: at once for a hot caller (even in the pause before them), else with the talk.
-        if (fast < this.gainDb || !this.frozen) this.gainDb = clamp(this.gainDb + Math.max(diff * (1 - Math.exp(-dt / LEVEL_AGC.fallTau)), -LEVEL_AGC.fallCap * dt));
-      } else if (!this.frozen) {
-        // Up only where a phrase starts (the first onsetWindowMs of talk
-        // after a pause), else a slow drift: rising on a phrase's soft last
-        // words carries the gain into the pause after it.
-        const atOnset = this.sinceOnset * HOP_MS < LEVEL_AGC.onsetWindowMs;
-        const cap = atOnset ? LEVEL_AGC.onsetRiseCap : LEVEL_AGC.onsetDriftCap;
-        const step = Math.min(diff * (1 - Math.exp(-dt / LEVEL_AGC.onsetRiseTau)), cap * dt);
-        this.gainDb = clamp(this.gainDb + step);
-      }
     }
     this.cur = { gainDb: this.gainDb, targetDb: this.targetDb, frozen: this.frozen, activeLufs: La, momentaryLufs: Lm };
   }
@@ -1820,6 +1689,13 @@ class Leveler {
     const [l, r] = ch;
     const kL = this.kw[0];
     const kR = this.kw[1];
+    // External (envelope) handover: held for extDelay, then ramped per block.
+    const e0 = this.ext;
+    if (this.extDelay > 0) this.extDelay = Math.max(0, this.extDelay - len);
+    else if (this.extWant && this.ext < 1) this.ext = Math.min(1, this.ext + this.extStep * len);
+    else if (!this.extWant && this.ext > 0) this.ext = Math.max(0, this.ext - this.extStep * len);
+    const e1 = this.ext;
+    const agcShare = 1 - Math.max(e0, e1);
     let i = 0;
     while (i < len) {
       const n = Math.min(len - i, this.hop - this.hopCount);
@@ -1834,7 +1710,7 @@ class Leveler {
       this.hopCount += n;
       // Audio side: delay by the lookahead, the gain smoothed per sample
       // (a one-pole on the linear gain), so a control step never zippers.
-      const target = Math.pow(10, (this.gainDb * amount) / 20);
+      const target = Math.pow(10, (this.gainDb * amount * agcShare) / 20);
       const a = this.smooth;
       let g = this.lastGain;
       for (let j = i; j < i + n; j++) {
@@ -1854,15 +1730,27 @@ class Leveler {
         this.hopCount = 0;
       }
     }
-    this.comp.process(ch, len);
+    if (e0 === 0 && e1 === 0) this.comp.process(ch, len);
+    else if (e0 < 1 || e1 < 1) {
+      // Crossfade the compressor out (or in) across the handover.
+      if (this.pre[0].length < len) this.pre = [new Float32Array(len), new Float32Array(len)];
+      this.pre[0].set(l.subarray(0, len));
+      this.pre[1].set(r.subarray(0, len));
+      this.comp.process(ch, len);
+      for (let j = 0; j < len; j++) {
+        const m = e0 + ((e1 - e0) * (j + 1)) / len;
+        l[j] += m * (this.pre[0][j] - l[j]);
+        r[j] += m * (this.pre[1][j] - r[j]);
+      }
+    }
     this.lim.process(ch, len);
   }
 }
 
 function clamp(db        )         {
-  return Math.max(-MAX_CUT, Math.min(LEVEL_AGC.maxBoost, db));
+  return Math.max(-MAX_CUT, Math.min(MAX_BOOST, db));
 }
-return { TARGET_LUFS, MAX_BOOST, MAX_CUT, LEVEL_AGC, LOOKAHEAD_MS, CEILING_DBTP, LEVEL_COMP, Leveler };
+return { TARGET_LUFS, MAX_BOOST, MAX_CUT, LEVEL_AGC, LOOKAHEAD_MS, EXT_RAMP_MS, CEILING_DBTP, LEVEL_COMP, Leveler };
 })();
 
 // ── src/audio/dsp/chain.ts ──
@@ -2020,6 +1908,16 @@ class Chain {
   setCleanup(on         )       {
     this.cSw.set(on);
   }
+  /**
+   * Two-pass Level: the show's envelope drives a GainNode before this chain,
+   * so Level's AGC and compressor step aside (the limiter stays). Timed to
+   * the audio: the change starts when the audio that had the new upstream
+   * gain reaches the AGC, after Clean up's latency and Level's lookahead.
+   */
+  setExternal(on         , now = false)       {
+    this.level.setExternal(on, now ? { now: true } : { afterSamples: this.cleanup.latency + this.level.latency - this.level.lim.latency });
+  }
+
   /** Both off and fully faded: nothing but delay lines are running. */
   idle()          {
     return !this.cSw.running && !this.lSw.running && !this.cSw.want && !this.levelWant;
@@ -2052,7 +1950,7 @@ class Chain {
     const ls = this.level.state();
     const hum = this.cleanup.hum.status();
     return {
-      level: { ...ls, on: this.levelWant, mix: this.lSw.mix, compGrDb: this.level.comp.gainReductionDb, limGainDb: 20 * Math.log10(this.level.lim.minGain) },
+      level: { ...ls, on: this.levelWant, mix: this.lSw.mix, compGrDb: this.level.comp.gainReductionDb, limGainDb: 20 * Math.log10(this.level.lim.minGain), external: this.level.external() },
       cleanup: { on: this.cSw.want, mix: this.cSw.mix, music: this.cleanup.music.score, humFamily: hum.family, humLines: hum.lines.filter((l) => l.depth > 0.5).length },
       ducked: this.duckGain < 1,
     };
@@ -2144,6 +2042,7 @@ const m_worklet = (() => {
  *   { type: "set", level, cleanup }           the listener's switches
  *   { type: "duck" }                           a seek or a new source is coming
  *   { type: "unduck", newShow, startGainDb }   it has arrived
+ *   { type: "envelope", on, now }              two-pass Level has (or no longer has) the gain
  * Messages out:
  *   { type: "ready", latency }                 once, at construction
  *   { type: "status", blocks, inPeak, idle, ...ChainStatus }  every ~250 ms
@@ -2173,6 +2072,7 @@ class DspProcessor extends AudioWorkletProcessor {
         this.chain.setLevel(!!m.level);
         this.chain.setCleanup(!!m.cleanup);
       } else if (m?.type === "duck") this.chain.duck();
+      else if (m?.type === "envelope") this.chain.setExternal(!!m.on, !!m.now);
       else if (m?.type === "unduck") this.chain.unduck({ newShow: !!m.newShow, startGainDb: typeof m.startGainDb === "number" ? m.startGainDb : undefined });
     };
     this.port.postMessage({ type: "ready", latency: this.chain.latency });

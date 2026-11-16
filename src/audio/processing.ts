@@ -3,8 +3,14 @@
  * one AudioContext, the graph the player's element is routed through, and
  * everything that keeps it from ever playing silence.
  *
- *   element ─ source ─┬─ worklet (Clean up, Level) ─ wet ─┐
- *                     └─ delay (the worklet's latency) ─ dry ┴─ analyser ─ volume ─ speakers
+ *   element ─ source ─┬─ envelope gain ─ worklet (Clean up, Level) ─ wet ─┐
+ *                     └─ delay (the worklet's latency) ─ dry ───────────────┴─ analyser ─ volume ─ speakers
+ *
+ * - Two-pass Level: the envelope gain is the show's precomputed gain curve
+ *   (src/audio/level-envelope-driver.ts), scheduled against the element's
+ *   position; with it, the worklet's live AGC and compressor step aside and
+ *   only its limiter acts. A show with no envelope yet gets the live
+ *   leveler, and the envelope takes over (over 0.3 s) when it arrives.
  *
  * - The worklet carries the sound; the dry path is the same audio, delayed by
  *   exactly the worklet's latency, at zero gain. If the worklet fails, the
@@ -48,6 +54,9 @@ import { notCounted } from "@/services/stats/not-counted";
 import { usePlayerStore } from "@/stores/player-store";
 import { useProcessingStore, type DspAvailability } from "@/stores/processing-store";
 import { toast } from "@/stores/toast-store";
+import { communityKey } from "@/lib/utils/community-key";
+import { gainAt } from "@/lib/audio/level-envelope";
+import { envelopeIfLoaded, HANDOVER_SEC, loadEnvelope, rampTo, scheduleEnvelope } from "@/audio/level-envelope-driver";
 
 export const WORKLET_PATH = "/audio/dsp-worklet.js";
 export const PROCESSOR_NAME = "hd-dsp";
@@ -79,6 +88,8 @@ interface Graph {
   analyser: AnalyserNode;
   volume: GainNode;
   node: AudioWorkletNode | null;
+  /** Two-pass Level's gain, before the worklet. */
+  env: GainNode | null;
   wet: GainNode | null;
   dry: GainNode | null;
   delay: DelayNode | null;
@@ -263,7 +274,7 @@ function route(el: HTMLMediaElement, midPlay: boolean): void {
     volume.gain.value = volumeLevel;
     analyser.connect(volume);
     volume.connect(c.destination);
-    const g: Graph = { source, analyser, volume, node: null, wet: null, dry: null, delay: null };
+    const g: Graph = { source, analyser, volume, node: null, env: null, wet: null, dry: null, delay: null };
     if (moduleState === "ready") {
       const s = useProcessingStore.getState();
       const node = new AudioWorkletNode(c, PROCESSOR_NAME, {
@@ -279,7 +290,9 @@ function route(el: HTMLMediaElement, midPlay: boolean): void {
       const dry = c.createGain();
       dry.gain.value = 0;
       const delay = c.createDelay(1);
-      source.connect(node);
+      const env = c.createGain();
+      source.connect(env);
+      env.connect(node);
       node.connect(wet);
       wet.connect(analyser);
       source.connect(delay);
@@ -287,7 +300,7 @@ function route(el: HTMLMediaElement, midPlay: boolean): void {
       dry.connect(analyser);
       node.port.onmessage = (e: MessageEvent) => onWorkletMessage(e.data, delay, c.sampleRate);
       node.onprocessorerror = () => toDry("fallback-worklet");
-      Object.assign(g, { node, wet, dry, delay });
+      Object.assign(g, { node, env, wet, dry, delay });
       lastStatusAt = performance.now();
       if (midPlay) {
         // The element's own output was just faded out; the worklet comes in
@@ -307,6 +320,8 @@ function route(el: HTMLMediaElement, midPlay: boolean): void {
     graph = g;
     lastShowKey = showKey();
     installElementEvents();
+    fetchEnvelope();
+    updateEnvelope(!midPlay);
     if (!watch) watch = setInterval(liveness, LIVENESS_MS);
   } catch {
     // createMediaElementSource refused (already taken, or not allowed): the
@@ -339,6 +354,8 @@ function onWorkletMessage(m: { type?: string; latency?: number; inPeak?: number;
       music: m.cleanup.music,
       humLines: m.cleanup.humLines,
       cleanupMix: m.cleanup.mix,
+      levelSource: envActive ? "envelope" : "live",
+      ...(envActive ? { gainDb: envGainDb } : {}),
     });
   }
 }
@@ -388,6 +405,64 @@ function liveness(): void {
   if (graph.node && !onDry && now - lastStatusAt > WORKLET_QUIET_MS) toDry("fallback-worklet");
 }
 
+// ── Two-pass Level: the envelope gain ──
+
+let envActive = false;
+let envGainDb = 0;
+/** Context time until which a handover ramp runs, untouched by the schedule. */
+let handoverUntil = 0;
+
+/** The community key of the show on the element, or null (a local file, the station's bridge). */
+function episodeKey(): string | null {
+  if (isBridging()) return null;
+  const ep = usePlayerStore.getState().currentEpisode;
+  return ep ? communityKey(ep) : null;
+}
+
+/** Ask for the current show's envelope (once; cached), then apply it. */
+function fetchEnvelope(): void {
+  const key = episodeKey();
+  if (!key || !useProcessingStore.getState().level) return;
+  void loadEnvelope(key).then(() => {
+    if (episodeKey() === key) updateEnvelope();
+  });
+}
+
+/**
+ * Bring the envelope gain in line: on with the show's envelope while Level is
+ * on and the worklet carries the sound, off (unity) otherwise. `now`: the
+ * output is ducked (a new show arriving), so switch without a ramp.
+ */
+function updateEnvelope(now = false): void {
+  if (!graph?.env || !ctx) return;
+  const el = getMediaElement();
+  const param = graph.env.gain;
+  const t = ctx.currentTime;
+  const env = useProcessingStore.getState().level && !onDry ? envelopeIfLoaded(episodeKey()) : null;
+  const want = !!env && !!el;
+  // Nothing is heard while the element is paused: switch at once then.
+  if (el && !audible(el)) now = true;
+  if (want !== envActive) {
+    envActive = want;
+    post({ type: "envelope", on: want, now });
+    if (!now) {
+      envGainDb = want ? gainAt(env!, el!.currentTime + HANDOVER_SEC) : 0;
+      rampTo(param, envGainDb, t);
+      handoverUntil = t + HANDOVER_SEC;
+      return;
+    }
+    handoverUntil = 0;
+    if (!want) {
+      param.cancelScheduledValues(t);
+      param.setValueAtTime(1, t);
+      envGainDb = 0;
+      return;
+    }
+  }
+  if (!want || t < handoverUntil) return;
+  envGainDb = scheduleEnvelope(param, env!, { now: t, pos: el!.currentTime, rate: el!.playbackRate, playing: audible(el!) });
+}
+
 // ── Seeks and new sources: duck, then unduck ──
 
 function showKey(): string {
@@ -405,21 +480,29 @@ function installElementEvents(): void {
   if (eventsInstalled) return;
   eventsInstalled = true;
   onEngineEvent("seeking", () => post({ type: "duck" }));
+  for (const type of ["timeupdate", "ratechange", "pause", "play"] as const) onEngineEvent(type, () => updateEnvelope());
   onEngineEvent("seeked", () => {
-    if (!pendingNewSource) post({ type: "unduck", newShow: false });
+    if (pendingNewSource) return;
+    updateEnvelope(true);
+    post({ type: "unduck", newShow: false });
   });
   onEngineEvent("loadstart", () => {
     pendingNewSource = true;
     heardSource = false;
     silentFrom = null;
     post({ type: "duck" });
+    fetchEnvelope();
   });
   onEngineEvent("playing", () => {
-    if (!pendingNewSource) return;
+    if (!pendingNewSource) {
+      updateEnvelope();
+      return;
+    }
     pendingNewSource = false;
     const key = showKey();
     const newShow = key !== lastShowKey;
     lastShowKey = key;
+    updateEnvelope(true);
     post({ type: "unduck", newShow, startGainDb: START_GAIN_DB });
     if (newShow && key !== "bridge") countPlay();
   });
@@ -483,6 +566,10 @@ export function startProcessing(): void {
     if (s.level !== prev.level || s.cleanup !== prev.cleanup) {
       post({ type: "set", level: s.level, cleanup: s.cleanup });
       if (s.level || s.cleanup) maybeRoute();
+      if (s.level !== prev.level) {
+        fetchEnvelope();
+        updateEnvelope();
+      }
     }
   });
   if (switchesOn()) ensureContext();
@@ -502,4 +589,7 @@ export function __resetProcessingForTests(): void {
   lastShowKey = null;
   watch = null;
   volumeLevel = 1;
+  envActive = false;
+  envGainDb = 0;
+  handoverUntil = 0;
 }

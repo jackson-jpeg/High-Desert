@@ -12,12 +12,20 @@
  */
 import { Chain } from "./chain.ts";
 import type { Clip } from "./metrics.ts";
+import type { Envelope } from "../../lib/audio/level-envelope.ts";
 
 export interface RenderOpts {
   level: boolean;
   cleanup: boolean;
   startGainDb?: number;
   preRollSec?: number;
+  /**
+   * Two-pass Level: the show's envelope, applied as the browser's GainNode
+   * does (linear in gain between its points, before the chain), with the
+   * chain's AGC and compressor aside. Time 0 of the envelope is sample 0 of
+   * the clip (pre-roll included). The status trace reports its gain.
+   */
+  envelope?: Envelope;
   /** Called once per 25 ms with the chain's status (for gain traces). */
   onStatus?: (t: number, s: ReturnType<Chain["status"]>) => void;
 }
@@ -26,6 +34,17 @@ export function render(c: Clip, o: RenderOpts): Clip {
   const src = c.ch.length === 1 ? [c.ch[0], c.ch[0]] : c.ch;
   const len = src[0].length;
   const chain = new Chain(c.fs, { level: o.level, cleanup: o.cleanup, startGainDb: o.startGainDb ?? 0 });
+  const env = o.level ? o.envelope : undefined;
+  if (env) chain.setExternal(true, true);
+  const envLin = (t: number) => {
+    const g = env!.gainDb;
+    const x = (t - env!.offsetSec) / env!.hopSec;
+    if (!(x > 0)) return Math.pow(10, g[0] / 20);
+    const k = Math.floor(x);
+    if (k >= g.length - 1) return Math.pow(10, g[g.length - 1] / 20);
+    const a = Math.pow(10, g[k] / 20);
+    return a + (Math.pow(10, g[k + 1] / 20) - a) * (x - k);
+  };
   const L = chain.latency;
   const out = [new Float32Array(len + L), new Float32Array(len + L)];
   const B = 128;
@@ -37,11 +56,20 @@ export function render(c: Clip, o: RenderOpts): Clip {
     for (let ch = 0; ch < 2; ch++) {
       for (let j = 0; j < n; j++) blk[ch][j] = i + j < len ? src[ch][i + j] : 0;
     }
+    if (env) {
+      for (let j = 0; j < n; j++) {
+        const g = envLin((i + j) / c.fs);
+        blk[0][j] *= g;
+        blk[1][j] *= g;
+      }
+    }
     chain.process(blk, n);
     out[0].set(blk[0].subarray(0, n), i);
     out[1].set(blk[1].subarray(0, n), i);
     if (o.onStatus && i >= nextStatus) {
-      o.onStatus((i - L) / c.fs, chain.status());
+      const st = chain.status();
+      if (env) st.level.gainDb = 20 * Math.log10(envLin(Math.max(0, i - L) / c.fs));
+      o.onStatus((i - L) / c.fs, st);
       nextStatus += statusEvery;
     }
   }

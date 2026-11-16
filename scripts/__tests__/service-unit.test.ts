@@ -58,6 +58,31 @@ describe("highdesert-verify-live.service (the station's nightly pre-air walk)", 
   });
 });
 
+describe("highdesert-level-envelopes.service (two-pass Level's envelopes)", () => {
+  const u = readFileSync(path.resolve(__dirname, "../../deploy/highdesert-level-envelopes.service"), "utf8");
+  const d = (name: string) => u.split("\n").filter((l) => l.startsWith(`${name}=`)).map((l) => l.slice(name.length + 1).trim());
+
+  it("keeps to the 10% rule: niced, idle IO, a quota of at most 10%", () => {
+    expect(d("Nice")).toEqual(["19"]);
+    expect(d("IOSchedulingClass")).toEqual(["idle"]);
+    expect(Number(d("CPUQuota")[0]?.replace("%", ""))).toBeLessThanOrEqual(10);
+  });
+
+  it("can reach heavy (on PATH, /run writable for its lock), with a time budget and a status file", () => {
+    expect(d("Environment")).toContain("PATH=/usr/local/bin:/usr/bin:/bin");
+    expect(d("ReadWritePaths")).toContain("/run");
+    expect(d("ExecStart")[0]).toMatch(/level-envelopes\.mjs --budget-min \d+/);
+    expect(d("Environment")).toContain("HD_ENVELOPE_STATUS=/var/lib/highdesert-level-envelopes/status.json");
+    expect(d("EnvironmentFile")).toEqual(["/root/.high-desert.env"]);
+  });
+
+  it("can write nothing in the tree or the mirror: the audio is never stored", () => {
+    expect(d("ProtectSystem")).toEqual(["strict"]);
+    expect(d("ProtectHome")).toEqual(["read-only"]);
+    expect(d("ReadWritePaths")).toEqual(["/run"]);
+  });
+});
+
 describe("highdesert-mutations.service and .timer (the weekly full mutation run)", () => {
   const read = (f: string) => readFileSync(path.resolve(__dirname, "../../deploy", f), "utf8");
   const u = read("highdesert-mutations.service");

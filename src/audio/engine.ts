@@ -252,7 +252,7 @@ export function engineState(): EngineState | null {
   };
 }
 
-type EngineEvent = "waiting" | "playing" | "seeked" | "pause" | "play" | "seeking" | "loadstart";
+type EngineEvent = "waiting" | "playing" | "seeked" | "pause" | "play" | "seeking" | "loadstart" | "timeupdate" | "ratechange";
 const engineListeners = new Map<EngineEvent, Set<() => void>>();
 
 /**

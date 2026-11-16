@@ -1,0 +1,12 @@
+[Unit]
+Description=High Desert, two-pass Level envelopes, every hour
+
+[Timer]
+# Each run works for up to 50 minutes: today's and tomorrow's station first,
+# then the most played, then the rest of the catalog in the background.
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

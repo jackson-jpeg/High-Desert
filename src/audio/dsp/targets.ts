@@ -5,13 +5,14 @@
  * target means one thing everywhere. If one fails, fix the DSP: never the
  * number here.
  */
-import { type Clip, kBlocks, measure, monoOf } from "./metrics.ts";
+import { type Clip, kBlocks, measure, momentarySeries, monoOf } from "./metrics.ts";
+import { percentile } from "../../lib/audio/level-envelope.ts";
 import { addPowerSpectrum, fft } from "./fft.ts";
 
 export const TARGETS = {
   /**
-   * Level: the talker swing (talkerSwing(): P95 - P5 of each 3 s window's
-   * loudness over its speech, pauses excluded) at most half the original's.
+   * Level: the talker swing (talkerSwing(): P90 - P10 of each 3 s window's
+   * loudness over its talk frames alone) at most half the original's.
    * Plain short-term swing is reported beside it: its pause component cannot
    * be reduced without raising the pauses, which is breathing
    * (docs/audio-processing/README.md, "Why talker swing").
@@ -44,35 +45,40 @@ export const TARGETS = {
   musicBandDb: 1.5,
 } as const;
 
-const lufsOf = (ms: number) => (ms > 0 ? -0.691 + 10 * Math.log10(ms) : -Infinity);
-
 /**
- * Talker swing: for each 3 s window (hop 100 ms), the loudness of its 100 ms
- * blocks within 10 LU of the clip's gated loudness (BS.1770's own relative
- * gate, applied per window), when at least half the window is speech; then
- * P95 - P5 over the windows. How far the talking level wanders, which is
- * what Level is for, without the pauses between phrases.
+ * Talker swing, on talk only (`talk_swing` in Jackson's metrics.py,
+ * 2026-11-16; his decision, docs/audio-processing/README.md "Why talk-only
+ * swing"): momentary loudness every 100 ms; talk is a frame of `ref` within
+ * 20 dB of its 95th percentile and above -60; each 3 s window (hop 0.5 s)
+ * with at least 1.2 s of talk is the energy mean of its talk frames alone;
+ * then P90 - P10 over the windows. The 3 s windows of the earlier measure
+ * included the pauses, so a choppy talker read as a quiet one, and halving
+ * that meant raising the pauses, which the pause target forbids.
+ *
+ * `ref` locates the talk (the original), so a render is measured over the
+ * same moments as its source.
  */
-export function talkerSwing(c: Clip): number {
-  const b = kBlocks(c);
-  const abs = Array.from(b).filter((v) => lufsOf(v) > -70);
-  if (!abs.length) return 0;
-  const rel = lufsOf(abs.reduce((a, x) => a + x, 0) / abs.length) - 10;
+export function talkerSwing(c: Clip, ref: Clip = c): number {
+  const Lx = momentarySeries(kBlocks(c));
+  const Lr = momentarySeries(kBlocks(ref));
+  const n = Math.min(Lx.length, Lr.length);
+  if (n < 31) return 0;
+  const top = percentile(Lr.subarray(0, n), 95);
+  const talk = new Uint8Array(n);
+  for (let i = 0; i < n; i++) talk[i] = Lr[i] > top - 20 && Lr[i] > -60 ? 1 : 0;
   const vals: number[] = [];
-  for (let i = 0; i + 30 <= b.length; i++) {
+  for (let i = 0; i < n - 30; i += 5) {
     let s = 0;
-    let n = 0;
+    let k = 0;
     for (let j = i; j < i + 30; j++) {
-      if (lufsOf(b[j]) > rel) {
-        s += b[j];
-        n++;
-      }
+      if (!talk[j]) continue;
+      s += Math.pow(10, Lx[j] / 10);
+      k++;
     }
-    if (n >= 15) vals.push(lufsOf(s / n));
+    if (k >= 12) vals.push(10 * Math.log10(s / k));
   }
-  if (vals.length < 2) return 0;
-  vals.sort((x, y) => x - y);
-  return vals[Math.round(0.95 * (vals.length - 1))] - vals[Math.round(0.05 * (vals.length - 1))];
+  if (!vals.length) return 0;
+  return percentile(vals, 90) - percentile(vals, 10);
 }
 
 /**
@@ -176,7 +182,7 @@ export function checkLevel(orig: Clip, out: Clip, trace: GainPoint[]): LevelChec
     if (-r > fall) fall = -r;
   }
   const tIn = talkerSwing(orig);
-  const tOut = talkerSwing(out);
+  const tOut = talkerSwing(out, orig);
   const swingRatio = tIn > 0 ? tOut / tIn : 0;
   const pauseRise = pauseLift(orig, out);
   return {

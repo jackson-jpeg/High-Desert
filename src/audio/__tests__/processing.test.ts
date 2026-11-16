@@ -13,7 +13,10 @@ import { makeMediaElement, setReadyState } from "@/hooks/__tests__/support/mount
  * - every failure lands on plain sound or a pause with a message, never
  *   silence: module load fails, processor error, quiet worklet, stalled
  *   context, a source that is silent for good;
- * - seeks and new shows duck and unduck the worklet.
+ * - seeks and new shows duck and unduck the worklet;
+ * - two-pass Level: a show with an envelope drives the envelope gain from
+ *   the element's position and the worklet's AGC steps aside; a show without
+ *   one keeps the live leveler.
  *
  * Each test loads fresh modules: processing.ts keeps one context per page.
  */
@@ -35,11 +38,22 @@ let gains: Record<string, FakeGain>;
 
 class FakeParam {
   value: number;
+  calls: [string, number, number?][] = [];
   constructor(v: number) {
     this.value = v;
   }
   setTargetAtTime(v: number) {
     this.value = v;
+  }
+  cancelScheduledValues(t: number) {
+    this.calls.push(["cancel", t]);
+  }
+  setValueAtTime(v: number, t: number) {
+    this.value = v;
+    this.calls.push(["set", v, t]);
+  }
+  linearRampToValueAtTime(v: number, t: number) {
+    this.calls.push(["ramp", v, t]);
   }
 }
 class FakeNode {
@@ -93,8 +107,8 @@ class FakeContext {
     return new FakeAnalyser("analyser");
   }
   createGain() {
-    // In route(): volume first, then wet, then dry.
-    const g = new FakeGain(["volume", "wet", "dry"][this.gains++] ?? "gain");
+    // In route(): volume first, then wet, dry, and the envelope gain.
+    const g = new FakeGain(["volume", "wet", "dry", "env"][this.gains++] ?? "gain");
     gains[g.name] = g;
     return g;
   }
@@ -123,6 +137,9 @@ class FakeWorkletNode extends FakeNode {
 }
 
 const fetches: string[] = [];
+/** Envelope responses by community key (absent: 404, no envelope yet). */
+let envelopes: Record<string, Uint8Array>;
+const envelopeGets: string[] = [];
 
 async function load() {
   vi.resetModules();
@@ -157,6 +174,8 @@ beforeEach(() => {
   lastDelay = null;
   gains = {};
   fetches.length = 0;
+  envelopes = {};
+  envelopeGets.length = 0;
   localStorage.clear();
   sessionStorage.clear();
   vi.useFakeTimers();
@@ -164,8 +183,14 @@ beforeEach(() => {
   vi.stubGlobal("AudioWorkletNode", FakeWorkletNode);
   vi.stubGlobal(
     "fetch",
-    vi.fn((_u: string, init: { body: string }) => {
-      fetches.push(JSON.parse(init.body).event);
+    vi.fn((u: string, init?: { body: string }) => {
+      if (u.startsWith("/api/level/envelope")) {
+        const key = decodeURIComponent(u.split("key=")[1]);
+        envelopeGets.push(key);
+        const body = envelopes[key];
+        return Promise.resolve(body ? new Response(body.slice()) : new Response("{}", { status: 404 }));
+      }
+      fetches.push(JSON.parse(init!.body).event);
       return Promise.resolve(new Response("{}"));
     }),
   );
@@ -222,7 +247,8 @@ describe("routing", () => {
     expect(sourcesMade).toBe(1);
     expect(edges).toEqual(
       expect.arrayContaining([
-        ["source", "worklet"],
+        ["source", "env"],
+        ["env", "worklet"],
         ["worklet", "wet"],
         ["wet", "analyser"],
         ["source", "delay"],
@@ -437,5 +463,93 @@ describe("seeks and new shows", () => {
     el.dispatchEvent(new Event("playing"));
     expect(w.posted).toEqual([{ type: "duck" }, { type: "unduck", newShow: true, startGainDb: processing.START_GAIN_DB }]);
     expect(fetches).toContain("play-level");
+  });
+});
+
+describe("two-pass Level", () => {
+  // 0 dB, then +2, +4 ... at 0.2, 0.3, 0.4 ... s (int8, 0.25 dB steps)
+  const KEY = "x--a";
+  const episode = { fileHash: "archive:x:a.mp3", archiveIdentifier: "x", fileName: "a.mp3" } as never;
+  const lin = (db: number) => Math.pow(10, db / 20);
+
+  async function routed(withEnvelope: boolean) {
+    const { packEnvelope } = await import("@/lib/audio/level-envelope");
+    if (withEnvelope) envelopes[KEY] = packEnvelope(Int8Array.from({ length: 600 }, (_, i) => Math.min(48, i * 8)));
+    const t = await load();
+    t.player.setState({ currentEpisode: episode });
+    t.processing.startProcessing();
+    addModule!.resolve();
+    await flush();
+    // The envelope's body is read through Response.arrayBuffer: a few ticks.
+    for (let i = 0; i < 3; i++) await vi.advanceTimersByTimeAsync(0);
+    await flush();
+    return t;
+  }
+
+  it("a show with an envelope: fetched, the worklet's AGC steps aside, the gain follows the element", async () => {
+    const { el } = await routed(true);
+    expect(envelopeGets).toEqual([KEY]);
+    expect(nodes[0].posted).toContainEqual({ type: "envelope", on: true, now: true });
+    playing(el);
+    el.currentTime = 0.4;
+    ctxs[0].currentTime = 5;
+    const p = gains.env.gain;
+    p.calls.length = 0;
+    el.dispatchEvent(new Event("timeupdate"));
+    // The gain at 0.4 s is +4 dB, set now; then a ramp per later point.
+    expect(p.calls[0]).toEqual(["cancel", 5]);
+    expect(p.calls[1][1]).toBeCloseTo(lin(4), 9);
+    const ramps = p.calls.filter((c) => c[0] === "ramp");
+    expect(ramps[0][1]).toBeCloseTo(lin(6), 9);
+    expect(ramps[0][2]).toBeCloseTo(5.1, 9);
+  });
+
+  it("the meter says which: envelope", async () => {
+    const { store } = await routed(true);
+    nodes[0].say({ type: "status", inPeak: 0.1, level: { gainDb: 3, mix: 1 }, cleanup: { mix: 0, music: 0, humLines: 0 } });
+    expect(store.getState().meter?.levelSource).toBe("envelope");
+  });
+
+  it("a show with no envelope yet: the live leveler, nothing scheduled", async () => {
+    const { el, store } = await routed(false);
+    expect(envelopeGets).toEqual([KEY]);
+    expect(nodes[0].posted).not.toContainEqual(expect.objectContaining({ type: "envelope" }));
+    playing(el);
+    el.dispatchEvent(new Event("timeupdate"));
+    expect(gains.env.gain.calls).toEqual([]);
+    expect(gains.env.gain.value).toBe(1);
+    nodes[0].say({ type: "status", inPeak: 0.1, level: { gainDb: 3, mix: 1 }, cleanup: { mix: 0, music: 0, humLines: 0 } });
+    expect(store.getState().meter?.levelSource).toBe("live");
+  });
+
+  it("a seek lays the schedule again from the new position", async () => {
+    const { el } = await routed(true);
+    playing(el);
+    el.currentTime = 2.2; // frame 20: +40 dB, clamped by the int8 data at +12
+    const p = gains.env.gain;
+    p.calls.length = 0;
+    el.dispatchEvent(new Event("seeking"));
+    el.dispatchEvent(new Event("seeked"));
+    expect(p.calls[1][1]).toBeCloseTo(lin(12), 9);
+  });
+
+  it("Level switched off: the worklet takes the gain back and the envelope gain returns to unity", async () => {
+    const { processing, el } = await routed(true);
+    playing(el);
+    nodes[0].posted.length = 0;
+    processing.setLevelSwitch(false);
+    expect(nodes[0].posted).toContainEqual({ type: "envelope", on: false, now: false });
+    const last = gains.env.gain.calls[gains.env.gain.calls.length - 1];
+    expect(last[0]).toBe("ramp");
+    expect(last[1]).toBe(1);
+  });
+
+  it("a local file has no key: never fetched, the live leveler", async () => {
+    const t = await load();
+    t.player.setState({ currentEpisode: { fileHash: "local:abc", fileName: "a.mp3" } as never });
+    t.processing.startProcessing();
+    addModule!.resolve();
+    await flush();
+    expect(envelopeGets).toEqual([]);
   });
 });

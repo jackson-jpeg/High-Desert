@@ -499,3 +499,21 @@ CREATE TABLE IF NOT EXISTS dsp_daily (
   n     bigint NOT NULL DEFAULT 0,
   PRIMARY KEY (day, event)
 );
+
+-- Two-pass Level (docs/audio-processing/README.md, "Two-pass Level"): one
+-- gain envelope per catalog episode, computed from the whole file by
+-- scripts/level-envelopes.mjs (one ffmpeg ebur128 pass) and served by
+-- GET /api/level/envelope. Metadata only: int8 gains in 0.25 dB steps, 10 a
+-- second. No audio is ever stored. A failed attempt keeps its error and try
+-- count (data NULL) so the job backs off instead of hammering archive.org.
+CREATE TABLE IF NOT EXISTS level_envelopes (
+  file_hash   text        PRIMARY KEY,
+  version     smallint    NOT NULL,
+  frames      integer     NOT NULL DEFAULT 0 CHECK (frames >= 0),
+  data        bytea       CHECK (data IS NULL OR octet_length(data) = frames),
+  lufs        real,
+  source      text        CHECK (source IS NULL OR source IN ('pin', 'repaired', 'archive')),
+  error       text,
+  tries       integer     NOT NULL DEFAULT 0,
+  measured_at timestamptz NOT NULL DEFAULT now()
+);

@@ -3,7 +3,8 @@ import type { Clip } from "@/audio/dsp/metrics";
 import { measure } from "@/audio/dsp/metrics";
 import { render, original } from "@/audio/dsp/render";
 import { Chain } from "@/audio/dsp/chain";
-import { TARGETS, checkCleanup, checkLevel, humDrop, pauseLift, talkerSwing } from "@/audio/dsp/targets";
+import { TARGETS, checkCleanup, checkLevel, humDrop, pauseLift, talkerSwing, type GainPoint } from "@/audio/dsp/targets";
+import { envelopeForClip } from "@/audio/dsp/envelope-offline";
 
 /**
  * The Phase 3 targets on synthetic programme, so they are held on every run
@@ -78,7 +79,66 @@ function programme(opts: { levelsDb: number[]; segSec: number; floorDb: number; 
 
 const PRE = 6;
 
-describe("Level", () => {
+describe("talker swing is measured on talk only", () => {
+  it("long pauses add no swing: a pause is not a quiet talker", () => {
+    const levelsDb = [-20, -20, -20, -20, -20, -20];
+    const dense = talkerSwing(programme({ levelsDb, segSec: 8, floorDb: -62 }));
+    const sparse = talkerSwing(programme({ levelsDb, segSec: 8, floorDb: -62, talkSec: 0.9, phraseSec: 3.2 }));
+    // A few tenths either way from syllable chance; counted with the pauses it is several dB.
+    expect(Math.abs(sparse - dense)).toBeLessThan(1.5);
+  });
+
+  it("a 12 dB talker change is all there", () => {
+    const c = programme({ levelsDb: [-14, -26, -14, -26], segSec: 8, floorDb: -62 });
+    expect(talkerSwing(c)).toBeGreaterThan(9);
+  });
+});
+
+describe("Level, two-pass (the envelope)", () => {
+  // A loud caller and a quiet guest, 12 dB apart, in turn.
+  const clip = programme({ levelsDb: [-14, -26, -14, -26, -14, -26], segSec: 8, floorDb: -62 });
+  const orig = original(clip, PRE);
+  const envelope = envelopeForClip(clip);
+  const trace: GainPoint[] = [];
+  const out = render(clip, {
+    level: true,
+    cleanup: false,
+    preRollSec: PRE,
+    envelope,
+    onStatus: (t, st) => {
+      if (t >= PRE) trace.push({ t: t - PRE, gainDb: st.level.gainDb, frozen: st.level.frozen });
+    },
+  });
+  const check = checkLevel(orig, out, trace);
+
+  it(`cuts the talker swing by at least half (target ${TARGETS.swingRatio})`, () => {
+    expect(check.swingIn).toBeGreaterThan(8);
+    expect(check.swingRatio).toBeLessThanOrEqual(TARGETS.swingRatio);
+  });
+
+  it(`never goes over ${TARGETS.truePeakDb} dBTP, and moves no faster than ${TARGETS.maxGainRate} dB/s`, () => {
+    expect(check.pass.peak).toBe(true);
+    expect(check.maxRiseRate).toBeGreaterThan(1); // the trace really is the envelope
+    expect(check.pass.rate).toBe(true);
+  });
+
+  it(`does not breathe: the floor in a pause rises at most ${TARGETS.maxPauseRiseDb} dB`, () => {
+    expect(check.maxPauseRise).toBeLessThanOrEqual(TARGETS.maxPauseRiseDb);
+  });
+
+  it("lands near -18 LUFS", () => {
+    expect(Math.abs(measure(out).lufs - -18)).toBeLessThan(2);
+  });
+
+  it("with an envelope the live AGC and compressor step aside: a 0 dB envelope leaves the level alone", () => {
+    const quiet = programme({ levelsDb: [-30, -30, -30], segSec: 6, floorDb: -70, seed: 5 });
+    const flat = { ...envelope, gainDb: new Float32Array(envelope.gainDb.length) };
+    const y = render(quiet, { level: true, cleanup: false, preRollSec: 2, envelope: flat });
+    expect(Math.abs(measure(y).lufs - measure(original(quiet, 2)).lufs)).toBeLessThan(0.5);
+  });
+});
+
+describe("Level, the live leveler (fallback while a show has no envelope)", () => {
   // A loud caller and a quiet guest, 12 dB apart, in turn.
   const clip = programme({ levelsDb: [-14, -26, -14, -26, -14, -26], segSec: 8, floorDb: -62 });
   const orig = original(clip, PRE);
@@ -87,7 +147,7 @@ describe("Level", () => {
   it(`cuts the talker swing by at least half (target ${TARGETS.swingRatio})`, () => {
     const inSw = talkerSwing(orig);
     expect(inSw).toBeGreaterThan(8);
-    expect(talkerSwing(out) / inSw).toBeLessThanOrEqual(TARGETS.swingRatio);
+    expect(talkerSwing(out, orig) / inSw).toBeLessThanOrEqual(TARGETS.swingRatio);
   });
 
   it(`never goes over ${TARGETS.truePeakDb} dBTP`, () => {
@@ -101,7 +161,7 @@ describe("Level", () => {
     const l = render(level, { level: true, cleanup: false, preRollSec: PRE });
     const inSw = talkerSwing(o);
     expect(inSw).toBeLessThan(TARGETS.swingAppliesFromDb);
-    expect(talkerSwing(l)).toBeLessThanOrEqual(inSw);
+    expect(talkerSwing(l, o)).toBeLessThanOrEqual(inSw);
     expect(checkLevel(o, l, []).pass.swing).toBe(true);
     // Not a free pass: an output with more swing than the level input fails.
     expect(checkLevel(o, orig, []).pass.swing).toBe(false);

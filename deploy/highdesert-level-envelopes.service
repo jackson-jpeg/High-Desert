@@ -1,0 +1,30 @@
+[Unit]
+Description=High Desert, two-pass Level: gain envelopes for the catalog (level_envelopes)
+Documentation=file:///root/High-Desert/scripts/level-envelopes.mjs
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# One ffmpeg ebur128 pass per episode, each in the box-wide heavy slot
+# (/run/heavy, hence root and /run writable). Reads the catalog from the
+# production tree and pins / repaired copies from the mirror's disk, streams
+# the rest from archive.org at 1 MB/s, one file at a time. Writes only
+# level_envelopes and its status file: no audio is stored anywhere.
+# The 10% rule: CPUQuota=10%, Nice=19, idle IO.
+WorkingDirectory=/root/High-Desert
+EnvironmentFile=/root/.high-desert.env
+Environment=HD_ENVELOPE_STATUS=/var/lib/highdesert-level-envelopes/status.json
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/node --no-warnings /root/High-Desert/scripts/level-envelopes.mjs --budget-min 50
+StateDirectory=highdesert-level-envelopes
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/run
+ProtectHome=read-only
+PrivateTmp=true
+CPUQuota=10%
+Nice=19
+IOSchedulingClass=idle
+TimeoutStartSec=75min
+SyslogIdentifier=highdesert-level-envelopes

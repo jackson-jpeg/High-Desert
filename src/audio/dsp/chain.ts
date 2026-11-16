@@ -104,7 +104,7 @@ class Switch {
 }
 
 export interface ChainStatus {
-  level: LevelerState & { on: boolean; mix: number; compGrDb: number; limGainDb: number };
+  level: LevelerState & { on: boolean; mix: number; compGrDb: number; limGainDb: number; external: number };
   cleanup: { on: boolean; mix: number; music: number; humFamily: 50 | 60 | null; humLines: number };
   ducked: boolean;
 }
@@ -158,6 +158,16 @@ export class Chain {
   setCleanup(on: boolean): void {
     this.cSw.set(on);
   }
+  /**
+   * Two-pass Level: the show's envelope drives a GainNode before this chain,
+   * so Level's AGC and compressor step aside (the limiter stays). Timed to
+   * the audio: the change starts when the audio that had the new upstream
+   * gain reaches the AGC, after Clean up's latency and Level's lookahead.
+   */
+  setExternal(on: boolean, now = false): void {
+    this.level.setExternal(on, now ? { now: true } : { afterSamples: this.cleanup.latency + this.level.latency - this.level.lim.latency });
+  }
+
   /** Both off and fully faded: nothing but delay lines are running. */
   idle(): boolean {
     return !this.cSw.running && !this.lSw.running && !this.cSw.want && !this.levelWant;
@@ -190,7 +200,7 @@ export class Chain {
     const ls = this.level.state();
     const hum = this.cleanup.hum.status();
     return {
-      level: { ...ls, on: this.levelWant, mix: this.lSw.mix, compGrDb: this.level.comp.gainReductionDb, limGainDb: 20 * Math.log10(this.level.lim.minGain) },
+      level: { ...ls, on: this.levelWant, mix: this.lSw.mix, compGrDb: this.level.comp.gainReductionDb, limGainDb: 20 * Math.log10(this.level.lim.minGain), external: this.level.external() },
       cleanup: { on: this.cSw.want, mix: this.cSw.mix, music: this.cleanup.music.score, humFamily: hum.family, humLines: hum.lines.filter((l) => l.depth > 0.5).length },
       ducked: this.duckGain < 1,
     };

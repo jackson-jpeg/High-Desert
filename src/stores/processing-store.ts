@@ -73,6 +73,8 @@ export interface DspMeter {
   cleanupMix: number;
   /** Level's mix, 0..1. */
   levelMix: number;
+  /** Where Level's gain comes from: the show's two-pass envelope, or the live leveler (no envelope yet). */
+  levelSource: "envelope" | "live";
 }
 
 interface ProcessingState {

@@ -1213,6 +1213,32 @@ Full account: `docs/seasons.md`.
   Christmas, New Year's) as a fan favorite only in its season; it always
   airs on its own date.
 
+## Level and Clean up (2026-11-16, read before touching `src/audio/dsp/`, `src/audio/processing.ts` or `src/lib/audio/level-envelope.ts`)
+
+Two switches in the player, in the listener's browser (desktop and Android;
+never iOS, which never routes the player through Web Audio). Full account:
+`docs/audio-processing/README.md`.
+
+- **Level is two-pass.** `highdesert-level-envelopes.timer` (hourly,
+  `CPUQuota=10%`, each episode in the `heavy` slot) runs one ffmpeg
+  `ebur128` pass per episode and stores a gain envelope (`level_envelopes`,
+  int8, 0.25 dB steps, 10 a second). **Loudness numbers only: no audio is
+  stored.** Station first, then by plays; archive.org at 1 MB/s.
+  `gainEnvelope` is an exact port of Jackson's `envelope.py` (held to its
+  output in `level-envelope.test.ts`); `levelEnvelope` adds one step of
+  ours, a gap hold and a 0.3 s late rise (both only lower the gain).
+  Change either: bump `ENVELOPE_VERSION`.
+- **The browser** fetches `/api/level/envelope?key=` and drives a GainNode
+  before the worklet from the element's position; the worklet's AGC steps
+  aside, its limiter stays. No envelope yet: the live leveler. No added
+  delay, so the station stays in sync. `data-level-source` on the switches
+  says which.
+- **Clean up is held back** (`CLEANUP_RELEASED = false`) until it passes
+  every target. The targets do not change; swing is measured on talk only
+  (Jackson, 2026-11-16).
+- `scripts/audio/evaluate.ts <testset>` scores the 34 clips (`--level-only`,
+  `--live` for the fallback).
+
 ## Station Breaks (2026-11-09, read before touching `src/lib/live/breaks.ts`, `data/station-breaks/` or the bridge)
 
 Short spots for Jackson's own apps (SoGoJet, Screen Receipts, Sim Sunday) as

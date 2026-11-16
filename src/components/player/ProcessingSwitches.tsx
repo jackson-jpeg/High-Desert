@@ -50,6 +50,9 @@ export function ProcessingSwitches({
   const cleanup = useProcessingStore((s) => s.cleanup);
   const availability = useProcessingStore((s) => s.availability);
   const offered = useProcessingStore((s) => s.cleanupOffered);
+  // Where Level's gain comes from right now, for the browser tests and a
+  // check on production: "envelope" (two-pass) or "live" (no envelope yet).
+  const levelSource = useProcessingStore((s) => s.meter?.levelSource ?? null);
   const [hover, setHover] = useState<Which | null>(null);
   const id = useId();
   const usable = switchesUsable(availability);
@@ -105,6 +108,7 @@ export function ProcessingSwitches({
       className={cn("hd-dsp", `hd-dsp-${look}`, `hd-dsp-${layout}`, className)}
       data-testid="dsp-switches"
       data-availability={availability}
+      data-level-source={levelSource ?? undefined}
     >
       {layout === "strip" && (
         <span className="hd-dsp-title" aria-hidden="true">

@@ -7,6 +7,7 @@
  *   { type: "set", level, cleanup }           the listener's switches
  *   { type: "duck" }                           a seek or a new source is coming
  *   { type: "unduck", newShow, startGainDb }   it has arrived
+ *   { type: "envelope", on, now }              two-pass Level has (or no longer has) the gain
  * Messages out:
  *   { type: "ready", latency }                 once, at construction
  *   { type: "status", blocks, inPeak, idle, ...ChainStatus }  every ~250 ms
@@ -47,6 +48,7 @@ class DspProcessor extends AudioWorkletProcessor {
         this.chain.setLevel(!!m.level);
         this.chain.setCleanup(!!m.cleanup);
       } else if (m?.type === "duck") this.chain.duck();
+      else if (m?.type === "envelope") this.chain.setExternal(!!m.on, !!m.now);
       else if (m?.type === "unduck") this.chain.unduck({ newShow: !!m.newShow, startGainDb: typeof m.startGainDb === "number" ? m.startGainDb : undefined });
     };
     this.port.postMessage({ type: "ready", latency: this.chain.latency });

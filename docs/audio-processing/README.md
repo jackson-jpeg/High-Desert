@@ -6,9 +6,11 @@ Two switches in the player, for listeners who asked for them (2026-11-15):
   station near one loudness.
 - **Clean up** takes out rumble, mains hum and tape hiss.
 
-Both run in the listener's browser, in an AudioWorklet, on the audio as it
-plays. archive.org's files are never touched, nothing is re-encoded, and
-nothing is hosted here. They should sound like a careful radio engineer
+Both run in the listener's browser, on the audio as it plays. Level's gain
+curve for each show is worked out once on this server from the whole file
+("Two-pass Level", below): loudness numbers only, 10 a second. archive.org's
+files are never touched, nothing is re-encoded, and no audio is stored or
+hosted here. They should sound like a careful radio engineer
 worked on the show, not like an app filter: a little hiss left is better
 than a watery, underwater sound, and a pause stays a pause.
 
@@ -22,6 +24,84 @@ Its switch is not drawn, the store and the graph refuse it, and a choice
 saved earlier never runs it. `localStorage["hd-dsp-preview"] = "cleanup"`
 shows it in one browser, which is how the e2e specs test it. It ships on
 its own, once it passes every target; the targets do not change.
+
+## Two-pass Level (2026-11-16)
+
+The live leveler only knows the past. When a new talker starts it can only
+react after hearing them, so it must choose between reacting slowly (the
+talker change gets through: the swing target missed) and reacting fast
+(phrases and pauses pump: the pause target missed). Every tuning of it
+moved along that one trade-off; "onset mode" bought a second of foresight
+by delaying playback a second, and was dropped.
+
+A show is a fixed file, so the server listens to all of it once and writes
+down the right gain for every tenth of a second, with the talk on both sides
+in view. Jackson's design and prototype (`envelope.py`, 2026-11-16); the
+port is `src/lib/audio/level-envelope.ts`, held to the prototype's own
+output on two real clips (`__tests__/fixtures/envelope-ref.json`).
+
+**Server** (`scripts/level-envelopes.mjs`, `highdesert-level-envelopes.timer`):
+one ffmpeg `ebur128` pass per episode (momentary loudness, 400 ms windows,
+every 100 ms; mono counted as dual mono, as the browser plays it), then
+`gainEnvelope`:
+
+1. Talk: frames within 20 dB of the file's 95th percentile (and above -60).
+2. Local talk loudness: a Gaussian average (sigma **0.8 s**) of the talk
+   frames alone, so pauses never pull it down; through long silences the
+   neighbouring talk level is held.
+3. Gain = **-18 LUFS** minus that, clamped **+18 / -12 dB**, smoothed 0.25 s.
+4. Pause hold: in a pause the gain never sits above the lowest gain within
+   **3 s**, so room noise and hiss are never raised past the talk around them.
+5. Slew limit **24 dB/s**, forward and backward, averaged: a change starts a
+   moment before the new talker and lands on them.
+6. **Our two steps after the prototype**, each of which only lowers the
+   gain (so peaks and pauses only improve, and the slew limit holds). The
+   prototype passed 32 of the 34 clips: in a 0.25 to 0.65 s gap after a
+   talker, too short for 400 ms frames to read as a pause, its gain kept
+   moving towards the next talker and the floor rose 1.25 and 1.72 dB
+   (worst-2001-09-11, hiss-2000-03-31b) against the 1 dB target.
+   - **Gap hold** (`holdDips`): where the loudness dips 8 dB below the
+     loudest frame within half a second, the gain may not rise; once talk
+     is back it catches up at the slew limit.
+   - **Late rise** (`delayRises`): each frame takes the lowest gain of the
+     last 0.3 s, so a cut still starts before a loud caller while a lift
+     waits for the quieter talker.
+   Tried on all 34: the hold alone left worst-2001-09-11 at +1.10 dB; with
+   a 0.5 s delay hiss-2001-02-14's swing ratio missed (0.55); 0.2 s left
+   +1.05; 0.3 s passes every clip (that swing ratio at 0.50, the line).
+
+Stored in `level_envelopes` as int8, 0.25 dB steps (about 80 KB for a
+2.25 hour show). Today's and tomorrow's station first, then by community
+plays, then the rest of the catalog. Each episode runs in the box-wide
+`heavy` slot; the unit holds the whole run to `CPUQuota=10%`, `Nice=19`,
+idle IO. Bytes come from a repaired show's mirror copy, a pin on the
+mirror's disk, or archive.org at 1 MB/s, one file at a time; they go through
+ffmpeg and are never written down. A failure waits 2^tries hours (at most a
+week). `node scripts/level-envelopes.mjs --status` counts.
+
+**Browser** (`src/audio/level-envelope-driver.ts`, `processing.ts`): the
+envelope comes from `GET /api/level/envelope?key=<communityKey>` (binary,
+cached a day) when a show starts. A GainNode before the worklet follows
+it: linear ramps to each envelope point over the next 2 s, mapped from file
+time to context time at the playback rate, laid again on every timeupdate,
+seek, rate change, play and pause. No lookahead and no added delay, so the
+live station stays in sync. The worklet's AGC and compressor step aside
+(`Leveler.setExternal`) and its limiter keeps -1 dBTP. A show with no
+envelope yet keeps the live leveler; if its envelope arrives mid-show the
+two hand over in 0.3 s, timed so the same audio sees both changes. The
+switches carry `data-level-source="envelope"` or `"live"`.
+
+## Why talk-only swing
+
+The swing target measured each 3 s window's loudness, pauses included in
+the windows. On talk with many short pauses (caller-guest-1998-12-01,
+dead-air-1999-06-16) a window that is half pause read as a quiet talker,
+and halving that number meant raising the pauses, which the pause target
+forbids: the two targets fought each other on exactly those clips. Since
+2026-11-16 (Jackson's decision) swing is measured on talk only:
+`talkerSwing` is `talk_swing` from his metrics.py (each 3 s window, hop
+0.5 s, the energy mean of its talk frames alone, at least 1.2 s of talk;
+P90 - P10). The other targets did not change.
 
 ## Where it runs
 
@@ -38,9 +118,13 @@ into an AudioContext stops when the phone locks (`src/audio/engine.ts`,
 The graph (`src/audio/processing.ts`):
 
 ```
-element ─ source ─┬─ worklet (Clean up, Level) ─ wet ─┐
-                  └─ delay (the worklet's latency) ─ dry ┴─ analyser ─ volume ─ speakers
+element ─ source ─┬─ envelope gain ─ worklet (Clean up, Level) ─ wet ─┐
+                  └─ delay (the worklet's latency) ─ dry ───────────────┴─ analyser ─ volume ─ speakers
 ```
+
+- The envelope gain is two-pass Level: the show's precomputed gain curve,
+  scheduled against the element's position. With it, the worklet's live
+  AGC and compressor step aside and only its limiter acts.
 
 - The dry path is the same audio, delayed by exactly the worklet's latency,
   at zero gain. A worklet that fails to load, throws, or goes quiet hands
@@ -60,14 +144,16 @@ input ─┬─ Clean up (wet) ─┐                      ┌─ Level ─┐
                                              └─ delay L ───┘
 ```
 
-One constant latency, whatever is switched on: about a quarter second (Level's
-200 ms lookahead, the gate's 1,024 samples and the limiter's few ms). That is
+One constant latency, whatever is switched on: about a quarter second (the
+live leveler's 200 ms lookahead, the gate's 1,024 samples and the limiter's few ms). That is
 well inside the live station's 2 s drift tolerance, and the meters read after
 the processing, so they move with what is heard.
 Every switch is a crossfade after the stage has warmed up unheard, so a
 toggle never clicks; a seek or a new show ducks the output for the jump.
 
-**Level** (`leveler.ts`, `compressor.ts`, `limiter.ts`):
+**Level** is two-pass ("Two-pass Level", below): the envelope gain, then the
+limiter (3. below). The live leveler (1 to 3) is the fallback for a show
+whose envelope the server has not computed yet:
 
 1. A K-weighted loudness AGC steering to **−16 LUFS**: the last 3 s of
    *active* audio (pauses never drag it down), a fast path for a hot caller
