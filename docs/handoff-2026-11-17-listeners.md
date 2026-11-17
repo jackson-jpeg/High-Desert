@@ -26,9 +26,9 @@ Read `docs/NEXT.md` (`## Queue`) with this. Times are UTC.
 ## In flight: Queue item 1, show pages count their plays
 
 - Worktree **`/root/hd-showplays`**, branch **`show-page-plays`**, commit
-  `f5463d4`, pushed. It is **not tested yet**: the first run (`npm ci`, then
-  vitest on the new test and `src/components/shows`) was still going at
-  handoff.
+  `f5463d4`, pushed. `npm ci` is done in the worktree. The new test and
+  `src/components/shows` pass (3 files, 20 tests, 18:12). Not run yet:
+  mutations, lint, typecheck, the full suite, build.
 - What it does: `src/services/stats/show-page-listen.ts`
   (`installShowListen`) is installed by `ShowPlayButton` on the page's
   `<audio>`. It sends one `/api/stats/play` per page load on the first
@@ -39,9 +39,7 @@ Read `docs/NEXT.md` (`## Queue`) with this. Times are UTC.
   four mutations `show-listen-*` in `scripts/mutate-check.mjs`, and a "Counting
   a listen" section in `docs/show-pages.md`.
 - **Next steps:**
-  1. In the worktree, run `heavy -- node_modules/.bin/vitest run
-     src/services/stats/__tests__/show-page-listen.test.tsx src/components/shows`
-     (`npm ci` is done if `node_modules` exists) and fix what fails.
+  1. (Done: the focused tests pass.)
   2. `node scripts/mutate-check.mjs show-listen`.
   3. Lint, typecheck, then the full suite with the test DB env.
   4. `npm run build`, then `check:csp` and `check:seo` against the build.
