@@ -18,15 +18,26 @@ of 2026-11-17 (`/api/stats/usage`, the funnel line):
 - [x] Right after the ship above lands, start the envelope timer: `systemctl start highdesert-level-envelopes.timer` (Jackson, Inbox, 2026-11-17: "Start the envelope timer right after the fuzzy-search ship lands. No need to ask."). Its `hd-requeue-*` timers from the 18:00 log never existed Done: the timer was already active when the ship landed (next run 22:01).
 - [x] The phone look split: **live with the ship (`3dab517`)**, assigning from 2026-11-18 00:00 UTC to 2026-12-02 00:00 UTC (`src/lib/look/split.ts`, `docs/funnel.md` "The phone look split"). Checked in a real browser on the build: 12 new phones split 7/5, each kept its look; desktops, crawlers and days outside the window untouched. Seven mutations red.
 - [x] sang3r.com export (the lead, 2026-11-17): `mode=daily` gains `visitors`/`views`, new `mode=detail&days=7|30|90`, and not-audience exclusions at write time (agents, `X-Sanger-Internal`, `sanger_me=1`, the box itself). **Live 2026-11-17 as `a2e049a`**; sanger-75 told the URL and shape. `visitors` reads null through 2026-11-17 (the counter's partial first day)
+- [x] **Live 2026-11-17 23:03 UTC as `d57fe0c`** (fixed in `68e7565`): the fetch now asks `next: { revalidate: 60 }`; test `manifest-fetch.test.ts` (red before the fix), mutation `live-manifest-fetch-static-safe` red. On a local build on the e2e database, with today's row cleared, `/tonight/2026-11-17` froze the day and answered 200 twice. A Tonight page that is first to freeze a day answers 500: `frozenDay()` reaches `mirrorManifest()`, a `cache: "no-store"` fetch, inside an ISR render ("Page changed from static to dynamic at runtime"). Seen on a local build on the e2e database (2026-11-17); production had its days frozen by the schedule API first. Fix: give the manifest fetch `next: { revalidate: 60 }` (it is memoised 60 s anyway), with a test
+
+## Waiting for a date
+
+Not read by the foreman (it has no date gate, so these sat at the top of the Queue and were sent before their day). On or after the date, move the line back under `## Queue`.
+
 - [ ] Not before 2026-11-25 (a week after the 2026-11-17 deploy): `playsBySurface.show` in `/api/stats/usage?days=7` is above 0, and Search Console's Pages report shows `/shows/*` indexed
 - [ ] Not before 2026-12-02: read the phone look split (`docs/funnel.md`, "The phone look split", the psql query there): Live, tune-in and return per look, phones, cohorts 2026-11-18 to 2026-12-01. Write the verdict there and remove `LOOK_SPLIT_SCRIPT` from the head (it does nothing after the window, but it is dead code)
-- [x] **Live 2026-11-17 23:03 UTC as `d57fe0c`** (fixed in `68e7565`): the fetch now asks `next: { revalidate: 60 }`; test `manifest-fetch.test.ts` (red before the fix), mutation `live-manifest-fetch-static-safe` red. On a local build on the e2e database, with today's row cleared, `/tonight/2026-11-17` froze the day and answered 200 twice. A Tonight page that is first to freeze a day answers 500: `frozenDay()` reaches `mirrorManifest()`, a `cache: "no-store"` fetch, inside an ISR render ("Page changed from static to dynamic at runtime"). Seen on a local build on the e2e database (2026-11-17); production had its days frozen by the schedule API first. Fix: give the manifest fetch `next: { revalidate: 60 }` (it is memoised 60 s anyway), with a test
 
 ## Needs Jackson
 
 - [ ] The skipped weekly mutation run: start it tonight at 03:05 UTC, or let Monday 2026-11-23's run cover it (Inbox `hd-mutations-requeue-2026-11-17`). The status `mutations` line WARNs until one finishes
 
 ## Log
+
+## 2026-11-17, 23:30: date-gated items moved out of the Queue
+
+- The foreman sent the 2026-11-25 item on 2026-11-17: `next.ts` has no
+  date gate. Both dated items now sit under `## Waiting for a date`, a
+  note heading, so the Queue is empty until one is due.
 
 ## 2026-11-17, 23:20: after the clear
 
