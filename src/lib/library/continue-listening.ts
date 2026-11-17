@@ -52,6 +52,15 @@ export function continueItems(
   return out;
 }
 
+/**
+ * "Resume at 1:12:40 of 2:58:00", or "Resume at 1:12:40" when the length is
+ * not known. `format` is the player's clock (formatTime).
+ */
+export function resumeLabel(item: Pick<ContinueItem, "position" | "remaining">, format: (s: number) => string): string {
+  const at = `Resume at ${format(item.position)}`;
+  return item.remaining === null ? at : `${at} of ${format(item.position + item.remaining)}`;
+}
+
 /** "1 h 12 min left", "38 min left", "under a minute left". */
 export function remainingLabel(seconds: number | null): string | null {
   if (seconds === null) return null;

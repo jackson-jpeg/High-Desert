@@ -111,7 +111,7 @@ for (const phone of [false, true]) {
       expect(card.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(card.closest("details")).toBeNull();
       const resume = card.querySelector<HTMLButtonElement>('[data-testid="continue-resume"]')!;
-      expect(resume.getAttribute("aria-label")).toBe("Resume Men in Black at 30:00");
+      expect(resume.getAttribute("aria-label")).toBe("Men in Black: Resume at 30:00 of 3:00:00");
       act(() => resume.click());
       expect(plays.map((p) => p.title)).toEqual(["Men in Black"]);
     });

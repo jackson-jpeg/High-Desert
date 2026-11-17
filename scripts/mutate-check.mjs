@@ -3005,6 +3005,15 @@ export const MUTATIONS = [
     replace: "",
     why: "the year pages leave the sitemap",
   },
+  // 2026-11-17: Continue listening says "of" the show's length.
+  {
+    id: "continue-resume-of-length",
+    test: "src/components/library/__tests__/continue-listening.test.tsx",
+    file: "src/lib/library/continue-listening.ts",
+    find: "  return item.remaining === null ? at : `${at} of ${format(item.position + item.remaining)}`;",
+    replace: "  return at;",
+    why: "Continue listening stops saying how long the show is",
+  },
   {
     id: "traffic-two-scales",
     test: "src/lib/library/__tests__/traffic.test.ts",
