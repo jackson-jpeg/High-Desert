@@ -39,8 +39,9 @@ function audioPlaying(src: string): HTMLAudioElement {
   return audio;
 }
 
-const plays = (posts: { path: string }[]) => posts.filter((p) => p.path === "/api/stats/play");
-const beats = (posts: { path: string }[]) => posts.filter((p) => p.path === "/api/stats/heartbeat");
+type Post = { path: string; body: Record<string, unknown> };
+const plays = (posts: Post[]) => posts.filter((p) => p.path === "/api/stats/play");
+const beats = (posts: Post[]) => posts.filter((p) => p.path === "/api/stats/heartbeat");
 
 beforeEach(() => localStorage.clear());
 
