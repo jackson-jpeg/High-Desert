@@ -16,7 +16,7 @@ of 2026-11-17 (`/api/stats/usage`, the funnel line):
   - Getting found on Google: `/shows` and `/shows/<year>`, linked from the show pages' frame and the welcome page, in the sitemap and `check:seo` (`1992a96`)
   - The player: Continue listening reads "Resume at 1:12:40 of 2:58:00", and the restored player shows where ▶ will start (`09b542c`). Not added to Live on purpose: a phone's Live screen has one big button
 - [ ] Level envelopes have no next run: `highdesert-level-envelopes.timer` is stopped and the `hd-requeue-*` timers in the 18:00 log do not exist (checked 18:40). Once the ship above is done, start the timer again (`systemctl start highdesert-level-envelopes.timer`), so the batch does not hold the slot during the checks
-- [ ] A week after the deploy: `playsBySurface.show` in `/api/stats/usage?days=7` is above 0, and Search Console's Pages report shows `/shows/*` indexed
+- [ ] Not before 2026-11-25 (a week after the deploy above, which has not happened yet; nothing to do until then): `playsBySurface.show` in `/api/stats/usage?days=7` is above 0, and Search Console's Pages report shows `/shows/*` indexed
 
 ## Needs Jackson
 
