@@ -174,3 +174,39 @@ export function NoSearchMatches({
     </div>
   );
 }
+
+/**
+ * Above the list when the search matched nothing exactly and the rows are
+ * close spellings (`fuzzy-search.ts`). "Did you mean" puts the spelling the
+ * results use into the search box; with nothing to correct (a word only
+ * matched loosely) it just says these are close matches.
+ */
+export function SpellingNote({
+  search,
+  suggestion,
+  onAccept,
+}: {
+  search: string;
+  suggestion: string | null;
+  onAccept: (corrected: string) => void;
+}) {
+  return (
+    <div
+      className="hd-spelling-note mx-3 mt-1 mb-1 flex flex-wrap items-baseline gap-x-2 text-hd-11 text-bevel-dark flex-shrink-0"
+      data-testid="spelling-note"
+      role="status"
+    >
+      <span>No exact match for &ldquo;{search.trim()}&rdquo;. Showing close spellings.</span>
+      {suggestion && (
+        <button
+          type="button"
+          onClick={() => onAccept(suggestion)}
+          className="text-signal-blue underline cursor-pointer min-h-touch md:min-h-0"
+          data-testid="spelling-accept"
+        >
+          Did you mean &ldquo;{suggestion}&rdquo;?
+        </button>
+      )}
+    </div>
+  );
+}

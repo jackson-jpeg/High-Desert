@@ -19,8 +19,9 @@ import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { InstallPrompt } from "@/components/install/InstallPrompt";
 import { LibraryToolbar } from "@/components/library/LibraryToolbar";
 import { ActiveFilterBar, MoodFilterBar, PlayableNowBar, SortPresets } from "@/components/library/LibraryFilterBars";
-import { LibraryListSkeleton, EmptyLibrary, NoFilterMatches, NoSearchMatches, NothingInProgress } from "@/components/library/LibraryListStates";
-import { selectLibraryEpisodes, type ShowFilter } from "@/lib/library/filter-episodes";
+import { LibraryListSkeleton, EmptyLibrary, NoFilterMatches, NoSearchMatches, NothingInProgress, SpellingNote } from "@/components/library/LibraryListStates";
+import { correctedSearch } from "@/lib/library/fuzzy-search";
+import { selectLibraryView, type ShowFilter } from "@/lib/library/filter-episodes";
 import { libraryListState } from "@/lib/library/list-state";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { useCommunityCatalog } from "@/hooks/useCommunityCatalog";
@@ -42,7 +43,7 @@ import { LibraryViewSwitch } from "@/components/library/LibraryViewSwitch";
 import { useLibraryView } from "@/hooks/library/useLibraryView";
 
 /**
- * The library. A composition: the list pipeline is `selectLibraryEpisodes`
+ * The library. A composition: the list pipeline is `selectLibraryView`
  * (src/lib/library), the state and handlers are the `useLibrary*` hooks in
  * src/hooks/library, and the chrome is in src/components/library (HD-018).
  */
@@ -101,13 +102,18 @@ export default function LibraryPage() {
   // those: any other sort gets a constant, so a position save (every 30 s while
   // playing) does not re-run the pipeline over the whole library (HD-016).
   const progress = useProgressIndex(sortMode === "recent" || sortMode === "progress");
-  const visibleEpisodes = useMemo(
-    () => selectLibraryEpisodes(allEpisodes, {
+  const listView = useMemo(
+    () => selectLibraryView(allEpisodes, {
       search: deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, bookmarkedIds,
       playableOnly: playableSet,
     }, community, progress),
     [allEpisodes, deferredSearch, sortMode, showFilter, guestFilter, categoryFilter, seriesFilter, favoritesOnly, bookmarkedIds, playableSet, community, progress],
   );
+  const visibleEpisodes = listView.episodes;
+  // Close spellings (fuzzy-search.ts): the note above the list, and the
+  // corrected search it offers.
+  const spelling = listView.spelling;
+  const spellingSuggestion = spelling ? correctedSearch(deferredSearch, spelling) : null;
 
   const selection = useLibrarySelection({ allEpisodes, visibleEpisodes });
   const { selectedEpisode, setSelectedEpisode, selectedIds, setSelectedIds, setFocusedIndex } = selection;
@@ -242,6 +248,10 @@ export default function LibraryPage() {
       <MoodFilterBar filters={filters} moodFilters={facets.moodFilters} />
 
       {!dialMode && <SortPresets filters={filters} />}
+
+      {spelling && visibleEpisodes.length > 0 && (
+        <SpellingNote search={deferredSearch} suggestion={spellingSuggestion} onAccept={setSearch} />
+      )}
 
       {/* Discovery section — collapsed by default, compact when expanded */}
       {!isMobile && !deferredSearch.trim() && !hasActiveFilters && !dialMode && (
