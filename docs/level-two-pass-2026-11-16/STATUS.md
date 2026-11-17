@@ -160,3 +160,40 @@ Reproduce: `node scripts/audio/evaluate.ts <testset.json> --level-only`
   after a `;`, then `npm ci`). Nothing ran; re-issued as `cd <worktree> &&
   npm ...`, the form the block names.
 - All three ship with Level in the morning deploy.
+
+## For the next session (written 2026-11-17 03:30 UTC, before a /clear)
+
+Nothing is running in-session and nothing is half done. Main is clean and
+pushed. One job is owed: **the morning deploy, about 09:20 UTC today.**
+
+1. `highdesert-status` (the `deploy` line reads DRIFT until this is done;
+   that is expected), `heavy status`.
+2. `cd /root/High-Desert && bash scripts/deploy.sh`. It ships Level
+   (two-pass), Next.js 16.4.6 and the shorter Sim Sunday spot. The lockfile
+   changed, so it installs in its staging copy. `level_envelopes` is already
+   applied. It verifies and rolls back by itself.
+3. Post a station notice announcing Level (`POST /live-api/admin/notice`,
+   token in `/root/.high-desert-live.env`, at most 500 characters, no em
+   dashes): there is a Level switch in the player on desktop and Android
+   that evens out loud and quiet callers; not on iPhone.
+4. On production, check one show with an envelope reports
+   `data-level-source="envelope"` and one without reports `live`
+   (`select community_key from level_envelopes` for the first kind), and
+   record it at the end of this file.
+5. `npm run check:seo -- https://highdesert.space` and `check:csp`, then
+   copy this file to the Mac folder again
+   (`~/Downloads/high-desert-2026-11-16-audio-cleanup/`).
+
+Known and not to chase:
+- **No timer will wake a session at 09:20.** The in-session wait was
+  stopped at 03:17 UTC when the box ran low on memory (sang3r.com's build
+  held 6 GB; not High Desert). Jackson has not asked for it to be set
+  again, so the deploy starts when he or a session says so.
+- The `warm` line WARNs "stopped at floor" from before the disk grew; the
+  04:10 UTC run should clear it.
+- The Sim Sunday take has not been transcribed (no Whisper on the box).
+- `eslint-config-next` stays at 16.3.8 on purpose (see above).
+- `/root/hd-audio` (branch `audio-cleanup`, at 3e363bd, clean) is kept for
+  Clean up, which is still held back.
+- Hook blocks this session: the npm hook once (above), and the pipefail
+  hook once (a pipe inside an `ssh` command; re-issued without it).
