@@ -55,11 +55,17 @@ d("the Request Line", () => {
     await live.pool.query(
       `CREATE TABLE IF NOT EXISTS audio_checks (file_hash text PRIMARY KEY, ok boolean NOT NULL, reason text, seconds real, segments jsonb, checked_at timestamptz NOT NULL DEFAULT now())`,
     );
+    // A run that accepted the Noory night (a mutation of the not-art rule does)
+    // left its nomination behind, and a later run's random day could land on it
+    // and find a show on a night it expects empty (2026-11-17). It is not one of
+    // this run's tagged shows, so it is cleared by name, before and after.
+    await live.pool.query(`DELETE FROM live_request_nominations WHERE file_hash = $1 AND day >= '2041-01-01'`, [NOORY]);
   });
   afterAll(async () => {
     if (live) {
       await live.pool.query(`DELETE FROM live_request_nights WHERE day >= '2041-01-01'`);
       await live.pool.query(`DELETE FROM live_request_nominations WHERE file_hash LIKE $1`, [`archive:test-${tag}:%`]);
+      await live.pool.query(`DELETE FROM live_request_nominations WHERE file_hash = $1 AND day >= '2041-01-01'`, [NOORY]);
       await live.pool.query(`DELETE FROM live_days WHERE day >= '2041-01-01'`);
       await live.pool.query(`DELETE FROM audio_checks WHERE file_hash LIKE $1`, [`archive:test-${tag}:%`]);
     }
