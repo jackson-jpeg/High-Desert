@@ -20,13 +20,33 @@ of 2026-11-17 (`/api/stats/usage`, the funnel line):
 - [x] sang3r.com export (the lead, 2026-11-17): `mode=daily` gains `visitors`/`views`, new `mode=detail&days=7|30|90`, and not-audience exclusions at write time (agents, `X-Sanger-Internal`, `sanger_me=1`, the box itself). **Live 2026-11-17 as `a2e049a`**; sanger-75 told the URL and shape. `visitors` reads null through 2026-11-17 (the counter's partial first day)
 - [ ] Not before 2026-11-25 (a week after the 2026-11-17 deploy): `playsBySurface.show` in `/api/stats/usage?days=7` is above 0, and Search Console's Pages report shows `/shows/*` indexed
 - [ ] Not before 2026-12-02: read the phone look split (`docs/funnel.md`, "The phone look split", the psql query there): Live, tune-in and return per look, phones, cohorts 2026-11-18 to 2026-12-01. Write the verdict there and remove `LOOK_SPLIT_SCRIPT` from the head (it does nothing after the window, but it is dead code)
-- [x] **Fixed 2026-11-17 (branch `tonight-manifest-fetch`):** the fetch now asks `next: { revalidate: 60 }`; test `manifest-fetch.test.ts` (red before the fix), mutation `live-manifest-fetch-static-safe` red. On a local build on the e2e database, with today's row cleared, `/tonight/2026-11-17` froze the day and answered 200 twice. A Tonight page that is first to freeze a day answers 500: `frozenDay()` reaches `mirrorManifest()`, a `cache: "no-store"` fetch, inside an ISR render ("Page changed from static to dynamic at runtime"). Seen on a local build on the e2e database (2026-11-17); production had its days frozen by the schedule API first. Fix: give the manifest fetch `next: { revalidate: 60 }` (it is memoised 60 s anyway), with a test
+- [x] **Live 2026-11-17 23:03 UTC as `d57fe0c`** (fixed in `68e7565`): the fetch now asks `next: { revalidate: 60 }`; test `manifest-fetch.test.ts` (red before the fix), mutation `live-manifest-fetch-static-safe` red. On a local build on the e2e database, with today's row cleared, `/tonight/2026-11-17` froze the day and answered 200 twice. A Tonight page that is first to freeze a day answers 500: `frozenDay()` reaches `mirrorManifest()`, a `cache: "no-store"` fetch, inside an ISR render ("Page changed from static to dynamic at runtime"). Seen on a local build on the e2e database (2026-11-17); production had its days frozen by the schedule API first. Fix: give the manifest fetch `next: { revalidate: 60 }` (it is memoised 60 s anyway), with a test
 
 ## Needs Jackson
 
 (nothing open: the phone look split was approved 2026-11-17 and moved to the Queue)
 
 ## Log
+
+## 2026-11-17, 23:15: the Tonight 500 fixed and live
+
+- `68e7565`: the mirror manifest fetch revalidates at 60 s instead of
+  `no-store`. Suite: 3,029 tests passed; the 13 files that failed at import
+  (`services/live` not installed in the worktree) passed after its `npm ci`
+  (290 tests).
+- **The first deploy rolled back** on WebKit's returning visitor: one page
+  error, `/api/live/time due to access control checks`, the clock sync cut
+  off by the check's own navigation (the app catches it in `syncClock`).
+  `d57fe0c` adds that one route to `NAVIGATION_NOISE` (test red without it,
+  mutations `returning-noise-clock-sync` and
+  `returning-noise-not-every-live-route` red). The second deploy passed in
+  both browsers.
+- check:seo (49 pages) and check:csp (8 routes) pass on production;
+  `highdesert-status` exits 0 (one WARN: the weekly mutation run, skipped
+  this week). Station notice posted 23:12.
+- The e2e database's 2026-11-17 row was cleared to reproduce the freeze; the
+  build froze it again.
+- Queue: only date-gated items are left (2026-11-25, 2026-12-02).
 
 ## 2026-11-17, 18:30: the listener queue, items 1 to 5
 
