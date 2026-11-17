@@ -2,6 +2,21 @@
 
 Kept by the working session. Newest first. Times are UTC.
 
+## 2026-11-17, 14:30: the deploy moved to tomorrow
+
+- **The 09:20 deploy did not run.** The session was idle from 08:18 until
+  13:59, when the timer's prompt reached it. Jackson's rule is 4:30am Eastern
+  except for an incident, and the site was up (build `f315027`, 20 online), so
+  it is set for **Wed 18 Nov, 09:31 UTC** (a one-shot session timer: if this
+  session is cleared or exits first, nothing starts it). Inbox item
+  `hd-deploy-2026-11-17`: Approve deploys today instead.
+- **The pull of 1998-03-05 "Hollywood and UFOs" is on main** (`2289794`) and
+  ships with that deploy. Lint, typecheck, and the full suite passed (four
+  timeouts during the weekly mutation run passed on a re-run, 168 of 168).
+  Besides the four documented steps, it was in three community lists
+  (sources, categories, hosts); `docs/broken-episodes.md` has the record.
+- **The weekly mutation run is running again** (started 14:00).
+
 ## 2026-11-17, the night round (until 14:00 UTC)
 
 ### State at 08:15
