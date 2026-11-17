@@ -10,18 +10,28 @@ item deploys as soon as its checks pass.**
 The five biggest improvements for listeners, chosen from the 30-day numbers
 of 2026-11-17 (`/api/stats/usage`, the funnel line):
 
-- [ ] Show pages count their plays: 713 desktop views in 30 days and 0 plays recorded, because the page's native `<audio>` never calls `/api/stats/play` (surface `show`) or beats presence. Report one play per page load on the first `playing`, with source (archive or mirror), build and look; keep it working without JavaScript
-  - [ ] Built on branch `show-page-plays` (`/root/hd-showplays`, `f5463d4`, pushed); its own tests pass. Next: mutations `show-listen`, lint, typecheck, full suite, build, csp/seo, merge, deploy (steps in `docs/handoff-2026-11-17-listeners.md`)
-- [ ] Archive search forgives spelling: the Library search is exact substring only (`filter-episodes.ts`), so "Lazaar", "Hoagland" misspelt or "Coast to Cost" find nothing. Add typo-tolerant matching on guest and title words, ranked below exact hits, and a "Did you mean" line when nothing matches
-- [ ] Getting found on Google: a crawlable `/shows` archive (by year, every show linked, server HTML like the show pages), linked from every show, guest, topic and Tonight page and from the welcome page, and listed in the sitemap, so a crawler reaches all 1,412 shows in two hops rather than through the sitemap only
-- [ ] The live station on phones: 81% of phone visitors see Live but 36% tune in. Measure where they stop (the hero's Listen live vs scrolling away) with the existing funnel and usage counters, then make the one change the numbers point to
-- [ ] The player: a returning listener's Continue listening on Live and the Library resumes in one tap with the position shown ("1:12:40 of 2:58:00"); check today's restore path (1,010 plays in 30 days start from `restore`) and close what it misses
+- [ ] Ship the four built items together (branch `fuzzy-search`, worktree `/root/hd-fuzzy`): checks first (mutations, lint, typecheck, suite, build, csp/seo on the build), then merge to main, `deploy.sh`, csp/seo on production, and tick the four below
+- [ ] Show pages count their plays: 713 desktop views in 30 days and 0 plays recorded. One play per page load on the first `playing` (surface `show`), a heartbeat while it plays (built, `b035df5`)
+- [ ] Archive search forgives spelling: close spellings when nothing matches exactly, and "Did you mean" (built, `e4883e1`, `docs/library-search.md`)
+- [ ] Getting found on Google: `/shows` and `/shows/<year>`, linked from the show pages' frame and the welcome page, in the sitemap and `check:seo` (built, `1992a96`)
+- [ ] The player: Continue listening reads "Resume at 1:12:40 of 2:58:00", and the restored player shows where ▶ will start (built, `09b542c`). Not added to Live on purpose: a phone's Live screen has one big button. The restore path itself was sound
+- [ ] A week after the deploy: `playsBySurface.show` in `/api/stats/usage?days=7` is above 0, and Search Console's Pages report shows `/shows/*` indexed
 
 ## Needs Jackson
 
-(none)
+- [ ] Phone Live tune-in is 44% in Win98 against 79% in Night (30 days; Night users chose it, so not a clean comparison). Inbox `hd-phone-look-test` asks to split new phones 50/50 between the looks for 2 weeks. Approve: build the split. Decline: look for a change inside the Win98 Live screen instead
 
 ## Log
+
+## 2026-11-17, 18:30: the listener queue, items 1 to 5
+
+- Items 1, 2, 3 and 5 are built on one branch (`fuzzy-search`, with item 1's
+  `show-page-plays` merged in), so one suite run and one build cover them
+  on a busy box (the Level envelope batch holds High Desert's heavy slot for
+  minutes per show).
+- Item 4 is a decision for Jackson (above).
+- The rebased `show-page-plays` was not force-pushed (the push was refused).
+  It ships through the merge.
 
 ## 2026-11-17, 18:00: envelopes and mutations moved to tonight
 
