@@ -3892,6 +3892,14 @@ export const MUTATIONS = [
     why: "nginx's ETag is not the version: sending the version never matches, so every poll downloads the manifest again",
   },
   {
+    id: "live-manifest-fetch-static-safe",
+    test: "src/services/live/__tests__/manifest-fetch.test.ts",
+    file: "src/services/live/manifest.ts",
+    find: "      next: { revalidate: MANIFEST_MEMO_MS / 1000 },",
+    replace: "      cache: \"no-store\",",
+    why: "a no-store fetch inside frozenDay() turns a Tonight page that is first to freeze a day dynamic at runtime, and it answers 500",
+  },
+  {
     id: "status-mirror-no-pins",
     test: "scripts/__tests__/status.test.ts",
     file: "scripts/status.sh",

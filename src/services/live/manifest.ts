@@ -35,7 +35,14 @@ function manifestUrl(): string {
 async function fetchManifest(): Promise<ManifestSet | null> {
   const s = state();
   try {
-    const res = await fetch(manifestUrl(), { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), cache: "no-store" });
+    // Not `cache: "no-store"`: frozenDay() reaches here, and a Tonight page
+    // (ISR) that is first to freeze a day would turn dynamic at runtime and
+    // answer 500 ("Page changed from static to dynamic at runtime"). A
+    // 60 s revalidate matches the memo, and keeps the page static.
+    const res = await fetch(manifestUrl(), {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      next: { revalidate: MANIFEST_MEMO_MS / 1000 },
+    });
     if (!res.ok) return s.lastGood;
     const body = (await res.json()) as { version?: unknown; fileHashes?: unknown };
     if (
