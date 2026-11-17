@@ -136,3 +136,27 @@ Reproduce: `node scripts/audio/evaluate.ts <testset.json> --level-only`
   22:19 UTC: 2003-11-16 (today's on-this-date show, 2.9 h) from archive.org
   in 238 s, -15 LUFS integrated.
 - Sizing: a 2 h 15 min pin is 25 s of CPU, 55 MB RSS.
+
+## 2026-11-17: the reboot, and your three Inbox answers
+
+- **The box was rebooted about 00:45 UTC** for KVM 4 (4 cores, 16 GB,
+  200 GB). Site, station, chat and stats export came back by themselves; no
+  play was lost (last one logged 00:44). Station notice posted 00:53 UTC
+  with your approved wording (the upgrade, an apology, thanks to donors).
+- **The two steps after `envelope.py`: approved, both kept.** No change.
+- **Next.js 16.4.6: approved, done** (GHSA-mfr8-8qww-v76h, moderate,
+  16.3.0 to 16.4.4; nothing in `src/` uses `unstable_cache` or
+  `'use cache'`). Only `next` moves in the lockfile. `eslint-config-next`
+  stays at 16.3.8: 16.4.6 pulls in react-hooks rules that fail 11 places in
+  `src/`, a change of its own. Checks on the branch: lint, typecheck, vitest
+  3,237 passed (335 files, 0 failed), build with no security notice,
+  check:seo clean, check:csp clean but for the local `/live-api` 404s. No
+  e2e run; `deploy.sh` verifies and rolls back.
+- **The Sim Sunday spot: re-rendered at 19.49 s** (was 20.64), ceiling
+  still 20. Cut "live," and "and do it again". One Piper render, **not
+  transcribed**: Whisper is not on this box any more, so nobody has
+  checked the take word for word. Spots are off the air.
+- **Hook block:** the npm hook refused one call (`cd` to the worktree
+  after a `;`, then `npm ci`). Nothing ran; re-issued as `cd <worktree> &&
+  npm ...`, the form the block names.
+- All three ship with Level in the morning deploy.
