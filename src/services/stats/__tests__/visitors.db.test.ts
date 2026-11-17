@@ -72,6 +72,26 @@ async function row(id: string) {
 }
 
 describeDb("visitors (Postgres)", () => {
+  it("visitor_daily: a browser adds one to its day the first time it posts that day, never again that day", async () => {
+    const today = async () =>
+      Number(
+        (
+          await store.getPool().query<{ n: string }>(
+            "SELECT COALESCE(sum(n), 0) AS n FROM visitor_daily WHERE day = (now() AT TIME ZONE 'UTC')::date AND device = 'desktop'",
+          )
+        ).rows[0].n,
+      );
+    const id = vid("daily");
+    const before = await today();
+    await store.recordVisit({ id, device: "desktop", look: null, geo: GEO_NONE });
+    await store.recordVisit({ id, device: "desktop", look: null, geo: GEO_NONE });
+    expect((await today()) - before).toBe(1);
+    // The row last saw it yesterday: today is a new day for it, one more.
+    await store.getPool().query("UPDATE visitors SET last_day = last_day - 1 WHERE id = $1", [id]);
+    await store.recordVisit({ id, device: "desktop", look: null, geo: GEO_NONE });
+    expect((await today()) - before).toBe(2);
+  });
+
   it("one browser is one row however often it posts; a new UTC day is one more visit day", async () => {
     const before = await store.getVisitorTotals();
     const id = vid("once");

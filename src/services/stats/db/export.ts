@@ -77,6 +77,13 @@ export interface DailyTraffic {
    * profile makes.
    */
   samples: number;
+  /**
+   * Distinct browsers seen that day (visitor_daily, since 2026-11-17). Null
+   * for a day before it, or its first, partial day: not counted, not zero.
+   */
+  visitors: number | null;
+  /** Page views that day (route_daily). Null before it, as `visitors`. */
+  views: number | null;
 }
 
 /** The permanent daily history, oldest first. */
@@ -90,13 +97,27 @@ export async function getDailyTraffic(days: number): Promise<DailyTraffic[]> {
     plays: string;
     sessions: number;
     samples: number;
+    visitors: string | null;
+    views: string | null;
   }>(
+    // visitors and views: null for a day the counter cannot speak for, never
+    // 0. A counter's first day is partial (it began mid-day), so it is null
+    // too; from the next day on, a day without a row is a real 0.
     `
-    SELECT day, peak_online, peak_listening, avg_online, avg_listening,
-           plays, sessions, samples
-    FROM traffic_daily
-    WHERE day >= (now() AT TIME ZONE 'UTC')::date - ($1::int - 1)
-    ORDER BY day
+    WITH v AS (SELECT day, sum(n) AS n FROM visitor_daily GROUP BY day),
+         r AS (SELECT day, sum(views) AS n FROM route_daily GROUP BY day),
+         b AS (SELECT (SELECT min(day) FROM visitor_daily) AS v0,
+                      (SELECT min(day) FROM route_daily) AS r0)
+    SELECT t.day, t.peak_online, t.peak_listening, t.avg_online, t.avg_listening,
+           t.plays, t.sessions, t.samples,
+           CASE WHEN b.v0 IS NULL OR t.day <= b.v0 THEN NULL ELSE COALESCE(v.n, 0) END AS visitors,
+           CASE WHEN b.r0 IS NULL OR t.day <= b.r0 THEN NULL ELSE COALESCE(r.n, 0) END AS views
+    FROM traffic_daily t
+    LEFT JOIN v ON v.day = t.day
+    LEFT JOIN r ON r.day = t.day
+    CROSS JOIN b
+    WHERE t.day >= (now() AT TIME ZONE 'UTC')::date - ($1::int - 1)
+    ORDER BY t.day
     `,
     [days],
   );
@@ -113,6 +134,8 @@ export async function getDailyTraffic(days: number): Promise<DailyTraffic[]> {
     plays: Number(r.plays),
     sessions: r.sessions,
     samples: r.samples,
+    visitors: r.visitors === null ? null : Number(r.visitors),
+    views: r.views === null ? null : Number(r.views),
   }));
 }
 

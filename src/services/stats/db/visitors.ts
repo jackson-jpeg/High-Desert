@@ -117,11 +117,15 @@ export async function recordVisit(v: VisitInput): Promise<VisitResult> {
   const arrivalLook = cohort ? (v.cohortLook ?? null) : null;
   return inTransaction(async (c) => {
     await c.query(LOCK_SQL);
-    const prev = await c.query<{ funnel_cohort: string | null }>(
-      "SELECT to_char(funnel_cohort, 'YYYY-MM-DD') AS funnel_cohort FROM visitors WHERE id = $1 FOR UPDATE",
+    const prev = await c.query<{ funnel_cohort: string | null; new_day: boolean }>(
+      `SELECT to_char(funnel_cohort, 'YYYY-MM-DD') AS funnel_cohort,
+              last_day < (now() AT TIME ZONE 'UTC')::date AS new_day
+         FROM visitors WHERE id = $1 FOR UPDATE`,
       [v.id],
     );
     const created = prev.rowCount === 0;
+    // Its first visit today: one more distinct browser for the day (visitor_daily).
+    const firstToday = created || prev.rows[0].new_day === true;
     const newCohort = cohort !== null && (created || prev.rows[0].funnel_cohort === null);
 
     if (created) {
@@ -155,6 +159,14 @@ export async function recordVisit(v: VisitInput): Promise<VisitResult> {
          FROM (SELECT (now() AT TIME ZONE 'UTC')::date AS today) t
          WHERE id = $1`,
         [v.id, v.look, v.geo.country, v.geo.region, v.hereBefore === true, cohort, cohort ? arrivalDevice : null, arrivalLook],
+      );
+    }
+
+    if (firstToday) {
+      await c.query(
+        `INSERT INTO visitor_daily (day, device, n) VALUES ((now() AT TIME ZONE 'UTC')::date, $1, 1)
+         ON CONFLICT (day, device) DO UPDATE SET n = visitor_daily.n + 1`,
+        [v.device],
       );
     }
 

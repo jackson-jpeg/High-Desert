@@ -424,6 +424,17 @@ ALTER TABLE arrival_daily DROP CONSTRAINT IF EXISTS arrival_daily_pkey;
 -- `here_before`: the browser arrived with a library already in it, i.e. it
 -- was a visitor before the funnel began (2026-09-27). Its first_seen is when
 -- this table first saw it, not when it first came.
+-- Distinct browsers seen per UTC day (2026-11-17, for sang3r.com's export):
+-- one added the first time a browser posts /api/stats/visitor on a day, in the
+-- same transaction as its visitors row. A counter, no id. Days before the
+-- table existed have no row, and the export reports them as null, never 0.
+CREATE TABLE IF NOT EXISTS visitor_daily (
+  day    date   NOT NULL,
+  device text   NOT NULL CHECK (device IN ('phone', 'desktop')),
+  n      bigint NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, device)
+);
+
 CREATE TABLE IF NOT EXISTS visitors (
   id            text        PRIMARY KEY CHECK (id ~ '^[A-Za-z0-9_-]{16,64}$'),
   origin        text        NOT NULL DEFAULT 'browser' CHECK (origin IN ('browser', 'funnel')),

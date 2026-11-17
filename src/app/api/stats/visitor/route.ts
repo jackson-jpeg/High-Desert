@@ -1,9 +1,9 @@
+import { isNotAudience } from "@/lib/utils/not-audience";
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp, getClientKey } from "@/lib/utils/rate-limit";
 import { readJsonObject } from "@/lib/utils/json-body";
 import { isLook } from "@/lib/look/look";
 import { lookup } from "@/lib/geo/geoip";
-import { isBotUserAgent } from "@/lib/utils/bot";
 import { isCohortDay, isFunnelDevice, isVisitorId, recordVisit, visitorExists } from "@/services/stats/store";
 
 /**
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
   if (!isFunnelDevice(device)) {
     return NextResponse.json({ error: "device must be phone or desktop" }, { status: 400 });
   }
-  if (isBotUserAgent(request.headers.get("user-agent"))) return NextResponse.json({ ok: true, counted: false });
+  if (isNotAudience(request)) return NextResponse.json({ ok: true, counted: false });
 
   try {
     // A household or a carrier NAT is many browsers; a script minting ids is

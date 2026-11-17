@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { withEpisodeInfo } from "@/services/stats/catalog";
 import {
+  DETAIL_DAYS,
   getDailyTraffic,
+  getExportDetail,
   getEpisodeStats,
   getExportSummary,
   getNowPlaying,
@@ -23,7 +25,12 @@ import {
  *                       everything a dashboard needs.
  *   events            — a page of the raw play log, oldest first. Page with
  *                       `after` (the last id you saw), not with `since`.
- *   daily             — the permanent daily rollup.
+ *   daily             — the permanent daily rollup, with `visitors` (distinct
+ *                       browsers) and `views` (page views) per day, null where
+ *                       the day cannot be counted.
+ *   detail            — `days=7|30|90` (else 30): top pages, referrers,
+ *                       countries, devices and key numbers
+ *                       (src/services/stats/db/export-detail.ts).
  *   episodes          — per-episode totals with community ratings.
  *
  * Episode ids are resolved to titles from the shipped catalog; see
@@ -114,6 +121,12 @@ export async function GET(request: NextRequest) {
       case "daily": {
         const days = intParam(params, "days", 90, MAX_DAILY_DAYS);
         return NextResponse.json({ mode, days: await getDailyTraffic(days) });
+      }
+
+      case "detail": {
+        const asked = Number(params.get("days"));
+        const days = (DETAIL_DAYS as readonly number[]).includes(asked) ? (asked as (typeof DETAIL_DAYS)[number]) : 30;
+        return NextResponse.json({ mode, ...(await getExportDetail(days)) });
       }
 
       case "episodes": {

@@ -31,6 +31,51 @@ afterAll(async () => {
 });
 
 describeDb("stats export reads (Postgres)", () => {
+  it("mode=daily: visitors and views are null up to each counter's first (partial) day, numbers after", async () => {
+    const db = store.getPool();
+    const first = async (table: string) =>
+      (await db.query<{ d: string | null }>(`SELECT to_char(min(day), 'YYYY-MM-DD') AS d FROM ${table}`)).rows[0].d;
+    const v0 = await first("visitor_daily");
+    const r0 = await first("route_daily");
+    const days = await store.getDailyTraffic(3650);
+    expect(days.length).toBeGreaterThan(0);
+    for (const d of days) {
+      if (v0 === null || d.day <= v0) expect(d.visitors, d.day).toBeNull();
+      else expect(typeof d.visitors, d.day).toBe("number");
+      if (r0 === null || d.day <= r0) expect(d.views, d.day).toBeNull();
+      else expect(typeof d.views, d.day).toBe("number");
+    }
+  });
+
+  it("mode=detail: the shape sang3r reads, top 10 at most, rates in 0..1", async () => {
+    for (const n of store.DETAIL_DAYS) {
+      const d = await store.getExportDetail(n);
+      expect(d.days).toBe(n);
+      for (const list of [d.topPages, d.referrers, d.devices]) {
+        expect(list.length).toBeLessThanOrEqual(10);
+        for (const e of list) expect(e).toEqual({ name: expect.any(String), count: expect.any(Number) });
+      }
+      expect(d.countries.length).toBeLessThanOrEqual(10);
+      const k = d.keyNumbers;
+      expect(k.liveTuneInRate === null || (k.liveTuneInRate >= 0 && k.liveTuneInRate <= 1)).toBe(true);
+      expect(k.distinctShows).toBeLessThanOrEqual(k.showsPlayed);
+      expect(Object.keys(k.playsBySurface)).toContain("live");
+    }
+  });
+
+  it("mode=detail counts what the window holds: a play logged today is in showsPlayed (control: removed, it is not)", async () => {
+    const before = (await store.getExportDetail(7)).keyNumbers.showsPlayed;
+    const { rows } = await store
+      .getPool()
+      .query<{ id: string }>("INSERT INTO play_events (episode_id, played_at, session_ref) VALUES ($1, now(), 'ref') RETURNING id", [TAG]);
+    try {
+      expect((await store.getExportDetail(7)).keyNumbers.showsPlayed).toBe(before + 1);
+    } finally {
+      await store.getPool().query("DELETE FROM play_events WHERE id = $1", [rows[0].id]);
+    }
+    expect((await store.getExportDetail(7)).keyNumbers.showsPlayed).toBe(before);
+  });
+
   it("getPlayEvents pages the log by id: oldest first, no repeat and no gap at a page boundary", async () => {
     const from = new Date(Date.UTC(2002, 0, 1) + (process.pid % 100_000) * 1000);
     const until = new Date(from.getTime() + 60_000);

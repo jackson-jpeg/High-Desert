@@ -1,3 +1,4 @@
+import { isNotAudience } from "@/lib/utils/not-audience";
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { recordView } from "@/services/stats/store";
@@ -47,6 +48,8 @@ export async function POST(request: NextRequest) {
       ? { source: a.source, landing: a.landing, look: isLook(a.look) ? a.look : null }
       : null;
 
+  // Not the audience (src/lib/utils/not-audience.ts): answered as usual, not counted.
+  if (isNotAudience(request)) return NextResponse.json({ ok: true });
   try {
     await recordView(route, device, validArrival);
     return NextResponse.json({ ok: true });

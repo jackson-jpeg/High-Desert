@@ -25,7 +25,7 @@ function beat(body: unknown, ip = `10.23.${Math.floor(++n / 250)}.${n % 250}`) {
     new NextRequest("http://localhost/api/stats/heartbeat", {
       method: "POST",
       body: JSON.stringify(body),
-      headers: { "content-type": "application/json", "x-forwarded-for": ip },
+      headers: { "content-type": "application/json", "user-agent": "Mozilla/5.0 (test listener)", "x-forwarded-for": ip },
     }),
   );
 }
