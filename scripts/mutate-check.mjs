@@ -273,6 +273,14 @@ export const MUTATIONS = [
     why: "a browser that chose a look was offered Night again",
   },
   {
+    id: "default-card-cached",
+    test: "src/app/__tests__/default-card-cache.test.ts",
+    file: "src/app/opengraph-image.tsx",
+    find: "    { ...size, headers: { \"Cache-Control\": CARD_CACHE_CONTROL } },",
+    replace: "    { ...size },",
+    why: "the default share card (/, /library, /live, /shows) was max-age=0: every crawler and chat unfurl drew it again",
+  },
+  {
     id: "look-offer-win98-only",
     test: "src/components/looks/win98/__tests__/night-offer.test.tsx",
     file: "src/lib/look/choice.ts",

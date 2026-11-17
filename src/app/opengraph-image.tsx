@@ -1,6 +1,9 @@
 import { ImageResponse } from "next/og";
 // next/og renders without a stylesheet, so colours must be concrete strings.
 import { PALETTE } from "@/lib/palette";
+// Drawn per request (edge), so clients keep it a week like every card; without
+// it the default card, which every page without its own shares, was max-age=0.
+import { CARD_CACHE_CONTROL } from "@/components/shows/ShowCard";
 
 export const runtime = "edge";
 export const alt = "High Desert · Art Bell Radio Archive";
@@ -124,6 +127,6 @@ export default function OGImage() {
         />
       </div>
     ),
-    { ...size },
+    { ...size, headers: { "Cache-Control": CARD_CACHE_CONTROL } },
   );
 }
