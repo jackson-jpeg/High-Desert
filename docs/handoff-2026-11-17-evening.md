@@ -42,24 +42,28 @@ Read `docs/NEXT.md` (`## Queue`) with this. Times are UTC.
   `/mirror/*` (nginx and the chat service serve those). Expected locally;
   production is clean.
 
-## In flight: the sang3r.com export (branch `sang3r-export`, `/root/hd-export`)
+## The sang3r.com export: live (`a2e049a`)
 
-Asked by the lead and by sanger-75 (shape agreed in messages):
-- `mode=daily` days gain `visitors` (new `visitor_daily` counter, bumped in
+- `mode=daily` days carry `visitors` (new `visitor_daily`, bumped in
   `recordVisit`'s transaction) and `views` (`route_daily`), null up to each
-  counter's first partial day, never 0.
+  counter's first partial day, never 0. `visitors` has its first number on
+  2026-11-18.
 - `mode=detail&days=7|30|90`: `{days, topPages, referrers, countries,
   devices, keyNumbers: {showsPlayed, distinctShows, liveTuneInRate,
-  returningListeners, playsBySurface}}`, top 10 each.
+  returningListeners, playsBySurface}}`, top 10 each. Checked on loopback
+  with the token (both modes answer; 401 without it).
 - Not the audience (`src/lib/utils/not-audience.ts`), on view, funnel,
-  heartbeat and visitor, write time only: agent UAs (HeadlessChrome,
-  Playwright, curl, python, node, SangerLeadAudit, none), `X-Sanger-Internal`,
+  heartbeat and visitor, write time only: agent UAs, `X-Sanger-Internal`,
   `sanger_me=1`, the box's own addresses. Plays are not filtered.
-- Typecheck, lint and the focused tests (34 files, 296) pass; the test
-  database has the schema (`visitor_daily`). Mutations and the full suite
-  were running at handoff. Then: merge, push, `deploy.sh` (it applies the
-  schema), check:seo/csp on production, curl both modes with the token, and
-  tell sanger-75 it is live.
+- Checks: typecheck, lint, the full suite (341 files, 3,294 passed), nine new
+  mutations all red. sanger-75 told the URL and shape.
+
+## Mac hold (Jackson, ~22:50, macOS update)
+
+No ssh to the Mac until he releases it. This handoff's copy to
+`~/Downloads` waits for the release (it was copied once at 22:2x, before
+this revision). The `ssh macbook-tunnel` processes on the box are other
+sessions' MCP servers, not mine; I left them.
 
 ## Blocks and incidents this session
 
@@ -82,7 +86,7 @@ Asked by the lead and by sanger-75 (shape agreed in messages):
 
 ## Worktrees
 
-- `/root/hd-export` (in flight, unpushed).
+- `/root/hd-export`: merged and pushed; removed at the end of the session.
 - `/root/hd-fuzzy`, `/root/hd-split`, `/root/hd-showplays`: merged and pushed;
   removed at the end of the session.
 - `/root/hd-audio` (Clean up, kept).
