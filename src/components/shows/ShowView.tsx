@@ -188,7 +188,7 @@ export function ShowView({
         ) : null}
 
         <div className="hd-show-player w98-inset-dark bg-inset-well p-3 mt-5 flex flex-col gap-3">
-          <ShowPlayButton audioId={SHOW_AUDIO_ID} startAt={moment} />
+          <ShowPlayButton audioId={SHOW_AUDIO_ID} startAt={moment} episodeId={key} />
           <noscript dangerouslySetInnerHTML={{ __html: `<style>${NO_SCRIPT_PLAY_CSS}</style>` }} />
           {/* Native controls: plays with JavaScript off. preload="none" so a
               visit fetches nothing from archive.org until someone presses play.
