@@ -21,6 +21,7 @@ import { TonightView } from "@/components/tonight/TonightView";
 import { TopicView, TopicsIndex } from "@/components/topics/TopicView";
 import { buildTopicCatalog } from "@/lib/topics/catalog";
 import { readTopicSlugs } from "@/lib/topics/load";
+import { showYear } from "@/lib/shows/archive";
 import { breadcrumbJsonLd, tonightCrumbs, tonightJsonLd } from "@/lib/shows/jsonld";
 import { validateJsonLd } from "../../../../scripts/lib/jsonld-check.mjs";
 
@@ -73,7 +74,8 @@ function resolves(href: string): boolean {
   if (p.startsWith("/guest/")) return catalog.guests.has(p.slice(7));
   if (p.startsWith("/topic/")) return topics.bySlug.has(p.slice(7));
   if (p.startsWith("/tonight/")) return tonightDayInRange(p.slice(9), DAY);
-  return ["/", "/library", "/live", "/stats", "/tonight", "/topics", "/request-line"].includes(p);
+  if (p.startsWith("/shows/")) return showYear(catalog, p.slice(7)) !== null;
+  return ["/", "/library", "/live", "/stats", "/tonight", "/topics", "/request-line", "/shows"].includes(p);
 }
 
 function checkPage(d: Document, label: string) {

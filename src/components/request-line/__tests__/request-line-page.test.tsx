@@ -14,6 +14,7 @@ import { requestCloseAt, pacificDayBounds } from "@/lib/live/schedule";
 import { validateJsonLd } from "../../../../scripts/lib/jsonld-check.mjs";
 import { ShowView } from "@/components/shows/ShowView";
 import { EpisodeManageBar } from "@/components/library/EpisodeActions";
+import { showYear } from "@/lib/shows/archive";
 
 /**
  * The Request Line page, its list and the Request it button (2026-10-14,
@@ -58,7 +59,8 @@ function resolves(href: string) {
   const p = href.split("?")[0];
   if (p.startsWith("/show/")) return catalog.bySlug.has(p.slice(6));
   if (p.startsWith("/tonight/")) return /^\/tonight\/\d{4}-\d{2}-\d{2}$/.test(p);
-  return ["/", "/library", "/live", "/stats", "/tonight", "/topics", "/request-line"].includes(p);
+  if (p.startsWith("/shows/")) return showYear(catalog, p.slice(7)) !== null;
+  return ["/", "/library", "/live", "/stats", "/tonight", "/topics", "/request-line", "/shows"].includes(p);
 }
 function checkPage(d: Document) {
   for (const a of d.querySelectorAll("a[href]")) expect(resolves(a.getAttribute("href")!), a.getAttribute("href")!).toBe(true);
