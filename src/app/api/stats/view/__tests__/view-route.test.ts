@@ -19,12 +19,41 @@ function view(body: unknown) {
     new NextRequest("http://localhost/api/stats/view", {
       method: "POST",
       body: JSON.stringify(body),
-      headers: { "content-type": "application/json", "x-forwarded-for": `10.21.0.${n % 250}` },
+      headers: { "content-type": "application/json", "user-agent": "Mozilla/5.0 (test listener)", "x-forwarded-for": `10.21.0.${n % 250}` },
     }),
   );
 }
 
 beforeEach(() => store.recordView.mockClear());
+
+describe("POST /api/stats/view: not the audience (src/lib/utils/not-audience.ts)", () => {
+  const post = (headers: Record<string, string>) =>
+    POST(
+      new NextRequest("http://localhost/api/stats/view", {
+        method: "POST",
+        body: JSON.stringify({ route: "live", device: "phone" }),
+        headers: { "content-type": "application/json", "x-forwarded-for": "198.51.100.77", ...headers },
+      }),
+    );
+
+  it("answers an agent, sang3r's checks and Jackson as usual and counts none of them; a listener is counted (control)", async () => {
+    const cases: Record<string, string>[] = [
+      { "user-agent": "Mozilla/5.0 HeadlessChrome/131.0" },
+      { "user-agent": "Playwright/1.49" },
+      { "user-agent": "SangerLeadAudit/1.0" },
+      { "user-agent": "Mozilla/5.0 (test listener)", "x-sanger-internal": "1" },
+      { "user-agent": "Mozilla/5.0 (test listener)", cookie: "sanger_me=1" },
+    ];
+    for (const h of cases) {
+      const res = await post(h);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ ok: true });
+    }
+    expect(store.recordView).not.toHaveBeenCalled();
+    await post({ "user-agent": "Mozilla/5.0 (test listener)" });
+    expect(store.recordView).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe("POST /api/stats/view", () => {
   it("counts a known tab and device", async () => {

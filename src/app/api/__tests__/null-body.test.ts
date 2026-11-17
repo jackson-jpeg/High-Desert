@@ -47,7 +47,7 @@ function post(body: string): NextRequest {
   return new NextRequest("http://localhost/api/x", {
     method: "POST",
     body,
-    headers: { "content-type": "application/json", "x-forwarded-for": `198.51.100.${ip % 250}` },
+    headers: { "content-type": "application/json", "user-agent": "Mozilla/5.0 (test listener)", "x-forwarded-for": `198.51.100.${ip % 250}` },
   });
 }
 

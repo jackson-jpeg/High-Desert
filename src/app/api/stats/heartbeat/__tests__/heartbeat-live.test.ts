@@ -21,7 +21,7 @@ function beat(body: unknown) {
     new NextRequest("http://localhost/api/stats/heartbeat", {
       method: "POST",
       body: JSON.stringify(body),
-      headers: { "content-type": "application/json", "x-forwarded-for": `10.9.0.${n}` },
+      headers: { "content-type": "application/json", "user-agent": "Mozilla/5.0 (test listener)", "x-forwarded-for": `10.9.0.${n}` },
     }),
   );
 }

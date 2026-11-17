@@ -1,3 +1,4 @@
+import { isNotAudience } from "@/lib/utils/not-audience";
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientKey } from "@/lib/utils/rate-limit";
 import { getFunnel, isAcceptableCohort, isFunnelDevice, isFunnelStep, recordFunnelStep } from "@/services/stats/store";
@@ -50,6 +51,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "cohort must be a recent YYYY-MM-DD" }, { status: 400 });
   }
 
+  // Not the audience (src/lib/utils/not-audience.ts): answered as usual, not counted.
+  if (isNotAudience(request)) return NextResponse.json({ ok: true });
   try {
     await recordFunnelStep(cohort, step, device, isLook(look) ? look : null, again === true);
     return NextResponse.json({ ok: true });

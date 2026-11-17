@@ -31,7 +31,7 @@ function post(body: unknown, address = `10.8.0.${++n}`) {
     new NextRequest("http://localhost/api/stats/funnel", {
       method: "POST",
       body: JSON.stringify(body),
-      headers: { "content-type": "application/json", "x-forwarded-for": address },
+      headers: { "content-type": "application/json", "user-agent": "Mozilla/5.0 (test listener)", "x-forwarded-for": address },
     }),
   );
 }

@@ -1,3 +1,4 @@
+import { isNotAudience } from "@/lib/utils/not-audience";
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp, getClientKey } from "@/lib/utils/rate-limit";
 import { SESSIONS_PER_CLIENT, recordHeartbeat, recordRouteMinute, recordTuneIn } from "@/services/stats/store";
@@ -81,6 +82,9 @@ export async function POST(request: NextRequest) {
     typeof episodeId === "string" && isKnownEpisodeId(episodeId)
       ? episodeId
       : null;
+
+  // Not the audience (src/lib/utils/not-audience.ts): answered as usual, not counted.
+  if (isNotAudience(request)) return NextResponse.json({ ok: true });
 
   // Where the beat came from (docs/visitors.md): looked up on this server and
   // kept as a country and region only. The address goes no further.
