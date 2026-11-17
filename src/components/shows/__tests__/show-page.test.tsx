@@ -11,6 +11,7 @@ import { BOOT_SCRIPT } from "@/app/boot-script";
 import type { Show } from "@/lib/shows/describe";
 import { buildTopicCatalog } from "@/lib/topics/catalog";
 import { readTopicSlugs } from "@/lib/topics/load";
+import { showYear } from "@/lib/shows/archive";
 
 /**
  * A show page's markup, as the server sends it (docs/show-pages.md): what a
@@ -38,11 +39,12 @@ function resolves(href: string): boolean {
   if (p.startsWith("/show/")) return catalog.bySlug.has(p.slice(6));
   if (p.startsWith("/guest/")) return catalog.guests.has(p.slice(7));
   if (p.startsWith("/topic/")) return topics.bySlug.has(p.slice(7));
+  if (p.startsWith("/shows/")) return showYear(catalog, p.slice(7)) !== null;
   if (p === "/library" && url.search) {
     const intent = parseLibraryIntent(url.searchParams);
     return Object.keys(intent).length > 0;
   }
-  return ["/", "/library", "/live", "/stats", "/tonight", "/topics"].includes(p);
+  return ["/", "/library", "/live", "/stats", "/tonight", "/topics", "/shows"].includes(p);
 }
 
 describe("a show page's server HTML", () => {

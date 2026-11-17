@@ -33,7 +33,7 @@ const meta = (doc, attr, name) => doc.querySelector(`meta[${attr}="${name}"]`)?.
  * moment's (`/show/<slug>/moment/<s>/...`), and whose player starts there.
  *
  * @param {Document} doc the HTML as the server sent it, parsed without running scripts
- * @param {{path: string, kind: "show" | "guest" | "topic" | "tonight" | "moment", base: string}} page
+ * @param {{path: string, kind: "show" | "guest" | "topic" | "tonight" | "moment" | "request-line" | "shows" | "shows-year", base: string}} page
  * @returns {{findings: string[], links: string[], images: string[]}}
  *   links: every internal link on the page, as site paths, to be fetched;
  *   images: og:image and twitter:image, as site paths
@@ -77,7 +77,7 @@ export function pageFindings(doc, { path, kind, base }) {
   }
   need(types.includes("BreadcrumbList"), "no BreadcrumbList JSON-LD");
   if (kind === "show" || kind === "moment") need(types.includes("PodcastEpisode"), "no PodcastEpisode JSON-LD");
-  if (kind === "guest" || kind === "topic" || kind === "tonight" || kind === "request-line") need(types.includes("CollectionPage"), "no CollectionPage JSON-LD");
+  if (kind === "guest" || kind === "topic" || kind === "tonight" || kind === "request-line" || kind === "shows" || kind === "shows-year") need(types.includes("CollectionPage"), "no CollectionPage JSON-LD");
 
   // The page is in the HTML, not drawn by JavaScript afterwards.
   const h1 = doc.querySelectorAll("h1");
@@ -118,6 +118,12 @@ export function pageFindings(doc, { path, kind, base }) {
     need(!!doc.querySelector(`article[data-tonight-day="${day}"]`), "the day's article is not in the server HTML");
     need(!!doc.querySelector('a.hd-tonight-tune[href="/live"]'), "no Tune in link to /live");
     need(!!doc.querySelector(".hd-tonight-program") && !!doc.querySelector(".hd-tonight-dated"), "no program or on-this-date section");
+  }
+  if (kind === "shows") need(doc.querySelectorAll(".hd-shows-years a[href^='/shows/']").length >= 10, "/shows lists fewer than 10 years");
+  if (kind === "shows-year") {
+    const year = pagePath.replace(/^\/shows\//, "");
+    need(!!doc.querySelector(`article[data-year="${year}"]`), "the year's article is not in the server HTML");
+    need(doc.querySelectorAll(".hd-show-list a[href^='/show/']").length >= 1, "a year page lists no shows");
   }
   if (kind === "request-line") {
     need(!!doc.querySelector("article.hd-request-line[data-request-day]"), "the Request Line's article is not in the server HTML");

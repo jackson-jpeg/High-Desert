@@ -24,7 +24,7 @@ const link = "text-signal-blue hover:text-desktop-gray transition-colors-fast";
 /** How many notable shows lead a topic page. */
 export const START_HERE_MAX = 4;
 
-function Crumbs({ crumbs }: { crumbs: Crumb[] }) {
+export function Crumbs({ crumbs }: { crumbs: Crumb[] }) {
   return (
     <nav aria-label="Breadcrumb" className="hd-show-crumbs text-hd-caption text-bevel-dark mb-3">
       <ol className="flex flex-wrap items-center gap-1">

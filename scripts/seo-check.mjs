@@ -12,7 +12,8 @@
  * page, then checks a fixed sample: SEO_CHECK_SAMPLE show pages spread evenly
  * through the slugs, plus edge cases (no guest, several guests, Dreamland, a
  * special, Midnight in the Desert, no summary); guest pages; topic pages (and
- * /topics); Tonight pages (today and the oldest in the sitemap); and shared
+ * /topics); the archive by year (/shows and two years, every year listed);
+ * Tonight pages (today and the oldest in the sitemap); and shared
  * moments (`/show/<slug>?t=<s>`). Each must answer 200 and pass
  * scripts/lib/seo-page.mjs: title, description, canonical, Open Graph,
  * Twitter card, valid schema.org JSON-LD, the page in the server HTML, the
@@ -100,11 +101,16 @@ const sitemapPaths = new Set();
   const missingTopics = topicSlugs.filter((s) => s && !sitemapPaths.has(`/topic/${s}`));
   if (missingTopics.length) find("/sitemap.xml", `${missingTopics.length} topic page(s) missing, e.g. /topic/${missingTopics[0]}`);
   if (!sitemapPaths.has("/topics")) find("/sitemap.xml", "missing /topics");
+  if (!sitemapPaths.has("/shows")) find("/sitemap.xml", "missing /shows");
+  const catalogYears = [...new Set(rows.filter((r) => slugMap[r.fileHash]).map((r) => /^(\d{4})-/.exec(r.airDate ?? "")?.[1]).filter(Boolean))];
+  const missingYears = catalogYears.filter((y) => !sitemapPaths.has(`/shows/${y}`));
+  if (missingYears.length) find("/sitemap.xml", `${missingYears.length} year page(s) missing, e.g. /shows/${missingYears[0]}`);
   if (!sitemapPaths.has("/request-line")) find("/sitemap.xml", "missing /request-line");
 }
 const sitemapShows = [...sitemapPaths].filter((p) => p.startsWith("/show/")).map((p) => p.slice(6));
 const sitemapGuests = [...sitemapPaths].filter((p) => p.startsWith("/guest/"));
 const sitemapTopics = [...sitemapPaths].filter((p) => p.startsWith("/topic/"));
+const sitemapYears = [...sitemapPaths].filter((p) => /^\/shows\/\d{4}$/.test(p)).sort();
 const sitemapNights = [...sitemapPaths].filter((p) => /^\/tonight\/\d{4}-\d{2}-\d{2}$/.test(p)).sort();
 
 // --- /tonight is today's page ---------------------------------------------------
@@ -176,6 +182,9 @@ const pages = [
   ...nightSample.map((p) => ({ path: p, kind: "tonight" })),
   ...momentPaths.map((p) => ({ path: p, kind: "moment" })),
   { path: "/request-line", kind: "request-line" },
+  // The archive by year: the index and two years (each links every show it lists).
+  { path: "/shows", kind: "shows" },
+  ...evenSample(sitemapYears, 2).map((p) => ({ path: p, kind: "shows-year" })),
 ];
 const links = new Map(); // site path → first page that links to it
 const images = new Map();
@@ -240,7 +249,7 @@ await pool([...images.keys()], 3, async (p) => {
   }
   const bogus = await get("/show/1900-01-01-not-a-show");
   if (bogus.status !== 404) find("/show/1900-01-01-not-a-show", `expected 404, got ${bogus.status}`);
-  for (const p of ["/topic/not-a-topic", "/tonight/1999-01-01", "/tonight/2026-02-30"]) {
+  for (const p of ["/topic/not-a-topic", "/tonight/1999-01-01", "/tonight/2026-02-30", "/shows/1900", "/shows/not-a-year"]) {
     const res = await get(p);
     if (res.status !== 404) find(p, `expected 404, got ${res.status}`);
   }

@@ -3,11 +3,13 @@ import { showCatalog } from "@/lib/shows/load";
 import { SITE_ORIGIN, guestPath, showPath } from "@/lib/shows/describe";
 import { topicCatalog } from "@/lib/topics/load";
 import { topicPath } from "@/lib/topics/catalog";
+import { showYears, showsYearPath } from "@/lib/shows/archive";
 import { pacificDay } from "@/lib/live/schedule";
 import { tonightPath, tonightSitemapDays } from "@/lib/tonight/tonight";
 
 /**
- * Every page Google should index: the app's routes, then every show page,
+ * Every page Google should index: the app's routes, the archive by year
+ * (/shows and each year), then every show page,
  * guest page and topic page, the Request Line, and every station day's
  * Tonight page from FIRST_STATION_DAY (docs/show-pages.md). Show, guest and topic
  * entries carry no lastModified: a broadcast from 1997 has none worth
@@ -49,6 +51,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.5,
     },
+    { url: `${base}/shows`, changeFrequency: "monthly", priority: 0.7 },
+    ...showYears(catalog).map((y) => ({ url: `${base}${showsYearPath(y.year)}`, priority: 0.6 })),
     ...catalog.shows.map((s) => ({ url: `${base}${showPath(s.slug)}`, priority: 0.6 })),
     ...[...catalog.guests.values()].map((g) => ({ url: `${base}${guestPath(g.slug)}`, priority: 0.5 })),
     { url: `${base}/request-line`, lastModified: now, changeFrequency: "hourly", priority: 0.7 },
