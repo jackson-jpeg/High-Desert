@@ -1,6 +1,26 @@
 # High Desert: what is next
 
-Kept by the working session. Newest first. Times are UTC.
+Kept by the working session. Times are UTC. `## Queue` is the work, top
+first, one line per item (the foreman's format); the dated notes below it are
+the log, newest first. **No deploy window since 2026-11-17 (Jackson): each
+item deploys as soon as its checks pass.**
+
+## Queue
+
+The five biggest improvements for listeners, chosen from the 30-day numbers
+of 2026-11-17 (`/api/stats/usage`, the funnel line):
+
+- [ ] Show pages count their plays: 713 desktop views in 30 days and 0 plays recorded, because the page's native `<audio>` never calls `/api/stats/play` (surface `show`) or beats presence. Report one play per page load on the first `playing`, with source (archive or mirror), build and look; keep it working without JavaScript
+- [ ] Archive search forgives spelling: the Library search is exact substring only (`filter-episodes.ts`), so "Lazaar", "Hoagland" misspelt or "Coast to Cost" find nothing. Add typo-tolerant matching on guest and title words, ranked below exact hits, and a "Did you mean" line when nothing matches
+- [ ] Getting found on Google: a crawlable `/shows` archive (by year, every show linked, server HTML like the show pages), linked from every show, guest, topic and Tonight page and from the welcome page, and listed in the sitemap, so a crawler reaches all 1,412 shows in two hops rather than through the sitemap only
+- [ ] The live station on phones: 81% of phone visitors see Live but 36% tune in. Measure where they stop (the hero's Listen live vs scrolling away) with the existing funnel and usage counters, then make the one change the numbers point to
+- [ ] The player: a returning listener's Continue listening on Live and the Library resumes in one tap with the position shown ("1:12:40 of 2:58:00"); check today's restore path (1,010 plays in 30 days start from `restore`) and close what it misses
+
+## Needs Jackson
+
+(none)
+
+## Log
 
 ## 2026-11-17, 18:00: envelopes and mutations moved to tonight
 
