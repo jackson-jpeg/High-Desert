@@ -2,6 +2,15 @@
 
 Kept by the working session. Newest first. Times are UTC.
 
+## 2026-11-17, 18:00: envelopes and mutations moved to tonight
+
+At the lead's request (the heavy queue was jammed), I stopped the Level
+envelope batch and its hourly timer (116 envelopes kept) and the weekly
+mutation run. Two transient timers re-queue them one at a time after 22:00 ET:
+`hd-requeue-mutations` (03:05 UTC, starts `highdesert-mutations`) and
+`hd-requeue-envelopes` (05:30 UTC, starts `highdesert-level-envelopes.timer`
+again). The status `mutations` line may WARN until tonight's run finishes.
+
 ## 2026-11-17, 15:30: deployed, green
 
 - **Jackson approved deploying today** (Inbox `hd-deploy-2026-11-17`), so
