@@ -74,6 +74,15 @@ describe("the Library search forgives spelling", () => {
     expect(correctedSearch(q, spelling!)!.toLowerCase()).toContain(word);
   });
 
+  it("every query word must be met: a close spelling of one word never brings in shows with only the other", () => {
+    const row = (id: number, guestName: string) => ({ ...catalog[0], id, guestName, title: guestName, aiTags: [], aiSummary: "", aiCategory: undefined, aiSeries: undefined }) as Episode;
+    const list = [row(1, "Bob Lazar"), row(2, "Bob Smith"), row(3, "Mary Lazar")];
+    const { episodes } = fuzzyTextMatch(list, "bob lazaar");
+    expect(episodes.map((e) => e.id)).toEqual([1]);
+    // Control: each word alone finds its own shows, so the two-word result is an intersection.
+    expect(fuzzyTextMatch(list, "lazaar").episodes.map((e) => e.id)).toEqual([1, 3]);
+  });
+
   it("finds the Area 51 night for 'Bob Lazaar'", () => {
     const { episodes } = search("Bob Lazaar");
     expect(episodes.some((e) => e.guestName === "John Lear and Bob Lazar")).toBe(true);
