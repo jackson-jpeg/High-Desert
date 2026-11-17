@@ -5,6 +5,7 @@ import { LookProvider } from "@/hooks/useLook";
 import { isLook, LOOKS, lookFrom } from "@/lib/look/look";
 import { notFound } from "next/navigation";
 import { UsageTracker } from "@/components/UsageTracker";
+import { LOOK_SPLIT_SCRIPT } from "@/lib/look/split";
 import { BOOT_SCRIPT } from "../boot-script";
 import { SEASON_SCRIPT } from "@/lib/season/season";
 import { HalloweenScene } from "@/components/desktop/HalloweenScene";
@@ -133,6 +134,8 @@ export default async function RootLayout({
       <head>
         {/* The holiday season, from the visitor's own date, before first paint (docs/seasons.md). */}
         <script dangerouslySetInnerHTML={{ __html: SEASON_SCRIPT }} />
+        {/* The phone look split: a new phone visitor's look, at random, once (src/lib/look/split.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: LOOK_SPLIT_SCRIPT }} />
         {/* The build this document belongs to (src/lib/utils/build-id.ts). */}
         <meta name={BUILD_META} content={process.env.NEXT_PUBLIC_BUILD_ID ?? "dev"} />
         <link rel="preconnect" href="https://archive.org" />
