@@ -24,14 +24,26 @@ of 2026-11-17 (`/api/stats/usage`, the funnel line):
 
 Not read by the foreman (it has no date gate, so these sat at the top of the Queue and were sent before their day). On or after the date, move the line back under `## Queue`.
 
+- [ ] Not before 2026-11-18 06:00 UTC: the re-run of this week's mutations (`hd-requeue-mutations.timer`, 03:05 UTC, approved by Jackson in the Inbox 2026-11-17) finished, and `highdesert-status`'s `mutations` line reads OK. A survivor: fix it (test or mutation) as a Queue item
 - [ ] Not before 2026-11-25 (a week after the 2026-11-17 deploy): `playsBySurface.show` in `/api/stats/usage?days=7` is above 0, and Search Console's Pages report shows `/shows/*` indexed
 - [ ] Not before 2026-12-02: read the phone look split (`docs/funnel.md`, "The phone look split", the psql query there): Live, tune-in and return per look, phones, cohorts 2026-11-18 to 2026-12-01. Write the verdict there and remove `LOOK_SPLIT_SCRIPT` from the head (it does nothing after the window, but it is dead code)
 
 ## Needs Jackson
 
-- [ ] The skipped weekly mutation run: start it tonight at 03:05 UTC, or let Monday 2026-11-23's run cover it (Inbox `hd-mutations-requeue-2026-11-17`). The status `mutations` line WARNs until one finishes
+(nothing open)
+
 
 ## Log
+
+## 2026-11-17, 23:50: the mutation re-run, approved
+
+- Jackson approved it in the Inbox ("run it tonight under the heavy lock,
+  and create the missing weekly timer"). `hd-requeue-mutations.timer`
+  (transient, one shot) starts `highdesert-mutations` at 03:05 UTC; each
+  mutation's vitest takes the heavy slot. The weekly
+  `highdesert-mutations.timer` was never missing: enabled, next run
+  2026-11-23 14:00 UTC, versioned in `deploy/`. The one that never existed
+  was the 18:00 one-shot re-run, now made.
 
 ## 2026-11-17, 23:30: date-gated items moved out of the Queue
 
