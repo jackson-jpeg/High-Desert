@@ -63,7 +63,13 @@ describe("the Library search forgives spelling", () => {
 
     const { episodes, spelling } = search(q);
     expect(episodes.length).toBeGreaterThan(0);
-    expect(guests(episodes).every((g) => g.includes(word))).toBe(true);
+    // Every show naming the intended word is found. Not "every result names
+    // it": a misspelling can sit one edit from two real words ("hogland" is
+    // also close to another catalog word), and both are fair matches.
+    const meant = catalog.filter((e) => guests([e])[0].includes(word));
+    expect(meant.length).toBeGreaterThan(0);
+    const found = new Set(episodes.map((e) => e.id));
+    expect(meant.every((e) => found.has(e.id))).toBe(true);
     expect(spelling).not.toBeNull();
     expect(correctedSearch(q, spelling!)!.toLowerCase()).toContain(word);
   });
