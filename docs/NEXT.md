@@ -10,11 +10,12 @@ item deploys as soon as its checks pass.**
 The five biggest improvements for listeners, chosen from the 30-day numbers
 of 2026-11-17 (`/api/stats/usage`, the funnel line):
 
-- [ ] Ship the four built items together (branch `fuzzy-search`, worktree `/root/hd-fuzzy`): checks first (mutations, lint, typecheck, suite, build, csp/seo on the build), then merge to main, `deploy.sh`, csp/seo on production, and tick the four below
-- [ ] Show pages count their plays: 713 desktop views in 30 days and 0 plays recorded. One play per page load on the first `playing` (surface `show`), a heartbeat while it plays (built, `b035df5`)
-- [ ] Archive search forgives spelling: close spellings when nothing matches exactly, and "Did you mean" (built, `e4883e1`, `docs/library-search.md`)
-- [ ] Getting found on Google: `/shows` and `/shows/<year>`, linked from the show pages' frame and the welcome page, in the sitemap and `check:seo` (built, `1992a96`)
-- [ ] The player: Continue listening reads "Resume at 1:12:40 of 2:58:00", and the restored player shows where ▶ will start (built, `09b542c`). Not added to Live on purpose: a phone's Live screen has one big button. The restore path itself was sound
+- [ ] Ship the four built items together (branch `fuzzy-search`, worktree `/root/hd-fuzzy`, one item because they share one suite run, one build and one deploy): checks first (mutations, lint, typecheck, suite, build, csp/seo on the build), then merge to main, `deploy.sh`, csp/seo on production. In flight; the checks wait in the heavy queue behind the Level envelope batch. What it ships:
+  - Show pages count their plays: 713 desktop views in 30 days and 0 plays recorded. One play per page load on the first `playing` (surface `show`), a heartbeat while it plays (`b035df5`)
+  - Archive search forgives spelling: close spellings when nothing matches exactly, and "Did you mean" (`e4883e1`, `docs/library-search.md`)
+  - Getting found on Google: `/shows` and `/shows/<year>`, linked from the show pages' frame and the welcome page, in the sitemap and `check:seo` (`1992a96`)
+  - The player: Continue listening reads "Resume at 1:12:40 of 2:58:00", and the restored player shows where ▶ will start (`09b542c`). Not added to Live on purpose: a phone's Live screen has one big button
+- [ ] Level envelopes have no next run: `highdesert-level-envelopes.timer` is stopped and the `hd-requeue-*` timers in the 18:00 log do not exist (checked 18:40). Once the ship above is done, start the timer again (`systemctl start highdesert-level-envelopes.timer`), so the batch does not hold the slot during the checks
 - [ ] A week after the deploy: `playsBySurface.show` in `/api/stats/usage?days=7` is above 0, and Search Console's Pages report shows `/shows/*` indexed
 
 ## Needs Jackson
