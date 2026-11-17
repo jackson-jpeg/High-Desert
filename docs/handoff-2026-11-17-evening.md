@@ -95,3 +95,21 @@ sessions' MCP servers, not mine; I left them.
 
 - `docs/STUDIO-RECORD.json` written for sang3r's Studio Map (path sent to
   sanger-75).
+
+## For the next session (written 23:0x, context full)
+
+- **In flight:** nothing. No background jobs, no open worktrees but
+  `/root/hd-audio` (Clean up, kept, not mine to remove). Live = `a2e049a`;
+  HEAD is docs only.
+- **Next, from `docs/NEXT.md` `## Queue`:**
+  1. The Tonight first-freeze 500: give `mirrorManifest()`'s fetch
+     `next: { revalidate: 60 }` instead of `no-store`, with a test; reproduce
+     on a local build on the e2e database first (`e2e/live.spec.ts` header).
+  2. Not before 2026-11-25: `playsBySurface.show > 0` in
+     `/api/stats/usage?days=7`, and `/shows/*` indexed in Search Console.
+  3. Not before 2026-12-02: read the phone look split (`docs/funnel.md`).
+- **Owed once Jackson lifts the Mac hold:** `scp
+  docs/handoff-2026-11-17-evening.md macbook:Downloads/` (this revision).
+  Until then, no ssh to the Mac at all.
+- sanger-75 has the export shape; it is their NEXT.md item 0000b. Nothing
+  owed to them.
