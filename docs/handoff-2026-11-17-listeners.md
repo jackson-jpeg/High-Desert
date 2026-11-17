@@ -37,9 +37,9 @@ Not pushed, not merged. It holds items 1, 2, 3 and 5 of the listener queue
     worktree never had `services/live`'s own `npm ci`) and
     `scripts/__tests__/e2e-tokens.test.ts` (0 tests, cause not read yet).
 
-**Running when this was written** (background, will die with the session):
-`cd services/live && npm ci`, then a vitest rerun of exactly the failed files.
-If the session is cleared, re-run in `/root/hd-fuzzy`:
+**Rerun of the failed files: passed, 26 files, 419 tests** (after
+`services/live`'s `npm ci` in the worktree, done; e2e-tokens loads now too).
+Next is step 1 below. For reference, the rerun was:
 
 ```bash
 cd /root/hd-fuzzy/services/live && heavy --label hd-fuzzy-live-ci -- npm ci --no-audit --no-fund
