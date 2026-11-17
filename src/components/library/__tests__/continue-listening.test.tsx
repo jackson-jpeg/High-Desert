@@ -3,6 +3,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Episode } from "@/db/schema";
+import { formatTime } from "@/lib/utils/format";
+import { resumeLabel } from "@/lib/library/continue-listening";
 
 /**
  * Continue listening, mounted for real against the database: the progress
@@ -74,8 +76,8 @@ describe("Continue listening", () => {
     act(() => root.render(<ContinueListening onResume={onResume} />));
     await flush();
     const featured = q("continue-resume")!;
-    expect(featured.getAttribute("aria-label")).toBe("Resume Coast to Coast AM - Show 2 at 1:12:04");
-    expect(q("continue-at")!.textContent).toBe("Resume at 1:12:04");
+    expect(featured.getAttribute("aria-label")).toBe("Coast to Coast AM - Show 2: Resume at 1:12:04 of 3:00:00");
+    expect(q("continue-at")!.textContent).toBe("Resume at 1:12:04 of 3:00:00");
     expect(featured.textContent).toContain("Guest 2 · 1997");
     expect(featured.textContent).toContain("1 h 48 min left");
     expect(host.querySelectorAll('[data-testid="continue-more"]')).toHaveLength(2);
@@ -126,8 +128,15 @@ describe("Continue listening", () => {
     expect(section.hasAttribute("data-dense")).toBe(true);
     expect(q("continue-more")).toBeNull();
     expect(section.textContent).toContain("Continue listening");
-    expect(q("continue-at")!.textContent).toContain("Resume at 20:00");
+    expect(q("continue-at")!.textContent).toContain("Resume at 20:00 of 3:00:00");
     act(() => q("continue-resume")!.click());
     expect(onResume).toHaveBeenCalledWith(expect.objectContaining({ fileHash: row(1).fileHash }));
+  });
+});
+
+describe("resumeLabel", () => {
+  it("says where it resumes, of how long, and only the position when the length is unknown", () => {
+    expect(resumeLabel({ position: 4360, remaining: 6320 }, formatTime)).toBe("Resume at 1:12:40 of 2:58:00");
+    expect(resumeLabel({ position: 4360, remaining: null }, formatTime)).toBe("Resume at 1:12:40");
   });
 });

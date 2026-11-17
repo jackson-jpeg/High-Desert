@@ -264,3 +264,38 @@ export function requestLineJsonLd(day: string, title: string, description: strin
     ...(shows.length ? { mainEntity: { "@type": "ItemList", numberOfItems: shows.length, itemListElement: showListItems(shows) } } : {}),
   };
 }
+
+/** /shows: the archive by year (src/lib/shows/archive.ts). */
+export function showsIndexJsonLd(years: readonly { year: string; shows: readonly Show[] }[]): Node {
+  const url = absolute("/shows");
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": url,
+    url,
+    name: "Every Art Bell show, by year",
+    description: "Every show in the High Desert archive of Art Bell's radio shows, by the year it aired.",
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: years.length,
+      itemListElement: years.map((y, i) => ({ "@type": "ListItem", position: i + 1, url: absolute(`/shows/${y.year}`), name: `${y.year} (${y.shows.length} shows)` })),
+    },
+  };
+}
+
+/** /shows/<year>: every show that aired that year. */
+export function showsYearJsonLd(year: string, shows: readonly Show[]): Node {
+  const url = absolute(`/shows/${year}`);
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": url,
+    url,
+    name: `Art Bell shows from ${year}`,
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: shows.length,
+      itemListElement: shows.map((s, i) => ({ "@type": "ListItem", position: i + 1, url: absolute(showPath(s.slug)) })),
+    },
+  };
+}

@@ -26,6 +26,7 @@ import {
   type CommunityIndex,
 } from "@/lib/library/sort-keys";
 import { episodeTitle } from "@/lib/library/display-title";
+import { fuzzyTextMatch, type FuzzyResult } from "@/lib/library/fuzzy-search";
 
 /**
  * "date" is newest first (Dexie's order, kept as is); "date-asc" is oldest
@@ -79,6 +80,22 @@ export function matchComparison(actual: number, op: ComparisonOp["op"], target: 
  * With no criteria set it returns the input array itself.
  */
 export function filterEpisodes(episodes: Episode[], criteria: LibraryCriteria): Episode[] {
+  return filterEpisodesSpelled(episodes, criteria).episodes;
+}
+
+export interface FilteredEpisodes {
+  episodes: Episode[];
+  /**
+   * Set when the free text matched nothing exactly and these rows are close
+   * spellings instead (`fuzzy-search.ts`): what each word was corrected to.
+   * Null for an exact result (or none at all).
+   */
+  spelling: FuzzyResult["corrections"] | null;
+}
+
+/** `filterEpisodes`, saying whether the free text was matched by close spelling. */
+export function filterEpisodesSpelled(episodes: Episode[], criteria: LibraryCriteria): FilteredEpisodes {
+  let spelling: FilteredEpisodes["spelling"] = null;
   const { search, showFilter, favoritesOnly, guestFilter, categoryFilter, seriesFilter, bookmarkedIds, playableOnly } = criteria;
   let list = episodes;
 
@@ -188,6 +205,7 @@ export function filterEpisodes(episodes: Episode[], criteria: LibraryCriteria): 
     // Free-text search on remaining terms
     if (parsed.text) {
       const q = parsed.text.toLowerCase();
+      const before = list;
       list = list.filter(
         (ep) =>
           ep.fileName.toLowerCase().includes(q) ||
@@ -200,10 +218,18 @@ export function filterEpisodes(episodes: Episode[], criteria: LibraryCriteria): 
           ep.aiSeries?.toLowerCase().includes(q) ||
           ep.aiTags?.some((tag) => tag.toLowerCase().includes(q)),
       );
+      // Nothing exact: close spellings, never mixed in with exact hits.
+      if (list.length === 0) {
+        const fuzzy = fuzzyTextMatch(before, parsed.text);
+        if (fuzzy.episodes.length > 0) {
+          list = fuzzy.episodes;
+          spelling = fuzzy.corrections;
+        }
+      }
     }
   }
 
-  return list;
+  return { episodes: list, spelling };
 }
 
 /**
@@ -284,6 +310,20 @@ export function selectLibraryEpisodes(
   community: CommunityIndex = NO_COMMUNITY,
   progress: ProgressIndex = NO_PROGRESS,
 ): Episode[] {
-  if (!episodes) return [];
-  return sortEpisodes(filterEpisodes(episodes, criteria), criteria.sortMode, criteria.seriesFilter, community, progress);
+  return selectLibraryView(episodes, criteria, community, progress).episodes;
+}
+
+/** `selectLibraryEpisodes`, with the spelling note the page shows above the list. */
+export function selectLibraryView(
+  episodes: Episode[] | undefined,
+  criteria: LibraryCriteria & { sortMode: SortMode },
+  community: CommunityIndex = NO_COMMUNITY,
+  progress: ProgressIndex = NO_PROGRESS,
+): FilteredEpisodes {
+  if (!episodes) return { episodes: [], spelling: null };
+  const filtered = filterEpisodesSpelled(episodes, criteria);
+  return {
+    episodes: sortEpisodes(filtered.episodes, criteria.sortMode, criteria.seriesFilter, community, progress),
+    spelling: filtered.spelling,
+  };
 }

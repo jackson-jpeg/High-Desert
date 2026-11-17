@@ -34,7 +34,7 @@ import { MilestoneDialog } from "@/components/desktop/MilestoneDialog";
 import { playStartupSound } from "@/audio/startup-sound";
 import { createScanPreview } from "@/audio/scan-preview";
 import { dialOwnsKeys } from "@/hooks/useRadioDialKeys";
-import { beginStart, isCurrentStart } from "@/audio/play-session";
+import { beginStart, isCurrentStart, startPositionFor } from "@/audio/play-session";
 import { bindPlaySurface } from "@/audio/play-surface";
 import { toast } from "@/stores/toast-store";
 import { emit, onHdEvent, SW_OFFLINE_FALLBACK } from "@/lib/events";
@@ -443,7 +443,9 @@ export default function DesktopLayout({
           await progressReady();
           if (ep && !usePlayerStore.getState().currentEpisode) {
             usePlayerStore.getState().loadEpisode(ep, "");
-            usePlayerStore.getState().setPosition(positionOf(ep.fileHash) ?? 0);
+            // Where ▶ will start (startPositionFor: 0 for a finished show), not
+            // the raw saved second, so the readout and the first sound agree.
+            usePlayerStore.getState().setPosition(startPositionFor(positionOf(ep.fileHash), ep.duration));
             usePlayerStore.getState().setDuration(ep.duration ?? 0);
             // Point the element at it too. loadEpisode only touches the store,
             // so without this the restored player rendered a live ▶ over an

@@ -136,6 +136,7 @@ PR, on main and nightly at 09:30 UTC; that workflow is now manual only.
 | `/show/<slug>` | One show, server-rendered for search engines (no app shell, works without JavaScript). See "Show pages and search" |
 | `/guest/<slug>` | Every show with one guest (guests with 2+ shows). Same frame as show pages |
 | `/show/<slug>?t=<s>` | A shared moment: the show page playing from that second, its own card, rendered per request (rewritten to `/show/<slug>/moment/<t>`, which itself 308s back) |
+| `/shows`, `/shows/<year>` | The archive by year: every year, then every show that aired in it, as plain server HTML links (same frame as show pages; linked from every page in that frame and the welcome page). See "Show pages and search" and `docs/show-pages.md` |
 | `/topic/<slug>`, `/topics` | Every show on a topic (categories, curated subjects, big tags; `data/topic-slugs.json`), and the index |
 | `/tonight`, `/tonight/<yyyy-mm-dd>` | One station day: its frozen program and the date's broadcasts. `/tonight` is a 307 to today (Pacific) |
 | `/live` | High Desert Live — the 24/7 station: now playing, time left, up next, the day's log, the live count, the phone lines (chat). See "Live station" |

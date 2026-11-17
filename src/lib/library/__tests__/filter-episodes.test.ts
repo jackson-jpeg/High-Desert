@@ -6,6 +6,7 @@ import type { Episode, StoredEpisode } from "@/db/schema";
 import type { ProgressIndex } from "@/stores/progress-store";
 import {
   filterEpisodes,
+  filterEpisodesSpelled,
   sortEpisodes,
   selectLibraryEpisodes,
   matchComparison,
@@ -156,7 +157,13 @@ describe("filterEpisodes — search operators", () => {
 });
 
 describe("filterEpisodes — free text", () => {
-  const q = (search: string) => ids(filterEpisodes(LIB, { ...NONE, search }));
+  // Exact matches only: a close spelling (fuzzy-search.ts) would otherwise
+  // stand in for a field the search forgot ("ghosts" is one edit from "Ghost").
+  const q = (search: string) => {
+    const { episodes, spelling } = filterEpisodesSpelled(LIB, { ...NONE, search });
+    expect(spelling).toBeNull();
+    return ids(episodes);
+  };
 
   it("matches title, case-insensitively", () => {
     expect(q("GHOST TO")).toEqual([2]);

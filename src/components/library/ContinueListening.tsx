@@ -9,7 +9,7 @@ import { formatTime } from "@/lib/utils/format";
 import { episodeTitle } from "@/lib/library/display-title";
 import { shownGuest } from "@/lib/library/guest";
 import { airYear } from "@/lib/live/hook";
-import { continueItems, remainingLabel, type ContinueItem } from "@/lib/library/continue-listening";
+import { continueItems, remainingLabel, resumeLabel, type ContinueItem } from "@/lib/library/continue-listening";
 import { ShowTitle } from "@/components/library/ShowTitle";
 
 /**
@@ -72,7 +72,7 @@ export function ContinueListening({
           type="button"
           onClick={() => onResume(ep)}
           data-testid="continue-resume"
-          aria-label={`Resume ${title} at ${formatTime(first.position)}`}
+          aria-label={`${title}: ${resumeLabel(first, formatTime)}`}
           className="flex-1 min-w-0 flex items-center gap-2 text-left cursor-pointer min-h-touch group"
         >
           <span
@@ -87,7 +87,7 @@ export function ContinueListening({
             </h2>
             <ShowTitle title={title} className="text-hd-caption text-desktop-gray font-bold truncate" />
             <span className="text-hd-micro text-bevel-dark truncate" data-testid="continue-at">
-              Resume at {formatTime(first.position)}{left ? ` · ${left}` : ""}
+              {resumeLabel(first, formatTime)}{left ? ` · ${left}` : ""}
             </span>
           </span>
         </button>
@@ -133,7 +133,7 @@ export function ContinueListening({
                 type="button"
                 onClick={() => onResume(item.episode)}
                 data-testid="continue-more"
-                aria-label={`Resume ${episodeTitle(item.episode)} at ${formatTime(item.position)}`}
+                aria-label={`${episodeTitle(item.episode)}: ${resumeLabel(item, formatTime)}`}
                 className="w-full min-h-touch px-2 py-1.5 w98-raised-dark bg-card-surface text-left cursor-pointer flex flex-col gap-1"
               >
                 <ShowTitle title={episodeTitle(item.episode)} className="text-hd-caption text-desktop-gray" />
@@ -156,7 +156,7 @@ function Featured({ item, onResume }: { item: ContinueItem; onResume: (episode: 
       type="button"
       onClick={() => onResume(ep)}
       data-testid="continue-resume"
-      aria-label={`Resume ${title} at ${formatTime(item.position)}`}
+      aria-label={`${title}: ${resumeLabel(item, formatTime)}`}
       className="w-full flex items-center gap-3 text-left cursor-pointer min-h-[64px] group"
     >
       <span
@@ -169,7 +169,7 @@ function Featured({ item, onResume }: { item: ContinueItem; onResume: (episode: 
         <ShowTitle title={title} className="text-hd-body text-desktop-gray font-bold" />
         {meta && <span className="text-hd-caption text-bevel-dark truncate">{meta}</span>}
         <span className="text-hd-caption text-desert-amber" data-testid="continue-at">
-          Resume at {formatTime(item.position)}
+          {resumeLabel(item, formatTime)}
         </span>
         <Progress item={item} />
       </span>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 import { safeGetItem, safeSetItem } from "@/lib/utils/safe-storage";
@@ -212,6 +213,15 @@ export default function WelcomePage() {
             Or tune in live. The station is on the air.
           </button>
         )}
+
+        {/* Every show as plain links (docs/show-pages.md, "The archive by
+            year"): the way in for a crawler, and a reader who wants the list. */}
+        <Link
+          href="/shows"
+          className="text-hd-10 tracking-[2px] min-h-touch px-3 inline-flex items-center font-[family-name:var(--font-w95)] text-signal-blue hover:text-desktop-gray"
+        >
+          Every show, by year
+        </Link>
 
         {/* Footer */}
         <div className="text-hd-8 mt-4 font-[family-name:var(--font-w95)] text-bevel-dark/85">

@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 /**
- * The frame around show, guest, topic and Tonight pages (docs/show-pages.md):
+ * The frame around show, guest, topic, Tonight and archive pages (docs/show-pages.md):
  * a server-rendered page, not the app shell. Everything on it is in the HTML
  * the server sends, so it reads, links and plays with JavaScript off.
  *
@@ -55,6 +55,9 @@ export function ShowShell({ children }: { children: ReactNode }) {
             <Link href="/library" className={navLink}>
               Library
             </Link>
+            <Link href="/shows" className={navLink}>
+              All shows
+            </Link>
             <Link href="/tonight" className={`${navLink} hidden sm:inline-flex`}>
               Tonight
             </Link>
@@ -92,7 +95,10 @@ export function ShowShell({ children }: { children: ReactNode }) {
               The station
             </Link>
             <Link href="/library" className={footLink}>
-              Every show
+              The Library
+            </Link>
+            <Link href="/shows" className={footLink}>
+              Every show, by year
             </Link>
             <Link href="/tonight" className={footLink}>
               Tonight on High Desert

@@ -197,7 +197,7 @@ describe("hd:* events and the routes they fire on (HD-019, HD-013)", () => {
     // would pass the real assertion below vacuously.
     expect([...ROUTES.keys()].sort()).toEqual([
       "/", "/[...missing]", "/guest/[slug]", "/library", "/live", "/request-line", "/scanner", "/search", "/show/[slug]",
-      "/show/[slug]/moment/[t]", "/stats", "/tonight/[day]", "/topic/[slug]", "/topics",
+      "/show/[slug]/moment/[t]", "/shows", "/shows/[year]", "/stats", "/tonight/[day]", "/topic/[slug]", "/topics",
     ]);
     expect(allEmits.length).toBeGreaterThan(20);
     const layout = path.join(APP, "[look]/(desktop)/layout.tsx");

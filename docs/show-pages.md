@@ -208,6 +208,26 @@ claiming). `public/robots.txt` disallows `/api/`, `/scanner`, `/search` and
   `requested-start-*`, `share-*`, `seo-*` ids in `scripts/mutate-check.mjs`.
 - `scripts/csp-check.mjs` loads one show page too.
 
+## Counting a listen (2026-11-17)
+
+Until 2026-11-17 a listen on a show page wrote nothing: the page plays
+through its own native `<audio>`, not the app's player, and in the 30 days
+before show pages had 713 desktop views and 0 plays recorded.
+`installShowListen` (`src/services/stats/show-page-listen.ts`), installed by
+`ShowPlayButton` on the page's element, now counts it like any listen:
+
+- one `/api/stats/play` per page load, on the first `playing` (sound, not a
+  press), with surface `show`, the source the browser chose (`archive`, or
+  `mirror` when it fell through to the second `<source>`), build and look.
+  It watches the element, so the native controls count too;
+- a heartbeat carrying the show every minute while it plays, so the listener
+  is online and the show on the air; none from a headless checker
+  (`hd-not-counted`).
+
+Without JavaScript the page still plays and counts nothing. Tests:
+`src/services/stats/__tests__/show-page-listen.test.tsx`; mutations
+`show-listen-*`.
+
 ## Sharing (2026-10-12)
 
 - **Share sends the show's page.** `EpisodeShareButton` shares
@@ -412,3 +432,27 @@ Two ways, pick one.
    handful of well-known shows; the sitemap brings the rest over days to weeks.
 3. After a week or two: **Pages** (indexing report) for how many are indexed
    and why any are not, and **Enhancements → Breadcrumbs**.
+
+## The archive by year (2026-11-17)
+
+`/shows` lists every year with a show and how many; `/shows/<year>` lists
+every show that aired that year, by month, in air order, with links to the
+years either side (`src/lib/shows/archive.ts`,
+`src/components/shows/ShowsArchive.tsx`, routes in `src/app/[look]/shows/`).
+Server HTML in the show pages' frame, every show a plain link, JSON-LD
+`CollectionPage` and `BreadcrumbList`.
+
+- **Why:** a crawler found the 1,412 show pages through the sitemap, or one
+  guest, topic or related list at a time. Now every page in the frame (show,
+  guest, topic, Tonight, the topics index) links `/shows` in its header
+  ("All shows") and footer ("Every show, by year"), and the welcome page
+  links it too, so every show is two hops from any of them.
+- Year pages render on first request and are cached until the next deploy,
+  like show pages. A year with no show is a 404. A show without an air date
+  has no year page (none in today's catalog).
+- The sitemap lists `/shows` and every year. `check:seo` requires them,
+  checks `/shows` and two years (and every link on them, which is every show
+  of those years), and expects `/shows/1900` to be a 404.
+- Tests: `src/components/shows/__tests__/shows-archive.test.tsx` (every dated
+  show reached in two hops, the frame's links, the sitemap, JSON-LD).
+  Mutations: `shows-archive-*`.
