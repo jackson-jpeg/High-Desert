@@ -208,6 +208,26 @@ claiming). `public/robots.txt` disallows `/api/`, `/scanner`, `/search` and
   `requested-start-*`, `share-*`, `seo-*` ids in `scripts/mutate-check.mjs`.
 - `scripts/csp-check.mjs` loads one show page too.
 
+## Counting a listen (2026-11-17)
+
+Until 2026-11-17 a listen on a show page wrote nothing: the page plays
+through its own native `<audio>`, not the app's player, and in the 30 days
+before show pages had 713 desktop views and 0 plays recorded.
+`installShowListen` (`src/services/stats/show-page-listen.ts`), installed by
+`ShowPlayButton` on the page's element, now counts it like any listen:
+
+- one `/api/stats/play` per page load, on the first `playing` (sound, not a
+  press), with surface `show`, the source the browser chose (`archive`, or
+  `mirror` when it fell through to the second `<source>`), build and look.
+  It watches the element, so the native controls count too;
+- a heartbeat carrying the show every minute while it plays, so the listener
+  is online and the show on the air; none from a headless checker
+  (`hd-not-counted`).
+
+Without JavaScript the page still plays and counts nothing. Tests:
+`src/services/stats/__tests__/show-page-listen.test.tsx`; mutations
+`show-listen-*`.
+
 ## Sharing (2026-10-12)
 
 - **Share sends the show's page.** `EpisodeShareButton` shares

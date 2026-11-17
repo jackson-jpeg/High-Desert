@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { momentLabel } from "@/lib/shows/share";
+import { installShowListen } from "@/services/stats/show-page-listen";
 
 /**
  * A show page's big one-tap Play (docs/show-pages.md). It drives the page's
@@ -18,7 +19,16 @@ import { momentLabel } from "@/lib/shows/share";
 
 type State = "idle" | "loading" | "playing" | "paused";
 
-export function ShowPlayButton({ audioId, startAt }: { audioId: string; startAt: number | null }) {
+export function ShowPlayButton({
+  audioId,
+  startAt,
+  episodeId,
+}: {
+  audioId: string;
+  startAt: number | null;
+  /** The show's community key: its listen is counted (show-page-listen.ts), whichever control started it. */
+  episodeId: string | null;
+}) {
   const [state, setState] = useState<State>("idle");
   const started = useRef(false);
 
@@ -41,10 +51,12 @@ export function ShowPlayButton({ audioId, startAt }: { audioId: string; startAt:
       ],
     ];
     for (const [type, fn] of on) audio.addEventListener(type, fn);
+    const uncount = episodeId ? installShowListen(audio, episodeId) : null;
     return () => {
       for (const [type, fn] of on) audio.removeEventListener(type, fn);
+      uncount?.();
     };
-  }, [audioId, startAt]);
+  }, [audioId, startAt, episodeId]);
 
   const toggle = () => {
     const audio = document.getElementById(audioId) as HTMLAudioElement | null;
