@@ -81,6 +81,38 @@ Code: `src/services/stats/funnel-client.ts` (browser),
 `src/services/stats/db/funnel.ts` and `src/app/api/stats/funnel/route.ts`
 (server), `funnel_daily` in `scripts/schema.sql`.
 
+## The phone look split (2026-11-18 to 2026-12-01)
+
+Jackson, Inbox, 2026-11-17: "Run the 50/50 split for 2 weeks on new phone
+visitors only." **Assignment starts 2026-11-18 00:00 UTC and stops by itself
+at 2026-12-02 00:00 UTC** (`SPLIT_FROM`, `SPLIT_UNTIL` in
+`src/lib/look/split.ts`). If it ships later than 2026-11-18, the first day is
+the deploy's.
+
+- **Who:** a phone (narrower than 768 px) with no `hd_look` cookie and none of
+  the marks of an earlier visit in localStorage (`hd-visitor`, `hd-funnel`,
+  `hd-look-chosen`, `hd-look-offer`, `hd-not-counted`), and not a crawler
+  (crawlers stay Win98). Desktops and returning visitors are untouched.
+- **How:** an inline head script (`LOOK_SPLIT_SCRIPT`) picks Win98 or Night
+  at random before first paint and writes it as the `hd_look` cookie, the
+  same cookie the Display setting writes, so it is kept for good. A Night
+  assignment replaces the page once (the cookie-less request rendered Win98)
+  before any app code runs; it reloads only once the cookie has stuck, once
+  per tab. The arm is in localStorage `hd-look-split` (`night@2026-11-18`).
+- **A browser in the split is never offered Night** (`hd-look-offer` is
+  `split`), so its funnel steps carry the look it was given: `byLook` on
+  phones, cohorts in the window, reads as the two arms (a listener may still
+  switch by hand in Display, which moves later steps to the other look, as
+  `again` rows).
+- **Reading it** (two weeks after it ships, NEXT.md): `tune / visit`,
+  `live / visit` and `return / visit` per look, phones, cohorts in the
+  window only. The API's `byLook` spans its whole `days` range, which would
+  mix in earlier phones that chose Night through the offer, so read the
+  table (`day` is the cohort day; `again = false`: each browser once; columns in
+  `funnel_daily`, `scripts/schema.sql`):
+  `psql "$DATABASE_URL" -c "select look, step, sum(n) from funnel_daily where device = 'phone' and day >= '2026-11-18' and day < '2026-12-02' and not again group by 1, 2 order by 1, 2"`.
+  Unlike "By look" above, this one is randomised.
+
 ## Reading it
 
 - `highdesert-status` has a `funnel` line: the last 7 days' cohorts, each step

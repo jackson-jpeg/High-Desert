@@ -66,6 +66,10 @@ once: **"Prefer dark?"** with **Switch to Night** and a close box
   action. On a phone's Live screen it waits until the listener has tuned in
   (`offerHeldBack()`): that screen's first job is one Listen tap.
 
+- **Not during the phone look split** (2026-11-18 to 2026-12-01,
+  `docs/funnel.md`, "The phone look split"): a new phone visitor is given
+  Win98 or Night at random, and is never offered Night.
+
 ## What each look changes
 
 - **CSS** goes in `src/styles/look-win98.css` / `look-night.css`, every rule
