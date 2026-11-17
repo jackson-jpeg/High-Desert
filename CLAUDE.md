@@ -1807,7 +1807,8 @@ visitor's IndexedDB. There is no server backup. A bad write here is unrecoverabl
   aborts rather than throwing. They are not optional — they would have prevented that incident
   independently of the key bug.
 - Regression tests live in `src/db/__tests__/`; `dedupKey` must yield one distinct key per row of
-  the real seed catalog (**1,413**: the 2026-09-28 community import made it 1,413,
+  the real seed catalog (**1,412**: the 2026-09-28 community import made it 1,413; 1998-03-05 was pulled on
+  2026-11-17 when archive.org took its item down;
   `docs/community-sources.md`; one removal on 2026-10-11 was undone the same day when the
   Egyptian Cave show was repaired instead, `docs/broken-episodes.md`).
   The count is asserted against the catalog rather than hardcoded, so pulling an episode does not

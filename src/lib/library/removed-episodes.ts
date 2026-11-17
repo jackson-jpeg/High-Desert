@@ -37,6 +37,13 @@ export const REMOVED_FROM_CATALOG: ReadonlyMap<string, RemovedEpisode> = new Map
       reason: "The archive's copy of this broadcast contains no audio, only its cover art.",
     },
   ],
+  [
+    "archive:1993-06-20-coast-to-coast-am-with-art-bell-al-bielek-philadelphia-experiment_202510:1998-03-05 - Coast to Coast AM with Art Bell - Bruce Rux - Hollywood and UFOs.mp3",
+    {
+      pulled: "2026-11-17",
+      reason: "The Internet Archive took down its copy of this broadcast, so it cannot be played.",
+    },
+  ],
 ]);
 
 /** The removal record for this row, if it is one of the pulled episodes. */

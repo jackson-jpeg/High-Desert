@@ -24,17 +24,6 @@
       "topic": "Strange Universe"
     },
     {
-      "archiveIdentifier": "1993-06-20-coast-to-coast-am-with-art-bell-al-bielek-philadelphia-experiment_202510",
-      "fileName": "1998-03-05 - Coast to Coast AM with Art Bell - Bruce Rux - Hollywood and UFOs.mp3",
-      "torrent": "C2C Addendum 2",
-      "torrentFile": "Hollywood and UFOs with Bruce Rux (Art Bell).mp3",
-      "airDate": "1998-03-05",
-      "show": "Coast to Coast AM",
-      "showType": "coast",
-      "guestName": "Bruce Rux",
-      "topic": "Hollywood and UFOs"
-    },
-    {
       "archiveIdentifier": "Art-Bell_Midnight_In_the_Desert",
       "fileName": "2015-07-20 - Art Bell MITD - Graham Hancock.mp3",
       "torrent": "Coast to Coast AM",
@@ -1111,6 +1100,21 @@
       "showType": "special",
       "guestName": "Dr. David Jacobs",
       "topic": "Alien Experimentation on Humans"
+    }
+  ],
+  "pulled": [
+    {
+      "archiveIdentifier": "1993-06-20-coast-to-coast-am-with-art-bell-al-bielek-philadelphia-experiment_202510",
+      "fileName": "1998-03-05 - Coast to Coast AM with Art Bell - Bruce Rux - Hollywood and UFOs.mp3",
+      "torrent": "C2C Addendum 2",
+      "torrentFile": "Hollywood and UFOs with Bruce Rux (Art Bell).mp3",
+      "airDate": "1998-03-05",
+      "show": "Coast to Coast AM",
+      "showType": "coast",
+      "guestName": "Bruce Rux",
+      "topic": "Hollywood and UFOs",
+      "pulled": "2026-11-17",
+      "why": "archive.org took the item down (is_dark, 403). See docs/broken-episodes.md."
     }
   ],
   "heldBack": [

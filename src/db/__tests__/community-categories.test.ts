@@ -66,8 +66,9 @@ beforeEach(async () => {
 });
 
 describe("the hand-assigned list: json, seed and log agree", () => {
-  it("101 entries, each a category from the categorizer's list, each with a reason", () => {
-    expect(listJson.length).toBe(101);
+  it("100 entries, each a category from the categorizer's list, each with a reason", () => {
+    // 101 were assigned; 1998-03-05 left the list when it was pulled (2026-11-17, docs/broken-episodes.md).
+    expect(listJson.length).toBe(100);
     for (const e of listJson) {
       expect(CATEGORIES, e.title).toContain(e.category);
       expect(e.why.length, e.title).toBeGreaterThan(3);

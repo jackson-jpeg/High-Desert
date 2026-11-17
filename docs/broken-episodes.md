@@ -91,6 +91,57 @@ itself is not rare; only this copy of it is broken.
 
 ---
 
+## 1998-03-05 — Coast to Coast AM: Hollywood and UFOs (Bruce Rux)
+
+**Pulled 2026-11-17.** archive.org took the item down; no copy of the file can
+be reached.
+
+| | |
+|---|---|
+| File | `1998-03-05 - Coast to Coast AM with Art Bell - Bruce Rux - Hollywood and UFOs.mp3` |
+| Item | `1993-06-20-coast-to-coast-am-with-art-bell-al-bielek-philadelphia-experiment_202510` |
+| archive.org metadata | `is_dark: true` (2026-11-17) |
+| `/download/...` and the item's own server | **403** |
+| Mirror | not pinned, so no copy here either |
+
+It was the only catalog show in that item (one of the three single shows of the
+2026-09-28 community import, `docs/community-sources.md`). The station was on
+it when the item went dark: it was cut by hand at 06:03 UTC on 2026-11-14
+(`live_overrides`, kind `manual-archive-403`) and Area 51 played the rest of
+the slot. Three days later the item is still dark. A search of archive.org for
+the guest and for the title found no other copy.
+
+This is not a broken file: nothing is known to be wrong with the audio. If the
+item comes back, or another copy turns up, restore the record below (and
+`node scripts/gen-community-keys.mjs`, and take it off
+`REMOVED_FROM_CATALOG`). Its slug stays in `data/show-slugs.json`.
+
+Original record:
+
+```json
+{
+  "fileHash": "archive:1993-06-20-coast-to-coast-am-with-art-bell-al-bielek-philadelphia-experiment_202510:1998-03-05 - Coast to Coast AM with Art Bell - Bruce Rux - Hollywood and UFOs.mp3",
+  "fileName": "1998-03-05 - Coast to Coast AM with Art Bell - Bruce Rux - Hollywood and UFOs.mp3",
+  "filePath": "https://archive.org/download/1993-06-20-coast-to-coast-am-with-art-bell-al-bielek-philadelphia-experiment_202510/1998-03-05%20-%20Coast%20to%20Coast%20AM%20with%20Art%20Bell%20-%20Bruce%20Rux%20-%20Hollywood%20and%20UFOs.mp3",
+  "fileSize": 68301348,
+  "title": "Coast to Coast AM - Hollywood and UFOs",
+  "artist": "Art Bell",
+  "airDate": "1998-03-05",
+  "guestName": "Bruce Rux",
+  "showType": "coast",
+  "topic": "Hollywood and UFOs",
+  "duration": 8527.93,
+  "format": "mp3",
+  "source": "archive",
+  "sourceUrl": "https://archive.org/download/1993-06-20-coast-to-coast-am-with-art-bell-al-bielek-philadelphia-experiment_202510/1998-03-05%20-%20Coast%20to%20Coast%20AM%20with%20Art%20Bell%20-%20Bruce%20Rux%20-%20Hollywood%20and%20UFOs.mp3",
+  "archiveIdentifier": "1993-06-20-coast-to-coast-am-with-art-bell-al-bielek-philadelphia-experiment_202510",
+  "aiStatus": "pending",
+  "aiCategory": "UFOs & Aliens"
+}
+```
+
+---
+
 ## Checked and kept
 
 Two other episodes were short enough to look suspicious and are **not** broken.

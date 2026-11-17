@@ -84,6 +84,18 @@ describe("what was added", () => {
     for (const e of added) expect(keys.get(archiveFileHash(e.archiveIdentifier, e.fileName)), e.fileName).toBe(1);
   });
 
+  it("a show pulled since (archive.org took its item down) is out of the catalog and on the removed list", () => {
+    const pulled = sources.pulled as (typeof ENTRY & { pulled: string; why: string })[];
+    expect(pulled.length).toBe(1);
+    const removed = readFileSync(path.join(ROOT, "src/lib/library/removed-episodes.ts"), "utf8");
+    for (const e of pulled) {
+      const key = archiveFileHash(e.archiveIdentifier, e.fileName);
+      expect(catalog.some((c) => c.fileHash === key), e.fileName).toBe(false);
+      expect(added.some((a) => a.fileName === e.fileName), e.fileName).toBe(false);
+      expect(removed, e.fileName).toContain(JSON.stringify(key));
+    }
+  });
+
   it("only Art Bell's own Midnight in the Desert: nothing after he stepped down on 2015-12-11", () => {
     const mitd = added.filter((e) => e.show === "Midnight in the Desert");
     expect(mitd.length).toBeGreaterThan(0);

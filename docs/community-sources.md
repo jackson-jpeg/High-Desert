@@ -71,6 +71,12 @@ working files, not in the repository.
 
 ## What was added (101), and from where
 
+**One has since been pulled.** archive.org took down the item holding
+1998-03-05 "Hollywood and UFOs" (403 from 2026-11-14), so it left the catalog
+on 2026-11-17: 100 of the 101 remain. Its record is in
+`docs/broken-episodes.md`, and `data/community-sources.json` lists it under
+`pulled`. The tables below are as imported.
+
 All went through `scripts/import-community-sources.mjs`. It builds each row as
 collection import does (`src/services/archive/collection-import.ts`):
 
