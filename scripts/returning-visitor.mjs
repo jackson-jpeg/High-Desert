@@ -73,9 +73,12 @@ export function parseArgs(argv) {
  * WebKit reports the unload beacon (`/api/stats/stop`) that a navigation cuts
  * off as a page error ("... due to access control checks") although the app
  * catches it (src/services/stats/client.ts). That is the check navigating, not
- * the page failing; anything else is judged.
+ * the page failing; anything else is judged. The station's clock sync
+ * (`/api/live/time`, src/lib/live/time-sync.ts) is cut off the same way and
+ * is caught too: syncClock skips a lost sample (deploy of 68e7565, WebKit,
+ * 2026-11-17, rolled back on this alone).
  */
-export const NAVIGATION_NOISE = /\/api\/stats\/[a-z]+ due to access control checks/;
+export const NAVIGATION_NOISE = /\/api\/(?:stats\/[a-z]+|live\/time) due to access control checks/;
 
 export function judgeRevisit(r) {
   const problems = [];

@@ -8180,6 +8180,22 @@ export const MUTATIONS = [
     why: "a returning visitor's empty Library would pass the post-deploy check",
   },
   {
+    id: "returning-noise-clock-sync",
+    test: "scripts/__tests__/returning-visitor.test.ts",
+    file: "scripts/returning-visitor.mjs",
+    find: "export const NAVIGATION_NOISE = /\\/api\\/(?:stats\\/[a-z]+|live\\/time) due to access control checks/;",
+    replace: "export const NAVIGATION_NOISE = /\\/api\\/stats\\/[a-z]+ due to access control checks/;",
+    why: "WebKit's cut-off clock sync (caught by the app) would roll back a good deploy, as it did 68e7565",
+  },
+  {
+    id: "returning-noise-not-every-live-route",
+    test: "scripts/__tests__/returning-visitor.test.ts",
+    file: "scripts/returning-visitor.mjs",
+    find: "export const NAVIGATION_NOISE = /\\/api\\/(?:stats\\/[a-z]+|live\\/time) due to access control checks/;",
+    replace: "export const NAVIGATION_NOISE = /\\/api\\/(?:stats|live)\\/[a-z]+ due to access control checks/;",
+    why: "excusing every live route would hide a schedule fetch that really failed",
+  },
+  {
     id: "deploy-returning-rollback",
     test: "scripts/__tests__/deploy.test.ts",
     file: "scripts/deploy.sh",

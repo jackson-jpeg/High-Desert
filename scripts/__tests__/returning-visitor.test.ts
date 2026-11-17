@@ -49,6 +49,13 @@ describe("judgeRevisit", () => {
     expect(judgeRevisit({ ...good, pageErrors: [beacon] }).ok).toBe(true);
     expect(judgeRevisit({ ...good, pageErrors: [beacon, "ChunkLoadError"] }).ok).toBe(false);
   });
+
+  it("the clock sync cut off by the navigation is noise; another live route is not", () => {
+    const clock = "Fetch API cannot load http://127.0.0.1:3003/api/live/time due to access control checks.";
+    expect(judgeRevisit({ ...good, pageErrors: [clock] }).ok).toBe(true);
+    const schedule = "Fetch API cannot load http://127.0.0.1:3003/api/live/schedule due to access control checks.";
+    expect(judgeRevisit({ ...good, pageErrors: [schedule] }).ok).toBe(false);
+  });
 });
 
 describe("parseArgs", () => {
