@@ -10,17 +10,18 @@ item deploys as soon as its checks pass.**
 The five biggest improvements for listeners, chosen from the 30-day numbers
 of 2026-11-17 (`/api/stats/usage`, the funnel line):
 
-- [ ] Ship the four built items together (branch `fuzzy-search`, worktree `/root/hd-fuzzy`, one item because they share one suite run, one build and one deploy): checks first (mutations, lint, typecheck, suite, build, csp/seo on the build), then merge to main, `deploy.sh`, csp/seo on production. In flight; the checks wait in the heavy queue behind the Level envelope batch. What it ships:
+- [ ] Ship the four built items together (branch `fuzzy-search`, worktree `/root/hd-fuzzy`, one item because they share one suite run, one build and one deploy): checks first (mutations, lint, typecheck, suite, build, csp/seo on the build), then merge to main, `deploy.sh`, csp/seo on production. In flight: lint and typecheck pass; the suite's failures are fixed or being rerun (`docs/handoff-2026-11-17-listeners.md` has the exact next commands). What it ships:
   - Show pages count their plays: 713 desktop views in 30 days and 0 plays recorded. One play per page load on the first `playing` (surface `show`), a heartbeat while it plays (`b035df5`)
   - Archive search forgives spelling: close spellings when nothing matches exactly, and "Did you mean" (`e4883e1`, `docs/library-search.md`)
   - Getting found on Google: `/shows` and `/shows/<year>`, linked from the show pages' frame and the welcome page, in the sitemap and `check:seo` (`1992a96`)
   - The player: Continue listening reads "Resume at 1:12:40 of 2:58:00", and the restored player shows where ▶ will start (`09b542c`). Not added to Live on purpose: a phone's Live screen has one big button
-- [ ] Level envelopes have no next run: `highdesert-level-envelopes.timer` is stopped and the `hd-requeue-*` timers in the 18:00 log do not exist (checked 18:40). Once the ship above is done, start the timer again (`systemctl start highdesert-level-envelopes.timer`), so the batch does not hold the slot during the checks
+- [ ] Right after the ship above lands, start the envelope timer: `systemctl start highdesert-level-envelopes.timer` (Jackson, Inbox, 2026-11-17: "Start the envelope timer right after the fuzzy-search ship lands. No need to ask."). Its `hd-requeue-*` timers from the 18:00 log never existed
+- [ ] The phone look split, approved (Jackson, Inbox, 2026-11-17: "Run the 50/50 split for 2 weeks on new phone visitors only."). A browser on a phone (narrower than 768 px) with no `hd_look` cookie and no prior visit gets Win98 or Night at random, once, recorded as its cookie; returning visitors, desktops and crawlers are untouched (crawlers stay Win98). The funnel already records the look; add the assignment's start date to `docs/funnel.md` and a dated item to read the result 2 weeks after it ships (Live → tune-in by look, phones, cohorts since the start). Build in its own worktree after the ship above
 - [ ] Not before 2026-11-25 (a week after the deploy above, which has not happened yet; nothing to do until then): `playsBySurface.show` in `/api/stats/usage?days=7` is above 0, and Search Console's Pages report shows `/shows/*` indexed
 
 ## Needs Jackson
 
-- [ ] Phone Live tune-in is 44% in Win98 against 79% in Night (30 days; Night users chose it, so not a clean comparison). Inbox `hd-phone-look-test` asks to split new phones 50/50 between the looks for 2 weeks. Approve: build the split. Decline: look for a change inside the Win98 Live screen instead
+(nothing open: the phone look split was approved 2026-11-17 and moved to the Queue)
 
 ## Log
 
