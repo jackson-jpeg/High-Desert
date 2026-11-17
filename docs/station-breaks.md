@@ -101,8 +101,10 @@ chain beat the barely-filtered one, and three lines were rewritten for the
 voice, not the meaning: "Free, on the App Store." (the comma stops ryan
 swallowing "App Store"), "real flight prices" (ryan's "fares" reads as
 "fizz"), and Sim Sunday's "Import your league from Sleeper, or E S P N. Draft
-it, sweat it, gloat about it, and do it again." (one-word sentences such as
-"Draft. Sweat. Gloat. Repeat." came out as noise). Piper takes vary run to
+it, sweat it, gloat about it." (one-word sentences such as
+"Draft. Sweat. Gloat. Repeat." came out as noise; "live," and "and do it
+again" were cut on 2026-11-17 to bring the spot from 20.64 s to 19.49 s,
+under the 20 s ceiling, and that take was not transcribed: one render). Piper takes vary run to
 run; the committed takes are the best of four by that count.
 
 To re-record: edit a script or the voice in `spots.json`, then

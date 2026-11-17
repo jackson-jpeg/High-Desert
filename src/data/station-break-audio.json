@@ -20,9 +20,9 @@
   "simsunday": {
     "id": "simsunday",
     "cart": "21",
-    "durationSec": 20.64,
-    "bytes": 165346,
-    "sha256": "210e56393b9a16686ae40cb647ad73aee6cc498a5d97c3d7156d562b857e9a3b",
+    "durationSec": 19.49,
+    "bytes": 156151,
+    "sha256": "fd8495e36575be75f017f4b3e2d8f1be45f77dfad57cb77aa591ba0c368ba62d",
     "voice": "piper en_US-ryan-high x1.08",
     "url": "/audio/breaks/simsunday.mp3"
   }
