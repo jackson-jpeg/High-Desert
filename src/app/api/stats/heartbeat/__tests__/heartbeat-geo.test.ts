@@ -22,7 +22,7 @@ vi.mock("@/lib/geo/geoip", () => ({
 const beat = (ip: string, live = true) =>
   new NextRequest("http://localhost/api/stats/heartbeat", {
     method: "POST",
-    headers: { "content-type": "application/json", "x-forwarded-for": ip },
+    headers: { "content-type": "application/json", "user-agent": "Mozilla/5.0 (test listener)", "x-forwarded-for": ip },
     body: JSON.stringify({ sessionId: "session-geo-0001", live }),
   });
 

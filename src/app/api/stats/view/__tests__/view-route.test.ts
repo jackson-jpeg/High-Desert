@@ -37,13 +37,14 @@ describe("POST /api/stats/view: not the audience (src/lib/utils/not-audience.ts)
     );
 
   it("answers an agent, sang3r's checks and Jackson as usual and counts none of them; a listener is counted (control)", async () => {
-    for (const h of [
+    const cases: Record<string, string>[] = [
       { "user-agent": "Mozilla/5.0 HeadlessChrome/131.0" },
       { "user-agent": "Playwright/1.49" },
       { "user-agent": "SangerLeadAudit/1.0" },
       { "user-agent": "Mozilla/5.0 (test listener)", "x-sanger-internal": "1" },
       { "user-agent": "Mozilla/5.0 (test listener)", cookie: "sanger_me=1" },
-    ]) {
+    ];
+    for (const h of cases) {
       const res = await post(h);
       expect(res.status).toBe(200);
       expect(await res.json()).toEqual({ ok: true });
