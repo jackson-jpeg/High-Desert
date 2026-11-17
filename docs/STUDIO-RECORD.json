@@ -1,0 +1,75 @@
+{
+  "id": "high-desert",
+  "name": "High Desert",
+  "stage": "live",
+  "pitch": "A web player and 24/7 live station for the Art Bell radio archive, streaming from archive.org with a self-hosted outage mirror.",
+  "repos": ["https://github.com/jackson-jpeg/High-Desert"],
+  "vpsPath": "/root/High-Desert",
+  "nextMd": "docs/NEXT.md",
+  "latestHandoff": "docs/handoff-2026-11-17-listeners.md",
+  "domains": ["highdesert.space"],
+  "systemdUnits": ["highdesert.service", "highdesert-live.service"],
+  "ports": [
+    { "port": 3003, "bind": "127.0.0.1", "what": "Next.js app (highdesert.service)" },
+    { "port": 3005, "bind": "127.0.0.1", "what": "phone lines chat (highdesert-live.service)" }
+  ],
+  "databases": [
+    { "name": "highdesert", "engine": "postgresql@16-main", "backupPath": "/root/backups/highdesert" }
+  ],
+  "storagePaths": [
+    "/var/lib/highdesert-mirror",
+    "/var/cache/highdesert-mirror/proxy",
+    "/var/lib/highdesert-geoip",
+    "/var/lib/highdesert-mutations",
+    "/var/lib/highdesert-returning",
+    "/opt/highdesert-live",
+    "/root/backups/highdesert"
+  ],
+  "timers": [
+    "highdesert-backup.timer",
+    "highdesert-digest.timer",
+    "highdesert-funnel-verdict.timer",
+    "highdesert-geoip.timer",
+    "highdesert-level-envelopes.timer",
+    "highdesert-mirror-warm.timer",
+    "highdesert-mutations.timer",
+    "highdesert-sample.timer",
+    "highdesert-shoutout.timer",
+    "highdesert-verify-live.timer"
+  ],
+  "deployCommand": "bash scripts/deploy.sh",
+  "healthUrl": "https://highdesert.space/api/build",
+  "stagingUrl": null,
+  "apple": null,
+  "money": {
+    "stripe": null,
+    "affiliates": null,
+    "monthlyCosts": null,
+    "donations": ["Venmo", "PayPal"]
+  },
+  "audience": {
+    "analyticsSource": "self-hosted: the site's own aggregate stats in Postgres (/api/stats/*), read by sang3r.com through /api/stats/export",
+    "analyticsId": null,
+    "searchConsole": "verified Domain property (DNS TXT), sitemap submitted 2026-10-15",
+    "tiktok": null,
+    "emailList": null
+  },
+  "trust": {
+    "privacyUrl": null,
+    "termsUrl": null,
+    "supportUrl": null,
+    "storePolicies": null
+  },
+  "rules": [
+    "/root/High-Desert is production: never npm install/ci there; dependency work in a worktree",
+    "Deploy only with bash scripts/deploy.sh (builds into .next-staging, verifies, rolls back)",
+    "Never rm -rf .next or node_modules in the live tree",
+    "Checks run on the VPS through heavy, never on GitHub Actions",
+    "No third-party scripts, analytics or hosted services; no runtime AI",
+    "No em dashes in user-facing copy",
+    "Never store an IP address; per-person rules key on the caller cookie",
+    "No unattended destructive writes to a visitor's IndexedDB library",
+    "Background units stay under 10% CPU (highdesert-mutations exempt)",
+    "Add a mutation to scripts/mutate-check.mjs with every new test"
+  ]
+}
