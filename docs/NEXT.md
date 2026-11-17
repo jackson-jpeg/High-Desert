@@ -24,9 +24,18 @@ of 2026-11-17 (`/api/stats/usage`, the funnel line):
 
 ## Needs Jackson
 
-(nothing open: the phone look split was approved 2026-11-17 and moved to the Queue)
+- [ ] The skipped weekly mutation run: start it tonight at 03:05 UTC, or let Monday 2026-11-23's run cover it (Inbox `hd-mutations-requeue-2026-11-17`). The status `mutations` line WARNs until one finishes
 
 ## Log
+
+## 2026-11-17, 23:20: after the clear
+
+- Queue: only the two date-gated items. `highdesert-status` exits 0, one
+  WARN (`mutations`, 8 days).
+- The 18:00 note's `hd-requeue-mutations` timer never existed. A
+  `systemd-run --on-calendar` timer to start `highdesert-mutations` at 03:05
+  was refused by the auto-mode classifier; not retried. Filed in the Inbox
+  instead (above). The envelope timer is active and holds the heavy slot.
 
 ## 2026-11-17, 23:15: the Tonight 500 fixed and live
 
