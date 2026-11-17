@@ -2,6 +2,27 @@
 
 Kept by the working session. Newest first. Times are UTC.
 
+## 2026-11-17, 15:30: deployed, green
+
+- **Jackson approved deploying today** (Inbox `hd-deploy-2026-11-17`), so
+  the 09:31 timer for tomorrow was cancelled and `deploy.sh` ran at 15:08.
+  Live is **`9474f79`** (deployed 15:22:16): Level (two-pass), Next.js
+  16.4.6, the shorter Sim Sunday spot and the pull of 1998-03-05. The client
+  check passed on `/`, `/library`, `/live`, `/stats`, and the returning
+  visitor did too in Chromium and WebKit. The schema was applied, and nothing
+  rolled back.
+- **`highdesert-status` exits 0.** The `deploy` line reads OK (live = HEAD).
+  The one WARN is `steal` at 24% (a busy box with nine heavy jobs queued; not
+  ours to fix).
+- `check:seo` and `check:csp` against production both pass (8 routes, no CSP
+  violations, no console errors, no em dashes).
+- **Level on production:** `/api/level/envelope` answers 200 for a show with
+  an envelope (1992-12-12 Area 51) and 404 `none` for one without (1994-03-12
+  Philadelphia Experiment), so the player uses the live leveler there. 101
+  envelopes so far. I did not check the `data-level-source` attribute in a
+  browser, because that would play a show on production and count it.
+- Station notice posted announcing Level (15:24).
+
 ## 2026-11-17, 14:30: the deploy moved to tomorrow
 
 - **The 09:20 deploy did not run.** The session was idle from 08:18 until

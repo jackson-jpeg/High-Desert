@@ -197,3 +197,14 @@ Known and not to chase:
   Clean up, which is still held back.
 - Hook blocks this session: the npm hook once (above), and the pipefail
   hook once (a pipe inside an `ssh` command; re-issued without it).
+
+## Deployed 2026-11-17 15:22 UTC (`9474f79`)
+
+Jackson approved deploying ahead of the window. `deploy.sh` passed the client
+check and the returning visitor (Chromium, WebKit); `highdesert-status` exits
+0 (deploy OK; steal WARN at 24%). `check:seo` and `check:csp` against
+production pass. Level on production: `/api/level/envelope` gives 200 for
+1992-12-12 (an envelope) and 404 `none` for 1994-03-12 (none yet, so the live
+leveler); 101 envelopes stored. The `data-level-source` attribute was not read
+in a browser, so no play was counted on production. Station notice posted
+15:24.
