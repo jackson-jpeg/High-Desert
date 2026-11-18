@@ -16,7 +16,7 @@ the Library or a show page) and meets the station only as the bar at the
 bottom. Phones are left alone until the look split's verdict (2026-12-02).
 
 - [x] **Live 2026-11-18 01:15 UTC as `107fd60`** (suite, build, `e2e/station-welcome.spec.ts` 4/4 at 1440 in both looks, check:seo/csp on the build and on production; station notice 01:18). Desktop, the station first: a new desktop visitor (empty library, first visit) to the Library sees an "On the air now" window above the list, both looks: the show, "with Guest · year", the hook (`showHook()`, never invented), time left, "N tuned in now", one Listen live button (`tuneIn()` in the gesture). Dismissed it stays dismissed; never once the browser has tuned in. Goal: desktop tune-in from 12% toward 20% of first visits (funnel `byDevice.desktop`, cohorts from the deploy); test, mutation, e2e at 1440 in both looks
-- [ ] (built on branch `popular-first`, worktree `/root/hd-popular`, see `docs/handoff-2026-11-18-popular.md`; left: tests, mutations, lint, typecheck, suite, build, a look and the library e2e specs, csp/seo, merge, deploy) The Library's first order for a new visitor: newest first opens on December 2015 Midnight in the Desert specials. With no sort ever chosen and an empty history, lead with the shows people play (the community "Most played", or Notable, whichever reads better on the first screen), keeping any sort the visitor picks. Measure library plays per first visit before and after
+- [x] **Live 2026-11-18 03:28 UTC as `34e1085`** (own tests 14/14, `first-sort-*` mutations 6/6 red, lint, typecheck, suite (only load timeouts in untouched files), build, library e2e specs and station-welcome 44 passed on a local build, check:seo/csp on the build and on production; screenshots in `Assets/2026-11-18-library-first-order/`; station notice 03:32). The Library's first order for a new visitor: newest first opens on December 2015 Midnight in the Desert specials. With no sort ever chosen and an empty history, lead with the shows people play (the community "Most played", or Notable, whichever reads better on the first screen), keeping any sort the visitor picks. Measure library plays per first visit before and after
 - [ ] Show pages, the next show: 736 desktop arrivals in 30 days land on a show page from outside. When that show ends (or from the page at any time), "Next: <same guest, then same topic>" with one Play, still a server page with no app shell. Measure with `playsBySurface.show` once it reads above 0
 - [ ] Desktop returns (7% against phones' 23%): the Request Line as the reason to come back at 8 PM Pacific. On desktop it is one link in the console; give it a window on Live and a line on the Library ("Tonight at 8 PM Pacific: 3 shows in the running, vote by 6"), the phone's `PhoneRequestNote` wording. Measure desktop `return` and Request Line votes
 
@@ -48,6 +48,15 @@ Not read by the foreman (it has no date gate, so these sat at the top of the Que
 
 
 ## Log
+
+## 2026-11-18, 03:35: round 2 item 2 live
+
+- `popular-first` merged and deployed as `34e1085` (returning visitor ok in
+  Chromium and WebKit; check:seo and check:csp pass on production; notice
+  03:32). Baseline for the measure is in `docs/funnel.md`, "The Library's
+  first order".
+- The envelope run waiting since 02:18 was stopped at the line lead's word;
+  the hourly timer queued one fresh run at once (03:21:52).
 
 ## 2026-11-18, 02:15: tests failing (triage 716387f0), timeouts under load
 
