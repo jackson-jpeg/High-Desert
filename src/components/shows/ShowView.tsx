@@ -24,6 +24,8 @@ import { SHOW_TOPICS_MAX, topicPath, type Topic } from "@/lib/topics/catalog";
 import { momentLabel } from "@/lib/shows/share";
 import { ShowPlayButton } from "@/components/shows/ShowPlayButton";
 import { RequestItButton } from "@/components/request-line/RequestItButton";
+import { ShowNextPlay } from "@/components/shows/ShowNextPlay";
+import { nextShow, type NextShow } from "@/lib/shows/next";
 
 /**
  * One show's page (docs/show-pages.md). A server component: the heading, the
@@ -41,7 +43,8 @@ import { RequestItButton } from "@/components/request-line/RequestItButton";
 export const SHOW_AUDIO_ID = "hd-show-audio";
 
 /** Without JavaScript the big Play button cannot work: hide it, the native controls remain. */
-export const NO_SCRIPT_PLAY_CSS = ".hd-show-play{display:none!important}.hd-request-it{display:none!important}";
+export const NO_SCRIPT_PLAY_CSS =
+  ".hd-show-play{display:none!important}.hd-request-it{display:none!important}.hd-show-next-play{display:none!important}";
 
 const link = "text-signal-blue hover:text-desktop-gray transition-colors-fast";
 
@@ -105,6 +108,42 @@ function Related({ title, shows, id }: { title: string; shows: Show[]; id: strin
   );
 }
 
+/**
+ * The next show (src/lib/shows/next.ts): a link to its page, which is all a
+ * browser without JavaScript needs, and one Play that plays it right here.
+ */
+function NextCard({ next }: { next: NextShow }) {
+  const { row, slug } = next.show;
+  const guest = headlineGuest(row);
+  const year = row.airDate?.slice(0, 4);
+  const why = next.reason === "guest" ? `More with ${next.guest}` : `Also on ${next.topic!.name}`;
+  const sources = resolveSources(row as Pick<Episode, "fileHash" | "sourceUrl">).map((s) => s.url);
+  return (
+    <section
+      className="hd-show-next border-t border-bevel-dark/40 pt-3 flex flex-col gap-2"
+      aria-labelledby="hd-show-next-title"
+      data-next-slug={slug}
+      data-next-reason={next.reason}
+    >
+      <h2 id="hd-show-next-title" className="text-hd-caption uppercase tracking-wider text-desert-amber">
+        Next · {why}
+      </h2>
+      <p className="text-hd-body text-desktop-gray">
+        <Link href={showPath(slug)} className={`hd-show-next-link ${link}`}>
+          {showSubject(row)}
+        </Link>
+        {guest || year ? (
+          <span className="text-bevel-dark">
+            {" "}
+            {[guest ? `with ${guest}` : null, year].filter(Boolean).join(" · ")}
+          </span>
+        ) : null}
+      </p>
+      <ShowNextPlay audioId={SHOW_AUDIO_ID} sources={sources} episodeId={communityKey(row)} />
+    </section>
+  );
+}
+
 export function ShowView({
   show,
   catalog,
@@ -128,6 +167,7 @@ export function ShowView({
   const sources = resolveSources(row as Pick<Episode, "fileHash" | "sourceUrl">);
   const archive = archiveDetailsUrl(row as Episode);
   const related = relatedShows(show, catalog);
+  const next = nextShow(show, catalog, topics);
   const people = guestPeople(row);
   const firstGuest = people[0] ?? guest;
   const crumbs = showCrumbs(show);
@@ -224,6 +264,7 @@ export function ShowView({
               </a>
             ) : null}
           </div>
+          {next ? <NextCard next={next} /> : null}
         </div>
 
         {row.aiSummary ? (

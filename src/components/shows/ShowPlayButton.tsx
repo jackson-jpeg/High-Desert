@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { momentLabel } from "@/lib/shows/share";
 import { installShowListen } from "@/services/stats/show-page-listen";
+import { SHOW_SWITCH_EVENT, type ShowSwitchDetail } from "@/lib/shows/next";
 
 /**
  * A show page's big one-tap Play (docs/show-pages.md). It drives the page's
@@ -31,8 +32,24 @@ export function ShowPlayButton({
 }) {
   const [state, setState] = useState<State>("idle");
   const started = useRef(false);
+  // The Next card's Play moves the player to the next show (ShowNextPlay.tsx):
+  // from then on this button drives that show, from its start, and counts it.
+  const [current, setCurrent] = useState({ startAt, episodeId });
 
   useEffect(() => {
+    const audio = document.getElementById(audioId) as HTMLAudioElement | null;
+    if (!audio) return;
+    const onSwitch = (e: Event) => {
+      const detail = (e as CustomEvent<ShowSwitchDetail>).detail;
+      started.current = true;
+      setCurrent({ startAt: null, episodeId: detail?.episodeId ?? null });
+    };
+    audio.addEventListener(SHOW_SWITCH_EVENT, onSwitch);
+    return () => audio.removeEventListener(SHOW_SWITCH_EVENT, onSwitch);
+  }, [audioId]);
+
+  useEffect(() => {
+    const { startAt, episodeId } = current;
     const audio = document.getElementById(audioId) as HTMLAudioElement | null;
     if (!audio) return;
     const on: [string, () => void][] = [
@@ -56,7 +73,7 @@ export function ShowPlayButton({
       for (const [type, fn] of on) audio.removeEventListener(type, fn);
       uncount?.();
     };
-  }, [audioId, startAt, episodeId]);
+  }, [audioId, current]);
 
   const toggle = () => {
     const audio = document.getElementById(audioId) as HTMLAudioElement | null;
@@ -76,8 +93,8 @@ export function ShowPlayButton({
         ? "Loading..."
         : state === "paused"
           ? "Resume"
-          : startAt != null
-            ? `Play from ${momentLabel(startAt)}`
+          : current.startAt != null
+            ? `Play from ${momentLabel(current.startAt)}`
             : "Play the show";
 
   return (
