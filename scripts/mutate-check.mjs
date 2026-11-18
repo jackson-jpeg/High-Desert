@@ -35,9 +35,19 @@
  *     (scripts/weekly-mutations.sh: what highdesert-status and the digest read)
  *
  * Exits non-zero if any mutation survives.
+ *
+ * Every write to a target is whole or not at all (`writeWhole`: a temp file
+ * beside it, renamed over), and a signal restores synchronously. A kill can
+ * still land before the restore (SIGKILL, the low-memory reaper), leaving a
+ * file MUTATED, never empty or half written. After any interrupted run, look
+ * at `git status` in that tree and `git checkout --` the targets (the run
+ * refused to start unless they were clean), and delete any leftover
+ * `.<name>.mutate-<pid>.tmp`. On 2026-11-18 a kill between the old
+ * truncate-then-write left `src/lib/shows/next.ts` at 0 bytes.
  */
 
 import { readFile, writeFile, mkdtemp, rename } from "node:fs/promises";
+import { writeFileSync, renameSync, statSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { spawn, spawnSync } from "node:child_process";
 import { execFile } from "node:child_process";
@@ -7863,6 +7873,24 @@ export const MUTATIONS = [
     replace: "base = [];",
     why: "the base's list was never read, so every entry looked new",
   },
+  // The anchors are written with \x3d ("=") or \n so they are found once in
+  // writeWhole and not again here.
+  {
+    id: "mutate-write-whole",
+    test: "scripts/__tests__/mutate-write.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: "  afterTemp?.(tmp);\n  renameSync(tmp, abs);",
+    replace: '  writeFileSync(abs, "");\n  afterTemp?.(tmp);\n  renameSync(tmp, abs);',
+    why: "a kill mid-restore left a target EMPTY (src/lib/shows/next.ts, 2026-11-18)",
+  },
+  {
+    id: "mutate-write-keeps-mode",
+    test: "scripts/__tests__/mutate-write.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: "  if (mode !\x3d= null) chmodSync(tmp, mode);",
+    replace: "",
+    why: "restoring an executable target (scripts/heavy.sh) dropped its x bit",
+  },
   {
     id: "status-mutations-fail",
     test: "scripts/__tests__/status.test.ts",
@@ -10787,6 +10815,30 @@ export function vitestCommand(testFile, hasHeavy) {
   return hasHeavy ? ["heavy", ["--label", "high-desert mutation", "--", ...vitest]] : [vitest[0], vitest.slice(1)];
 }
 
+/**
+ * Write `text` to `abs` whole or not at all: a temp file in the same directory
+ * (so the rename stays on one filesystem), given the target's mode (scripts
+ * like heavy.sh are targets and must stay executable), then renamed over it.
+ * A kill at any point leaves the old file or the new one, never an empty one,
+ * which is what `writeFile` (truncate, then write) left on 2026-11-18.
+ * Synchronous, so a signal handler cannot run in the middle of it.
+ * `afterTemp` is for the test: it runs with the temp file written and the
+ * target not yet replaced.
+ */
+export function writeWhole(abs, text, { afterTemp } = {}) {
+  const tmp = path.join(path.dirname(abs), `.${path.basename(abs)}.mutate-${process.pid}.tmp`);
+  let mode = null;
+  try {
+    mode = statSync(abs).mode & 0o7777;
+  } catch {
+    mode = null; // a new file: the default mode
+  }
+  writeFileSync(tmp, text, "utf8");
+  if (mode !== null) chmodSync(tmp, mode);
+  afterTemp?.(tmp);
+  renameSync(tmp, abs);
+}
+
 export async function changesSince(ref, root = ROOT) {
   const { stdout } = await execFileP("git", ["diff", "--name-only", ref, "HEAD"], { cwd: root });
   const changed = stdout.split("\n").filter(Boolean);
@@ -10890,17 +10942,21 @@ if (IS_MAIN) {
   /** Every file we have touched, so a signal can put them all back. */
   const originals = new Map();
 
-  async function restoreAll() {
+  /** Synchronous: nothing else runs until every file is back. Returns how many. */
+  function restoreAll() {
+    let restored = 0;
     for (const [file, text] of originals) {
-      await writeFile(path.join(ROOT, file), text, "utf8");
+      writeWhole(path.join(ROOT, file), text);
+      restored += 1;
     }
     originals.clear();
+    return restored;
   }
 
   for (const sig of ["SIGINT", "SIGTERM"]) {
-    process.on(sig, async () => {
-      await restoreAll();
-      console.error(`\n[mutate-check] interrupted — restored ${targets.length} file(s)`);
+    process.on(sig, () => {
+      const restored = restoreAll();
+      console.error(`\n[mutate-check] interrupted — restored ${restored} mutated file(s) of ${targets.length} target(s)`);
       process.exit(130);
     });
   }
@@ -10932,14 +10988,14 @@ if (IS_MAIN) {
 
     originals.set(m.file, original);
     try {
-      await writeFile(abs, original.replace(m.find, m.replace), "utf8");
+      writeWhole(abs, original.replace(m.find, m.replace));
       const { code, out } = await runVitest(m.test);
       const verdict = judgeRun(code, out);
       results.push({ ...m, verdict });
       console.log(`  ${verdict.padEnd(6)} ${m.id.padEnd(24)} ${m.test}`);
       if (verdict === "NO-RUN") console.log(`         exit 0 without a vitest summary; output:\n${out.slice(-400)}`);
     } finally {
-      await writeFile(abs, original, "utf8");
+      writeWhole(abs, original);
       originals.delete(m.file);
     }
   }
