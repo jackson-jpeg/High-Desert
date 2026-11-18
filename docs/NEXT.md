@@ -49,6 +49,14 @@ Not read by the foreman (it has no date gate, so these sat at the top of the Que
 
 ## Log
 
+## 2026-11-18, 02:15: tests failing (triage 716387f0), timeouts under load
+
+- The hub's run on `20f70f2` failed only on `e2e-tokens` past 5 s, fixed in
+  `107fd60`. With the box at load 12 to 53, `status.test.ts` and
+  `backup-db.test.ts` (real shell scripts per test, 1 to 4 s each alone) ran
+  past 5 s too, a different test each run. Both files now take 30 s per test
+  (`vi.setConfig`); 138 of 138 pass at load 10 to 20.
+
 ## 2026-11-18, 01:20: round 2 item 1 live
 
 - `desktop-on-air` rebased on main and checked: lint (warnings only),

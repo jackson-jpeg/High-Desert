@@ -1,11 +1,17 @@
 // @vitest-environment node
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { execFile } from "node:child_process";
 import { createServer, type Server } from "node:http";
 import { mkdtemp, mkdir, writeFile, rm, copyFile, truncate, readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
+
+// Every test here starts real shell scripts (bash, git, psql, age). Alone each
+// takes 1 to 4 s; with the box at load 12 to 53 (2026-11-18 01:30 to 02:10 UTC,
+// three heavy slots and other sessions) they ran past vitest's 5 s default in
+// two runs out of three, a different test each time. 30 s, as e2e-tokens got.
+vi.setConfig({ testTimeout: 30_000 });
 
 /**
  * scripts/status.sh (`highdesert-status`), run for real against a throwaway
