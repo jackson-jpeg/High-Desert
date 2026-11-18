@@ -50,6 +50,13 @@ Not read by the foreman (it has no date gate, so these sat at the top of the Que
 
 ## Log
 
+## 2026-11-18, 05:40: handoff
+
+- `docs/handoff-2026-11-18-light-duty-2.md`. Light duty until 12:00 UTC:
+  items 3, 4 and 5 are built and pushed, each waiting only for its checks.
+  The lead's stop orders and a tmux keypress into claude-sanger-1 were
+  refused by the classifier and not retried.
+
 ## 2026-11-18, 05:00: the hub's test failure, item 5 built
 
 - The hub's re-check on `dbbdc67` failed on one test only: show pages "for
