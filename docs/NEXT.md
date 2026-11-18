@@ -15,7 +15,7 @@ visitor lands on the Library (1,417 of 1,789 direct desktop arrivals land on
 the Library or a show page) and meets the station only as the bar at the
 bottom. Phones are left alone until the look split's verdict (2026-12-02).
 
-- [ ] (built on branch `desktop-on-air`, worktree `/root/hd-onair`, see `docs/handoff-2026-11-18-onair.md`; left: lint, typecheck, suite, build, csp/seo, the new e2e spec, merge, deploy) Desktop, the station first: a new desktop visitor (empty library, first visit) to the Library sees an "On the air now" window above the list, both looks: the show, "with Guest · year", the hook (`showHook()`, never invented), time left, "N tuned in now", one Listen live button (`tuneIn()` in the gesture). Dismissed it stays dismissed; never once the browser has tuned in. Goal: desktop tune-in from 12% toward 20% of first visits (funnel `byDevice.desktop`, cohorts from the deploy); test, mutation, e2e at 1440 in both looks
+- [x] **Live 2026-11-18 01:15 UTC as `107fd60`** (suite, build, `e2e/station-welcome.spec.ts` 4/4 at 1440 in both looks, check:seo/csp on the build and on production; station notice 01:18). Desktop, the station first: a new desktop visitor (empty library, first visit) to the Library sees an "On the air now" window above the list, both looks: the show, "with Guest · year", the hook (`showHook()`, never invented), time left, "N tuned in now", one Listen live button (`tuneIn()` in the gesture). Dismissed it stays dismissed; never once the browser has tuned in. Goal: desktop tune-in from 12% toward 20% of first visits (funnel `byDevice.desktop`, cohorts from the deploy); test, mutation, e2e at 1440 in both looks
 - [ ] The Library's first order for a new visitor: newest first opens on December 2015 Midnight in the Desert specials. With no sort ever chosen and an empty history, lead with the shows people play (the community "Most played", or Notable, whichever reads better on the first screen), keeping any sort the visitor picks. Measure library plays per first visit before and after
 - [ ] Show pages, the next show: 736 desktop arrivals in 30 days land on a show page from outside. When that show ends (or from the page at any time), "Next: <same guest, then same topic>" with one Play, still a server page with no app shell. Measure with `playsBySurface.show` once it reads above 0
 - [ ] Desktop returns (7% against phones' 23%): the Request Line as the reason to come back at 8 PM Pacific. On desktop it is one link in the console; give it a window on Live and a line on the Library ("Tonight at 8 PM Pacific: 3 shows in the running, vote by 6"), the phone's `PhoneRequestNote` wording. Measure desktop `return` and Request Line votes
@@ -48,6 +48,19 @@ Not read by the foreman (it has no date gate, so these sat at the top of the Que
 
 
 ## Log
+
+## 2026-11-18, 01:20: round 2 item 1 live
+
+- `desktop-on-air` rebased on main and checked: lint (warnings only),
+  typecheck, the suite (3,045 passed; the 13 files that failed at import were
+  `services/live` uninstalled in the worktree and passed after its `npm ci`,
+  290 tests, `e2e-tokens` within its new 30 s), `npm run build`, the new e2e
+  spec on a local build on the e2e database (4/4), check:seo (no findings)
+  and check:csp (no violations; 404s only from `/live-api`, which a bare
+  `next start` lacks) on that build. Merged fast-forward, deployed
+  (`107fd60`, the returning visitor ok in both browsers), check:seo and
+  check:csp pass on production, station notice posted 01:18.
+- Item 2 is being built on `popular-first` (`/root/hd-popular`).
 
 ## 2026-11-18, 00:50: the stale triage item, the sang3r stats, round 2
 
