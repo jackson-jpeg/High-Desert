@@ -228,6 +228,32 @@ Without JavaScript the page still plays and counts nothing. Tests:
 `src/services/stats/__tests__/show-page-listen.test.tsx`; mutations
 `show-listen-*`.
 
+## The next show (2026-11-18)
+
+736 desktop arrivals in 30 days landed on a show page from outside, and the
+page offered nothing to play after it. Now the player box ends with **Next**:
+
+- **Which show** (`nextShow`, `src/lib/shows/next.ts`, pure, from the
+  catalog): the same guest first, their next appearance after this one, else
+  their earliest other show; with no other show for any guest, the page's
+  first topic (most specific first), the nearest show after this one on it,
+  else the nearest before. "Next · More with John Lear" or "Next · Also on
+  Mel's Hole". A show with neither has no card.
+- **Without JavaScript** it is a link to that show's page. **With it**,
+  **Play next** (`ShowNextPlay`) plays the next show in the page's own player,
+  inside the tap (a navigation would lose the gesture, and the browser would
+  refuse the sound). It replaces the `<source>`s, loads, plays, and tells
+  `ShowPlayButton` (`SHOW_SWITCH_EVENT` on the element), which counts the
+  next show's listen (surface `show`) and drops this page's shared moment.
+  Once this show ends the card says "That was the show." The page itself
+  stays this show's page.
+- Measure: `playsBySurface.show` in `/api/stats/usage`.
+
+Tests: `src/lib/shows/__tests__/next.test.ts` (every show in the catalog),
+`src/components/shows/__tests__/show-next-play.test.tsx`, and the Next cases in
+`show-page.test.tsx`; mutations `next-show-*`, `next-play-*`,
+`show-play-follows-switch`, `show-next-*`.
+
 ## Sharing (2026-10-12)
 
 - **Share sends the show's page.** `EpisodeShareButton` shares
