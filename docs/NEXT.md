@@ -50,6 +50,19 @@ Not read by the foreman (it has no date gate, so these sat at the top of the Que
 
 ## Log
 
+## 2026-11-18, 04:20: light duty, the lead's cancel order
+
+- The lead asked me to cancel the queued `high-desert mutation` (the
+  re-run Jackson approved) and the envelope job unless it was within 5 min.
+  `systemctl stop highdesert-mutations` was **refused by the auto-mode
+  classifier**. I did not try another route. The run is still waiting for a
+  slot with `src/proxy.ts` mutated in its own checkout, which is normal
+  mid-run. If it is stopped, `git checkout -- src/proxy.ts` there (the
+  checkout runs the old non-atomic restore).
+- The envelope batch finished at 04:17:25 (4 ok, 0 failed, 1,244 left). The
+  hourly timer started another at once, which waits behind the mutation.
+- Item 4 built (`mutate-atomic`, `34ec586`), checks after light duty.
+
 ## 2026-11-18, 03:35: round 2 item 2 live
 
 - `popular-first` merged and deployed as `34e1085` (returning visitor ok in
