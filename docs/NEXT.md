@@ -7,8 +7,21 @@ item deploys as soon as its checks pass.**
 
 ## Queue
 
-The five biggest improvements for listeners, chosen from the 30-day numbers
-of 2026-11-17 (`/api/stats/usage`, the funnel line):
+Round 2 (the lead, 2026-11-18): the next five for listeners, from the 30-day
+numbers of 2026-11-18 00:40 UTC (`/api/stats/funnel?days=30`,
+`/api/stats/usage?days=30`). The gap is desktop: 1,789 first visits, 21% saw
+Live, 12% tuned in, 7% came back; phones 1,224, 79%, 37%, 23%. A new desktop
+visitor lands on the Library (1,417 of 1,789 direct desktop arrivals land on
+the Library or a show page) and meets the station only as the bar at the
+bottom. Phones are left alone until the look split's verdict (2026-12-02).
+
+- [ ] Desktop, the station first: a new desktop visitor (empty library, first visit) to the Library sees an "On the air now" window above the list, both looks: the show, "with Guest · year", the hook (`showHook()`, never invented), time left, "N tuned in now", one Listen live button (`tuneIn()` in the gesture). Dismissed it stays dismissed; never once the browser has tuned in. Goal: desktop tune-in from 12% toward 20% of first visits (funnel `byDevice.desktop`, cohorts from the deploy); test, mutation, e2e at 1440 in both looks
+- [ ] The Library's first order for a new visitor: newest first opens on December 2015 Midnight in the Desert specials. With no sort ever chosen and an empty history, lead with the shows people play (the community "Most played", or Notable, whichever reads better on the first screen), keeping any sort the visitor picks. Measure library plays per first visit before and after
+- [ ] Show pages, the next show: 736 desktop arrivals in 30 days land on a show page from outside. When that show ends (or from the page at any time), "Next: <same guest, then same topic>" with one Play, still a server page with no app shell. Measure with `playsBySurface.show` once it reads above 0
+- [ ] Desktop returns (7% against phones' 23%): the Request Line as the reason to come back at 8 PM Pacific. On desktop it is one link in the console; give it a window on Live and a line on the Library ("Tonight at 8 PM Pacific: 3 shows in the running, vote by 6"), the phone's `PhoneRequestNote` wording. Measure desktop `return` and Request Line votes
+
+Round 1, the five biggest improvements for listeners, chosen from the
+30-day numbers of 2026-11-17 (`/api/stats/usage`, the funnel line):
 
 - [x] Ship the four built items together: **live 2026-11-17 21:55 UTC as `3dab517`**, with the default share card cached a week (`8bda37d`, check:seo caught it) and a new test for the fuzzy matcher (`703e8d2`, mutation `library-search-fuzzy-every-word` had survived). check:seo and check:csp pass on production. (branch `fuzzy-search`, worktree `/root/hd-fuzzy`, one item because they share one suite run, one build and one deploy): checks first (mutations, lint, typecheck, suite, build, csp/seo on the build), then merge to main, `deploy.sh`, csp/seo on production. In flight: lint and typecheck pass; the suite's failures are fixed or being rerun (`docs/handoff-2026-11-17-listeners.md` has the exact next commands). What it ships:
   - Show pages count their plays: 713 desktop views in 30 days and 0 plays recorded. One play per page load on the first `playing` (surface `show`), a heartbeat while it plays (`b035df5`)
@@ -26,6 +39,7 @@ Not read by the foreman (it has no date gate, so these sat at the top of the Que
 
 - [ ] Not before 2026-11-18 06:00 UTC: the re-run of this week's mutations (`hd-requeue-mutations.timer`, 03:05 UTC, approved by Jackson in the Inbox 2026-11-17) finished, and `highdesert-status`'s `mutations` line reads OK. A survivor: fix it (test or mutation) as a Queue item
 - [ ] Not before 2026-11-25 (a week after the 2026-11-17 deploy): `playsBySurface.show` in `/api/stats/usage?days=7` is above 0, and Search Console's Pages report shows `/shows/*` indexed
+- [ ] Not before 2026-12-02, after the verdict below: apply it as the phone default if one look wins, both looks kept (round 2, item 5)
 - [ ] Not before 2026-12-02: read the phone look split (`docs/funnel.md`, "The phone look split", the psql query there): Live, tune-in and return per look, phones, cohorts 2026-11-18 to 2026-12-01. Write the verdict there and remove `LOOK_SPLIT_SCRIPT` from the head (it does nothing after the window, but it is dead code)
 
 ## Needs Jackson
@@ -34,6 +48,20 @@ Not read by the foreman (it has no date gate, so these sat at the top of the Que
 
 
 ## Log
+
+## 2026-11-18, 00:50: the stale triage item, the sang3r stats, round 2
+
+- Triage "high-desert: deploy failing" quoted the daily portfolio run of
+  2026-11-17 08:29 (31 commits undeployed then). Live is `d57fe0c` and the
+  `deploy` line reads OK. Its status output is refreshed only by the daily
+  run, so High Desert's checks were re-run with
+  `SANGER_PORTFOLIO_ONLY=high-desert node scripts/portfolio-checks.mjs` (in
+  /root/Sanger) to refresh it; the triage sync closes the item on its next
+  round.
+- sang3r.com already reads `mode=daily` (visitors, views). `mode=detail` is
+  wired by sanger-75 on Sanger's side (asked and agreed 2026-11-18 00:4x);
+  nothing needed here.
+- Round 2 of the Queue written from the 30-day numbers (above).
 
 ## 2026-11-17, 23:50: the mutation re-run, approved
 
