@@ -135,8 +135,18 @@ describe("a show page's server HTML", () => {
     }
   });
 
-  it("for every show: valid JSON-LD blocks, one h1, every internal link resolves, no em dash", () => {
-    for (const show of catalog.shows) {
+  // Every show, in chunks of 100 with 60 s each: one test over all 1,412 ran
+  // past 60 s with the box at load 30 to 40 (2026-11-18, triage 716387f0).
+  const CHUNK = 100;
+  const chunks = Array.from({ length: Math.ceil(catalog.shows.length / CHUNK) }, (_, i) => catalog.shows.slice(i * CHUNK, (i + 1) * CHUNK));
+
+  it("the chunks below cover every show once", () => {
+    expect(chunks.flat()).toEqual(catalog.shows);
+    expect(catalog.shows.length).toBeGreaterThan(1000);
+  });
+
+  it.each(chunks.map((c, i): [number, number, Show[]] => [i * CHUNK + 1, i * CHUNK + c.length, c]))("for every show (%i to %i): valid JSON-LD blocks, one h1, every internal link resolves, no em dash", (_from, _to, shows) => {
+    for (const show of shows) {
       const doc = render(show);
       expect(doc.querySelectorAll("h1"), show.slug).toHaveLength(1);
       const ld = [...doc.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent!)["@type"]);
