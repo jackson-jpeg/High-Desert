@@ -87,9 +87,8 @@ async function mount(look: "night" | "win98") {
   for (let i = 0; i < 6; i++) await act(async () => new Promise((r) => setTimeout(r, 5)));
 }
 const note = () => host.querySelector<HTMLElement>('[data-testid="live-request-note"]');
-/** Where the note goes: the whole note on a desktop, its Pick a show button on a phone. */
-const noteHref = (phone: boolean) =>
-  (phone ? host.querySelector('[data-testid="live-request-pick"]') : note())?.getAttribute("href") ?? null;
+/** Where the note goes: its Pick a show button, on a phone and (since 2026-11-18) on a desktop. */
+const noteHref = () => host.querySelector('[data-testid="live-request-pick"]')?.getAttribute("href") ?? null;
 
 /** The Request Line's GET, answering `n` picks for `day`. */
 function requestLineAnswers(n: number, day = DAY) {
@@ -179,7 +178,7 @@ for (const look of ["night", "win98"] as const) {
       it("before 6 PM: Tonight's request at 10 PM, one link to the Request Line", async () => {
         stationAt(EARLY.start + H, [EARLY, ON_THE_HOUR]);
         await mount(look);
-        expect(noteHref(phone)).toBe("/request-line");
+        expect(noteHref()).toBe("/request-line");
         expect(note()?.dataset.state).toBe("voting");
         expect(note()?.textContent).toContain("Tonight's request at 10 PM");
         expect(host.textContent).not.toContain(DASH);
@@ -252,11 +251,24 @@ describe("on a phone, the note sits right under Listen live (2026-10-14)", () =>
     });
   }
 
-  it("a desktop keeps its one-link note in the console, with no button", async () => {
+});
+
+describe("on a desktop, the note is a card in the console with Pick a show (2026-11-18)", () => {
+  beforeEach(() => {
     mobile.value = false;
-    stationAt(EARLY.start + H, [EARLY, ON_THE_HOUR]);
-    await mount("night");
-    expect(note()?.tagName).toBe("A");
-    expect(host.querySelector('[data-testid="live-request-pick"]')).toBeNull();
   });
+  for (const look of ["night", "win98"] as const) {
+    it(`${look}: under the clock, one card with its own button`, async () => {
+      stationAt(EARLY.start + H, [EARLY, ON_THE_HOUR]);
+      await mount(look);
+      expect(note()?.tagName).toBe("SECTION");
+      const pick = host.querySelector<HTMLAnchorElement>('[data-testid="live-request-pick"]');
+      expect(pick?.textContent).toBe("Pick a show");
+      expect(pick?.getAttribute("href")).toBe("/request-line");
+      expect(note()!.contains(pick)).toBe(true);
+      const clock = host.querySelector('[data-testid="live-clock"]')!;
+      expect(clock.compareDocumentPosition(note()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(host.querySelectorAll('[data-testid="live-request-note"]')).toHaveLength(1);
+    });
+  }
 });

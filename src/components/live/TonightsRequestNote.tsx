@@ -15,23 +15,37 @@ import type { Look } from "@/lib/look/look";
  * it, or a fan favorite on a night nobody nominated. Gone once the request
  * has aired.
  *
- * On a desktop it is one link in the console under its top row. On a phone
- * (2026-10-14) it sits right under the hero's Listen live, as a card with
- * its own "Pick a show" button: below the calls and the clock it went
- * unseen.
+ * Two forms. The card (`card`), with its own "Pick a show" button: on a
+ * phone right under the hero's Listen live (2026-10-14: below the calls and
+ * the clock it went unseen), and in the desktop console under its top row
+ * (2026-11-18: desktops came back 7% against phones' 23%, and the Request
+ * Line was one thin link there). The one-line link: on the desktop Library
+ * (`LibraryRequestLine`), with its own `testId`.
  */
-export function TonightsRequestNote({ schedule, now, look = "night", phone = false }: { schedule: LiveSchedule; now: number; look?: Look; phone?: boolean }) {
+export function TonightsRequestNote({
+  schedule,
+  now,
+  look = "night",
+  card = false,
+  testId = "live-request-note",
+}: {
+  schedule: LiveSchedule;
+  now: number;
+  look?: Look;
+  card?: boolean;
+  testId?: string;
+}) {
   const note = tonightsRequest(schedule.guide, schedule.day, now);
   const picks = useRequestPicks(schedule.day, note.state === "voting");
   const text = tonightsRequestText(note, picks);
   if (!text) return null;
   const label = <span className="shrink-0 text-hd-micro uppercase tracking-[0.18em] text-desert-amber">{REQUEST_LINE_LABEL}</span>;
 
-  if (!phone) {
+  if (!card) {
     return (
       <Link
         href={REQUEST_LINE_PATH}
-        data-testid="live-request-note"
+        data-testid={testId}
         data-state={note.state}
         data-picks={picks ?? undefined}
         className="flex items-center gap-2 min-h-touch md:min-h-0 px-3 py-1.5 text-hd-caption text-desktop-gray hover:text-desert-amber bg-inset-well border-b border-bevel-dark/20"
@@ -44,7 +58,7 @@ export function TonightsRequestNote({ schedule, now, look = "night", phone = fal
 
   return (
     <section
-      data-testid="live-request-note"
+      data-testid={testId}
       data-state={note.state}
       data-picks={picks ?? undefined}
       aria-label={REQUEST_LINE_LABEL}

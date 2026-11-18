@@ -119,7 +119,18 @@ restart.
   - **On a phone, right under the hero's Listen live** (moved there the same
     day, after it went unseen below the calls and the clock), as a card with
     its own **Pick a show** button to the Request Line.
-  - **On a desktop, one link** in the console under its top row.
+  - **On a desktop, the same card** in the console under its top row
+    (2026-11-18; it was one thin link there).
+- **The desktop Library**: one line above the list for every visitor,
+  returning ones too (`LibraryRequestLine`, the link form of
+  `TonightsRequestNote`, test id `library-request-note`), in Live's words.
+  Nothing before the program arrives or once the request has aired.
+  Why: desktops came back 7% of first visits against phones' 23%, and most
+  desktop visitors land on the Library and never open Live. **Baseline**
+  (`/api/stats/funnel?days=30`, 2026-11-18 04:5x UTC): desktop `return`
+  126 of 1,803 visits (7.0%); phones 288 of 1,237 (23.3%). Read the cohorts
+  from the deploy on, desktop `return` and the Request Line's votes, after a
+  week.
 
   What it says:
   - before 6 PM: "Tonight's request at 8 PM. Pick a show or vote by 6 PM Pacific.";

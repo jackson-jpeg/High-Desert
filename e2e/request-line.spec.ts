@@ -163,14 +163,36 @@ test.describe("the Request Line", () => {
         return;
       }
       await expect(note).toBeVisible({ timeout: 30_000 });
-      // A desktop's note is one link; a phone's has its own Pick a show button.
-      const link = testInfo.project.name === "mobile" ? page.getByTestId("live-request-pick") : note;
-      await expect(link).toHaveAttribute("href", "/request-line");
-      await expect(note).toContainText(/Tonight's request at 10 PM|No request tonight/);
+      // A card with its own Pick a show button, on a phone and (2026-11-18) on a desktop.
+      await expect(page.getByTestId("live-request-pick")).toHaveAttribute("href", "/request-line");
+      await expect(note).toContainText(/Tonight's request at \d+ PM|No request tonight/);
       // The boot screen sits over the page for its first seconds.
       await expect(page.locator("#app-loading")).toBeHidden({ timeout: 30_000 });
       await note.scrollIntoViewIfNeeded();
       await page.screenshot({ path: `${SHOTS}/live-${look}-${testInfo.project.name}.png` });
+    });
+
+    test(`a desktop Library says tonight's request, one line above the list (${look})`, async ({ page }, testInfo) => {
+      test.skip(testInfo.project.name === "mobile", "the desktop Library");
+      await setLook(page, look);
+      const sched = (await (await page.request.get("/api/live/schedule")).json()) as {
+        serverNow: number;
+        guide: { kind: string; requestSlot?: boolean; end: number }[];
+      };
+      const slot = sched.guide.find((x) => x.kind === "request") ?? sched.guide.find((x) => x.requestSlot);
+      test.skip(!!slot && sched.serverNow >= slot.end, "tonight's request has aired: no line, by design");
+      await page.goto("/library");
+      await expect(page.locator("#app-loading")).toBeHidden({ timeout: 30_000 });
+      const line = page.getByTestId("library-request-note");
+      await expect(line).toBeVisible({ timeout: 30_000 });
+      await expect(line).toHaveAttribute("href", "/request-line");
+      await expect(line).toContainText(/Tonight's request at \d+ PM|No request tonight/);
+      await expect(line).not.toContainText("—");
+      // On the first screen, without scrolling.
+      await expect(line).toBeInViewport({ ratio: 1 });
+      await page.screenshot({ path: `${SHOTS}/library-${look}.png` });
+      await line.click();
+      await expect(page).toHaveURL(/\/request-line$/);
     });
   }
 });
