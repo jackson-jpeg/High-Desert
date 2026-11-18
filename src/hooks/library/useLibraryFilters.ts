@@ -2,11 +2,21 @@
 
 import { useState, useCallback, useDeferredValue, useEffect, useRef } from "react";
 import { SORT_MODES, type ShowFilter, type SortMode } from "@/lib/library/filter-episodes";
-import { getPreference, setPreference } from "@/db";
+import { db, getPreference, setPreference } from "@/db";
+import { firstSort } from "@/lib/library/first-sort";
 import { useOutageStore, selectOutage } from "@/stores/outage-store";
 
 /** UserPrefs key holding the visitor's last chosen sort. */
 export const SORT_PREF_KEY = "library-sort";
+
+/** useIsMobile's breakpoint: a phone is narrower. */
+const DESKTOP_QUERY = "(min-width: 768px)";
+
+/** Any saved position or history entry in this browser. */
+async function hasListeningHistory(): Promise<boolean> {
+  const [progress, history] = await Promise.all([db.progress.count(), db.history.count()]);
+  return progress > 0 || history > 0;
+}
 
 function isSortMode(v: unknown): v is SortMode {
   return typeof v === "string" && (SORT_MODES as readonly string[]).includes(v);
@@ -40,9 +50,14 @@ export function useLibraryFilters() {
 
   useEffect(() => {
     let live = true;
-    getPreference(SORT_PREF_KEY)
-      .then((stored) => {
-        if (live && !sortChosen.current && isSortMode(stored)) setSortModeState(stored);
+    // No stored sort and no listening history: a new visitor, who opens on
+    // what everyone plays (src/lib/library/first-sort.ts). Not stored.
+    Promise.all([getPreference(SORT_PREF_KEY), hasListeningHistory()])
+      .then(([stored, hasHistory]) => {
+        if (!live || sortChosen.current) return;
+        const isDesktop = typeof window.matchMedia === "function" && window.matchMedia(DESKTOP_QUERY).matches;
+        const first = firstSort({ stored: isSortMode(stored) ? stored : null, hasHistory, isDesktop });
+        if (first) setSortModeState(first);
       })
       .catch(() => {});
     return () => {

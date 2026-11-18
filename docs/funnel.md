@@ -136,6 +136,27 @@ against 12% before. Phones are untouched, so the phone look split
 `station-welcome.test.tsx`, `e2e/station-welcome.spec.ts`; mutations
 `station-welcome-*`.
 
+## The Library's first order (2026-11-18)
+
+Newest first opened a new visitor's Library on December 2015's Midnight in
+the Desert specials. Now a desktop browser that has never chosen a sort and
+has no listening history (no `progress` entry, no `history` row) opens on
+**Most played · everyone** (`played`, the community counts), with the Sort
+bar showing so the other orders are one click away
+(`src/lib/library/first-sort.ts`, applied in `useLibraryFilters`). It is not
+stored: a sort the visitor picks is remembered as before, and once the
+browser has listened, a Library with no stored sort opens newest first
+again. Phones are untouched (the look split, above).
+
+**Baseline** (taken 2026-11-18 01:30 UTC, before the deploy):
+`playsBySurface.library` over all first visits (`/api/stats/usage`,
+`/api/stats/funnel`), 30 days: 2,101 library plays, 3,016 first visits
+(0.70 a visit); 7 days: 611 and 613 (1.00). Library plays are every
+visitor's, not only new ones', so read it as a trend over two weeks of
+cohorts, beside desktop `tune` (the station window shipped the same night).
+Tests: `first-sort.test.ts`, `sort-persistence.test.tsx`; mutations
+`first-sort-*`.
+
 ## Reading it
 
 - `highdesert-status` has a `funnel` line: the last 7 days' cohorts, each step
