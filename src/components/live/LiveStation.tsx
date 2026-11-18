@@ -228,7 +228,7 @@ function OffAir() {
 }
 
 /** The catalog row for a show on the air: where its summary (the hook) lives. Null until the library has it. */
-function useCatalogRow(fileHash: string | null) {
+export function useCatalogRow(fileHash: string | null) {
   return useLiveQuery(async () => {
     if (!fileHash) return null;
     try {
@@ -273,7 +273,7 @@ function LiveHero({ schedule, look }: { schedule: LiveSchedule; look: Look }) {
 }
 
 /** "12 tuned in now", from the one presence feed. */
-function HeroCount() {
+export function HeroCount() {
   const presence = useCommunityNow();
   return (
     <span
@@ -564,7 +564,7 @@ function ListeningNow({ live }: { live: boolean }) {
   );
 }
 
-function NowPlaying({ slot, now, hook = null, phone = false }: { slot: ProgramSlot; now: number; hook?: string | null; phone?: boolean }) {
+export function NowPlaying({ slot, now, hook = null, phone = false }: { slot: ProgramSlot; now: number; hook?: string | null; phone?: boolean }) {
   const elapsed = Math.max(0, (now - slot.start) / 1000);
   const length = (slot.end - slot.start) / 1000;
   const left = Math.max(0, (slot.end - now) / 1000);

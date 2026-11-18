@@ -14,6 +14,7 @@ import { GuestSheet } from "@/components/library/GuestSheet";
 import { FacetSidebar } from "@/components/library/FacetSidebar";
 import { DetailSheet } from "@/components/library/DetailSheet";
 import { ExploreBand } from "@/components/library/ExploreBand";
+import { StationWelcome } from "@/components/library/StationWelcome";
 import { ContinueListening } from "@/components/library/ContinueListening";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { InstallPrompt } from "@/components/install/InstallPrompt";
@@ -252,6 +253,9 @@ export default function LibraryPage() {
       {spelling && visibleEpisodes.length > 0 && (
         <SpellingNote search={deferredSearch} suggestion={spellingSuggestion} onAccept={setSearch} />
       )}
+
+      {/* A new desktop visitor meets the station first (src/lib/live/station-welcome.ts). */}
+      {!isMobile && !dialMode && <StationWelcome />}
 
       {/* Discovery section — collapsed by default, compact when expanded */}
       {!isMobile && !deferredSearch.trim() && !hasActiveFilters && !dialMode && (
