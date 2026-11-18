@@ -215,7 +215,7 @@ function PhoneLive({
  */
 function PhoneRequestNote({ schedule, look }: { schedule: LiveSchedule; look: Look }) {
   const now = useStationClock(15_000);
-  return <TonightsRequestNote schedule={schedule} now={now} look={look} phone />;
+  return <TonightsRequestNote schedule={schedule} now={now} look={look} card />;
 }
 
 function OffAir() {
@@ -363,6 +363,7 @@ function Console({ schedule }: { schedule: LiveSchedule }) {
   const next = upcoming(knownSlots(schedule), now)[0] ?? null;
   const row = useCatalogRow(slot?.fileHash ?? null);
   const hook = slot ? showHook({ fileHash: slot.fileHash, aiSummary: row?.aiSummary }) : null;
+  const look = useLook();
 
   return (
     <div className="flex flex-col min-h-0 flex-1 md:h-full">
@@ -379,7 +380,10 @@ function Console({ schedule }: { schedule: LiveSchedule }) {
       </div>
 
       <OutageNote schedule={schedule} />
-      <TonightsRequestNote schedule={schedule} now={now} />
+      {/* The Request Line as a reason to come back at 8 PM: its own card with Pick a show (2026-11-18). */}
+      <div className="px-3 pt-3 empty:hidden">
+        <TonightsRequestNote schedule={schedule} now={now} look={look} card />
+      </div>
 
       <div className="px-3 py-3 flex flex-col gap-3">
         {slot ? <NowPlaying slot={slot} now={now} hook={hook} /> : <StationBreak until={on?.endsAt ?? now} now={now} />}

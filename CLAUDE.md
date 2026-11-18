@@ -1081,8 +1081,10 @@ same offset, computed from a synced clock.
   own **Pick a show** button (`PhoneRequestNote`; below the calls and the
   clock nobody saw it), and while voting it counts the picks ("3 shows in
   the running, vote by 6 PM Pacific", `useRequestPicks`, today's only). It
-  is in Win98's Start menu (Q) and at the top of Night's More sheet. Desktop: one link in
-  the console. `e2e/request-line.spec.ts` screenshots the phone in both looks.
+  is in Win98's Start menu (Q) and at the top of Night's More sheet. Desktop
+  (2026-11-18): the same card in the console, and one line above the Library's
+  list for every visitor (`LibraryRequestLine`). `e2e/request-line.spec.ts`
+  screenshots the phone in both looks and the desktop Library.
 ## Nothing spins forever, and the returning visitor (2026-10-14, after `docs/incident-2026-10-13/handoff.md`)
 
 On 2026-10-13 the Library and Stats sat on gray rows for returning visitors:
