@@ -12,6 +12,7 @@ import type { Show } from "@/lib/shows/describe";
 import { buildTopicCatalog } from "@/lib/topics/catalog";
 import { readTopicSlugs } from "@/lib/topics/load";
 import { showYear } from "@/lib/shows/archive";
+import { nextShow } from "@/lib/shows/next";
 
 /**
  * A show page's markup, as the server sends it (docs/show-pages.md): what a
@@ -106,6 +107,28 @@ describe("a show page's server HTML", () => {
     expect(doc.querySelector("noscript")!.innerHTML).toContain(".hd-show-play{display:none!important}");
     // Above the facts: the first thing under the title is the player.
     expect(play.compareDocumentPosition(doc.querySelector(".hd-show-meta")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("names the next show in the player box: a link that works without JavaScript, and one Play hidden without it", () => {
+    const doc = render(area51);
+    const next = doc.querySelector(".hd-show-player .hd-show-next")!;
+    expect(next.getAttribute("data-next-reason")).toBe("guest");
+    expect(next.querySelector("h2")!.textContent).toBe("Next · More with John Lear");
+    const href = next.querySelector("a.hd-show-next-link")!.getAttribute("href")!;
+    expect(href).toBe(`/show/${next.getAttribute("data-next-slug")}`);
+    expect(catalog.bySlug.has(href.slice(6))).toBe(true);
+    expect(next.querySelector(".hd-show-next-play button")!.textContent).toContain("Play next");
+    expect(doc.querySelector("noscript")!.innerHTML).toContain(".hd-show-next-play{display:none!important}");
+  });
+
+  it("a show with no other guest show names a topic it shares", () => {
+    const show = [...catalog.bySlug.values()].find(
+      (s) => nextShow(s, catalog, topics.byShow.get(s.slug) ?? [])?.reason === "topic",
+    )!;
+    const doc = render(show);
+    const name = doc.querySelector(".hd-show-next h2")!.textContent!;
+    const first = topics.byShow.get(show.slug)![0];
+    expect(name).toBe(`Next · Also on ${first.name}`);
   });
 
   it("links the show's topics, most specific first, and its category to the category's page", () => {
