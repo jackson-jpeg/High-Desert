@@ -19,7 +19,7 @@ bottom. Phones are left alone until the look split's verdict (2026-12-02).
 - [x] **Live 2026-11-18 03:28 UTC as `34e1085`** (own tests 14/14, `first-sort-*` mutations 6/6 red, lint, typecheck, suite (only load timeouts in untouched files), build, library e2e specs and station-welcome 44 passed on a local build, check:seo/csp on the build and on production; screenshots in `Assets/2026-11-18-library-first-order/`; station notice 03:32). The Library's first order for a new visitor: newest first opens on December 2015 Midnight in the Desert specials. With no sort ever chosen and an empty history, lead with the shows people play (the community "Most played", or Notable, whichever reads better on the first screen), keeping any sort the visitor picks. Measure library plays per first visit before and after
 - [ ] (built on branch `show-next`, worktree `/root/hd-next-show`; its 4 test files pass, 31 tests; mutations red: `next-show-guest-first`, `-guest-after`, `-topic-after`; the other 5 (`next-play-*`, `show-play-follows-switch`, `show-next-*`) not run: killed for memory 03:5x, then cancelled for light duty 04:0x; left: those 5, lint, typecheck, suite, build, a look at a show page and Play next on a local build, csp/seo, merge, deploy) Show pages, the next show: 736 desktop arrivals in 30 days land on a show page from outside. When that show ends (or from the page at any time), "Next: <same guest, then same topic>" with one Play, still a server page with no app shell. Measure with `playsBySurface.show` once it reads above 0
 - [ ] (built on branch `mutate-atomic` as `34ec586`, worktree `/root/hd-mutate-atomic`, no node_modules yet; smoke-checked in plain node (a child SIGKILLed between temp and rename leaves the target whole; both anchors found once); left, after light duty: `npx vitest run scripts/__tests__/mutate-write.test.ts scripts/__tests__/mutate-select.test.ts scripts/__tests__/mutation-list.test.ts` and `node scripts/mutate-check.mjs mutate-write`, lint, merge; not a web change, no deploy) `scripts/mutate-check.mjs`: an interrupted run can leave a mutated file EMPTY. `restoreAll()` uses `writeFile` (truncate, then write); a SIGKILL after the SIGTERM (TaskStop, the memory reaper) lands between them. Seen 2026-11-18 04:0x: `src/lib/shows/next.ts` at 0 bytes after "interrupted, restored 4 file(s)" (the message prints `targets.length`, not what it restored). Fix: write each original to a temp file and rename over (atomic), restore synchronously in the handler, count what was restored; and say in the doc that after a kill `git checkout --` the targets (the tree was clean by `assertClean`). Test with a real child killed mid-restore, with a control
-- [ ] Desktop returns (7% against phones' 23%): the Request Line as the reason to come back at 8 PM Pacific. On desktop it is one link in the console; give it a window on Live and a line on the Library ("Tonight at 8 PM Pacific: 3 shows in the running, vote by 6"), the phone's `PhoneRequestNote` wording. Measure desktop `return` and Request Line votes
+- [ ] (built on branch `desktop-request` as `8b90460`, worktree `/root/hd-desktop-request`, no node_modules yet; syntax-checked, the 3 new anchors found once; left, after light duty: `npx vitest run src/components/request-line/__tests__/live-request-note.test.tsx src/components/library/__tests__/library-request-line.test.tsx`, `node scripts/mutate-check.mjs request-desktop-card library-request-line request-phone`, lint, typecheck, suite, build, `e2e/request-line.spec.ts` on a local build on the e2e database (desktop and mobile; it writes nominations, local only), check:csp/seo, merge, deploy; baseline in `docs/request-line.md`) Desktop returns (7% against phones' 23%): the Request Line as the reason to come back at 8 PM Pacific. On desktop it is one link in the console; give it a window on Live and a line on the Library ("Tonight at 8 PM Pacific: 3 shows in the running, vote by 6"), the phone's `PhoneRequestNote` wording. Measure desktop `return` and Request Line votes
 
 Round 1, the five biggest improvements for listeners, chosen from the
 30-day numbers of 2026-11-17 (`/api/stats/usage`, the funnel line):
@@ -49,6 +49,15 @@ Not read by the foreman (it has no date gate, so these sat at the top of the Que
 
 
 ## Log
+
+## 2026-11-18, 05:00: the hub's test failure, item 5 built
+
+- The hub's re-check on `dbbdc67` failed on one test only: show pages "for
+  every show" (all 1,412 in one 60 s test) timed out at load 30 to 40.
+  `4515246` (on main) splits it into chunks of 100, 60 s each, with a test
+  that the chunks cover the catalog once. Not run here (light duty);
+  syntax-checked. The hub's next re-check is its first run.
+- Item 5 built on `desktop-request` (above). Checks wait for light duty.
 
 ## 2026-11-18, 04:20: light duty, the lead's cancel order
 
