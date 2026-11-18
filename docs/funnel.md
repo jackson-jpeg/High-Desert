@@ -113,6 +113,29 @@ the deploy's.
   `psql "$DATABASE_URL" -c "select look, step, sum(n) from funnel_daily where device = 'phone' and day >= '2026-11-18' and day < '2026-12-02' and not again group by 1, 2 order by 1, 2"`.
   Unlike "By look" above, this one is randomised.
 
+## The station on a desktop's first Library (2026-11-18)
+
+The 30 days to 2026-11-18 (`/api/stats/funnel?days=30`): desktop, 1,789
+first visits, 370 saw Live (21%), 218 tuned in (12%), 120 came back (7%);
+phones, 1,224, 963 (79%), 450 (37%), 283 (23%). A phone's first visit to `/`
+goes to `/live`; a desktop one lands on the Library (1,417 of the desktop
+direct arrivals) and met the station only as the player's idle strip.
+
+Now a desktop browser that arrived new (this funnel's verdict: an empty
+library) sees **On the air now** above the Library's list for its first 7
+days: the show, "with Guest · year", the hook, time left, "N tuned in now"
+and one **Listen live** (`tuneIn()` inside the tap), in both looks
+(`StationWelcome`, the rule in `src/lib/live/station-welcome.ts`). Closed, or
+tuned in once from anywhere, it never comes back (localStorage
+`hd-station-welcome`, `closed` or `tuned`). Never on a phone, never for a
+browser that arrived with a library, never while a show is loaded.
+
+**Reading it:** desktop `tune` over `visit` for cohorts from the deploy day,
+against 12% before. Phones are untouched, so the phone look split
+(above) is not disturbed. Tests: `station-welcome.test.ts`,
+`station-welcome.test.tsx`, `e2e/station-welcome.spec.ts`; mutations
+`station-welcome-*`.
+
 ## Reading it
 
 - `highdesert-status` has a `funnel` line: the last 7 days' cohorts, each step

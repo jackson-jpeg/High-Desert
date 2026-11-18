@@ -22,6 +22,11 @@ const mod = createModerator((() => ({ entries, version: 1 })) as unknown as Para
 const every: string[] = [];
 for (const a of TOKEN_WORDS) for (const b of TOKEN_WORDS) for (const c of TOKEN_WORDS) every.push(`${a}${b}${c}`);
 
+// The two exhaustive checks run the chat filter over every token (13,824). With
+// three heavy jobs sharing the box they ran past the default 5 s: the portfolio
+// run of 2026-11-18 00:36 failed on exactly that, and nothing else.
+const EXHAUSTIVE_MS = 30_000;
+
 describe("e2e tokens", () => {
   it("every token goes out unchanged in a call", () => {
     const altered = every.filter((t) => {
@@ -30,7 +35,7 @@ describe("e2e tokens", () => {
       return !r.ok || r.text !== text;
     });
     expect(altered).toEqual([]);
-  });
+  }, EXHAUSTIVE_MS);
 
   it("every token makes a name that is accepted as written", () => {
     const refused = every.filter((t) => {
@@ -39,7 +44,7 @@ describe("e2e tokens", () => {
       return !r.ok || r.text !== name;
     });
     expect(refused).toEqual([]);
-  });
+  }, EXHAUSTIVE_MS);
 
   it("the helper draws three words from the list", () => {
     for (let i = 0; i < 50; i++) expect(every).toContain(rnd());
