@@ -106,6 +106,9 @@ export function ShowShell({ children }: { children: ReactNode }) {
             <Link href="/topics" className={footLink}>
               Topics
             </Link>
+            <Link href="/privacy" className={footLink}>
+              Privacy
+            </Link>
           </nav>
         </div>
       </footer>

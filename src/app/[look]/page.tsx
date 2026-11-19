@@ -223,10 +223,18 @@ export default function WelcomePage() {
           Every show, by year
         </Link>
 
-        {/* Footer */}
+        {/* Footer. The privacy link is in the HTML the server sends, so a
+            crawler or a site check without JavaScript finds the policy. */}
         <div className="text-hd-8 mt-4 font-[family-name:var(--font-w95)] text-bevel-dark/85">
           Art Bell &middot; 1945–2018 &middot; From the Kingdom of Nye
         </div>
+        <Link
+          href="/privacy"
+          data-testid="welcome-privacy"
+          className="text-hd-8 -mt-6 min-h-touch px-3 inline-flex items-center font-[family-name:var(--font-w95)] text-bevel-dark hover:text-desktop-gray"
+        >
+          Privacy
+        </Link>
       </main>
     </div>
   );

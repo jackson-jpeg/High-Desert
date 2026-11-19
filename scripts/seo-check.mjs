@@ -182,6 +182,8 @@ const pages = [
   ...nightSample.map((p) => ({ path: p, kind: "tonight" })),
   ...momentPaths.map((p) => ({ path: p, kind: "moment" })),
   { path: "/request-line", kind: "request-line" },
+  // The privacy page (docs/privacy.md): the weekly site check on sang3r.com looks for it.
+  { path: "/privacy", kind: "privacy" },
   // The archive by year: the index and two years (each links every show it lists).
   { path: "/shows", kind: "shows" },
   ...evenSample(sitemapYears, 2).map((p) => ({ path: p, kind: "shows-year" })),

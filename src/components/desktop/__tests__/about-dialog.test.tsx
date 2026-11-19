@@ -20,7 +20,7 @@ afterEach(() => {
 });
 
 describe("About dialog", () => {
-  it("says what is kept: one random id per browser, a place looked up on our server, no address, no third party", () => {
+  it("says what is kept: one random id per browser, a place looked up on our server, no address, no third party, and links the policy", () => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
@@ -28,8 +28,10 @@ describe("About dialog", () => {
     const privacy = document.querySelector('[data-testid="about-privacy"]');
     expect(privacy?.textContent?.replace(/\s+/g, " ")).toBe(
       "Privacy" +
-        "Your library, favorites and history stay in this browser. To count visitors once, the site keeps one random id per browser, and our own server looks up an approximate country and state from your connection. Your address is never stored, and none of this goes to a third party.",
+        "Your library, favorites and history stay in this browser. To count visitors once, the site keeps one random id per browser, and our own server looks up an approximate country and state from your connection. The count never stores your address, and none of this goes to a third party. Read the privacy page.",
     );
+    // The whole policy is one click away (2026-11-19).
+    expect(privacy?.querySelector('a[data-testid="about-privacy-link"]')?.getAttribute("href")).toBe("/privacy");
     expect(document.body.textContent).not.toContain("—");
   });
 });

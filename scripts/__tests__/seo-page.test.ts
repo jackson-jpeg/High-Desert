@@ -195,9 +195,9 @@ describe("evenSample", () => {
 });
 
 describe("sitemap.xml and robots.txt", () => {
-  it("lists the app's routes, the Request Line, every show, guest and topic page, and every station day's Tonight", () => {
+  it("lists the app's routes, the Request Line, the privacy page, every show, guest and topic page, and every station day's Tonight", () => {
     const urls = new Set(sitemap().map((e) => e.url));
-    for (const p of ["", "/library", "/live", "/stats", "/topics", "/request-line", "/shows"]) expect(urls.has(`${SITE_ORIGIN}${p}`), p).toBe(true);
+    for (const p of ["", "/library", "/live", "/stats", "/topics", "/request-line", "/shows", "/privacy"]) expect(urls.has(`${SITE_ORIGIN}${p}`), p).toBe(true);
     const years = showYears(catalog);
     expect(years.length).toBeGreaterThan(10);
     for (const y of years) expect(urls.has(`${SITE_ORIGIN}${showsYearPath(y.year)}`), y.year).toBe(true);
@@ -211,7 +211,7 @@ describe("sitemap.xml and robots.txt", () => {
     expect(urls.has(`${SITE_ORIGIN}/tonight/2026-09-10`)).toBe(false);
     // Never a moment: it is its show's page.
     expect([...urls].some((u) => u.includes("?t=") || u.includes("/moment/"))).toBe(false);
-    expect(urls.size).toBe(7 + years.length + catalog.shows.length + catalog.guests.size + topics.topics.length + nights.length);
+    expect(urls.size).toBe(8 + years.length + catalog.shows.length + catalog.guests.size + topics.topics.length + nights.length);
   });
 
   it("robots keeps crawlers out of the API, admin pages and /look, and names the sitemap", () => {

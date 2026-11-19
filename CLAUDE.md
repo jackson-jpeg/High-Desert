@@ -140,6 +140,7 @@ PR, on main and nightly at 09:30 UTC; that workflow is now manual only.
 | `/topic/<slug>`, `/topics` | Every show on a topic (categories, curated subjects, big tags; `data/topic-slugs.json`), and the index |
 | `/tonight`, `/tonight/<yyyy-mm-dd>` | One station day: its frozen program and the date's broadcasts. `/tonight` is a 307 to today (Pacific) |
 | `/live` | High Desert Live — the 24/7 station: now playing, time left, up next, the day's log, the live count, the phone lines (chat). See "Live station" |
+| `/privacy` | The privacy policy (effective date, Do Not Track line), static server HTML in the show pages' frame; linked from the welcome page's server HTML (sang3r.com's weekly site check reads it there), the show pages' footer and About. Words in `src/lib/privacy/policy.ts`, each claim's source in `docs/privacy.md`: a change to what the site stores changes that page |
 | `/request-line` | The Request Line: today's nominations for the station's request slot (8 PM Pacific) with their votes, tonight's pick once locked, its own share card. Server-rendered per request. See "Live station" and `docs/request-line.md` |
 
 All primary pages share `(desktop)/layout.tsx` — the master client component that initializes the audio player, handles global keyboard shortcuts, seeds the library on first visit, and persists playback state.

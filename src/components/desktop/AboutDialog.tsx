@@ -2,6 +2,7 @@
 
 import { Dialog, Button } from "@/components/win98";
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 
 interface AboutDialogProps {
   open: boolean;
@@ -144,13 +145,22 @@ export function AboutDialog({
           </div>
 
           {/* Privacy (2026-10-20): what the site keeps, said plainly. The
-              visitor count and its places are docs/visitors.md. */}
+              visitor count and its places are docs/visitors.md; the whole
+              policy is /privacy (2026-11-19, docs/privacy.md). */}
           <div className="flex flex-col gap-1" data-testid="about-privacy">
             <div className="text-hd-10 text-desktop-gray/85 font-bold">Privacy</div>
             <p className="text-hd-9 text-desktop-gray/85 leading-relaxed">
               Your library, favorites and history stay in this browser. To count visitors once, the site keeps
               one random id per browser, and our own server looks up an approximate country and state from your
-              connection. Your address is never stored, and none of this goes to a third party.
+              connection. The count never stores your address, and none of this goes to a third party.{" "}
+              <Link
+                href="/privacy"
+                data-testid="about-privacy-link"
+                className="text-desert-amber/85 hover:text-desert-amber underline underline-offset-2"
+              >
+                Read the privacy page
+              </Link>
+              .
             </p>
           </div>
 

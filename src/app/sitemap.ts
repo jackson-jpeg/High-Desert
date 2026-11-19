@@ -6,6 +6,7 @@ import { topicPath } from "@/lib/topics/catalog";
 import { showYears, showsYearPath } from "@/lib/shows/archive";
 import { pacificDay } from "@/lib/live/schedule";
 import { tonightPath, tonightSitemapDays } from "@/lib/tonight/tonight";
+import { PRIVACY_EFFECTIVE, PRIVACY_PATH } from "@/lib/privacy/policy";
 
 /**
  * Every page Google should index: the app's routes, the archive by year
@@ -57,6 +58,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...[...catalog.guests.values()].map((g) => ({ url: `${base}${guestPath(g.slug)}`, priority: 0.5 })),
     { url: `${base}/request-line`, lastModified: now, changeFrequency: "hourly", priority: 0.7 },
     { url: `${base}/topics`, changeFrequency: "monthly", priority: 0.6 },
+    // The policy: its date is the day it took effect (src/lib/privacy/policy.ts).
+    { url: `${base}${PRIVACY_PATH}`, lastModified: new Date(`${PRIVACY_EFFECTIVE}T00:00:00Z`), changeFrequency: "yearly", priority: 0.2 },
     ...topics.topics.map((t) => ({ url: `${base}${topicPath(t.slug)}`, priority: 0.7 })),
     ...tonightSitemapDays(pacificDay(now.getTime())).map((day, i) => ({
       url: `${base}${tonightPath(day)}`,

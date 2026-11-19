@@ -33,7 +33,7 @@ const meta = (doc, attr, name) => doc.querySelector(`meta[${attr}="${name}"]`)?.
  * moment's (`/show/<slug>/moment/<s>/...`), and whose player starts there.
  *
  * @param {Document} doc the HTML as the server sent it, parsed without running scripts
- * @param {{path: string, kind: "show" | "guest" | "topic" | "tonight" | "moment" | "request-line" | "shows" | "shows-year", base: string}} page
+ * @param {{path: string, kind: "show" | "guest" | "topic" | "tonight" | "moment" | "request-line" | "shows" | "shows-year" | "privacy", base: string}} page
  * @returns {{findings: string[], links: string[], images: string[]}}
  *   links: every internal link on the page, as site paths, to be fetched;
  *   images: og:image and twitter:image, as site paths
