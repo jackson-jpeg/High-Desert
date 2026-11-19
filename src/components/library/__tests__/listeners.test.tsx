@@ -163,6 +163,10 @@ describe("Listeners panel", () => {
     const credit = host.querySelector('a[href="https://db-ip.com"]');
     expect(credit?.textContent).toBe("IP Geolocation by DB-IP");
     expect(host.textContent).toContain("1,154 early listeners have no place on the map yet");
+    // nginx keeps access logs 13 months (docs/privacy.md), so only the count is promised address-free,
+    // the same words as the About dialog
+    expect(credit?.parentElement?.textContent).toContain("The count never stores your address.");
+    expect(host.textContent).not.toContain("Addresses are never stored");
   });
 
   describe("how much is placed, and where the panel opens", () => {

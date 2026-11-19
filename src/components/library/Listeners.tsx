@@ -318,7 +318,7 @@ export function Listeners() {
           </span>
           {attribution && (
             <span>
-              Locations are approximate, by state at most, looked up on our own server. Addresses are never stored.{" "}
+              Locations are approximate, by state at most, looked up on our own server. The count never stores your address.{" "}
               <a href={attribution.url} target="_blank" rel="noopener noreferrer" className="text-signal-blue underline">
                 {attribution.text}
               </a>
