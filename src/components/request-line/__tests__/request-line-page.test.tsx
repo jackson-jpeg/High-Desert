@@ -60,7 +60,7 @@ function resolves(href: string) {
   if (p.startsWith("/show/")) return catalog.bySlug.has(p.slice(6));
   if (p.startsWith("/tonight/")) return /^\/tonight\/\d{4}-\d{2}-\d{2}$/.test(p);
   if (p.startsWith("/shows/")) return showYear(catalog, p.slice(7)) !== null;
-  return ["/", "/library", "/live", "/stats", "/tonight", "/topics", "/request-line", "/shows"].includes(p);
+  return ["/", "/library", "/live", "/stats", "/tonight", "/topics", "/request-line", "/shows", "/privacy"].includes(p);
 }
 function checkPage(d: Document) {
   for (const a of d.querySelectorAll("a[href]")) expect(resolves(a.getAttribute("href")!), a.getAttribute("href")!).toBe(true);

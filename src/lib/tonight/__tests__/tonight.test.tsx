@@ -75,7 +75,7 @@ function resolves(href: string): boolean {
   if (p.startsWith("/topic/")) return topics.bySlug.has(p.slice(7));
   if (p.startsWith("/tonight/")) return tonightDayInRange(p.slice(9), DAY);
   if (p.startsWith("/shows/")) return showYear(catalog, p.slice(7)) !== null;
-  return ["/", "/library", "/live", "/stats", "/tonight", "/topics", "/request-line", "/shows"].includes(p);
+  return ["/", "/library", "/live", "/stats", "/tonight", "/topics", "/request-line", "/shows", "/privacy"].includes(p);
 }
 
 function checkPage(d: Document, label: string) {
