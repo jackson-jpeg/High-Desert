@@ -10,7 +10,10 @@ import { STATION_ID_SEC, pacificDayBounds, requestCloseAt, requestStartAt } from
  * The Request Line as the app reads it (2026-10-14, docs/request-line.md):
  * the night locked by the one function in the database, applied to the
  * station's real frozen day, end to end through `buildSchedule`. On dates far
- * enough out (2099) that nothing else writes them.
+ * enough out (2098) that nothing else writes them. Not 2099: live-days.db.test.ts
+ * owns that year and deletes all of it after each test, and vitest runs the two
+ * files at once against one database (2026-11-19: this file's cleanup wiped
+ * live-days' rows mid-test, 10 of 15).
  */
 
 type Days = typeof import("../days");
@@ -20,7 +23,7 @@ let days: Days;
 let requests: Requests;
 let poolMod: Pool;
 
-const DAY = "2099-06-10";
+const DAY = "2098-06-11";
 const REF = (c: string) => c.repeat(64);
 
 beforeAll(async () => {
@@ -44,9 +47,9 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (!poolMod) return;
-  await poolMod.pool().query("DELETE FROM live_request_nights WHERE day >= '2099-01-01'");
-  await poolMod.pool().query("DELETE FROM live_request_nominations WHERE day >= '2099-01-01'");
-  await poolMod.pool().query("DELETE FROM live_days WHERE day >= '2099-01-01'");
+  await poolMod.pool().query("DELETE FROM live_request_nights WHERE day >= '2098-01-01' AND day < '2099-01-01'");
+  await poolMod.pool().query("DELETE FROM live_request_nominations WHERE day >= '2098-01-01' AND day < '2099-01-01'");
+  await poolMod.pool().query("DELETE FROM live_days WHERE day >= '2098-01-01' AND day < '2099-01-01'");
   await poolMod.pool().end();
 });
 
@@ -106,7 +109,7 @@ describeDb("the Request Line in the station's schedule (Postgres)", () => {
   });
 
   it("control: a night nobody nominated for leaves the frozen day exactly as it was", async () => {
-    const empty = "2099-06-20";
+    const empty = "2098-06-21";
     const night = await requests.loadRequestNight(empty, requestCloseAt(empty) + 1);
     expect(night).toMatchObject({ fileHash: null, votes: 0 });
     const s = await days.buildSchedule(requestStartAt(empty) + 60_000, async () => ({ archiveDown: false, manifest: null }));
