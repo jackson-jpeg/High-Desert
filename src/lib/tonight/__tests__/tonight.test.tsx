@@ -262,8 +262,15 @@ describe("the Tonight page, rendered", () => {
 });
 
 describe("topic pages, rendered", () => {
-  it("every topic: intro, a first show to press, every show, related topics, valid JSON-LD, links that resolve", () => {
-    for (const t of topics.topics) {
+  // One test per topic (2026-11-19: rendering every topic in one test took 5135 ms under a loaded
+  // box and timed out at 5000; the work is the same, each page now has its own time limit).
+  it("there are topics to render", () => {
+    expect(topics.topics.length).toBeGreaterThan(0);
+  });
+
+  it.each(topics.topics.map((t) => [t.slug, t] as const))(
+    "%s: intro, a first show to press, every show, related topics, valid JSON-LD, links that resolve",
+    (_slug, t) => {
       const d = doc(renderToStaticMarkup(createElement(ShowShell, null, createElement(TopicView, { topic: t, catalog: topics }))));
       expect(d.querySelector("h1")?.textContent, t.slug).toBe(t.name);
       expect(d.querySelector(".hd-topic-intro")?.textContent, t.slug).toBe(t.intro);
@@ -272,8 +279,8 @@ describe("topic pages, rendered", () => {
       const types = [...d.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent!)["@type"]);
       expect(types, t.slug).toEqual(["CollectionPage", "BreadcrumbList"]);
       checkPage(d, t.slug);
-    }
-  });
+    },
+  );
 
   it("Mel's Hole leads with its notable shows and links its related topics", () => {
     const t = topics.bySlug.get("mels-hole")!;
