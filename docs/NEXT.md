@@ -11,8 +11,8 @@ Work order of 2026-11-22 (the lead; `docs/handoff-2026-11-22-ship.md`):
 
 - [x] **Live 2026-11-22 as `8c2d1de`**: supporter Joseph K., $50, at the top (tests, 3 mutations red, lint, typecheck, shoutout dry run names him); repo name `jackson-jpeg/High-Desert` in README, CLAUDE.md, package.json, the sampler unit
 - [x] **Live 2026-11-22 as `dacac34`: supporter tiers on /stats** (Jackson, 01:41 ET). `supporters-*` 8/8 and `shoutout-*` 10/10 mutations red, lint, typecheck, build, returning visitor ok in both browsers. Left for the next session: a rendered look at /stats in both looks at 390/1440, check:csp on production (`docs/handoff-2026-11-22-tiers.md`)
-- [ ] status `presence` FAIL on desktop /library: the checker did not know `live` surfaces (the On the air now window's "N tuned in now"). Fixed in `presence-check.mjs` on `ship-2026-11-22` (test, 2 new mutations, 5/5 red); confirm OK in `highdesert-status` after merge
-- [ ] Ship round 2 items 3, 4, 5 (moved back from Waiting: show-next, mutate-atomic, desktop-request), all on branch `ship-2026-11-22` (`/root/hd-1122`). Per-item checks done (show-next 8/8 red after a new test for `next-show-guest-after`; mutate-write 2/2; request 5/5; lint; typecheck). Rebased on main 07:0x (docs commit dropped, no conflict, pushed `b924f3a`); build running (`/root/scratch/hd-1122/build.log`). Left: e2e request-line + show page on a local build, csp/seo, merge, deploy, csp/seo on production
+- [x] **Confirmed 2026-11-22 07:2x**: status `presence` reads OK (desktop /library, desktop /stats, mobile /stats agree) after the ship below; `presence-check.mjs` knows `live` surfaces (test, 2 new mutations, 5/5 red)
+- [x] **Live 2026-11-22 07:14 UTC as `57c4a95`**: ship round 2 items 3, 4, 5 (show pages' Next, mutate-check atomic writes, Request Line on desktop). Rebased on main, `npm run build`, `e2e/request-line.spec.ts` on a local build on the e2e database (9 passed, 11 skipped by the spec's own project filters), check:seo/csp on the build and on production, a show page's Next read back from production (John Lear's 1993-09-03 after 1992-12-12, reason `guest`), returning visitor ok in Chromium and WebKit; station notice 07:2x. The tiers item's leftovers are done too: /stats's supporters panel rendered on production at 390 and 1440 in both looks (four tiers in order, no overflow, no em dash), check:csp on production clean
 
 Round 2 (the lead, 2026-11-18): the next five for listeners, from the 30-day
 numbers of 2026-11-18 00:40 UTC (`/api/stats/funnel?days=30`,
@@ -55,6 +55,19 @@ Not read by the foreman (it has no date gate, so these sat at the top of the Que
 
 
 ## Log
+
+## 2026-11-22, 07:30: the ship branch live, the Queue empty
+
+- `ship-2026-11-22` rebased on the tiers commits (no conflict), built,
+  checked on a local stack (e2e request-line, seo, csp), fast-forwarded into
+  main and deployed as `57c4a95`. Production seo and csp clean, presence OK.
+  The force-push of the rebased branch to origin was refused by the auto-mode
+  classifier; not retried (main was fast-forwarded and pushed instead, so the
+  branch on origin is stale and can be deleted).
+- `highdesert-status`'s only FAIL is `mutations` (six stale anchors from the
+  2026-11-18 run, re-anchored in 75ab96a); it clears with the weekly run on
+  Mon 2026-11-23 14:00 UTC.
+- What is left is under "Waiting for a date" (2026-11-25, 2026-12-02).
 
 ## 2026-11-18, 07:25: paused until 2026-11-19 afternoon
 

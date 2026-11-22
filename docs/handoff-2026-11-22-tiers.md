@@ -78,3 +78,23 @@ Nothing.
   /stats in both looks at 390 and 1440, and check:csp on production. No
   station notice was posted, because the chat was not touched.
 - The tiers item is ticked in NEXT.md.
+
+## Update, 07:30: the ship branch live as `57c4a95`
+
+- Rebased `ship-2026-11-22` on main, built, ran `e2e/request-line.spec.ts`
+  on a local stack (app 3013, chat 3015, proxy 3014, e2e database): 9 passed,
+  11 skipped by the spec's project filters. check:seo and check:csp clean on
+  that build. Fast-forwarded main, pushed, `deploy.sh`: clean, returning
+  visitor ok in both browsers. check:seo and check:csp clean on production;
+  a show page's Next read back from production. Station notice posted.
+- Tiers leftovers done: /stats's supporters panel rendered on production at
+  390 and 1440 in both looks (screenshots were in `/root/scratch/hd-1122/shots`,
+  deleted with the scratch folder; nothing wrong in them), check:csp clean.
+- `highdesert-status`: presence OK; the only FAIL is the known `mutations`
+  line, which clears after Mon 2026-11-23 14:00 UTC.
+- Hook blocks: the auto-mode classifier refused `git push --force-with-lease`
+  of the rebased ship branch. Not retried; main was fast-forwarded instead, so
+  `origin/ship-2026-11-22` holds the pre-rebase commits and can be deleted.
+- Queue empty; the rest waits for 2026-11-25 and 2026-12-02.
+- Cleanup: worktrees `/root/hd-tiers` and `/root/hd-1122` removed, scratch
+  folders removed, local stack stopped (own PIDs).
