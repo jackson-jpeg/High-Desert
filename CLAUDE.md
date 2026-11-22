@@ -2,7 +2,7 @@
 
 > A desktop-grade web player for the Art Bell radio archive. Windows 98 dark UI on desktop, glassmorphism on mobile, streaming from archive.org, all data stored client-side in IndexedDB.
 
-**Live:** [highdesert.space](https://highdesert.space) | **Repo:** `jacksongoode/High-Desert`
+**Live:** [highdesert.space](https://highdesert.space) | **Repo:** `jackson-jpeg/High-Desert`
 
 ## Quick Start
 

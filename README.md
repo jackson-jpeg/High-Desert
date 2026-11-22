@@ -39,7 +39,7 @@ A desktop-grade web player for the Art Bell radio archive — late-night talk ra
 ## Getting Started
 
 ```bash
-git clone https://github.com/jacksongoode/High-Desert.git
+git clone https://github.com/jackson-jpeg/High-Desert.git
 cd High-Desert
 npm install
 cp .env.example .env.local   # optional — see below

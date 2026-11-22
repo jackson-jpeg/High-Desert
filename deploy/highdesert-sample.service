@@ -1,6 +1,6 @@
 [Unit]
 Description=High Desert — record a listener/traffic sample
-Documentation=https://github.com/jacksongoode/High-Desert
+Documentation=https://github.com/jackson-jpeg/High-Desert
 After=highdesert.service
 Requires=highdesert.service
 
