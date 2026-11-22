@@ -347,7 +347,14 @@ holds the page to that function. Findings and fixes: `docs/stats-audit.md`.
   chipped in, from `src/lib/support/supporters.ts`, **first name and last initial
   only** (a test fails on a full name, and on either full surname anywhere in
   `src/`), and links Venmo and PayPal (`PAYPAL_URL`, 2026-11-08: Venmo is
-  US-only). Add a gift at the top of the list.
+  US-only). Add a new supporter at the top of the list; a second gift goes
+  into that person's `gifts`. **Tiers** (2026-11-22, Jackson) come from the
+  sum of a person's gifts: Station Owner $50+, Night Owl $15+, Regular
+  Caller $10+, Caller any (`TIERS`); the panel groups by tier, highest
+  first, with the tier line under the links, and `donor-shoutout.mjs`
+  thanks Station Owners in their own sentence first (its copy of `TIERS` is
+  held equal by its test; `--status` keeps `amount`, now the total, for
+  sang3r's console, with `gifts` and `tier` beside it).
 - **"Plays all time" exceeds every range total by design** — the counter predates the
   `play_events` log (2026-07-28). The page says so.
 

@@ -31,7 +31,7 @@ token never reads as "you are signed out".
 | Phone lines | `GET /live-api/admin/overview` every 5 s: the last 200 calls, **hidden ones included**, with reports, mutes, bans, slow mode, station notices and the service's health. "Load older calls" pages with `?before=` | Hide / Unhide, Mute 10 min / 1 h / 1 day, Unmute, Clear name, Ban / Unban, slow mode on (30 min) or off, a station notice |
 | Request Line | `GET /live-api/admin/requests` every 30 s: today's nominations with notes and votes, tonight's locked pick | Veto (confirmed) |
 | Station | `/api/live/schedule` (on the air, up next, outage swaps), `/api/stats/failures?days=7` (summary), and the last `highdesert-status` run | **Run check** runs `highdesert-status` (about 20 s) |
-| Supporters | `node scripts/donor-shoutout.mjs --status`: the list with amounts, the last shout-out, when the next is due, and what it will say | **Thank them now** runs `--now` (confirmed) |
+| Supporters | `node scripts/donor-shoutout.mjs --status`: the list with amounts (each person's total; `gifts` and `tier` beside it), the last shout-out, when the next is due, and what it will say | **Thank them now** runs `--now` (confirmed) |
 
 ## Decisions
 

@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { SUPPORTERS } from "@/lib/support/supporters";
+import { SUPPORTERS, TIERS, tierOf, totalOf } from "@/lib/support/supporters";
 import * as S from "../donor-shoutout.mjs";
 
 /**
@@ -17,14 +17,59 @@ const pacific = (iso: string, hour: number) =>
   Date.parse(`${iso}T${String(hour).padStart(2, "0")}:00:00${iso >= "2026-11-01" ? "-08:00" : "-07:00"}`);
 
 describe("donor shout-out", () => {
-  it("reads exactly the supporters the Stats page thanks, in order", () => {
-    expect(S.parseSupporters(source)).toEqual(SUPPORTERS.map((s) => ({ name: s.name, amount: s.amount })));
+  it("reads exactly the supporters the Stats page thanks, in order, with total, gifts and tier", () => {
+    expect(S.parseSupporters(source)).toEqual(
+      SUPPORTERS.map((s) => ({ name: s.name, amount: totalOf(s), gifts: [...s.gifts], tier: tierOf(s).id })),
+    );
+    // Several gifts: the admin console's `amount` is their sum.
+    expect(S.parseSupporters('SUPPORTERS = [\n  { name: "Ann B.", gifts: [10, 40] },\n  { name: "Cal D.", gifts: [5] },\n];')).toEqual([
+      { name: "Ann B.", amount: 50, gifts: [10, 40], tier: "owner" },
+      { name: "Cal D.", amount: 5, gifts: [5], tier: "caller" },
+    ]);
+  });
+
+  it("keeps the same tiers as the Stats page", () => {
+    expect(S.TIERS).toEqual(TIERS);
+  });
+
+  it("Station Owners get their own sentence first, then everyone else, each named once", () => {
+    const people = [
+      { name: "Ann B.", gifts: [5] },
+      { name: "Cal D.", gifts: [50] },
+      { name: "Eve F.", gifts: [15] },
+      { name: "Gus H.", gifts: [30, 30] },
+    ];
+    for (let i = 0; i < S.TEMPLATE_COUNT; i++) {
+      const text = S.shoutoutText(people, i)!;
+      expect(text.startsWith("A special thank you to our Station Owners: Cal D. and Gus H. ")).toBe(true);
+      const after = text.slice(S.ownersSentence(["Cal D.", "Gus H."]).length);
+      expect(after).toContain("Ann B. and Eve F.");
+      expect(after).not.toContain("Cal D.");
+      expect(after).not.toContain("Gus H.");
+      expect(text).not.toContain("..");
+      expect(text.length).toBeLessThanOrEqual(500);
+    }
+    expect(S.shoutoutText([{ name: "Cal D.", gifts: [50] }, { name: "Ann B.", gifts: [5] }], 0)).toMatch(
+      /^A special thank you to our Station Owner: Cal D\. Thank you to the listeners who keep High Desert on the air: Ann B\. /,
+    );
+    // Only owners: one sentence, never named twice.
+    const only = S.shoutoutText([{ name: "Cal D.", gifts: [50] }], 0)!;
+    expect(only.match(/Cal D\./g)).toHaveLength(1);
+    // No owners: as before.
+    expect(S.shoutoutText([{ name: "Ann B.", gifts: [5] }], 0)).not.toContain("Station Owner");
+  });
+
+  it("today's shout-out names Joseph K. as the Station Owner, then the rest", () => {
+    const text = S.shoutoutText(S.parseSupporters(source), 0)!;
+    expect(text).toMatch(/^A special thank you to our Station Owner: Joseph K\. /);
+    expect(text).toContain("Austin M., Alexandra M., Rachel B. and Craig A.");
+    expect(text.length).toBeLessThanOrEqual(500);
   });
 
   it("names every supporter, newest first, in each phrasing, with no em dash and no amounts", () => {
     for (let i = 0; i < S.TEMPLATE_COUNT; i++) {
       const text = S.shoutoutText(SUPPORTERS, i)!;
-      expect(text).toContain(S.listNames(SUPPORTERS.map((s) => s.name)));
+      for (const s of SUPPORTERS) expect(text).toContain(s.name);
       expect(text).not.toContain("—");
       expect(text).not.toMatch(/\$\d/);
       expect(text).not.toContain("..");
@@ -36,7 +81,7 @@ describe("donor shout-out", () => {
   });
 
   it("a long list stays under the notice limit and says how many more", () => {
-    const many = Array.from({ length: 80 }, (_, i) => ({ name: `Person${i} X.`, amount: 5 }));
+    const many = Array.from({ length: 80 }, (_, i) => ({ name: `Person${i} X.`, gifts: [i === 0 ? 50 : 5] }));
     const text = S.shoutoutText(many, 0)!;
     expect(text.length).toBeLessThanOrEqual(500);
     expect(text).toMatch(/ and \d+ more\. /);

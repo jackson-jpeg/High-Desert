@@ -26,10 +26,40 @@ export const MAX_GAP_HOURS = 6 * 24;
 export const EVENING = [18, 23];
 const MAX_CHARS = 500;
 
-/** The supporters, in the file's order: [{name, amount}]. */
+/**
+ * The tiers, highest first: a copy of TIERS in src/lib/support/supporters.ts
+ * (this script runs under plain node and cannot import TypeScript). The test
+ * holds the two equal.
+ */
+export const TIERS = [
+  { id: "owner", name: "Station Owner", min: 50 },
+  { id: "night-owl", name: "Night Owl", min: 15 },
+  { id: "regular", name: "Regular Caller", min: 10 },
+  { id: "caller", name: "Caller", min: 0 },
+];
+
+/** A supporter's total: `amount` as parsed, else the sum of `gifts`. */
+export function totalOf(s) {
+  return s.amount ?? (s.gifts ?? []).reduce((sum, g) => sum + g, 0);
+}
+
+/** The highest tier a supporter's total reaches, by id. */
+export function tierOf(s) {
+  const total = totalOf(s);
+  return (TIERS.find((t) => total >= t.min) ?? TIERS[TIERS.length - 1]).id;
+}
+
+/**
+ * The supporters, in the file's order: [{name, amount, gifts, tier}].
+ * `amount` is the total of the gifts: sang3r.com's admin console reads it.
+ */
 export function parseSupporters(source) {
   const list = source.slice(source.indexOf("SUPPORTERS"));
-  return [...list.matchAll(/\{\s*name:\s*"([^"]+)",\s*amount:\s*(\d+)\s*\}/g)].map((m) => ({ name: m[1], amount: Number(m[2]) }));
+  return [...list.matchAll(/\{\s*name:\s*"([^"]+)",\s*gifts:\s*\[([\d,\s]*)\]\s*\}/g)].map((m) => {
+    const gifts = m[2].split(",").map((g) => g.trim()).filter(Boolean).map(Number);
+    const amount = gifts.reduce((sum, g) => sum + g, 0);
+    return { name: m[1], amount, gifts, tier: tierOf({ amount }) };
+  });
 }
 
 /** "A", "A and B", "A, B and C". */
@@ -47,17 +77,36 @@ const TEMPLATES = [
 ];
 export const TEMPLATE_COUNT = TEMPLATES.length;
 
-/** The notice: every supporter by name (newest first), in one of the phrasings. Null with nobody to thank. */
-export function shoutoutText(supporters, which = 0) {
-  if (supporters.length === 0) return null;
-  const t = TEMPLATES[((which % TEMPLATES.length) + TEMPLATES.length) % TEMPLATES.length];
-  const names = supporters.map((s) => s.name);
+/** `t` over the names, as many as fit under the limit, the rest as "N more"; null if not even one fits. */
+function fit(t, names, prefix = "") {
   for (let n = names.length; n >= 1; n--) {
     const shown = n === names.length ? names : [...names.slice(0, n), `${names.length - n} more`];
-    const text = t(listNames(shown));
+    const text = prefix + t(listNames(shown));
     if (text.length <= MAX_CHARS) return text;
   }
   return null;
+}
+
+/** "A special thank you to our Station Owner: Joseph K. " (with a space after, for what follows). */
+export function ownersSentence(owners) {
+  return `A special thank you to our Station Owner${owners.length > 1 ? "s" : ""}: ${stop(listNames(owners))} `;
+}
+
+/**
+ * The notice: every supporter by name, in one of the phrasings. Station
+ * Owners get their own sentence first; everyone else follows in the list's
+ * order (newest first). Null with nobody to thank.
+ */
+export function shoutoutText(supporters, which = 0) {
+  if (supporters.length === 0) return null;
+  const t = TEMPLATES[((which % TEMPLATES.length) + TEMPLATES.length) % TEMPLATES.length];
+  const owners = supporters.filter((s) => tierOf(s) === "owner").map((s) => s.name);
+  const rest = supporters.filter((s) => tierOf(s) !== "owner").map((s) => s.name);
+  if (owners.length > 0 && rest.length > 0) {
+    const text = fit(t, rest, ownersSentence(owners));
+    if (text) return text;
+  }
+  return fit(t, supporters.map((s) => s.name));
 }
 
 /** The hour in Pacific time. */
