@@ -122,6 +122,22 @@ export const MUTATIONS = [
     why: "the Listeners panel's here-now shows online alone; status's presence line FAILed on it after the 2026-10-20 deploy",
   },
   {
+    id: "presence-check-live-shows-live",
+    test: "scripts/__tests__/presence-check.test.ts",
+    file: "scripts/presence-check.mjs",
+    find: '      s.surface === "live" ? [s.live ?? NaN] : ONLINE_ONLY.has(s.surface) ? [s.online] : [s.online, s.listening];',
+    replace: "      ONLINE_ONLY.has(s.surface) ? [s.online] : [s.online, s.listening];",
+    why: "a live surface shows the tuned-in count; status's presence line FAILed on the desktop Library's On the air now window",
+  },
+  {
+    id: "presence-check-reads-data-live",
+    test: "scripts/__tests__/presence-check.test.ts",
+    file: "scripts/presence-check.mjs",
+    find: '      s.surface === "live" ? [s.live ?? NaN] : ONLINE_ONLY.has(s.surface) ? [s.online] : [s.online, s.listening];',
+    replace: '      s.surface === "live" ? s.shown.slice(0, 1) : ONLINE_ONLY.has(s.surface) ? [s.online] : [s.online, s.listening];',
+    why: "a live surface is held to its data-live tag, not to whatever it displays",
+  },
+  {
     id: "admin-direct-load-hydrates-first",
     test: "src/app/__tests__/admin-direct-load.test.tsx",
     file: "src/app/[look]/(desktop)/search/page.tsx",

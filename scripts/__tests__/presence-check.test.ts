@@ -49,6 +49,19 @@ describe("judgeSurfaces", () => {
     expect(judgeSurfaces([s("listeners", 18, 9, "4", [9]), s("status-bar", 18, 9)]).verdict).toBe("disagree");
   });
 
+  it("a live surface (\"6 tuned in now\") shows its live count, not online/listening", () => {
+    // desktop /library since the On the air now window (2026-11-18): status
+    // FAILed with "live displays [6] but is tagged 20/10".
+    const live = { ...s("live", 20, 10, "4", [6]), live: 6 };
+    expect(judgeSurfaces([live, s("status-bar", 20, 10)]).verdict).toBe("agree");
+    // ...a live count that is not the tag still disagrees...
+    expect(judgeSurfaces([{ ...live, shown: [7] }, s("status-bar", 20, 10)]).verdict).toBe("disagree");
+    // ...and so does a live surface with no data-live tag at all.
+    expect(judgeSurfaces([{ ...live, live: undefined }, s("status-bar", 20, 10)]).verdict).toBe("disagree");
+    // A live surface still has to agree with the others on online/listening.
+    expect(judgeSurfaces([{ ...live, online: 21 }, s("status-bar", 20, 10)]).verdict).toBe("disagree");
+  });
+
   it("no surfaces is empty, not agreement", () => {
     expect(judgeSurfaces([]).verdict).toBe("empty");
   });

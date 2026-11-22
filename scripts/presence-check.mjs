@@ -35,7 +35,7 @@ const REREADS = 6;
  * Judge one page's surfaces. Pure, so scripts/__tests__/presence-check.test.ts
  * can hold it to the rule without a browser.
  *
- * @param {{surface: string, online: number, listening: number, poll: string, shown: number[]}[]} surfaces
+ * @param {{surface: string, online: number, listening: number, live?: number, poll: string, shown: number[]}[]} surfaces
  * @returns {{verdict: "agree" | "disagree" | "mid-update" | "empty", detail: string}}
  */
 /** Surfaces that display the online count alone (Taskbar.tsx's tray, the Stats badge, the Listeners panel's "here now"). */
@@ -54,7 +54,11 @@ export function judgeSurfaces(surfaces) {
     }
     // What a listener reads: the badge, Win98's taskbar tray and the
     // Listeners panel show online only; the rest show both.
-    const expected = ONLINE_ONLY.has(s.surface) ? [s.online] : [s.online, s.listening];
+    // A "live" surface ("12 tuned in now": the Live screen, and since
+    // 2026-11-18 the desktop Library's On the air now window) shows its
+    // data-live count alone. One without a data-live tag is a disagreement.
+    const expected =
+      s.surface === "live" ? [s.live ?? NaN] : ONLINE_ONLY.has(s.surface) ? [s.online] : [s.online, s.listening];
     const shown = s.shown.slice(0, expected.length);
     if (shown.length !== expected.length || shown.some((n, i) => n !== expected[i])) {
       problems.push(`${s.surface} displays ${JSON.stringify(s.shown)} but is tagged ${s.online}/${s.listening}`);
@@ -72,6 +76,7 @@ async function readSurfaces(page) {
     els.map((el) => {
       const online = Number(el.getAttribute("data-online"));
       const listening = Number(el.getAttribute("data-listening"));
+      const liveTag = el.getAttribute("data-live");
       // Only the numbers the listener reads; "listening" alone is omitted when
       // zero on some surfaces, which the judge accounts for below.
       const shown = (el.textContent ?? "").match(/\d+/g)?.map(Number) ?? [];
@@ -79,8 +84,10 @@ async function readSurfaces(page) {
         surface: el.getAttribute("data-presence") ?? "?",
         online,
         listening,
+        live: liveTag === null ? undefined : Number(liveTag),
         poll: el.getAttribute("data-presence-poll") ?? "?",
-        shown: listening === 0 && shown.length === 1 ? [...shown, 0] : shown,
+        shown:
+          el.getAttribute("data-presence") !== "live" && listening === 0 && shown.length === 1 ? [...shown, 0] : shown,
       };
     }),
   );
