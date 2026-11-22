@@ -98,3 +98,17 @@ Nothing.
 - Queue empty; the rest waits for 2026-11-25 and 2026-12-02.
 - Cleanup: worktrees `/root/hd-tiers` and `/root/hd-1122` removed, scratch
   folders removed, local stack stopped (own PIDs).
+
+## Correction, 07:40: the tiers deploy log, and verification closed
+
+- `/root/scratch/hd-tiers/deploy.log` no longer exists: I deleted it with
+  the scratch folder in the 07:30 cleanup, before it was asked for. Its
+  outcome is still on record elsewhere. `.deploy/history` has
+  `dacac34 2026-11-22T07:07:34Z` (deploy.sh appends there only after a
+  verified deploy), and the next deploy's returning-visitor check upgraded
+  from `dacac34-ef429e8` in both browsers, so dacac34 was live and had not
+  rolled back. What the log itself said beyond that is lost.
+- Tiers verification is complete: rendered on production at 390 and 1440 in
+  Win98 and Night (four tiers, Station Owner first, tier line under the
+  links, no overflow, no em dash) and check:csp on production clean (9
+  routes). NEXT.md's tiers line now says so.
