@@ -34,6 +34,27 @@ describe("nextShow", () => {
     expect(between).toEqual([]);
   });
 
+  it("a guest with shows before and after this one goes to the nearest after, never back to the earliest", () => {
+    // Area 51 alone cannot tell the two apart: John Lear's earliest other
+    // show is also his next one after 1992-12-12.
+    let middles = 0;
+    for (const show of all) {
+      const next = nextShow(show, catalog, topicsOf(show.slug));
+      if (next?.reason !== "guest") continue;
+      const theirs = (catalog.byPerson.get(personKey(next.guest!)) ?? []).filter((s) => s.slug !== show.slug);
+      // Air order, then slug: a night's second file (same date) comes after its first.
+      const key = (s: typeof show) => `${s.row.airDate ?? ""} ${s.slug}`;
+      const here = key(show);
+      const before = theirs.some((s) => key(s) < here);
+      const after = theirs.filter((s) => key(s) > here);
+      if (!before || !after.length) continue;
+      middles++;
+      const nearest = after.map(key).sort()[0];
+      expect(key(next.show), show.slug).toBe(nearest);
+    }
+    expect(middles).toBeGreaterThan(10);
+  });
+
   it("a guest's last show goes back to their earliest", () => {
     const lear = [...catalog.byPerson.get(personKey("John Lear"))!].sort((a, b) =>
       (a.row.airDate ?? "").localeCompare(b.row.airDate ?? ""),
