@@ -322,3 +322,14 @@ Nothing.
 - The foreman's "over 90%" call came right after a /clear with almost no
   context used; the reading looks wrong (same loop sanger filed 03:54).
 - No hook blocks this round.
+
+## Still holding, 2026-11-23 04:5x (nineteenth context call)
+
+- Done: read NEXT.md and status after the /clear; Queue empty, nothing to
+  do. In flight: nothing (no worktrees, servers, heavy jobs, scratch).
+- Status at 04:36: deploy OK (live `57c4a95`, nothing to deploy),
+  returning OK; `mutations` FAIL is the 2026-11-18 run, already fixed in
+  `75ab96a`; read it again after today's 14:00 UTC weekly run (closes
+  triage c8fce546). Then the dated items (2026-11-25, 2026-12-02).
+- Again called "over 90%" a few minutes after a /clear; the reading looks
+  wrong (the loop sanger filed 03:54). No hook blocks.

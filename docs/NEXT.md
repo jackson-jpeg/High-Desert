@@ -56,6 +56,12 @@ Not read by the foreman (it has no date gate, so these sat at the top of the Que
 
 ## Log
 
+## 2026-11-23, 04:5x: still holding (nineteenth context call)
+
+- Nothing done, nothing in flight; Queue empty. `mutations` FAIL is the
+  2026-11-18 run (fixed in 75ab96a); re-read after today's 14:00 UTC run.
+  Handoff: `docs/handoff-2026-11-22-tiers.md`.
+
 ## 2026-11-23, 04:4x: still holding (eighteenth context call)
 
 - Nothing done, nothing in flight; Queue empty, the lead's hold stands.
