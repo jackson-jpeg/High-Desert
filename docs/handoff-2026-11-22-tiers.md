@@ -4,7 +4,7 @@ Read `docs/NEXT.md` with this. The earlier handoff of the day is
 `docs/handoff-2026-11-22-ship.md`. Times are UTC. Stopped at 80% context, on
 the foreman's word.
 
-## Current state, 2026-11-23 05:2x UTC, re-read after the twenty-seventh context call (read this first)
+## Current state, 2026-11-23 05:1x UTC, re-read after the twenty-eighth context call (read this first)
 
 - **Done:** everything in the Queue; nothing in flight, no worktrees, no
   servers, tree clean and pushed.
@@ -13,7 +13,7 @@ the foreman's word.
   line. Expected OK (the 6 stale ones were re-anchored in `75ab96a`), which
   closes triage c8fce546. A survivor becomes a Queue item.
 - **Then:** the date-gated lines in NEXT.md (2026-11-25, 2026-12-02).
-- The foreman's "context over 90%" calls arrive minutes after each /clear (27th at 05:2x, with the context about 5% full)
+- The foreman's "context over 90%" calls arrive minutes after each /clear (28th at 05:1x, with the context about 5% full; status at 05:10 all OK but `mutations`)
   with the context nearly empty; the reading looks wrong (filed by sanger
   03:54). Nothing here needs it.
 
