@@ -333,3 +333,15 @@ Nothing.
   triage c8fce546). Then the dated items (2026-11-25, 2026-12-02).
 - Again called "over 90%" a few minutes after a /clear; the reading looks
   wrong (the loop sanger filed 03:54). No hook blocks.
+
+## Still holding, 2026-11-23 05:0x (the foreman's twentieth context call)
+
+- Done: read NEXT.md and ran `highdesert-status`. Every line is OK except
+  `mutations`, which is the 2026-11-18 run. It was fixed in 75ab96a and gets
+  re-read after today's weekly run at 14:00 UTC (closes triage c8fce546).
+- In flight: nothing. No worktree, no server, no heavy job.
+- Next: the Queue is empty. The dated items start 2026-11-25. The foreman's
+  "next release" line (the Sanger Remote crash) belongs to claude-sanger-1,
+  not to this repo.
+- This context call again came right after a `/clear`, with the context
+  nearly empty (the loop sanger filed at 03:54).
