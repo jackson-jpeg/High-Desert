@@ -175,3 +175,12 @@ Nothing.
   today, read `highdesert-status`'s `mutations` line; it should clear with
   the weekly run. Then the dated items in `docs/NEXT.md` (2026-11-25 first).
 - No hook blocks this session.
+
+## Still holding, 2026-11-23 03:4x (the foreman's fourth context call)
+
+- Done: nothing. In flight: nothing (no worktree, server or heavy job).
+- Next: unchanged. The lead's usage hold stands until the lead lifts it;
+  then `docs/NEXT.md` (Queue empty; 2026-11-25 and 2026-12-02 items under
+  "Waiting for a date"). The weekly mutation run, Mon 2026-11-23 14:00 UTC,
+  should turn `highdesert-status`'s `mutations` line OK and close triage
+  c8fce546.
