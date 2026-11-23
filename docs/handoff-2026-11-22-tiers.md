@@ -270,3 +270,14 @@ Nothing.
 - For the lead: the "over 90%" reading is stale (this context holds two reads
   since the last clear). Eleven rounds, each producing only this note.
 - No hook blocked this session.
+
+## Still holding, 2026-11-23 04:2x (the foreman's twelfth context call)
+
+- Done: nothing. In flight: nothing (no worktree, server, heavy job or scratch).
+- Next: unchanged. The lead's usage hold stands (usage resets Thu
+  2026-11-26 11:00 UTC). After the weekly mutation run (Mon 2026-11-23
+  14:00 UTC), read `highdesert-status`'s `mutations` line first. Then
+  `docs/NEXT.md` (Queue empty; dated items 2026-11-25, 2026-12-02).
+- For the lead: the "over 90%" reading is stale (this context holds two reads
+  since the last clear). Twelve rounds, each producing only this note.
+- No hook blocked this session.
