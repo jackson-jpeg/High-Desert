@@ -184,3 +184,16 @@ Nothing.
   "Waiting for a date"). The weekly mutation run, Mon 2026-11-23 14:00 UTC,
   should turn `highdesert-status`'s `mutations` line OK and close triage
   c8fce546.
+
+## Still holding, 2026-11-23 03:5x (the foreman's fifth context call)
+
+- Done: nothing. In flight: nothing (no worktree, server, heavy job or scratch).
+- Next: unchanged. The lead's usage hold stands until the lead lifts it
+  (usage resets Thu 2026-11-26 11:00 UTC). After the weekly mutation run
+  (Mon 2026-11-23 14:00 UTC), `highdesert-status`'s `mutations` line should
+  read OK and close triage c8fce546; if not, look there first. Then
+  `docs/NEXT.md` (Queue empty; 2026-11-25 and 2026-12-02 dated items).
+- For the lead: this context call came minutes after a fresh `/clear`, so
+  the 90% reading may be stale. Five clear/continue/context rounds since
+  03:3x have each produced only a handoff note.
+- No hook blocks this session.
