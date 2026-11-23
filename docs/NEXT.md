@@ -56,6 +56,12 @@ Not read by the foreman (it has no date gate, so these sat at the top of the Que
 
 ## Log
 
+## 2026-11-23, 03:3x: holding
+
+- The lead's hold (02:0x UTC, usage 88%, resets Thu 2026-11-26 11:00 UTC):
+  no new work until it lifts. Queue empty. The 2026-11-25 item waits for the
+  end of the hold. Handoff: `docs/handoff-2026-11-22-tiers.md`, "Holding".
+
 ## 2026-11-22, 07:30: the ship branch live, the Queue empty
 
 - `ship-2026-11-22` rebased on the tiers commits (no conflict), built,

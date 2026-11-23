@@ -112,3 +112,21 @@ Nothing.
   Win98 and Night (four tiers, Station Owner first, tier line under the
   links, no overflow, no em dash) and check:csp on production clean (9
   routes). NEXT.md's tiers line now says so.
+
+## Holding, 2026-11-23 03:3x UTC (written for the foreman's context clear)
+
+- **Done:** everything above. Main is `5ae3b45` plus this note, and the
+  live build is `57c4a95`. Nothing is in flight: no worktrees, no servers,
+  no heavy jobs, no scratch.
+- **The hold:** the lead, 02:0x UTC. Jackson's weekly usage is at 88% and
+  resets Thu 2026-11-26 11:00 UTC. No new work and no self-checks until the
+  lead says the hold is over; fix only errors that break something live.
+- **Next, after the hold:** `docs/NEXT.md`. Its Queue is empty. The dated
+  items are 2026-11-25 (show plays and Search Console's `/shows/*`) and
+  2026-12-02 (the phone look split verdict, then apply it).
+- **Known FAIL:** `highdesert-status` `mutations` (six stale anchors,
+  re-anchored in 75ab96a). It should clear after the weekly run of Mon
+  2026-11-23 14:00 UTC (a timer, not this session). If it still fails
+  after that run, that is the first thing to look at.
+- The foreman's "Next release: 0000AN /api/analytics" line belongs to
+  sang3r.com's NEXT, not this repo's.
