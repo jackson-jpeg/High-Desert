@@ -4,7 +4,7 @@ Read `docs/NEXT.md` with this. The earlier handoff of the day is
 `docs/handoff-2026-11-22-ship.md`. Times are UTC. Stopped at 80% context, on
 the foreman's word.
 
-## Current state, 2026-11-23 04:5x UTC (read this first)
+## Current state, 2026-11-23 04:5x UTC, re-read 04:5x after the twenty-second context call (read this first)
 
 - **Done:** everything in the Queue; nothing in flight, no worktrees, no
   servers, tree clean and pushed.
