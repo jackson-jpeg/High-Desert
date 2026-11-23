@@ -153,3 +153,15 @@ Nothing.
 - The foreman's "Next release: /api/analytics" line is sang3r.com's item
   (claude-sanger-1), not this repo's.
 - No hook blocks this session.
+
+## Still holding, 2026-11-23 03:5x (the foreman's second context call)
+
+- Done: nothing. Read NEXT.md and this handoff after the foreman's continue;
+  the Queue is empty and the lead's usage hold stands (lifts on the lead's
+  word; usage resets Thu 2026-11-26 11:00 UTC).
+- In flight: nothing; no worktrees, no background shells, no scratch.
+- Next: after 14:00 UTC today, `highdesert-status`'s `mutations` line (the
+  weekly run should clear triage c8fce546; if it still FAILs, look there
+  first). Once the hold lifts, the 2026-11-25 item under "Waiting for a
+  date" in `docs/NEXT.md`.
+- No hook blocks this session.
