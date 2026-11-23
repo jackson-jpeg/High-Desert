@@ -288,3 +288,7 @@ Nothing.
   `highdesert-status`'s `mutations` line; then NEXT.md's dated items).
 - The loop's cause is already in the Inbox (sanger, 03:54: the foreman reads
   Opus 5.5's context as 106K), so no new item. No hook blocked this session.
+- 04:1x, the foreman's fourteenth context call (right after the thirteenth):
+  same state. Done nothing, in flight nothing, next unchanged. This context
+  holds only a few small reads, so the "over 90%" is the misreading already
+  in the Inbox (sanger, 03:54).
