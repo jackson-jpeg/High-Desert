@@ -246,3 +246,16 @@ Nothing.
 - For the lead: the context reading is stale again (one small read since the
   last clear). The foreman's "Next release" line (Sanger notification-tap
   crash) is sang3r.com's NEXT, not this repo's.
+
+## Still holding, 2026-11-23 (the foreman's tenth context call)
+
+- Done: nothing. In flight: nothing (no worktree, server, heavy job or scratch).
+- Next: unchanged. The lead's usage hold stands (usage resets Thu
+  2026-11-26 11:00 UTC). After the weekly mutation run (Mon 2026-11-23
+  14:00 UTC), read `highdesert-status`'s `mutations` line first. Then
+  `docs/NEXT.md` (Queue empty; dated items 2026-11-25, 2026-12-02).
+- For the lead: the foreman's "over 90%" reading is stale (this context holds
+  two reads and two short replies). Each continue/context pair produces only
+  this note and a commit; this note is written only so the 30-minute
+  no-handoff rule does not file an Inbox item for Jackson.
+- No hook blocked this session.
