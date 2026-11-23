@@ -56,6 +56,11 @@ Not read by the foreman (it has no date gate, so these sat at the top of the Que
 
 ## Log
 
+## 2026-11-23: still holding
+
+- Foreman's continue after the clear: Queue empty, the lead's hold stands.
+  Nothing in flight. Handoff: `docs/handoff-2026-11-22-tiers.md`, "Still holding".
+
 ## 2026-11-23, 03:3x: holding
 
 - The lead's hold (02:0x UTC, usage 88%, resets Thu 2026-11-26 11:00 UTC):

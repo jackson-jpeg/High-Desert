@@ -130,3 +130,14 @@ Nothing.
   after that run, that is the first thing to look at.
 - The foreman's "Next release: 0000AN /api/analytics" line belongs to
   sang3r.com's NEXT, not this repo's.
+
+## Still holding, 2026-11-23 (after the foreman's continue)
+
+- The foreman sent "continue" after the clear; the Queue is empty and the
+  lead's hold still stands (it lifts only on the lead's word, usage resets
+  Thu 2026-11-26 11:00 UTC). Nothing done, nothing in flight, no files
+  changed but this note and NEXT.md's log.
+- Hook block: the pipefail hook refused `ssh macbook "df -h / | tail -1"`
+  (pipe inside a remote command); reran without the pipe.
+- Next: unchanged from "Holding" above. First look after 14:00 UTC today:
+  `highdesert-status`'s `mutations` line.
