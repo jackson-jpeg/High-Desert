@@ -56,6 +56,13 @@ Not read by the foreman (it has no date gate, so these sat at the top of the Que
 
 ## Log
 
+## 2026-11-23, 04:4x: still holding (eighteenth context call)
+
+- Nothing done, nothing in flight; Queue empty, the lead's hold stands.
+  This context call came minutes after a /clear with the context nearly
+  empty, so the 90% reading looks wrong (the loop sanger filed at 03:54).
+  Handoff: `docs/handoff-2026-11-22-tiers.md`.
+
 ## 2026-11-23, 04:3x: still holding (seventeenth context call)
 
 - Nothing done, nothing in flight; Queue empty, the lead's hold stands.

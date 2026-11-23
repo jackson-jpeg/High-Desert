@@ -312,3 +312,13 @@ Nothing.
   is reading a stale figure (loop already filed by sanger, 03:54).
 - Next: unchanged. After 14:00 UTC, read `highdesert-status`'s `mutations`
   line (should close triage c8fce546); then the dated items in NEXT.md.
+
+## Still holding, 2026-11-23 04:4x (eighteenth context call)
+
+- Done: nothing new. In flight: nothing (no worktrees, servers, heavy jobs,
+  scratch). Next: `docs/NEXT.md` once the lead lifts the hold; dated items
+  2026-11-25 and 2026-12-02. Known FAIL: `mutations`, expected to clear
+  after today's 14:00 UTC weekly run; if not, look there first.
+- The foreman's "over 90%" call came right after a /clear with almost no
+  context used; the reading looks wrong (same loop sanger filed 03:54).
+- No hook blocks this round.
