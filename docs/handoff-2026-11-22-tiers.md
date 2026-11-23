@@ -210,3 +210,16 @@ Nothing.
   minutes ago and has used very little. Six clear/continue/context rounds
   since 03:3x have produced only handoff notes.
 - No hook blocks this session.
+
+## Still holding, 2026-11-23 (the foreman's seventh context call)
+
+- Done: nothing. In flight: nothing (no worktree, server, heavy job or scratch).
+- Next: unchanged from the sixth note. The lead's usage hold stands (usage
+  resets Thu 2026-11-26 11:00 UTC). After the weekly mutation run (Mon
+  2026-11-23 14:00 UTC), read `highdesert-status`'s `mutations` line first.
+  Then `docs/NEXT.md` (Queue empty; dated items 2026-11-25, 2026-12-02).
+- For the lead: the context reading is stale (this session was cleared
+  minutes ago and used two small reads). Seven rounds now; each round's
+  handoff commit is the only work it produces. Consider holding the
+  context call for this session until the hold lifts.
+- No hook blocks this session.
