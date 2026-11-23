@@ -281,3 +281,10 @@ Nothing.
 - For the lead: the "over 90%" reading is stale (this context holds two reads
   since the last clear). Twelve rounds, each producing only this note.
 - No hook blocked this session.
+
+## Still holding, 2026-11-23 04:1x (the foreman's thirteenth context call)
+
+- Done: nothing. In flight: nothing. Next: unchanged (after Mon 14:00 UTC,
+  `highdesert-status`'s `mutations` line; then NEXT.md's dated items).
+- The loop's cause is already in the Inbox (sanger, 03:54: the foreman reads
+  Opus 5.5's context as 106K), so no new item. No hook blocked this session.
