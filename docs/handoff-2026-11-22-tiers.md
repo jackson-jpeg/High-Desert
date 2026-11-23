@@ -165,3 +165,13 @@ Nothing.
   first). Once the hold lifts, the 2026-11-25 item under "Waiting for a
   date" in `docs/NEXT.md`.
 - No hook blocks this session.
+
+## Still holding, 2026-11-23 04:0x (the foreman's third context call)
+
+- Done: nothing new. In flight: nothing (no worktrees, servers, heavy jobs,
+  scratch). Main `20a9396` plus this note; live build `57c4a95`.
+- Next: unchanged from "Holding" above. The lead's usage hold stands until
+  the lead lifts it (usage resets Thu 2026-11-26 11:00 UTC). After 14:00 UTC
+  today, read `highdesert-status`'s `mutations` line; it should clear with
+  the weekly run. Then the dated items in `docs/NEXT.md` (2026-11-25 first).
+- No hook blocks this session.
