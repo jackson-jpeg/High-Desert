@@ -295,3 +295,12 @@ Nothing.
 - 04:2x, the fifteenth context call (after a continue that found nothing to
   do): same state. Done nothing, in flight nothing, next unchanged. The
   "over 90%" is the misreading already in the Inbox (sanger, 03:54).
+
+## Still holding, 2026-11-23 04:3x (the foreman's sixteenth context call)
+
+- Done: nothing. In flight: nothing. The Queue is empty and the lead's usage
+  hold stands (lifts on the lead's word). The context call came right after
+  a /clear, with the context nearly empty, so the 90% reading looks wrong
+  (the loop's cause was filed by sanger at 03:54).
+- Next: after 14:00 UTC, check that `highdesert-status` `mutations` reads OK
+  (closes triage c8fce546); then the dated items in `docs/NEXT.md`.
