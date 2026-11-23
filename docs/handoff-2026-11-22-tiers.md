@@ -235,3 +235,14 @@ Nothing.
   clear). Eight rounds now, each producing only this note.
 - Block hit: the pipefail hook refused `ssh macbook "df -h / | tail -1"`
   (pipe inside the remote command); reran without the pipe.
+
+## Still holding, 2026-11-23 04:0x (the foreman's ninth context call)
+
+- Done: nothing. In flight: nothing (no worktree, server, heavy job or scratch).
+- Next: unchanged. The lead's usage hold stands (usage resets Thu
+  2026-11-26 11:00 UTC). After the weekly mutation run (Mon 2026-11-23
+  14:00 UTC), read `highdesert-status`'s `mutations` line first. Then
+  `docs/NEXT.md` (Queue empty; dated items 2026-11-25, 2026-12-02).
+- For the lead: the context reading is stale again (one small read since the
+  last clear). The foreman's "Next release" line (Sanger notification-tap
+  crash) is sang3r.com's NEXT, not this repo's.
