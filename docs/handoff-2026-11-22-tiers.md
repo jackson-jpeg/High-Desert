@@ -304,3 +304,11 @@ Nothing.
   (the loop's cause was filed by sanger at 03:54).
 - Next: after 14:00 UTC, check that `highdesert-status` `mutations` reads OK
   (closes triage c8fce546); then the dated items in `docs/NEXT.md`.
+
+## Still holding, 2026-11-23 04:3x (the foreman's seventeenth context call)
+
+- Done: nothing. In flight: nothing. The Queue is empty; the lead's usage
+  hold stands. The context call came right after a /clear, so the guard
+  is reading a stale figure (loop already filed by sanger, 03:54).
+- Next: unchanged. After 14:00 UTC, read `highdesert-status`'s `mutations`
+  line (should close triage c8fce546); then the dated items in NEXT.md.
