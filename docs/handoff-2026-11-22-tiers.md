@@ -292,3 +292,6 @@ Nothing.
   same state. Done nothing, in flight nothing, next unchanged. This context
   holds only a few small reads, so the "over 90%" is the misreading already
   in the Inbox (sanger, 03:54).
+- 04:2x, the fifteenth context call (after a continue that found nothing to
+  do): same state. Done nothing, in flight nothing, next unchanged. The
+  "over 90%" is the misreading already in the Inbox (sanger, 03:54).
