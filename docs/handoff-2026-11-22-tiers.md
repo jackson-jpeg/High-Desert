@@ -4,18 +4,21 @@ Read `docs/NEXT.md` with this. The earlier handoff of the day is
 `docs/handoff-2026-11-22-ship.md`. Times are UTC. Stopped at 80% context, on
 the foreman's word.
 
-## Current state, 2026-11-23 05:2x UTC, after the thirtieth context call (read this first)
+## Current state, 2026-11-26 19:1x UTC (read this first)
 
-- **Done:** everything in the Queue; nothing in flight, no worktrees, no
+- **Done:** everything in the old Queue; nothing in flight, no worktrees, no
   servers, tree clean and pushed.
-- **Next:** after today's 14:00 UTC weekly mutation run
-  (`highdesert-mutations.timer`), read `highdesert-status`'s `mutations`
-  line. Expected OK (the 6 stale ones were re-anchored in `75ab96a`), which
-  closes triage c8fce546. A survivor becomes a Queue item.
-- **Then:** the date-gated lines in NEXT.md (2026-11-25, 2026-12-02).
-- The foreman's "context over 90%" calls arrive minutes after each /clear (30th at 05:2x, right after a continue call that found the Queue empty; status at 05:17 all OK but `mutations`, backup OK)
-  with the context nearly empty; the reading looks wrong (filed by sanger
-  03:54). Nothing here needs it.
+- **Found:** the 2026-11-23 weekly mutation run was killed by its 14 h
+  `TimeoutStartSec` (11-24 04:00) after 128 mutations, all red. It waited in
+  heavy's low lane through peak hours. `result.json` is still 11-18's, so
+  status `mutations` still FAILs on ids already fixed in `75ab96a`. Details
+  and next steps: the top Queue item in `docs/NEXT.md`.
+- **Next:** that item (run the four unreached re-anchored ids by hand, then a
+  full run off-peak or Mon 11-30), then the 2026-11-25 check now in the
+  Queue, then the 2026-12-02 lines.
+- The foreman sent 13 "context over 90%" calls between 11-23 05:5x and 13:3x
+  while this session was idle and its context was small; it did not clear
+  after the 30th-call handoff commit (`b44eba6`). Reported to the lead.
 
 ## Done
 
