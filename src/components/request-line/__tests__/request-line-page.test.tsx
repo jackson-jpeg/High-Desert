@@ -107,7 +107,7 @@ describe("the Request Line page, server rendered", () => {
     const page = requestLinePage(DAY, [], { fileHash: null, by: null, place: null, votes: 0 }, catalog);
     const d = render(page);
     checkPage(d);
-    expect(d.querySelector('[data-testid="request-tonight"]')!.textContent).toContain("a fan favorite plays at 10 PM");
+    expect(d.querySelector('[data-testid="request-tonight"]')!.textContent).toContain("a fan favorite plays at 10 PM Pacific");
     expect(d.querySelector('[data-testid="request-empty"]')).not.toBeNull();
     expect(page.card.subtitle).toBe("Pick tonight's 10 PM show on High Desert Live");
   });

@@ -97,7 +97,7 @@ describe("the desktop Library's Request Line line", () => {
       await mount(look);
       expect(line()?.tagName).toBe("A");
       expect(line()?.getAttribute("href")).toBe("/request-line");
-      expect(line()?.textContent).toContain("Tonight's request at 10 PM. 3 shows in the running, vote by 6 PM Pacific.");
+      expect(line()?.textContent).toContain("Tonight's request at 10 PM Pacific. 3 shows in the running, vote by 6 PM.");
       expect(host.textContent).not.toContain(DASH);
     });
   }

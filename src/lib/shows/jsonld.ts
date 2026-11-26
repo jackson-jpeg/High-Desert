@@ -13,6 +13,7 @@ import {
   type Show,
 } from "@/lib/shows/describe";
 import { guestPeople, personKey } from "@/lib/shows/people";
+import { SHOWS_PATH, showsYearPath } from "@/lib/shows/archive";
 
 /**
  * Structured data for show and guest pages (docs/show-pages.md): what Google
@@ -99,10 +100,13 @@ export function breadcrumbJsonLd(crumbs: Crumb[]): Node {
   };
 }
 
+/** A show sits in the archive by year (`/shows`, then its year), not the app's Library. */
 export function showCrumbs(show: Show): Crumb[] {
+  const year = /^(\d{4})-/.exec(show.row.airDate ?? "")?.[1];
   return [
     { name: SITE_NAME, path: "/" },
-    { name: "Library", path: "/library" },
+    { name: "Every show", path: SHOWS_PATH },
+    ...(year ? [{ name: year, path: showsYearPath(year) }] : []),
     { name: showSubject(show.row), path: showPath(show.slug) },
   ];
 }

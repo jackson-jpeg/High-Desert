@@ -136,14 +136,6 @@ export function AboutDialog({
 
           <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-bevel-dark/20 to-transparent" />
 
-          {/* Quote */}
-          <div
-            className="text-hd-9 text-static-green/85 italic"
-            style={{ textShadow: "0 0 4px rgba(74, 222, 128, 0.15)" }}
-          >
-            &ldquo;I have seen things that I cannot explain...&rdquo;
-          </div>
-
           {/* Privacy (2026-10-20): what the site keeps, said plainly. The
               visitor count and its places are docs/visitors.md; the whole
               policy is /privacy (2026-11-19, docs/privacy.md). */}
@@ -178,7 +170,7 @@ export function AboutDialog({
           {/* Links & button */}
           <div className="flex items-center justify-between mt-1">
             <a
-              href="https://archive.org/details/artaborneradio"
+              href="https://archive.org/details/ultimate-ultimate-art-bell-collection"
               target="_blank"
               rel="noopener noreferrer"
               className="text-hd-9 text-desert-amber/85 hover:text-desert-amber underline underline-offset-2"

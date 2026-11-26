@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     default: "High Desert · Art Bell Radio Archive",
     template: "%s | High Desert",
   },
-  description: "Art Bell Radio Archive. Late night talk radio from the Kingdom of Nye. Stream thousands of Coast to Coast AM, Dreamland, and special episodes.",
+  description: "Art Bell Radio Archive. Late night talk radio from the Kingdom of Nye. Stream over 1,400 Coast to Coast AM, Dreamland, and special episodes.",
   keywords: [
     "Art Bell", "Coast to Coast AM", "Dreamland", "radio archive", "paranormal",
     "UFO", "late night radio", "Kingdom of Nye", "talk radio", "streaming",
@@ -62,7 +62,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "High Desert · Art Bell Radio Archive",
-    description: "Stream thousands of Art Bell episodes: Coast to Coast AM, Dreamland, and more from the Kingdom of Nye.",
+    description: "Stream over 1,400 Art Bell episodes: Coast to Coast AM, Dreamland, and more from the Kingdom of Nye.",
     siteName: "High Desert",
     locale: "en_US",
     type: "website",
@@ -75,7 +75,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "High Desert · Art Bell Radio Archive",
-    description: "Stream thousands of Art Bell episodes: Coast to Coast AM, Dreamland, and more from the Kingdom of Nye.",
+    description: "Stream over 1,400 Art Bell episodes: Coast to Coast AM, Dreamland, and more from the Kingdom of Nye.",
     images: ["/twitter-image"],
   },
 };
@@ -85,7 +85,7 @@ const jsonLd = {
   "@type": "WebApplication",
   name: "High Desert",
   url: "https://highdesert.space",
-  description: "Art Bell Radio Archive. Stream thousands of Coast to Coast AM, Dreamland, and special episodes.",
+  description: "Art Bell Radio Archive. Stream over 1,400 Coast to Coast AM, Dreamland, and special episodes.",
   applicationCategory: "MultimediaApplication",
   operatingSystem: "Any",
   offers: {

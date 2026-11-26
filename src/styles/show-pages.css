@@ -89,6 +89,12 @@ html[data-look="win98"] .hd-show-article.hd-topic::before {
   content: "High Desert - Topic";
 }
 
+/* The archive by year reuses the topic article; it is the archive, not a topic. */
+html[data-look="win98"] .hd-show-article.hd-shows-index::before,
+html[data-look="win98"] .hd-show-article.hd-shows-year::before {
+  content: "High Desert - Archive";
+}
+
 html[data-look="win98"] .hd-show-article.hd-tonight::before {
   content: "High Desert - Tonight";
 }

@@ -24,7 +24,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!found) return {};
   const n = found.year.shows.length;
   const title = `Art Bell shows from ${year}`;
-  const description = `All ${n} Art Bell radio ${n === 1 ? "show" : "shows"} from ${year} in the archive, in the order they aired, free to play on High Desert.`;
+  const description = n === 1
+    ? `The one Art Bell radio show from ${year} in the archive, free to play on High Desert.`
+    : `All ${n} Art Bell radio shows from ${year} in the archive, in the order they aired, free to play on High Desert.`;
   const path = showsYearPath(year);
   return {
     title,

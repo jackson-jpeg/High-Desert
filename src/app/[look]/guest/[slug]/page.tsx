@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { ShowList } from "@/components/shows/ShowView";
 import { showCatalog } from "@/lib/shows/load";
+import { personKey } from "@/lib/shows/people";
 import { guestMetadata } from "@/lib/shows/metadata";
 import { breadcrumbJsonLd, guestCrumbs, guestDescription, guestJsonLd, jsonLdScript } from "@/lib/shows/jsonld";
 import { libraryIntentHref } from "@/lib/library/intents";
@@ -34,8 +35,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function GuestPage({ params }: Props) {
   const { slug } = await params;
-  const guest = showCatalog().guests.get(slug);
-  if (!guest) notFound();
+  const catalog = showCatalog();
+  const guest = catalog.guests.get(slug);
+  if (!guest) {
+    // A spelling merged into another (PERSON_ALIASES): its old page, already
+    // crawled, moves for good to the page the person has now.
+    const moved = catalog.guestSlugByPerson.get(personKey(slug.replace(/-/g, " ")));
+    if (moved && moved !== slug) permanentRedirect(`/guest/${moved}`);
+    notFound();
+  }
   const crumbs = guestCrumbs(guest);
   const topics = guestTopics(guest.shows, topicCatalog());
   // A newcomer's first press: their notable show, else their first.

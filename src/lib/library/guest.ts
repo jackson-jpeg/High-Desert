@@ -64,6 +64,20 @@ export const MOVED_TO_TOPIC: Readonly<Record<string, string>> = {
   [`${BELL}2003-12-31 - Coast to Coast AM with Art Bell - Annual Predictions Show - Open Lines.mp3`]: "Annual Predictions Show",
 };
 
+/**
+ * Four guest fields that are a show's own title, not a person (2026-11-26,
+ * docs/site-review-duet.md fix 4): "View guest profile: Spooky Matter". The
+ * seed clears them; a library seeded earlier keeps them, so `shownGuest()`
+ * hides exactly this value on exactly this row. Each row's `topic` already
+ * says what the show is.
+ */
+export const NOT_A_GUEST: Readonly<Record<string, string>> = {
+  [`${BELL}1998-01-05 - Coast to Coast AM with Art Bell - BIG UFO Disclosure Show.mp3`]: "BIG UFO Disclosure Show",
+  [`${BELL}2001-09-11 - Coast to Coast AM with Art Bell - The September 11, 2001 Show.mp3`]: "The September 11, 2001 Show",
+  [`${BELL}2013-10-31 - Dark Matter with Art Bell - Spooky Matter - Ghost Stories.mp3`]: "Spooky Matter",
+  [`${BELL}2013-11-12 - Gabcast - Art Calls into the Gabcast.mp3`]: "Art Calls into the Gabcast",
+};
+
 /** A moved guest as a topic: the file's hour note dropped ("(hour 1)", "(1st hour)"). */
 export function topicFromGuest(guest: string): string {
   return guest.replace(/\s*\((?:hour \d+|\d+(?:st|nd|rd|th) hour)\)\s*$/i, "").trim();
@@ -75,7 +89,7 @@ export function shownGuest(
 ): string | undefined {
   const g = ep?.guestName?.trim();
   if (!g) return undefined;
-  if (ep?.fileHash && MOVED_TO_TOPIC[ep.fileHash] === g) return undefined;
+  if (ep?.fileHash && (MOVED_TO_TOPIC[ep.fileHash] === g || NOT_A_GUEST[ep.fileHash] === g)) return undefined;
   return guestRepeatsTitle(ep?.title, g) ? undefined : g;
 }
 

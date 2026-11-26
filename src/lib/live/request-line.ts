@@ -50,8 +50,10 @@ export const PICK_A_SHOW = "Pick a show";
 export function tonightsRequestText(note: TonightsRequestNote, picks: number | null = null): string | null {
   switch (note.state) {
     case "voting": {
-      const by = `${REQUEST_CLOSE_HOUR - 12} PM Pacific`;
-      const at = pacificHourLabel(note.startsAt);
+      // The zone once, on the first time ("at 8 PM Pacific ... vote by 6 PM"):
+      // a listener in New York read a bare 8 PM as their own.
+      const by = `${REQUEST_CLOSE_HOUR - 12} PM`;
+      const at = `${pacificHourLabel(note.startsAt)} Pacific`;
       if (picks && picks > 0) {
         return `Tonight's request at ${at}. ${picks} ${picks === 1 ? "show" : "shows"} in the running, vote by ${by}.`;
       }
@@ -60,10 +62,10 @@ export function tonightsRequestText(note: TonightsRequestNote, picks: number | n
     case "locked": {
       const r = note.slot.request;
       const who = r ? `, from ${r.by}${r.place ? `, calling from ${r.place}` : ""}` : "";
-      return `Tonight's request at ${pacificHourLabel(note.startsAt)}: ${note.slot.title}${who}.`;
+      return `Tonight's request at ${pacificHourLabel(note.startsAt)} Pacific: ${note.slot.title}${who}.`;
     }
     case "favorite":
-      return `No request tonight. A fan favorite plays at ${pacificHourLabel(note.startsAt)}.`;
+      return `No request tonight. A fan favorite plays at ${pacificHourLabel(note.startsAt)} Pacific.`;
     case "over":
       return null;
   }

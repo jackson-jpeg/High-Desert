@@ -143,9 +143,9 @@ describe("tonightsRequest: what the 10 PM slot is, from the program", () => {
       tonightsRequestText(tonightsRequest([ON_THE_HOUR], DAY, requestCloseAt(DAY) + 1)),
     ];
     expect(texts).toEqual([
-      "Tonight's request at 10 PM. Pick a show or vote by 6 PM Pacific.",
-      "Tonight's request at 10 PM: Coast to Coast AM - Area 51, from Night Owl, calling from Pahrump.",
-      "No request tonight. A fan favorite plays at 10 PM.",
+      "Tonight's request at 10 PM Pacific. Pick a show or vote by 6 PM.",
+      "Tonight's request at 10 PM Pacific: Coast to Coast AM - Area 51, from Night Owl, calling from Pahrump.",
+      "No request tonight. A fan favorite plays at 10 PM Pacific.",
     ]);
     for (const t of texts) expect(t).not.toContain(DASH);
     expect(tonightsRequestText({ state: "over" })).toBeNull();
@@ -157,12 +157,12 @@ describe("tonightsRequest: what the 10 PM slot is, from the program", () => {
     const hold = { ...ON_THE_HOUR, start: eight, end: eight + 2 * H };
     const won = { ...WINNER, start: eight, end: eight + 2 * H };
     expect(tonightsRequestText(tonightsRequest([hold], day, pacificDayBounds(day).start))).toBe(
-      "Tonight's request at 8 PM. Pick a show or vote by 6 PM Pacific.",
+      "Tonight's request at 8 PM Pacific. Pick a show or vote by 6 PM.",
     );
     expect(tonightsRequestText(tonightsRequest([won], day, requestCloseAt(day) + 1))).toBe(
-      "Tonight's request at 8 PM: Coast to Coast AM - Area 51, from Night Owl, calling from Pahrump.",
+      "Tonight's request at 8 PM Pacific: Coast to Coast AM - Area 51, from Night Owl, calling from Pahrump.",
     );
-    expect(tonightsRequestText(tonightsRequest([hold], day, requestCloseAt(day) + 1))).toBe("No request tonight. A fan favorite plays at 8 PM.");
+    expect(tonightsRequestText(tonightsRequest([hold], day, requestCloseAt(day) + 1))).toBe("No request tonight. A fan favorite plays at 8 PM Pacific.");
     // With no slot marked yet, the hour still comes from the day.
     expect(tonightsRequest([], day, pacificDayBounds(day).start)).toMatchObject({ state: "voting", startsAt: eight });
   });
@@ -189,7 +189,7 @@ for (const look of ["night", "win98"] as const) {
         stationAt(EARLY.start + H, [EARLY, ON_THE_HOUR]);
         await mount(look);
         expect(note()?.dataset.picks).toBe("3");
-        expect(note()?.textContent).toContain("3 shows in the running, vote by 6 PM Pacific.");
+        expect(note()?.textContent).toContain("3 shows in the running, vote by 6 PM.");
         expect(host.textContent).not.toContain(DASH);
       });
 
@@ -203,7 +203,7 @@ for (const look of ["night", "win98"] as const) {
         requestLineAnswers(4, "2026-10-15");
         stationAt(EARLY.start + H, [EARLY, ON_THE_HOUR]);
         await mount(look);
-        expect(note()?.textContent).toContain("Pick a show or vote by 6 PM Pacific.");
+        expect(note()?.textContent).toContain("Pick a show or vote by 6 PM.");
         expect(note()?.textContent).not.toContain("in the running");
       });
 

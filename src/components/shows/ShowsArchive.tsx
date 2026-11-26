@@ -70,7 +70,7 @@ export function ShowsYearView({ year, prev, next }: { year: ShowYear; prev: stri
         <p className="hd-show-series text-hd-caption uppercase tracking-wider text-desert-amber mb-1">The archive</p>
         <h1 className="hd-show-title w98-font text-hd-h2 text-desktop-gray leading-tight">Art Bell shows from {year.year}</h1>
         <p className="hd-topic-intro text-hd-body text-desktop-gray mt-3">
-          {n} {n === 1 ? "show" : "shows"} from {year.year} in the archive, in the order they aired.
+          {n === 1 ? `The one show from ${year.year} in the archive.` : `${n} shows from ${year.year} in the archive, in the order they aired.`}
         </p>
         <YearNav prev={prev} next={next} />
       </article>

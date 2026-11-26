@@ -13,7 +13,7 @@ import { RouteHeading } from "@/components/desktop/RouteHeading";
  */
 export const metadata: Metadata = {
   title: "Library",
-  description: "Browse the full Art Bell archive. Search thousands of Coast to Coast AM, Dreamland and special episodes by guest, topic, series or air date.",
+  description: "Browse the full Art Bell archive. Search over 1,400 Coast to Coast AM, Dreamland and special episodes by guest, topic, series or air date.",
   alternates: { canonical: "/library" },
 };
 

@@ -72,7 +72,7 @@ export function RequestLineView({ page, available, now }: { page: ReturnType<typ
                 </span>
               </p>
             ) : (
-              <p className="text-hd-body text-desktop-gray mt-1">Nobody put in a request today, so a fan favorite plays at {requestHourLabel(today)}.</p>
+              <p className="text-hd-body text-desktop-gray mt-1">Nobody put in a request today, so a fan favorite plays at {requestHourLabel(today)} Pacific.</p>
             )}
             <p className="text-hd-caption mt-1">
               <Link href={tonightPath(today)} className={link}>

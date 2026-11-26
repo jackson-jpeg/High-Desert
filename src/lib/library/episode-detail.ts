@@ -135,7 +135,9 @@ export function sortSeriesParts(parts: Episode[]): Episode[] {
 
 export function archiveDetailsUrl(episode: Episode): string | null {
   if (!episode.archiveIdentifier) return null;
-  return `https://archive.org/details/${episode.archiveIdentifier}${episode.fileName ? `/${episode.fileName}` : ""}`;
+  // File names carry spaces, "&" and "'": encoded, so the href is a valid URL.
+  const file = episode.fileName ? `/${encodeURIComponent(episode.fileName)}` : "";
+  return `https://archive.org/details/${episode.archiveIdentifier}${file}`;
 }
 
 /**

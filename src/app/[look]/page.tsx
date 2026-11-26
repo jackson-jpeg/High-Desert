@@ -168,15 +168,10 @@ export default function WelcomePage() {
 
         {/* Description */}
         <p className="text-hd-11 md:text-hd-12 leading-relaxed max-w-sm font-[family-name:var(--font-w95)] text-bevel-dark">
-          Stream thousands of episodes from the golden age of late-night talk radio.
+          Stream over 1,400 episodes from the golden age of late-night talk radio.
           Coast to Coast AM, Dreamland, and rare specials, all from Art Bell&apos;s
           legendary studio in Pahrump, Nevada.
         </p>
-
-        {/* Quote */}
-        <div className="text-hd-10 md:text-hd-11 italic max-w-xs font-[family-name:var(--font-w95)] text-static-green/85 [text-shadow:0_0_6px_rgba(74,222,128,0.2)]">
-          &ldquo;I have seen things that I cannot explain...&rdquo;
-        </div>
 
         {/* Stats */}
         {episodeCount && (

@@ -54,12 +54,24 @@ export function guestPeople(ep: { title?: string | null; guestName?: string | nu
   return people;
 }
 
-/** One key per person: case, honorifics and punctuation ignored. */
+/**
+ * One person under two spellings in the catalog (docs/site-review-duet.md,
+ * fix 4, 2026-11-26): the key of the rarer spelling → the key of the common
+ * one, so both land on one guest page. The old page's slug redirects to it
+ * (guest/[slug]/page.tsx).
+ */
+export const PERSON_ALIASES: Readonly<Record<string, string>> = {
+  "robert ghostwolf": "robert ghost wolf",
+  "robert morning sky": "robert morningsky",
+};
+
+/** One key per person: case, honorifics, punctuation and known spellings ignored. */
 export function personKey(name: string): string {
-  return stripHonorific(name)
+  const key = stripHonorific(name)
     .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+  return PERSON_ALIASES[key] ?? key;
 }
