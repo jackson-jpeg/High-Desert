@@ -369,7 +369,7 @@ export function stationGuardLines(g, titleOf, now) {
 }
 
 /**
- * The weekly full mutation run (scripts/weekly-mutations.sh, Mondays 14:00 UTC)
+ * The weekly full mutation run (scripts/weekly-mutations.sh, Mondays 19:00 UTC)
  * as one Health line. `m` is {result, running} from its state directory;
  * `running` only while its process is alive.
  */
@@ -377,7 +377,7 @@ export function mutationLine(m, now) {
   if (!m) return "- Mutations: no reading.";
   const { result: r, running } = m;
   const going = running ? ` A run has been going since ${SHORT_FMT.format(new Date(running.startedAt))} UTC.` : "";
-  if (!r) return `- Mutations: no weekly run has finished yet (highdesert-mutations.timer, Mondays 14:00 UTC).${going}`;
+  if (!r) return `- Mutations: no weekly run has finished yet (highdesert-mutations.timer, Mondays 19:00 UTC).${going}`;
   const sha = String(r.head ?? "?").slice(0, 7);
   const when = r.finishedAt ? `${SHORT_FMT.format(new Date(r.finishedAt))} UTC` : "?";
   if (r.error) return `- Mutations: the weekly run on ${sha} broke before checking: ${cell(r.error, 100)}.${going}`;

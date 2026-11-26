@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # The weekly full mutation run on the VPS (Jackson, 2026-10-15): every entry in
-# scripts/mutate-check.mjs against main, Mondays 14:00 UTC
+# scripts/mutate-check.mjs against main, Mondays 19:00 UTC
 # (deploy/highdesert-mutations.timer). It replaced the nightly GitHub run when
 # checks moved off GitHub Actions.
 #

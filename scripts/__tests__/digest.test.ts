@@ -291,7 +291,7 @@ describe("the digest itself", () => {
     expect(line(MUTATION_RUN, null, "2026-10-13T17:40:00Z")).toMatch(/all 1070 mutations red\. That was 8 days ago: this week's has not finished\.$/);
     expect(line(MUTATION_RUN, null, "2026-10-12T17:40:00Z")).toMatch(/all 1070 mutations red\.$/);
     expect(line(MUTATION_RUN, { startedAt: "2026-10-12T14:00:00Z" }, "2026-10-12T17:40:00Z")).toMatch(/red\. A run has been going since Mon 12 Oct, 14:00 UTC\.$/);
-    expect(line(null)).toBe("- Mutations: no weekly run has finished yet (highdesert-mutations.timer, Mondays 14:00 UTC).");
+    expect(line(null)).toBe("- Mutations: no weekly run has finished yet (highdesert-mutations.timer, Mondays 19:00 UTC).");
     expect(dg.mutationLine(null, NOW)).toBe("- Mutations: no reading.");
   });
 

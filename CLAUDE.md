@@ -83,7 +83,7 @@ before adding a test, and add a mutation alongside it.
 (`npm run test:mutations`). `--changed-from <ref>` checks what a change touched
 and `--shard i/n` splits the list. Until 2026-10-15 GitHub ran them on every
 PR, on main and nightly at 09:30 UTC; that workflow is now manual only.
-- **The whole list runs weekly on the VPS, Mondays 14:00 UTC**
+- **The whole list runs weekly on the VPS, Mondays 19:00 UTC** (14:00 until 2026-11-26; the lead moved it off peak and raised its timeout from 14h to 20h)
   (`highdesert-mutations.timer` → `scripts/weekly-mutations.sh`, Jackson,
   2026-10-15). It works in its own clone of main,
   `/var/lib/highdesert-mutations/checkout` (never the production tree:

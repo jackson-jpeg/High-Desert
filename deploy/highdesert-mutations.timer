@@ -1,12 +1,13 @@
 [Unit]
-Description=High Desert, the weekly full mutation run (Mondays 14:00 UTC)
+Description=High Desert, the weekly full mutation run (Mondays 19:00 UTC)
 
 [Timer]
-# 14:00 UTC, the quietest listening hour in the play data (7 AM Pacific). About
-# three hours, so the 17:40 digest reads the finished run; a run still going
-# then is reported as running. Persistent: a Monday the box missed runs when it
-# is back.
-OnCalendar=Mon *-*-* 14:00:00 UTC
+# 19:00 UTC Monday, the end of peak hours (heavy holds every job 13:00 to
+# 19:00 UTC on weekdays; the lead, 2026-11-26, after the 11-23 run started at
+# 14:00, mostly waited, and was killed by its 14h timeout after 128
+# mutations). The Monday 17:40 digest reads the previous week's finished run.
+# Persistent: a Monday the box missed runs when it is back.
+OnCalendar=Mon *-*-* 19:00:00 UTC
 Persistent=true
 
 [Install]

@@ -93,7 +93,7 @@
 #             that token: the Domain property was verified by that record and
 #             lapses without it (2026-10-15). WARN too if DNS cannot be read
 #   mutations the weekly full mutation run on the VPS (scripts/weekly-mutations.sh,
-#             Mondays 14:00 UTC; its result.json): FAIL if a mutation survived or
+#             Mondays 19:00 UTC; its result.json): FAIL if a mutation survived or
 #             its anchor went stale; WARN if the run broke before checking, left
 #             database mutations NOT CHECKED, is over 8 days old, has never
 #             finished, or cannot be read. Says so while a run is going. A change
@@ -805,7 +805,7 @@ else
 fi
 
 # --- mutations ---------------------------------------------------------------
-# The weekly full run on the VPS (scripts/weekly-mutations.sh, Mondays 14:00
+# The weekly full run on the VPS (scripts/weekly-mutations.sh, Mondays 19:00
 # UTC, highdesert-mutations.timer) is the whole list's guarantee: a change is
 # checked by hand for the mutations it touches, this run for all of them.
 m_result="$MUTATIONS_STATE/result.json"
@@ -817,7 +817,7 @@ if [[ -f "$MUTATIONS_STATE/running.json" ]]; then
   fi
 fi
 if [[ ! -f "$m_result" ]]; then
-  line WARN mutations "no finished weekly mutation run yet (highdesert-mutations.timer, Mondays 14:00 UTC)$m_running"
+  line WARN mutations "no finished weekly mutation run yet (highdesert-mutations.timer, Mondays 19:00 UTC)$m_running"
 elif ! jq -e 'type == "object" and (.survived | type) == "array"' "$m_result" >/dev/null 2>&1; then
   line WARN mutations "could not read $m_result$m_running"
 else

@@ -22,5 +22,7 @@ StateDirectory=highdesert-mutations
 # never runs beside a build and the live sites come first. No CPUQuota.
 Nice=19
 IOSchedulingClass=idle
-TimeoutStartSec=14h
+# 20h (the lead, 2026-11-26): 14h ran out on 2026-11-23 with the run waiting
+# on the heavy gate; 20h from Mon 19:00 ends Tue 15:00.
+TimeoutStartSec=20h
 SyslogIdentifier=highdesert-mutations

@@ -103,9 +103,13 @@ describe("highdesert-mutations.service and .timer (the weekly full mutation run)
     expect(d("StateDirectory")).toEqual(["highdesert-mutations"]);
   });
 
-  it("fires Mondays at 14:00 UTC, and catches up a missed Monday", () => {
+  it("fires Mondays at 19:00 UTC (after peak hours), and catches up a missed Monday", () => {
     const t = read("highdesert-mutations.timer");
-    expect(t).toMatch(/^OnCalendar=Mon \*-\*-\* 14:00:00 UTC$/m);
+    expect(t).toMatch(/^OnCalendar=Mon \*-\*-\* 19:00:00 UTC$/m);
     expect(t).toMatch(/^Persistent=true$/m);
+  });
+
+  it("gives the run 20 hours before systemd kills it", () => {
+    expect(read("highdesert-mutations.service")).toMatch(/^TimeoutStartSec=20h$/m);
   });
 });
