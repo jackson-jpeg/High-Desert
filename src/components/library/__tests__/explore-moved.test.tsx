@@ -72,7 +72,7 @@ describe("the Library's Explore", () => {
   it("the views share one short, scrolling area, so the list below keeps its room", () => {
     const h = render(true);
     const area = h.querySelector<HTMLElement>('[data-testid="explore-more"]')!;
-    expect(area.className).toContain("md:max-h-[150px]");
+    expect(area.className).toContain("md:max-h-[100px]");
     expect(area.className).toContain("overflow-auto");
   });
 

@@ -266,7 +266,7 @@ function LibraryPanels({ tab }: { tab: "you" | "archive" }) {
             the Display dialog): src/components/settings/SavedAudioSetting.tsx. */}
         {/* Smart Playlists moved to the Library's Explore (batch 3). */}
         </div>
-        <HowWeCount id="you" className="px-1">
+        <HowWeCount id="you" className="hd-how-we-count-panel self-start w98-raised-dark bg-raised-surface px-2 py-1">
           <p>Everything on this tab is kept in this browser only. None of it is sent anywhere.</p>
           <p>
             Listened is time actually heard, the screen locked included. A show counts once you&apos;ve heard a minute of
@@ -543,7 +543,7 @@ function LibraryPanels({ tab }: { tab: "you" | "archive" }) {
       </div>
       {/* The Topic Index moved to the Library's Explore (UI plan push 6,
           batch 3): src/components/library/TopicIndex.tsx. */}
-      <HowWeCount id="archive" className="px-1">
+      <HowWeCount id="archive" className="hd-how-we-count-panel self-start w98-raised-dark bg-raised-surface px-2 py-1">
         <p>
           The Archive, the Broadcast Log, the Program Guide, subjects and guests count the shows in this browser&apos;s
           library: the whole catalog, plus anything you added.

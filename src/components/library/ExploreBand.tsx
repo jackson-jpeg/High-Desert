@@ -44,20 +44,17 @@ export function ExploreBand({
   const [view, setView] = useState<ExploreView>("today");
   return (
     <div className={cn("px-3 flex-shrink-0", below && "border-t border-bevel-dark/15")} data-testid="explore-band" data-below={below || undefined}>
-      <button
-        onClick={onToggle}
-        aria-expanded={expanded}
-        className="text-hd-13 md:text-hd-10 text-bevel-dark uppercase tracking-wider px-2 py-2 md:px-1 md:py-0.5 min-h-touch md:min-h-0 cursor-pointer hover:text-desktop-gray active:text-desktop-gray transition-colors-fast"
-      >
-        {expanded ? "▾" : "▸"} Explore
-      </button>
-
-      {expanded && (
-        <div className="flex flex-col gap-1 mt-1 mb-1">
-          {/* One view at a time in one short area, so the list keeps its room
-              (Smart Playlists and the Topic Index came from /stats, UI plan
-              push 6, batch 3; drawn together they pushed the list off a
-              900 px screen). */}
+      {/* The view switches share the toggle's row: Explore open takes no more
+          height than it did before batch 3. */}
+      <div className="flex flex-wrap items-center gap-x-3">
+        <button
+          onClick={onToggle}
+          aria-expanded={expanded}
+          className="text-hd-13 md:text-hd-10 text-bevel-dark uppercase tracking-wider px-2 py-2 md:px-1 md:py-0.5 min-h-touch md:min-h-0 cursor-pointer hover:text-desktop-gray active:text-desktop-gray transition-colors-fast"
+        >
+          {expanded ? "▾" : "▸"} Explore
+        </button>
+        {expanded && (
           <div className="flex flex-wrap gap-x-3 gap-y-1" role="group" aria-label="Explore">
             {EXPLORE_VIEWS.map(([key, label]) => (
               <button
@@ -75,7 +72,16 @@ export function ExploreBand({
               </button>
             ))}
           </div>
-          <div className="max-h-[200px] md:max-h-[150px] overflow-auto overscroll-contain" data-testid="explore-more" data-view={view}>
+        )}
+      </div>
+
+      {expanded && (
+        <div className="flex flex-col gap-1 mt-1 mb-1">
+          {/* One view at a time in one short area, so the list keeps its room
+              (Smart Playlists and the Topic Index came from /stats, UI plan
+              push 6, batch 3; drawn together they pushed the list off a
+              900 px screen). */}
+          <div className="max-h-[200px] md:max-h-[100px] overflow-auto overscroll-contain" data-testid="explore-more" data-view={view}>
             {view === "today" && (
               <div className="flex flex-col md:flex-row gap-2">
                 {recentlyPlayed && recentlyPlayed.length > 0 && (
