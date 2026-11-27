@@ -11194,6 +11194,22 @@ export const MUTATIONS = [
     replace: "      : # finished",
     why: "a finished full run kept its retry marker, and the next month's full run waited a week",
   },
+  {
+    id: "nightly-package-metadata-only",
+    test: "scripts/__tests__/mutate-select.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: "    if (!packageChangesTests(await at(ref), await at(\"HEAD\"))) changed",
+    replace: "    if (false) changed",
+    why: "a repo-URL edit in package.json made every incremental run a full one",
+  },
+  {
+    id: "nightly-package-deps-count",
+    test: "scripts/__tests__/mutate-select.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: "\"dependencies\", \"devDependencies\", \"optionalDependencies\"",
+    replace: "\"optionalDependencies\"",
+    why: "a dependency upgrade in package.json no longer ran the whole list",
+  },
 ];
 
 /**
@@ -11206,6 +11222,26 @@ export const RUN_ALL_WHEN_CHANGED = [
   "vitest.config.mts",
   "src/test-support/git-env.setup.ts",
 ];
+
+/**
+ * package.json is in RUN_ALL_WHEN_CHANGED for what it installs and how tests
+ * start. Its other fields (the repo URL, keywords, homepage) change nothing a
+ * test does: a repo-URL edit on 2026-11-22 turned the first nightly
+ * incremental run into all 1,365. True when a field that can change a test
+ * differs, or when either side cannot be read (then run them all).
+ * @param {string | null} before
+ * @param {string | null} after
+ */
+export function packageChangesTests(before, after) {
+  const KEYS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies", "overrides", "scripts", "type", "engines", "imports", "exports"];
+  try {
+    const a = JSON.parse(before ?? "");
+    const b = JSON.parse(after ?? "");
+    return KEYS.some((k) => JSON.stringify(a[k] ?? null) !== JSON.stringify(b[k] ?? null));
+  } catch {
+    return true;
+  }
+}
 
 const entryKey = (m) => JSON.stringify([m.id, m.test, m.file, m.find, m.replace, m.needs ?? null]);
 
@@ -11323,7 +11359,15 @@ export function writeWhole(abs, text, { afterTemp } = {}) {
 
 export async function changesSince(ref, root = ROOT) {
   const { stdout } = await execFileP("git", ["diff", "--name-only", ref, "HEAD"], { cwd: root });
-  const changed = stdout.split("\n").filter(Boolean);
+  let changed = stdout.split("\n").filter(Boolean);
+  if (changed.includes("package.json")) {
+    const at = (rev) =>
+      execFileP("git", ["show", `${rev}:package.json`], { cwd: root }).then(
+        (r) => r.stdout,
+        () => null,
+      );
+    if (!packageChangesTests(await at(ref), await at("HEAD"))) changed = changed.filter((f) => f !== "package.json");
+  }
   let base = [];
   let tmpDir = null;
   try {

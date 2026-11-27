@@ -12,6 +12,7 @@ import {
   parseShard,
   changesSince,
   judgeRun,
+  packageChangesTests,
 } from "../mutate-check.mjs";
 
 describe("judgeRun: a pass needs evidence the tests ran", () => {
@@ -134,6 +135,22 @@ describe("changesSince (the PR's diff and the base's list)", () => {
     expect(base.map((x: { id: string }) => x.id)).toEqual(["one"]);
   });
 
+  it("keeps package.json only when a field that can change a test changed", async () => {
+    const start = (await git("rev-parse", "HEAD")).stdout.trim();
+    const pkg = (extra: object) => JSON.stringify({ name: "x", repository: { url: "a" }, devDependencies: { vitest: "1" }, ...extra });
+    await writeFile(path.join(repo, "package.json"), pkg({}));
+    await git("add", "-A");
+    await git("commit", "-qm", "pkg");
+    await git("tag", "pkg-base");
+    await writeFile(path.join(repo, "package.json"), pkg({ repository: { url: "b" }, keywords: ["k"] }));
+    await git("commit", "-qam", "metadata");
+    expect((await changesSince("pkg-base", repo)).changed).not.toContain("package.json");
+    await writeFile(path.join(repo, "package.json"), pkg({ devDependencies: { vitest: "2" } }));
+    await git("commit", "-qam", "upgrade");
+    expect((await changesSince("pkg-base", repo)).changed).toContain("package.json");
+    await git("reset", "-q", "--hard", start);
+  });
+
   it("a base with no list makes every entry new", async () => {
     await git("checkout", "-q", "--orphan", "empty");
     await git("rm", "-rq", "--cached", ".");
@@ -142,6 +159,18 @@ describe("changesSince (the PR's diff and the base's list)", () => {
     await git("checkout", "-q", "-f", "main");
     const { base } = await changesSince("empty-base", repo);
     expect(base).toEqual([]);
+  });
+});
+
+describe("packageChangesTests", () => {
+  const p = (o: object) => JSON.stringify(o);
+  it("ignores metadata, counts what installs and how tests start, and treats unreadable as changed", () => {
+    expect(packageChangesTests(p({ repository: "a", keywords: [] }), p({ repository: "b" }))).toBe(false);
+    for (const k of ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies", "overrides", "scripts", "type", "engines"]) {
+      expect(packageChangesTests(p({}), p({ [k]: { x: "1" } })), k).toBe(true);
+    }
+    expect(packageChangesTests(null, p({}))).toBe(true);
+    expect(packageChangesTests("{", p({}))).toBe(true);
   });
 });
 
