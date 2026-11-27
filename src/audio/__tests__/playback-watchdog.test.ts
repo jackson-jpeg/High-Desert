@@ -14,6 +14,7 @@ import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vite
  */
 
 vi.mock("@/services/stats/client", () => ({
+  reportFinish: () => {},
   reportPlaybackFailure: vi.fn(),
 }));
 vi.mock("@/lib/utils/platform", () => ({

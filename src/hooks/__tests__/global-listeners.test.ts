@@ -60,6 +60,7 @@ let element: HTMLAudioElement;
 let watching = false;
 
 vi.mock("@/services/stats/client", () => ({
+  reportFinish: () => {},
   reportPlay: (...a: unknown[]) => reportPlay(...a),
   reportStop: (...a: unknown[]) => reportStop(...a),
   reportStopBeacon: (...a: unknown[]) => reportStopBeacon(...a),

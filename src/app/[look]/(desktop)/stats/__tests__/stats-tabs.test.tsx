@@ -18,7 +18,11 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 // Each server-backed widget is a marker: which panel draws it is the subject.
-const marker = (name: string) => () => <section data-widget={name}>{name}</section>;
+const marker = (name: string) => {
+  const Marker = () => <section data-widget={name}>{name}</section>;
+  Marker.displayName = `Marker(${name})`;
+  return Marker;
+};
 vi.mock("@/components/library/OnAir", () => ({ OnAir: marker("On Air") }));
 vi.mock("@/components/library/SignalTraffic", () => ({ SignalTraffic: marker("Signal Traffic") }));
 vi.mock("@/components/library/Listeners", () => ({ Listeners: marker("Listeners") }));

@@ -25,6 +25,7 @@ import { createRoot, type Root } from "react-dom/client";
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock("@/services/stats/client", () => ({
+  reportFinish: () => {},
   reportPlay: vi.fn(),
   reportStop: vi.fn(),
   reportStopBeacon: vi.fn(),

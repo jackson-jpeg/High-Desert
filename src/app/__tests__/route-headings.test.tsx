@@ -90,6 +90,10 @@ const PAGES = import.meta.glob("../\\[look\\]/\\(desktop\\)/*/page.tsx");
 const LOADED: Record<string, string> = {
   stats: "Your Listening",
 };
+/** Where a route's loaded state is: /stats opens on Station, which reads no IndexedDB. */
+const SEARCH: Record<string, string> = {
+  stats: "?tab=you",
+};
 
 /** Admin-only pages render nothing for a visitor (and redirect). Their h1 is checked as an admin. */
 const ADMIN_ONLY = new Set(["scanner", "search"]);
@@ -134,6 +138,7 @@ describe("every route has exactly one h1", () => {
     const { default: Layout } = (await LAYOUTS[`../[look]/(desktop)/${route}/layout.tsx`]()) as { default: LayoutComponent };
     const { default: Page } = (await PAGES[`../[look]/(desktop)/${route}/page.tsx`]()) as { default: ComponentType };
     pathname = `/${route}`;
+    window.history.replaceState(null, "", `/${route}${SEARCH[route] ?? ""}`);
     if (ADMIN_ONLY.has(route)) useAdminStore.setState({ isAdmin: true });
 
     act(() => {

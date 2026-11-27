@@ -12,6 +12,7 @@ import type { RatingsReport as Report } from "@/services/stats/client";
 
 let report: Report | null = null;
 vi.mock("@/services/stats/client", () => ({
+  reportFinish: () => {},
   fetchRatingsReport: () => Promise.resolve(report),
 }));
 vi.mock("@/hooks/useCommunityKeyIndex", () => ({ useCommunityKeyIndex: () => new Map() }));

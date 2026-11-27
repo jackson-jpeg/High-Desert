@@ -27,6 +27,7 @@ let archiveDown = false;
 let plays: Array<"resolve" | "reject-not-allowed" | "reject-not-supported" | "hang" | (() => Promise<void>)> = [];
 
 vi.mock("@/services/stats/client", () => ({
+  reportFinish: () => {},
   reportPlay: (...a: unknown[]) => reportPlay(...a),
   reportStop: vi.fn(),
   reportStopBeacon: vi.fn(),

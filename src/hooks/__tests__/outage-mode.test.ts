@@ -20,6 +20,7 @@ let element: HTMLAudioElement;
 const playCalls = vi.fn();
 
 vi.mock("@/services/stats/client", () => ({
+  reportFinish: () => {},
   reportPlay: (...a: unknown[]) => reportPlay(...a),
   reportStop: vi.fn(),
   reportStopBeacon: vi.fn(),

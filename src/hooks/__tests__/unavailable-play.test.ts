@@ -16,6 +16,7 @@ import { REMOVED_FROM_CATALOG } from "@/lib/library/removed-episodes";
 let element: HTMLAudioElement;
 
 vi.mock("@/services/stats/client", () => ({
+  reportFinish: () => {},
   reportPlay: vi.fn(),
   reportStop: vi.fn(),
   reportStopBeacon: vi.fn(),

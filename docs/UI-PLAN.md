@@ -274,16 +274,28 @@ parts (weekdays 13:00 to 19:00 UTC is peak).
       same rows. History groups repeats ("played 5 times"). Audio Cache
       leaves Stats for settings, in plain words. Program Guide drops a zero
       "Uncategorized" row.
-   3. **Smart Playlists and the Topic Index move to the Library.**
+   3. **Smart Playlists and the Topic Index move to the Library.** Both sit
+      in the Library's Explore (above the list on a desktop, under it on a
+      phone), with their own scroll; a tag opens `tag:<name>` in the search.
    4. **Radio framing.** Station: a ratings report at the top (tonight's
       crowd against a typical night, the hottest show this week, new states
       tuning in) and "Most finished" (the share of listeners who reached
       the end) beside Most played, from real data only. You: "You and the
       desert" (heard X of the catalog's shows, your top guest against the
       station's).
+      Built on `/api/stats/report` (`src/services/stats/db/report.ts`):
+      the crowd is the last 12 hours' peak against the median daily peak of
+      the 28 days before (none under 7 days), the hottest show is the top of
+      Most played this week (7 days, 2+ plays), new states are US states
+      whose first browser came this week. Most finished is new data: the
+      player posts `/api/stats/finish` on a real end into `play_finishes`
+      (an episode and a time), and the share is finishes over plays from
+      2026-11-28 for shows with 5+ plays since. Until then it says so.
    5. **The fine print behind "How we count".** The notes under each panel
-      (since when, what is counted, what is not) move into one small
-      disclosure per tab.
+      (since when, what is counted, what is not) move behind a small "How
+      we count" link (`HowWeCount`, a native `<details>`): one under Signal
+      Traffic, the listeners, the ratings report, and at the foot of You and
+      Archive. The geo database's credit stays in sight.
 
 ## Rules every push keeps
 

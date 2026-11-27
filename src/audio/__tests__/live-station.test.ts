@@ -36,6 +36,7 @@ function setPlayhead(v: number) {
 
 const reportPlaybackFailure = vi.hoisted(() => vi.fn());
 vi.mock("@/services/stats/client", () => ({
+  reportFinish: () => {},
   reportPlay: (episodeId: string, sessionId: string) => reportPlay(episodeId, sessionId),
   reportStop: vi.fn(),
   reportStopBeacon: vi.fn(),

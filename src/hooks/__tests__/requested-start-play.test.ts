@@ -24,6 +24,7 @@ const upsertProgress =
 let element: HTMLAudioElement;
 
 vi.mock("@/services/stats/client", () => ({
+  reportFinish: () => {},
   reportPlay: (episodeId: string, sessionId: string, source?: unknown, surface?: unknown) =>
     reportPlay(episodeId, sessionId, source, surface),
   reportStop: vi.fn(),

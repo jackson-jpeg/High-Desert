@@ -13,6 +13,7 @@ import { createRoot, type Root } from "react-dom/client";
 
 const beats = vi.hoisted(() => [] as (boolean | undefined)[]);
 vi.mock("@/services/stats/client", () => ({
+  reportFinish: () => {},
   reportHeartbeat: (_s: string, _e: string | null, live?: boolean) => {
     beats.push(live);
     return Promise.resolve();

@@ -39,6 +39,7 @@ import { onHdEvent } from "@/lib/events";
 let element: HTMLAudioElement;
 
 vi.mock("@/services/stats/client", () => ({
+  reportFinish: () => {},
   reportPlay: vi.fn(),
   reportStop: vi.fn(),
   reportStopBeacon: vi.fn(),
