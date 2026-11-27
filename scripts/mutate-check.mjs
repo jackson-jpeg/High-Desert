@@ -11893,7 +11893,7 @@ export const MUTATIONS = [
     id: "explore-smart-playlists",
     test: "src/components/library/__tests__/explore-moved.test.tsx",
     file: "src/components/library/ExploreBand.tsx",
-    find: "              <SmartPlaylists onPlay={onPlay} />\n",
+    find: "                <SmartPlaylists onPlay={onPlay} />\n",
     replace: "",
     why: "Smart Playlists left /stats for the Library's Explore; without it they are nowhere",
   },
@@ -11901,7 +11901,7 @@ export const MUTATIONS = [
     id: "explore-topic-index",
     test: "src/components/library/__tests__/explore-moved.test.tsx",
     file: "src/components/library/ExploreBand.tsx",
-    find: "              <TopicIndex episodes={episodes} />\n",
+    find: "                <TopicIndex episodes={episodes} />\n",
     replace: "",
     why: "the Topic Index left /stats for the Library's Explore; without it it is nowhere",
   },
@@ -12096,6 +12096,14 @@ export const MUTATIONS = [
     find: "          </HowWeCount>\n          {/* The geo database's credit",
     replace: "          {/* The geo database's credit",
     why: "the geo database's credit stays in sight wherever places are shown",
+  },
+  {
+    id: "explore-one-view",
+    test: "src/components/library/__tests__/explore-moved.test.tsx",
+    file: "src/components/library/ExploreBand.tsx",
+    find: "            {view === \"playlists\" && (",
+    replace: "            {view !== \"today\" && (",
+    why: "drawn together, the Explore views pushed the Library's list off a 900 px screen (looks.spec, 2026-11-27)",
   },
 ];
 

@@ -133,16 +133,24 @@ for (const look of LOOKS) {
       await scan(page, "/library?view=dial");
     });
 
-    test("/stats has no moderate, serious or critical axe violations", async ({ page }) => {
-      await openLibrary(page);
-      await page.goto("/stats");
-      await settled(page);
-      // The page is built from the catalog in IndexedDB; wait until a figure from
-      // it has rendered rather than scanning the empty frame.
-      await expect(page.getByText(/episodes/i).first()).toBeVisible({ timeout: 30_000 });
-      await settled(page);
-      await scan(page, "/stats");
-    });
+    // Three tabs (UI plan push 6): each is its own screen, so each is scanned.
+    const STATS_TABS: { route: string; ready: RegExp }[] = [
+      { route: "/stats", ready: /^Station$/ },
+      { route: "/stats?tab=you", ready: /^Your Listening$/ },
+      { route: "/stats?tab=archive", ready: /^The Archive$/ },
+    ];
+    for (const { route, ready } of STATS_TABS) {
+      test(`${route} has no moderate, serious or critical axe violations`, async ({ page }) => {
+        await openLibrary(page);
+        await page.goto(route);
+        await settled(page);
+        // Wait for the tab's own content rather than scanning the empty frame
+        // (You and Archive are built from the catalog in IndexedDB).
+        await expect(page.getByRole(route === "/stats" ? "tab" : "heading", { name: ready }).first()).toBeVisible({ timeout: 30_000 });
+        await settled(page);
+        await scan(page, route);
+      });
+    }
 
     // The welcome page is only ever seen on a desktop's first visit (a returning
     // visitor is sent straight to /library, a phone to /live), which is what every
@@ -206,6 +214,12 @@ for (const look of LOOKS) {
       },
       {
         route: "/stats",
+        h1: "Station Dashboard",
+        seed: true,
+        loaded: (page) => expect(page.getByRole("tab", { name: "Station", selected: true })).toBeVisible({ timeout: 30_000 }),
+      },
+      {
+        route: "/stats?tab=you",
         h1: "Station Dashboard",
         seed: true,
         loaded: (page) => expect(page.getByRole("heading", { name: "Your Listening" })).toBeVisible({ timeout: 30_000 }),

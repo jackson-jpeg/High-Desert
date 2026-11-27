@@ -48,9 +48,15 @@ function render(expanded: boolean) {
 }
 
 describe("the Library's Explore", () => {
-  it("expanded, it holds Smart Playlists and the Topic Index, tags by use", () => {
+  it("expanded, it shows one view at a time: On this date first, then Smart Playlists or Topics", () => {
     const h = render(true);
+    expect(h.querySelector('[data-testid="smart-playlists"]')).toBeNull();
+    expect(h.querySelector('[data-testid="topic-index"]')).toBeNull();
+    act(() => h.querySelector<HTMLButtonElement>('[data-explore-view="playlists"]')!.click());
     expect(h.querySelector('[data-testid="smart-playlists"]')).not.toBeNull();
+    expect(h.querySelector('[data-testid="topic-index"]')).toBeNull();
+    act(() => h.querySelector<HTMLButtonElement>('[data-explore-view="topics"]')!.click());
+    expect(h.querySelector('[data-testid="smart-playlists"]')).toBeNull();
     const tags = [...h.querySelectorAll<HTMLElement>("[data-tag]")].map((b) => b.dataset.tag);
     expect(tags).toEqual(["ufos", "area 51", "ghosts"]);
     expect(h.querySelector('[data-testid="topic-index"]')!.textContent).toContain("3 tags");
@@ -58,8 +64,16 @@ describe("the Library's Explore", () => {
 
   it("a tag opens the Library's search on it", () => {
     const h = render(true);
+    act(() => h.querySelector<HTMLButtonElement>('[data-explore-view="topics"]')!.click());
     act(() => h.querySelector<HTMLButtonElement>('[data-tag="ufos"]')!.click());
     expect(push).toHaveBeenCalledWith(expect.stringContaining("q=tag%3Aufos"));
+  });
+
+  it("the views share one short, scrolling area, so the list below keeps its room", () => {
+    const h = render(true);
+    const area = h.querySelector<HTMLElement>('[data-testid="explore-more"]')!;
+    expect(area.className).toContain("md:max-h-[150px]");
+    expect(area.className).toContain("overflow-auto");
   });
 
   it("collapsed, neither draws", () => {
