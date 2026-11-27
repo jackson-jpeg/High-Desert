@@ -24,6 +24,8 @@
 @import "../styles/station-break.css";
 /* Show, guest, topic and Tonight pages: the newer hooks, both looks (docs/show-pages.md). */
 @import "../styles/show-pages.css";
+/* /stats: the three tabs (docs/UI-PLAN.md, push 6). */
+@import "../styles/stats.css";
 
 /* ============================================
    Tailwind v4 Theme

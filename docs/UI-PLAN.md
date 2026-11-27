@@ -247,6 +247,43 @@ parts (weekdays 13:00 to 19:00 UTC is peak).
 5. **Start and sound.** The Start menu as a launcher with real submenus, the
    sounds and their switch (off by default), Night's More to match; Stats as
    the logbook, the 404 static.
+6. **Stats, overhauled** (Jackson, 2026-11-27, through the lead). Every look
+   and every size, phone and desktop. Shipped in five batches, each with its
+   own tests, mutations, deploy, station notices around it and one fyi.
+   Before and after at 390 and 1280 in both looks go to the Mac's
+   `~/Downloads/highdesert-stats/batch-N/`. No invented numbers: every
+   figure is computed from a real row, and a figure without enough data
+   says so instead of guessing.
+   1. **Three tabs.** Station (On Air, Signal Traffic, When the desert is
+      awake, the map with By state and By country, Tuning in from, Records,
+      Supporters), You (Your Listening, My Most Played, Listening History)
+      and Archive (The Archive, Broadcast Log, Program Guide, Subject
+      Breakdown, Most-Featured Guests, Community Top 20). Station is the
+      default and needs nothing from IndexedDB, so it draws at once.
+      `/stats?tab=you` and `/stats?tab=archive` deep-link; the URL follows
+      the tab. Win98: a property sheet's tabs. Night: a segmented switch.
+      Phone: three equal tabs, 44 px, at the top.
+   2. **What reads broken.** "0.0h listened" beside a streak and a history:
+      listened time only counted while the 250 ms tick ran, and the tick
+      stops on a locked phone or a throttled hidden tab, so a show heard
+      with the screen off counted 0 s; and a history row was written when
+      the remembered show was restored on a page load, not when anything
+      was heard. Fix both: count the media time that passed (bounded by the
+      wall clock, so a seek never counts), and write history only for real
+      listening. Your Listening, the streak and the history then read the
+      same rows. History groups repeats ("played 5 times"). Audio Cache
+      leaves Stats for settings, in plain words. Program Guide drops a zero
+      "Uncategorized" row.
+   3. **Smart Playlists and the Topic Index move to the Library.**
+   4. **Radio framing.** Station: a ratings report at the top (tonight's
+      crowd against a typical night, the hottest show this week, new states
+      tuning in) and "Most finished" (the share of listeners who reached
+      the end) beside Most played, from real data only. You: "You and the
+      desert" (heard X of the catalog's shows, your top guest against the
+      station's).
+   5. **The fine print behind "How we count".** The notes under each panel
+      (since when, what is counted, what is not) move into one small
+      disclosure per tab.
 
 ## Rules every push keeps
 

@@ -78,6 +78,14 @@ export function parseArgs(argv) {
  * is caught too: syncClock skips a lost sample (deploy of 68e7565, WebKit,
  * 2026-11-17, rolled back on this alone).
  */
+/**
+ * Where Stats shows this browser's numbers (read from IndexedDB): the You tab
+ * since UI plan push 6 (2026-11-27). The default Station tab reads nothing
+ * from the database, so it cannot tell a held read from a working one. A
+ * build before the tabs ignores the parameter and shows the same window.
+ */
+export const STATS_PATH = "/stats?tab=you";
+
 export const NAVIGATION_NOISE = /\/api\/(?:stats\/[a-z]+|live\/time) due to access control checks/;
 
 export function judgeRevisit(r) {
@@ -158,7 +166,7 @@ async function prime(opts) {
     await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
     await page.reload({ waitUntil: "load" });
     const controlled = await page.evaluate(() => !!navigator.serviceWorker.controller);
-    await page.goto(new URL("/stats", opts.base).href, { waitUntil: "load" });
+    await page.goto(new URL(STATS_PATH, opts.base).href, { waitUntil: "load" });
     await page.getByText("Your Listening").first().waitFor({ timeout: PRIME_DEADLINE_MS });
     const build = await pageBuild(page);
     const marker = { primedAt: new Date().toISOString(), base: opts.base, build, controlled, episodes: seed.length };
@@ -234,7 +242,7 @@ async function revisit(opts) {
     r.build = await pageBuild(page);
 
     const t1 = Date.now();
-    await page.goto(new URL("/stats", opts.base).href, { waitUntil: "load", timeout: STATS_DEADLINE_MS });
+    await page.goto(new URL(STATS_PATH, opts.base).href, { waitUntil: "load", timeout: STATS_DEADLINE_MS });
     const stats = page.getByText("Your Listening").first();
     await Promise.race([
       stats.waitFor({ timeout: STATS_DEADLINE_MS }).catch(() => {}),

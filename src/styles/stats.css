@@ -1,0 +1,97 @@
+/* ============================================
+   /stats: the three tabs (UI plan push 6, batch 1; docs/UI-PLAN.md)
+   ============================================ */
+
+/* Sticky at the top of the page's scroll box, so a long Station can switch
+   to You without scrolling back. A phone gets three equal 44 px tabs; a
+   desktop keeps them to their words. */
+.hd-stats-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  gap: 2px;
+}
+.hd-stats-tab {
+  flex: 1 1 0;
+  min-height: 44px;
+  padding: 6px 12px;
+  font-size: var(--hd-text-14);
+  cursor: pointer;
+  white-space: nowrap;
+}
+@media (min-width: 768px) {
+  .hd-stats-tab {
+    flex: 0 0 auto;
+    min-width: 96px;
+    min-height: 0;
+    padding: 4px 16px;
+  }
+}
+
+/* Win98: a property sheet's tabs. The selected tab stands 2 px taller and
+   joins the sheet; the others sit behind it. On the teal desktop the strip
+   itself is the window's face. */
+html[data-look="win98"] .hd-stats-tabs {
+  align-items: flex-end;
+  padding: 4px 4px 0;
+  background: var(--hd-w98-face);
+  border-bottom: 1px solid var(--hd-chrome-lighter);
+  box-shadow: 0 1px 0 var(--hd-chrome-dark);
+}
+html[data-look="win98"] .hd-stats-tab {
+  background: var(--hd-w98-face);
+  color: var(--hd-ink);
+  border: 1px solid;
+  border-bottom: 0;
+  border-color: var(--hd-chrome-lighter) var(--hd-chrome-dark) transparent var(--hd-chrome-lighter);
+  border-radius: 3px 3px 0 0;
+  box-shadow: inset -1px 0 0 var(--hd-ink);
+  margin-bottom: 0;
+}
+html[data-look="win98"] .hd-stats-tab-on {
+  font-weight: 700;
+  padding-top: 8px;
+  margin-bottom: -1px;
+  position: relative;
+  z-index: 1;
+}
+html[data-look="win98"] .hd-stats-tab:focus-visible {
+  outline: 1px dotted var(--hd-ink);
+  outline-offset: -4px;
+}
+@media (min-width: 768px) {
+  html[data-look="win98"] .hd-stats-tab-on {
+    padding-top: 6px;
+  }
+}
+
+/* Night: a segmented switch, the accent on the chosen one (as the Library's
+   List / Dial). */
+html[data-look="night"] .hd-stats-tabs {
+  padding: 2px;
+  border: 1px solid var(--cl-line);
+  border-radius: var(--cl-r);
+  background: color-mix(in srgb, var(--hd-well) 85%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+html[data-look="night"] .hd-stats-tab {
+  border: 0;
+  border-radius: var(--cl-r-s);
+  background: transparent;
+  color: var(--hd-muted);
+}
+html[data-look="night"] .hd-stats-tab:hover {
+  color: var(--hd-chrome-light);
+  background: var(--cl-hover);
+}
+html[data-look="night"] .hd-stats-tab-on,
+html[data-look="night"] .hd-stats-tab-on:hover {
+  background: var(--cl-accent-soft);
+  color: var(--hd-amber);
+}
+html[data-look="night"] .hd-stats-tab:focus-visible {
+  outline: 2px solid var(--hd-amber);
+  outline-offset: -2px;
+}

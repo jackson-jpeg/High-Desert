@@ -26,6 +26,7 @@ import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import { episodeTitle } from "@/lib/library/display-title";
 import { shownGuest } from "@/lib/library/guest";
 import { ShowTitle } from "@/components/library/ShowTitle";
+import { StatsTabs, useStatsTab, statsPanelId, statsTabId } from "@/components/stats/StatsTabs";
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -36,6 +37,75 @@ function formatBytes(bytes: number): string {
 }
 
 export default function StatsPage() {
+  const [tab, setTab] = useStatsTab();
+  return (
+    <div
+      className="hd-stats-page p-4 pt-0 md:pt-2 pb-24 md:pb-4 flex flex-col gap-4 max-w-7xl mx-auto h-full overflow-auto overscroll-contain"
+      data-stats-tab={tab}
+    >
+      <StatsTabs tab={tab} onSelect={setTab} />
+      <div
+        role="tabpanel"
+        id={statsPanelId(tab)}
+        aria-labelledby={statsTabId(tab)}
+        className="flex flex-col gap-4"
+        data-testid={`stats-panel-${tab}`}
+      >
+        {/* Station reads nothing from IndexedDB, so it draws at once; You
+            and Archive share one mount, so switching between them does not
+            read the library again. */}
+        {tab === "station" ? <StationPanel /> : <LibraryPanels tab={tab} />}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Station: everyone's station, nothing about this browser (UI plan push 6).
+ * On Air, Signal Traffic (with When the desert is awake), Listeners (the map,
+ * By state and By country, Tuning in from, Records), Supporters, and the
+ * station sponsors at the very bottom.
+ */
+function StationPanel() {
+  return (
+    <>
+      {/* ── On Air ── what other people have playing right now, joinable in
+          a click. Renders nothing when nobody is around or the stats
+          service is unavailable. */}
+      <WidgetErrorBoundary name="On Air">
+        <OnAir />
+      </WidgetErrorBoundary>
+
+      {/* ── Signal Traffic ── the click-through target for the live count in
+          the status bar. Renders nothing when the stats service is
+          unavailable. */}
+      <WidgetErrorBoundary name="Signal Traffic">
+        <SignalTraffic />
+      </WidgetErrorBoundary>
+
+      {/* ── Listeners ── everyone counted once since the funnel began, where
+          they tune in from, and the records (docs/visitors.md). */}
+      <WidgetErrorBoundary name="Listeners">
+        <Listeners />
+      </WidgetErrorBoundary>
+
+      {/* ── Supporters ── the listeners who chipped in, and how to join them
+          (2026-10-09). Static: src/lib/support/supporters.ts. */}
+      <WidgetErrorBoundary name="Supporters">
+        <Supporters />
+      </WidgetErrorBoundary>
+
+      {/* ── Station sponsors ── Jackson's own apps, one per visit, at the very
+          bottom and apart from Supporters (docs/station-breaks.md). */}
+      <WidgetErrorBoundary name="Station sponsors">
+        <StationSponsors />
+      </WidgetErrorBoundary>
+    </>
+  );
+}
+
+/** You and Archive: both read this browser's library (IndexedDB). */
+function LibraryPanels({ tab }: { tab: "you" | "archive" }) {
   const openLibrary = useOpenLibraryIntent();
   const isAdmin = useAdminStore((s) => s.isAdmin);
   // Timed (2026-10-13): a read that never answers ends in an error with
@@ -68,43 +138,38 @@ export default function StatsPage() {
     [episodes, history],
   );
 
-  // The page's h1 is "Station Dashboard" in stats/layout.tsx, present in every
-  // state. These two windows used to be h1s themselves, so the loading and
-  // empty states had a heading the populated page lacked — and with the
-  // layout's, they would have had two.
+  // Never the title of a populated window: the returning-visitor check and
+  // the tests wait for "Your Listening" as the sign the numbers arrived.
+  const waitTitle = "Station Dashboard";
   if (!stats) {
     return (
-      <div className="p-4 flex flex-col gap-4 max-w-5xl mx-auto">
-        <Window title="Station Dashboard" variant="dark">
-          {timedOut ? (
-            <LoadTimeout what="Your listening stats" onRetry={retryReads} />
-          ) : (
-            <div className="p-6 text-center min-h-[200px] flex items-center justify-center">
-              <div className="animate-dot-1 inline-block text-bevel-dark text-hd-10">Loading station data</div>
-            </div>
-          )}
-        </Window>
-      </div>
+      <Window title={waitTitle} variant="dark" headingLevel={2}>
+        {timedOut ? (
+          <LoadTimeout what={tab === "you" ? "Your listening stats" : "The archive's numbers"} onRetry={retryReads} />
+        ) : (
+          <div className="p-6 text-center min-h-[200px] flex items-center justify-center">
+            <div className="animate-dot-1 inline-block text-bevel-dark text-hd-10">Loading station data</div>
+          </div>
+        )}
+      </Window>
     );
   }
 
   if (stats.total === 0) {
     return (
-      <div className="p-4 flex flex-col gap-4 max-w-5xl mx-auto">
-        <Window title="Station Dashboard" variant="dark">
-          <div className="p-8 flex flex-col items-center gap-3 text-center">
-            {/* Decorative glyph, hidden from assistive technology: no text to read. */}
-            {/* eslint-disable-next-line hd/text-opacity-floor */}
-            <div className="text-hd-24 text-desert-amber opacity-30 select-none" aria-hidden="true">{"\u{1F4E1}"}</div>
-            <div className="text-hd-11 text-bevel-dark">No episodes in the library yet.</div>
-            <div className="text-hd-9 text-bevel-dark/85">
-              {isAdmin
-                ? "Import episodes from the Scanner or Search page to see your station stats."
-                : "No episodes in the library yet. Check back soon!"}
-            </div>
+      <Window title={waitTitle} variant="dark" headingLevel={2}>
+        <div className="p-8 flex flex-col items-center gap-3 text-center">
+          {/* Decorative glyph, hidden from assistive technology: no text to read. */}
+          {/* eslint-disable-next-line hd/text-opacity-floor */}
+          <div className="text-hd-24 text-desert-amber opacity-30 select-none" aria-hidden="true">{"\u{1F4E1}"}</div>
+          <div className="text-hd-11 text-bevel-dark">No episodes in the library yet.</div>
+          <div className="text-hd-9 text-bevel-dark/85">
+            {isAdmin
+              ? "Import episodes from the Scanner or Search page to see your station stats."
+              : "No episodes in the library yet. Check back soon!"}
           </div>
-        </Window>
-      </div>
+        </div>
+      </Window>
     );
   }
 
@@ -112,45 +177,9 @@ export default function StatsPage() {
   const listenedHours = stats.listenedSeconds / 3600;
   const libraryHours = stats.librarySeconds / 3600;
 
-  return (
-    <div className="p-4 pb-24 md:pb-4 flex flex-col gap-4 max-w-7xl mx-auto h-full overflow-auto overscroll-contain">
-
-      {/* The ListeningStats banner used to sit here, rendering the streak 40px
-          above the Streak tile below it. computeStreak ran three times across
-          the app; the status bar keeps its copy, this page keeps the tile. */}
-
-      {/* ── On Air ── what other people have playing right now, joinable in a
-          click. First on the page because it is the only thing here that is
-          about anyone other than the visitor, and the only reason to come back
-          to this page twice. Renders nothing when nobody is around or the
-          stats service is unavailable. */}
-      <WidgetErrorBoundary name="On Air">
-        <OnAir />
-      </WidgetErrorBoundary>
-
-      {/* ── Signal Traffic ── the click-through target for the live count in
-          the status bar. Ahead of the personal figures: it is the only
-          genuinely multi-visitor data here, and the only part that changes
-          minute to minute. Renders nothing when the stats service is
-          unavailable. */}
-      <WidgetErrorBoundary name="Signal Traffic">
-        <SignalTraffic />
-      </WidgetErrorBoundary>
-
-      {/* ── Listeners ── everyone counted once since the funnel began, where
-          they tune in from, and the records (docs/visitors.md). After Signal
-          Traffic: that is how many at once, this is how many in all and where.
-          Renders nothing when the stats service is unavailable. */}
-      <WidgetErrorBoundary name="Listeners">
-        <Listeners />
-      </WidgetErrorBoundary>
-
-      {/* ── Supporters ── the listeners who chipped in, and how to join them
-          (2026-10-09). Static: src/lib/support/supporters.ts. */}
-      <WidgetErrorBoundary name="Supporters">
-        <Supporters />
-      </WidgetErrorBoundary>
-
+  if (tab === "you") {
+    return (
+      <>
       {/* ── Your Listening ──
           Only figures that describe *this visitor*. Previously these were mixed
           in with catalog counts under one "Signal Report" heading, so a first
@@ -194,6 +223,86 @@ export default function StatsPage() {
         </div>
       </Window>
 
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* ── My Most Played ── This browser's plays, and it says so. It was
+            "Most Listened", ranked by local playCount but showing progress %,
+            so the number beside each row was not the number it was ranked by
+            and nothing said whose plays they were. */}
+        {stats.myMostPlayed.length > 0 && (
+          <Window title="My Most Played" variant="dark" headingLevel={2}>
+            <div className="p-3">
+              <div className="flex flex-col gap-2" data-testid="my-most-played">
+                {stats.myMostPlayed.map((ep, i) => {
+                  const plays = ep.playCount ?? 0;
+                  return (
+                    <div key={ep.id} className="flex items-start gap-2">
+                      <span className="text-hd-8 text-bevel-dark/85 tabular-nums w-[12px] text-right mt-0.5">
+                        {i + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <ShowTitle title={episodeTitle(ep)} className="text-hd-12 md:text-hd-10 text-desktop-gray font-bold" />
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {ep.airDate && (
+                            <span className="text-hd-9 md:text-hd-8 text-desert-amber tabular-nums">{ep.airDate}</span>
+                          )}
+                          {shownGuest(ep) && (
+                            <span className="text-hd-9 md:text-hd-8 text-static-green/85 truncate">{shownGuest(ep)}</span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-hd-8 text-bevel-dark tabular-nums flex-shrink-0 mt-0.5" data-plays={plays}>
+                        {plays} {plays === 1 ? "play" : "plays"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => openLibrary({ sort: "my-plays" })}
+                className="mt-2 text-hd-9 text-signal-blue hover:underline cursor-pointer"
+              >
+                All, sorted by My plays →
+              </button>
+            </div>
+          </Window>
+        )}
+        <WidgetErrorBoundary name="History">
+          <HistoryPanel />
+        </WidgetErrorBoundary>
+        {/* ── Audio Cache ── OPFS storage */}
+        {cacheSize !== null && (
+          <Window title="Audio Cache" variant="dark" headingLevel={2}>
+            <div className="p-3 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-hd-12 md:text-hd-10 text-desktop-gray">
+                  {cacheSize > 0 ? formatBytes(cacheSize) : "Empty"}
+                </div>
+                <div className="text-hd-10 md:text-hd-8 text-bevel-dark/85">
+                  Offline audio cached in OPFS
+                </div>
+              </div>
+              {cacheSize > 0 && (
+                <Button variant="dark" size="sm" onClick={handleClearCache}>
+                  Clear Cache
+                </Button>
+              )}
+            </div>
+          </Window>
+        )}
+
+        <WidgetErrorBoundary name="Smart Playlists">
+          <SmartPlaylists onPlay={(ep) => {
+            emit("play-episode", ep);
+          }} />
+        </WidgetErrorBoundary>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
       {/* \u2500\u2500 The Archive \u2500\u2500
           Composition of the catalog as this browser holds it. For a visitor on
           the shipped seed that is the same for everyone; it is not guaranteed
@@ -232,9 +341,7 @@ export default function StatsPage() {
         </div>
       </Window>
 
-      {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
         {/* ── Broadcast Log ── Year chart */}
         {stats.years.length > 0 && (
           <Window title="Broadcast Log" variant="dark" headingLevel={2} className="lg:col-span-2">
@@ -383,70 +490,6 @@ export default function StatsPage() {
           </Window>
         )}
 
-        {/* The "Station Status" window stood here with two panels, both
-            removed as they could only ever display one value:
-
-            - AI Categorization: db/seed.ts sets aiStatus to "completed" for
-              every seeded row, so for anyone on the shipped catalog the bar was
-              permanently 100% green with "0 pending, 0 failed".
-            - Sources: `local` only becomes non-zero via the Scanner, which is
-              admin-gated, so every ordinary visitor saw a fixed
-              "1313 archive · 0 local" — the same constant the Sources hero tile
-              was already rendering a few hundred pixels above. */}
-
-        {/* ── Audio Cache ── OPFS storage */}
-        {cacheSize !== null && (
-          <Window title="Audio Cache" variant="dark" headingLevel={2}>
-            <div className="p-3 flex items-center justify-between gap-3">
-              <div>
-                <div className="text-hd-12 md:text-hd-10 text-desktop-gray">
-                  {cacheSize > 0 ? formatBytes(cacheSize) : "Empty"}
-                </div>
-                <div className="text-hd-10 md:text-hd-8 text-bevel-dark/85">
-                  Offline audio cached in OPFS
-                </div>
-              </div>
-              {cacheSize > 0 && (
-                <Button variant="dark" size="sm" onClick={handleClearCache}>
-                  Clear Cache
-                </Button>
-              )}
-            </div>
-          </Window>
-        )}
-
-        {/* ── Playback Failures ── Admin only. Server-side, unlike everything
-            else on this page: which shows fail to start is a fact about the
-            catalog, not about this browser's listening. */}
-        {isAdmin && <PlaybackFailures />}
-
-        {/* ── Flagged Episodes ── Admin only */}
-        {isAdmin && stats.flaggedEpisodes.length > 0 && (
-          <Window title={`Flagged Episodes \u00B7 ${stats.flaggedEpisodes.length}`} variant="dark" headingLevel={2}>
-            <div className="p-3 flex flex-col gap-[3px] max-h-[200px] overflow-auto overscroll-contain">
-              {stats.flaggedEpisodes.map((ep) => (
-                <button
-                  key={ep.id}
-                  onClick={() => {
-                    // The layout hears play-episode on every route, so play
-                    // first and then show it in the library — no timer waiting
-                    // for the page to mount (HD-013).
-                    emit("play-episode", ep);
-                    openLibrary({ scroll: "current" });
-                  }}
-                  className="flex items-center gap-2 text-left px-2 py-1.5 w98-raised-dark bg-card-surface cursor-pointer hover:bg-title-bar-blue/15 transition-colors-fast"
-                >
-                  <span className="text-hd-9 text-red-400">⚑</span>
-                  <ShowTitle title={episodeTitle(ep)} wrapperClassName="flex-1" className="text-hd-10 text-desktop-gray" />
-                  <span className="text-hd-8 text-bevel-dark/85 tabular-nums flex-shrink-0">
-                    {ep.airDate ? formatAirDate(ep.airDate) : ""}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </Window>
-        )}
-
         {/* ── Most-Featured Guests ──
             Catalog composition: who appears most across the archive. It was
             titled "Frequent Callers", which reads as a record of who *you* have
@@ -482,55 +525,43 @@ export default function StatsPage() {
           </Window>
         )}
 
-        {/* ── My Most Played ── This browser's plays, and it says so. It was
-            "Most Listened", ranked by local playCount but showing progress %,
-            so the number beside each row was not the number it was ranked by
-            and nothing said whose plays they were. */}
-        {stats.myMostPlayed.length > 0 && (
-          <Window title="My Most Played" variant="dark" headingLevel={2}>
-            <div className="p-3">
-              <div className="flex flex-col gap-2" data-testid="my-most-played">
-                {stats.myMostPlayed.map((ep, i) => {
-                  const plays = ep.playCount ?? 0;
-                  return (
-                    <div key={ep.id} className="flex items-start gap-2">
-                      <span className="text-hd-8 text-bevel-dark/85 tabular-nums w-[12px] text-right mt-0.5">
-                        {i + 1}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <ShowTitle title={episodeTitle(ep)} className="text-hd-12 md:text-hd-10 text-desktop-gray font-bold" />
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {ep.airDate && (
-                            <span className="text-hd-9 md:text-hd-8 text-desert-amber tabular-nums">{ep.airDate}</span>
-                          )}
-                          {shownGuest(ep) && (
-                            <span className="text-hd-9 md:text-hd-8 text-static-green/85 truncate">{shownGuest(ep)}</span>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-hd-8 text-bevel-dark tabular-nums flex-shrink-0 mt-0.5" data-plays={plays}>
-                        {plays} {plays === 1 ? "play" : "plays"}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-              <button
-                type="button"
-                onClick={() => openLibrary({ sort: "my-plays" })}
-                className="mt-2 text-hd-9 text-signal-blue hover:underline cursor-pointer"
-              >
-                All, sorted by My plays →
-              </button>
-            </div>
-          </Window>
-        )}
         {/* ── Community Top 20 ── Leaderboard */}
         <WidgetErrorBoundary name="Community Leaderboard">
           <CommunityLeaderboard />
         </WidgetErrorBoundary>
-      </div>
+        {/* ── Playback Failures ── Admin only. Server-side, unlike everything
+            else on this page: which shows fail to start is a fact about the
+            catalog, not about this browser's listening. */}
+        {isAdmin && <PlaybackFailures />}
 
+        {/* ── Flagged Episodes ── Admin only */}
+        {isAdmin && stats.flaggedEpisodes.length > 0 && (
+          <Window title={`Flagged Episodes \u00B7 ${stats.flaggedEpisodes.length}`} variant="dark" headingLevel={2}>
+            <div className="p-3 flex flex-col gap-[3px] max-h-[200px] overflow-auto overscroll-contain">
+              {stats.flaggedEpisodes.map((ep) => (
+                <button
+                  key={ep.id}
+                  onClick={() => {
+                    // The layout hears play-episode on every route, so play
+                    // first and then show it in the library — no timer waiting
+                    // for the page to mount (HD-013).
+                    emit("play-episode", ep);
+                    openLibrary({ scroll: "current" });
+                  }}
+                  className="flex items-center gap-2 text-left px-2 py-1.5 w98-raised-dark bg-card-surface cursor-pointer hover:bg-title-bar-blue/15 transition-colors-fast"
+                >
+                  <span className="text-hd-9 text-red-400">⚑</span>
+                  <ShowTitle title={episodeTitle(ep)} wrapperClassName="flex-1" className="text-hd-10 text-desktop-gray" />
+                  <span className="text-hd-8 text-bevel-dark/85 tabular-nums flex-shrink-0">
+                    {ep.airDate ? formatAirDate(ep.airDate) : ""}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </Window>
+        )}
+
+      </div>
       {/* ── Topic Index ── Tag cloud (full width) */}
       {stats.topTags.length > 0 && (
         <Window title={`Topic Index \u00B7 ${stats.uniqueTags.toLocaleString()} tags`} variant="dark" headingLevel={2}>
@@ -563,24 +594,7 @@ export default function StatsPage() {
         </Window>
       )}
 
-      {/* Smart Playlists + History row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <WidgetErrorBoundary name="Smart Playlists">
-          <SmartPlaylists onPlay={(ep) => {
-            emit("play-episode", ep);
-          }} />
-        </WidgetErrorBoundary>
-        <WidgetErrorBoundary name="History">
-          <HistoryPanel />
-        </WidgetErrorBoundary>
-      </div>
-
-      {/* ── Station sponsors ── Jackson's own apps, one per visit, at the very
-          bottom and apart from Supporters (docs/station-breaks.md). */}
-      <WidgetErrorBoundary name="Station sponsors">
-        <StationSponsors />
-      </WidgetErrorBoundary>
-    </div>
+    </>
   );
 }
 

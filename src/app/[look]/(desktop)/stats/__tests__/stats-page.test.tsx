@@ -56,12 +56,14 @@ afterEach(() => {
   push.mockClear();
 });
 
-async function render() {
+/** Personal and catalog figures live on the You and Archive tabs (UI plan push 6). */
+async function render(tab: "you" | "archive" = "you") {
+  window.history.replaceState(null, "", `/stats?tab=${tab}`);
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
   act(() => root.render(<StatsPage />));
-  await expect.poll(() => host.textContent, { timeout: 10_000 }).toContain("Your Listening");
+  await expect.poll(() => host.textContent, { timeout: 10_000 }).toContain(tab === "you" ? "Your Listening" : "The Archive");
 }
 
 const tile = (label: string) => host.querySelector<HTMLElement>(`[data-stat="${label}"]`)!;
@@ -74,7 +76,7 @@ describe("/stats", () => {
   });
 
   it("the Archive tiles and the undated row", async () => {
-    await render();
+    await render("archive");
     expect(tile("Episodes").textContent).toContain("4");
     expect(tile("Notable").textContent).toContain("2");
     expect(tile("Runtime").textContent).toContain("9h");

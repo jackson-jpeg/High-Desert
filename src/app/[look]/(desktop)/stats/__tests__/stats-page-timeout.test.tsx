@@ -59,6 +59,7 @@ afterEach(() => {
 });
 
 async function render() {
+  window.history.replaceState(null, "", "/stats?tab=you");
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
@@ -88,6 +89,7 @@ describe("/stats when the database does not answer (2026-10-13)", () => {
     setDbWaitMsForTests(200);
     try {
       const release = await holdHistory();
+      window.history.replaceState(null, "", "/stats?tab=you");
       host = document.createElement("div");
       document.body.appendChild(host);
       root = createRoot(host);
