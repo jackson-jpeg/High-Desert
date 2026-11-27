@@ -15,6 +15,8 @@
 @import "../styles/scroll-edges.css";
 /* Live as a radio set: the year dial, tuning band, phosphor clock (docs/UI-PLAN.md, push 2). */
 @import "../styles/radio-set.css";
+/* Era colours by year (src/lib/era/era.ts, docs/UI-PLAN.md, push 3). */
+@import "../styles/era.css";
 @import "../styles/station-break.css";
 /* Show, guest, topic and Tonight pages: the newer hooks, both looks (docs/show-pages.md). */
 @import "../styles/show-pages.css";
@@ -224,6 +226,25 @@
   --hd-desert-tower: #FF3B30;      /* the tower's light */
   --hd-desert-star: #E8EEFF;       /* the stars */
   --hd-desert-moon: #F4EFD8;       /* the moon */
+
+  /* Era colours (src/lib/era/era.ts, src/styles/era.css, docs/UI-PLAN.md,
+     push 3). Bright: text and edges on the dark surfaces (5.5:1 or better on
+     raised-surface). Deep: text on white fields only (6.5:1 or better on
+     white; under 4.5:1 on Win98's gray face, never text there). */
+  --hd-era-early: #E3B04B;         /* 1992 to 1996 */
+  --hd-era-early-deep: #7A4E00;
+  --hd-era-peak: #F08A4B;          /* 1997 to 1999 */
+  --hd-era-peak-deep: #9A3A00;
+  --hd-era-turn: #E86F86;          /* 2000 to 2003 */
+  --hd-era-turn-deep: #9C1F3C;
+  --hd-era-return: #6CCB94;        /* 2004 to 2007 */
+  --hd-era-return-deep: #1F6B3B;
+  --hd-era-late: #5CC4C9;          /* 2008 to 2010 */
+  --hd-era-late-deep: #0F5F63;
+  --hd-era-dark: #7FB2F5;          /* 2011 to 2013 */
+  --hd-era-dark-deep: #1F4E9A;
+  --hd-era-desert: #B79BF0;        /* 2014 to 2015 */
+  --hd-era-desert-deep: #5B2D9E;
 
   /* The "Win98" preview look (src/styles/look-win98.css, docs/looks.md).
      Only that look reads these; it reuses the classic chrome above for the

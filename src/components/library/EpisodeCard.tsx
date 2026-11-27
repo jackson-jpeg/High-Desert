@@ -22,6 +22,7 @@ import { shownGuest, shownTopic } from "@/lib/library/guest";
 import { splitShowTitle } from "@/lib/live/format";
 import { ShowKicker, ShowEpisode } from "./ShowTitle";
 import { useLook } from "@/hooks/useLook";
+import { eraOf } from "@/lib/era/era";
 
 interface EpisodeCardProps {
   episode: Episode;
@@ -319,8 +320,9 @@ export const EpisodeCard = memo(function EpisodeCard({
         availability === "mirror" ? ", plays from the mirror" : unavailable ? ", unavailable until archive.org returns" : ""
       }`}
       data-availability={availability}
+      data-era={eraOf(episode.airDate) ?? undefined}
       className={cn(
-        "w-full h-full text-left w98-raised-dark bg-card-surface relative group glass-light",
+        "hd-era-row w-full h-full text-left w98-raised-dark bg-card-surface relative group glass-light",
         dense ? "hd-w98-row px-2 py-0 flex items-center md:flex" : "p-2.5 md:px-2 md:py-0 md:flex md:items-center",
         "transition-all duration-150 cursor-pointer overflow-hidden",
         "hover:bg-title-bar-blue/15 hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]",
@@ -354,7 +356,7 @@ export const EpisodeCard = memo(function EpisodeCard({
               {"✓"}
             </span>
           )}
-          <span className="text-hd-11 text-desert-amber tabular-nums flex-shrink-0 font-mono tracking-tight">
+          <span className="hd-era-date text-hd-11 text-desert-amber tabular-nums flex-shrink-0 font-mono tracking-tight">
             {formatAirDate(episode.airDate) || "Unknown date"}
           </span>
           {indicators}
@@ -469,7 +471,7 @@ export const EpisodeCard = memo(function EpisodeCard({
               {removedBadge}
             </div>
             <div className="flex items-center gap-2 min-w-0 text-hd-caption">
-              <span className="text-desert-amber tabular-nums font-mono flex-shrink-0">
+              <span className="hd-era-date text-desert-amber tabular-nums font-mono flex-shrink-0">
                 {formatAirDate(episode.airDate) || "Unknown date"}
               </span>
               {shownGuest(episode) ? (
@@ -516,7 +518,7 @@ export const EpisodeCard = memo(function EpisodeCard({
                 {"✓"}
               </span>
             )}
-            <span className="text-hd-12 text-desert-amber tabular-nums flex-shrink-0 font-mono tracking-tight">
+            <span className="hd-era-date text-hd-12 text-desert-amber tabular-nums flex-shrink-0 font-mono tracking-tight">
               {formatAirDate(episode.airDate) || "Unknown date"}
             </span>
             {indicators}

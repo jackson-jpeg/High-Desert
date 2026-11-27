@@ -5,6 +5,18 @@ import { useRadioDialStore } from "@/stores/radio-dial-store";
 import { useTuningGesture } from "@/hooks/useTuningGesture";
 import type { StationIndex } from "@/hooks/useRadioDial";
 import { PALETTE } from "@/lib/palette";
+import { eraOf, type EraKey } from "@/lib/era/era";
+
+/** The tuning strip's bar colour per era: the bright era tokens (on the dark strip). */
+export const ERA_STRIP_COLOR: Record<EraKey, string> = {
+  early: PALETTE.eraEarly,
+  peak: PALETTE.eraPeak,
+  turn: PALETTE.eraTurn,
+  return: PALETTE.eraReturn,
+  late: PALETTE.eraLate,
+  dark: PALETTE.eraDark,
+  desert: PALETTE.eraDesert,
+};
 
 // Canvas can't resolve var(), so these are the concrete palette values
 // (src/lib/palette.ts, held equal to globals.css by no-raw-hex.test.ts). They
@@ -223,7 +235,10 @@ export function TuningStrip({ index, onAirDay = null, className }: TuningStripPr
 
         if (x < -10 || x > w + 10) continue;
 
-        const color = getShowColor(station.showType);
+        // Each show in its era's colour (docs/UI-PLAN.md, push 3); a show
+        // with no usable date keeps its programme's colour.
+        const era = eraOf(station.dateStr);
+        const color = era ? ERA_STRIP_COLOR[era] : getShowColor(station.showType);
         const notable = station.isNotable;
         const baseHeight = notable ? tickHeight * 0.7 : tickHeight * 0.35;
         const tickTop = tickAreaTop + (tickHeight - baseHeight) / 2;

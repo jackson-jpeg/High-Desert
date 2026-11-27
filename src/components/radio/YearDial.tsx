@@ -1,7 +1,8 @@
 /**
  * A radio set's dial face with years for frequencies (docs/UI-PLAN.md, push
  * 2): the archive's years, 1992 to 2015, as the scale of a lit AM dial, and a
- * red needle standing at the show's air date (month included). The Live hero
+ * red needle standing at the show's air date (month included), with each
+ * era's colour along the scale (src/lib/era/era.ts, push 3). The Live hero
  * draws it under the show on the air.
  *
  * Pure SVG, no state: it renders the same on the server and in the browser.
@@ -9,6 +10,8 @@
  * the year is written out beside the show already, so the whole face is
  * aria-hidden and the caller says the year in words.
  */
+
+import { ERAS } from "@/lib/era/era";
 
 export const DIAL_FIRST_YEAR = 1992;
 export const DIAL_LAST_YEAR = 2015;
@@ -54,6 +57,17 @@ export function YearDial({ airDate, className }: { airDate: string | null | unde
         <text key={y} className="hd-year-dial-label" x={x((y - DIAL_FIRST_YEAR) / span)} y="14" textAnchor="middle">
           {`'${String(y).slice(2)}`}
         </text>
+      ))}
+      {ERAS.map((e) => (
+        <rect
+          key={e.key}
+          className="hd-year-dial-era"
+          data-era={e.key}
+          x={x((e.from - DIAL_FIRST_YEAR) / span)}
+          width={x((e.to + 1 - DIAL_FIRST_YEAR) / span) - x((e.from - DIAL_FIRST_YEAR) / span)}
+          y="33"
+          height="3"
+        />
       ))}
       <line className="hd-year-dial-rule" x1={PAD} x2={W - PAD} y1="32" y2="32" />
       {at !== null && (

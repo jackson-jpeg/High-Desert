@@ -23,6 +23,7 @@ import type { Episode } from "@/db/schema";
 import { SHOW_TOPICS_MAX, topicPath, type Topic } from "@/lib/topics/catalog";
 import { momentLabel } from "@/lib/shows/share";
 import { ShowPlayButton } from "@/components/shows/ShowPlayButton";
+import { eraOf } from "@/lib/era/era";
 import { RequestItButton } from "@/components/request-line/RequestItButton";
 import { ShowNextPlay } from "@/components/shows/ShowNextPlay";
 import { nextShow, type NextShow } from "@/lib/shows/next";
@@ -201,7 +202,7 @@ export function ShowView({
         </ol>
       </nav>
 
-      <article className="hd-show-article w98-raised-dark bg-raised-surface p-4 md:p-6" data-show-slug={slug}>
+      <article className="hd-show-article hd-era-band w98-raised-dark bg-raised-surface p-4 md:p-6" data-show-slug={slug} data-era={eraOf(row.airDate) ?? undefined}>
         <p className="hd-show-series text-hd-caption uppercase tracking-wider text-desert-amber mb-1">
           {series.short}
           {date ? <> · <time dateTime={row.airDate}>{date}</time></> : null}

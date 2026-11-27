@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ShowList } from "@/components/shows/ShowView";
 import { Crumbs } from "@/components/topics/TopicView";
 import { breadcrumbJsonLd, jsonLdScript, showsIndexJsonLd, showsYearJsonLd, type Crumb } from "@/lib/shows/jsonld";
+import { eraOfYear } from "@/lib/era/era";
 import { SHOWS_PATH, byMonth, showsYearPath, type ShowYear } from "@/lib/shows/archive";
 
 /**
@@ -40,7 +41,8 @@ export function ShowsIndex({ years }: { years: ShowYear[] }) {
             <li key={y.year}>
               <Link
                 href={showsYearPath(y.year)}
-                className="hd-show-topic inline-flex items-center min-h-touch md:min-h-0 px-2 py-0.5 text-hd-body text-signal-blue border border-bevel-dark/40 hover:text-desktop-gray"
+                data-era={eraOfYear(Number(y.year)) ?? undefined}
+                className="hd-show-topic hd-era-spine inline-flex items-center min-h-touch md:min-h-0 px-2 py-0.5 text-hd-body text-signal-blue border border-bevel-dark/40 hover:text-desktop-gray"
               >
                 {y.year}
                 <span className="text-hd-caption text-bevel-dark ml-1">{y.shows.length}</span>
@@ -66,7 +68,7 @@ export function ShowsYearView({ year, prev, next }: { year: ShowYear; prev: stri
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(showsYearJsonLd(year.year, year.shows)) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbJsonLd(crumbs)) }} />
       <Crumbs crumbs={crumbs} />
-      <article className="hd-show-article hd-topic hd-shows-year w98-raised-dark bg-raised-surface p-4 md:p-6" data-year={year.year}>
+      <article className="hd-show-article hd-era-band hd-topic hd-shows-year w98-raised-dark bg-raised-surface p-4 md:p-6" data-year={year.year} data-era={eraOfYear(Number(year.year)) ?? undefined}>
         <p className="hd-show-series text-hd-caption uppercase tracking-wider text-desert-amber mb-1">The archive</p>
         <h1 className="hd-show-title w98-font text-hd-h2 text-desktop-gray leading-tight">Art Bell shows from {year.year}</h1>
         <p className="hd-topic-intro text-hd-body text-desktop-gray mt-3">

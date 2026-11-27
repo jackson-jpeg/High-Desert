@@ -1,0 +1,116 @@
+/*
+ * Era colours (src/lib/era/era.ts, docs/UI-PLAN.md, push 3). An element
+ * carrying data-era="<key>" gets --era (bright: text on the dark surfaces)
+ * and --era-deep (text on white fields only). Each use below picks the one
+ * its surface allows; Win98's gray face takes neither as text.
+ */
+
+[data-era="early"] { --era: var(--hd-era-early); --era-deep: var(--hd-era-early-deep); }
+[data-era="peak"] { --era: var(--hd-era-peak); --era-deep: var(--hd-era-peak-deep); }
+[data-era="turn"] { --era: var(--hd-era-turn); --era-deep: var(--hd-era-turn-deep); }
+[data-era="return"] { --era: var(--hd-era-return); --era-deep: var(--hd-era-return-deep); }
+[data-era="late"] { --era: var(--hd-era-late); --era-deep: var(--hd-era-late-deep); }
+[data-era="dark"] { --era: var(--hd-era-dark); --era-deep: var(--hd-era-dark-deep); }
+[data-era="desert"] { --era: var(--hd-era-desert); --era-deep: var(--hd-era-desert-deep); }
+
+/* ---------------- The Library's rows ---------------- */
+
+/* The era's edge takes the place of the show-type edge (the show is named on
+   the row). Night: bright on the card; Win98: deep on the white row. */
+html[data-look="night"] .hd-era-row[data-era] {
+  border-left: 3px solid var(--era);
+}
+html[data-look="night"] .hd-era-row[data-era] .hd-era-date {
+  color: var(--era);
+}
+html[data-look="win98"] .hd-era-row[data-era] {
+  border-left: 3px solid var(--era-deep);
+}
+html[data-look="win98"] .hd-era-row[data-era]:not([aria-selected="true"]) .hd-era-date {
+  color: var(--era-deep);
+}
+
+/* ---------------- Year headers ---------------- */
+
+html[data-look="night"] .hd-era-header[data-era] {
+  border-bottom-color: color-mix(in srgb, var(--era) 45%, transparent);
+}
+html[data-look="night"] .hd-era-header[data-era] .hd-era-header-title {
+  color: var(--era);
+}
+html[data-look="win98"] .hd-era-header[data-era] {
+  border-bottom: 2px solid var(--era-deep);
+}
+html[data-look="win98"] .hd-era-header[data-era] .hd-era-header-title {
+  color: var(--era-deep);
+}
+
+/* ---------------- Show pages and the shelf of years ---------------- */
+
+/* A show page's window carries its era as a band across the top. */
+.hd-era-band[data-era] {
+  border-top: 4px solid var(--era);
+}
+html[data-look="win98"] .hd-era-band[data-era] {
+  border-top-color: var(--era-deep);
+}
+
+/* /shows: each year a spine in its era's colour. */
+.hd-era-spine[data-era] {
+  border-left: 6px solid var(--era);
+  padding-left: 8px;
+}
+html[data-look="win98"] .hd-era-spine[data-era] {
+  border-left-color: var(--era-deep);
+}
+
+/* The dial's scale (YearDial.tsx): each era's span in its colour. */
+.hd-year-dial-era[data-era] {
+  fill: var(--era);
+  opacity: 0.85;
+}
+
+/* ---------------- The Library tuning in (LibraryListSkeleton) ---------------- */
+
+/* Lit glass with still static behind the phosphor line, both looks. With
+   motion allowed, only the marker moves: a smooth sweep across the year
+   dial (nothing flickers; the static stays still). */
+.hd-tuning-in {
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+  background:
+    repeating-radial-gradient(circle at 17% 23%, color-mix(in srgb, var(--hd-amber-phosphor) 6%, transparent) 0 1px, transparent 1px 3px),
+    repeating-radial-gradient(circle at 71% 64%, color-mix(in srgb, var(--hd-desert-star) 5%, transparent) 0 1px, transparent 1px 4px),
+    var(--hd-void);
+}
+.hd-tuning-in-text {
+  color: var(--hd-amber-phosphor);
+}
+.hd-tuning-in-sub {
+  color: var(--hd-muted);
+}
+.hd-tuning-in-dial {
+  position: relative;
+}
+.hd-tuning-in-sweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4%;
+  width: 2.5px;
+  border-radius: 2px;
+  background: var(--hd-needle);
+  box-shadow: 0 0 6px var(--hd-needle);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hd-tuning-in-sweep {
+    animation: hd-tuning-sweep 2.6s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes hd-tuning-sweep {
+  from { left: 4%; }
+  to { left: 96%; }
+}

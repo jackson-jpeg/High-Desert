@@ -1,5 +1,6 @@
 "use client";
 
+import { eraOfYear } from "@/lib/era/era";
 import { useMemo, useCallback, useEffect, useRef } from "react";
 import type { Episode } from "@/db/schema";
 import { EpisodeCard, EPISODE_GRID_COLS } from "./EpisodeCard";
@@ -341,10 +342,11 @@ export function TimelineView({
                 data-testid="group-header"
                 data-group={g.key}
                 data-count={g.count}
-                className="absolute left-2 right-2 flex items-end gap-2 px-2 pb-1 border-b border-bevel-dark/20"
+                data-era={/^\d{4}$/.test(g.key) ? (eraOfYear(Number(g.key)) ?? undefined) : undefined}
+                className="hd-era-header absolute left-2 right-2 flex items-end gap-2 px-2 pb-1 border-b border-bevel-dark/20"
                 style={{ top: layout.headerTop(i), height: HEADER_HEIGHT }}
               >
-                <span className="text-hd-caption text-desert-amber/90 font-bold truncate">{g.title}</span>
+                <span className="hd-era-header-title text-hd-caption text-desert-amber/90 font-bold truncate">{g.title}</span>
                 <span className="text-hd-micro text-bevel-dark/85 tabular-nums">
                   {g.count.toLocaleString()} {g.count === 1 ? "episode" : "episodes"}
                 </span>

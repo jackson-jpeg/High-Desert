@@ -2,40 +2,25 @@
 
 import type { ShowFilter } from "@/lib/library/filter-episodes";
 import { SHOW_TABS } from "@/components/library/LibraryToolbar";
+import { YearDial } from "@/components/radio/YearDial";
 
 /**
- * Loading skeleton — also covers the window between Dexie reporting an empty
- * table and the deferred seed landing.
+ * While the library loads (also the window between Dexie reporting an empty
+ * table and the deferred seed landing): the station tuning in, not grey bars
+ * (docs/UI-PLAN.md, push 3). Lit glass with static, the phosphor line, and a
+ * marker sweeping the year dial; still with reduced motion (era.css).
  */
 export function LibraryListSkeleton() {
   return (
-    <div className="flex-1 p-2 flex flex-col gap-0">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div
-          key={i}
-          className="w98-raised-dark bg-card-surface animate-skeleton p-2.5 md:p-1.5 h-[92px] md:h-[76px]"
-          style={{ animationDelay: `${i * 80}ms` }}
-        >
-          {/* Row 1: date + title */}
-          <div className="flex items-center gap-2">
-            <div className="h-[10px] bg-bevel-dark/15 rounded-sm w-[72px]" />
-            <div className="h-[12px] bg-bevel-dark/10 rounded-sm flex-1 max-w-[45%]" />
-          </div>
-          {/* Row 2: guest / show type */}
-          <div className="flex items-center gap-2 mt-2">
-            <div className="h-[10px] bg-bevel-dark/8 rounded-sm w-[130px]" />
-            <div className="h-[10px] bg-bevel-dark/8 rounded-sm w-[60px]" />
-          </div>
-          {/* Row 3: duration + tags */}
-          <div className="flex items-center justify-between gap-2 mt-2">
-            <div className="flex items-center gap-1.5">
-              <div className="h-[8px] bg-bevel-dark/6 rounded-sm w-[44px]" />
-              <div className="h-[8px] bg-bevel-dark/6 rounded-sm w-[36px]" />
-            </div>
-            <div className="h-[8px] bg-bevel-dark/6 rounded-sm w-[52px]" />
-          </div>
+    <div className="flex-1 p-3 flex flex-col items-stretch" data-testid="library-tuning">
+      <div className="hd-tuning-in w98-inset-dark flex flex-col gap-3 px-4 py-5" role="status" aria-live="polite">
+        <span className="hd-tuning-in-text hd-phosphor w98-font text-hd-title">Tuning in to the archive…</span>
+        <div className="hd-tuning-in-dial">
+          <YearDial airDate={null} />
+          <span className="hd-tuning-in-sweep" aria-hidden="true" />
         </div>
-      ))}
+        <span className="hd-tuning-in-sub text-hd-caption">Every show from 1992 to 2015, coming in now.</span>
+      </div>
     </div>
   );
 }

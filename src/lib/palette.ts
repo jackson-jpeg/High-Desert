@@ -53,6 +53,14 @@ export const PALETTE = {
   w98AmpLcdDim: "#0A3A0A",
   w98AmpGold: "#D8C080",
   w98Earth: "#4A2F18",
+  // Era colours (src/lib/era/era.ts): the radio dial's tuning strip is a canvas.
+  eraEarly: "#E3B04B",
+  eraPeak: "#F08A4B",
+  eraTurn: "#E86F86",
+  eraReturn: "#6CCB94",
+  eraLate: "#5CC4C9",
+  eraDark: "#7FB2F5",
+  eraDesert: "#B79BF0",
 } as const;
 
 export type PaletteKey = keyof typeof PALETTE;
