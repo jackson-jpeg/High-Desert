@@ -571,7 +571,24 @@ function ListeningNow({ live }: { live: boolean }) {
   );
 }
 
-export function NowPlaying({ slot, now, hook = null, phone = false }: { slot: ProgramSlot; now: number; hook?: string | null; phone?: boolean }) {
+/**
+ * `dial`: the era dial under the title (push 2). Live draws it; the Library's
+ * station card does not, where its height came out of the list (at 1280 x 720
+ * the list had no row left, e2e looks.spec "library, its detail panel").
+ */
+export function NowPlaying({
+  slot,
+  now,
+  hook = null,
+  phone = false,
+  dial = true,
+}: {
+  slot: ProgramSlot;
+  now: number;
+  hook?: string | null;
+  phone?: boolean;
+  dial?: boolean;
+}) {
   const elapsed = Math.max(0, (now - slot.start) / 1000);
   const length = (slot.end - slot.start) / 1000;
   const left = Math.max(0, (slot.end - now) / 1000);
@@ -600,7 +617,7 @@ export function NowPlaying({ slot, now, hook = null, phone = false }: { slot: Pr
           {hook}
         </p>
       )}
-      <YearDial airDate={slot.airDate} className="mt-1" />
+      {dial ? <YearDial airDate={slot.airDate} className="mt-1" /> : null}
       <div className="flex items-center gap-3 mt-1">
         <span className="text-hd-caption tabular-nums text-bevel-dark w98-font">{formatCountdown(elapsed)}</span>
         <div

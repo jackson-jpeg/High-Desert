@@ -120,7 +120,7 @@ function StationWelcomeWindow({ look, onClose }: { look: Look; onClose: () => vo
       </div>
       <div className="flex items-end gap-6">
         <div className="flex-1 min-w-0">
-          <NowPlaying slot={slot} now={now} hook={hook} phone />
+          <NowPlaying slot={slot} now={now} hook={hook} phone dial={false} />
         </div>
         <button
           type="button"

@@ -52,6 +52,13 @@ describe("the year dial", () => {
     expect(live).toMatch(/"hd-radio-set /);
     expect(live.match(/data-testid="live-clock" className="hd-phosphor /g)).toHaveLength(2);
   });
+
+  it("stays out of the Library's station card, where its height came out of the list", () => {
+    const live = read("src/components/live/LiveStation.tsx");
+    expect(live).toContain("{dial ? <YearDial airDate={slot.airDate} className=\"mt-1\" /> : null}");
+    expect(live).toMatch(/dial = true,/);
+    expect(read("src/components/library/StationWelcome.tsx")).toContain("<NowPlaying slot={slot} now={now} hook={hook} phone dial={false} />");
+  });
 });
 
 describe("the switchboard", () => {

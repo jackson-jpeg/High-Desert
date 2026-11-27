@@ -11280,6 +11280,14 @@ export const MUTATIONS = [
     why: "the lamp small again",
   },
   {
+    id: "uiplan-library-no-dial",
+    test: "src/lib/live/__tests__/radio-set.test.tsx",
+    file: "src/components/library/StationWelcome.tsx",
+    find: "phone dial={false} />",
+    replace: "phone />",
+    why: "the era dial in the Library's station card took the list's last row at 1280 x 720",
+  },
+  {
     id: "uiplan-dial-month",
     test: "src/lib/live/__tests__/radio-set.test.tsx",
     file: "src/components/radio/YearDial.tsx",
