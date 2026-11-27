@@ -32,7 +32,10 @@ Jackson approved it through the lead (hub message
      saved. Only local-file plays fill it.
    - The Program Guide lists no kind with 0 shows.
 3. **Smart Playlists and the Topic Index** are in the Library's Explore
-   (`ExploreBand`, `TopicIndex`).
+   (`ExploreBand`, `TopicIndex`), one view at a time behind three switches
+   on the toggle's row (On this date, Smart Playlists, Topics), in the old
+   100 px area. Drawn together they pushed the list off a 900 px screen:
+   `looks.spec` caught it on the build.
 4. **Radio framing.** `/api/stats/report` and `RatingsReport` on Station show:
    - the crowd: the last 12 hours' peak against the median daily peak of the 28 days before;
    - Most played this week (the first row is the hottest show);
@@ -57,7 +60,11 @@ Jackson approved it through the lead (hub message
 - Build passes.
 - check:seo is clean on the build.
 - check:csp is clean for /stats. Routes that need the chat service or nginx's `/mirror` 404 on a bare `next start`; production is checked after the deploy.
-- Mutations: 10 for batch 1, 17 for batch 2, 26 for batches 3 to 5. Results are under "Mutations" below.
+- Mutations: batch 1, 10 red. Batch 2, 16 red; `listen-time-rate` survived. The 2x test with 250 ms ticks fit inside the slack, so I added a 2x hidden-tab case and reran it (result below). Batches 3 to 5: 26, plus the three re-anchored Explore ones (results below).
+- e2e on the build (e2e database):
+  - a11y (every Stats tab scanned), library-intents, library-phone, scroll-gestures and signal-traffic pass.
+  - looks passes except "the player, small and expanded". Its fixture redirects audio to `/mirror/…` on the page's origin, which only nginx serves, so a bare `next start` 404s it. It passed on production before the deploy, and is checked there again after.
+  - The first run also found the Explore height bug above, and the Win98 contrast of a "How we count" link sitting on the desktop. That link now has its own raised surface.
 
 ## Shipping
 
