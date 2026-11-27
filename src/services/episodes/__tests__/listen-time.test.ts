@@ -89,6 +89,13 @@ describe("counting", () => {
     expect(pendingListenSeconds()).toBeCloseTo(60, 6);
   });
 
+  it("at 2x in a hidden tab ticking once a minute, two minutes of show a tick all count", () => {
+    noteListenTick(0, (wall += 250), 2);
+    let t = 0;
+    for (let i = 0; i < 10; i++) tick((t += 120), 60_000, 2);
+    expect(pendingListenSeconds()).toBeCloseTo(1_200, 6);
+  });
+
   it("after a pause the first tick is a baseline, even if the position moved", () => {
     play(0, 5);
     breakListenTick();
