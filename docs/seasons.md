@@ -53,8 +53,9 @@ hydration).
   looks.
 - **Thanksgiving and winter:** `SeasonSky`, a full-screen canvas that never
   takes a tap. Leaves fall at Thanksgiving, snow falls in winter. In Night it sits behind the glass with the
-  starfield. In Win98 the windows cover the desktop, so it drifts over them,
-  a third as many, like the desktop snow programs of the day. Nothing is
+  starfield. In Win98 it falls on the desert night behind the windows, a
+  third as many (2026-11-27: over the windows, the specks sat on the text;
+  `docs/UI-PLAN.md`). Nothing is
   drawn when the visitor asks for reduced motion, or while the tab is hidden.
 - **The status bar** (desktop): Halloween keeps its Ghost to Ghost badge,
   now for the whole season and with the pixel pumpkin; Thanksgiving says "🦃 Happy Thanksgiving", winter

@@ -9,6 +9,7 @@ import { LOOK_SPLIT_SCRIPT } from "@/lib/look/split";
 import { BOOT_SCRIPT } from "../boot-script";
 import { SEASON_SCRIPT } from "@/lib/season/season";
 import { HalloweenScene } from "@/components/desktop/HalloweenScene";
+import { DesertNight } from "@/components/desktop/DesertNight";
 import { PALETTE } from "@/lib/palette";
 import { BUILD_META } from "@/lib/utils/build-id";
 import { siteVerification } from "@/lib/seo/verification";
@@ -214,6 +215,8 @@ export default async function RootLayout({
         <LookProvider look={look}>
           <ServiceWorkerRegistration />
           <UsageTracker />
+          {/* Win98's desktop: the desert night behind every window (docs/UI-PLAN.md). */}
+          <DesertNight />
           {/* Halloween's moon and jack-o'-lantern, on the desktop behind every page (docs/seasons.md). */}
           <HalloweenScene />
           {children}

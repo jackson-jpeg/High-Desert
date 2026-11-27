@@ -10,8 +10,9 @@ import type { Season } from "@/lib/season/season";
  * jack-o'-lantern hold still (HalloweenScene.tsx); flying bats were
  * distracting, and their wings flapped near 3 times a second. A fixed, full-screen canvas
  * that never takes a tap. In Night it sits in the sky behind the glass, with
- * the starfield; in Win98 the windows cover the desktop, so it drifts over
- * them like the desktop snow of the day, a few at a time (look-win98.css).
+ * the starfield; in Win98 it falls on the desert night behind the windows
+ * (seasons.css), a third as many. It used to drift over the windows, and
+ * the specks sat on the text (docs/UI-PLAN.md).
  *
  * Nothing at all with reduced motion asked for, nothing while the tab is
  * hidden, and nothing outside a season.
@@ -32,7 +33,7 @@ interface Flake {
 type SkySeason = Exclude<Season, "halloween">;
 const isSky = (s: Season | null): s is SkySeason => s === "thanksgiving" || s === "winter";
 
-/** How many at once, by season: [desktop, phone]. Win98 draws a third of them over its windows. */
+/** How many at once, by season: [desktop, phone]. Win98 draws a third of them, behind its windows. */
 export const SKY_COUNT: Record<SkySeason, readonly [number, number]> = {
   thanksgiving: [22, 10],
   winter: [90, 40],

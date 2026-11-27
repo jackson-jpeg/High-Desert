@@ -1220,8 +1220,9 @@ Full account: `docs/seasons.md`.
   status bar's badge; Night shows no scene. Flying bats were removed as
   distracting and a photosensitivity risk: do not bring motion back to it.
 - **SeasonSky** (`src/components/desktop/SeasonSky.tsx`): leaves or
-  snow on a canvas in the shell, behind the glass in Night and over the
-  windows in Win98 (a third as many, z-index 45, never a tap). Nothing with
+  snow on a canvas in the shell, behind the glass in Night and behind the
+  windows in Win98, on the desert night (a third as many, never over text,
+  never a tap). Nothing with
   reduced motion or while hidden. The status bar greets the season
   (Halloween keeps its Ghost to Ghost badge).
 - **The station** airs a holiday show (`showSeason`: Ghost to Ghost,

@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, createElement } from "react";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { createRoot, type Root } from "react-dom/client";
 import type { LiveSchedule, ProgramSlot } from "@/lib/live/schedule";
 
@@ -120,5 +122,68 @@ describe("the empty player", () => {
       act(() => root.render(createElement(LookProvider, { look }, createElement(AudioPlayer))));
       expect(q("player-empty")?.dataset.lookVariant).toBe(look);
     }
+  });
+
+  it("lights the ON AIR lamp and gives the show's year while a show airs, and neither between shows", () => {
+    useLiveStore.getState().setSchedule(schedule([slot()]));
+    render("win98");
+    const lamp = () => host.querySelector<HTMLElement>(".hd-ticker-lamp");
+    expect(lamp()?.hasAttribute("data-on-air")).toBe(true);
+    expect(host.querySelector(".hd-ticker-year")?.textContent).toBe(" · 1996");
+    useLiveStore.getState().setSchedule(schedule([slot({ start: Date.now() - 7_200_000, end: Date.now() - 4_000 })]));
+    render("win98");
+    expect(lamp()?.hasAttribute("data-on-air")).toBe(false);
+    expect(host.querySelector(".hd-ticker-year")).toBeNull();
+  });
+
+  describe("the marquee", () => {
+    const widths = (line: number, win: number) => {
+      const sw = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollWidth");
+      const cw = Object.getOwnPropertyDescriptor(Element.prototype, "clientWidth");
+      Object.defineProperty(HTMLElement.prototype, "scrollWidth", { configurable: true, get() { return this.classList.contains("hd-ticker-track") ? line : 0; } });
+      Object.defineProperty(Element.prototype, "clientWidth", { configurable: true, get() { return (this as Element).classList.contains("hd-ticker-window") ? win : 0; } });
+      return () => {
+        if (sw) Object.defineProperty(HTMLElement.prototype, "scrollWidth", sw);
+        else delete (HTMLElement.prototype as { scrollWidth?: number }).scrollWidth;
+        if (cw) Object.defineProperty(Element.prototype, "clientWidth", cw);
+      };
+    };
+
+    it("runs only when the line is wider than its window, with a second copy hidden from screen readers", () => {
+      const restore = widths(600, 300);
+      try {
+        useLiveStore.getState().setSchedule(schedule([slot()]));
+        render("night");
+        expect(host.querySelector(".hd-ticker-window")?.hasAttribute("data-overflows")).toBe(true);
+        const copy = host.querySelector(".hd-ticker-copy");
+        expect(copy?.getAttribute("aria-hidden")).toBe("true");
+        expect(copy?.textContent).toBe("Coast to Coast AM - Area 51 with Bob Lazar · 1996");
+        // A screen reader hears the line once.
+        expect(host.querySelectorAll('[data-testid="player-empty-title"]').length).toBe(1);
+      } finally {
+        restore();
+      }
+    });
+
+    it("control: a line that fits stays still, with no copy", () => {
+      const restore = widths(200, 300);
+      try {
+        useLiveStore.getState().setSchedule(schedule([slot()]));
+        render("night");
+        expect(host.querySelector(".hd-ticker-window")?.hasAttribute("data-overflows")).toBe(false);
+        expect(host.querySelector(".hd-ticker-copy")).toBeNull();
+      } finally {
+        restore();
+      }
+    });
+  });
+
+  it("the marquee and the lamp stand still with reduced motion, and the marquee stops for hover and focus", () => {
+    const css = readFileSync(path.resolve(import.meta.dirname, "../../../styles/ticker.css"), "utf8");
+    const gate = css.indexOf("@media (prefers-reduced-motion: no-preference)");
+    expect(css.slice(0, gate)).not.toMatch(/animation:/);
+    const moving = css.slice(gate);
+    expect(moving).toMatch(/\.hd-ticker-window\[data-overflows\] \.hd-ticker-track \{\s*animation: hd-ticker-marquee/);
+    expect(moving).toMatch(/\.hd-ticker:hover \.hd-ticker-track,\s*\.hd-ticker:focus-within \.hd-ticker-track \{\s*animation-play-state: paused/);
   });
 });

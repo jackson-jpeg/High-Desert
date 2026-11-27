@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+import { useScrollEdges } from "@/hooks/useScrollEdges";
 import type { Episode } from "@/db/schema";
 import type { ShowFilter } from "@/lib/library/filter-episodes";
 import type { LibraryFacets } from "@/lib/library/facets";
@@ -48,6 +50,8 @@ export function LibraryToolbar({
   /** After the tabs, outside their scroll: the List / Dial switch. */
   trailing?: React.ReactNode;
 }) {
+  const tabsRef = useRef<HTMLDivElement>(null);
+  useScrollEdges(tabsRef);
   return (
     <div className="flex flex-col gap-1.5 px-3 py-2 flex-shrink-0 md:flex-row md:items-center md:gap-2 sticky top-0 z-20 bg-midnight/95 backdrop-blur-sm md:static md:bg-transparent md:backdrop-blur-none">
       <div className="flex items-center gap-1.5 flex-1">
@@ -102,7 +106,7 @@ export function LibraryToolbar({
       {((allEpisodes && allEpisodes.length > 0) || trailing) && (
       <div className="flex items-center gap-1 flex-shrink-0 min-w-0">
       {allEpisodes && allEpisodes.length > 0 && (
-        <div className="hd-show-tabs hd-chip-scroll flex items-center gap-0.5 md:gap-0.5 flex-1 min-w-0 overflow-x-auto -ml-3 pl-3 md:ml-0 md:pl-0">
+        <div ref={tabsRef} className="hd-show-tabs hd-chip-scroll hd-scroll-edges flex items-center gap-0.5 md:gap-0.5 flex-1 min-w-0 overflow-x-auto -ml-3 pl-3 md:ml-0 md:pl-0">
           {SHOW_TABS.map((tab) => {
             const count = facets.showCounts.get(tab.key) ?? 0;
             const isActive = showFilter === tab.key;

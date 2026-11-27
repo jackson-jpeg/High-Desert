@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+import { useScrollEdges } from "@/hooks/useScrollEdges";
 import { isNumericSort, sortDescription, sortLabel } from "@/lib/library/sort-keys";
 import type { Episode } from "@/db/schema";
 import type { MoodFilter } from "@/lib/library/facets";
@@ -89,10 +91,12 @@ export function ActiveFilterBar({
  */
 export function MoodFilterBar({ filters, moodFilters }: { filters: LibraryFilters; moodFilters: MoodFilter[] }) {
   const { deferredSearch, search, setSearch, categoryFilter, setCategoryFilter, favoritesOnly, setFavoritesOnly } = filters;
+  const rowRef = useRef<HTMLDivElement>(null);
+  useScrollEdges(rowRef);
   if (!((!deferredSearch.trim() || deferredSearch === "has:notable") && moodFilters.length > 0)) return null;
   return (
     <div className="relative flex-shrink-0">
-      <div className="hd-chip-scroll flex items-center gap-1.5 md:gap-1 px-3 pb-1 overflow-x-auto -mx-3 px-3 md:mx-0 [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent)] hover:[mask-image:none] focus-within:[mask-image:none]">
+      <div ref={rowRef} className="hd-chip-scroll hd-mood-chips hd-scroll-edges flex items-center gap-1.5 md:gap-1 px-3 pb-1 overflow-x-auto -mx-3 px-3 md:mx-0">
       {moodFilters.map((mood) => {
         const isActive =
           (mood.kind === "category" && categoryFilter === mood.category) ||

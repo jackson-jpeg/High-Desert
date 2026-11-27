@@ -496,7 +496,7 @@ html[data-look="night"] {
       padding: 6px var(--cl-3);
     }
     /* The chips scroll edge to edge but start on the page's gutter. */
-    #hd-main div[class*="mask-image:linear-gradient"] {
+    #hd-main .hd-mood-chips {
       margin-inline: 0;
       padding-left: var(--cl-3);
       scroll-padding-left: var(--cl-3);

@@ -1,0 +1,23 @@
+/*
+ * A row that scrolls sideways fades the edges that have more behind them
+ * (useScrollEdges.ts sets data-more-left / data-more-right). Both looks.
+ * 56 px is wide enough that the cut word reads as fading out rather than
+ * cut off (docs/UI-PLAN.md, push 1).
+ */
+.hd-scroll-edges {
+  --fade-l: 0px;
+  --fade-r: 0px;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, black var(--fade-l), black calc(100% - var(--fade-r)), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, black var(--fade-l), black calc(100% - var(--fade-r)), transparent 100%);
+  scroll-padding-inline: 24px;
+  scrollbar-width: none;
+}
+.hd-scroll-edges::-webkit-scrollbar {
+  display: none;
+}
+.hd-scroll-edges[data-more-left] {
+  --fade-l: 32px;
+}
+.hd-scroll-edges[data-more-right] {
+  --fade-r: 56px;
+}

@@ -7,6 +7,12 @@
 @import "../styles/look-night.css";
 @import "../styles/look-win98.css";
 @import "../styles/seasons.css";
+/* The desert night behind Win98's windows (DesertNight.tsx, docs/UI-PLAN.md). */
+@import "../styles/desert.css";
+/* The ON THE AIR strip, lit (PlayerEmptyState.tsx, docs/UI-PLAN.md). */
+@import "../styles/ticker.css";
+/* Sideways rows fade the edges with more behind them (useScrollEdges.ts). */
+@import "../styles/scroll-edges.css";
 @import "../styles/station-break.css";
 /* Show, guest, topic and Tonight pages: the newer hooks, both looks (docs/show-pages.md). */
 @import "../styles/show-pages.css";
@@ -202,6 +208,20 @@
   --hd-season-pine: #1F6B3B;       /* Christmas: title end */
   --hd-season-snow-night: #16304D; /* Winter: the Win98 desktop */
   --hd-season-ice: #A9D8F5;        /* Winter: the Night accent */
+
+  /* The desert night behind the windows (DesertNight.tsx, docs/UI-PLAN.md,
+     push 1): the sky over Pahrump from the zenith to the horizon glow, the
+     two ridgelines of the Spring Mountains, the tower's light, the stars and
+     the moon. Decoration only: no text is ever drawn on these. */
+  --hd-desert-zenith: #050914;     /* the top of the sky */
+  --hd-desert-sky: #0E1A33;        /* the middle of the sky */
+  --hd-desert-horizon: #2B2A4A;    /* the last light over the ridge */
+  --hd-desert-glow: #5A3A3F;       /* Pahrump's glow on the horizon */
+  --hd-desert-far: #151B2E;        /* the far ridge */
+  --hd-desert-near: #07090F;       /* the near ridge and the tower */
+  --hd-desert-tower: #FF3B30;      /* the tower's light */
+  --hd-desert-star: #E8EEFF;       /* the stars */
+  --hd-desert-moon: #F4EFD8;       /* the moon */
 
   /* The "Win98" preview look (src/styles/look-win98.css, docs/looks.md).
      Only that look reads these; it reuses the classic chrome above for the

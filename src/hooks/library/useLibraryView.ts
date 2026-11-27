@@ -31,6 +31,7 @@ export function useLibraryView(): {
   const [view, setViewState] = useState<LibraryView>("list");
   useEffect(() => {
     const stored = storedView();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe: List on SSR and the first client render, the stored mode after
     if (stored !== "list") setViewState(stored);
   }, []);
   const setView = useCallback((next: LibraryView) => {

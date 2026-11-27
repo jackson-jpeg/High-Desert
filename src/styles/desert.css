@@ -1,0 +1,93 @@
+/*
+ * The desert night behind the windows (src/components/desktop/DesertNight.tsx,
+ * docs/UI-PLAN.md, push 1). Win98 only: its desktop becomes a night over the
+ * Mojave. Night keeps its starfield and draws none of this.
+ *
+ * The SVG is fixed at z-index -1, under every window. The html element keeps
+ * the desktop colour (teal, or the season's) as the fallback, and the
+ * surfaces that painted the bare desktop go clear so the night shows there:
+ * the body, the welcome screen, the 404 and error pages, Live and Stats
+ * between their windows, and the show pages. Every window keeps its own face.
+ *
+ * Colours are --hd-desert-* tokens (globals.css). Motion: the tower's light
+ * once every 2.4 s and three slow breaths for a fifth of the stars; nothing
+ * with reduced motion, and nothing faster than once a second.
+ */
+
+.hd-desert {
+  display: none;
+}
+
+html[data-look="win98"] .hd-desert {
+  display: block;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+html[data-look="win98"] {
+  background: var(--hd-w98-teal);
+}
+
+html[data-look="win98"] body,
+html[data-look="win98"] .min-h-screen.bg-midnight,
+html[data-look="win98"] .hd-look-page,
+html[data-look="win98"] div[data-hydrated]:has(> main),
+html[data-look="win98"][data-w98-route="/live"] #hd-main,
+html[data-look="win98"][data-w98-route="/stats"] #hd-main,
+html[data-look="win98"] .hd-show-page {
+  background: transparent;
+}
+
+.hd-desert-stop-zenith { stop-color: var(--hd-desert-zenith); }
+.hd-desert-stop-sky { stop-color: var(--hd-desert-sky); }
+.hd-desert-stop-horizon { stop-color: var(--hd-desert-horizon); }
+.hd-desert-stop-glow { stop-color: var(--hd-desert-glow); stop-opacity: 0.55; }
+.hd-desert-stop-glow-out { stop-color: var(--hd-desert-glow); stop-opacity: 0; }
+.hd-desert-stop-halo { stop-color: var(--hd-desert-moon); stop-opacity: 0.16; }
+.hd-desert-stop-halo-out { stop-color: var(--hd-desert-moon); stop-opacity: 0; }
+
+.hd-desert-stars circle {
+  fill: var(--hd-desert-star);
+  opacity: 0.7;
+}
+.hd-desert-moon-disc { fill: var(--hd-desert-moon); }
+.hd-desert-far { fill: var(--hd-desert-far); }
+.hd-desert-near { fill: var(--hd-desert-near); }
+.hd-desert-tower path {
+  stroke: var(--hd-desert-near);
+  stroke-width: 1.5;
+  fill: none;
+}
+.hd-desert-light {
+  fill: var(--hd-desert-tower);
+  filter: drop-shadow(0 0 4px var(--hd-desert-tower));
+}
+
+/* Halloween draws its own harvest moon (HalloweenScene.tsx). */
+html[data-season="halloween"] .hd-desert-moon {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html[data-look="win98"] .hd-desert-light {
+    animation: hd-desert-blink 2.4s steps(1, end) infinite;
+  }
+  html[data-look="win98"] .hd-desert-stars .hd-desert-breathe-1 { animation: hd-desert-breathe 5s ease-in-out infinite; }
+  html[data-look="win98"] .hd-desert-stars .hd-desert-breathe-2 { animation: hd-desert-breathe 7s ease-in-out 1.5s infinite; }
+  html[data-look="win98"] .hd-desert-stars .hd-desert-breathe-3 { animation: hd-desert-breathe 9s ease-in-out 3s infinite; }
+}
+
+/* On for a third of the period, off for the rest: once every 2.4 s. */
+@keyframes hd-desert-blink {
+  0% { opacity: 1; }
+  33% { opacity: 0.15; }
+}
+
+@keyframes hd-desert-breathe {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}

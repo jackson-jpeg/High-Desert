@@ -555,7 +555,7 @@ html[data-look="win98"] .hd-w98-idle-lcd {
   border-color: var(--hd-w98-amp-shadow) var(--hd-w98-amp-edge) var(--hd-w98-amp-edge) var(--hd-w98-amp-shadow);
 }
 
-html[data-look="win98"] .hd-w98-idle-lcd > span:first-child {
+html[data-look="win98"] .hd-w98-idle-lcd .hd-ticker-label {
   color: var(--hd-w98-amp-gold);
 }
 
