@@ -11457,8 +11457,8 @@ export const MUTATIONS = [
     id: "uiplan-sounds-default-off",
     test: "src/components/looks/win98/__tests__/start-and-sound.test.tsx",
     file: "src/audio/ui-sounds.ts",
-    find: "return localStorage.getItem(UI_SOUNDS_KEY) === \"on\";",
-    replace: "return localStorage.getItem(UI_SOUNDS_KEY) !== \"off\";",
+    find: "return safeGetItem(\"local\", UI_SOUNDS_KEY) === \"on\";",
+    replace: "return safeGetItem(\"local\", UI_SOUNDS_KEY) !== \"off\";",
     why: "sounds on by default",
   },
   {

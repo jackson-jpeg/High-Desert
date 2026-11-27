@@ -1,7 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-import { useStationClock } from "@/hooks/useLiveStation";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 /** Hours and minutes left until `closesAt`, rounded up; null once it has passed. */
 export function untilClose(closesAt: number, now: number): { h: number; m: number } | null {
@@ -14,6 +13,20 @@ export function untilClose(closesAt: number, now: number): { h: number; m: numbe
 const noop = () => () => {};
 
 /**
+ * The browser's clock, every `everyMs`. Not the station clock
+ * (useStationClock): that pulls the player onto /request-line, which has no
+ * player (event-routes.test.ts). A minute's countdown does not need it.
+ */
+function useClock(everyMs: number): number {
+  const [t, setT] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setT(Date.now()), everyMs);
+    return () => clearInterval(id);
+  }, [everyMs]);
+  return t;
+}
+
+/**
  * The countdown to 6 PM Pacific on the request board as a flip clock
  * (docs/UI-PLAN.md, push 4). Cards turn once a minute, without animation; the
  * server renders blank cards so the first paint never disagrees with the
@@ -21,7 +34,7 @@ const noop = () => () => {};
  */
 export function FlipClock({ closesAt }: { closesAt: number }) {
   const mounted = useSyncExternalStore(noop, () => true, () => false);
-  const now = useStationClock(15_000);
+  const now = useClock(15_000);
   const left = mounted ? untilClose(closesAt, now) : undefined;
   const pad = (n: number) => String(n).padStart(2, "0");
   const digits = left ? `${pad(Math.min(left.h, 99))}${pad(left.m)}` : "----";

@@ -15,6 +15,7 @@
  */
 
 import { isIOSDevice } from "@/lib/utils/platform";
+import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/utils/safe-storage";
 
 export type UiSound = "click" | "hover" | "open" | "tune";
 
@@ -23,20 +24,13 @@ export const UI_SOUNDS_EVENT = "hd-ui-sounds-change";
 
 /** Whether the listener has turned the sounds on (off by default). */
 export function uiSoundsOn(): boolean {
-  try {
-    return localStorage.getItem(UI_SOUNDS_KEY) === "on";
-  } catch {
-    return false;
-  }
+  return safeGetItem("local", UI_SOUNDS_KEY) === "on";
 }
 
 export function setUiSounds(on: boolean): void {
-  try {
-    if (on) localStorage.setItem(UI_SOUNDS_KEY, "on");
-    else localStorage.removeItem(UI_SOUNDS_KEY);
-  } catch {
-    // Storage refused (private mode): the switch simply does not stick.
-  }
+  // Storage refused (private mode): the switch simply does not stick.
+  if (on) safeSetItem("local", UI_SOUNDS_KEY, "on");
+  else safeRemoveItem("local", UI_SOUNDS_KEY);
   window.dispatchEvent(new Event(UI_SOUNDS_EVENT));
 }
 
