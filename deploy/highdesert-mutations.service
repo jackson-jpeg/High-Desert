@@ -1,5 +1,5 @@
 [Unit]
-Description=High Desert, the weekly full mutation run (scripts/weekly-mutations.sh)
+Description=High Desert, the nightly mutation run (scripts/weekly-mutations.sh: incremental, full once a month)
 Documentation=file:///root/High-Desert/CLAUDE.md
 After=network-online.target postgresql.service
 
@@ -15,21 +15,18 @@ ExecStart=/usr/bin/bash /root/High-Desert/scripts/weekly-mutations.sh
 Environment=HOME=/root
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
 Environment=HD_MUTATIONS_STATE=/var/lib/highdesert-mutations
-# The normal lane (Jackson, Inbox f27603c8, 2026-11-27). heavy puts a label
-# matching HEAVY_LOW_RE in its low lane (one slot at most, only while no normal
-# job waits); mutate-check labels every vitest "high-desert mutation", so the
-# run checked 35 of 1,337 in 5.5 hours. This is heavy's own default list
-# without "mutation", for this unit's calls only: they take turns like any
-# session's tests. Every other caller, and heavy.conf, is unchanged.
-Environment="HEAVY_LOW_RE=^portfolio|audit|render|envelope"
 StateDirectory=highdesert-mutations
-# The one High Desert job exempt from the 10% rule (Jackson, 2026-10-15): about
-# About 1.3 CPU-hours once a week (1h17m measured 2026-10-15). Every mutation's vitest takes the heavy slot, which
-# runs it under nice 15 and waits while the 6-hour CPU mean is over 40%, so it
-# never runs beside a build and the live sites come first. No CPUQuota.
+# The hard cap (the lead for Jackson, 2026-11-27: the weekly full run held the
+# box near the host's CPU limit for 6+ hours and kept Sanger's tests and
+# typecheck re-checks from a heavy slot for days). At most 1.5 cores, the
+# lowest CPU and IO priority. No HEAVY_LOW_RE here: heavy's default puts the
+# "high-desert mutation" label in its low lane, so each mutation waits while
+# any other job waits, and heavy holds it through peak hours. Still named in
+# highdesert-status's cpu line as the one exemption from the 10% rule
+# (Jackson, 2026-10-15), now with this ceiling.
+CPUQuota=150%
 Nice=19
 IOSchedulingClass=idle
-# 20h (the lead, 2026-11-26): 14h ran out on 2026-11-23 with the run waiting
-# on the heavy gate; 20h from Mon 19:00 ends Tue 15:00.
-TimeoutStartSec=20h
+# 16h from 20:30 UTC ends at 12:30, before the next weekday's peak (13:00).
+TimeoutStartSec=16h
 SyslogIdentifier=highdesert-mutations

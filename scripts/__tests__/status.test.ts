@@ -108,9 +108,18 @@ interface World {
    * null: never run; "unreadable": not JSON.
    */
   mutations:
-    | { ageH: number; survived?: { id: string; verdict: string }[]; skipped?: string[]; error?: string | null }
+    | {
+        ageH: number;
+        survived?: { id: string; verdict: string }[];
+        skipped?: string[];
+        error?: string | null;
+        /** "incremental" adds base; absent is a result from before 2026-11-27 (the weekly full run). */
+        mode?: "full" | "incremental";
+      }
     | null
     | "unreadable";
+  /** full.json, the newest full run: `ageD` sets finishedAt; null writes none. */
+  mutationsFull: { ageD: number; red?: number; total?: number } | null;
   /** running.json: "alive" names this process (alive), "dead" a pid that is not; null writes none. */
   mutationsRunning: "alive" | "dead" | null;
   liveActive: string;
@@ -175,6 +184,7 @@ const HEALTHY: World = {
   },
   funnelVerdict: null,
   mutations: { ageH: 8 },
+  mutationsFull: { ageD: 9, red: 1341, total: 1348 },
   mutationsRunning: null,
   liveActive: "active",
   liveHealth: { ok: true, clients: 42, messagesLastHour: 17, slowMode: false, cpu: { pct: 2.5, windowS: 900 } },
@@ -343,7 +353,7 @@ async function run(): Promise<{ code: number; out: string }> {
   if (world.mutations === "unreadable") {
     await writeFile(path.join(mutationsState, "result.json"), "not json");
   } else if (world.mutations) {
-    const { ageH, survived = [], skipped = [], error = null } = world.mutations;
+    const { ageH, survived = [], skipped = [], error = null, mode } = world.mutations;
     const finished = Date.now() - ageH * 3_600_000;
     const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
     await writeFile(
@@ -359,7 +369,16 @@ async function run(): Promise<{ code: number; out: string }> {
         error,
         log: "/var/lib/highdesert-mutations/last.log",
         exit: error ? 2 : survived.length ? 1 : 0,
+        ...(mode ? { mode, base: mode === "incremental" ? "fedcba9876543210fedcba9876543210fedcba98" : null } : {}),
       }),
+    );
+  }
+  if (world.mutationsFull) {
+    const { ageD, red = 1070, total = 1070 } = world.mutationsFull;
+    const at = new Date(Date.now() - ageD * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+    await writeFile(
+      path.join(mutationsState, "full.json"),
+      JSON.stringify({ startedAt: at, finishedAt: at, head: "abcdef0123456789abcdef0123456789abcdef01", mode: "full", total, red, skipped: [], survived: [] }),
     );
   }
   if (world.mutationsRunning) {
@@ -1377,7 +1396,7 @@ describe("highdesert-status", () => {
       world.cpu.out = "highdesert 3.2\nhighdesert-mutations 78.4";
       const r = await run();
       expect(lineFor(r.out, "cpu")).toBe(
-        "OK    cpu       every High Desert unit under 10% of a core over 15 min (highest: highdesert 3.2%); highdesert-mutations 78.4% (exempt: the weekly mutation run, held by heavy)",
+        "OK    cpu       every High Desert unit under 10% of a core over 15 min (highest: highdesert 3.2%); highdesert-mutations 78.4% (exempt: the nightly mutation run, capped at 1.5 cores, held by heavy)",
       );
       // The exemption is one unit, not a pass for everything beside it.
       world.cpu.out = "highdesert-mutations 78.4\nhighdesert-mirror-warm 46.8";
@@ -1395,20 +1414,32 @@ describe("highdesert-status", () => {
     });
   });
 
-  describe("mutations line (the weekly full run on the VPS holds the whole list)", () => {
-    it("OK when the newest weekly run finished and every mutation went red", async () => {
+  describe("mutations line (the nightly run: incremental, a full run once a month; the newest run only)", () => {
+    const SCORE = "; full run \\d{4}-\\d\\d-\\d\\d on abcdef0: 1341 of 1348 red";
+
+    it("OK when the newest run finished with every mutation it checked red, with the full run's score", async () => {
+      world.mutations = { ageH: 8, mode: "incremental" };
       expect(lineFor((await run()).out, "mutations")).toMatch(
-        /^OK\s+mutations\s+weekly full run on 0123456 \(.*Z, took 3h7m\): all 1070 mutations red$/,
+        new RegExp(`^OK\\s+mutations\\s+nightly run \\(incremental since fedcba9\\) on 0123456 \\(.*Z, took 3h7m\\): all 1070 checked red${SCORE}$`),
       );
+      // A result from before 2026-11-27 has no mode: the weekly full run.
+      world.mutations = { ageH: 8 };
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^OK\s+mutations\s+full run on 0123456 \(.*Z, took 3h7m\): all 1070 checked red; full run/);
     });
 
-    it("FAILs, and the command exits non-zero, when a mutation survived or went stale", async () => {
-      world.mutations = { ageH: 8, survived: [{ id: "a-survivor", verdict: "GREEN" }, { id: "an-anchor", verdict: "STALE" }] };
+    it("FAILs, and the command exits non-zero, when a mutation survived or went stale in the newest run", async () => {
+      world.mutations = { ageH: 8, mode: "incremental", survived: [{ id: "a-survivor", verdict: "GREEN" }, { id: "an-anchor", verdict: "STALE" }] };
       const r = await run();
       expect(lineFor(r.out, "mutations")).toMatch(
-        /^FAIL\s+mutations\s+weekly full run on 0123456 .*: 2 mutation\(s\) survived or went stale: a-survivor \[GREEN\], an-anchor \[STALE\] \(log: \/var\/lib\/highdesert-mutations\/last\.log\)$/,
+        /^FAIL\s+mutations\s+nightly run \(incremental since fedcba9\) on 0123456 .*: 2 mutation\(s\) survived or went stale: a-survivor \[GREEN\], an-anchor \[STALE\] \(log: \/var\/lib\/highdesert-mutations\/last\.log\)$/,
       );
       expect(r.code).not.toBe(0);
+    });
+
+    it("an older run's survivors cannot hold it: only the newest result is read (full.json's are not)", async () => {
+      world.mutations = { ageH: 8, mode: "incremental" };
+      world.mutationsFull = { ageD: 9, red: 1299, total: 1305 };
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^OK\s+mutations\s+.*1299 of 1305 red$/);
     });
 
     it("FAILs on survivors however old the run is", async () => {
@@ -1418,7 +1449,7 @@ describe("highdesert-status", () => {
 
     it("WARNs when the run broke before checking", async () => {
       world.mutations = { ageH: 8, error: "npm ci failed in the checkout" };
-      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+the weekly run on 0123456 .* broke before checking: npm ci failed in the checkout$/);
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+the mutation run on 0123456 .* broke before checking: npm ci failed in the checkout$/);
     });
 
     it("WARNs when database mutations were NOT CHECKED", async () => {
@@ -1426,25 +1457,37 @@ describe("highdesert-status", () => {
       expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+.*: 2 mutation\(s\) NOT CHECKED, their tests need TEST_DATABASE_URL$/);
     });
 
-    it("WARNs once the weekly run is over 8 days old, not before", async () => {
-      world.mutations = { ageH: 190 };
+    it("WARNs once the newest run is over 3 days old, not before", async () => {
+      world.mutations = { ageH: 70, mode: "incremental" };
       expect(lineFor((await run()).out, "mutations")).toMatch(/^OK\s+mutations/);
-      world.mutations = { ageH: 200 };
-      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+the last weekly full run was 8d ago \(0123456, every mutation red then\)$/);
+      world.mutations = { ageH: 74, mode: "incremental" };
+      expect(lineFor((await run()).out, "mutations")).toMatch(
+        new RegExp(`^WARN\\s+mutations\\s+the newest mutation run was 3d ago \\(0123456, every mutation red then\\)${SCORE}$`),
+      );
+    });
+
+    it("WARNs when no full run finished in 35 days, or none is on record", async () => {
+      world.mutations = { ageH: 8, mode: "incremental" };
+      world.mutationsFull = { ageD: 34 };
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^OK\s+mutations/);
+      world.mutationsFull = { ageD: 36 };
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+.*all 1070 checked red, but no full run in 35 days; full run/);
+      world.mutationsFull = null;
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+.*all 1070 checked red, but no full run in 35 days$/);
     });
 
     it("WARNs, never OK, with no run or an unreadable result", async () => {
       world.mutations = null;
-      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+no finished weekly mutation run yet/);
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+no finished mutation run yet/);
       world.mutations = "unreadable";
       expect(lineFor((await run()).out, "mutations")).toMatch(/^WARN\s+mutations\s+could not read/);
     });
 
     it("says when a run is going, and only when its process is alive", async () => {
       world.mutationsRunning = "alive";
-      expect(lineFor((await run()).out, "mutations")).toMatch(/^OK\s+mutations\s+.*all 1070 mutations red; a run has been going since 2026-10-19T14:00:00Z$/);
+      expect(lineFor((await run()).out, "mutations")).toMatch(/^OK\s+mutations\s+.*1341 of 1348 red; the mutation run has been going since 2026-10-19T14:00:00Z$/);
       world.mutationsRunning = "dead";
-      expect(lineFor((await run()).out, "mutations")).toMatch(/all 1070 mutations red$/);
+      expect(lineFor((await run()).out, "mutations")).toMatch(/1341 of 1348 red$/);
     });
   });
 
