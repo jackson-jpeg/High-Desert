@@ -99,9 +99,14 @@ test.describe("the Request Line", () => {
       const slot = sched.guide.find((x) => x.kind === "request") ?? sched.guide.find((x) => x.requestSlot);
       test.skip(!!slot && sched.serverNow >= slot.end, "tonight's request has aired: no note, by design");
       await expect(note).toBeVisible();
-      const h = (await hero.boundingBox())!;
-      const n = (await note.boundingBox())!;
-      const call = (await page.getByTestId("live-call-in").boundingBox())!;
+      // All three in one frame: the hero grows when the show's hook arrives,
+      // and boxes read one await apart once straddled that (a 60 px "gap").
+      const [h, n, call] = await page.evaluate(() =>
+        ["live-hero", "live-request-note", "live-call-in"].map((id) => {
+          const r = document.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect();
+          return { x: r.x, y: r.y, width: r.width, height: r.height };
+        }),
+      );
       // Directly under the hero (one grid gap), above Call in.
       expect(n.y).toBeGreaterThanOrEqual(h.y + h.height);
       expect(n.y - (h.y + h.height)).toBeLessThan(24);
