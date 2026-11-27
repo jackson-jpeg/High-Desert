@@ -7,7 +7,6 @@ import { db } from "@/db";
 import { useAdminStore } from "@/stores/admin-store";
 import { Window } from "@/components/win98";
 import { HistoryPanel } from "@/components/library/HistoryPanel";
-import { SmartPlaylists } from "@/components/library/SmartPlaylists";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { CommunityLeaderboard } from "@/components/library/CommunityLeaderboard";
 import { SignalTraffic } from "@/components/library/SignalTraffic";
@@ -252,11 +251,7 @@ function LibraryPanels({ tab }: { tab: "you" | "archive" }) {
         </WidgetErrorBoundary>
         {/* Audio Cache moved to the settings in plain words (the More sheet,
             the Display dialog): src/components/settings/SavedAudioSetting.tsx. */}
-        <WidgetErrorBoundary name="Smart Playlists">
-          <SmartPlaylists onPlay={(ep) => {
-            emit("play-episode", ep);
-          }} />
-        </WidgetErrorBoundary>
+        {/* Smart Playlists moved to the Library's Explore (batch 3). */}
         </div>
       </>
     );
@@ -525,38 +520,8 @@ function LibraryPanels({ tab }: { tab: "you" | "archive" }) {
         )}
 
       </div>
-      {/* ── Topic Index ── Tag cloud (full width) */}
-      {stats.topTags.length > 0 && (
-        <Window title={`Topic Index \u00B7 ${stats.uniqueTags.toLocaleString()} tags`} variant="dark" headingLevel={2}>
-          <div className="p-4">
-            <div className="flex flex-wrap gap-x-2 gap-y-1.5 justify-center">
-              {stats.topTags.map(([tag, count]) => {
-                const ratio = count / stats.maxTagCount;
-                const size = 10 + ratio * 10; // 10px to 20px
-                // Weight shows in size; colour only steps from the /85 text
-                // floor to full (it went down to 0.5 — HD-023).
-                const opacity = 0.85 + ratio * 0.15;
-                return (
-                  <button
-                    key={tag}
-                    className="tag-cloud-item cursor-pointer select-none hover:underline"
-                    style={{
-                      // Scaled with the text-size setting, like the text-hd-* steps.
-                      fontSize: `calc(${size}px * var(--hd-text-scale, 1))`,
-                      color: `rgba(212, 168, 67, ${opacity})`,
-                    }}
-                    title={`Filter library by "${tag}" (${count})`}
-                    onClick={() => openLibrary({ q: `tag:${tag}` })}
-                  >
-                    {tag}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </Window>
-      )}
-
+      {/* The Topic Index moved to the Library's Explore (UI plan push 6,
+          batch 3): src/components/library/TopicIndex.tsx. */}
     </>
   );
 }

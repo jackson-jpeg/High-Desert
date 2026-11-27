@@ -268,6 +268,7 @@ export default function LibraryPage() {
           onToggle={panels.toggleDiscovery}
           recentlyPlayed={recentlyPlayed}
           onPlay={handlePlay}
+          episodes={allEpisodes}
         />
       )}
 
@@ -416,6 +417,7 @@ export default function LibraryPage() {
           onToggle={panels.toggleDiscovery}
           recentlyPlayed={recentlyPlayed}
           onPlay={handlePlay}
+          episodes={allEpisodes}
           below
         />
       )}

@@ -4,11 +4,15 @@ import type { Episode } from "@/db/schema";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { RecentlyPlayed } from "@/components/library/RecentlyPlayed";
 import { OnThisDay } from "@/components/library/OnThisDay";
+import { SmartPlaylists } from "@/components/library/SmartPlaylists";
+import { TopicIndex } from "@/components/library/TopicIndex";
 import { cn } from "@/lib/utils/cn";
 
 /**
  * The collapsible Explore band: above the list on a desktop, under it on a
- * phone (where the first screen is for the shows). Collapsed by default. Continue Listening used to
+ * phone (where the first screen is for the shows). Collapsed by default.
+ * Expanded: recently played, On this date, then Smart Playlists and the
+ * Topic Index (moved here from /stats, 2026-11-27). Continue Listening used to
  * live in here, collapsed by default; it is now its own card at the top of
  * the Library (ContinueListening), where a returning listener lands.
  */
@@ -17,12 +21,15 @@ export function ExploreBand({
   onToggle,
   recentlyPlayed,
   onPlay,
+  episodes,
   below = false,
 }: {
   expanded: boolean;
   onToggle: () => void;
   recentlyPlayed: Episode[] | undefined;
   onPlay: (episode: Episode) => void;
+  /** The library, for the Topic Index. */
+  episodes?: Episode[];
   /** Under the list (a phone): a slim bar with a rule above it. */
   below?: boolean;
 }) {
@@ -46,6 +53,16 @@ export function ExploreBand({
             )}
             <WidgetErrorBoundary name="On This Day">
               <OnThisDay onPlay={onPlay} compact className="md:w-[220px] md:flex-shrink-0" />
+            </WidgetErrorBoundary>
+          </div>
+          {/* From /stats (UI plan push 6, batch 3): ways into the shows belong
+              where the shows are. Their own scroll, so the list stays near. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2 max-h-[50vh] md:max-h-[260px] overflow-auto overscroll-contain" data-testid="explore-more">
+            <WidgetErrorBoundary name="Smart Playlists">
+              <SmartPlaylists onPlay={onPlay} />
+            </WidgetErrorBoundary>
+            <WidgetErrorBoundary name="Topic Index">
+              <TopicIndex episodes={episodes} />
             </WidgetErrorBoundary>
           </div>
         </div>

@@ -11889,6 +11889,46 @@ export const MUTATIONS = [
     replace: "    return computeStreak(entries);",
     why: "the status bar's streak must be /stats's, real listens only",
   },
+  {
+    id: "explore-smart-playlists",
+    test: "src/components/library/__tests__/explore-moved.test.tsx",
+    file: "src/components/library/ExploreBand.tsx",
+    find: "              <SmartPlaylists onPlay={onPlay} />\n",
+    replace: "",
+    why: "Smart Playlists left /stats for the Library's Explore; without it they are nowhere",
+  },
+  {
+    id: "explore-topic-index",
+    test: "src/components/library/__tests__/explore-moved.test.tsx",
+    file: "src/components/library/ExploreBand.tsx",
+    find: "              <TopicIndex episodes={episodes} />\n",
+    replace: "",
+    why: "the Topic Index left /stats for the Library's Explore; without it it is nowhere",
+  },
+  {
+    id: "topic-index-by-use",
+    test: "src/components/library/__tests__/explore-moved.test.tsx",
+    file: "src/components/library/TopicIndex.tsx",
+    find: "[...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, TOPIC_INDEX_SIZE)",
+    replace: "[...counts.entries()].slice(0, TOPIC_INDEX_SIZE)",
+    why: "the index is the most used tags, most used first",
+  },
+  {
+    id: "topic-index-tag-search",
+    test: "src/components/library/__tests__/explore-moved.test.tsx",
+    file: "src/components/library/TopicIndex.tsx",
+    find: "onClick={() => openLibrary({ q: `tag:${tag}` })}",
+    replace: "onClick={() => openLibrary({ q: tag })}",
+    why: "a tag must open the shows carrying it, not a word search",
+  },
+  {
+    id: "library-explore-gets-episodes",
+    test: "src/components/library/__tests__/explore-moved.test.tsx",
+    file: "src/app/[look]/(desktop)/library/page.tsx",
+    find: "          onPlay={handlePlay}\n          episodes={allEpisodes}\n          below",
+    replace: "          onPlay={handlePlay}\n          below",
+    why: "the phone's Explore must get the shows, or its Topic Index is empty",
+  },
 ];
 
 /**

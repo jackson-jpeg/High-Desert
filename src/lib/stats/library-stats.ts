@@ -53,6 +53,13 @@ function tally<T>(items: Iterable<T>, key: (t: T) => string | undefined | null):
 
 const byCountDesc = (a: [string, number], b: [string, number]) => b[1] - a[1];
 
+/** Shows per tag across the catalog (the Topic Index; the stats' topTags). */
+export function tagCounts(episodes: readonly Episode[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const ep of episodes) for (const tag of ep.aiTags ?? []) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+  return counts;
+}
+
 export function computeLibraryStats(episodes: Episode[], history: HistoryEntry[] | undefined): LibraryStats {
   // Real listens only (history.ts, LISTEN_MIN_S): Listened, the shows heard,
   // the streak and Listening History read the same rows, so they agree.
@@ -80,9 +87,8 @@ export function computeLibraryStats(episodes: Episode[], history: HistoryEntry[]
 
   const showCounts = tally(episodes, (e) => e.showType ?? "unknown");
 
-  const tagCounts = new Map<string, number>();
-  for (const ep of episodes) for (const tag of ep.aiTags ?? []) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
-  const topTags = [...tagCounts.entries()].sort(byCountDesc).slice(0, 50);
+  const tags = tagCounts(episodes);
+  const topTags = [...tags.entries()].sort(byCountDesc).slice(0, 50);
 
   const topCategories = [...tally(episodes, (e) => e.aiCategory).entries()].sort(byCountDesc);
 
@@ -103,7 +109,7 @@ export function computeLibraryStats(episodes: Episode[], history: HistoryEntry[]
     showCounts,
     topTags,
     maxTagCount: topTags[0]?.[1] ?? 1,
-    uniqueTags: tagCounts.size,
+    uniqueTags: tags.size,
     topCategories,
     maxCategoryCount: topCategories[0]?.[1] ?? 1,
     notableCount: episodes.filter((e) => e.aiNotable).length,
