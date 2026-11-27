@@ -1,5 +1,6 @@
 "use client";
 
+import { HowWeCount } from "@/components/stats/HowWeCount";
 import { useMemo, useState } from "react";
 import { Window } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
@@ -310,19 +311,20 @@ export function Listeners() {
         {/* What the number is, said plainly: the funnel began on 27 Sep, the
             people from before it count once they come back, and the shows
             before location lookups have no place. */}
-        <div className="text-hd-micro text-bevel-dark/85 flex flex-col gap-0.5">
-          <span>
-            Each browser counts once. Counting began {dayLabel(visitors.countingSince)}; listeners from before then count
-            when they come back
-            {totals.backfilled > 0 ? `, and ${n(totals.backfilled)} early listeners have no place on the map yet` : ""}.
-          </span>
+        <div className="flex flex-wrap items-baseline gap-x-3">
+          <HowWeCount id="listeners">
+            <p>
+              Each browser counts once. Counting began {dayLabel(visitors.countingSince)}; listeners from before then count
+              when they come back
+              {totals.backfilled > 0 ? `, and ${n(totals.backfilled)} early listeners have no place on the map yet` : ""}.
+            </p>
+            <p>Locations are approximate, by state at most, looked up on our own server. The count never stores your address.</p>
+          </HowWeCount>
+          {/* The geo database's credit stays in sight wherever places are shown. */}
           {attribution && (
-            <span>
-              Locations are approximate, by state at most, looked up on our own server. The count never stores your address.{" "}
-              <a href={attribution.url} target="_blank" rel="noopener noreferrer" className="text-signal-blue underline">
-                {attribution.text}
-              </a>
-            </span>
+            <a href={attribution.url} target="_blank" rel="noopener noreferrer" className="text-hd-micro text-signal-blue underline" data-geo-credit>
+              {attribution.text}
+            </a>
           )}
         </div>
       </div>

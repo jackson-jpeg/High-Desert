@@ -1,5 +1,6 @@
 "use client";
 
+import { HowWeCount } from "@/components/stats/HowWeCount";
 import { useState } from "react";
 import { Window } from "@/components/win98";
 import { cn } from "@/lib/utils/cn";
@@ -141,10 +142,16 @@ export function SignalTraffic() {
             timestamped event log (play_events starts 2026-07-28). Every range
             total comes from the log, so no range can add up to it — said here
             rather than left to look like an error (docs/stats-audit.md). */}
-        <div className="text-hd-caption text-bevel-dark/85">
-          Plays all time includes plays counted before per-play timestamps began on 28 Jul 2026;
-          range totals start there.
-        </div>
+        <HowWeCount id="traffic">
+          <p>
+            Online is people, not tabs: each browser with the site open in the last 5 minutes, once. Listening is the
+            ones with a show playing.
+          </p>
+          <p>
+            Plays all time includes plays counted before per-play timestamps began on 28 Jul 2026; range totals start
+            there.
+          </p>
+        </HowWeCount>
 
         {traffic.hourly.length > 0 && <TrafficHourProfile hourly={traffic.hourly} />}
       </div>

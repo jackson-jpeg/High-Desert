@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { useAdminStore } from "@/stores/admin-store";
 import { Window } from "@/components/win98";
 import { RatingsReport } from "@/components/stats/RatingsReport";
+import { HowWeCount } from "@/components/stats/HowWeCount";
 import { YouAndTheDesert } from "@/components/stats/YouAndTheDesert";
 import { HistoryPanel } from "@/components/library/HistoryPanel";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
@@ -265,6 +266,14 @@ function LibraryPanels({ tab }: { tab: "you" | "archive" }) {
             the Display dialog): src/components/settings/SavedAudioSetting.tsx. */}
         {/* Smart Playlists moved to the Library's Explore (batch 3). */}
         </div>
+        <HowWeCount id="you" className="px-1">
+          <p>Everything on this tab is kept in this browser only. None of it is sent anywhere.</p>
+          <p>
+            Listened is time actually heard, the screen locked included. A show counts once you&apos;ve heard a minute of
+            it, and the streak is the days in a row with one.
+          </p>
+          <p>Time heard with the screen locked before 27 Nov 2026 was not counted, so older totals may run low.</p>
+        </HowWeCount>
       </>
     );
   }
@@ -534,6 +543,13 @@ function LibraryPanels({ tab }: { tab: "you" | "archive" }) {
       </div>
       {/* The Topic Index moved to the Library's Explore (UI plan push 6,
           batch 3): src/components/library/TopicIndex.tsx. */}
+      <HowWeCount id="archive" className="px-1">
+        <p>
+          The Archive, the Broadcast Log, the Program Guide, subjects and guests count the shows in this browser&apos;s
+          library: the whole catalog, plus anything you added.
+        </p>
+        <p>Community Top 20 is everyone&apos;s plays, all time.</p>
+      </HowWeCount>
     </>
   );
 }

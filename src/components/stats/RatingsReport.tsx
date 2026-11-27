@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Window } from "@/components/win98";
+import { HowWeCount } from "@/components/stats/HowWeCount";
 import { useCommunityKeyIndex } from "@/hooks/useCommunityKeyIndex";
 import { keyTitle } from "@/lib/library/display-title";
 import { fetchRatingsReport, type RatingsReport as Report } from "@/services/stats/client";
@@ -120,6 +121,20 @@ export function RatingsReport() {
             </section>
           )}
         </div>
+        {report && (
+          <HowWeCount id="report">
+            <p>
+              Tonight&apos;s crowd is the most people online at once in the last 12 hours, beside the middle of the daily
+              peaks of the 28 days before today.
+            </p>
+            <p>Most played this week counts plays started in the last 7 days. New states are ones nobody had tuned in from before this week.</p>
+            <p>
+              Most finished is the share of plays that reached the end of the show, counted since{" "}
+              {sinceLabel(report.finished.since)}, for shows with at least {report.finished.minPlays} plays since then.
+            </p>
+            <p>Automated visitors and our own checks are not counted. Nothing here names a listener.</p>
+          </HowWeCount>
+        )}
       </div>
     </Window>
   );

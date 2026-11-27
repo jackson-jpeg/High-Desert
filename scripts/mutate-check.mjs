@@ -12073,6 +12073,30 @@ export const MUTATIONS = [
     replace: "<span>.</span>",
     why: "when the top guests are the same the panel says so",
   },
+  {
+    id: "how-we-count-closed",
+    test: "src/components/stats/__tests__/how-we-count.test.tsx",
+    file: "src/components/stats/HowWeCount.tsx",
+    find: "<details className=",
+    replace: "<details open className=",
+    why: "the fine print waits behind the link; open by default it is the clutter it replaced",
+  },
+  {
+    id: "how-we-count-traffic",
+    test: "src/components/stats/__tests__/how-we-count.test.tsx",
+    file: "src/components/library/SignalTraffic.tsx",
+    find: "        <HowWeCount id=\"traffic\">\n",
+    replace: "        <HowWeCount id=\"traffic-x\">\n",
+    why: "Signal Traffic's fine print sits behind How we count",
+  },
+  {
+    id: "how-we-count-geo-credit-visible",
+    test: "src/components/stats/__tests__/how-we-count.test.tsx",
+    file: "src/components/library/Listeners.tsx",
+    find: "          </HowWeCount>\n          {/* The geo database's credit",
+    replace: "          {/* The geo database's credit",
+    why: "the geo database's credit stays in sight wherever places are shown",
+  },
 ];
 
 /**
