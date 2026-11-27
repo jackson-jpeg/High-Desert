@@ -3648,8 +3648,8 @@ export const MUTATIONS = [
     id: "presence-traffic-fork",
     test: "src/components/__tests__/presence-surfaces.test.tsx",
     file: "src/components/library/SignalTraffic.tsx",
-    find: '            <strong className="text-static-green font-normal tabular-nums">{now.online}</strong> online',
-    replace: '            <strong className="text-static-green font-normal tabular-nums">{traffic.points.at(-1)?.online ?? 0}</strong> online',
+    find: "{logbookLine(now.online, now.listening).map(",
+    replace: "{logbookLine(traffic.points.at(-1)?.online ?? 0, now.listening).map(",
     why: "a surface reading the newest sample instead of the shared feed puts a third number on the screen",
   },
   {
@@ -11123,8 +11123,8 @@ export const MUTATIONS = [
     id: "uiplan-desert-blink-slow",
     test: "src/components/desktop/__tests__/desert-night.test.tsx",
     file: "src/styles/desert.css",
-    find: "hd-desert-blink 2.4s",
-    replace: "hd-desert-blink 0.4s",
+    find: "  html[data-look=\"win98\"] .hd-desert-light {\n    animation: hd-desert-blink 2.4s",
+    replace: "  html[data-look=\"win98\"] .hd-desert-light {\n    animation: hd-desert-blink 0.4s",
     why: "the tower light blinked faster than once a second",
   },
   {
@@ -11307,8 +11307,8 @@ export const MUTATIONS = [
     id: "uiplan-dial-in-live",
     test: "src/lib/live/__tests__/radio-set.test.tsx",
     file: "src/components/live/LiveStation.tsx",
-    find: "      <YearDial airDate={slot.airDate} className=\"mt-1\" />\n",
-    replace: "",
+    find: "{dial ? <YearDial airDate={slot.airDate} className=\"mt-1\" /> : null}",
+    replace: "null",
     why: "Live lost its dial",
   },
   {
