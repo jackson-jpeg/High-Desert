@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo } from "react";
 import { useTimedLiveQuery } from "@/hooks/useTimedLiveQuery";
 import { LoadTimeout } from "@/components/LoadTimeout";
 import { db } from "@/db";
 import { useAdminStore } from "@/stores/admin-store";
-import { Window, Button } from "@/components/win98";
+import { Window } from "@/components/win98";
 import { HistoryPanel } from "@/components/library/HistoryPanel";
 import { SmartPlaylists } from "@/components/library/SmartPlaylists";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
@@ -18,23 +18,14 @@ import { Supporters } from "@/components/library/Supporters";
 import { StationSponsors } from "@/components/library/StationSponsors";
 import { cn } from "@/lib/utils/cn";
 import { formatAirDate } from "@/lib/utils/format";
-import { getCacheSize, clearAudioCache } from "@/audio/cache";
-import { toast } from "@/stores/toast-store";
 import { computeLibraryStats } from "@/lib/stats/library-stats";
 import { emit } from "@/lib/events";
 import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import { episodeTitle } from "@/lib/library/display-title";
 import { shownGuest } from "@/lib/library/guest";
 import { ShowTitle } from "@/components/library/ShowTitle";
+import { formatHeard } from "@/lib/stats/format-heard";
 import { StatsTabs, useStatsTab, statsPanelId, statsTabId } from "@/components/stats/StatsTabs";
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const units = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${units[i]}`;
-}
 
 export default function StatsPage() {
   const [tab, setTab] = useStatsTab();
@@ -120,17 +111,6 @@ function LibraryPanels({ tab }: { tab: "you" | "archive" }) {
     historyQ.retry();
   };
 
-  // Audio cache size
-  const [cacheSize, setCacheSize] = useState<number | null>(null);
-  useEffect(() => {
-    getCacheSize().then(setCacheSize);
-  }, []);
-  const handleClearCache = useCallback(async () => {
-    await clearAudioCache();
-    setCacheSize(0);
-    toast.success("Audio cache cleared");
-  }, []);
-
   const stats = useMemo(
     // Both, or neither: with episodes loaded and history not yet, Listened
     // and Streak rendered 0 for a frame and then jumped.
@@ -174,7 +154,6 @@ function LibraryPanels({ tab }: { tab: "you" | "archive" }) {
   }
 
   const maxYearCount = Math.max(...stats.years.map(([, c]) => c), 1);
-  const listenedHours = stats.listenedSeconds / 3600;
   const libraryHours = stats.librarySeconds / 3600;
 
   if (tab === "you") {
@@ -190,8 +169,8 @@ function LibraryPanels({ tab }: { tab: "you" | "archive" }) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <HeroStat
               label="Listened"
-              value={`${listenedHours.toFixed(1)}h`}
-              sub={`${stats.listenedEpisodes.toLocaleString()} ${stats.listenedEpisodes === 1 ? 'episode' : 'episodes'}`}
+              value={formatHeard(stats.listenedSeconds)}
+              sub={`${stats.listenedEpisodes.toLocaleString()} ${stats.listenedEpisodes === 1 ? 'show' : 'shows'} heard`}
               color="text-static-green"
             />
             <HeroStat
@@ -268,29 +247,11 @@ function LibraryPanels({ tab }: { tab: "you" | "archive" }) {
           </Window>
         )}
         <WidgetErrorBoundary name="History">
-          <HistoryPanel />
+          {/* The rows the tiles were computed from: one set, so they agree. */}
+          <HistoryPanel rows={history ?? []} />
         </WidgetErrorBoundary>
-        {/* ── Audio Cache ── OPFS storage */}
-        {cacheSize !== null && (
-          <Window title="Audio Cache" variant="dark" headingLevel={2}>
-            <div className="p-3 flex items-center justify-between gap-3">
-              <div>
-                <div className="text-hd-12 md:text-hd-10 text-desktop-gray">
-                  {cacheSize > 0 ? formatBytes(cacheSize) : "Empty"}
-                </div>
-                <div className="text-hd-10 md:text-hd-8 text-bevel-dark/85">
-                  Offline audio cached in OPFS
-                </div>
-              </div>
-              {cacheSize > 0 && (
-                <Button variant="dark" size="sm" onClick={handleClearCache}>
-                  Clear Cache
-                </Button>
-              )}
-            </div>
-          </Window>
-        )}
-
+        {/* Audio Cache moved to the settings in plain words (the More sheet,
+            the Display dialog): src/components/settings/SavedAudioSetting.tsx. */}
         <WidgetErrorBoundary name="Smart Playlists">
           <SmartPlaylists onPlay={(ep) => {
             emit("play-episode", ep);
@@ -446,6 +407,8 @@ function LibraryPanels({ tab }: { tab: "you" | "archive" }) {
                 ["unknown", "Uncategorized", "bg-[color:var(--hd-edge-lit)]"],
               ] as const).map(([key, label, bg]) => {
                 const count = stats.showCounts.get(key) ?? 0;
+                // A kind with no shows is not in the guide ("Uncategorized 0").
+                if (count === 0) return null;
                 return (
                   <div key={key} className="flex items-center gap-2">
                     <span className={cn("w-[8px] h-[8px] flex-shrink-0", bg)} />

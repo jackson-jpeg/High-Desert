@@ -1,4 +1,5 @@
-import { db } from "@/db";
+import type { Episode } from "@/db/schema";
+import { addListened } from "./history";
 
 /**
  * Seconds actually listened, per history entry — the number behind /stats'
@@ -20,19 +21,45 @@ import { db } from "@/db";
  * the episode changes). An unload loses at most the last 30 s, as position does.
  */
 
-/** Longest gap between two 250 ms ticks still counted as playback (covers 2× speed and a busy main thread). */
-export const MAX_TICK_S = 2;
+/**
+ * Slack on top of the wall clock: timer jitter, and the media clock running a
+ * little ahead of a tick that fired late.
+ */
+export const TICK_SLACK_S = 0.5;
+
+/**
+ * How far the media clock may run ahead of the wall clock and still be
+ * listening (at 1x). Past that, the jump was a seek.
+ */
+export const WALL_RATIO = 1.25;
 
 let base: number | null = null;
+let baseWall = 0;
 let pending = 0;
 
-/** A position tick while playing. */
-export function noteListenTick(currentTime: number): void {
+/**
+ * A position tick while playing. `wallMs` is a monotonic clock
+ * (performance.now() in the player), `rate` the element's playbackRate.
+ *
+ * Counted: the media time that passed, when it is no more than the wall time
+ * that passed allows (2026-11-27, UI plan push 6). It used to be "steps of at
+ * most 2 s between two 250 ms ticks", which assumed the tick keeps running.
+ * It does not: iOS suspends the page with the screen locked and Chrome
+ * throttles a hidden tab's timers to once a minute, so the first tick after
+ * an hour heard on a locked phone saw a 3,600 s step, called it a seek and
+ * counted nothing. /stats read "0.0h" for listeners who had heard whole
+ * shows. Bounded by the wall clock, a seek forward still never counts (it
+ * moves the media clock far more than the wall clock), and a pause inside
+ * the gap counts only what actually played.
+ */
+export function noteListenTick(currentTime: number, wallMs: number, rate = 1): void {
   if (base !== null) {
     const dt = currentTime - base;
-    if (dt > 0 && dt <= MAX_TICK_S) pending += dt;
+    const wall = Math.max(0, (wallMs - baseWall) / 1000);
+    if (dt > 0 && dt <= wall * Math.max(1, rate) * WALL_RATIO + TICK_SLACK_S) pending += dt;
   }
   base = currentTime;
+  baseWall = wallMs;
 }
 
 /** Playback stopped or jumped: the next tick is a new baseline, not a step. */
@@ -46,24 +73,19 @@ export function pendingListenSeconds(): number {
 }
 
 /**
- * Add everything pending to `episodeId`'s newest history row, creating one if
- * the layout's insert has not landed. Never throws; on failure the seconds are
- * kept for the next flush.
+ * Write everything pending into Listening History for `ep` (history.ts,
+ * `addListened`: the newest row when it is this show today, else a new row).
+ * This is the one way a history row is made. Never throws; on failure, or
+ * with no episode, the seconds are kept for the next flush.
  */
-export async function flushListenSeconds(episodeId: number | undefined): Promise<void> {
+export async function flushListenSeconds(
+  ep: Pick<Episode, "id" | "title" | "fileName" | "guestName"> | null | undefined,
+): Promise<void> {
   const seconds = pending;
-  if (!episodeId || seconds <= 0) return;
+  if (!ep?.id || seconds <= 0) return;
   pending = 0;
   try {
-    await db.transaction("rw", db.history, async () => {
-      const rows = await db.history.where("episodeId").equals(episodeId).sortBy("timestamp");
-      const newest = rows[rows.length - 1];
-      if (newest) {
-        await db.history.update(newest.id!, { duration: (newest.duration ?? 0) + seconds });
-      } else {
-        await db.history.add({ episodeId, timestamp: Date.now(), duration: seconds });
-      }
-    });
+    await addListened(ep, seconds);
   } catch (err) {
     pending += seconds;
     console.warn("[listen-time] flush failed:", err);
@@ -72,5 +94,6 @@ export async function flushListenSeconds(episodeId: number | undefined): Promise
 
 export function resetListenTimeForTests(): void {
   base = null;
+  baseWall = 0;
   pending = 0;
 }

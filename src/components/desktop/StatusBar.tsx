@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils/cn";
 import { StatusBar as Win98StatusBar } from "@/components/win98";
 import { usePlayerStore } from "@/stores/player-store";
 import { db } from "@/db";
-import { computeStreak } from "@/lib/utils/streak";
+import { listeningStreak } from "@/lib/stats/listens";
 import { presenceAttrs, type LivePresence } from "@/services/stats/now-feed";
 import { MirrorBadge } from "@/components/player/MirrorBadge";
 import { emit, useHdEvent } from "@/lib/events";
@@ -134,7 +134,8 @@ export function StatusBar({ episodeCount, presence, countTimedOut = false, onRet
   const streak = useLiveQuery(async () => {
     const cutoff = Date.now() - 366 * 86_400_000;
     const entries = await db.history.where("timestamp").above(cutoff).toArray();
-    return computeStreak(entries);
+    // Real listens only, the rule /stats's Streak tile uses (src/lib/stats/listens.ts).
+    return listeningStreak(entries);
   }, []);
 
   // The holiday season (docs/seasons.md): Halloween keeps its Ghost to Ghost

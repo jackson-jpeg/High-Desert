@@ -1,5 +1,5 @@
 import type { Episode, HistoryEntry } from "@/db/schema";
-import { computeStreak } from "@/lib/utils/streak";
+import { realListens, listeningStreak } from "@/lib/stats/listens";
 
 /**
  * Every number /stats derives from this browser's IndexedDB, in one pure
@@ -54,10 +54,11 @@ function tally<T>(items: Iterable<T>, key: (t: T) => string | undefined | null):
 const byCountDesc = (a: [string, number], b: [string, number]) => b[1] - a[1];
 
 export function computeLibraryStats(episodes: Episode[], history: HistoryEntry[] | undefined): LibraryStats {
+  // Real listens only (history.ts, LISTEN_MIN_S): Listened, the shows heard,
+  // the streak and Listening History read the same rows, so they agree.
+  const listens = realListens(history);
   const heard = new Map<number, number>();
-  for (const h of history ?? []) {
-    if ((h.duration ?? 0) > 0) heard.set(h.episodeId, (heard.get(h.episodeId) ?? 0) + h.duration);
-  }
+  for (const h of listens) heard.set(h.episodeId, (heard.get(h.episodeId) ?? 0) + h.duration);
   const listenedSeconds = [...heard.values()].reduce((a, b) => a + b, 0);
 
   const yearCounts = tally(episodes, (e) => e.airDate?.slice(0, 4));
@@ -114,7 +115,7 @@ export function computeLibraryStats(episodes: Episode[], history: HistoryEntry[]
       .filter((e) => (e.playCount ?? 0) > 0)
       .sort((a, b) => (b.playCount ?? 0) - (a.playCount ?? 0))
       .slice(0, 5),
-    streak: computeStreak(history),
+    streak: listeningStreak(history),
     flaggedEpisodes: episodes.filter((e) => !!e.flaggedAt),
   };
 }

@@ -11,6 +11,7 @@ import { sortLabel } from "@/lib/library/sort-keys";
 import { DIAL_LABEL } from "@/lib/look/nav";
 import { REQUEST_LINE_LABEL, REQUEST_LINE_PATH } from "@/lib/live/request-line";
 import { useUiSounds } from "@/hooks/useUiSounds";
+import { SavedAudioSetting } from "@/components/settings/SavedAudioSetting";
 
 interface MobileMenuSheetProps {
   open: boolean;
@@ -316,6 +317,8 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
               <span className={cn("text-hd-13", uiSounds.on ? "text-desert-amber" : "text-bevel-dark/85")}>{uiSounds.on ? "On" : "Off"}</span>
             </button>
           )}
+
+          <SavedAudioSetting variant="sheet" />
 
           {onToggleStartupSound && (
             <button

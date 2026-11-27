@@ -6,6 +6,7 @@ import { Button } from "@/components/win98/Button";
 import { LOOKS, LOOK_LABELS } from "@/lib/look/look";
 import { LookPreview, LOOK_DESCRIPTIONS } from "../LookPreview";
 import { useLookChoice } from "../useLookChoice";
+import { SavedAudioSetting } from "@/components/settings/SavedAudioSetting";
 
 /**
  * Start > Settings > Display (and View > Display... on the desktop menu bar):
@@ -63,6 +64,7 @@ export function DisplayProperties({ onClose }: { onClose: () => void }) {
           <p id={descId} className="text-hd-12" data-testid="w98-display-desc">
             {LOOK_DESCRIPTIONS[choice]}
           </p>
+          <SavedAudioSetting variant="win98" />
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="dark" onClick={ok} data-testid="w98-display-ok">

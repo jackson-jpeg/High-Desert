@@ -21,7 +21,6 @@ import { useLiveStore } from "@/stores/live-store";
 import { positionOf } from "@/stores/progress-store";
 import { progressReady, startProgressSync } from "@/services/episodes/progress";
 import { startProcessing } from "@/audio/processing";
-import { recordHistory } from "@/services/episodes/history";
 import { useAdminStore } from "@/stores/admin-store";
 import { db, getPreference, setPreference } from "@/db";
 import type { Episode } from "@/db/schema";
@@ -282,14 +281,14 @@ export default function DesktopLayout({
     };
   }, []);
 
-  // Persist last-episode-id, queue, and record history whenever episode changes
+  // Persist last-episode-id and the queue whenever the episode changes
   useEffect(() => {
     return usePlayerStore.subscribe((state, prevState) => {
       if (state.currentEpisode?.id !== prevState.currentEpisode?.id && state.currentEpisode?.id) {
         setPreference("last-episode-id", String(state.currentEpisode.id));
-        // Record listening history (not again for the show already newest today)
-        recordHistory(state.currentEpisode)
-          .catch((err) => { console.warn("[layout] Failed to record history:", err); });
+        // No history row here: a change of show is not a listen (restoring
+        // the remembered show on a page load is one). Listening History is
+        // written by the seconds heard (src/services/episodes/history.ts).
       }
       // Persist queue when it changes
       if (state.queue !== prevState.queue || state.queueIndex !== prevState.queueIndex) {

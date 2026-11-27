@@ -108,6 +108,15 @@ vi.mock("@/db", () => ({
   },
 }));
 
+// Seconds the player wrote into Listening History (the pause saves them).
+let heardWritten = 0;
+vi.mock("@/services/episodes/history", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/episodes/history")>()),
+  addListened: async (_ep: unknown, seconds: number) => {
+    heardWritten += seconds;
+  },
+}));
+
 vi.mock("@/services/archive/health", () => ({
   checkArchiveHealth: () => Promise.resolve({ ok: true, up: true }),
   clearHealthCache: vi.fn(),
@@ -313,6 +322,8 @@ describe("globals installed by useAudioPlayer", () => {
     // it would accumulate nothing, forever, and every test of it would pass.
     const { pendingListenSeconds, resetListenTimeForTests } = await import("@/services/episodes/listen-time");
     resetListenTimeForTests();
+    heardWritten = 0;
+    const heard = () => heardWritten + pendingListenSeconds();
     vi.useFakeTimers();
     let t = 0;
     Object.defineProperty(element, "currentTime", { get: () => t, set: (v: number) => { t = v; }, configurable: true });
@@ -328,16 +339,19 @@ describe("globals installed by useAudioPlayer", () => {
       act(() => { vi.advanceTimersByTime(250); });
     }
     // Forty ticks: the first is a baseline, thirty-nine steps of 0.25 s.
-    expect(pendingListenSeconds()).toBeCloseTo(9.75, 6);
+    expect(heard()).toBeCloseTo(9.75, 6);
 
     act(() => { usePlayerStore.setState({ playing: false }); });
+    // The pause wrote what was heard into the history.
+    await act(async () => {});
+    expect(heardWritten).toBeCloseTo(9.75, 6);
     t = 5_000; // seeked while paused
     act(() => { usePlayerStore.setState({ playing: true }); });
     for (let i = 0; i < 4; i++) {
       t += 0.25;
       act(() => { vi.advanceTimersByTime(250); });
     }
-    expect(pendingListenSeconds()).toBeCloseTo(9.75 + 0.75, 6);
+    expect(heard()).toBeCloseTo(9.75 + 0.75, 6);
   });
 
   it("tears every global down when the last instance unmounts, and rebuilds them", () => {

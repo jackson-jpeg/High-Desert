@@ -7,6 +7,7 @@ import { lockScroll, unlockScroll } from "@/lib/utils/scroll-lock";
 import { LOOKS, LOOK_LABELS } from "@/lib/look/look";
 import { LookPreview, LOOK_DESCRIPTIONS } from "./LookPreview";
 import { useLookChoice } from "./useLookChoice";
+import { SavedAudioSetting } from "@/components/settings/SavedAudioSetting";
 
 /**
  * Night's Display setting: More > Display on a phone, View > Display... on the
@@ -80,6 +81,7 @@ export function NightDisplay({ onClose }: { onClose: () => void }) {
             </label>
           ))}
         </fieldset>
+        <SavedAudioSetting variant="night" />
         <div className="flex justify-end gap-2 px-4 pt-4">
           <button
             type="button"

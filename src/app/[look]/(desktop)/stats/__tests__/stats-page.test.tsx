@@ -72,7 +72,7 @@ describe("/stats", () => {
   it("Listened is heard time (3.5h across 2 episodes), not the sum of positions (4.4h across 2)", async () => {
     await render();
     expect(tile("Listened").textContent).toContain("3.5h");
-    expect(tile("Listened").textContent).toContain("2 episodes");
+    expect(tile("Listened").textContent).toContain("2 shows heard");
   });
 
   it("the Archive tiles and the undated row", async () => {

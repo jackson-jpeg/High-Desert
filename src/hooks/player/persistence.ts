@@ -29,7 +29,7 @@ export const POSITION_SAVE_MS = 30_000;
 function savePosition(): void {
   const { position: pos, currentEpisode: ep } = usePlayerStore.getState();
   if (!ep?.id) return;
-  void flushListenSeconds(ep.id);
+  void flushListenSeconds(ep);
   writeProgress(ep.fileHash, { playbackPosition: pos, lastPlayedAt: Date.now() })
     // This ran inside a setInterval with no catch: a failed write (quota, a
     // closed database, a blocked upgrade) was an unhandled rejection on every
@@ -57,7 +57,7 @@ export function installPositionTimer(): () => void {
       // nobody's position and nobody's listening time.
       if (audio && !audio.paused && !isBridging()) {
         usePlayerStore.getState().setPosition(audio.currentTime);
-        noteListenTick(audio.currentTime);
+        noteListenTick(audio.currentTime, performance.now(), audio.playbackRate);
       }
     }, 250);
   };
@@ -108,7 +108,7 @@ export function installPositionPersistence(): () => void {
     // Changed episode: what was heard belongs to the one that was playing.
     if (s.currentEpisode?.id !== prev.currentEpisode?.id) {
       breakListenTick();
-      void flushListenSeconds(prev.currentEpisode?.id);
+      void flushListenSeconds(prev.currentEpisode);
     }
     // Paused (the same episode, no longer playing): save now. With a 30 s
     // interval, waiting for the next tick would lose the pause position to
@@ -134,6 +134,10 @@ export function installPositionPersistence(): () => void {
 export function installUnloadFlush(): () => void {
   const flush = () => {
     flushListenTime("unload");
+    // The seconds heard since the last 30 s save. On iOS a hidden page may
+    // never run again, and what played with the screen locked is counted on
+    // the tick that wakes it (listen-time.ts): write it while we can.
+    void flushListenSeconds(usePlayerStore.getState().currentEpisode);
     reportStopBeacon(PLAYER_SESSION_ID);
     const { position: pos, currentEpisode: ep } = usePlayerStore.getState();
     if (ep?.id && ep.fileHash && pos > 0) {
