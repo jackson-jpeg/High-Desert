@@ -11228,7 +11228,7 @@ const entryKey = (m) => JSON.stringify([m.id, m.test, m.file, m.find, m.replace,
  *
  * @template {{id: string, file: string, test: string, find: string, replace: string, needs?: string}} T
  * @param {T[]} all
- * @param {{changed?: string[] | null, base?: {id: string, file: string, test: string, find: string, replace: string, needs?: string}[] | null, shard?: {index: number, total: number} | null}} [options]
+ * @param {{changed?: string[] | null, base?: {id: string, file: string, test: string, find: string, replace: string, needs?: string}[] | null, covered?: Set<string> | null, also?: string[] | null, shard?: {index: number, total: number} | null}} [options]
  * @returns {T[]}
  */
 export function selectMutations(all, { changed = null, base = null, covered = null, also = null, shard = null } = {}) {
