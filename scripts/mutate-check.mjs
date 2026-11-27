@@ -11278,6 +11278,8 @@ export const MUTATIONS = [
     find: "  width: 12px;\n  height: 12px;\n  border-radius: 50%;",
     replace: "  width: 8px;\n  height: 8px;\n  border-radius: 50%;",
     why: "the lamp small again",
+  },
+  {
     id: "uiplan-dial-month",
     test: "src/lib/live/__tests__/radio-set.test.tsx",
     file: "src/components/radio/YearDial.tsx",
