@@ -405,13 +405,16 @@ function NotepadLog({
                     {shownLine(m) && (
                       <>
                         {"\u00A0\u00B7 "}
-                        <span
-                          className="hd-w98-notepad-lamp"
-                          data-testid="line-lamp"
-                          data-lit={lit.has(m.line) ? "" : undefined}
-                          aria-hidden="true"
-                        />
-                        <span data-testid="line-label">{shownLine(m)}</span>
+                        {/* Lamp and label wrap as one: at 390 the lamp sat at a line's end with "Line 1" below it. */}
+                        <span className="hd-w98-notepad-lineref">
+                          <span
+                            className="hd-w98-notepad-lamp"
+                            data-testid="line-lamp"
+                            data-lit={lit.has(m.line) ? "" : undefined}
+                            aria-hidden="true"
+                          />
+                          <span data-testid="line-label">{shownLine(m)}</span>
+                        </span>
                       </>
                     )}
                   </span>

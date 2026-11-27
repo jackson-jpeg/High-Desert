@@ -11745,6 +11745,14 @@ export const MUTATIONS = [
     replace: "html[data-look=\"win98\"] .hd-w98-notepad-lamp[data-lit] {\n  background: transparent;",
     why: "a lit lamp drew nothing",
   },
+  {
+    id: "uiplan-notepad-lamp-nowrap",
+    test: "src/components/looks/win98/__tests__/notepad-phone-lines.test.tsx",
+    file: "src/styles/look-win98.css",
+    find: "html[data-look=\"win98\"] .hd-w98-notepad-lineref {\n  white-space: nowrap;",
+    replace: "html[data-look=\"win98\"] .hd-w98-notepad-lineref {\n  white-space: normal;",
+    why: "the lamp wrapped away from its line at 390",
+  },
 ];
 
 /**

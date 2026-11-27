@@ -339,8 +339,11 @@ describe("Phone Lines - Notepad", () => {
     expect(lamps.every((l) => l.getAttribute("aria-hidden") === "true")).toBe(true);
     // It sits right before the line's own label, and is drawn in Win98's CSS.
     expect(lampOf(12).nextElementSibling?.getAttribute("data-testid")).toBe("line-label");
+    // ...and the two wrap as one (at 390 the lamp was left at a line's end).
+    expect(lampOf(12).parentElement?.className).toBe("hd-w98-notepad-lineref");
     const css = readFileSync(join(process.cwd(), "src/styles/look-win98.css"), "utf8");
     expect(css).toMatch(/html\[data-look="win98"\] \.hd-w98-notepad-lamp \{[^}]*width: 6px;/);
+    expect(css).toMatch(/html\[data-look="win98"\] \.hd-w98-notepad-lineref \{\s*white-space: nowrap;/);
     expect(css).toMatch(/html\[data-look="win98"\] \.hd-w98-notepad-lamp\[data-lit\] \{[^}]*background: var\(--hd-needle\);/);
   });
 
