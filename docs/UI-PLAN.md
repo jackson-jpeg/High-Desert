@@ -19,6 +19,15 @@ the 404, and the Start menu (Win98) / More sheet (Night). The **before** set
 is in the Mac's `~/Downloads/highdesert-ui-plan/before/`; each push adds its
 own `push-N/` folder of before and after at 390.
 
+## Status (2026-11-27)
+
+Pushes 1, 1b, 2, 3, 4 and 5 are live as `4bc82eb` (deployed 2026-11-27
+09:2x UTC). Before and after at 390 for each are in the Mac's
+`~/Downloads/highdesert-ui-plan/push-N/`. One change after review: the era
+dial is on Live only, not in the Library's station card (at 1280 x 720 it
+pushed the list's first row off the screen; `uiplan-library-no-dial`).
+Handoff: `docs/handoff-2026-11-27-ui-plan.md`.
+
 ## What makes it feel flat today
 
 Jackson's list, each confirmed in the shots, plus what the walk found:
