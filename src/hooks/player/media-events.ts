@@ -11,6 +11,7 @@ import { usePlayerStore } from "@/stores/player-store";
 import { isBridging, seekEngine } from "@/audio/engine";
 import { writeProgress } from "@/services/episodes/progress";
 import { communityKey } from "@/lib/utils/community-key";
+import { reportFinish } from "@/services/stats/client";
 import { checkArchiveHealth } from "@/services/archive/health";
 import {
   describeMediaError,
@@ -104,6 +105,12 @@ export function installMediaEvents(
       void checkArchiveHealth();
       return;
     }
+
+    // Heard to its end ("Most finished" on /stats): a real end, not an empty
+    // file and not iOS's early `ended`, both handled above. The station's
+    // shows count too. Catalog shows only; nothing about who.
+    const finishedKey = current && usePlayerStore.getState().source !== "local" ? communityKey(current) : null;
+    if (finishedKey) reportFinish(finishedKey);
 
     // The live station's show is over: the station decides what comes next
     // (station ID, then the next slot). The queue is left alone, and the

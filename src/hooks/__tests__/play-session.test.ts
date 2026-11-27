@@ -19,6 +19,7 @@ import { onHdEvent } from "@/lib/events";
 
 const reportPlay = vi.fn<(episodeId: string, sessionId: string) => void>();
 const reportPlaybackFailure = vi.fn<(row: Record<string, unknown>) => void>();
+const reportFinish = vi.fn<(episodeId: string) => void>();
 const updateEpisode = vi.fn<(id: number, changes: Record<string, unknown>) => Promise<number>>(
   () => Promise.resolve(1),
 );
@@ -34,6 +35,7 @@ vi.mock("@/services/stats/client", () => ({
   reportStop: vi.fn(),
   reportStopBeacon: vi.fn(),
   reportPlaybackFailure: (row: Record<string, unknown>) => reportPlaybackFailure(row),
+  reportFinish: (id: string) => reportFinish(id),
 }));
 
 vi.mock("@/audio/engine", async (importOriginal) => {
@@ -348,6 +350,40 @@ describe("HD-004: a finished show starts from the top", () => {
     expect(cleared).toHaveLength(1);
     expect(usePlayerStore.getState().position).toBe(0);
     expect(positionOf(ep.fileHash)).toBe(0);
+  });
+});
+
+describe("Most finished: a show heard to its end is reported (UI plan push 6, batch 4)", () => {
+  async function playToEnd(at: number) {
+    const ep = makeEpisode();
+    let p!: Promise<void>;
+    act(() => {
+      p = player.api.playEpisode(ep);
+    });
+    plays[0].resolve();
+    await act(async () => {
+      await p;
+    });
+    setDuration(element, 10_800);
+    reportFinish.mockClear();
+    act(() => {
+      usePlayerStore.getState().setPosition(at);
+      element.currentTime = at;
+      element.dispatchEvent(new Event("ended"));
+    });
+    return ep;
+  }
+
+  it("a real end reports the show's catalog key, once", async () => {
+    const ep = await playToEnd(10_799);
+    expect(reportFinish).toHaveBeenCalledTimes(1);
+    const { communityKey } = await import("@/lib/utils/community-key");
+    expect(reportFinish).toHaveBeenCalledWith(communityKey(ep));
+  });
+
+  it("control: iOS's early `ended` on a dropped connection is not a finish", async () => {
+    await playToEnd(1_200);
+    expect(reportFinish).not.toHaveBeenCalled();
   });
 });
 

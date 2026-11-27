@@ -528,3 +528,16 @@ CREATE TABLE IF NOT EXISTS level_envelopes (
   tries       integer     NOT NULL DEFAULT 0,
   measured_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- A show heard to its end (UI plan push 6, batch 4: "Most finished"). One row
+-- each time the player's `ended` fires for a show that really ended (not an
+-- empty file, not iOS's early `ended` on a dropped connection), the live
+-- station's included. An episode and a time, attached to nobody: no session,
+-- no client, no address. Read beside play_events from FINISHES_SINCE
+-- (src/services/stats/db/report.ts).
+CREATE TABLE IF NOT EXISTS play_finishes (
+  id          bigserial   PRIMARY KEY,
+  episode_id  text        NOT NULL,
+  finished_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS play_finishes_at_idx ON play_finishes (finished_at DESC);

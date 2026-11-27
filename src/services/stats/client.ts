@@ -488,3 +488,40 @@ export async function fetchRecords(): Promise<StationRecords | null> {
     mostPlayed: d.mostPlayed ?? null,
   };
 }
+
+// ---------------------------------------------------------------------------
+// The ratings report and finishes (UI plan push 6, batch 4)
+// ---------------------------------------------------------------------------
+
+/** Fire-and-forget: this show was heard to its end. */
+export function reportFinish(episodeId: string): void {
+  fetch("/api/stats/finish", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ episodeId }),
+    keepalive: true,
+  }).catch(() => {});
+}
+
+export interface RatingsReport {
+  crowd: { peak: number; typical: number; days: number } | null;
+  /** Most played this week, most first; the first is the hottest show. */
+  week: { episodeId: string; plays: number; title: string | null }[];
+  newStates: { region: string; code: string | null }[];
+  finished: {
+    since: string;
+    minPlays: number;
+    entries: { episodeId: string; plays: number; finishes: number; share: number; title: string | null }[];
+  };
+}
+
+export async function fetchRatingsReport(): Promise<RatingsReport | null> {
+  const d = (await getJson("/api/stats/report")) as Partial<RatingsReport> | null;
+  if (!d || typeof d !== "object" || !d.finished) return null;
+  return {
+    crowd: d.crowd ?? null,
+    week: Array.isArray(d.week) ? d.week : [],
+    newStates: Array.isArray(d.newStates) ? d.newStates : [],
+    finished: { since: d.finished.since, minPlays: d.finished.minPlays, entries: d.finished.entries ?? [] },
+  };
+}

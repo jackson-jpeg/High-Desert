@@ -6,6 +6,8 @@ import { LoadTimeout } from "@/components/LoadTimeout";
 import { db } from "@/db";
 import { useAdminStore } from "@/stores/admin-store";
 import { Window } from "@/components/win98";
+import { RatingsReport } from "@/components/stats/RatingsReport";
+import { YouAndTheDesert } from "@/components/stats/YouAndTheDesert";
 import { HistoryPanel } from "@/components/library/HistoryPanel";
 import { WidgetErrorBoundary } from "@/components/WidgetErrorBoundary";
 import { CommunityLeaderboard } from "@/components/library/CommunityLeaderboard";
@@ -62,6 +64,12 @@ function StationPanel() {
       {/* ── On Air ── what other people have playing right now, joinable in
           a click. Renders nothing when nobody is around or the stats
           service is unavailable. */}
+      {/* ── Ratings Report ── the week in a radio station's terms
+          (UI plan push 6, batch 4). */}
+      <WidgetErrorBoundary name="Ratings Report">
+        <RatingsReport />
+      </WidgetErrorBoundary>
+
       <WidgetErrorBoundary name="On Air">
         <OnAir />
       </WidgetErrorBoundary>
@@ -200,6 +208,10 @@ function LibraryPanels({ tab }: { tab: "you" | "archive" }) {
 
         </div>
       </Window>
+
+      <WidgetErrorBoundary name="You and the desert">
+        <YouAndTheDesert episodes={episodes ?? []} history={history ?? []} />
+      </WidgetErrorBoundary>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* ── My Most Played ── This browser's plays, and it says so. It was
