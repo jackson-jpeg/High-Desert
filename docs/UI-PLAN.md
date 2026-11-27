@@ -28,6 +28,9 @@ dial is on Live only, not in the Library's station card (at 1280 x 720 it
 pushed the list's first row off the screen; `uiplan-library-no-dial`).
 Handoff: `docs/handoff-2026-11-27-ui-plan.md`.
 
+Later the same day: push 2's Win98 half of Phone Lines (a call's line lamp
+in Notepad) had not been built; it is live as `cb5c734` and `cb637f8`.
+
 ## What makes it feel flat today
 
 Jackson's list, each confirmed in the shots, plus what the walk found:
