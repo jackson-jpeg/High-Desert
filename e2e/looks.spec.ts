@@ -2,6 +2,7 @@ import { test, expect, type Page } from "./fixtures";
 import { mkdirSync } from "node:fs";
 import { openLibrary, episodeList } from "./library";
 import { playFromFixtureMirror } from "./fixture-audio";
+import { SPLIT_FROM, SPLIT_UNTIL } from "../src/lib/look/split";
 
 /**
  * Every user-facing screen, in both looks, on a phone and a desktop
@@ -189,19 +190,46 @@ for (const look of LOOKS) {
     });
 
     if (look === "win98") {
-      test("win98: the first-visit Night offer", async ({ page }, info) => {
-        // The fixture marks the offer as made in every context; this one is a
-        // first visit with no record.
-        await page.addInitScript(() => {
+      // The fixture marks the offer as made in every context; these are first
+      // visits with no record. On a phone, the look split (src/lib/look/split.ts,
+      // Jackson 2026-11-17) takes a brand-new visitor during its window and never
+      // offers it Night: a browser with a prior-visit mark is outside the split
+      // and is offered as before.
+      const clearOffer = (page: Page, priorVisit: boolean) =>
+        page.addInitScript((prior) => {
           try {
             if (localStorage.getItem("hd-look-offer") === "e2e") localStorage.removeItem("hd-look-offer");
+            if (prior) localStorage.setItem("hd-visitor", "e2e-night-offer-returning");
           } catch {
             /* storage blocked: nothing to undo */
           }
-        });
+        }, priorVisit);
+
+      test("win98: the first-visit Night offer", async ({ page }, info) => {
+        await clearOffer(page, info.project.name === "mobile");
         await openLibrary(page);
         await expect(page.getByTestId("night-offer")).toBeVisible({ timeout: 20_000 });
         await checkScreen(page, look, "night-offer", info.project.name, errors);
+      });
+
+      test("win98: a brand-new phone in the look split is given a look and never offered Night", async ({ page }, info) => {
+        test.skip(info.project.name !== "mobile", "the split is phones only");
+        const now = Date.now();
+        test.skip(now < Date.parse(SPLIT_FROM) || now >= Date.parse(SPLIT_UNTIL), "outside the split's window");
+        await clearOffer(page, false);
+        await openLibrary(page);
+        await settle(page);
+        const state = await page.evaluate(() => ({
+          offer: localStorage.getItem("hd-look-offer"),
+          arm: localStorage.getItem("hd-look-split"),
+          look: document.documentElement.dataset.look,
+          cookie: document.cookie,
+        }));
+        expect(state.offer).toBe("split");
+        expect(state.arm).toMatch(/^(win98|night)@\d{4}-\d{2}-\d{2}$/);
+        expect(state.cookie).toContain(`hd_look=${state.arm!.split("@")[0]}`);
+        expect(state.look).toBe(state.arm!.split("@")[0]);
+        await expect(page.getByTestId("night-offer")).toHaveCount(0);
       });
 
       test("win98: the Start menu, Run and the hole", async ({ page }, info) => {
