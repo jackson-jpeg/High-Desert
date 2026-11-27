@@ -60,7 +60,7 @@ Jackson approved it through the lead (hub message
 - Build passes.
 - check:seo is clean on the build.
 - check:csp is clean for /stats. Routes that need the chat service or nginx's `/mirror` 404 on a bare `next start`; production is checked after the deploy.
-- Mutations: batch 1, 10 red. Batch 2, 16 red; `listen-time-rate` survived. The 2x test with 250 ms ticks fit inside the slack, so I added a 2x hidden-tab case and reran it (result below). Batches 3 to 5: 26, plus the three re-anchored Explore ones (results below).
+- Mutations: batch 1, 10 red. Batch 2, 16 red; `listen-time-rate` survived. The 2x test with 250 ms ticks fit inside the slack, so I added a 2x hidden-tab case and reran it: red. Batches 3 to 5: 26, plus the three re-anchored Explore ones: all 29 red.
 - e2e on the build (e2e database):
   - a11y (every Stats tab scanned), library-intents, library-phone, scroll-gestures and signal-traffic pass.
   - looks passes except "the player, small and expanded". Its fixture redirects audio to `/mirror/…` on the page's origin, which only nginx serves, so a bare `next start` 404s it. It passed on production before the deploy, and is checked there again after.
