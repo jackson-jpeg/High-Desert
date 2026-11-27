@@ -11,8 +11,10 @@ import { ContinueListening } from "@/components/library/ContinueListening";
 import { libraryIntentHref } from "@/lib/library/intents";
 import { communityKey } from "@/lib/utils/community-key";
 import type { Episode } from "@/db/schema";
+import { useBootScreenGuard } from "@/hooks/useBootScreenGuard";
 
 export default function WelcomePage() {
+  useBootScreenGuard();
   const router = useRouter();
   const [isReturning, setIsReturning] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);

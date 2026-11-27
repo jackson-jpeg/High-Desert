@@ -40,6 +40,7 @@ import { toast } from "@/stores/toast-store";
 import { emit, onHdEvent, SW_OFFLINE_FALLBACK } from "@/lib/events";
 import { isKeyOwnedByTarget } from "@/lib/utils/key-ownership";
 import { knownEpisodeCount } from "@/lib/library/episode-count";
+import { useBootScreenGuard } from "@/hooks/useBootScreenGuard";
 
 export default function DesktopLayout({
   children,
@@ -62,6 +63,7 @@ export default function DesktopLayout({
 
   // The live station follows the listener across routes, so it lives here,
   // once, beside the play-episode handler it starts shows through.
+  useBootScreenGuard();
   useEffect(() => installBrowserLiveStation(), []);
 
   // A tab left open for days updates itself to the live build at a natural

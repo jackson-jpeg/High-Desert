@@ -54,6 +54,10 @@ export const BOOT_SCRIPT = `
     function dismiss() {
       if (dismissed) return;
       dismissed = true;
+      // Said on window, which outlives the DOM: if React then re-renders
+      // the whole document (a hydration error), the #app-loading it draws
+      // again is hidden by useBootScreenGuard instead of staying for good.
+      window.__hdBootDismissed = true;
       var el = document.getElementById('app-loading');
       if (!el) return;
       // Stop intercepting input the moment the fade starts. It is

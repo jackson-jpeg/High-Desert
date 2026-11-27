@@ -11056,6 +11056,38 @@ export const MUTATIONS = [
     replace: "const at = pacificHourLabel(note.startsAt);",
     why: "the request's hour had no zone; New York read 8 PM as its own",
   },
+  {
+    id: "boot-guard-library-view-first-render",
+    test: "src/hooks/__tests__/boot-screen-guard.test.tsx",
+    file: "src/hooks/library/useLibraryView.ts",
+    find: 'const [view, setViewState] = useState<LibraryView>("list");',
+    replace: "const [view, setViewState] = useState<LibraryView>(storedView);",
+    why: "a reload of the Library after the Dial failed hydration (#418) and sat under the boot screen for good",
+  },
+  {
+    id: "boot-guard-script-says-dismissed",
+    test: "src/hooks/__tests__/boot-screen-guard.test.tsx",
+    file: "src/app/boot-script.ts",
+    find: "      window.__hdBootDismissed = true;\n",
+    replace: "",
+    why: "without the flag a boot screen React draws again has nothing to hide it",
+  },
+  {
+    id: "boot-guard-hides",
+    test: "src/hooks/__tests__/boot-screen-guard.test.tsx",
+    file: "src/hooks/useBootScreenGuard.ts",
+    find: '    el.style.display = "none";\n',
+    replace: "",
+    why: "the guard must hide the boot screen React drew again, not just stop its taps",
+  },
+  {
+    id: "boot-guard-waits-for-script",
+    test: "src/hooks/__tests__/boot-screen-guard.test.tsx",
+    file: "src/hooks/useBootScreenGuard.ts",
+    find: "    if (!window.__hdBootDismissed) return;\n",
+    replace: "",
+    why: "before the script dismisses, the first visit's boot sequence keeps its time",
+  },
 ];
 
 /**
