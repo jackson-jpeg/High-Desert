@@ -109,6 +109,23 @@ describe("highdesert-mutations.service and .timer (the weekly full mutation run)
     expect(t).toMatch(/^Persistent=true$/m);
   });
 
+  it("runs its mutations in heavy's normal lane, and leaves the other low labels low", () => {
+    const unit = read("highdesert-mutations.service");
+    const re = /^Environment="HEAVY_LOW_RE=([^"]+)"$/m.exec(unit)?.[1];
+    expect(re, "the unit sets HEAVY_LOW_RE").toBeDefined();
+    // The label mutate-check gives every mutation's vitest, read from the script itself.
+    const calls = [...readFileSync(path.join(process.cwd(), "scripts/mutate-check.mjs"), "utf8").matchAll(/^\s*return hasHeavy \? \["heavy", \["--label", "([^"]+)"/gm)];
+    expect(calls, "mutate-check's one heavy call").toHaveLength(1);
+    const label = calls[0][1];
+    expect(label).toBe("high-desert mutation");
+    const low = new RegExp(re!, "i");
+    expect(low.test(label!)).toBe(false);
+    // heavy's own default, and what the box's other low jobs are called, still low.
+    const heavyDefault = /LOW_RE="\$\{HEAVY_LOW_RE:-([^}]+)\}"/.exec(readFileSync("/root/vps-tools/bin/heavy", "utf8"))?.[1];
+    if (heavyDefault) expect(new RegExp(heavyDefault, "i").test(label!), "heavy's default would put it low").toBe(true);
+    for (const other of ["hd-level-envelope", "portfolio:recheck:x", "npm-audit", "remotion-render"]) expect(low.test(other), other).toBe(true);
+  });
+
   it("gives the run 20 hours before systemd kills it", () => {
     expect(read("highdesert-mutations.service")).toMatch(/^TimeoutStartSec=20h$/m);
   });

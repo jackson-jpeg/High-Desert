@@ -8182,6 +8182,14 @@ export const MUTATIONS = [
     why: "the 11-23 run was killed by a 14h timeout after 128 mutations",
   },
   {
+    id: "weekly-mutations-normal-lane",
+    test: "scripts/__tests__/service-unit.test.ts",
+    file: "deploy/highdesert-mutations.service",
+    find: `Environment="HEAVY_LOW_RE=^portfolio|audit|render|envelope"`,
+    replace: `Environment="HEAVY_LOW_RE=mutation|^portfolio|audit|render|envelope"`,
+    why: "in heavy's low lane the weekly run checked 35 of 1,337 mutations in 5.5 hours",
+  },
+  {
     id: "digest-mutation-line",
     test: "scripts/__tests__/digest.test.ts",
     file: "scripts/digest.mjs",
