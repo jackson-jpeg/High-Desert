@@ -104,3 +104,37 @@ export function DesertNight() {
     </svg>
   );
 }
+
+/**
+ * The same horizon in a strip, for Night's Live card (push 1b, Jackson's
+ * review at 390): the glow, both ridges and the tower with its light, along
+ * the bottom of the card behind its content. Night only (desert.css); Win98
+ * has the whole night behind its windows.
+ */
+export function DesertHorizon() {
+  return (
+    <svg
+      className="hd-desert-horizon"
+      data-desert-horizon=""
+      aria-hidden="true"
+      focusable="false"
+      viewBox="0 600 1440 300"
+      preserveAspectRatio="xMidYMax slice"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <defs>
+        <radialGradient id="hd-horizon-glow" cx="0.5" cy="1" r="0.5">
+          <stop offset="0" className="hd-desert-stop-glow" />
+          <stop offset="1" className="hd-desert-stop-glow-out" />
+        </radialGradient>
+      </defs>
+      <ellipse cx="860" cy="770" rx="620" ry="150" fill="url(#hd-horizon-glow)" className="hd-desert-glow" />
+      <path d={FAR_RIDGE} className="hd-desert-far" data-desert-part="far" />
+      <path d={NEAR_RIDGE} className="hd-desert-near" data-desert-part="near" />
+      <g className="hd-desert-tower" data-desert-part="tower">
+        <path d="M1048 716 L1048 646 M1042 716 L1048 652 L1054 716 M1043 700 L1053 700 M1044 684 L1052 684 M1045 668 L1051 668" />
+        <circle cx="1048" cy="643" r="3.5" className="hd-desert-light" data-desert-part="light" />
+      </g>
+    </svg>
+  );
+}

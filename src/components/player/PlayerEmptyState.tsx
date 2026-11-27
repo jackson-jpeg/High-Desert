@@ -85,7 +85,9 @@ function OnAirStrip({ look, slot, canTune }: { look: "win98" | "night"; slot: Pr
   const year = airYear(slot);
   const { windowRef, lineRef, overflows } = useOverflows(`${line.title}|${line.guest}|${year}`);
   const win98 = look === "win98";
-  const size = win98 ? "text-hd-caption" : "text-hd-body md:text-hd-caption";
+  // Big phosphor type on a phone, where most plays start (push 1b, Jackson's
+  // review at 390); the desktop strip keeps its caption size.
+  const size = "hd-ticker-big text-hd-title md:text-hd-caption";
 
   return (
     <div

@@ -66,7 +66,7 @@ import { HOLE_WORD } from "@/components/looks/win98/start-menu";
 import { usePaletteShortcut } from "@/hooks/usePaletteShortcut";
 import { useRouter } from "next/navigation";
 import { useAppPathname } from "@/hooks/useAppPathname";
-import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { usePlayerStore } from "@/stores/player-store";
 import { useAdminStore } from "@/stores/admin-store";
 import { toast } from "@/stores/toast-store";
@@ -403,7 +403,14 @@ export function DesktopShell({ children, player, episodeCount = 0, countTimedOut
         // the radio padded it, so on /live "Call in", once Listen live left the
         // top of the column, sat under the status bar.
         className="flex-1 overflow-hidden relative pt-[var(--safe-top)] md:pt-0 md:pb-0"
-        style={{ paddingBottom: `calc(${bottomPadding}px + var(--safe-bottom))` }}
+        // --main-pad-bottom: the same figure, for the Win98 phone frame
+        // (desert.css), which ends the window a sky band above the player.
+        style={
+          {
+            paddingBottom: `calc(${bottomPadding}px + var(--safe-bottom))`,
+            "--main-pad-bottom": `calc(${bottomPadding}px + var(--safe-bottom))`,
+          } as CSSProperties
+        }
       >
         <PageTransition>{children}</PageTransition>
       </main>

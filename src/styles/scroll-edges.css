@@ -5,19 +5,32 @@
  * cut off (docs/UI-PLAN.md, push 1).
  */
 .hd-scroll-edges {
-  --fade-l: 0px;
-  --fade-r: 0px;
-  -webkit-mask-image: linear-gradient(to right, transparent 0, black var(--fade-l), black calc(100% - var(--fade-r)), transparent 100%);
-  mask-image: linear-gradient(to right, transparent 0, black var(--fade-l), black calc(100% - var(--fade-r)), transparent 100%);
+  /* --cut-l / --cut-r: the visible width of the chip each edge cuts, set by
+     useScrollEdges. Only its outer PEEK shows, fading out; the rest of it is
+     hidden, so the row ends on whole words and an obvious edge peek (push 1b,
+     Jackson: "Psychology & Cons" still read). With no chip on the edge (a
+     gap), a short fade. */
+  --cut-l: 0px;
+  --cut-r: 0px;
+  --peek: 18px;
+  --hide-l: 0px;
+  --hide-r: 0px;
+  --pl: 0px;
+  --pr: 0px;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, transparent var(--hide-l), black calc(var(--hide-l) + var(--pl)), black calc(100% - var(--hide-r) - var(--pr)), transparent calc(100% - var(--hide-r)), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, transparent var(--hide-l), black calc(var(--hide-l) + var(--pl)), black calc(100% - var(--hide-r) - var(--pr)), transparent calc(100% - var(--hide-r)), transparent 100%);
   scroll-padding-inline: 24px;
   scrollbar-width: none;
 }
 .hd-scroll-edges::-webkit-scrollbar {
   display: none;
 }
+/* The cut chip shows its outer PEEK px at most; the rest of it is hidden. */
 .hd-scroll-edges[data-more-left] {
-  --fade-l: 32px;
+  --pl: var(--peek);
+  --hide-l: max(0px, calc(var(--cut-l) - var(--peek)));
 }
 .hd-scroll-edges[data-more-right] {
-  --fade-r: 56px;
+  --pr: var(--peek);
+  --hide-r: max(0px, calc(var(--cut-r) - var(--peek)));
 }

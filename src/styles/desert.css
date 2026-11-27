@@ -91,3 +91,117 @@ html[data-season="halloween"] .hd-desert-moon {
   0%, 100% { opacity: 0.35; }
   50% { opacity: 1; }
 }
+
+/* ================= Push 1b: the night on a phone (Jackson, 2026-11-27) =================
+   At 390 the window filled the screen and the sky was cropped to its middle,
+   so the tower and its light were off-screen and the ridge sat under the
+   player. On a phone in Win98:
+   - the sky is moved so the tower stands near the right, its light in the
+     band above the ON THE AIR strip, the near ridge behind the strip;
+   - the main window is inset (a margin all round) and ends a band of sky
+     (--phone-sky-band) above the player;
+   - the strip's frame goes clear, so the ridge runs behind its glass.
+   Live and Stats keep their windows on the desktop, without the frame. */
+
+@media (max-width: 767.98px) {
+  html[data-look="win98"] {
+    /* Where the moved sky does not reach (its top), the zenith continues it. */
+    background: var(--hd-desert-zenith);
+    --phone-sky-band: 64px;
+  }
+  html[data-look="win98"] .hd-desert {
+    inset: auto;
+    /* The tower's foot just above the strip (the player is 110 px over the
+       bottom): the far ridge and the tower's light in the band of sky. */
+    top: calc(20.4vh - 118px - var(--safe-bottom, 0px));
+    left: calc(72vw - 100vh * 1048 / 900);
+    width: calc(100vh * 1440 / 900);
+    height: 100vh;
+  }
+
+  html[data-look="win98"] #hd-main {
+    background: transparent;
+    isolation: isolate;
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: calc(var(--safe-top) + 12px);
+    padding-bottom: calc(var(--main-pad-bottom, 0px) + var(--phone-sky-band)) !important;
+  }
+  /* The window itself: the gray face with its bevel, inside the margin. */
+  html[data-look="win98"]:not([data-w98-route="/live"]):not([data-w98-route="/stats"]) #hd-main::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    left: 8px;
+    right: 8px;
+    top: calc(var(--safe-top) + 8px);
+    bottom: calc(var(--main-pad-bottom, 0px) + var(--phone-sky-band) - 4px);
+    background: var(--hd-w98-face);
+    border: 1px solid;
+    border-color: var(--hd-chrome-lighter) var(--hd-ink) var(--hd-ink) var(--hd-chrome-lighter);
+    box-shadow:
+      inset 1px 1px 0 var(--hd-chrome-light),
+      inset -1px -1px 0 var(--hd-chrome-dark),
+      0 6px 18px color-mix(in srgb, var(--hd-void) 55%, transparent);
+    pointer-events: none;
+  }
+
+  /* The moon would only peek at the screen's edge. */
+  html[data-look="win98"] .hd-desert-moon {
+    display: none;
+  }
+
+  /* The ON THE AIR strip floats on the night: no frame, the glass lifted. */
+  html[data-look="win98"] .hd-w98-idle {
+    background: transparent;
+    border-color: transparent;
+  }
+  html[data-look="win98"] .hd-w98-idle-lcd {
+    box-shadow: 0 0 0 1px var(--hd-void), 0 4px 14px color-mix(in srgb, var(--hd-void) 70%, transparent);
+  }
+}
+
+/* Night's Live card: the horizon along its bottom, behind its content. */
+.hd-desert-horizon {
+  display: none;
+}
+html[data-look="night"] .hd-has-horizon {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+html[data-look="night"] .hd-has-horizon > .hd-desert-horizon {
+  display: block;
+  position: absolute;
+  z-index: -1;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 150px;
+  pointer-events: none;
+}
+/* Room under the card's content for the ridge to stand in. */
+html[data-look="night"] .hd-has-horizon {
+  padding-bottom: 72px;
+}
+html[data-look="night"] .hd-desert-horizon .hd-desert-stop-glow {
+  stop-color: var(--hd-amber);
+  stop-opacity: 0.5;
+}
+html[data-look="night"] .hd-desert-horizon .hd-desert-far {
+  fill: color-mix(in srgb, var(--hd-blue) 22%, var(--hd-void));
+}
+html[data-look="night"] .hd-desert-horizon .hd-desert-near,
+html[data-look="night"] .hd-desert-horizon .hd-desert-tower path {
+  fill: var(--hd-void);
+}
+html[data-look="night"] .hd-desert-horizon .hd-desert-tower path {
+  fill: none;
+  stroke: var(--hd-void);
+}
+@media (prefers-reduced-motion: no-preference) {
+  html[data-look="night"] .hd-desert-horizon .hd-desert-light {
+    animation: hd-desert-blink 2.4s steps(1, end) infinite;
+  }
+}

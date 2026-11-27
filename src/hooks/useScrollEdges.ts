@@ -25,6 +25,12 @@ export function useScrollEdges(): (el: HTMLElement | null) => (() => void) | voi
       const max = el.scrollWidth - el.clientWidth;
       el.toggleAttribute("data-more-left", el.scrollLeft > 1);
       el.toggleAttribute("data-more-right", max - el.scrollLeft > 1);
+      // How much of the chip cut by each edge shows: the stylesheet hides
+      // all of it but a peek, so a cut word never reads (push 1b).
+      const box = el.getBoundingClientRect();
+      const { left, right } = cutChips(el.children, box.left, box.right);
+      el.style.setProperty("--cut-l", `${Math.round(left)}px`);
+      el.style.setProperty("--cut-r", `${Math.round(right)}px`);
     };
     update();
     el.addEventListener("scroll", update, { passive: true });
@@ -38,4 +44,20 @@ export function useScrollEdges(): (el: HTMLElement | null) => (() => void) | voi
       mo?.disconnect();
     };
   }, []);
+}
+
+/**
+ * For a row spanning `from` to `to` on screen, how wide the visible part of
+ * the chip cut by each edge is (0 where no chip crosses that edge).
+ */
+export function cutChips(children: HTMLCollection | readonly Element[], from: number, to: number): { left: number; right: number } {
+  let left = 0;
+  let right = 0;
+  for (const c of Array.from(children)) {
+    const r = c.getBoundingClientRect();
+    if (r.width === 0) continue;
+    if (r.left < from && r.right > from) left = r.right - from;
+    if (r.left < to && r.right > to) right = to - r.left;
+  }
+  return { left, right };
 }

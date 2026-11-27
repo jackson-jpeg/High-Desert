@@ -1,5 +1,6 @@
 "use client";
 
+import { DesertHorizon } from "@/components/desktop/DesertNight";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -259,9 +260,10 @@ function LiveHero({ schedule, look }: { schedule: LiveSchedule; look: Look }) {
       aria-label="On the air"
       className={cn(
         "order-first w98-raised-dark bg-raised-surface flex flex-col gap-3 px-4 py-4",
-        look === "night" && "rounded-xl",
+        look === "night" && "rounded-xl hd-has-horizon",
       )}
     >
+      {look === "night" ? <DesertHorizon /> : null}
       <div className="flex items-center justify-between gap-3">
         <OnAirLamp lit={!!slot} tuned={tuned} size="sm" />
         <HeroCount />

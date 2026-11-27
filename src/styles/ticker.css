@@ -32,16 +32,35 @@
     radial-gradient(ellipse 120% 160% at 50% 50%, transparent 55%, color-mix(in srgb, var(--hd-void) 70%, transparent) 100%);
 }
 
-/* The ON AIR lamp: off between shows, lit and breathing while a show airs. */
+/* The ON AIR lamp: off between shows, lit and breathing while a show airs.
+   12 px with a wide halo on a phone, so the breath is plain to see (push 1b). */
 .hd-ticker-lamp {
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: color-mix(in srgb, var(--hd-needle) 30%, var(--hd-void));
+  box-shadow: inset 0 -1px 2px color-mix(in srgb, var(--hd-void) 60%, transparent);
 }
 .hd-ticker-lamp[data-on-air] {
-  background: var(--hd-needle);
-  box-shadow: 0 0 6px var(--hd-needle), 0 0 2px var(--hd-needle);
+  background: radial-gradient(circle at 35% 35%, color-mix(in srgb, var(--hd-chrome-lighter) 55%, var(--hd-needle)) 0 25%, var(--hd-needle) 60%);
+  box-shadow: 0 0 10px 2px var(--hd-needle), 0 0 22px 4px color-mix(in srgb, var(--hd-needle) 45%, transparent);
+}
+@media (min-width: 768px) {
+  .hd-ticker-lamp {
+    width: 9px;
+    height: 9px;
+  }
+  .hd-ticker-lamp[data-on-air] {
+    box-shadow: 0 0 6px 1px var(--hd-needle), 0 0 14px 2px color-mix(in srgb, var(--hd-needle) 40%, transparent);
+  }
+}
+
+/* The phone's big type: a heavier weight and a stronger glow. */
+@media (max-width: 767.98px) {
+  .hd-ticker .hd-ticker-big {
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
 }
 
 .hd-ticker-window[data-overflows] {
@@ -67,9 +86,10 @@
   }
 }
 
+/* A deep, slow breath (2.5 s): the light nearly goes out and comes back. */
 @keyframes hd-ticker-breathe {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.2; transform: scale(0.85); }
 }
 
 @keyframes hd-ticker-marquee {
@@ -85,7 +105,7 @@ html[data-look="win98"] .hd-ticker .hd-ticker-glass {
 html[data-look="win98"] .hd-ticker .hd-ticker-text,
 html[data-look="win98"] .hd-ticker .hd-ticker-copy {
   color: var(--hd-w98-amp-lcd);
-  text-shadow: 0 0 4px color-mix(in srgb, var(--hd-w98-amp-lcd) 70%, transparent), 0 0 1px var(--hd-w98-amp-lcd);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--hd-w98-amp-lcd) 80%, transparent), 0 0 14px color-mix(in srgb, var(--hd-w98-amp-lcd) 35%, transparent), 0 0 1px var(--hd-w98-amp-lcd);
 }
 html[data-look="win98"] .hd-ticker .hd-ticker-label,
 html[data-look="win98"] .hd-ticker .hd-ticker-year {
@@ -103,7 +123,7 @@ html[data-look="night"] .hd-night-ticker .hd-ticker-glass {
 html[data-look="night"] .hd-night-ticker .hd-ticker-text,
 html[data-look="night"] .hd-night-ticker .hd-ticker-copy {
   color: var(--hd-amber-phosphor);
-  text-shadow: 0 0 6px color-mix(in srgb, var(--hd-amber-phosphor) 55%, transparent);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--hd-amber-phosphor) 65%, transparent), 0 0 18px color-mix(in srgb, var(--hd-amber-phosphor) 30%, transparent);
 }
 html[data-look="night"] .hd-night-ticker .hd-ticker-label {
   color: var(--hd-muted);

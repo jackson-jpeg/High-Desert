@@ -93,8 +93,8 @@ describe("a sideways row's edges", () => {
 
   it("the stylesheet fades only a marked edge, and the Library's two rows use it", () => {
     const css = readFileSync(path.resolve(import.meta.dirname, "../../styles/scroll-edges.css"), "utf8");
-    expect(css).toMatch(/\.hd-scroll-edges \{[^}]*--fade-r:\s*0px/);
-    expect(css).toMatch(/\.hd-scroll-edges\[data-more-right\] \{\s*--fade-r:\s*56px/);
+    expect(css).toMatch(/\.hd-scroll-edges \{[^}]*--pr:\s*0px/);
+    expect(css).toMatch(/\.hd-scroll-edges\[data-more-right\] \{\s*--pr:\s*var\(--peek\);\s*--hide-r:\s*max\(0px, calc\(var\(--cut-r\) - var\(--peek\)\)\);/);
     const lib = (f: string) => readFileSync(path.resolve(import.meta.dirname, "../../components/library", f), "utf8");
     expect(lib("LibraryToolbar.tsx")).toMatch(/ref=\{tabsRef\} className="hd-show-tabs[^"]*hd-scroll-edges/);
     expect(lib("LibraryFilterBars.tsx")).toMatch(/ref=\{rowRef\} className="[^"]*hd-mood-chips hd-scroll-edges/);
