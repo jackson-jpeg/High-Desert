@@ -74,3 +74,19 @@ proxy (:3074), worktrees `hd-p1`..`hd-p5`, `hd-p1b`, `hd-p1b-build`,
 merged branches deleted. The pre-replay branches `ui-push1`, `ui-p1` to `ui-p5`
 and `ui-p1b` are kept as refs (their code is in main through the replayed
 stack). `/root/scratch/hd-ui` removed.
+
+## Later, 10:10 to 11:40 (the lead: Night offer, then push 2)
+
+- **The phone Night offer** was Jackson's phone look split (until
+  2026-12-02) doing its job, not a bug: a brand-new phone gets a look and
+  its offer record "split". The spec now covers both sides (`a1f4004`).
+- **Push 2** was already live; read back on production at 390 and 1280 in
+  both looks. Its one unbuilt part, Win98 Notepad's line lamp, is live as
+  `cb5c734` and `cb637f8` (lamp and label wrap together). Production had no
+  listener calls at read-back; shots are from the same build with local calls.
+- **Hook block:** `npm ci` in my worktree was refused while its
+  `node_modules` was a symlink to production's (it would have rewritten the
+  live packages through the link). Removed the link on its own, checked it,
+  then installed. Turbopack had refused the symlink anyway.
+- Fyis: `b24fba7c` (Night offer), `7e74c6d4` (the lamp). Cleaned: servers
+  :3072, :3074, :3075, worktree and branches, `/root/scratch/hd-night`.
