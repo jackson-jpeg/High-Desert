@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef } from "react";
 import { useScrollEdges } from "@/hooks/useScrollEdges";
 import { isNumericSort, sortDescription, sortLabel } from "@/lib/library/sort-keys";
 import type { Episode } from "@/db/schema";
@@ -91,8 +90,7 @@ export function ActiveFilterBar({
  */
 export function MoodFilterBar({ filters, moodFilters }: { filters: LibraryFilters; moodFilters: MoodFilter[] }) {
   const { deferredSearch, search, setSearch, categoryFilter, setCategoryFilter, favoritesOnly, setFavoritesOnly } = filters;
-  const rowRef = useRef<HTMLDivElement>(null);
-  useScrollEdges(rowRef);
+  const rowRef = useScrollEdges();
   if (!((!deferredSearch.trim() || deferredSearch === "has:notable") && moodFilters.length > 0)) return null;
   return (
     <div className="relative flex-shrink-0">

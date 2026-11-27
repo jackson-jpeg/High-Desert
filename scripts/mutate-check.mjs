@@ -11088,7 +11088,7 @@ export const MUTATIONS = [
     replace: "",
     why: "before the script dismisses, the first visit's boot sequence keeps its time",
   },  {
-    id: "ui-desert-in-layout",
+    id: "uiplan-desert-in-layout",
     test: "src/components/desktop/__tests__/desert-night.test.tsx",
     file: "src/app/[look]/layout.tsx",
     find: "          <DesertNight />\n",
@@ -11096,7 +11096,7 @@ export const MUTATIONS = [
     why: "the desert night was drawn on no page",
   },
   {
-    id: "ui-desert-win98-only",
+    id: "uiplan-desert-win98-only",
     test: "src/components/desktop/__tests__/desert-night.test.tsx",
     file: "src/styles/desert.css",
     find: ".hd-desert {\n  display: none;",
@@ -11104,7 +11104,7 @@ export const MUTATIONS = [
     why: "Night drew the desert over its own starfield",
   },
   {
-    id: "ui-desert-under-windows",
+    id: "uiplan-desert-under-windows",
     test: "src/components/desktop/__tests__/desert-night.test.tsx",
     file: "src/styles/desert.css",
     find: "  z-index: -1;\n  pointer-events: none;",
@@ -11112,7 +11112,7 @@ export const MUTATIONS = [
     why: "the night covered the windows",
   },
   {
-    id: "ui-desert-stars-seeded",
+    id: "uiplan-desert-stars-seeded",
     test: "src/components/desktop/__tests__/desert-night.test.tsx",
     file: "src/components/desktop/DesertNight.tsx",
     find: "  const r = lcg(1992);",
@@ -11120,7 +11120,7 @@ export const MUTATIONS = [
     why: "the stars moved between the server's render and the browser's (a hydration mismatch)",
   },
   {
-    id: "ui-desert-blink-slow",
+    id: "uiplan-desert-blink-slow",
     test: "src/components/desktop/__tests__/desert-night.test.tsx",
     file: "src/styles/desert.css",
     find: "hd-desert-blink 2.4s",
@@ -11128,7 +11128,7 @@ export const MUTATIONS = [
     why: "the tower light blinked faster than once a second",
   },
   {
-    id: "ui-season-sky-behind",
+    id: "uiplan-season-sky-behind",
     test: "src/components/desktop/__tests__/desert-night.test.tsx",
     file: "src/styles/seasons.css",
     find: "html[data-look=\"win98\"] .hd-season-sky {\n  z-index: -1;",
@@ -11136,7 +11136,7 @@ export const MUTATIONS = [
     why: "leaves and snow drifted over the text again",
   },
   {
-    id: "ui-ticker-lamp",
+    id: "uiplan-ticker-lamp",
     test: "src/components/player/__tests__/player-empty-state.test.tsx",
     file: "src/components/player/PlayerEmptyState.tsx",
     find: "data-on-air={slot ? \"\" : undefined}",
@@ -11144,7 +11144,7 @@ export const MUTATIONS = [
     why: "the ON AIR lamp lit between shows",
   },
   {
-    id: "ui-ticker-year",
+    id: "uiplan-ticker-year",
     test: "src/components/player/__tests__/player-empty-state.test.tsx",
     file: "src/components/player/PlayerEmptyState.tsx",
     find: "  return (slot?.airDate && /^(\\d{4})-/.exec(slot.airDate)?.[1]) || null;",
@@ -11152,7 +11152,7 @@ export const MUTATIONS = [
     why: "the strip lost the show's year",
   },
   {
-    id: "ui-ticker-overflow-only",
+    id: "uiplan-ticker-overflow-only",
     test: "src/components/player/__tests__/player-empty-state.test.tsx",
     file: "src/components/player/PlayerEmptyState.tsx",
     find: "data-overflows={overflows ? \"\" : undefined}",
@@ -11160,7 +11160,7 @@ export const MUTATIONS = [
     why: "a line that fits scrolled anyway",
   },
   {
-    id: "ui-ticker-copy-hidden",
+    id: "uiplan-ticker-copy-hidden",
     test: "src/components/player/__tests__/player-empty-state.test.tsx",
     file: "src/components/player/PlayerEmptyState.tsx",
     find: "<span className={cn(\"hd-ticker-half hd-ticker-copy\", size)} aria-hidden=\"true\">",
@@ -11168,7 +11168,7 @@ export const MUTATIONS = [
     why: "a screen reader heard the show twice",
   },
   {
-    id: "ui-ticker-still-reduced-motion",
+    id: "uiplan-ticker-still-reduced-motion",
     test: "src/components/player/__tests__/player-empty-state.test.tsx",
     file: "src/styles/ticker.css",
     find: "@media (prefers-reduced-motion: no-preference) {\n  .hd-ticker-lamp[data-on-air] {",
@@ -11176,7 +11176,7 @@ export const MUTATIONS = [
     why: "the marquee and lamp moved with reduced motion",
   },
   {
-    id: "ui-scroll-edges-right",
+    id: "uiplan-scroll-edges-right",
     test: "src/hooks/__tests__/scroll-edges.test.tsx",
     file: "src/hooks/useScrollEdges.ts",
     find: "el.toggleAttribute(\"data-more-right\", max - el.scrollLeft > 1);",
@@ -11184,7 +11184,7 @@ export const MUTATIONS = [
     why: "a row scrolled to its end, or one that fits, still faded",
   },
   {
-    id: "ui-scroll-edges-follows",
+    id: "uiplan-scroll-edges-follows",
     test: "src/hooks/__tests__/scroll-edges.test.tsx",
     file: "src/hooks/useScrollEdges.ts",
     find: "    el.addEventListener(\"scroll\", update, { passive: true });\n",
@@ -11192,12 +11192,20 @@ export const MUTATIONS = [
     why: "the fade did not follow the scroll",
   },
   {
-    id: "ui-scroll-edges-chips",
+    id: "uiplan-scroll-edges-chips",
     test: "src/hooks/__tests__/scroll-edges.test.tsx",
     file: "src/components/library/LibraryFilterBars.tsx",
     find: "hd-mood-chips hd-scroll-edges",
     replace: "hd-mood-chips",
     why: "the category chips were cut mid-word again",
+  },
+  {
+    id: "uiplan-scroll-edges-late-chips",
+    test: "src/hooks/__tests__/scroll-edges.test.tsx",
+    file: "src/hooks/useScrollEdges.ts",
+    find: "    mo?.observe(el, { childList: true, subtree: true, characterData: true });\n",
+    replace: "",
+    why: "the category chips arrive after mount, and the fade never saw them",
   },
 ];
 

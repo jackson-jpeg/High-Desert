@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { act, createElement, useRef } from "react";
+import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -23,9 +23,7 @@ afterEach(() => {
 });
 
 function Row() {
-  const ref = useRef<HTMLDivElement>(null);
-  useScrollEdges(ref);
-  return <div ref={ref} className="hd-scroll-edges" data-testid="row" />;
+  return <div ref={useScrollEdges()} className="hd-scroll-edges" data-testid="row" />;
 }
 
 function mount(scrollWidth: number, clientWidth: number) {
@@ -74,6 +72,17 @@ describe("a sideways row's edges", () => {
     scrollTo(el, 310);
     expect(el.hasAttribute("data-more-left")).toBe(true);
     expect(el.hasAttribute("data-more-right")).toBe(false);
+  });
+
+  it("notices chips that arrive after it mounted (the category chips fill in from the database)", async () => {
+    const el = mount(300, 390);
+    expect(el.hasAttribute("data-more-right")).toBe(false);
+    Object.defineProperty(el, "scrollWidth", { configurable: true, value: 900 });
+    el.appendChild(document.createElement("button"));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(el.hasAttribute("data-more-right")).toBe(true);
   });
 
   it("control: a row that fits is not faded at all", () => {
