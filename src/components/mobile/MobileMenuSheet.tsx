@@ -10,6 +10,7 @@ import { presenceAttrs, type LivePresence } from "@/services/stats/now-feed";
 import { sortLabel } from "@/lib/library/sort-keys";
 import { DIAL_LABEL } from "@/lib/look/nav";
 import { REQUEST_LINE_LABEL, REQUEST_LINE_PATH } from "@/lib/live/request-line";
+import { useUiSounds } from "@/hooks/useUiSounds";
 
 interface MobileMenuSheetProps {
   open: boolean;
@@ -33,6 +34,7 @@ interface MobileMenuSheetProps {
 const TEXT_SCALE_LABELS: Record<string, string> = { "1": "Normal", "1.15": "Large", "1.3": "Extra Large" };
 
 export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundOn, onToggleStartupSound, textScale, onCycleTextScale, presence, onExportData, onImportData, onDisplay, lookLabel }: MobileMenuSheetProps) {
+  const uiSounds = useUiSounds();
   const router = useRouter();
   // Shuffle and sort are URL intents: this sheet opens on every route (HD-013).
   const openLibrary = useOpenLibraryIntent();
@@ -297,6 +299,21 @@ export function MobileMenuSheet({ open, onClose, isAdmin, onAbout, startupSoundO
                 <span>Display</span>
               </div>
               {lookLabel && <span className="text-hd-13 text-desert-amber">{lookLabel}</span>}
+            </button>
+          )}
+
+          {uiSounds.supported && (
+            <button
+              onClick={uiSounds.toggle}
+              aria-pressed={uiSounds.on}
+              data-testid="more-sounds"
+              className="w-full text-left px-4 py-3 text-hd-14 min-h-[48px] text-desktop-gray cursor-pointer active:bg-white/[0.06] transition-colors-fast flex items-center justify-between rounded-lg"
+            >
+              <div className="flex items-center gap-3">
+                <span className="w-[24px] text-center text-hd-14 text-bevel-dark/85" aria-hidden="true">{"\u266A"}</span>
+                <span>Sounds</span>
+              </div>
+              <span className={cn("text-hd-13", uiSounds.on ? "text-desert-amber" : "text-bevel-dark/85")}>{uiSounds.on ? "On" : "Off"}</span>
             </button>
           )}
 

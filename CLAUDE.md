@@ -1255,6 +1255,27 @@ never iOS, which never routes the player through Web Audio). Full account:
 - `scripts/audio/evaluate.ts <testset>` scores the 34 clips (`--level-only`,
   `--live` for the fallback).
 
+## The UI plan's pieces (2026-11-27, `docs/UI-PLAN.md`, read before touching `src/styles/{desert,ticker,radio-set,era,call-slip,program-guide}.css`)
+
+- **The desert night** (`DesertNight.tsx`, `desert.css`) is Win98 only, fixed at
+  z-index -1 behind transparent page surfaces; the season sky sits at -1 too.
+  Stars come from a seeded LCG, so server and client draw the same sky.
+- **Era colours** (`src/lib/era/era.ts`): seven eras by year. `--hd-era-*` (bright)
+  is text only on the dark surfaces, `-deep` only on white; never either as text
+  on Win98's gray face (an edge or a band is fine). The tuning strip's canvas
+  reads `PALETTE.era*`. `era.test.tsx` measures every pair from globals.css.
+- **Interface sounds** (`src/audio/ui-sounds.ts`): off unless turned on
+  (Start > Settings > Sounds, More > Sounds), nothing before a tap or while
+  hidden, never on iOS, their own AudioContext (never the engine's).
+- **Start's programs** read `src/lib/shows/start-programs.ts` (years, top 20
+  guests), held equal to the catalog by `start-and-sound.test.tsx`: after a
+  catalog change, update it from what that test expects.
+- **Tonight is a program guide on screen**, never a real magazine's name or
+  look (Jackson, 2026-11-27). The on-air light is set in the browser
+  (`OnAirMarker`); the page stays cached server HTML.
+- Guest slips (`CallSlip.tsx`) print catalog facts only: no line number, no
+  phone number, no words put in a guest's mouth.
+
 ## Station Breaks (2026-11-09, read before touching `src/lib/live/breaks.ts`, `data/station-breaks/` or the bridge)
 
 Short spots for Jackson's own apps (SoGoJet, Screen Receipts, Sim Sunday) as

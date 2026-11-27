@@ -86,11 +86,19 @@ export function SignalTraffic() {
             On Air, never from the newest sample: a sample is up to two
             minutes old and would put a third number on the same screen. */}
         {!now.loading && (
-          <p className="text-hd-caption text-bevel-dark" {...presenceAttrs("signal-traffic", now)}>
-            Right now:{" "}
-            <strong className="text-static-green font-normal tabular-nums">{now.online}</strong> online
-            {" · "}
-            <strong className="text-signal-blue font-normal tabular-nums">{now.listening}</strong> listening
+          // The station's logbook (docs/UI-PLAN.md, push 5): the room in one
+          // sentence, set big in phosphor with a live dot.
+          <p className="hd-logbook-now hd-phosphor w98-font text-hd-h3 leading-snug" {...presenceAttrs("signal-traffic", now)}>
+            <span className="hd-logbook-dot" aria-hidden="true" />
+            {logbookLine(now.online, now.listening).map((part, i) =>
+              typeof part === "number" ? (
+                <strong key={i} className="font-bold tabular-nums">
+                  {part}
+                </strong>
+              ) : (
+                <span key={i}>{part}</span>
+              ),
+            )}
           </p>
         )}
 
@@ -142,4 +150,15 @@ export function SignalTraffic() {
       </div>
     </Window>
   );
+}
+
+/**
+ * The room in a sentence for the logbook: "15 people are in the desert, 5
+ * have the radio on". The numbers stay numbers so they can be set bold.
+ */
+export function logbookLine(online: number, listening: number): (string | number)[] {
+  const people: (string | number)[] = online === 1 ? [1, " person is in the desert"] : [online, " people are in the desert"];
+  const radio: (string | number)[] =
+    listening === 0 ? [", nobody has the radio on"] : listening === 1 ? [", ", 1, " has the radio on"] : [", ", listening, " have the radio on"];
+  return [...people, ...radio];
 }

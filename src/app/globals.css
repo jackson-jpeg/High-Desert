@@ -19,6 +19,8 @@
 @import "../styles/era.css";
 /* Guests as phone messages, the request board, topic cards (docs/UI-PLAN.md, push 4). */
 @import "../styles/call-slip.css";
+/* Tonight as a program guide, the logbook, the lost signal (push 5). */
+@import "../styles/program-guide.css";
 @import "../styles/station-break.css";
 /* Show, guest, topic and Tonight pages: the newer hooks, both looks (docs/show-pages.md). */
 @import "../styles/show-pages.css";

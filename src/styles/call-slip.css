@@ -215,3 +215,14 @@ html[data-look="win98"] .hd-topic-card {
 html[data-look="win98"] .hd-flip-clock-label {
   color: var(--hd-w98-brown);
 }
+
+/* ---------------- Start > By Year (StartMenu.tsx) ---------------- */
+
+/* Each year's era as a small swatch where the icon sits. */
+.hd-start-era {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background: var(--era-deep);
+  box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--hd-chrome-lighter) 45%, transparent), inset -1px -1px 0 var(--hd-void);
+}

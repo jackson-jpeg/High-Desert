@@ -1,0 +1,92 @@
+/*
+ * Tonight as a printed program guide (src/components/tonight/TonightView.tsx,
+ * docs/UI-PLAN.md, push 5). Called a program guide on screen; no real
+ * magazine's name or look (Jackson, 2026-11-27). A double rule across the
+ * top like a printed listing, a hairline between slots, the times set bold
+ * in the station's mono, and the show on the air lit (OnAirMarker sets
+ * data-on-air from the browser's clock). Nothing moves.
+ */
+
+.hd-program-guide {
+  border-top: 3px double var(--hd-amber);
+  border-bottom: 1px solid color-mix(in srgb, var(--hd-amber) 45%, transparent);
+  gap: 0;
+}
+.hd-guide-slot {
+  position: relative;
+  padding-left: 0.75rem;
+  border-left: 3px solid transparent;
+}
+.hd-guide-slot + .hd-guide-slot {
+  border-top: 1px dashed color-mix(in srgb, var(--hd-muted) 40%, transparent);
+}
+.hd-guide-slot time,
+.hd-guide-slot .hd-local-time {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-weight: 700;
+}
+
+.hd-guide-slot[data-on-air] {
+  padding-right: 6.5rem;
+  border-left-color: var(--hd-amber);
+  background: color-mix(in srgb, var(--hd-amber) 9%, transparent);
+  box-shadow: inset 14px 0 26px -18px color-mix(in srgb, var(--hd-amber) 60%, transparent);
+}
+.hd-guide-slot[data-on-air]::after {
+  content: "On the air";
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0 0.35rem;
+  font-size: var(--hd-text-11, 11px);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--hd-void);
+  background: var(--hd-amber);
+  border-radius: 2px;
+}
+
+html[data-look="win98"] .hd-program-guide {
+  border-top-color: var(--hd-w98-brown);
+  border-bottom-color: var(--hd-w98-brown);
+}
+html[data-look="win98"] .hd-guide-slot[data-on-air] {
+  border-left-color: var(--hd-w98-brown);
+  background: color-mix(in srgb, var(--hd-w98-brown) 10%, transparent);
+  box-shadow: none;
+}
+html[data-look="win98"] .hd-guide-slot[data-on-air]::after {
+  color: var(--hd-chrome-lighter);
+  background: var(--hd-w98-brown);
+}
+
+/* ---------------- The station's logbook (SignalTraffic.tsx) ---------------- */
+
+/* "15 people are in the desert, 5 have the radio on", set big in phosphor
+   with a live dot that breathes slowly (once every 2.4 s, motion allowed). */
+.hd-logbook-now {
+  color: var(--hd-amber-phosphor);
+  margin: 0.25rem 0 0.5rem;
+}
+html[data-look="win98"] .hd-logbook-now {
+  color: var(--hd-w98-brown);
+}
+.hd-logbook-dot {
+  display: inline-block;
+  width: 0.55em;
+  height: 0.55em;
+  margin-right: 0.5em;
+  vertical-align: 0.08em;
+  border-radius: 50%;
+  background: var(--hd-needle);
+  box-shadow: 0 0 6px var(--hd-needle);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hd-logbook-dot {
+    animation: hd-logbook-live 2.4s ease-in-out infinite;
+  }
+}
+@keyframes hd-logbook-live {
+  50% { opacity: 0.35; }
+}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ShowList } from "@/components/shows/ShowView";
 import { LocalTime } from "@/components/tonight/LocalTime";
+import { OnAirMarker } from "@/components/tonight/OnAirMarker";
 import { headlineGuest, longDate, showPath, showSubject } from "@/lib/shows/describe";
 import { breadcrumbJsonLd, jsonLdScript, tonightCrumbs, tonightJsonLd } from "@/lib/shows/jsonld";
 import { formatStationTime } from "@/lib/live/format";
@@ -89,7 +90,7 @@ export function TonightView({
 
       <section className="hd-show-related hd-tonight-program mt-8" aria-labelledby="hd-tonight-program">
         <h2 id="hd-tonight-program" className="hd-show-related-title w98-font text-hd-title text-desert-amber mb-1">
-          The program, midnight to midnight Pacific
+          The program guide, midnight to midnight Pacific
         </h2>
         <p data-testid="tonight-request-line" className="hd-tonight-request-line text-hd-caption text-bevel-dark mb-2">
           At {requestHourLabel(day)} Pacific, the station plays the listeners&apos; pick.{" "}
@@ -98,9 +99,15 @@ export function TonightView({
           </Link>
         </p>
         {page.lineup.length ? (
-          <ol className="hd-show-list hd-tonight-lineup flex flex-col gap-1">
+          <ol id="hd-tonight-guide" className="hd-show-list hd-tonight-lineup hd-program-guide flex flex-col" aria-label="Program guide">
             {page.lineup.map((e) => (
-              <li key={`${e.start}-${e.title}`} className="hd-show-list-item hd-tonight-slot py-2" data-kind={e.kind}>
+              <li
+                key={`${e.start}-${e.title}`}
+                className="hd-show-list-item hd-tonight-slot hd-guide-slot py-2"
+                data-kind={e.kind}
+                data-slot-start={e.start}
+                data-slot-end={e.end}
+              >
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-hd-caption text-bevel-dark">
                   <LocalTime ms={e.start} pacific={formatStationTime(e.start)} />
                   <span className="hd-tonight-kind uppercase tracking-wider text-desert-amber">{SLOT_LABELS[e.kind]}</span>
@@ -124,7 +131,8 @@ export function TonightView({
               </li>
             ))}
           </ol>
-        ) : (
+        ) : null}
+        {page.lineup.length ? <OnAirMarker listId="hd-tonight-guide" /> : (
           <p className="hd-tonight-none text-hd-body text-desktop-gray p-2">
             {available
               ? "The station has not set this day's program yet."

@@ -12,6 +12,10 @@ import { formatClock, STATUS_TICK_MS } from "@/components/desktop/StatusBar";
 import { isKeyOwnedByTarget } from "@/lib/utils/key-ownership";
 import { StartMenu } from "./StartMenu";
 import { HelpDialog, RunDialog, SafeToTurnOff, ShutDownDialog } from "./Win98Dialogs";
+import { useRecentEntries, useTonightEntries } from "./start-programs-data";
+import { useUiSounds } from "@/hooks/useUiSounds";
+import { playUiSound } from "@/audio/ui-sounds";
+import { tuneIn } from "@/audio/live-controller";
 import { startMenuItems, typeKey, type StartAction, type StartItem } from "./start-menu";
 import { Win98Icon } from "./Win98Icon";
 import { useSeason } from "@/hooks/useSeason";
@@ -66,6 +70,13 @@ export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings, o
   const pathname = useAppPathname();
   const isMobile = useIsMobile();
   const [startOpen, setStartOpen] = useState(false);
+  const sounds = useUiSounds();
+  const tonight = useTonightEntries();
+  const recent = useRecentEntries(startOpen);
+  // The Start menu's own sound as it opens (off unless turned on).
+  useEffect(() => {
+    if (startOpen) playUiSound("open");
+  }, [startOpen]);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const startRef = useRef<HTMLButtonElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -147,20 +158,27 @@ export function Taskbar({ isAdmin, presence, onAbout, onShortcuts, onSettings, o
           return setOverlay("run");
         case "shutdown":
           return setOverlay("shutdown");
+        case "tune":
+          // Tonight's Shows: the show on the air tunes in, inside the click.
+          tuneIn();
+          return;
+        case "sounds":
+          return sounds.toggle();
       }
     },
-    [router, onAbout, onShortcuts, onSettings, onDisplay],
+    [router, onAbout, onShortcuts, onSettings, onDisplay, sounds],
   );
 
   const pick = useCallback(
     (item: StartItem) => {
+      playUiSound("click");
       setStartOpen(false);
       runAction(item.action);
     },
     [runAction],
   );
 
-  const items = startMenuItems({ isAdmin, isMobile });
+  const items = startMenuItems({ isAdmin, isMobile, tonight, recent, sounds: { supported: sounds.supported, on: sounds.on } });
 
   return (
     <div

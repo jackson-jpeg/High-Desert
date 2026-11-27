@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Starfield } from "@/components/desktop/Starfield";
+import { YearDial } from "@/components/radio/YearDial";
 import { useDismissBootScreen } from "@/hooks/useDismissBootScreen";
 
 export default function NotFound() {
@@ -26,6 +27,14 @@ export default function NotFound() {
         <div className="text-hd-11 text-bevel-dark leading-relaxed max-w-[300px] mx-auto mb-2">
           The frequency you&apos;re looking for doesn&apos;t exist on this dial.
         </div>
+        {/* Still static with the needle sweeping for a station (push 5): the
+            sweep moves only with motion allowed (era.css). */}
+        <div className="hd-tuning-in hd-lost-signal w98-inset-dark px-3 py-3 my-3" data-testid="lost-signal" aria-hidden="true">
+          <div className="hd-tuning-in-dial">
+            <YearDial airDate={null} />
+            <span className="hd-tuning-in-sweep" />
+          </div>
+        </div>
         <div className="text-hd-9 text-static-green/85 italic mb-6" style={{ textShadow: "0 0 4px rgba(74, 222, 128, 0.15)" }}>
           &ldquo;East of the Rockies, you&apos;re on the air...&rdquo;
         </div>
@@ -34,6 +43,12 @@ export default function NotFound() {
           className="inline-block w98-raised-dark bg-raised-surface text-desktop-gray px-4 py-2 text-hd-11 min-w-[75px] w98-font hover:text-desert-amber transition-colors-fast"
         >
           Return to Library
+        </Link>
+        <Link
+          href="/live"
+          className="inline-block ml-2 w98-raised-dark bg-raised-surface text-desert-amber px-4 py-2 text-hd-11 min-w-[75px] w98-font hover:text-desktop-gray transition-colors-fast"
+        >
+          Tune in live
         </Link>
       </div>
     </div>

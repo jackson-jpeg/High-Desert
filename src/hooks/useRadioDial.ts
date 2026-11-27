@@ -4,6 +4,7 @@ import { useMemo, useEffect, useRef, useCallback } from "react";
 import type { Episode } from "@/db/schema";
 import { useRadioDialStore } from "@/stores/radio-dial-store";
 import { emit } from "@/lib/events";
+import { playUiSound } from "@/audio/ui-sounds";
 
 // ---------- Types ----------
 
@@ -312,6 +313,8 @@ export function useRadioDial(episodes: Episode[] | undefined) {
   const lockToNearest = useCallback(() => {
     if (nearestStation) {
       setPosition(nearestStation.dayIndex);
+      // The dial's tune blip (off unless the listener turned sounds on).
+      playUiSound("tune");
     }
   }, [nearestStation, setPosition]);
 

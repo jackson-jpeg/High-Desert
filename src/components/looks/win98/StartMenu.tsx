@@ -4,6 +4,7 @@ import { Fragment, useEffect, useId, useRef, useState, type CSSProperties, type 
 import { cn } from "@/lib/utils/cn";
 import { startMenuKey, submenuOf, type StartItem } from "./start-menu";
 import { Win98Icon } from "./Win98Icon";
+import { playUiSound } from "@/audio/ui-sounds";
 
 /** The label with its accelerator letter underlined, as Windows drew it. */
 export function AccelLabel({ label, accel }: { label: string; accel: string }) {
@@ -149,6 +150,7 @@ export function StartMenu({
                     onFocus={() => setActive(i)}
                     onMouseEnter={() => {
                       focusItem(i);
+                      playUiSound("hover");
                       // Hovering opens a submenu, and leaving for another item closes it, as Windows does.
                       if (large) return;
                       if (sub) openSubAt(i);
@@ -271,14 +273,21 @@ function SubMenu({
           tabIndex={i === active ? 0 : -1}
           data-testid={`w98-start-${item.id}`}
           onFocus={() => setActive(i)}
-          onMouseEnter={() => focusItem(i)}
+          onMouseEnter={() => {
+            focusItem(i);
+            playUiSound("hover");
+          }}
           onClick={() => onPick(item)}
           className={cn(
             "hd-w98-menu-item w-full flex items-center gap-2 text-left cursor-pointer w98-font",
             large ? "min-h-touch px-3 text-hd-body" : "px-2 py-[5px] text-hd-12",
           )}
         >
-          <Win98Icon name={item.icon} size={large ? 24 : 16} className="flex-shrink-0" />
+          {item.era ? (
+            <span className="hd-start-era flex-shrink-0" data-era={item.era} aria-hidden="true" />
+          ) : (
+            <Win98Icon name={item.icon} size={large ? 24 : 16} className="flex-shrink-0" />
+          )}
           <span className="truncate">
             <AccelLabel label={item.label} accel={item.accel} />
           </span>

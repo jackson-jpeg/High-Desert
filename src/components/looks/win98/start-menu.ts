@@ -9,6 +9,9 @@
 
 import { PHONE_LINES_HREF } from "@/lib/live/phone-lines";
 import { REQUEST_LINE_LABEL, REQUEST_LINE_PATH } from "@/lib/live/request-line";
+import { libraryIntentHref } from "@/lib/library/intents";
+import { SHOW_YEARS, TOP_GUESTS } from "@/lib/shows/start-programs";
+import { eraOfYear, type EraKey } from "@/lib/era/era";
 
 export type StartAction =
   | { kind: "route"; href: string }
@@ -19,7 +22,11 @@ export type StartAction =
   | { kind: "display" }
   | { kind: "submenu"; items: StartItem[] }
   | { kind: "run" }
-  | { kind: "shutdown" };
+  | { kind: "shutdown" }
+  /** Tune in to the live station (the show on the air in Tonight's Shows). */
+  | { kind: "tune" }
+  /** Turn the interface sounds on or off (src/audio/ui-sounds.ts). */
+  | { kind: "sounds" };
 
 export type StartIcon =
   | "library"
@@ -36,7 +43,8 @@ export type StartIcon =
   | "shortcuts"
   | "help"
   | "run"
-  | "shutdown";
+  | "shutdown"
+  | "speaker";
 
 export interface StartItem {
   id: string;
@@ -47,6 +55,94 @@ export interface StartItem {
   action: StartAction;
   /** A rule above this item. */
   separatorBefore?: boolean;
+  /** A year's era (src/lib/era/era.ts): By Year draws a swatch in its colour. */
+  era?: EraKey;
+}
+
+/** One show on tonight's log, for Tonight's Shows. */
+export interface TonightEntry {
+  /** "8:00 PM", Pacific, as the log prints it. */
+  time: string;
+  title: string;
+  onAir: boolean;
+}
+
+/** One of the listener's recent shows, for Recent Shows. */
+export interface RecentEntry {
+  title: string;
+  /** Its community key: /library?show=<key> selects it. */
+  key: string;
+}
+
+export interface StartMenuContext {
+  isAdmin: boolean;
+  isMobile: boolean;
+  /** Tonight's log; empty until the schedule has loaded. */
+  tonight?: readonly TonightEntry[];
+  /** The listener's last shows, newest first. */
+  recent?: readonly RecentEntry[];
+  /** Interface sounds: whether this device can have them, and whether they are on. */
+  sounds?: { supported: boolean; on: boolean };
+}
+
+/** How many recent shows Recent Shows lists. */
+export const RECENT_MAX = 5;
+
+/** The first letter or digit of a label: a submenu item's accelerator. */
+const firstKey = (label: string) => (/[A-Za-z0-9]/.exec(label)?.[0] ?? "?").toUpperCase();
+
+/** Start > Programs' submenus: Tonight's Shows, Recent Shows, Guests, By Year. */
+export function programItems({ tonight = [], recent = [] }: Pick<StartMenuContext, "tonight" | "recent">): StartItem[] {
+  const route = (href: string): StartAction => ({ kind: "route", href });
+  const tonightItems: StartItem[] = tonight.length
+    ? tonight.map((e, i) => ({
+        id: `tonight-${i}`,
+        label: `${e.time}  ${e.title}${e.onAir ? " (on the air)" : ""}`,
+        accel: firstKey(e.time),
+        icon: "live",
+        action: e.onAir ? { kind: "tune" } : route("/tonight"),
+      }))
+    : [{ id: "tonight-guide", label: "Program guide", accel: "P", icon: "live", action: route("/tonight") }];
+  const recentItems: StartItem[] = recent.length
+    ? recent.slice(0, RECENT_MAX).map((r, i) => ({
+        id: `recent-${i}`,
+        label: r.title,
+        accel: String(i + 1),
+        icon: "library",
+        action: route(libraryIntentHref({ show: r.key })),
+      }))
+    : [{ id: "recent-none", label: "Nothing played yet: open the Library", accel: "N", icon: "library", action: route("/library") }];
+  return [
+    { id: "tonight", label: "Tonight's Shows", accel: "N", icon: "live", action: { kind: "submenu", items: tonightItems }, separatorBefore: true },
+    { id: "recent", label: "Recent Shows", accel: "W", icon: "library", action: { kind: "submenu", items: recentItems } },
+    {
+      id: "guests",
+      label: "Guests",
+      accel: "G",
+      icon: "phone",
+      action: {
+        kind: "submenu",
+        items: TOP_GUESTS.map((g) => ({ id: `guest-${g.slug}`, label: g.name, accel: firstKey(g.name), icon: "phone", action: route(`/guest/${g.slug}`) })),
+      },
+    },
+    {
+      id: "years",
+      label: "By Year",
+      accel: "B",
+      icon: "dial",
+      action: {
+        kind: "submenu",
+        items: SHOW_YEARS.map((y) => ({
+          id: `year-${y}`,
+          label: String(y),
+          accel: String(y).slice(-1),
+          icon: "dial",
+          era: eraOfYear(y) ?? undefined,
+          action: route(`/shows/${y}`),
+        })),
+      },
+    },
+  ];
 }
 
 /** Where "Phone Lines" goes: the Live screen with the lines open (src/lib/live/phone-lines.ts). */
@@ -54,7 +150,7 @@ export { PHONE_LINES_HREF };
 /** The Library's dial browse mode (an intent another branch builds). */
 export const DIAL_HREF = "/library?view=dial";
 
-export function startMenuItems({ isAdmin, isMobile }: { isAdmin: boolean; isMobile: boolean }): StartItem[] {
+export function startMenuItems({ isAdmin, isMobile, tonight, recent, sounds }: StartMenuContext): StartItem[] {
   const items: StartItem[] = [
     { id: "library", label: "Library", accel: "L", icon: "library", action: { kind: "route", href: "/library" } },
     { id: "live", label: "Live", accel: "V", icon: "live", action: { kind: "route", href: "/live" } },
@@ -63,6 +159,7 @@ export function startMenuItems({ isAdmin, isMobile }: { isAdmin: boolean; isMobi
     { id: "request-line", label: REQUEST_LINE_LABEL, accel: "Q", icon: "request", action: { kind: "route", href: REQUEST_LINE_PATH } },
     { id: "dial", label: "Dial", accel: "D", icon: "dial", action: { kind: "route", href: DIAL_HREF } },
     { id: "stats", label: "Stats", accel: "S", icon: "stats", action: { kind: "route", href: "/stats" } },
+    ...programItems({ tonight, recent }),
   ];
   if (isAdmin) {
     items.push(
@@ -75,7 +172,7 @@ export function startMenuItems({ isAdmin, isMobile }: { isAdmin: boolean; isMobi
     label: "Settings",
     accel: "T",
     icon: "settings",
-    action: { kind: "submenu", items: settingsItems({ isMobile }) },
+    action: { kind: "submenu", items: settingsItems({ isMobile, sounds }) },
     separatorBefore: true,
   });
   items.push(
@@ -93,10 +190,14 @@ export function startMenuItems({ isAdmin, isMobile }: { isAdmin: boolean; isMobi
  * a phone, which has no menu bar, the rest of its settings (text size, sound,
  * export) in the More sheet.
  */
-export function settingsItems({ isMobile }: { isMobile: boolean }): StartItem[] {
+export function settingsItems({ isMobile, sounds }: { isMobile: boolean; sounds?: StartMenuContext["sounds"] }): StartItem[] {
   const items: StartItem[] = [
     { id: "display", label: "Display...", accel: "D", icon: "display", action: { kind: "display" } },
   ];
+  // Off by default; never offered where the sounds cannot play (iOS).
+  if (sounds?.supported) {
+    items.push({ id: "sounds", label: sounds.on ? "Sounds: On" : "Sounds: Off", accel: "S", icon: "speaker", action: { kind: "sounds" } });
+  }
   if (isMobile) {
     items.push({ id: "more-settings", label: "More Settings...", accel: "M", icon: "settings", action: { kind: "settings" } });
   }
