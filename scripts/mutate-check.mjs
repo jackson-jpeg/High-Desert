@@ -11721,6 +11721,30 @@ export const MUTATIONS = [
     replace: "\"optionalDependencies\"",
     why: "a dependency upgrade in package.json no longer ran the whole list",
   },
+  {
+    id: "uiplan-notepad-lamp-lit",
+    test: "src/components/looks/win98/__tests__/notepad-phone-lines.test.tsx",
+    file: "src/components/looks/win98/NotepadPhoneLines.tsx",
+    find: "data-lit={lit.has(m.line) ? \"\" : undefined}",
+    replace: "data-lit={undefined}",
+    why: "Win98's Notepad lamps never lit",
+  },
+  {
+    id: "uiplan-notepad-lamp-window",
+    test: "src/components/looks/win98/__tests__/notepad-phone-lines.test.tsx",
+    file: "src/components/looks/win98/NotepadPhoneLines.tsx",
+    find: "const lit = litLines(chat.messages, lampNow);",
+    replace: "const lit = new Set(chat.messages.map((x) => x.line));",
+    why: "every line a caller ever used stayed lit",
+  },
+  {
+    id: "uiplan-notepad-lamp-css",
+    test: "src/components/looks/win98/__tests__/notepad-phone-lines.test.tsx",
+    file: "src/styles/look-win98.css",
+    find: "html[data-look=\"win98\"] .hd-w98-notepad-lamp[data-lit] {\n  background: var(--hd-needle);",
+    replace: "html[data-look=\"win98\"] .hd-w98-notepad-lamp[data-lit] {\n  background: transparent;",
+    why: "a lit lamp drew nothing",
+  },
 ];
 
 /**

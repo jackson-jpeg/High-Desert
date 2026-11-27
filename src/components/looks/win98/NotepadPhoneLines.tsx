@@ -20,6 +20,8 @@ import { useOpenLibraryIntent } from "@/hooks/useOpenLibraryIntent";
 import { Dialog } from "@/components/win98/Dialog";
 import { Button } from "@/components/win98/Button";
 import { archiveLabel, archiveText, logTime, tuneinLine } from "./notepad-log";
+import { litLines } from "@/lib/live/switchboard";
+import { useStationClock } from "@/hooks/useLiveStation";
 import { Win98MenuBar, type Win98Menu } from "./Win98MenuBar";
 import { Win98Icon } from "./Win98Icon";
 
@@ -266,6 +268,11 @@ function NotepadLog({
   onFindShow: (title: string) => void;
 }) {
   const keys = followKeys(rows);
+  // The line lamps (docs/UI-PLAN.md, push 2: "W's Notepad stays Notepad, but
+  // a call gets a tiny line-number lamp"): lit while its line has had a call
+  // in the last 20 minutes, the switchboard's rule (src/lib/live/switchboard.ts).
+  const lampNow = useStationClock(30_000);
+  const lit = litLines(chat.messages, lampNow);
   const lastCall = chat.messages[chat.messages.length - 1];
   const lastIsMine = !!lastCall && isOwnCall(lastCall, chat.mine, chat.you) && keys.alert === `c${lastCall.id}`;
   // Follow new lines only while the reader is at the bottom; scrolled up, new
@@ -398,6 +405,12 @@ function NotepadLog({
                     {shownLine(m) && (
                       <>
                         {"\u00A0\u00B7 "}
+                        <span
+                          className="hd-w98-notepad-lamp"
+                          data-testid="line-lamp"
+                          data-lit={lit.has(m.line) ? "" : undefined}
+                          aria-hidden="true"
+                        />
                         <span data-testid="line-label">{shownLine(m)}</span>
                       </>
                     )}

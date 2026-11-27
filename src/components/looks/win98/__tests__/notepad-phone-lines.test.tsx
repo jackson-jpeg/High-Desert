@@ -313,6 +313,37 @@ describe("Phone Lines - Notepad", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("lights a call's line lamp while its line has had a call in the last 20 minutes (push 2)", () => {
+    const ago = (min: number) => new Date(Date.now() - min * 60_000).toISOString();
+    messages = [
+      { id: 11, at: ago(40), name: "Old Caller", place: null, line: "Line 1", body: "an hour back" },
+      { id: 12, at: ago(5), name: "Skeptic", place: null, line: "Line 3", body: "just now" },
+      { id: 13, at: ago(45), name: "Earlier", place: null, line: "Line 3", body: "same line, earlier" },
+      { id: 14, at: ago(3), name: "Traveler", place: "Reno", line: "Line 1", body: "from Reno" },
+      { id: 15, at: ago(50), name: "Quiet", place: null, line: "Line 2", body: "nobody since" },
+    ];
+    mine = [];
+    mount();
+    const lamps = all("line-lamp");
+    // A call with a place shows no line (shownLine), and so no lamp.
+    expect(lamps).toHaveLength(4);
+    expect(container.querySelector('[data-id="14"] [data-testid="line-lamp"]')).toBeNull();
+    const lampOf = (id: number) => container.querySelector(`[data-id="${id}"] [data-testid="line-lamp"]`)!;
+    // Line 1 is lit by the Reno call, which shows no lamp of its own.
+    expect(lampOf(11).hasAttribute("data-lit")).toBe(true);
+    // Line 2's last call was 50 minutes ago: dark.
+    expect(lampOf(15).hasAttribute("data-lit")).toBe(false);
+    expect(lampOf(12).hasAttribute("data-lit")).toBe(true);
+    // A line is lit, not a call: Line 3's earlier call shows it lit too.
+    expect(lampOf(13).hasAttribute("data-lit")).toBe(true);
+    expect(lamps.every((l) => l.getAttribute("aria-hidden") === "true")).toBe(true);
+    // It sits right before the line's own label, and is drawn in Win98's CSS.
+    expect(lampOf(12).nextElementSibling?.getAttribute("data-testid")).toBe("line-label");
+    const css = readFileSync(join(process.cwd(), "src/styles/look-win98.css"), "utf8");
+    expect(css).toMatch(/html\[data-look="win98"\] \.hd-w98-notepad-lamp \{[^}]*width: 6px;/);
+    expect(css).toMatch(/html\[data-look="win98"\] \.hd-w98-notepad-lamp\[data-lit\] \{[^}]*background: var\(--hd-needle\);/);
+  });
+
   it("keeps the call box", () => {
     mount();
     expect(one("composer")).not.toBeNull();

@@ -2210,3 +2210,21 @@ html[data-look="win98"] .hd-dsp-win98 .hd-dsp-explainer {
     height: 9px;
   }
 }
+
+/* A call's line lamp in Notepad (docs/UI-PLAN.md, push 2): a small square LED
+   beside "Line 3", lit in the switchboard's red while that line has had
+   a call in the last 20 minutes. Square and flat, a Win98 indicator, not
+   Night's round lamp. */
+html[data-look="win98"] .hd-w98-notepad-lamp {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 3px;
+  vertical-align: 1px;
+  background: color-mix(in srgb, var(--hd-needle) 25%, var(--hd-void));
+  box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--hd-void) 70%, transparent);
+}
+html[data-look="win98"] .hd-w98-notepad-lamp[data-lit] {
+  background: var(--hd-needle);
+  box-shadow: 0 0 3px var(--hd-needle);
+}
