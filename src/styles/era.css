@@ -64,6 +64,17 @@ html[data-look="win98"] .hd-era-spine[data-era] {
   border-left-color: var(--era-deep);
 }
 
+/* A list of shows (guest pages, related shows, topics) reads as a call log:
+   each show's era as a thin edge. An edge, not text, so it is safe on
+   every surface the list sits on. */
+.hd-era-log[data-era] {
+  border-left: 3px solid var(--era);
+  padding-left: 0.6rem;
+}
+html[data-look="win98"] .hd-era-log[data-era] {
+  border-left-color: var(--era-deep);
+}
+
 /* The dial's scale (YearDial.tsx): each era's span in its colour. */
 .hd-year-dial-era[data-era] {
   fill: var(--era);

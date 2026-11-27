@@ -291,7 +291,7 @@ describe("topic pages, rendered", () => {
 
   it("the index lists every topic once", () => {
     const d = doc(renderToStaticMarkup(createElement(ShowShell, null, createElement(TopicsIndex, { catalog: topics }))));
-    const hrefs = [...d.querySelectorAll(".hd-topic-links a")].map((a) => a.getAttribute("href"));
+    const hrefs = [...d.querySelectorAll(".hd-topic-cards a")].map((a) => a.getAttribute("href"));
     expect(hrefs.sort()).toEqual(topics.topics.map((t) => `/topic/${t.slug}`).sort());
     checkPage(d, "topics");
   });

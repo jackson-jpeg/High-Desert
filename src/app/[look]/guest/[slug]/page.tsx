@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { ShowList } from "@/components/shows/ShowView";
+import { CallSlip } from "@/components/shows/CallSlip";
 import { showCatalog } from "@/lib/shows/load";
 import { personKey } from "@/lib/shows/people";
 import { guestMetadata } from "@/lib/shows/metadata";
@@ -67,7 +68,7 @@ export default async function GuestPage({ params }: Props) {
       </nav>
       <article className="hd-show-article hd-show-guest w98-raised-dark bg-raised-surface p-4 md:p-6">
         <p className="hd-show-series text-hd-caption uppercase tracking-wider text-desert-amber mb-1">Guest</p>
-        <h1 className="hd-show-title w98-font text-hd-h2 text-desktop-gray leading-tight">{guest.name}</h1>
+        <CallSlip guest={guest} about={topics[0]?.name ?? null} />
         <p className="hd-show-meta text-hd-body text-desktop-gray mt-3">{guestDescription(guest)}</p>
         <div className="hd-show-player w98-inset-dark bg-inset-well p-3 mt-4 flex flex-col gap-2">
           <p className="text-hd-caption text-bevel-dark">Start with</p>

@@ -1,0 +1,217 @@
+/*
+ * Guests as late-night phone messages (src/components/shows/CallSlip.tsx,
+ * docs/UI-PLAN.md, push 4). A pink slip with ruled lines and typed entries,
+ * slightly turned, the same in both looks: it is paper on the desk. Ink on
+ * the slip is the near-black ink (over 12:1 on the pink); the header is the
+ * needle's red on the pink (5:1 or better: call-slip.test.tsx measures it).
+ * Nothing moves.
+ */
+
+.hd-call-slip {
+  position: relative;
+  max-width: 30rem;
+  margin-top: 0.5rem;
+  padding: 0.75rem 1rem 0.9rem;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 1.55rem, color-mix(in srgb, var(--hd-slip-rule) 55%, transparent) 1.55rem calc(1.55rem + 1px)),
+    var(--hd-slip);
+  color: var(--hd-slip-ink);
+  border: 1px solid color-mix(in srgb, var(--hd-slip-rule) 70%, transparent);
+  box-shadow: 2px 3px 0 color-mix(in srgb, var(--hd-void) 35%, transparent), 0 10px 24px -14px color-mix(in srgb, var(--hd-void) 70%, transparent);
+  transform: rotate(-0.6deg);
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+.hd-call-slip-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 0.4rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 2px solid var(--hd-slip-red);
+  color: var(--hd-slip-red);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: var(--hd-text-12, 12px);
+}
+
+.hd-call-slip-stamp {
+  padding: 0 0.4rem;
+  border: 1.5px solid var(--hd-slip-red);
+  border-radius: 3px;
+  transform: rotate(4deg);
+  letter-spacing: 0.08em;
+}
+
+.hd-call-slip-fields {
+  margin: 0;
+}
+.hd-call-slip-row {
+  display: grid;
+  grid-template-columns: 6.2rem 1fr;
+  align-items: baseline;
+  min-height: 1.55rem;
+}
+.hd-call-slip-row dt {
+  color: var(--hd-slip-red);
+  font-size: var(--hd-text-12, 12px);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.hd-call-slip-row dd {
+  margin: 0;
+  color: var(--hd-slip-ink);
+}
+/* The page's h1, typed onto the "From" line. */
+.hd-call-slip .hd-call-slip-name {
+  display: inline;
+  margin: 0;
+  color: var(--hd-slip-ink);
+  font-size: 1.35em;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.hd-call-slip-boxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.1rem;
+  list-style: none;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  font-size: var(--hd-text-12, 12px);
+  color: var(--hd-slip-ink);
+}
+.hd-call-slip-boxes li::before {
+  content: "";
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  margin-right: 0.35em;
+  vertical-align: -0.05em;
+  border: 1.5px solid var(--hd-slip-ink);
+}
+.hd-call-slip-boxes li[data-checked]::before {
+  content: "✓";
+  line-height: 0.75em;
+  text-align: center;
+  color: var(--hd-slip-red);
+  font-weight: 700;
+}
+
+/* The slip carries its own colours in both looks; neither look's text
+   colours reach inside it. */
+html[data-look] .hd-call-slip .hd-show-title {
+  color: var(--hd-slip-ink);
+}
+
+/* ---------------- The request board (RequestLineList.tsx) ---------------- */
+
+/* Votes as tally marks in the amber of the board's numbers; the leading
+   request lit with an amber edge and a soft glow. */
+.hd-tally {
+  display: inline-flex;
+  gap: 5px;
+  height: 14px;
+}
+.hd-tally-five,
+.hd-tally-rest {
+  position: relative;
+  height: 14px;
+  background-image: repeating-linear-gradient(to right, var(--hd-amber) 0 1.5px, transparent 1.5px 4px);
+}
+.hd-tally-five {
+  width: 16px;
+}
+.hd-tally-five::after {
+  content: "";
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  top: 50%;
+  height: 1.5px;
+  background: var(--hd-amber);
+  transform: rotate(-28deg);
+}
+html[data-look="win98"] .hd-tally-five,
+html[data-look="win98"] .hd-tally-rest {
+  background-image: repeating-linear-gradient(to right, var(--hd-w98-brown) 0 1.5px, transparent 1.5px 4px);
+}
+html[data-look="win98"] .hd-tally-five::after {
+  background: var(--hd-w98-brown);
+}
+
+.hd-request-row[data-leading] {
+  border-left: 3px solid var(--hd-amber);
+  padding-left: 0.6rem;
+  box-shadow: inset 12px 0 24px -16px color-mix(in srgb, var(--hd-amber) 45%, transparent);
+}
+html[data-look="win98"] .hd-request-row[data-leading] {
+  border-left-color: var(--hd-w98-brown);
+  box-shadow: none;
+  background: color-mix(in srgb, var(--hd-w98-brown) 8%, transparent);
+}
+
+/* ---------------- Topic cards (/topics) ---------------- */
+
+/* Each topic a card with a lift; its era edge comes from era.css (.hd-era-log). */
+.hd-topic-card {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--hd-raised) 70%, transparent);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--hd-amber) 18%, transparent), 0 6px 14px -10px color-mix(in srgb, var(--hd-void) 80%, transparent);
+}
+html[data-look="win98"] .hd-topic-card {
+  border-radius: 0;
+}
+
+/* ---------------- The flip clock (FlipClock.tsx) ---------------- */
+
+/* Dark split cards with a hinge line, phosphor amber digits; turns once a
+   minute with no animation. */
+.hd-flip-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.25rem 0 0.75rem;
+}
+.hd-flip-clock-cards {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.hd-flip-card {
+  position: relative;
+  display: inline-block;
+  width: 1.5em;
+  padding: 0.15em 0;
+  text-align: center;
+  font: 700 1.6rem/1 var(--font-mono, ui-monospace, monospace);
+  color: var(--hd-amber-phosphor);
+  background: linear-gradient(to bottom, var(--hd-raised) 0 50%, var(--hd-void) 50% 100%);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--hd-desert-star) 12%, transparent), 0 2px 0 var(--hd-void);
+}
+.hd-flip-card::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: color-mix(in srgb, var(--hd-void) 90%, transparent);
+}
+.hd-flip-colon {
+  font: 700 1.4rem/1 var(--font-mono, ui-monospace, monospace);
+  color: var(--hd-amber-phosphor);
+}
+.hd-flip-clock-label {
+  font-size: var(--hd-text-12, 12px);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--hd-muted);
+}
+html[data-look="win98"] .hd-flip-clock-label {
+  color: var(--hd-w98-brown);
+}

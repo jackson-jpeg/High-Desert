@@ -13,6 +13,7 @@ import {
   type Show,
 } from "@/lib/shows/describe";
 import { guestPeople, personKey } from "@/lib/shows/people";
+import { CallSlip } from "@/components/shows/CallSlip";
 import { relatedShows } from "@/lib/shows/related";
 import { breadcrumbJsonLd, episodeJsonLd, jsonLdScript, showCrumbs } from "@/lib/shows/jsonld";
 import { libraryIntentHref } from "@/lib/library/intents";
@@ -81,7 +82,7 @@ export function ShowList({ shows, className }: { shows: Show[]; className?: stri
   return (
     <ul className={`hd-show-list flex flex-col gap-1 ${className ?? ""}`}>
       {shows.map((s) => (
-        <li key={s.slug} className="hd-show-list-item">
+        <li key={s.slug} className="hd-show-list-item hd-era-log" data-era={eraOf(s.row.airDate) ?? undefined}>
           <Link href={showPath(s.slug)} className="hd-show-list-link group flex flex-col md:flex-row md:items-baseline md:gap-3 py-1.5 min-h-touch md:min-h-0">
             <span className="text-hd-body text-signal-blue group-hover:text-desktop-gray transition-colors-fast">
               {showSubject(s.row)}
@@ -171,6 +172,9 @@ export function ShowView({
   const next = nextShow(show, catalog, topics);
   const people = guestPeople(row);
   const firstGuest = people[0] ?? guest;
+  // The headline guest's call slip, when they have a guest page (2+ shows).
+  const slipSlug = people.map((p) => catalog.guestSlugByPerson.get(personKey(p))).find(Boolean);
+  const slipGuest = slipSlug ? catalog.guests.get(slipSlug) ?? null : null;
   const crumbs = showCrumbs(show);
   const fragment = moment != null ? `#t=${moment}` : "";
   const categoryTopic = row.aiCategory ? topics.find((t) => t.id === `category:${row.aiCategory}`) : undefined;
@@ -362,6 +366,15 @@ export function ShowView({
           </section>
         ) : null}
       </article>
+
+      {slipGuest ? (
+        <section className="hd-show-slip mt-6" aria-label={`${slipGuest.name}, guest`}>
+          <CallSlip guest={slipGuest} about={shownTopics[0]?.name ?? null} heading="p" />
+          <Link href={guestPath(slipGuest.slug)} className={`hd-show-slip-link inline-flex items-center min-h-touch md:min-h-0 mt-2 text-hd-caption ${link}`}>
+            Every show with {slipGuest.name}
+          </Link>
+        </section>
+      ) : null}
 
       <div className="hd-show-related flex flex-col gap-6 mt-8">
         <Related

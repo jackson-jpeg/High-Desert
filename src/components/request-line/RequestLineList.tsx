@@ -95,7 +95,13 @@ export function RequestLineList({ initial, day, closesAt }: { initial: readonly 
       ) : null}
       <ol className="hd-show-list hd-request-nominations flex flex-col gap-1" data-testid="request-list">
         {rows.map((r, i) => (
-          <li key={r.id} data-testid="request-row" data-nomination={r.id} className={cn("hd-show-list-item hd-request-row py-2 flex items-center gap-3", r.mine && "hd-request-mine")}>
+          <li
+            key={r.id}
+            data-testid="request-row"
+            data-nomination={r.id}
+            data-leading={i === 0 && r.votes > 0 ? "" : undefined}
+            className={cn("hd-show-list-item hd-request-row py-2 flex items-center gap-3", r.mine && "hd-request-mine")}
+          >
             <span className="w-6 shrink-0 text-right text-hd-caption tabular-nums text-bevel-dark">{i + 1}</span>
             <span className="flex-1 min-w-0 flex flex-col">
               {r.slug ? (
@@ -119,6 +125,7 @@ export function RequestLineList({ initial, day, closesAt }: { initial: readonly 
               <span data-testid="request-votes" className="w98-font text-hd-title text-desert-amber tabular-nums">
                 {r.votes} <span className="text-hd-micro text-bevel-dark uppercase">{r.votes === 1 ? "vote" : "votes"}</span>
               </span>
+              <Tally n={r.votes} />
               <span className="flex gap-2">
                 <button type="button" className={button} disabled={closed || r.voted} onClick={() => onVote(r.id)} data-testid="request-vote">
                   {r.voted ? "Voted" : "Vote"}
@@ -139,5 +146,28 @@ export function RequestLineList({ initial, day, closesAt }: { initial: readonly 
         ))}
       </ol>
     </>
+  );
+}
+
+/** Most strokes drawn; past it the count says the rest. */
+export const TALLY_MAX = 25;
+
+/**
+ * Votes as tally marks on the request board (docs/UI-PLAN.md, push 4): a gate
+ * of five (four strokes, one across) per five votes, then the strokes left.
+ * Decoration beside the number, which stays the thing read aloud.
+ */
+export function Tally({ n }: { n: number }) {
+  const drawn = Math.max(0, Math.min(n, TALLY_MAX));
+  const fives = Math.floor(drawn / 5);
+  const rest = drawn % 5;
+  if (drawn === 0) return null;
+  return (
+    <span className="hd-tally" aria-hidden="true" data-tally={drawn}>
+      {Array.from({ length: fives }, (_, i) => (
+        <span key={i} className="hd-tally-five" />
+      ))}
+      {rest > 0 && <span className="hd-tally-rest" style={{ width: `${rest * 4}px` }} />}
+    </span>
   );
 }

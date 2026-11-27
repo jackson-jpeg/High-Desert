@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FlipClock } from "@/components/request-line/FlipClock";
 import { breadcrumbJsonLd, jsonLdScript, requestLineCrumbs, requestLineJsonLd } from "@/lib/shows/jsonld";
 import { formatStationTime } from "@/lib/live/format";
 import { pacificDay, requestCloseAt, requestHourLabel, requestStartAt } from "@/lib/live/schedule";
@@ -93,6 +94,7 @@ export function RequestLineView({ page, available, now }: { page: ReturnType<typ
           <p className="text-hd-caption text-bevel-dark mb-2">
             Voting closes at {formatStationTime(closes)} PT{forTomorrow ? " tomorrow" : ""}. Most votes wins; a tie goes to the first pick.
           </p>
+          {available ? <FlipClock closesAt={closes} /> : null}
           {available ? (
             <RequestLineList initial={page.nominations} day={page.day} closesAt={closes} />
           ) : (

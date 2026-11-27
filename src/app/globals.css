@@ -17,6 +17,8 @@
 @import "../styles/radio-set.css";
 /* Era colours by year (src/lib/era/era.ts, docs/UI-PLAN.md, push 3). */
 @import "../styles/era.css";
+/* Guests as phone messages, the request board, topic cards (docs/UI-PLAN.md, push 4). */
+@import "../styles/call-slip.css";
 @import "../styles/station-break.css";
 /* Show, guest, topic and Tonight pages: the newer hooks, both looks (docs/show-pages.md). */
 @import "../styles/show-pages.css";
@@ -245,6 +247,14 @@
   --hd-era-dark-deep: #1F4E9A;
   --hd-era-desert: #B79BF0;        /* 2014 to 2015 */
   --hd-era-desert-deep: #5B2D9E;
+
+  /* Guests as phone messages (CallSlip.tsx, src/styles/call-slip.css, push 4):
+     the pink slip, its ruled lines, the typed ink (13.5:1 on the slip) and the
+     printed red (5.9:1 on the slip). */
+  --hd-slip: #F9D7DE;
+  --hd-slip-rule: #E3A9B6;
+  --hd-slip-ink: #1B1420;
+  --hd-slip-red: #A3122A;
 
   /* The "Win98" preview look (src/styles/look-win98.css, docs/looks.md).
      Only that look reads these; it reuses the classic chrome above for the

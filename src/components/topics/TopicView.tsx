@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { eraOfYear, type EraKey } from "@/lib/era/era";
 import { ShowList } from "@/components/shows/ShowView";
 import { headlineGuest, longDate, seriesOf, showPath, showSubject, type Show } from "@/lib/shows/describe";
 import {
@@ -121,6 +122,45 @@ export function TopicView({ topic, catalog }: { topic: Topic; catalog: TopicCata
   );
 }
 
+/** A topic's years on the air, and the era most of its shows come from. */
+export function topicSpan(topic: Pick<Topic, "shows">): { from: number; to: number; era: EraKey | null } | null {
+  const years = topic.shows.map((s) => Number(s.row.airDate?.slice(0, 4))).filter((y) => y > 1900);
+  if (!years.length) return null;
+  const count = new Map<EraKey, number>();
+  for (const y of years) {
+    const e = eraOfYear(y);
+    if (e) count.set(e, (count.get(e) ?? 0) + 1);
+  }
+  const era = [...count.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? null;
+  return { from: Math.min(...years), to: Math.max(...years), era };
+}
+
+/** /topics: each topic a card with its count and its years, edged in its era (push 4). */
+function TopicCards({ topics }: { topics: readonly Topic[] }) {
+  return (
+    <ul className="hd-topic-cards grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 p-1">
+      {topics.map((t) => {
+        const span = topicSpan(t);
+        return (
+          <li key={t.slug}>
+            <Link
+              href={topicPath(t.slug)}
+              data-era={span?.era ?? undefined}
+              className="hd-topic-card hd-era-log flex flex-col min-h-touch px-3 py-2 border border-bevel-dark/40 hover:text-desktop-gray"
+            >
+              <span className="hd-topic-card-name text-hd-body text-signal-blue">{t.name}</span>
+              <span className="hd-topic-card-meta text-hd-caption text-bevel-dark">
+                {t.shows.length === 1 ? "1 show" : `${t.shows.length} shows`}
+                {span ? `, ${span.from === span.to ? span.from : `${span.from} to ${span.to}`}` : ""}
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function TopicLinks({ topics }: { topics: readonly Topic[] }) {
   return (
     <ul className="hd-topic-links flex flex-wrap gap-2 p-1">
@@ -169,7 +209,7 @@ export function TopicsIndex({ catalog }: { catalog: TopicCatalog }) {
             <h2 id={`hd-topics-${g.kind}`} className="hd-show-related-title w98-font text-hd-title text-desert-amber mb-1">
               {g.title}
             </h2>
-            <TopicLinks topics={list} />
+            <TopicCards topics={list} />
           </section>
         ) : null;
       })}
