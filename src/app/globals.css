@@ -13,6 +13,8 @@
 @import "../styles/ticker.css";
 /* Sideways rows fade the edges with more behind them (useScrollEdges.ts). */
 @import "../styles/scroll-edges.css";
+/* Live as a radio set: the year dial, tuning band, phosphor clock (docs/UI-PLAN.md, push 2). */
+@import "../styles/radio-set.css";
 @import "../styles/station-break.css";
 /* Show, guest, topic and Tonight pages: the newer hooks, both looks (docs/show-pages.md). */
 @import "../styles/show-pages.css";

@@ -10,6 +10,7 @@ import { formatAirDate } from "@/lib/utils/format";
 import { formatCountdown, formatStationTime, splitShowTitle } from "@/lib/live/format";
 import { upcoming, knownSlots, type LiveSchedule, type ProgramSlot } from "@/lib/live/schedule";
 import { airYear, showHook } from "@/lib/live/hook";
+import { YearDial } from "@/components/radio/YearDial";
 import { wantsPhoneLines } from "@/lib/live/phone-lines";
 import { useLiveStore } from "@/stores/live-store";
 import { usePlayerStore } from "@/stores/player-store";
@@ -259,7 +260,7 @@ function LiveHero({ schedule, look }: { schedule: LiveSchedule; look: Look }) {
       data-testid="live-hero"
       aria-label="On the air"
       className={cn(
-        "order-first w98-raised-dark bg-raised-surface flex flex-col gap-3 px-4 py-4",
+        "hd-radio-set order-first w98-raised-dark bg-raised-surface flex flex-col gap-3 px-4 py-4",
         look === "night" && "rounded-xl hd-has-horizon",
       )}
     >
@@ -373,7 +374,7 @@ function Console({ schedule }: { schedule: LiveSchedule }) {
       <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 bg-inset-well border-b border-bevel-dark/20">
         <OnAirLamp lit={!!slot} tuned={tuned} size="lg" />
         <div className="flex flex-col items-end">
-          <span data-testid="live-clock" className="w98-font text-phosphor-amber tabular-nums leading-none text-hd-h2">
+          <span data-testid="live-clock" className="hd-phosphor w98-font text-phosphor-amber tabular-nums leading-none text-hd-h2">
             {formatStationTime(now)}
           </span>
           <span className="text-hd-micro text-bevel-dark uppercase tracking-[0.2em]">Pacific · Station time</span>
@@ -418,7 +419,7 @@ function PhoneStudio({ schedule, look }: { schedule: LiveSchedule; look: Look })
         )}
       >
         <span className="shrink-0 flex items-baseline gap-1">
-          <span data-testid="live-clock" className="w98-font text-hd-title text-phosphor-amber tabular-nums leading-none">
+          <span data-testid="live-clock" className="hd-phosphor w98-font text-hd-title text-phosphor-amber tabular-nums leading-none">
             {formatStationTime(now)}
           </span>
           <span className="text-hd-micro text-bevel-dark uppercase tracking-[0.18em]">PT</span>
@@ -599,17 +600,18 @@ export function NowPlaying({ slot, now, hook = null, phone = false }: { slot: Pr
           {hook}
         </p>
       )}
+      <YearDial airDate={slot.airDate} className="mt-1" />
       <div className="flex items-center gap-3 mt-1">
         <span className="text-hd-caption tabular-nums text-bevel-dark w98-font">{formatCountdown(elapsed)}</span>
         <div
-          className="flex-1 h-[10px] w98-inset-dark bg-inset-well"
+          className="hd-tuning-band flex-1 h-[10px] w98-inset-dark bg-inset-well"
           role="progressbar"
           aria-label="Show progress"
           aria-valuemin={0}
           aria-valuemax={Math.round(length)}
           aria-valuenow={Math.round(elapsed)}
         >
-          <div className="h-full bg-desert-amber" style={{ width: `${pct}%` }} />
+          <div className="hd-tuning-band-fill h-full bg-desert-amber" style={{ width: `${pct}%` }} />
         </div>
         <span className="text-hd-caption tabular-nums text-desert-amber w98-font" data-testid="live-time-left">
           −{formatCountdown(left)}

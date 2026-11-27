@@ -1,5 +1,7 @@
 "use client";
 
+import { SWITCHBOARD_LINES, litLines } from "@/lib/live/switchboard";
+import { useStationClock } from "@/hooks/useLiveStation";
 import { StationBreakCard } from "./StationBreakCard";
 import { useStationBreakRows } from "@/hooks/useStationBreakRows";
 import { useBreaksMuted } from "@/lib/live/breaks-pref";
@@ -128,6 +130,31 @@ function ListenerCount({ live }: { live?: number }) {
   );
 }
 
+/**
+ * The switchboard (docs/UI-PLAN.md, push 2): a lamp per line, lit while it
+ * has had a call in the last 20 minutes, your own line ringed. The words are
+ * in each lamp's label, so a screen reader hears "Line 3, lit".
+ */
+export function Switchboard({ chat }: { chat: Pick<Chat, "messages" | "you"> }) {
+  const now = useStationClock(30_000);
+  const lit = litLines(chat.messages, now);
+  const mine = chat.you?.line ?? null;
+  return (
+    <ul className="hd-switchboard flex items-center gap-[5px]" data-testid="switchboard" aria-label="Phone lines">
+      {SWITCHBOARD_LINES.map((line) => (
+        <li
+          key={line}
+          className="hd-switchboard-lamp"
+          data-lit={lit.has(line) ? "" : undefined}
+          data-yours={line === mine ? "" : undefined}
+          title={line}
+          aria-label={`${line}${lit.has(line) ? ", lit" : ""}${line === mine ? ", your line" : ""}`}
+        />
+      ))}
+    </ul>
+  );
+}
+
 function LinesHeader({
   chat,
   live,
@@ -147,6 +174,7 @@ function LinesHeader({
     <div className={cn("flex flex-col gap-1", variant === "w98" ? "px-1" : "")}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-hd-caption">
         <ListenerCount live={live} />
+        <Switchboard chat={chat} />
         <span className="text-bevel-dark" data-testid="live-status">
           {chat.status === "live" ? "On the air" : chat.status === "connecting" ? "Dialing in…" : "Reconnecting…"}
         </span>
