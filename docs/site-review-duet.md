@@ -14,6 +14,18 @@ or the phone look split, whose verdict waits until 2026-12-02).
 
 Fixes, best first. Each has what is wrong, where, and the exact change.
 
+**Built 2026-11-26/27 (the working session, Jackson: "build the ones that are right"):** 1 to 8 and 10,
+held by `src/lib/__tests__/site-review.test.tsx` and ten `site-review-*` mutations (all red).
+Departures from the text below: fix 1 links `ultimate-ultimate-art-bell-collection`, the collection
+most of the catalog's rows name; fix 4 also clears the four show titles from the seed (not only
+hides them on older libraries, through `NOT_A_GUEST` by exact `fileHash` and value), merges the two
+spellings through `PERSON_ALIASES` in `people.ts`, and 308s the old guest pages
+(`/guest/robert-ghostwolf`, `/guest/robert-morning-sky`) to the merged ones; fix 6 also words a year
+with one show naturally ("The one show from 1992 in the archive."); fix 7 says Pacific once per line.
+**Not built:** fix 9: the screenshots in `public/screenshots/` are from March and show the old UI
+(the Radio tab, guest bugs), so putting them in the install sheet would mislead, and a new icon is
+art Jackson should see first (NEXT, Needs Jackson). Fix 11: optional by its own words, left.
+
 ## 1. "Source: archive.org" in the About box goes to a dead item
 
 - **What:** the About dialog's only outside link, the credit for where every show comes from, opens

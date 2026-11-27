@@ -7,6 +7,8 @@ item deploys as soon as its checks pass.**
 
 ## Queue
 
+- [x] **Duet's site review (`docs/site-review-duet.md`), Jackson 2026-11-26: built 1 to 8 and 10** (About's real archive.org link, "over 1,400 episodes", the unsourced quote gone, guest fixes with 308s from the old pages, encoded archive.org links, Archive titles and the one-show year, Pacific once on the Request Line, On This Day's desktop height, the show breadcrumb through `/shows/<year>`). `site-review.test.tsx` 11/11, ten `site-review-*` mutations red, lint, typecheck, suite, build, check:seo/csp. Fix 9 is under Needs Jackson; fix 11 left (optional)
+
 Work order of 2026-11-22 (the lead; `docs/handoff-2026-11-22-ship.md`):
 
 - [ ] **The weekly mutation run of 2026-11-23 never finished** (found 2026-11-26 19:0x): `highdesert-mutations.service` was killed by its `TimeoutStartSec=14h` at 11-24 04:00 after 128 mutations, all red, none survived (`/var/lib/highdesert-mutations/last.log`). It starts at 14:00 Monday, inside peak hours, and its vitests run in heavy's low lane (label matches `mutation`), so it mostly waited. `result.json` is still the 11-18 run, so status `mutations` still FAILs on the 6 stale ids fixed in `75ab96a` (`visitor-route-bots` went red this run; the other four were never reached). Next: run the four by hand in a worktree through heavy (`node scripts/mutate-check.mjs sort-intent-beats-stored`, `chat-hide-tuneins`, `lines-night-folds-tuneins`, `lines-win98-folds-tuneins`); then either start a full run off-peak (`systemctl start --no-block highdesert-mutations`, Fri 19:00+ UTC) or wait for Mon 11-30. Schedule/timeout change filed for the lead (Inbox, ref `hd-mutations-timeout-2026-11-23`). **Lead's call, done 2026-11-26 19:24 UTC (`c1b9397`):** the timer now fires Mondays 19:00 UTC (after peak) with `TimeoutStartSec=20h`, installed; the new calendar caught up the missed 11-23 slot at once, so a full run started Thu 2026-11-26 19:24 UTC on `c1b9397`. Next: once it finishes, read status `mutations` (should be OK, or name the stale ids still left); if the four above are still stale, re-anchor them
@@ -52,7 +54,7 @@ Not read by the foreman (it has no date gate, so these sat at the top of the Que
 
 ## Needs Jackson
 
-(nothing open)
+- [ ] Duet's site review fix 9 (`docs/site-review-duet.md`): a new home screen icon (moon over a desert ridge, plus a maskable version) needs your eyes on the art, and the install sheet's screenshots need fresh captures of today's UI (the ones in `public/screenshots/` are from March). Say go and the session draws a proposal and files it in the Inbox with the picture
 
 
 ## Log
