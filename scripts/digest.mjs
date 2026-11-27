@@ -301,7 +301,7 @@ export const FAIL_ACTIONS = {
   steal: "Hypervisor steal is high: nothing to fix here; note it and watch the CPU line.",
   audit: "npm audit found a high or critical: a dependency upgrade in a worktree (CLAUDE.md, Dependabot).",
   funnel: "The funnel line: /api/stats/funnel?days=7 and docs/funnel.md.",
-  mutations: "A mutation survived the weekly run (or its anchor went stale): make the test see its subject (docs/disconnected-checks.md) or re-anchor the entry; the run's log is /var/lib/highdesert-mutations/last.log.",
+  mutations: "A mutation survived the nightly run (or its anchor went stale): make the test see its subject (docs/disconnected-checks.md) or re-anchor the entry; the run's log is /var/lib/highdesert-mutations/last.log.",
   release: "The release line: the rows below.",
   nginx: "The installed vhost differs from deploy/nginx/highdesert.conf: diff them and install the one in git.",
   digest: "The digest job itself: /var/lib/highdesert-digest/status.json and journalctl -u highdesert-digest.",
@@ -369,27 +369,31 @@ export function stationGuardLines(g, titleOf, now) {
 }
 
 /**
- * The weekly full mutation run (scripts/weekly-mutations.sh, Mondays 19:00 UTC)
- * as one Health line. `m` is {result, running} from its state directory;
- * `running` only while its process is alive.
+ * The nightly mutation run (scripts/weekly-mutations.sh, 20:30 UTC: incremental
+ * since the last green run, a full run once a month) as one Health line: the
+ * newest run only, and the newest full run's score. `m` is {result, full,
+ * running} from its state directory; `running` only while its process is alive.
  */
 export function mutationLine(m, now) {
   if (!m) return "- Mutations: no reading.";
-  const { result: r, running } = m;
-  const going = running ? ` A run has been going since ${SHORT_FMT.format(new Date(running.startedAt))} UTC.` : "";
-  if (!r) return `- Mutations: no weekly run has finished yet (highdesert-mutations.timer, Mondays 19:00 UTC).${going}`;
+  const { result: r, full, running } = m;
+  const going = running ? ` The ${running.mode ?? "mutation"} run has been going since ${SHORT_FMT.format(new Date(running.startedAt))} UTC.` : "";
+  const score =
+    full && Number.isFinite(full.total) ? ` Full run ${String(full.finishedAt ?? "?").slice(0, 10)}: ${full.red} of ${full.total} red.` : " No full run on record.";
+  if (!r) return `- Mutations: no run has finished yet (highdesert-mutations.timer, nightly 20:30 UTC).${going}`;
   const sha = String(r.head ?? "?").slice(0, 7);
   const when = r.finishedAt ? `${SHORT_FMT.format(new Date(r.finishedAt))} UTC` : "?";
-  if (r.error) return `- Mutations: the weekly run on ${sha} broke before checking: ${cell(r.error, 100)}.${going}`;
+  if (r.error) return `- Mutations: the run on ${sha} broke before checking: ${cell(r.error, 100)}.${going}`;
+  const kind = (r.mode ?? "full") === "full" ? "full run" : `nightly run (incremental since ${String(r.base ?? "?").slice(0, 7)})`;
   const mins = Math.round((Date.parse(r.finishedAt) - Date.parse(r.startedAt)) / 60_000);
   const took = Number.isFinite(mins) ? `, ${Math.floor(mins / 60)}h${mins % 60}m` : "";
   const ageD = Math.floor((new Date(now).getTime() - Date.parse(r.finishedAt)) / 86_400_000);
-  const old = ageD > 7 ? ` That was ${ageD} days ago: this week's has not finished.` : "";
+  const old = ageD > 3 ? ` That was ${ageD} days ago: the nightly run has not finished since.` : "";
   let what;
   if (r.survived?.length) what = `${r.survived.length} of ${r.total} survived or went stale: ${r.survived.slice(0, 5).map((x) => `${x.id} [${x.verdict}]`).join(", ")}.`;
   else if (r.skipped?.length) what = `${r.skipped.length} NOT CHECKED (no test database), the other ${r.red} red.`;
-  else what = `all ${r.red} mutations red.`;
-  return `- Mutations: weekly full run on ${sha} (${when}${took}): ${what}${old}${going}`;
+  else what = `all ${r.red} checked red.`;
+  return `- Mutations: ${kind} on ${sha} (${when}${took}): ${what}${score}${old}${going}`;
 }
 
 /** The digest as markdown. No em dashes anywhere (CLAUDE.md, user-facing copy). */
@@ -675,7 +679,11 @@ export function productionSources(env) {
       } catch {
         alive = false;
       }
-      return { result: await readJson(path.join(dir, "result.json")), running: alive ? running : null };
+      return {
+        result: await readJson(path.join(dir, "result.json")),
+        full: await readJson(path.join(dir, "full.json")),
+        running: alive ? running : null,
+      };
     },
     async close() {
       if (poolP) await (await poolP).end();

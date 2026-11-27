@@ -12,6 +12,7 @@ import {
   parseShard,
   changesSince,
   judgeRun,
+  packageChangesTests,
 } from "../mutate-check.mjs";
 
 describe("judgeRun: a pass needs evidence the tests ran", () => {
@@ -134,6 +135,22 @@ describe("changesSince (the PR's diff and the base's list)", () => {
     expect(base.map((x: { id: string }) => x.id)).toEqual(["one"]);
   });
 
+  it("keeps package.json only when a field that can change a test changed", async () => {
+    const start = (await git("rev-parse", "HEAD")).stdout.trim();
+    const pkg = (extra: object) => JSON.stringify({ name: "x", repository: { url: "a" }, devDependencies: { vitest: "1" }, ...extra });
+    await writeFile(path.join(repo, "package.json"), pkg({}));
+    await git("add", "-A");
+    await git("commit", "-qm", "pkg");
+    await git("tag", "pkg-base");
+    await writeFile(path.join(repo, "package.json"), pkg({ repository: { url: "b" }, keywords: ["k"] }));
+    await git("commit", "-qam", "metadata");
+    expect((await changesSince("pkg-base", repo)).changed).not.toContain("package.json");
+    await writeFile(path.join(repo, "package.json"), pkg({ devDependencies: { vitest: "2" } }));
+    await git("commit", "-qam", "upgrade");
+    expect((await changesSince("pkg-base", repo)).changed).toContain("package.json");
+    await git("reset", "-q", "--hard", start);
+  });
+
   it("a base with no list makes every entry new", async () => {
     await git("checkout", "-q", "--orphan", "empty");
     await git("rm", "-rq", "--cached", ".");
@@ -142,5 +159,91 @@ describe("changesSince (the PR's diff and the base's list)", () => {
     await git("checkout", "-q", "-f", "main");
     const { base } = await changesSince("empty-base", repo);
     expect(base).toEqual([]);
+  });
+});
+
+describe("packageChangesTests", () => {
+  const p = (o: object) => JSON.stringify(o);
+  it("ignores metadata, counts what installs and how tests start, and treats unreadable as changed", () => {
+    expect(packageChangesTests(p({ repository: "a", keywords: [] }), p({ repository: "b" }))).toBe(false);
+    for (const k of ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies", "overrides", "scripts", "type", "engines"]) {
+      expect(packageChangesTests(p({}), p({ [k]: { x: "1" } })), k).toBe(true);
+    }
+    expect(packageChangesTests(null, p({}))).toBe(true);
+    expect(packageChangesTests("{", p({}))).toBe(true);
+  });
+});
+
+/**
+ * The nightly run (the lead, 2026-11-27): "files changed since the last green
+ * run, plus anything their tests cover", and the last run's survivors again.
+ */
+describe("the nightly run's selection", () => {
+  it("covered: a test whose imports reach a changed file brings its mutations in", () => {
+    const covered = new Set(["src/__tests__/b.test.ts"]);
+    const ids = (o: Parameters<typeof selectMutations>[1]) => selectMutations(LIST, o).map((x) => x.id);
+    expect(ids({ changed: ["src/helper.ts"], base: LIST })).toEqual([]);
+    expect(ids({ changed: ["src/helper.ts"], base: LIST, covered })).toEqual(["b"]);
+  });
+
+  it("also: named entries whatever changed, once each", () => {
+    const ids = (o: Parameters<typeof selectMutations>[1]) => selectMutations(LIST, o).map((x) => x.id);
+    expect(ids({ changed: ["src/b.ts"], base: LIST, also: ["d", "b", "gone"] })).toEqual(["b", "d"]);
+  });
+
+  describe("testsReaching (scripts/lib/import-closure.mjs)", () => {
+    let root: string;
+    beforeAll(async () => {
+      root = await mkdtemp(path.join(tmpdir(), "hd-closure-"));
+      const put = async (f: string, text: string) => {
+        await mkdir(path.dirname(path.join(root, f)), { recursive: true });
+        await writeFile(path.join(root, f), text);
+      };
+      await put("src/lib/deep.ts", "export const deep = 1;\n");
+      await put("src/lib/mid.ts", 'import { deep } from "./deep";\nexport const mid = deep;\n');
+      await put("src/lib/index.ts", 'export * from "./mid";\n');
+      await put("src/lib/lone.ts", "export const lone = 1;\n");
+      await put("src/__tests__/via-alias.test.ts", 'import { mid } from "@/lib";\n');
+      await put("src/__tests__/via-mock.test.ts", 'vi.mock("../lib/deep");\nconst x = await import("../lib/lone");\n');
+      await put("src/__tests__/none.test.ts", 'import { it } from "vitest";\nimport x from "react";\n');
+      await put("src/__tests__/cycle.test.ts", 'import "./cycle-a";\n');
+      await put("src/__tests__/cycle-a.ts", 'import "./cycle-b";\n');
+      await put("src/__tests__/cycle-b.ts", 'import "./cycle-a";\n');
+    });
+    afterAll(() => rm(root, { recursive: true, force: true }));
+    const tests = ["src/__tests__/via-alias.test.ts", "src/__tests__/via-mock.test.ts", "src/__tests__/none.test.ts", "src/__tests__/cycle.test.ts"];
+
+    it("follows @/ and relative imports, index files, export-from, vi.mock and import(), through any depth", async () => {
+      const { testsReaching } = await import("../lib/import-closure.mjs");
+      expect([...testsReaching(["src/lib/deep.ts"], tests, root)].sort()).toEqual(["src/__tests__/via-alias.test.ts", "src/__tests__/via-mock.test.ts"]);
+      expect([...testsReaching(["src/lib/lone.ts"], tests, root)]).toEqual(["src/__tests__/via-mock.test.ts"]);
+    });
+
+    it("a changed test reaches itself; packages and cycles end the walk", async () => {
+      const { testsReaching } = await import("../lib/import-closure.mjs");
+      expect([...testsReaching(["src/__tests__/none.test.ts"], tests, root)]).toEqual(["src/__tests__/none.test.ts"]);
+      expect([...testsReaching(["src/elsewhere.ts"], tests, root)]).toEqual([]);
+    });
+
+    it("control: on this repo, a store's test reaches the store", async () => {
+      const { testsReaching } = await import("../lib/import-closure.mjs");
+      const root2 = path.resolve(__dirname, "../..");
+      const reached = testsReaching(["src/stores/player-store.ts"], ["src/stores/__tests__/player-store.test.ts", "scripts/__tests__/digest.test.ts"], root2);
+      expect([...reached]).toEqual(["src/stores/__tests__/player-store.test.ts"]);
+    });
+  });
+
+  it("with nothing to check, mutate-check still writes a verdict (total 0) for the nightly run", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "hd-empty-verdict-"));
+    try {
+      const out = path.join(dir, "v.json");
+      await promisify(execFile)(process.execPath, [path.resolve(__dirname, "../mutate-check.mjs"), "--changed-from", "HEAD", "--json", out, "no-such-mutation-id-xyz"], {
+        cwd: path.resolve(__dirname, "../.."),
+      });
+      const v = JSON.parse(await import("node:fs/promises").then((f) => f.readFile(out, "utf8")));
+      expect(v).toMatchObject({ exit: 0, total: 0, red: 0, skipped: [], survived: [] });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

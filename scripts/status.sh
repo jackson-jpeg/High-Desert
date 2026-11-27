@@ -92,12 +92,14 @@
 #             deploy/google-site-verification.txt. WARN if it is gone or is not
 #             that token: the Domain property was verified by that record and
 #             lapses without it (2026-10-15). WARN too if DNS cannot be read
-#   mutations the weekly full mutation run on the VPS (scripts/weekly-mutations.sh,
-#             Mondays 19:00 UTC; its result.json): FAIL if a mutation survived or
-#             its anchor went stale; WARN if the run broke before checking, left
-#             database mutations NOT CHECKED, is over 8 days old, has never
-#             finished, or cannot be read. Says so while a run is going. A change
-#             is checked for what it touches, so this line holds the whole list
+#   mutations the nightly mutation run on the VPS (scripts/weekly-mutations.sh,
+#             20:30 UTC: incremental, a full run once a month), its newest
+#             result.json only: FAIL if a mutation survived or its anchor went
+#             stale in that run (an id from an older run cannot hold it open);
+#             WARN if it broke before checking, left database mutations NOT
+#             CHECKED, is over 3 days old, has never finished, or cannot be
+#             read, or the last full run (full.json) is over 35 days old. Gives
+#             the full run's score. Says so while a run is going
 #   audit     npm audit --omit=dev critical + high count
 #
 # The failures and release lines count the same thing, lost starts, and only
@@ -114,7 +116,8 @@
 #   HD_LIVE (http://127.0.0.1:3005), HD_FUNNEL_VERDICT (/var/lib/highdesert-funnel/status.json),
 #   HD_DIGEST_STATUS (/var/lib/highdesert-digest/status.json),
 #   HD_MUTATIONS_STATE (/var/lib/highdesert-mutations: result.json, running.json),
-#   HD_MUTATIONS_MAX_AGE_S (691200, 8 days), HD_MEMINFO (/proc/meminfo),
+#   HD_MUTATIONS_MAX_AGE_S (259200, 3 days), HD_MUTATIONS_FULL_MAX_AGE_S
+#   (3024000, 35 days), HD_MEMINFO (/proc/meminfo),
 #   HD_DF_CMD (df -B1 --output=avail,size /), HD_NOW (epoch s, for the closed window),
 #   HD_DNS_TXT_CMD (dig +short +time=5 +tries=2 TXT highdesert.space),
 #   HD_GEOIP_DB (/var/lib/highdesert-geoip/city.mmdb; status.json beside it)
@@ -137,8 +140,8 @@ MIRROR_MANIFEST_URL="${HD_MIRROR_MANIFEST_URL:-$SITE/mirror/manifest}"
 MIRROR_PINS="${HD_MIRROR_PINS:-/var/lib/highdesert-mirror/pins}"
 MIRROR_PROXY_CACHE="${HD_MIRROR_PROXY_CACHE:-/var/cache/highdesert-mirror/proxy}"
 CPU_CMD="${HD_CPU_CMD:-hd-cpu-sample report --window 900}"
-# The one unit exempt from the 10% rule (Jackson, 2026-10-15): the weekly
-# mutation run, held by heavy (nice 15 and the 40%/6h gate) instead.
+# The one unit exempt from the 10% rule (Jackson, 2026-10-15): the nightly
+# mutation run, capped at CPUQuota=150% and held by heavy (low lane, nice 15).
 CPU_EXEMPT="highdesert-mutations"
 CPU_MAX_PCT=10
 WARM_STATUS="${HD_WARM_STATUS:-/var/cache/highdesert-mirror/warm-status.json}"
@@ -147,7 +150,8 @@ LIVE="${HD_LIVE:-http://127.0.0.1:3005}"
 # Same default as the `cpu` line's HD_CPU_CMD; its own name so the two lines merge cleanly.
 LIVE_CPU_CMD="${HD_CPU_CMD:-hd-cpu-sample report --window 900}"
 MUTATIONS_STATE="${HD_MUTATIONS_STATE:-/var/lib/highdesert-mutations}"
-MUTATIONS_MAX_AGE_S="${HD_MUTATIONS_MAX_AGE_S:-691200}"
+MUTATIONS_MAX_AGE_S="${HD_MUTATIONS_MAX_AGE_S:-259200}"
+MUTATIONS_FULL_MAX_AGE_S="${HD_MUTATIONS_FULL_MAX_AGE_S:-3024000}"
 DF_CMD="${HD_DF_CMD:-df -B1 --output=avail,size /}"
 DNS_TXT_CMD="${HD_DNS_TXT_CMD:-dig +short +time=5 +tries=2 TXT highdesert.space}"
 GEOIP_DB="${HD_GEOIP_DB:-/var/lib/highdesert-geoip/city.mmdb}"
@@ -624,7 +628,7 @@ if (( cpu_rc != 0 )); then
 else
   over="$(awk -v t="$CPU_MAX_PCT" -v x="$CPU_EXEMPT" 'NF >= 2 && $1 != x && $2 + 0 > t { printf "%s%s %.1f%%", sep, $1, $2; sep = ", " }' <<<"$cpu_out")"
   top="$(awk -v x="$CPU_EXEMPT" 'NF >= 2 && $1 != x && ($2 + 0 > m || n == 0) { m = $2 + 0; u = $1; n = 1 } END { if (n) printf "%s %.1f%%", u, m }' <<<"$cpu_out")"
-  exempt="$(awk -v x="$CPU_EXEMPT" 'NF >= 2 && $1 == x && $2 + 0 > 0 { printf "; %s %.1f%% (exempt: the weekly mutation run, held by heavy)", $1, $2 }' <<<"$cpu_out")"
+  exempt="$(awk -v x="$CPU_EXEMPT" 'NF >= 2 && $1 == x && $2 + 0 > 0 { printf "; %s %.1f%% (exempt: the nightly mutation run, capped at 1.5 cores, held by heavy)", $1, $2 }' <<<"$cpu_out")"
   if [[ -n "$over" ]]; then
     line FAIL cpu "over ${CPU_MAX_PCT}% of a core, 15-min mean: $over$exempt"
   elif [[ -z "$top" ]]; then
@@ -805,19 +809,30 @@ else
 fi
 
 # --- mutations ---------------------------------------------------------------
-# The weekly full run on the VPS (scripts/weekly-mutations.sh, Mondays 19:00
-# UTC, highdesert-mutations.timer) is the whole list's guarantee: a change is
-# checked by hand for the mutations it touches, this run for all of them.
+# The nightly run on the VPS (scripts/weekly-mutations.sh, 20:30 UTC,
+# highdesert-mutations.timer): incremental since the last green run, a full run
+# once a month. This line reads the NEWEST finished run and nothing older, so a
+# survivor or stale id holds it at FAIL exactly until a run checks it red (the
+# script re-checks the previous run's survivors every night). The score is the
+# newest full run's (full.json).
 m_result="$MUTATIONS_STATE/result.json"
+m_full="$MUTATIONS_STATE/full.json"
 m_running=""
 if [[ -f "$MUTATIONS_STATE/running.json" ]]; then
   m_pid="$(jq -r '.pid // empty' "$MUTATIONS_STATE/running.json" 2>/dev/null)"
   if [[ "$m_pid" =~ ^[0-9]+$ ]] && kill -0 "$m_pid" 2>/dev/null; then
-    m_running="; a run has been going since $(jq -r '.startedAt' "$MUTATIONS_STATE/running.json")"
+    m_running="; the $(jq -r '.mode // "mutation"' "$MUTATIONS_STATE/running.json") run has been going since $(jq -r '.startedAt' "$MUTATIONS_STATE/running.json")"
   fi
 fi
+m_score=""
+m_full_age=""
+if jq -e 'type == "object" and (.total | type) == "number"' "$m_full" >/dev/null 2>&1; then
+  m_full_at="$(jq -r '.finishedAt // empty' "$m_full")"
+  m_full_age=$(( NOW_S - $(date -d "${m_full_at:-1970-01-01}" +%s 2>/dev/null || echo 0) ))
+  m_score="; full run ${m_full_at%%T*} on $(jq -r '.head // "" | .[0:7]' "$m_full"): $(jq -r '"\(.red) of \(.total) red"' "$m_full")"
+fi
 if [[ ! -f "$m_result" ]]; then
-  line WARN mutations "no finished weekly mutation run yet (highdesert-mutations.timer, Mondays 19:00 UTC)$m_running"
+  line WARN mutations "no finished mutation run yet (highdesert-mutations.timer, nightly 20:30 UTC)$m_running"
 elif ! jq -e 'type == "object" and (.survived | type) == "array"' "$m_result" >/dev/null 2>&1; then
   line WARN mutations "could not read $m_result$m_running"
 else
@@ -829,16 +844,20 @@ else
   m_surv="$(jq -r '.survived | length' "$m_result")"
   m_skip="$(jq -r '.skipped | length' "$m_result")"
   m_red="$(jq -r '.red' "$m_result")"
+  # A result from before 2026-11-27 has no mode: it was the weekly full run.
+  m_what="$(jq -r 'if (.mode // "full") == "full" then "full run" else "nightly run (incremental since \(.base // "?" | .[0:7]))" end' "$m_result")"
   if [[ -n "$m_err" ]]; then
-    line WARN mutations "the weekly run on ${m_sha:-?} ($m_at) broke before checking: $m_err$m_running"
+    line WARN mutations "the mutation run on ${m_sha:-?} ($m_at) broke before checking: $m_err$m_running"
   elif (( m_surv > 0 )); then
-    line FAIL mutations "weekly full run on $m_sha ($m_at): $m_surv mutation(s) survived or went stale: $(jq -r '[.survived[] | "\(.id) [\(.verdict)]"] | .[0:5] | join(", ")' "$m_result") (log: $(jq -r '.log' "$m_result"))$m_running"
+    line FAIL mutations "$m_what on $m_sha ($m_at): $m_surv mutation(s) survived or went stale: $(jq -r '[.survived[] | "\(.id) [\(.verdict)]"] | .[0:5] | join(", ")' "$m_result") (log: $(jq -r '.log' "$m_result"))$m_running"
   elif (( m_skip > 0 )); then
-    line WARN mutations "weekly full run on $m_sha ($m_at): $m_skip mutation(s) NOT CHECKED, their tests need TEST_DATABASE_URL$m_running"
+    line WARN mutations "$m_what on $m_sha ($m_at): $m_skip mutation(s) NOT CHECKED, their tests need TEST_DATABASE_URL$m_running"
   elif (( m_age > MUTATIONS_MAX_AGE_S )); then
-    line WARN mutations "the last weekly full run was $(( m_age / 86400 ))d ago ($m_sha, every mutation red then)$m_running"
+    line WARN mutations "the newest mutation run was $(( m_age / 86400 ))d ago ($m_sha, every mutation red then)$m_score$m_running"
+  elif [[ -z "$m_full_age" ]] || (( m_full_age > MUTATIONS_FULL_MAX_AGE_S )); then
+    line WARN mutations "$m_what on $m_sha ($m_at): all $m_red checked red, but no full run in $(( MUTATIONS_FULL_MAX_AGE_S / 86400 )) days$m_score$m_running"
   else
-    line OK mutations "weekly full run on $m_sha ($m_at, took $m_took): all $m_red mutations red$m_running"
+    line OK mutations "$m_what on $m_sha ($m_at, took $m_took): all $m_red checked red$m_score$m_running"
   fi
 fi
 

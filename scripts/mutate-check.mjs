@@ -31,6 +31,7 @@
  *   node scripts/mutate-check.mjs streak dedup # substring filter on id
  *   node scripts/mutate-check.mjs --shard 2/4  # every 4th, from the 2nd
  *   node scripts/mutate-check.mjs --changed-from origin/main  # a PR's (selectMutations)
+ *   node scripts/mutate-check.mjs --changed-from <ref> --also id1,id2  # the nightly run's
  *   node scripts/mutate-check.mjs --json result.json  # also write the verdicts as JSON
  *     (scripts/weekly-mutations.sh: what highdesert-status and the digest read)
  *
@@ -46,7 +47,7 @@
  * truncate-then-write left `src/lib/shows/next.ts` at 0 bytes.
  */
 
-import { readFile, writeFile, mkdtemp, rename } from "node:fs/promises";
+import { readFile, writeFile, mkdtemp, rename, rm } from "node:fs/promises";
 import { writeFileSync, renameSync, statSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { spawn, spawnSync } from "node:child_process";
@@ -54,6 +55,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { testsReaching } from "./lib/import-closure.mjs";
 
 const execFileP = promisify(execFile);
 const ROOT = path.resolve(import.meta.dirname, "..");
@@ -1086,8 +1088,8 @@ export const MUTATIONS = [
     id: "guest-moved-to-topic",
     test: "src/lib/library/__tests__/guest.test.ts",
     file: "src/lib/library/guest.ts",
-    find: "if (ep?.fileHash && MOVED_TO_TOPIC[ep.fileHash] === g) return undefined;",
-    replace: "",
+    find: "if (ep?.fileHash && (MOVED_TO_TOPIC[ep.fileHash] === g || NOT_A_GUEST[ep.fileHash] === g)) return undefined;",
+    replace: "if (ep?.fileHash && NOT_A_GUEST[ep.fileHash] === g) return undefined;",
     why: "a library seeded before 2026-10-09 keeps the ten moved guests; they must not show",
   },
   {
@@ -6439,8 +6441,8 @@ export const MUTATIONS = [
     id: "request-hour-copy",
     test: "src/components/request-line/__tests__/live-request-note.test.tsx",
     file: "src/lib/live/request-line.ts",
-    find: "      const at = pacificHourLabel(note.startsAt);",
-    replace: "      const at = \"10 PM\";",
+    find: "      const at = `${pacificHourLabel(note.startsAt)} Pacific`;",
+    replace: "      const at = \"10 PM Pacific\";",
     why: "the Live note would say 10 PM for an 8 PM request",
   },
   {
@@ -8046,8 +8048,8 @@ export const MUTATIONS = [
     id: "mutate-select-by-target",
     test: "scripts/__tests__/mutate-select.test.ts",
     file: "scripts/mutate-check.mjs",
-    find: "(m) => files.has(m.file) \x7c| files.has(m.test) ||",
-    replace: "(m) => files.has(m.test) ||",
+    find: "          files.has(m.file) ||\n          files.has(m.test) ||",
+    replace: "          files.has(m.test) ||",
     why: "a PR that changed a mutation's target skipped the mutation",
   },
   {
@@ -8166,28 +8168,28 @@ export const MUTATIONS = [
     why: "a finished run left running.json behind",
   },
   {
-    id: "weekly-mutations-timer-monday",
+    id: "nightly-mutations-timer",
     test: "scripts/__tests__/service-unit.test.ts",
     file: "deploy/highdesert-mutations.timer",
-    find: `OnCalendar=Mon *-*-* 19:00:00 UTC`,
-    replace: `OnCalendar=*-*-* 19:00:00 UTC`,
-    why: "the full run went daily, 2.4 CPU-hours a day instead of a week",
+    find: "OnCalendar=*-*-* 20:30:00 UTC",
+    replace: "OnCalendar=Mon *-*-* 20:30:00 UTC",
+    why: "the nightly run went weekly again, and a change waited days to be checked",
   },
   {
-    id: "weekly-mutations-timeout-20h",
+    id: "nightly-mutations-timeout-16h",
     test: "scripts/__tests__/service-unit.test.ts",
     file: "deploy/highdesert-mutations.service",
-    find: `TimeoutStartSec=20h`,
-    replace: `TimeoutStartSec=14h`,
-    why: "the 11-23 run was killed by a 14h timeout after 128 mutations",
+    find: "TimeoutStartSec=16h",
+    replace: "TimeoutStartSec=20h",
+    why: "a run from 20:30 UTC could reach into the next weekday's peak hours",
   },
   {
-    id: "weekly-mutations-normal-lane",
+    id: "nightly-mutations-low-lane",
     test: "scripts/__tests__/service-unit.test.ts",
     file: "deploy/highdesert-mutations.service",
-    find: `Environment="HEAVY_LOW_RE=^portfolio|audit|render|envelope"`,
-    replace: `Environment="HEAVY_LOW_RE=mutation|^portfolio|audit|render|envelope"`,
-    why: "in heavy's low lane the weekly run checked 35 of 1,337 mutations in 5.5 hours",
+    find: "CPUQuota=150%\n",
+    replace: "CPUQuota=150%\nEnvironment=\"HEAVY_LOW_RE=^portfolio|audit|render|envelope\"\n",
+    why: "the mutation run took slots in the normal lane and Sanger's re-checks waited days for one",
   },
   {
     id: "digest-mutation-line",
@@ -11567,6 +11569,158 @@ export const MUTATIONS = [
     replace: "data-testid=\"lost\"",
     why: "the 404 lost its dial",
   },
+  {
+    id: "nightly-mutations-cpu-cap",
+    test: "scripts/__tests__/service-unit.test.ts",
+    file: "deploy/highdesert-mutations.service",
+    find: "CPUQuota=150%\n",
+    replace: "CPUQuota=400%\n",
+    why: "the mutation run could take all four cores again",
+  },
+  {
+    id: "nightly-select-covered",
+    test: "scripts/__tests__/mutate-select.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: "          (covered !== null && covered.has(m.test)) ||\n",
+    replace: "",
+    why: "a changed helper a test imports no longer brought that test's mutations in",
+  },
+  {
+    id: "nightly-select-also",
+    test: "scripts/__tests__/mutate-select.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: "    const have = new Set(picked.map((m) => m.id));\n    picked = [...picked, ...all.filter((m) => want.has(m.id) && !have.has(m.id))];",
+    replace: "    const have = new Set(picked.map((m) => m.id));\n    picked = [...picked];",
+    why: "the last run's survivors dropped out of the next night unchecked",
+  },
+  {
+    id: "closure-parent-dirs",
+    test: "scripts/__tests__/mutate-select.test.ts",
+    file: "scripts/lib/import-closure.mjs",
+    find: "else if (spec.startsWith(\"./\") || spec.startsWith(\"../\"))",
+    replace: "else if (spec.startsWith(\"./\"))",
+    why: "imports from a parent folder went unseen",
+  },
+  {
+    id: "closure-alias",
+    test: "scripts/__tests__/mutate-select.test.ts",
+    file: "scripts/lib/import-closure.mjs",
+    find: "if (spec.startsWith(\"@/\")) base = path.join(root, \"src\", spec.slice(2));",
+    replace: "if (spec.startsWith(\"@@/\")) base = path.join(root, \"src\", spec.slice(2));",
+    why: "every @/ import went unseen",
+  },
+  {
+    id: "closure-index-files",
+    test: "scripts/__tests__/mutate-select.test.ts",
+    file: "scripts/lib/import-closure.mjs",
+    find: "\"/index.ts\", ",
+    replace: "",
+    why: "a folder import's index.ts went unseen",
+  },
+  {
+    id: "mutate-empty-verdict",
+    test: "scripts/__tests__/mutate-select.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: "        writeWhole(path.resolve(jsonOut), JSON.stringify(doc, null, 2) + \"\\n\");\n",
+    replace: "",
+    why: "a night with nothing to check left no verdict, and read as broken",
+  },
+  {
+    id: "nightly-incremental-base",
+    test: "scripts/__tests__/weekly-mutations.test.ts",
+    file: "scripts/weekly-mutations.sh",
+    find: "  args+=(--changed-from \"$base\")\n",
+    replace: "",
+    why: "the incremental night checked the whole list",
+  },
+  {
+    id: "nightly-carry-survivors",
+    test: "scripts/__tests__/weekly-mutations.test.ts",
+    file: "scripts/weekly-mutations.sh",
+    find: "  [[ -n \"$carry\" ]] && args+=(--also \"$carry\")\n",
+    replace: "",
+    why: "a survivor dropped out of view without going red",
+  },
+  {
+    id: "nightly-green-only-red",
+    test: "scripts/__tests__/weekly-mutations.test.ts",
+    file: "scripts/weekly-mutations.sh",
+    find: "    if [[ \"$1\" == 0 ]]; then\n      jq '{head, finishedAt}'",
+    replace: "    if [[ \"$1\" != 2 ]]; then\n      jq '{head, finishedAt}'",
+    why: "a run with a survivor moved the green base past the change that made it",
+  },
+  {
+    id: "nightly-full-monthly",
+    test: "scripts/__tests__/weekly-mutations.test.ts",
+    file: "scripts/weekly-mutations.sh",
+    find: "  if [[ -n \"$full_age\" ]] && (( full_age < FULL_DAYS )); then",
+    replace: "  if [[ -n \"$full_age\" ]] && (( full_age < 9999 )); then",
+    why: "the monthly full run never came round",
+  },
+  {
+    id: "nightly-full-retry-wait",
+    test: "scripts/__tests__/weekly-mutations.test.ts",
+    file: "scripts/weekly-mutations.sh",
+    find: "(( tried_age < FULL_RETRY_DAYS ))",
+    replace: "(( tried_age < 0 ))",
+    why: "a full run that could not finish was started again every night",
+  },
+  {
+    id: "nightly-base-in-history",
+    test: "scripts/__tests__/weekly-mutations.test.ts",
+    file: "scripts/weekly-mutations.sh",
+    find: "  elif ! git -C \"$CHECKOUT\" merge-base --is-ancestor \"$base\" \"$head\" 2>/dev/null; then",
+    replace: "  elif false; then",
+    why: "after a history rewrite the night diffed against a commit main no longer has",
+  },
+  {
+    id: "status-mutations-full-age",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: "  elif [[ -z \"$m_full_age\" ]] || (( m_full_age > MUTATIONS_FULL_MAX_AGE_S )); then",
+    replace: "  elif false; then",
+    why: "no full run for months read OK",
+  },
+  {
+    id: "status-mutations-max-age-3d",
+    test: "scripts/__tests__/status.test.ts",
+    file: "scripts/status.sh",
+    find: "MUTATIONS_MAX_AGE_S=\"${HD_MUTATIONS_MAX_AGE_S:-259200}\"",
+    replace: "MUTATIONS_MAX_AGE_S=\"${HD_MUTATIONS_MAX_AGE_S:-691200}\"",
+    why: "a nightly run that stopped running read OK for a week",
+  },
+  {
+    id: "digest-mutation-full-score",
+    test: "scripts/__tests__/digest.test.ts",
+    file: "scripts/digest.mjs",
+    find: "        full: await readJson(path.join(dir, \"full.json\")),",
+    replace: "        full: null,",
+    why: "the digest lost the full run's score",
+  },
+  {
+    id: "nightly-full-clears-retry",
+    test: "scripts/__tests__/weekly-mutations.test.ts",
+    file: "scripts/weekly-mutations.sh",
+    find: "      rm -f \"$STATE/full-tried.json\" # finished",
+    replace: "      : # finished",
+    why: "a finished full run kept its retry marker, and the next month's full run waited a week",
+  },
+  {
+    id: "nightly-package-metadata-only",
+    test: "scripts/__tests__/mutate-select.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: "    if (!packageChangesTests(await at(ref), await at(\"HEAD\"))) changed",
+    replace: "    if (false) changed",
+    why: "a repo-URL edit in package.json made every incremental run a full one",
+  },
+  {
+    id: "nightly-package-deps-count",
+    test: "scripts/__tests__/mutate-select.test.ts",
+    file: "scripts/mutate-check.mjs",
+    find: "\"dependencies\", \"devDependencies\", \"optionalDependencies\"",
+    replace: "\"optionalDependencies\"",
+    why: "a dependency upgrade in package.json no longer ran the whole list",
+  },
 ];
 
 /**
@@ -11580,6 +11734,26 @@ export const RUN_ALL_WHEN_CHANGED = [
   "src/test-support/git-env.setup.ts",
 ];
 
+/**
+ * package.json is in RUN_ALL_WHEN_CHANGED for what it installs and how tests
+ * start. Its other fields (the repo URL, keywords, homepage) change nothing a
+ * test does: a repo-URL edit on 2026-11-22 turned the first nightly
+ * incremental run into all 1,365. True when a field that can change a test
+ * differs, or when either side cannot be read (then run them all).
+ * @param {string | null} before
+ * @param {string | null} after
+ */
+export function packageChangesTests(before, after) {
+  const KEYS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies", "overrides", "scripts", "type", "engines", "imports", "exports"];
+  try {
+    const a = JSON.parse(before ?? "");
+    const b = JSON.parse(after ?? "");
+    return KEYS.some((k) => JSON.stringify(a[k] ?? null) !== JSON.stringify(b[k] ?? null));
+  } catch {
+    return true;
+  }
+}
+
 const entryKey = (m) => JSON.stringify([m.id, m.test, m.file, m.find, m.replace, m.needs ?? null]);
 
 /**
@@ -11590,24 +11764,39 @@ const entryKey = (m) => JSON.stringify([m.id, m.test, m.file, m.find, m.replace,
  *   or edited relative to `base` (the list at the PR's base). Everything else
  *   is left to the full run on main and the nightly one, which pass no
  *   `changed` and so check the whole list.
+ * - `covered` (a Set of test files): with `changed`, also the mutations whose
+ *   test can see a change through its imports (testsReaching,
+ *   scripts/lib/import-closure.mjs): the nightly run's "plus anything their
+ *   tests cover".
+ * - `also` (ids): these entries whatever changed; the nightly run re-checks
+ *   the last run's survivors, so one cannot drop out of view unfixed.
  * - `shard` ({index, total}, index from 1): every total-th mutation of what
  *   is left, so the shards of one run are disjoint and together are all of it.
  *
  * @template {{id: string, file: string, test: string, find: string, replace: string, needs?: string}} T
  * @param {T[]} all
- * @param {{changed?: string[] | null, base?: {id: string, file: string, test: string, find: string, replace: string, needs?: string}[] | null, shard?: {index: number, total: number} | null}} [options]
+ * @param {{changed?: string[] | null, base?: {id: string, file: string, test: string, find: string, replace: string, needs?: string}[] | null, covered?: Set<string> | null, also?: string[] | null, shard?: {index: number, total: number} | null}} [options]
  * @returns {T[]}
  */
-export function selectMutations(all, { changed = null, base = null, shard = null } = {}) {
+export function selectMutations(all, { changed = null, base = null, covered = null, also = null, shard = null } = {}) {
   let picked = all;
   if (changed) {
     const files = new Set(changed);
     if (!RUN_ALL_WHEN_CHANGED.some((f) => files.has(f))) {
       const before = base ? new Set(base.map(entryKey)) : null;
       picked = all.filter(
-        (m) => files.has(m.file) || files.has(m.test) || (before !== null && !before.has(entryKey(m))),
+        (m) =>
+          files.has(m.file) ||
+          files.has(m.test) ||
+          (covered !== null && covered.has(m.test)) ||
+          (before !== null && !before.has(entryKey(m))),
       );
     }
+  }
+  if (also?.length) {
+    const want = new Set(also);
+    const have = new Set(picked.map((m) => m.id));
+    picked = [...picked, ...all.filter((m) => want.has(m.id) && !have.has(m.id))];
   }
   if (shard) picked = picked.filter((_, i) => i % shard.total === shard.index - 1);
   return picked;
@@ -11650,7 +11839,8 @@ export function judgeRun(code, out) {
  * would break the instrument measuring it.
  */
 export function vitestCommand(testFile, hasHeavy) {
-  const vitest = ["npx", "vitest", "run", testFile, "--reporter=dot", "--silent"];
+  // One test file is one worker; --maxWorkers=2 is the cap whatever vitest decides (the nightly run, 2026-11-27).
+  const vitest = ["npx", "vitest", "run", testFile, "--reporter=dot", "--maxWorkers=2", "--silent"];
   return hasHeavy ? ["heavy", ["--label", "high-desert mutation", "--", ...vitest]] : [vitest[0], vitest.slice(1)];
 }
 
@@ -11680,14 +11870,24 @@ export function writeWhole(abs, text, { afterTemp } = {}) {
 
 export async function changesSince(ref, root = ROOT) {
   const { stdout } = await execFileP("git", ["diff", "--name-only", ref, "HEAD"], { cwd: root });
-  const changed = stdout.split("\n").filter(Boolean);
+  let changed = stdout.split("\n").filter(Boolean);
+  if (changed.includes("package.json")) {
+    const at = (rev) =>
+      execFileP("git", ["show", `${rev}:package.json`], { cwd: root }).then(
+        (r) => r.stdout,
+        () => null,
+      );
+    if (!packageChangesTests(await at(ref), await at("HEAD"))) changed = changed.filter((f) => f !== "package.json");
+  }
   let base = [];
+  let tmpDir = null;
   try {
     const { stdout: text } = await execFileP("git", ["show", `${ref}:scripts/mutate-check.mjs`], {
       cwd: root,
       maxBuffer: 64 * 1024 * 1024,
     });
-    const tmp = path.join(await mkdtemp(path.join(tmpdir(), "mutate-base-")), "mutate-check.mjs");
+    tmpDir = await mkdtemp(path.join(tmpdir(), "mutate-base-"));
+    const tmp = path.join(tmpDir, "mutate-check.mjs");
     await writeFile(tmp, text, "utf8");
     // In a child process: a dynamic import() in this file is rewritten by vite
     // for every test that imports it, above the shebang, which breaks them.
@@ -11699,6 +11899,8 @@ export async function changesSince(ref, root = ROOT) {
     base = JSON.parse(json) ?? [];
   } catch {
     base = []; // no list at the base: every entry is new
+  } finally {
+    if (tmpDir) await rm(tmpDir, { recursive: true, force: true });
   }
   return { changed, base };
 }
@@ -11722,18 +11924,27 @@ if (IS_MAIN) {
   const changedFrom = flag("--changed-from");
   const shardArg = flag("--shard");
   const jsonOut = flag("--json");
+  const alsoArg = flag("--also");
   const startedAt = new Date().toISOString();
   const filters = args;
   const filtered = filters.length
     ? MUTATIONS.filter((m) => filters.some((f) => m.id.includes(f) || m.test.includes(f)))
     : MUTATIONS;
+  const since = changedFrom ? await changesSince(changedFrom) : null;
   const selected = selectMutations(filtered, {
-    ...(changedFrom ? await changesSince(changedFrom) : {}),
+    ...(since ?? {}),
+    covered: since ? testsReaching(since.changed, filtered.map((m) => m.test), ROOT) : null,
+    also: alsoArg ? alsoArg.split(",").filter(Boolean) : null,
     shard: shardArg ? parseShard(shardArg) : null,
   });
 
   if (selected.length === 0) {
     if (changedFrom || shardArg) {
+      // A verdict all the same: nothing needed checking (the nightly run reads it).
+      if (jsonOut) {
+        const doc = { startedAt, finishedAt: new Date().toISOString(), exit: 0, total: 0, red: 0, skipped: [], survived: [] };
+        writeWhole(path.resolve(jsonOut), JSON.stringify(doc, null, 2) + "\n");
+      }
       console.log(
         `\n[mutate-check] nothing to check here${changedFrom ? ` (no mutation target or test changed since ${changedFrom})` : ""}; the full run on main and nightly checks all ${MUTATIONS.length}.\n`,
       );

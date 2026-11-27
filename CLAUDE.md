@@ -83,34 +83,43 @@ before adding a test, and add a mutation alongside it.
 (`npm run test:mutations`). `--changed-from <ref>` checks what a change touched
 and `--shard i/n` splits the list. Until 2026-10-15 GitHub ran them on every
 PR, on main and nightly at 09:30 UTC; that workflow is now manual only.
-- **The whole list runs weekly on the VPS, Mondays 19:00 UTC** (14:00 until 2026-11-26; the lead moved it off peak and raised its timeout from 14h to 20h)
-  (`highdesert-mutations.timer` → `scripts/weekly-mutations.sh`, Jackson,
-  2026-10-15). It works in its own clone of main,
-  `/var/lib/highdesert-mutations/checkout` (never the production tree:
-  mutate-check edits the files it breaks), with its own `node_modules`
-  (`npm ci` only when a lockfile changes), against the test database.
-  - **Each mutation's vitest takes the `heavy` slot**, so the CPU gate is
-    checked before every one and other sessions' jobs take turns with it.
-    **In the normal lane** (Jackson, Inbox f27603c8, 2026-11-27): the unit sets
-    `HEAVY_LOW_RE` without `mutation`, for its own calls only. In the low lane
-    (one slot, only while no normal job waits) it checked 35 of 1,337 in 5.5 hours.
-    1,080 entries, about 1h20m at most of one core (measured 2026-10-15).
-  - **It is the one High Desert job exempt from the 10% CPU rule** (no
-    `CPUQuota`; Nice=19, idle IO; heavy runs it under nice 15). The status
-    `cpu` line names `highdesert-mutations` as the exemption instead of
-    failing on it.
-  - **It leaves** `result.json` (`mutate-check.mjs --json` verdicts plus
-    `head`, `error`, `log`), `running.json` while it goes, `runs/` (the last
-    8) and `last.log`.
-  - **`highdesert-status`'s `mutations` line reads it.** FAIL if a mutation
-    survived or went stale. WARN if the run broke before checking, left
-    database mutations NOT CHECKED, is over 8 days old or never finished.
-    It also says when a run is going.
-  - **The Monday digest** has a Mutations line under Health, and a survivor
-    reaches Needs you through the status FAIL.
-  - Run it by hand with `systemctl start --no-block highdesert-mutations`.
-    Tests: `weekly-mutations.test.ts`, the status and digest tests,
-    `service-unit.test.ts`. Mutations: `weekly-mutations-*`,
+- **The mutation run is nightly and capped** (the lead for Jackson, 2026-11-27; weekly full
+  runs from 2026-10-15 held the box near the host's CPU limit and kept Sanger's tests and
+  typecheck re-checks from a heavy slot for days). `highdesert-mutations.timer`, 20:30 UTC
+  → `scripts/weekly-mutations.sh` (the name is historical). It works in its own clone of
+  main, `/var/lib/highdesert-mutations/checkout` (never the production tree: mutate-check
+  edits the files it breaks), with its own `node_modules` (`npm ci` only when a lockfile
+  changes), against the test database.
+  - **Incremental by default:** `mutate-check --changed-from <green> --also <survivors>`:
+    every mutation whose target or test changed since the last green run (every checked
+    mutation red), whose test reaches a changed file through its imports
+    (`scripts/lib/import-closure.mjs`), or whose entry is new or edited; plus the newest
+    run's survivors, re-checked every night until they go red or leave the list.
+  - **A full run once a month:** when the last full run finished 30+ days ago
+    (`HD_MUTATIONS_FULL_DAYS`), none is on record, or the green head left main's history.
+    A full run that did not finish is retried after 7 days; the nights between stay
+    incremental.
+  - **The cap:** `CPUQuota=150%`, `Nice=19`, idle IO, `TimeoutStartSec=16h` (ends before
+    the next weekday's 13:00 peak). Each mutation's vitest is one test file
+    (`--maxWorkers=2` at most) through heavy's **low lane** (heavy's default for the
+    "high-desert mutation" label): it waits while any other job waits, and heavy holds it
+    through peak hours. Still the one High Desert unit exempt from the 10% rule; the
+    status `cpu` line names it.
+  - **It leaves** `result.json` (the newest run: `mutate-check.mjs --json` verdicts plus
+    `head`, `mode`, `base`, `why`, `error`, `log`), `green.json` (the next base),
+    `full.json` (the newest full run, the score), `full-tried.json`, `running.json` while
+    it goes, `runs/` (the last 8) and `last.log`.
+  - **`highdesert-status`'s `mutations` line reads the newest run only**, so an id from an
+    older run cannot hold it open: FAIL if a mutation survived or went stale in it; WARN if
+    it broke before checking, left database mutations NOT CHECKED, is over 3 days old, or
+    no full run finished in 35 days. It gives the full run's score and says when a run is
+    going.
+  - **The Monday digest** has a Mutations line under Health, and a survivor reaches Needs
+    you through the status FAIL.
+  - Run it by hand with `systemctl start --no-block highdesert-mutations`
+    (`HD_MUTATIONS_MODE=full` in a drop-in forces a full run). Tests:
+    `weekly-mutations.test.ts`, `mutate-select.test.ts`, the status and digest tests,
+    `service-unit.test.ts`. Mutations: `weekly-mutations-*`, `nightly-*`, `closure-*`, `mutate-empty-verdict`,
     `status-mutations-*`, `digest-mutation-*`, `status-cpu-exempt-one-unit`.
 
 ## Tech Stack

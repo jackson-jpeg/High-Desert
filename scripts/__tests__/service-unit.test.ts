@@ -83,50 +83,43 @@ describe("highdesert-level-envelopes.service (two-pass Level's envelopes)", () =
   });
 });
 
-describe("highdesert-mutations.service and .timer (the weekly full mutation run)", () => {
+describe("highdesert-mutations.service and .timer (the nightly mutation run, capped)", () => {
   const read = (f: string) => readFileSync(path.resolve(__dirname, "../../deploy", f), "utf8");
   const u = read("highdesert-mutations.service");
   const d = (name: string) => u.split("\n").filter((l) => l.startsWith(`${name}=`)).map((l) => l.slice(name.length + 1).trim());
 
-  it("is the one exemption from the 10% rule: no CPUQuota, but niced and idle IO, with heavy doing the gating", () => {
-    expect(d("CPUQuota")).toEqual([]);
+  it("is capped (the lead, 2026-11-27): 1.5 cores, nice 19, idle IO, with heavy doing the gating", () => {
+    expect(d("CPUQuota")).toEqual(["150%"]);
     expect(d("Nice")).toEqual(["19"]);
     expect(d("IOSchedulingClass")).toEqual(["idle"]);
     // heavy is in /usr/local/bin: without it on PATH every vitest would run ungated.
     expect(d("Environment")).toContain("PATH=/usr/local/bin:/usr/bin:/bin");
   });
 
-  it("runs the weekly script against the test database, keeping its state where status and the digest read it", () => {
+  it("runs the script against the test database, keeping its state where status and the digest read it", () => {
     expect(d("ExecStart")).toEqual(["/usr/bin/bash /root/High-Desert/scripts/weekly-mutations.sh"]);
     expect(d("EnvironmentFile")).toEqual(["/root/.high-desert-test.env"]);
     expect(d("Environment")).toContain("HD_MUTATIONS_STATE=/var/lib/highdesert-mutations");
     expect(d("StateDirectory")).toEqual(["highdesert-mutations"]);
   });
 
-  it("fires Mondays at 19:00 UTC (after peak hours), and catches up a missed Monday", () => {
+  it("fires nightly at 20:30 UTC (after peak hours), and catches up a missed night", () => {
     const t = read("highdesert-mutations.timer");
-    expect(t).toMatch(/^OnCalendar=Mon \*-\*-\* 19:00:00 UTC$/m);
+    expect(t).toMatch(/^OnCalendar=\*-\*-\* 20:30:00 UTC$/m);
     expect(t).toMatch(/^Persistent=true$/m);
   });
 
-  it("runs its mutations in heavy's normal lane, and leaves the other low labels low", () => {
-    const unit = read("highdesert-mutations.service");
-    const re = /^Environment="HEAVY_LOW_RE=([^"]+)"$/m.exec(unit)?.[1];
-    expect(re, "the unit sets HEAVY_LOW_RE").toBeDefined();
+  it("runs its mutations in heavy's low lane: they wait while any other job waits", () => {
+    expect(d("Environment").filter((e) => /HEAVY_/.test(e))).toEqual([]);
     // The label mutate-check gives every mutation's vitest, read from the script itself.
     const calls = [...readFileSync(path.join(process.cwd(), "scripts/mutate-check.mjs"), "utf8").matchAll(/^\s*return hasHeavy \? \["heavy", \["--label", "([^"]+)"/gm)];
     expect(calls, "mutate-check's one heavy call").toHaveLength(1);
-    const label = calls[0][1];
-    expect(label).toBe("high-desert mutation");
-    const low = new RegExp(re!, "i");
-    expect(low.test(label!)).toBe(false);
-    // heavy's own default, and what the box's other low jobs are called, still low.
+    expect(calls[0][1]).toBe("high-desert mutation");
     const heavyDefault = /LOW_RE="\$\{HEAVY_LOW_RE:-([^}]+)\}"/.exec(readFileSync("/root/vps-tools/bin/heavy", "utf8"))?.[1];
-    if (heavyDefault) expect(new RegExp(heavyDefault, "i").test(label!), "heavy's default would put it low").toBe(true);
-    for (const other of ["hd-level-envelope", "portfolio:recheck:x", "npm-audit", "remotion-render"]) expect(low.test(other), other).toBe(true);
+    if (heavyDefault) expect(new RegExp(heavyDefault, "i").test(calls[0][1]), "heavy's default puts it low").toBe(true);
   });
 
-  it("gives the run 20 hours before systemd kills it", () => {
-    expect(read("highdesert-mutations.service")).toMatch(/^TimeoutStartSec=20h$/m);
+  it("ends within 16 hours: from 20:30 UTC, before the next weekday's peak (13:00)", () => {
+    expect(d("TimeoutStartSec")).toEqual(["16h"]);
   });
 });

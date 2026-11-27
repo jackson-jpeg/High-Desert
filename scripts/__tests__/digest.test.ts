@@ -226,7 +226,7 @@ describe("the pattern and the proposed fix", () => {
 });
 
 /** Fake sources: the week as the tests say it was. */
-/** The weekly mutation run's result.json (scripts/weekly-mutations.sh), all red. */
+/** A full mutation run's result.json (scripts/weekly-mutations.sh), all red; no mode reads as full (results before 2026-11-27). */
 const MUTATION_RUN = {
   startedAt: "2026-10-05T14:00:00Z",
   finishedAt: "2026-10-05T17:07:00Z",
@@ -250,7 +250,7 @@ function sources(over: Partial<Record<string, () => Promise<unknown>>> = {}) {
     places: async () => ({ calls: 135, callers: 65, unplaced: 95, top: [{ place: "Los Angeles", calls: 5 }] }),
     failures: async () => [],
     guard: async () => ({ trips: [], swaps: [], verify: { at: "2026-10-05T15:21:00Z", day: "2026-10-06", candidates: 64, walked: 3, bad: [], unreadable: 0, left: 0 } }),
-    mutations: async () => ({ result: MUTATION_RUN, running: null }),
+    mutations: async () => ({ result: MUTATION_RUN, full: MUTATION_RUN, running: null }),
     close: async () => {},
     ...over,
   };
@@ -273,30 +273,34 @@ describe("the digest itself", () => {
     expect(md).toContain("highdesert-status: all 4 checks OK.");
     expect(md).toContain("## Station guard\n\nNo show cut on air and none kept off it.\nPre-air walk for 2026-10-06: 3 of 64 walked, 0 bad, 0 unreadable, 0 left (2026-10-05 15:21 UTC).");
     expect(md).toContain("Disk: 62% used, 38 GB free. Pins: 332 shows (15.0 GB). CPU: busiest unit highdesert 0.7% of a core.");
-    expect(md).toContain("\n- Mutations: weekly full run on 0123456 (Mon 5 Oct, 17:07 UTC, 3h7m): all 1070 mutations red.\n");
+    expect(md).toContain("\n- Mutations: full run on 0123456 (Mon 5 Oct, 17:07 UTC, 3h7m): all 1070 checked red. Full run 2026-10-05: 1070 of 1070 red.\n");
     expect(md).not.toMatch(/—/);
     expect(md).not.toContain("Evidence for a fix session");
     expect(screenLines(md)).toBeLessThanOrEqual(dg.SCREEN_LINES);
   });
 
-  it("the weekly mutation run: survivors, a broken run, unchecked ones, a stale run, one going, none yet", () => {
-    const line = (result: unknown, running: unknown = null, now = NOW) => dg.mutationLine({ result, running }, now);
+  it("the nightly mutation run: its mode, the full score, survivors, a broken run, unchecked ones, a stale run, one going, none yet", () => {
+    const FULL = " Full run 2026-10-05: 1070 of 1070 red.";
+    const line = (result: unknown, running: unknown = null, now = NOW, full: unknown = MUTATION_RUN) => dg.mutationLine({ result, full, running }, now);
+    const nightly = { ...MUTATION_RUN, mode: "incremental", base: "fedcba9876543210", total: 12, red: 12 };
+    expect(line(nightly)).toBe(`- Mutations: nightly run (incremental since fedcba9) on 0123456 (Mon 5 Oct, 17:07 UTC, 3h7m): all 12 checked red.${FULL}`);
+    expect(line(nightly, null, NOW, null)).toMatch(/all 12 checked red\. No full run on record\.$/);
     expect(line({ ...MUTATION_RUN, red: 1068, survived: [{ id: "a-survivor", verdict: "GREEN" }, { id: "an-anchor", verdict: "STALE" }] })).toBe(
-      "- Mutations: weekly full run on 0123456 (Mon 5 Oct, 17:07 UTC, 3h7m): 2 of 1070 survived or went stale: a-survivor [GREEN], an-anchor [STALE].",
+      `- Mutations: full run on 0123456 (Mon 5 Oct, 17:07 UTC, 3h7m): 2 of 1070 survived or went stale: a-survivor [GREEN], an-anchor [STALE].${FULL}`,
     );
     expect(line({ ...MUTATION_RUN, error: "npm ci failed in the checkout" })).toBe(
-      "- Mutations: the weekly run on 0123456 broke before checking: npm ci failed in the checkout.",
+      "- Mutations: the run on 0123456 broke before checking: npm ci failed in the checkout.",
     );
-    expect(line({ ...MUTATION_RUN, red: 1000, skipped: Array(70).fill("db") })).toMatch(/: 70 NOT CHECKED \(no test database\), the other 1000 red\.$/);
-    expect(line(MUTATION_RUN, null, "2026-10-13T17:40:00Z")).toMatch(/all 1070 mutations red\. That was 8 days ago: this week's has not finished\.$/);
-    expect(line(MUTATION_RUN, null, "2026-10-12T17:40:00Z")).toMatch(/all 1070 mutations red\.$/);
-    expect(line(MUTATION_RUN, { startedAt: "2026-10-12T14:00:00Z" }, "2026-10-12T17:40:00Z")).toMatch(/red\. A run has been going since Mon 12 Oct, 14:00 UTC\.$/);
-    expect(line(null)).toBe("- Mutations: no weekly run has finished yet (highdesert-mutations.timer, Mondays 19:00 UTC).");
+    expect(line({ ...MUTATION_RUN, red: 1000, skipped: Array(70).fill("db") })).toMatch(/: 70 NOT CHECKED \(no test database\), the other 1000 red\./);
+    expect(line(nightly, null, "2026-10-09T17:40:00Z")).toMatch(/red\. That was 4 days ago: the nightly run has not finished since\.$/);
+    expect(line(nightly, null, "2026-10-08T17:40:00Z")).toMatch(/red\.$/);
+    expect(line(nightly, { startedAt: "2026-10-05T20:30:00Z", mode: "incremental" })).toMatch(/The incremental run has been going since Mon 5 Oct, 20:30 UTC\.$/);
+    expect(line(null)).toBe("- Mutations: no run has finished yet (highdesert-mutations.timer, nightly 20:30 UTC).");
     expect(dg.mutationLine(null, NOW)).toBe("- Mutations: no reading.");
   });
 
   it("a survivor reaches Needs you through the status FAIL, with what to do", async () => {
-    const status = async () => STATUS_OK + "\nFAIL  mutations weekly full run on 0123456 (2026-10-05T17:07:00Z): 1 mutation(s) survived or went stale: a-survivor [GREEN]\n";
+    const status = async () => STATUS_OK + "\nFAIL  mutations full run on 0123456 (2026-10-05T17:07:00Z): 1 mutation(s) survived or went stale: a-survivor [GREEN]\n";
     const md = render({ day: "2026-10-05", writtenAt: NOW, ...(await gather(sources({ status }), NOW)) });
     const top = md.slice(md.indexOf("## Needs you"), md.indexOf("## Release"));
     expect(top).toContain("**FAIL mutations:**");
@@ -309,10 +313,11 @@ describe("the digest itself", () => {
     const dir = await mkdtemp(path.join(tmpdir(), "hd-digest-mut-"));
     try {
       const src = dg.productionSources({ ...process.env, HD_MUTATIONS_STATE: dir });
-      expect(await src.mutations()).toEqual({ result: null, running: null });
+      expect(await src.mutations()).toEqual({ result: null, full: null, running: null });
       await wf(path.join(dir, "result.json"), JSON.stringify(MUTATION_RUN));
       await wf(path.join(dir, "running.json"), JSON.stringify({ startedAt: "2026-10-12T14:00:00Z", pid: process.pid }));
-      expect(await src.mutations()).toEqual({ result: MUTATION_RUN, running: { startedAt: "2026-10-12T14:00:00Z", pid: process.pid } });
+      await wf(path.join(dir, "full.json"), JSON.stringify(MUTATION_RUN));
+      expect(await src.mutations()).toEqual({ result: MUTATION_RUN, full: MUTATION_RUN, running: { startedAt: "2026-10-12T14:00:00Z", pid: process.pid } });
       await wf(path.join(dir, "running.json"), JSON.stringify({ startedAt: "2026-10-12T14:00:00Z", pid: 2147483646 }));
       expect((await src.mutations()).running).toBeNull();
     } finally {

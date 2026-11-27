@@ -70,9 +70,9 @@ describe("scripts/heavy.sh", () => {
     const { vitestCommand } = await import("../mutate-check.mjs");
     expect(vitestCommand("t.test.ts", true)).toEqual([
       "heavy",
-      ["--label", "high-desert mutation", "--", "npx", "vitest", "run", "t.test.ts", "--reporter=dot", "--silent"],
+      ["--label", "high-desert mutation", "--", "npx", "vitest", "run", "t.test.ts", "--reporter=dot", "--maxWorkers=2", "--silent"],
     ]);
-    expect(vitestCommand("t.test.ts", false)).toEqual(["npx", ["vitest", "run", "t.test.ts", "--reporter=dot", "--silent"]]);
+    expect(vitestCommand("t.test.ts", false)).toEqual(["npx", ["vitest", "run", "t.test.ts", "--reporter=dot", "--maxWorkers=2", "--silent"]]);
     const src = readFileSync(path.join(ROOT, "scripts/mutate-check.mjs"), "utf8");
     expect(src).not.toMatch(/spawn\([^)]*heavy\.sh/);
   });
