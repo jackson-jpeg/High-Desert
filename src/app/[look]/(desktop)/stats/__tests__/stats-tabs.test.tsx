@@ -33,7 +33,6 @@ vi.mock("@/audio/cache", () => ({ getCacheSize: () => Promise.resolve(0), clearA
 const { db } = await import("@/db");
 const { default: StatsPage } = await import("../page");
 const { parseStatsTab, statsTabHref } = await import("@/lib/stats/tabs");
-// @ts-expect-error -- a plain .mjs script, no types
 const { STATS_PATH } = await import("../../../../../../scripts/returning-visitor.mjs");
 
 const EPISODES: Episode[] = [
@@ -49,7 +48,8 @@ beforeAll(async () => {
 });
 
 afterEach(() => {
-  if (root) act(() => root.unmount());
+  const r = root;
+  if (r) act(() => r.unmount());
   host?.remove();
   window.history.replaceState(null, "", "/");
 });
