@@ -126,3 +126,4 @@ shots to the Mac's `~/Downloads/highdesert-night/`, one fyi.
 - The tap at 390, both looks: tuned in before, tuned out after, and the
   player asked archive.org for the 1996-11-28 file. The chat's writes were
   answered in the page, so nothing was posted.
+- One more hook block at the end: the pipefail hook refused a cleanup command with a pipe inside an ssh string (`df -h ~ | tail -1` on the Mac). Reissued without the pipe; it ran.
