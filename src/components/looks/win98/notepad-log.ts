@@ -1,4 +1,4 @@
-import { tuneinText, type ArchiveLine, type LiveMessage, type TuneinNotice } from "@/services/live/client";
+import { isStationNotice, tuneinText, type ArchiveLine, type LiveMessage, type TuneinNotice } from "@/services/live/client";
 import { callerLabel, shownLine } from "@/lib/live/chat-rows";
 
 /**
@@ -43,7 +43,7 @@ export function tuneinLine(n: TuneinNotice): string {
 
 /** An archive moment's heading: the archive's, never a caller's. */
 export function archiveLabel(a: ArchiveLine): string {
-  if (a.reason === "station") return ">>> From the station";
+  if (isStationNotice(a)) return ">>> From the station";
   return a.reason === "on-air" ? ">>> From the archive, this show" : ">>> From the archive";
 }
 

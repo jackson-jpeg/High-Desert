@@ -14,6 +14,7 @@ import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { useLiveChat } from "@/hooks/useLiveChat";
 import {
   charCount,
+  isStationNotice,
   MAX_CHARS,
   suggestedPlace,
   tuneinText,
@@ -481,7 +482,7 @@ function BreaksToggle() {
 /** A moment from the show's history: a card, never a call. */
 /** An archive card's heading; a station notice is the site talking, not the archive. */
 export function archiveHeading(a: ArchiveLine): string {
-  if (a.reason === "station") return "From the station";
+  if (isStationNotice(a)) return "From the station";
   return a.reason === "on-air" ? "From the archive: this show" : "From the archive";
 }
 

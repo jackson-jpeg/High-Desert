@@ -13,6 +13,7 @@ import { fetchServerNow } from "@/lib/live/time-sync";
 import { knownSlots, type LiveSchedule, type ProgramSlot } from "@/lib/live/schedule";
 import { useLiveStore } from "@/stores/live-store";
 import { withPlaySurface } from "@/audio/play-surface";
+import { requestStartAt } from "@/audio/requested-start";
 
 /**
  * The live station's real wiring, for the desktop layout: the schedule and
@@ -86,6 +87,23 @@ export function episodeFromSlot(slot: ProgramSlot): Episode {
     createdAt: 0,
     updatedAt: 0,
   };
+}
+
+/**
+ * "Missed it? Play from the start" in Tonight's log (2026-11-28): a show the
+ * station has already aired, played from 0:00 through the ordinary play path.
+ *
+ * Inside the tap, with no await: the row was read ahead with the schedule
+ * (`prefetch`), else the slot stands in for it. The start is asked for at 0
+ * (`requestStartAt`), so a saved position halfway through does not decide it.
+ * It is a pick from the catalog, so its surface is `library`, never `live`:
+ * the station's numbers stay the station's. Picking a show while tuned in
+ * leaves the station, as any other pick does (live-controller's player watch).
+ */
+export function playSlotFromStart(slot: ProgramSlot): void {
+  const episode = rows.get(slot.fileHash) ?? episodeFromSlot(slot);
+  requestStartAt(slot.fileHash, 0);
+  withPlaySurface("library", () => emit("play-episode", episode));
 }
 
 /** How much of the next show to fetch ahead: its first seconds at any bitrate here. */

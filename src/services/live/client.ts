@@ -53,8 +53,19 @@ export interface ArchiveLine {
   /** The show it is from, when there is one in the catalog. */
   episode: { airDate: string; title: string } | null;
   /** Why it was picked: "on-air" (this show), "topic", "this-date" or "archive";
-   *  "station" for a station notice (the site talking, posted by an admin). */
+   *  "station" for a station notice (the site talking, posted by an admin),
+   *  "request" for the Request Line's herald, a station notice too. */
   reason: string;
+}
+
+/**
+ * A line the station posted (an admin's notice, the Request Line's herald),
+ * never a moment from the archive. The herald arrives with reason "request"
+ * (services/live/lib/app.mjs `postStation(text, "request")`), and until
+ * 2026-11-28 it was headed "From the archive".
+ */
+export function isStationNotice(a: Pick<ArchiveLine, "reason">): boolean {
+  return a.reason === "station" || a.reason === "request";
 }
 
 export interface SlowMode {

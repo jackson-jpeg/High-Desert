@@ -1083,6 +1083,12 @@ same offset, computed from a synced clock.
   390 and on desktop), and `e2e/live.spec.ts` (two browser
   contexts within 2 s — run against a local build on the e2e database, the
   command is in its header). Mutations: the `live-*` ids in `scripts/mutate-check.mjs`.
+- **Missed it? Play from the start** (2026-11-28, `docs/live-qa.md`). A show
+  Tonight's log says has aired has a small Play from the start
+  (`playSlotFromStart`): the listener's own row from 0:00, counted as a
+  `library` play, and like any pick it leaves the station. Shows on the air
+  or to come get nothing. The Request Line's herald (reason `request`) is
+  headed "From the station" (`isStationNotice`), never "From the archive".
 - **The Request Line** (2026-10-14, `docs/request-line.md`). Listeners pick
   the show at **8 PM Pacific** (10 PM, Art's airtime, until the station day
   2026-11-13: the hour belongs to the day, `requestHourOf`, since days freeze

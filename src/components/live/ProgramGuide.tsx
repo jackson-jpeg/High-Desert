@@ -67,10 +67,19 @@ export function ProgramGuide({
   slots,
   now,
   marker = false,
+  onReplay,
 }: {
   slots: readonly ProgramSlot[];
   now: number;
   marker?: boolean;
+  /**
+   * "Missed it?" (2026-11-28): a show that has aired gets a small Play from the
+   * start, which plays it from 0:00 off the station. A listener in the lines
+   * on 2026-11-23 missed Harlot and went to YouTube for it. Shows on the air
+   * or still to come get nothing: the station plays those, at the same second
+   * for everyone. Absent: the log is read-only (the server's Tonight page).
+   */
+  onReplay?: (slot: ProgramSlot) => void;
 }) {
   const listRef = useRef<HTMLOListElement>(null);
   const onAirRef = useRef<HTMLLIElement>(null);
@@ -124,6 +133,9 @@ export function ProgramGuide({
                       .filter(Boolean)
                       .join(" · ")}
                   </span>
+                  {onReplay && state === "past" && (
+                    <ReplayButton slot={slot} onReplay={onReplay} />
+                  )}
                 </span>
                 <span className="flex items-center gap-2 text-hd-micro tabular-nums text-bevel-dark/85">
                   {state === "now" ? <OnAirLamp lit size="sm" /> : formatLength((slot.end - slot.start) / 1000)}
@@ -134,5 +146,35 @@ export function ProgramGuide({
         );
       })}
     </ol>
+  );
+}
+
+/** Accessible name for a past show's replay: the action and the show. */
+export function replayLabel(slot: Pick<ProgramSlot, "title">): string {
+  return `Play ${slot.title} from the start`;
+}
+
+/**
+ * A past show's one action, small and under its line so the log still reads
+ * as a log. A 44 px tap target on a phone through `::after`, as the lines'
+ * Change name is.
+ */
+function ReplayButton({ slot, onReplay }: { slot: ProgramSlot; onReplay: (slot: ProgramSlot) => void }) {
+  return (
+    <button
+      type="button"
+      data-testid="live-guide-replay"
+      aria-label={replayLabel(slot)}
+      onClick={() => onReplay(slot)}
+      className={cn(
+        "relative self-start mt-0.5 text-hd-caption text-signal-blue underline underline-offset-2 cursor-pointer",
+        "hover:text-desktop-gray active:text-desktop-gray",
+        "focus-visible:outline focus-visible:outline-1 focus-visible:outline-signal-blue",
+        "after:content-[''] after:absolute after:left-1/2 after:top-1/2 after:-translate-x-1/2 after:-translate-y-1/2",
+        "after:w-full after:h-full after:min-h-touch md:after:min-h-0",
+      )}
+    >
+      <span aria-hidden="true">▶ </span>Play from the start
+    </button>
   );
 }

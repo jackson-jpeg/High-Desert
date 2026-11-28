@@ -36,13 +36,15 @@ vi.mock("@/audio/live-controller", () => ({
 }));
 vi.mock("@/audio/live-session", () => ({ stopPlayerForLive: () => void (stopped.n += 1) }));
 
-const { installBrowserLiveStation, episodeFromSlot, prefetchSlotStart, PREFETCH_BYTES } = await import(
+const { installBrowserLiveStation, episodeFromSlot, prefetchSlotStart, playSlotFromStart, PREFETCH_BYTES } = await import(
   "../browser-station"
 );
 const { archiveDownFixture, archiveUpFixture, resetOutage } = await import("@/test-support/outage");
 const { usePlayerStore } = await import("@/stores/player-store");
 const { useLiveStore } = await import("@/stores/live-store");
-const { emit } = await import("@/lib/events");
+const { emit, onHdEvent } = await import("@/lib/events");
+const { bindPlaySurface, playSurfaceFor } = await import("@/audio/play-surface");
+const { requestStartAt, takeRequestedStart } = await import("@/audio/requested-start");
 
 const SLOT: ProgramSlot = {
   fileHash: "archive:coll:psychic.mp3",
@@ -179,6 +181,55 @@ describe("leaving the station", () => {
       expect(prefs.deleted).toEqual(["last-episode-id"]);
     } finally {
       stop();
+    }
+  });
+});
+
+describe("Missed it? Play from the start (Tonight's log, 2026-11-28)", () => {
+  const PAST: ProgramSlot = { ...SLOT, fileHash: "archive:coll:harlot.mp3", episodeId: "coll--harlot", title: "Harlot", start: -3_608_000, end: -8_000 };
+
+  function capture() {
+    const got: { episode: Episode; surface: string; start: number | null }[] = [];
+    const off = onHdEvent("play-episode", (episode) => {
+      // What the layout's handler does in the same tick: take a token and bind its surface.
+      bindPlaySurface(9001);
+      got.push({ episode: episode as Episode, surface: playSurfaceFor(9001, false, "/live"), start: takeRequestedStart(episode as Episode) });
+    });
+    return { got, off };
+  }
+
+  it("plays the library's own row, from 0:00, as a library pick (never counted as the station)", async () => {
+    const pastRow = { ...episodeFromSlot(PAST), id: 91 } as Episode;
+    held.rows = [pastRow];
+    useLiveStore.setState({ schedule: { ...schedule, guide: [PAST, SLOT] } as LiveSchedule });
+    const stop = installBrowserLiveStation();
+    const { got, off } = capture();
+    try {
+      await flush();
+      // A saved position halfway through must not decide where it starts.
+      requestStartAt(PAST.fileHash, 1234);
+      playSlotFromStart(PAST);
+      expect(got).toHaveLength(1);
+      expect(got[0].episode).toBe(pastRow);
+      expect(got[0].start).toBe(0);
+      expect(got[0].surface).toBe("library");
+    } finally {
+      off();
+      stop();
+    }
+  });
+
+  it("a show the library lacks plays from a row made from its slot", () => {
+    const { got, off } = capture();
+    try {
+      const gone = { ...PAST, fileHash: "archive:coll:gone.mp3" };
+      playSlotFromStart(gone);
+      expect(got).toHaveLength(1);
+      expect(got[0].episode.fileHash).toBe(gone.fileHash);
+      expect(got[0].episode.id).toBeUndefined();
+      expect(got[0].start).toBe(0);
+    } finally {
+      off();
     }
   });
 });

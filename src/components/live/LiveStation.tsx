@@ -15,6 +15,7 @@ import { wantsPhoneLines } from "@/lib/live/phone-lines";
 import { useLiveStore } from "@/stores/live-store";
 import { usePlayerStore } from "@/stores/player-store";
 import { leaveStation, tuneIn } from "@/audio/live-controller";
+import { playSlotFromStart } from "@/services/live/browser-station";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { onAirAt, useLiveSchedule, useStationClock } from "@/hooks/useLiveStation";
 import { useCommunityNow } from "@/hooks/useCommunityNow";
@@ -473,7 +474,7 @@ function TonightsLog({ schedule, now, phone = false, look = "night" }: { schedul
       <Heading id="live-log-heading" className="sticky top-0 z-10 px-3 py-1.5 bg-raised-surface w98-font text-hd-caption uppercase tracking-[0.2em] text-bevel-dark">
         Tonight&apos;s log · {schedule.day}
       </Heading>
-      <ProgramGuide slots={schedule.guide} now={now} marker={phone} />
+      <ProgramGuide slots={schedule.guide} now={now} marker={phone} onReplay={playSlotFromStart} />
     </div>
   );
 }

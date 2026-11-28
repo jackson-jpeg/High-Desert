@@ -267,6 +267,39 @@ e2e `live-qa.spec.ts`. **Mutations:** `listen-live-*`, `live-hero-*`,
 `phone-lines-only-one`, `hook-*`, `win98-phone-lines-task`,
 `night-phone-lines-*`.
 
+## Missed it? Play from the start (2026-11-28)
+
+On 2026-11-23 a listener wrote in the phone lines that they wished they had
+caught Harlot with everyone, and another said they were listening to it on
+YouTube instead. Tonight's log named every show the station had aired and
+offered no way to hear one.
+
+- **A show that has aired** gets a small **Play from the start** under its
+  line in Tonight's log, on a phone and a desktop, in both looks
+  (`ProgramGuide`'s `onReplay`, `data-testid="live-guide-replay"`, a 44 px
+  `::after` target on a phone). The show on the air and the shows still to
+  come get nothing: the station plays those, at the same second for everyone.
+  The phone hero keeps its one big button.
+- **The tap** (`playSlotFromStart`, `src/services/live/browser-station.ts`)
+  plays the listener's own library row (read ahead with the schedule; a row
+  made from the slot when the library lacks it) from 0:00
+  (`requestStartAt(hash, 0)`, so a saved position does not decide it), through
+  the ordinary play path, with nothing awaited. It is a pick like any other:
+  tuned in, it leaves the station.
+- **Counted as `library`**, never `live`: the station's numbers stay the
+  station's. There is no surface of its own (adding one changes the
+  `play_events.surface` CHECK and sang3r.com's reading of `playsBySurface`).
+- Tests: `src/components/live/__tests__/log-replay.test.tsx`, the replay test
+  in `live-station.test.tsx` (phone and desktop, both looks) and the
+  `playSlotFromStart` block in `browser-station.test.ts`. Mutations
+  `log-replay-*`.
+
+**The Request Line's herald is the station talking.** It arrives as a station
+line with reason `request` (`postStation(text, "request")`), and the lines
+headed it "From the archive". `isStationNotice()` (`src/services/live/client.ts`)
+heads both reasons "From the station", in Night and in Notepad. Mutation
+`station-notice-request-herald`.
+
 ## Why the earlier e2e missed all of this
 
 - **They asserted on the machinery, not on what a listener sees.**

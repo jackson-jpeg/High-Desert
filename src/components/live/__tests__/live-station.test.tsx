@@ -164,6 +164,26 @@ describe("Live screen", () => {
     expect(host.querySelector('[data-on-air="lit"]')).not.toBeNull();
   });
 
+  it("Missed it? The aired show in Tonight's log plays from the start, on a phone and a desktop, in both looks", async () => {
+    const { onHdEvent } = await import("@/lib/events");
+    for (const [phone, look] of [[true, "night"], [true, "win98"], [false, "night"], [false, "win98"]] as const) {
+      mobile.value = phone;
+      stationAt(B.start + H);
+      await mount(look);
+      const buttons = [...q("live-log").querySelectorAll<HTMLButtonElement>('[data-testid="live-guide-replay"]')];
+      expect(buttons, `${look} ${phone ? "phone" : "desktop"}`).toHaveLength(1);
+      expect(buttons[0].closest("li")!.textContent).toContain("Show 1");
+      const picked: string[] = [];
+      const off = onHdEvent("play-episode", (ep) => void picked.push((ep as { fileHash: string }).fileHash));
+      act(() => buttons[0].click());
+      off();
+      expect(picked).toEqual([A.fileHash]);
+      // Nothing on the station's own controls moved: it is a pick, not a tune-in.
+      expect(controller.tuneIn).not.toHaveBeenCalled();
+      act(() => root.render(<></>));
+    }
+  });
+
   it("the day's log scrolls, so a keyboard can reach it, and it is named by its heading", async () => {
     stationAt(B.start + H + 500);
     await mount();
