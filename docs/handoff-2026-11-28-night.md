@@ -115,5 +115,14 @@ shots to the Mac's `~/Downloads/highdesert-night/`, one fyi.
     both looks.
   - `after/` (the local build): Tonight's log, 390 and 1280, both looks, and
     the player after a replay at 390.
-- Worktree `/root/hd-night` (branch `log-replay`, merged) is removed when
-  the session ends.
+- Worktree `/root/hd-night` (branch `log-replay`, merged) was removed at the
+  end of the session.
+
+## Production read-back (11:21 UTC)
+
+- Tonight's log on highdesert.space shows one Play from the start (the
+  1996-11-28 Whitley Strieber show, which ended 11:18 UTC) at 390 and 1280,
+  both looks. Shots: `~/Downloads/highdesert-night/prod/`.
+- The tap at 390, both looks: tuned in before, tuned out after, and the
+  player asked archive.org for the 1996-11-28 file. The chat's writes were
+  answered in the page, so nothing was posted.

@@ -7,7 +7,7 @@ item deploys as soon as its checks pass.**
 
 ## Queue
 
-- [ ] **Next (2026-11-28):** read the replay on production after 11:18 UTC (the day's first show ends then; `docs/handoff-2026-11-28-night.md`). Then `/api/stats/report` `finished` once shows pass 5 plays, and status `mutations` after tonight's nightly run
+- [ ] **Next (2026-11-28):** `/api/stats/report` `finished` once shows pass 5 plays, and status `mutations` after tonight's nightly run
 - [x] **Missed it? Play from the start, live 2026-11-28 08:1x UTC as `381ff50`** (the lead's overnight mandate): every aired show in Tonight's log plays from 0:00, both looks, 390 and 1280; the Request Line's herald headed From the station; the report test's date bomb fixed. 6 new mutations red, report group 17/17 red, e2e 72 passed. Handoff `docs/handoff-2026-11-28-night.md`
 - [ ] After 2026-12-02 (with the look split's verdict): the phone Library's first order (Most played, as desktop has had since round 2); and the desktop show-page "arrivals", a bot farm (six old Chrome user agents), kept out of the counts
 - [x] **UI plan push 6, Stats overhauled, 2026-11-27** (Jackson through the lead): tabs, the listened-time and history fix, Smart Playlists and Topics in the Library, the ratings report with Most finished, How we count. Checks and shots in the handoff
