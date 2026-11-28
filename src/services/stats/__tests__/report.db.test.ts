@@ -58,9 +58,14 @@ describeDb("ratings report (Postgres)", () => {
     // Four plays: under the floor.
     for (let i = 0; i < 4; i++) await q("INSERT INTO play_events (episode_id, played_at) VALUES ('rpt-c', $1)", [at]);
     await q("INSERT INTO play_finishes (episode_id, finished_at) VALUES ('rpt-c', $1)", [at]);
-    // Today (before FINISHES_SINCE): stored, and not counted in the share.
+    // Before FINISHES_SINCE: stored, and not counted in the share. A fixed
+    // date, never "today": this read "today" until 2026-11-28, which is
+    // FINISHES_SINCE itself, and the test broke on that day.
+    await q("INSERT INTO play_finishes (episode_id, finished_at) VALUES ('rpt-a', $1)", [before]);
+    // recordFinish stores a row (now); it is taken out again so the report's instant decides alone.
     await db.recordFinish("rpt-a");
-    expect((await q("SELECT count(*)::int AS n FROM play_finishes WHERE episode_id = 'rpt-a'")).rows[0].n).toBe(5);
+    expect((await q("SELECT count(*)::int AS n FROM play_finishes WHERE episode_id = 'rpt-a'")).rows[0].n).toBe(6);
+    await q("DELETE FROM play_finishes WHERE episode_id = 'rpt-a' AND finished_at BETWEEN now() - interval '5 minutes' AND now() + interval '5 minutes'");
     const r = await db.getRatingsReport(new Date("2026-12-02T00:00:00Z"));
     expect(r.finished.entries.map((e) => [e.episodeId, e.plays, e.finishes])).toEqual([
       ["rpt-a", 5, 4],
