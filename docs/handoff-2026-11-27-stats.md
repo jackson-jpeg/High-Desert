@@ -63,10 +63,12 @@ Jackson approved it through the lead (hub message
 - Mutations: batch 1, 10 red. Batch 2, 16 red; `listen-time-rate` survived. The 2x test with 250 ms ticks fit inside the slack, so I added a 2x hidden-tab case and reran it: red. Batches 3 to 5: 26, plus the three re-anchored Explore ones: all 29 red.
 - e2e on the build (e2e database):
   - a11y (every Stats tab scanned), library-intents, library-phone, scroll-gestures and signal-traffic pass.
-  - looks passes except "the player, small and expanded". Its fixture redirects audio to `/mirror/…` on the page's origin, which only nginx serves, so a bare `next start` 404s it. It passed on production before the deploy, and is checked there again after.
+  - looks passes except "the player, small and expanded". Its fixture redirects audio to `/mirror/…` on the page's origin, which only nginx serves, so a bare `next start` 404s it. It passed on production before the deploy and again after it.
   - The first run also found the Explore height bug above, and the Win98 contrast of a "How we count" link sitting on the desktop. That link now has its own raised surface.
 
 ## Shipping
+
+- Deployed `8e36f67` on 2026-11-28 at about 00:00 UTC with `deploy.sh`: client verify, then the returning visitor in Chromium and WebKit (Library 1.0 s and 0.9 s, Stats 1.3 s and 0.6 s). After it, check:csp (9 routes) and check:seo were clean on production, and the a11y and looks e2e passed there, 36 of 36. Station notices went out before and after.
 
 - All five batches went out in one deploy, not five. Each deploy is a full build plus the returning-visitor revisit, and the batches depend on each other (batch 2 edits batch 1's page, and so on).
 - There is one fyi per batch, as asked.
